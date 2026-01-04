@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,15 +6,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { OrderFormData, ORDER_TYPES, CUSTOMER_TYPES, PAYMENT_STATUSES, OrderType, CustomerType, PaymentStatus } from '@/hooks/useOrders';
-import { Loader2, Package } from 'lucide-react';
+import { Loader2, Package, ImageIcon, X, Upload } from 'lucide-react';
 import { Enquiry, PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 
 interface OrderFormProps {
-  onSubmit: (data: OrderFormData) => Promise<boolean>;
+  onSubmit: (data: OrderFormData, paymentFile?: File) => Promise<boolean>;
   enquiries?: Enquiry[];
 }
 
 export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [paymentFile, setPaymentFile] = useState<File | null>(null);
+  const [paymentPreview, setPaymentPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<OrderFormData>({
     product_name: '',
@@ -74,6 +77,26 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
     }
   };
 
+  const handlePaymentFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setPaymentFile(selectedFile);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPaymentPreview(reader.result as string);
+      };
+      reader.readAsDataURL(selectedFile);
+    }
+  };
+
+  const handleClearPaymentFile = () => {
+    setPaymentFile(null);
+    setPaymentPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -82,7 +105,7 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
     }
 
     setLoading(true);
-    const success = await onSubmit(formData);
+    const success = await onSubmit(formData, paymentFile || undefined);
     setLoading(false);
 
     if (success) {
@@ -115,6 +138,7 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
         customer_notes: '',
         sales_notes: '',
       });
+      handleClearPaymentFile();
     }
   };
 
@@ -349,6 +373,56 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
                   onChange={e => setFormData(prev => ({ ...prev, payment_due_date: e.target.value }))}
                   disabled={loading}
                 />
+              </div>
+              
+              {/* Payment Screenshot Upload */}
+              <div className="space-y-2 md:col-span-2">
+                <Label className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  Payment Screenshot (Optional)
+                </Label>
+                {paymentPreview ? (
+                  <div className="relative">
+                    <img
+                      src={paymentPreview}
+                      alt="Payment screenshot preview"
+                      className="w-full h-48 object-contain rounded-lg border border-border bg-muted"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-8 w-8"
+                      onClick={handleClearPaymentFile}
+                      disabled={loading}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div
+                    className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <ImageIcon className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      Click to upload payment screenshot
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      PNG, JPG, JPEG up to 10MB
+                    </p>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePaymentFileChange}
+                  className="hidden"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Upload proof of payment for admin approval
+                </p>
               </div>
             </div>
           </div>
