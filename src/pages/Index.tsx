@@ -3,7 +3,8 @@ import { Header } from "@/components/Header";
 import { QueryForm } from "@/components/QueryForm";
 import { QueryList } from "@/components/QueryList";
 import { StatsCards } from "@/components/StatsCards";
-import { ProductQuery } from "@/types/query";
+import { QueryResponseDialog } from "@/components/QueryResponseDialog";
+import { ProductQuery, QueryStatus } from "@/types/query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClipboardList, PlusCircle } from "lucide-react";
 
@@ -89,6 +90,8 @@ const sampleQueries: ProductQuery[] = [
 const Index = () => {
   const [queries, setQueries] = useState<ProductQuery[]>(sampleQueries);
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [selectedQuery, setSelectedQuery] = useState<ProductQuery | null>(null);
+  const [responseDialogOpen, setResponseDialogOpen] = useState(false);
 
   const handleSubmitQuery = (queryData: Omit<ProductQuery, "id" | "status" | "createdAt" | "updatedAt">) => {
     const newQuery: ProductQuery = {
@@ -100,6 +103,25 @@ const Index = () => {
     };
     setQueries([newQuery, ...queries]);
     setActiveTab("dashboard");
+  };
+
+  const handleQueryClick = (query: ProductQuery) => {
+    setSelectedQuery(query);
+    setResponseDialogOpen(true);
+  };
+
+  const handleSubmitResponse = (
+    queryId: string,
+    status: QueryStatus,
+    response: ProductQuery["response"]
+  ) => {
+    setQueries(
+      queries.map((q) =>
+        q.id === queryId
+          ? { ...q, status, response, updatedAt: new Date() }
+          : q
+      )
+    );
   };
 
   return (
@@ -128,7 +150,7 @@ const Index = () => {
 
           <TabsContent value="dashboard" className="space-y-6">
             <StatsCards queries={queries} />
-            <QueryList queries={queries} />
+            <QueryList queries={queries} onQueryClick={handleQueryClick} />
           </TabsContent>
 
           <TabsContent value="new">
@@ -138,6 +160,13 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      <QueryResponseDialog
+        query={selectedQuery}
+        open={responseDialogOpen}
+        onOpenChange={setResponseDialogOpen}
+        onSubmitResponse={handleSubmitResponse}
+      />
     </div>
   );
 };
