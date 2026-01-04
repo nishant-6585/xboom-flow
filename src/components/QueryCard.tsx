@@ -4,6 +4,7 @@ import { StatusBadge } from "./StatusBadge";
 import { UrgencyIndicator } from "./UrgencyIndicator";
 import { formatDistanceToNow } from "date-fns";
 import { Package, User, Calendar, Hash, Boxes } from "lucide-react";
+import { SlaIndicator } from "./SlaIndicator";
 
 interface QueryCardProps {
   query: ProductQuery;
@@ -42,6 +43,9 @@ export function QueryCard({ query, onClick }: QueryCardProps) {
           </div>
           <div className="flex items-center gap-2">
             <UrgencyIndicator urgency={query.urgency} />
+          </div>
+          <div className="col-span-2">
+            <SlaIndicator query={query} />
           </div>
           <div className="flex items-center gap-2 col-span-2">
             <User className="w-4 h-4 text-muted-foreground" />
