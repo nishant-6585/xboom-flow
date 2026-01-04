@@ -6,10 +6,11 @@ import { StatsCards } from "@/components/StatsCards";
 import { SlaStatsCards } from "@/components/SlaStatsCards";
 import { SalesStatsCards } from "@/components/SalesStatsCards";
 import { EnquiryDialog } from "@/components/EnquiryDialog";
-import { useEnquiries, Enquiry } from "@/hooks/useEnquiries";
+import { useEnquiries, Enquiry, PRODUCT_CATEGORIES } from "@/hooks/useEnquiries";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ClipboardList, PlusCircle, Loader2, Package } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ClipboardList, PlusCircle, Loader2, Package, Filter } from "lucide-react";
 
 const Index = () => {
   const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry, escalateEnquiry } = useEnquiries();
@@ -17,16 +18,22 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
   const canCreateEnquiry = role === "sales" || role === "admin";
   const canViewSlaStats = role === "supply_chain" || role === "admin";
   const isSales = role === "sales";
   const isAdmin = role === "admin";
 
+  // Filter enquiries by category
+  const filteredEnquiries = categoryFilter === "all"
+    ? enquiries
+    : enquiries.filter((e) => e.product_category === categoryFilter);
+
   // Filter enquiries for sales user to show only their own
   const salesUserEnquiries = isSales && user
-    ? enquiries.filter((e) => e.sales_person_id === user.id)
-    : enquiries;
+    ? filteredEnquiries.filter((e) => e.sales_person_id === user.id)
+    : filteredEnquiries;
   const handleEnquiryClick = (enquiry: Enquiry) => {
     setSelectedEnquiry(enquiry);
     setDialogOpen(true);
@@ -123,11 +130,36 @@ const Index = () => {
                 {canViewSlaStats && <SlaStatsCards queries={statsQueries} />}
                 {(isSales || isAdmin) && <SalesStatsCards queries={isAdmin ? statsQueries : salesStatsQueries} />}
 
-                {enquiries.length === 0 ? (
+                {/* Category Filter */}
+                <div className="flex items-center gap-3">
+                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="w-[250px]">
+                      <SelectValue placeholder="Filter by category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {PRODUCT_CATEGORIES.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {categoryFilter !== "all" && (
+                    <span className="text-sm text-muted-foreground">
+                      Showing {filteredEnquiries.length} of {enquiries.length} enquiries
+                    </span>
+                  )}
+                </div>
+
+                {filteredEnquiries.length === 0 ? (
                   <div className="text-center py-12">
                     <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No enquiries yet</p>
-                    {canCreateEnquiry && (
+                    <p className="text-muted-foreground">
+                      {enquiries.length === 0 ? "No enquiries yet" : "No enquiries in this category"}
+                    </p>
+                    {canCreateEnquiry && enquiries.length === 0 && (
                       <p className="text-sm text-muted-foreground mt-2">
                         Click "New Enquiry" to create one
                       </p>
@@ -135,7 +167,7 @@ const Index = () => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {enquiries.map((enquiry) => (
+                    {filteredEnquiries.map((enquiry) => (
                       <EnquiryCard
                         key={enquiry.id}
                         enquiry={enquiry}
