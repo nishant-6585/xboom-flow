@@ -9,9 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Order, OrderStatus, ORDER_STATUSES, PaymentStatus, PAYMENT_STATUSES, OrderType, ORDER_TYPES, CustomerType, CUSTOMER_TYPES } from '@/hooks/useOrders';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
+import { PaymentRecordsList } from '@/components/PaymentRecordsList';
+import { PaymentUploadDialog } from '@/components/PaymentUploadDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin } from 'lucide-react';
+import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload } from 'lucide-react';
 
 interface OrderDialogProps {
   order: Order | null;
@@ -36,6 +38,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
 
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [paymentUploadOpen, setPaymentUploadOpen] = useState(false);
 
   const [status, setStatus] = useState<OrderStatus>('pending');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
@@ -213,12 +216,22 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
 
             {/* Payment Info */}
             <div className="p-4 bg-muted/50 rounded-lg space-y-3">
-              <div className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                <span className="font-medium">Payment Information</span>
-                <Badge className={paymentConfig.className}>
-                  {paymentConfig.label}
-                </Badge>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  <span className="font-medium">Payment Information</span>
+                  <Badge className={paymentConfig.className}>
+                    {paymentConfig.label}
+                  </Badge>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPaymentUploadOpen(true)}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Payment
+                </Button>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 {order.total_sales_amount !== null && (
@@ -245,6 +258,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
                     <p className="font-medium">{order.payment_terms}</p>
                   </div>
                 )}
+              </div>
+
+              {/* Payment Records */}
+              <div className="pt-3 border-t border-border">
+                <h5 className="text-sm font-medium mb-2">Payment Records</h5>
+                <PaymentRecordsList orderId={order.id} />
               </div>
             </div>
 
@@ -655,6 +674,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PaymentUploadDialog
+        orderId={order.id}
+        open={paymentUploadOpen}
+        onOpenChange={setPaymentUploadOpen}
+      />
     </>
   );
 }

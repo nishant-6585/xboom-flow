@@ -11,7 +11,8 @@ import { useEnquiries } from "@/hooks/useEnquiries";
 import { useOrders } from "@/hooks/useOrders";
 import { EnquiryAnalytics } from "@/components/EnquiryAnalytics";
 import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
-import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard } from "lucide-react";
+import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
+import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt } from "lucide-react";
 
 interface PendingUser {
   id: string;
@@ -166,6 +167,10 @@ const Admin = () => {
               <CreditCard className="w-4 h-4" />
               Payment Reminders
             </TabsTrigger>
+            <TabsTrigger value="approvals" className="flex items-center gap-2">
+              <Receipt className="w-4 h-4" />
+              Payment Approvals
+            </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               User Management
@@ -183,6 +188,10 @@ const Admin = () => {
 
           <TabsContent value="payments">
             <PaymentRemindersCard orders={orders} />
+          </TabsContent>
+
+          <TabsContent value="approvals">
+            <PendingPaymentApprovals orders={orders} />
           </TabsContent>
 
           <TabsContent value="users">
