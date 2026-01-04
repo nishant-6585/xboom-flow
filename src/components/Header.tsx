@@ -1,4 +1,4 @@
-import { Bell, LogOut, Shield } from "lucide-react";
+import { Bell, LogOut, Shield, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
@@ -48,6 +48,13 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-4">
+          <Link to="/orders">
+            <Button variant="ghost" size="sm" className="gap-2">
+              <Package className="w-4 h-4" />
+              <span className="hidden sm:inline">Orders</span>
+            </Button>
+          </Link>
+
           {role === "admin" && (
             <Link to="/admin">
               <Button variant="ghost" size="sm" className="gap-2">

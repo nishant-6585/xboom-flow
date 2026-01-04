@@ -98,6 +98,92 @@ export type Database = {
         }
         Relationships: []
       }
+      orders: {
+        Row: {
+          actual_delivery: string | null
+          created_at: string
+          created_by: string
+          customer_company: string
+          customer_name: string
+          customer_notes: string | null
+          enquiry_id: string | null
+          estimated_delivery: string | null
+          id: string
+          internal_notes: string | null
+          procurement_currency: string | null
+          procurement_rate: number | null
+          product_code: string
+          product_name: string
+          quantity: number
+          sales_person_id: string
+          sales_person_name: string
+          status: Database["public"]["Enums"]["order_status"]
+          supplier_contact: string | null
+          supplier_name: string | null
+          tracking_number: string | null
+          tracking_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_delivery?: string | null
+          created_at?: string
+          created_by: string
+          customer_company: string
+          customer_name: string
+          customer_notes?: string | null
+          enquiry_id?: string | null
+          estimated_delivery?: string | null
+          id?: string
+          internal_notes?: string | null
+          procurement_currency?: string | null
+          procurement_rate?: number | null
+          product_code: string
+          product_name: string
+          quantity: number
+          sales_person_id: string
+          sales_person_name: string
+          status?: Database["public"]["Enums"]["order_status"]
+          supplier_contact?: string | null
+          supplier_name?: string | null
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_delivery?: string | null
+          created_at?: string
+          created_by?: string
+          customer_company?: string
+          customer_name?: string
+          customer_notes?: string | null
+          enquiry_id?: string | null
+          estimated_delivery?: string | null
+          id?: string
+          internal_notes?: string | null
+          procurement_currency?: string | null
+          procurement_rate?: number | null
+          product_code?: string
+          product_name?: string
+          quantity?: number
+          sales_person_id?: string
+          sales_person_name?: string
+          status?: Database["public"]["Enums"]["order_status"]
+          supplier_contact?: string | null
+          supplier_name?: string | null
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_enquiry_id_fkey"
+            columns: ["enquiry_id"]
+            isOneToOne: false
+            referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -194,6 +280,14 @@ export type Database = {
     }
     Enums: {
       app_role: "sales" | "supply_chain" | "admin"
+      order_status:
+        | "pending"
+        | "confirmed"
+        | "procuring"
+        | "in_transit"
+        | "customs"
+        | "delivered"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -322,6 +416,15 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["sales", "supply_chain", "admin"],
+      order_status: [
+        "pending",
+        "confirmed",
+        "procuring",
+        "in_transit",
+        "customs",
+        "delivered",
+        "cancelled",
+      ],
     },
   },
 } as const
