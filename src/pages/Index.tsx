@@ -3,6 +3,7 @@ import { Header } from "@/components/Header";
 import { QueryForm } from "@/components/QueryForm";
 import { QueryList } from "@/components/QueryList";
 import { StatsCards } from "@/components/StatsCards";
+import { SlaStatsCards } from "@/components/SlaStatsCards";
 import { QueryResponseDialog } from "@/components/QueryResponseDialog";
 import { ProductQuery, QueryStatus } from "@/types/query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -150,6 +151,7 @@ const Index = () => {
 
           <TabsContent value="dashboard" className="space-y-6">
             <StatsCards queries={queries} />
+            <SlaStatsCards queries={queries} />
             <QueryList queries={queries} onQueryClick={handleQueryClick} />
           </TabsContent>
 
