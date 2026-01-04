@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      enquiries: {
+        Row: {
+          created_at: string
+          customer_company: string
+          customer_name: string
+          id: string
+          notes: string | null
+          product_code: string
+          product_name: string
+          quantity: number
+          responded_at: string | null
+          responded_by: string | null
+          response_availability: string | null
+          response_lead_time: string | null
+          response_pricing: string | null
+          sales_person_id: string | null
+          sales_person_name: string
+          status: string
+          updated_at: string
+          urgency: string
+        }
+        Insert: {
+          created_at?: string
+          customer_company: string
+          customer_name: string
+          id?: string
+          notes?: string | null
+          product_code: string
+          product_name: string
+          quantity: number
+          responded_at?: string | null
+          responded_by?: string | null
+          response_availability?: string | null
+          response_lead_time?: string | null
+          response_pricing?: string | null
+          sales_person_id?: string | null
+          sales_person_name: string
+          status?: string
+          updated_at?: string
+          urgency: string
+        }
+        Update: {
+          created_at?: string
+          customer_company?: string
+          customer_name?: string
+          id?: string
+          notes?: string | null
+          product_code?: string
+          product_name?: string
+          quantity?: number
+          responded_at?: string | null
+          responded_by?: string | null
+          response_availability?: string | null
+          response_lead_time?: string | null
+          response_pricing?: string | null
+          sales_person_id?: string | null
+          sales_person_name?: string
+          status?: string
+          updated_at?: string
+          urgency?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

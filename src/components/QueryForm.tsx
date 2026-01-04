@@ -11,57 +11,48 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ProductQuery, UrgencyLevel } from "@/types/query";
-import { useToast } from "@/hooks/use-toast";
-import { Send, Package, User, Building2 } from "lucide-react";
+import { EnquiryFormData, UrgencyLevel } from "@/hooks/useEnquiries";
+import { Send, Package, User, Building2, Loader2 } from "lucide-react";
 
 interface QueryFormProps {
-  onSubmit: (query: Omit<ProductQuery, "id" | "status" | "createdAt" | "updatedAt">) => void;
+  onSubmit: (data: EnquiryFormData) => Promise<boolean>;
 }
 
 export function QueryForm({ onSubmit }: QueryFormProps) {
-  const { toast } = useToast();
-  const [formData, setFormData] = useState({
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState<EnquiryFormData>({
     productName: "",
     productCode: "",
     quantity: 1,
     customerName: "",
     customerCompany: "",
-    salesPerson: "",
-    urgency: "medium" as UrgencyLevel,
+    urgency: "medium",
     notes: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.productName || !formData.productCode || !formData.customerName || !formData.salesPerson) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
+    if (!formData.productName || !formData.productCode || !formData.customerName) {
       return;
     }
 
-    onSubmit(formData);
-    
-    // Reset form
-    setFormData({
-      productName: "",
-      productCode: "",
-      quantity: 1,
-      customerName: "",
-      customerCompany: "",
-      salesPerson: "",
-      urgency: "medium",
-      notes: "",
-    });
+    setLoading(true);
+    const success = await onSubmit(formData);
+    setLoading(false);
 
-    toast({
-      title: "Query Submitted",
-      description: "Your product enquiry has been sent to the supply chain team.",
-    });
+    if (success) {
+      // Reset form
+      setFormData({
+        productName: "",
+        productCode: "",
+        quantity: 1,
+        customerName: "",
+        customerCompany: "",
+        urgency: "medium",
+        notes: "",
+      });
+    }
   };
 
   return (
@@ -87,6 +78,8 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
                   placeholder="Enter product name"
                   value={formData.productName}
                   onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
+                  disabled={loading}
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -96,6 +89,8 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
                   placeholder="e.g., XB-2024-001"
                   value={formData.productCode}
                   onChange={(e) => setFormData({ ...formData, productCode: e.target.value })}
+                  disabled={loading}
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -106,6 +101,7 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
                   min="1"
                   value={formData.quantity}
                   onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -113,15 +109,16 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
                 <Select
                   value={formData.urgency}
                   onValueChange={(value: UrgencyLevel) => setFormData({ ...formData, urgency: value })}
+                  disabled={loading}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select urgency" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="critical">Critical</SelectItem>
+                    <SelectItem value="low">Low (24 hrs SLA)</SelectItem>
+                    <SelectItem value="medium">Medium (9 hrs SLA)</SelectItem>
+                    <SelectItem value="high">High (6 hrs SLA)</SelectItem>
+                    <SelectItem value="critical">Critical (3 hrs SLA)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -142,6 +139,8 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
                   placeholder="Enter customer name"
                   value={formData.customerName}
                   onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+                  disabled={loading}
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -154,25 +153,10 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
                     className="pl-10"
                     value={formData.customerCompany}
                     onChange={(e) => setFormData({ ...formData, customerCompany: e.target.value })}
+                    disabled={loading}
                   />
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Sales Person Section */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Sales Information
-            </h3>
-            <div className="space-y-2">
-              <Label htmlFor="salesPerson">Sales Person *</Label>
-              <Input
-                id="salesPerson"
-                placeholder="Your name"
-                value={formData.salesPerson}
-                onChange={(e) => setFormData({ ...formData, salesPerson: e.target.value })}
-              />
             </div>
           </div>
 
@@ -185,11 +169,16 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
               rows={3}
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              disabled={loading}
             />
           </div>
 
-          <Button type="submit" className="w-full" size="lg">
-            <Send className="w-4 h-4 mr-2" />
+          <Button type="submit" className="w-full" size="lg" disabled={loading}>
+            {loading ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4 mr-2" />
+            )}
             Submit Enquiry
           </Button>
         </form>

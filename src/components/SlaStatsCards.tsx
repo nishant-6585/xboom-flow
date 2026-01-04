@@ -1,7 +1,7 @@
 import { ProductQuery } from "@/types/query";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";
-import { getSlaStatus } from "@/lib/sla";
+import { getSlaStatus, UrgencyLevel } from "@/lib/sla";
 
 interface SlaStatsCardsProps {
   queries: ProductQuery[];
