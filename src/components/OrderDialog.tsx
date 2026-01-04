@@ -10,7 +10,7 @@ import { Order, OrderStatus, ORDER_STATUSES } from '@/hooks/useOrders';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2 } from 'lucide-react';
+import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock } from 'lucide-react';
 
 interface OrderDialogProps {
   order: Order | null;
@@ -25,6 +25,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
   const canEdit = role === 'supply_chain' || role === 'admin';
   const canDelete = role === 'admin';
   const canSeeProcurement = role === 'supply_chain' || role === 'admin';
+  const isAdmin = role === 'admin';
 
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -33,8 +34,10 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
   const [supplierName, setSupplierName] = useState('');
   const [supplierContact, setSupplierContact] = useState('');
   const [procurementRate, setProcurementRate] = useState('');
+  const [sellingPrice, setSellingPrice] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [trackingUrl, setTrackingUrl] = useState('');
+  const [committedTimeline, setCommittedTimeline] = useState('');
   const [estimatedDelivery, setEstimatedDelivery] = useState('');
   const [actualDelivery, setActualDelivery] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
@@ -46,8 +49,10 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
       setSupplierName(order.supplier_name || '');
       setSupplierContact(order.supplier_contact || '');
       setProcurementRate(order.procurement_rate?.toString() || '');
+      setSellingPrice(order.selling_price?.toString() || '');
       setTrackingNumber(order.tracking_number || '');
       setTrackingUrl(order.tracking_url || '');
+      setCommittedTimeline(order.committed_timeline || '');
       setEstimatedDelivery(order.estimated_delivery || '');
       setActualDelivery(order.actual_delivery || '');
       setInternalNotes(order.internal_notes || '');
@@ -57,6 +62,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
 
   if (!order) return null;
 
+  // Calculate profit (only visible to admin)
+  const profit = order.selling_price && order.procurement_rate 
+    ? (order.selling_price - order.procurement_rate) * order.quantity
+    : null;
+
   const handleUpdate = async () => {
     setLoading(true);
     const success = await onUpdate(order.id, {
@@ -64,8 +74,10 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
       supplier_name: supplierName || null,
       supplier_contact: supplierContact || null,
       procurement_rate: procurementRate ? parseFloat(procurementRate) : null,
+      selling_price: sellingPrice ? parseFloat(sellingPrice) : null,
       tracking_number: trackingNumber || null,
       tracking_url: trackingUrl || null,
+      committed_timeline: committedTimeline || null,
       estimated_delivery: estimatedDelivery || null,
       actual_delivery: actualDelivery || null,
       internal_notes: internalNotes || null,
@@ -98,7 +110,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
                   <Package className="h-5 w-5" />
                   {order.product_name}
                 </DialogTitle>
-                <DialogDescription>{order.product_code}</DialogDescription>
+                <DialogDescription>{order.product_code} • {order.product_category}</DialogDescription>
               </div>
               <OrderStatusBadge status={order.status} />
             </div>
@@ -127,10 +139,43 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
                 <span className="text-muted-foreground">Sales:</span>
                 <span className="font-medium">{order.sales_person_name}</span>
               </div>
+              {order.committed_timeline && (
+                <div className="flex items-center gap-2 col-span-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Committed Timeline:</span>
+                  <span className="font-medium">{order.committed_timeline}</span>
+                </div>
+              )}
             </div>
 
+            {/* Admin-only: Profit Display */}
+            {isAdmin && profit !== null && (
+              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <span className="font-medium text-green-800 dark:text-green-300">Profit</span>
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Procurement:</span>
+                    <p className="font-medium">₹{order.procurement_rate?.toLocaleString('en-IN')}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Selling:</span>
+                    <p className="font-medium">₹{order.selling_price?.toLocaleString('en-IN')}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Total Profit:</span>
+                    <p className={`font-bold text-lg ${profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                      ₹{profit.toLocaleString('en-IN')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Tracking Info (visible to all) */}
-            {(order.tracking_number || order.estimated_delivery) && (
+            {(order.tracking_number || order.estimated_delivery || order.committed_timeline) && (
               <div className="p-4 bg-muted/50 rounded-lg space-y-2">
                 <h4 className="font-medium flex items-center gap-2">
                   <Truck className="h-4 w-4" />
@@ -198,6 +243,17 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
                   </Select>
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="committed_timeline">Committed Timeline</Label>
+                  <Input
+                    id="committed_timeline"
+                    value={committedTimeline}
+                    onChange={e => setCommittedTimeline(e.target.value)}
+                    disabled={loading}
+                    placeholder="e.g., 2-3 weeks, End of month"
+                  />
+                </div>
+
                 {canSeeProcurement && (
                   <>
                     <div className="grid grid-cols-2 gap-4">
@@ -221,17 +277,31 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="procurement_rate">Procurement Rate (₹)</Label>
-                      <Input
-                        id="procurement_rate"
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        value={procurementRate}
-                        onChange={e => setProcurementRate(e.target.value)}
-                        disabled={loading}
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="procurement_rate">Procurement Rate (₹)</Label>
+                        <Input
+                          id="procurement_rate"
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={procurementRate}
+                          onChange={e => setProcurementRate(e.target.value)}
+                          disabled={loading}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="selling_price">Selling Price (₹)</Label>
+                        <Input
+                          id="selling_price"
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={sellingPrice}
+                          onChange={e => setSellingPrice(e.target.value)}
+                          disabled={loading}
+                        />
+                      </div>
                     </div>
                   </>
                 )}

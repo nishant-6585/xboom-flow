@@ -101,6 +101,7 @@ export type Database = {
       orders: {
         Row: {
           actual_delivery: string | null
+          committed_timeline: string | null
           created_at: string
           created_by: string
           customer_company: string
@@ -112,11 +113,13 @@ export type Database = {
           internal_notes: string | null
           procurement_currency: string | null
           procurement_rate: number | null
+          product_category: string | null
           product_code: string
           product_name: string
           quantity: number
           sales_person_id: string
           sales_person_name: string
+          selling_price: number | null
           status: Database["public"]["Enums"]["order_status"]
           supplier_contact: string | null
           supplier_name: string | null
@@ -126,6 +129,7 @@ export type Database = {
         }
         Insert: {
           actual_delivery?: string | null
+          committed_timeline?: string | null
           created_at?: string
           created_by: string
           customer_company: string
@@ -137,11 +141,13 @@ export type Database = {
           internal_notes?: string | null
           procurement_currency?: string | null
           procurement_rate?: number | null
+          product_category?: string | null
           product_code: string
           product_name: string
           quantity: number
           sales_person_id: string
           sales_person_name: string
+          selling_price?: number | null
           status?: Database["public"]["Enums"]["order_status"]
           supplier_contact?: string | null
           supplier_name?: string | null
@@ -151,6 +157,7 @@ export type Database = {
         }
         Update: {
           actual_delivery?: string | null
+          committed_timeline?: string | null
           created_at?: string
           created_by?: string
           customer_company?: string
@@ -162,11 +169,13 @@ export type Database = {
           internal_notes?: string | null
           procurement_currency?: string | null
           procurement_rate?: number | null
+          product_category?: string | null
           product_code?: string
           product_name?: string
           quantity?: number
           sales_person_id?: string
           sales_person_name?: string
+          selling_price?: number | null
           status?: Database["public"]["Enums"]["order_status"]
           supplier_contact?: string | null
           supplier_name?: string | null
