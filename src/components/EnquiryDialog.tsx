@@ -56,6 +56,7 @@ export function EnquiryDialog({
     pricing: "",
     availability: "",
     leadTime: "",
+    notes: "",
   });
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -70,6 +71,7 @@ export function EnquiryDialog({
         pricing: enquiry.response_pricing || "",
         availability: enquiry.response_availability || "",
         leadTime: enquiry.response_lead_time || "",
+        notes: enquiry.response_notes || "",
       });
     }
   }, [enquiry]);
@@ -278,6 +280,17 @@ export function EnquiryDialog({
                       onChange={(e) => setResponse({ ...response, leadTime: e.target.value })}
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="responseNotes">Notes</Label>
+                  <Textarea
+                    id="responseNotes"
+                    placeholder="Additional notes or comments for the sales team..."
+                    rows={3}
+                    value={response.notes}
+                    onChange={(e) => setResponse({ ...response, notes: e.target.value })}
+                  />
                 </div>
               </div>
             )}

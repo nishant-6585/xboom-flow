@@ -23,6 +23,7 @@ export interface Enquiry {
   response_pricing: string | null;
   response_availability: string | null;
   response_lead_time: string | null;
+  response_notes: string | null;
   responded_by: string | null;
   responded_at: string | null;
   is_escalated: boolean;
@@ -84,6 +85,7 @@ export interface EnquiryResponse {
   pricing?: string;
   availability?: string;
   leadTime?: string;
+  notes?: string;
 }
 
 export function useEnquiries() {
@@ -203,6 +205,7 @@ export function useEnquiries() {
           response_pricing: response.pricing || null,
           response_availability: response.availability || null,
           response_lead_time: response.leadTime || null,
+          response_notes: response.notes || null,
           responded_by: user.id,
           responded_at: new Date().toISOString(),
         })

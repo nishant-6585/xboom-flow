@@ -34,6 +34,7 @@ export type Database = {
           responded_by: string | null
           response_availability: string | null
           response_lead_time: string | null
+          response_notes: string | null
           response_pricing: string | null
           sales_person_id: string | null
           sales_person_name: string
@@ -60,6 +61,7 @@ export type Database = {
           responded_by?: string | null
           response_availability?: string | null
           response_lead_time?: string | null
+          response_notes?: string | null
           response_pricing?: string | null
           sales_person_id?: string | null
           sales_person_name: string
@@ -86,6 +88,7 @@ export type Database = {
           responded_by?: string | null
           response_availability?: string | null
           response_lead_time?: string | null
+          response_notes?: string | null
           response_pricing?: string | null
           sales_person_id?: string | null
           sales_person_name?: string
