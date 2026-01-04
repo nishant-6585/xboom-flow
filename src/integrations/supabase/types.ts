@@ -19,6 +19,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          is_approved: boolean
           name: string
           updated_at: string
           user_id: string
@@ -27,6 +28,7 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          is_approved?: boolean
           name: string
           updated_at?: string
           user_id: string
@@ -35,6 +37,7 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          is_approved?: boolean
           name?: string
           updated_at?: string
           user_id?: string
@@ -64,9 +67,22 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      pending_registrations: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string | null
+          is_approved: boolean | null
+          name: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      can_create_admin: { Args: never; Returns: boolean }
+      count_admins: { Args: never; Returns: number }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -78,6 +94,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_user_approved: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "sales" | "supply_chain" | "admin"
