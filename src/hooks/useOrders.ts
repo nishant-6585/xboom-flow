@@ -226,7 +226,7 @@ export function useOrders() {
     };
   }, [user, fetchOrders]);
 
-  const createOrder = async (formData: OrderFormData): Promise<boolean> => {
+  const createOrder = async (formData: OrderFormData, paymentFile?: File): Promise<boolean> => {
     if (!user) {
       toast.error('You must be logged in to create orders');
       return false;
@@ -245,11 +245,45 @@ export function useOrders() {
         status: 'pending' as const,
       };
 
-      const { error } = await supabase
+      const { data: orderData, error } = await supabase
         .from('orders')
-        .insert(sanitizedData);
+        .insert(sanitizedData)
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // If payment file is provided, upload it and create payment record
+      if (paymentFile && orderData && formData.amount_paid && formData.amount_paid > 0) {
+        try {
+          const fileExt = paymentFile.name.split('.').pop();
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+          const filePath = `${user.id}/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('payment-screenshots')
+            .upload(filePath, paymentFile);
+
+          if (uploadError) {
+            console.error('Error uploading payment screenshot:', uploadError);
+          } else {
+            const { data: { publicUrl } } = supabase.storage
+              .from('payment-screenshots')
+              .getPublicUrl(filePath);
+
+            await supabase.from('payment_records').insert({
+              order_id: orderData.id,
+              amount: formData.amount_paid,
+              screenshot_url: publicUrl,
+              submitted_by: user.id,
+              notes: 'Submitted with order creation',
+            });
+          }
+        } catch (uploadErr) {
+          console.error('Error processing payment screenshot:', uploadErr);
+          // Don't fail the order creation, just log the error
+        }
+      }
 
       toast.success('Order created successfully');
       return true;
