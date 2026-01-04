@@ -1,4 +1,4 @@
-import { UrgencyLevel } from "@/types/query";
+export type UrgencyLevel = "low" | "medium" | "high" | "critical";
 
 // SLA hours by urgency level
 export const SLA_HOURS: Record<UrgencyLevel, number> = {
@@ -69,4 +69,12 @@ export function getTimeRemaining(createdAt: Date, urgency: UrgencyLevel): {
   const minutes = Math.floor((absDiff % (1000 * 60 * 60)) / (1000 * 60));
   
   return { hours, minutes, isOverdue };
+}
+
+export function getTimeRemainingString(createdAt: Date, urgency: UrgencyLevel): string {
+  const { hours, minutes, isOverdue } = getTimeRemaining(createdAt, urgency);
+  if (isOverdue) {
+    return `${hours}h ${minutes}m overdue`;
+  }
+  return `${hours}h ${minutes}m`;
 }

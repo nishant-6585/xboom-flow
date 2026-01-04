@@ -1,5 +1,5 @@
 import { ProductQuery } from "@/types/query";
-import { getSlaStatus, getTimeRemaining, SLA_HOURS } from "@/lib/sla";
+import { getSlaStatus, getTimeRemaining, UrgencyLevel } from "@/lib/sla";
 import { Clock, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
