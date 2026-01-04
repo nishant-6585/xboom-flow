@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Package } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { z } from "zod";
+import logoIcon from "@/assets/logo-icon.jpeg";
 
 type AppRole = "sales" | "supply_chain" | "admin";
 
@@ -106,9 +107,7 @@ const Auth = () => {
       <Card className="w-full max-w-md glass animate-fade-in">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 rounded-full bg-primary/10">
-              <Package className="w-8 h-8 text-primary" />
-            </div>
+            <img src={logoIcon} alt="Xboom Logo" className="w-16 h-16 rounded-xl" />
           </div>
           <CardTitle className="text-2xl text-gradient">
             {isLogin ? "Welcome Back" : "Create Account"}
