@@ -57,6 +57,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
   const [internalNotes, setInternalNotes] = useState('');
   const [customerNotes, setCustomerNotes] = useState('');
   const [salesNotes, setSalesNotes] = useState('');
+  const [paymentDueDate, setPaymentDueDate] = useState('');
 
   useEffect(() => {
     if (order) {
@@ -80,6 +81,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
       setInternalNotes(order.internal_notes || '');
       setCustomerNotes(order.customer_notes || '');
       setSalesNotes(order.sales_notes || '');
+      setPaymentDueDate(order.payment_due_date || '');
     }
   }, [order]);
 
@@ -109,6 +111,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
       total_sales_amount: totalSalesAmount ? parseFloat(totalSalesAmount) : null,
       amount_paid: amountPaid ? parseFloat(amountPaid) : null,
       payment_terms: paymentTerms || null,
+      payment_due_date: paymentDueDate || null,
       tracking_number: trackingNumber || null,
       tracking_url: trackingUrl || null,
       committed_timeline: committedTimeline || null,
@@ -443,15 +446,27 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="payment_terms">Payment Terms</Label>
-                  <Input
-                    id="payment_terms"
-                    value={paymentTerms}
-                    onChange={e => setPaymentTerms(e.target.value)}
-                    disabled={loading}
-                    placeholder="e.g., 50% advance, 50% on delivery"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="payment_terms">Payment Terms</Label>
+                    <Input
+                      id="payment_terms"
+                      value={paymentTerms}
+                      onChange={e => setPaymentTerms(e.target.value)}
+                      disabled={loading}
+                      placeholder="e.g., 50% advance, 50% on delivery"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="payment_due_date">Payment Due Date</Label>
+                    <Input
+                      id="payment_due_date"
+                      type="date"
+                      value={paymentDueDate}
+                      onChange={e => setPaymentDueDate(e.target.value)}
+                      disabled={loading}
+                    />
+                  </div>
                 </div>
 
                 {canSeeProcurement && (

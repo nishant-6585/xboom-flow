@@ -1,8 +1,9 @@
-import { Bell, LogOut, Shield, Package } from "lucide-react";
+import { LogOut, Shield, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
 import logoFull from "@/assets/logo-full.jpeg";
+import { NotificationPanel } from "@/components/NotificationPanel";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,12 +65,9 @@ export function Header() {
             </Link>
           )}
 
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full text-[10px] font-bold flex items-center justify-center text-primary-foreground">
-              3
-            </span>
-          </Button>
+          {(role === 'admin' || role === 'supply_chain') && (
+            <NotificationPanel />
+          )}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
