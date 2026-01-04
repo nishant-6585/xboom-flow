@@ -9,6 +9,7 @@ interface Profile {
   user_id: string;
   name: string;
   email: string;
+  is_approved: boolean;
 }
 
 interface AuthContextType {
@@ -17,9 +18,11 @@ interface AuthContextType {
   profile: Profile | null;
   role: AppRole | null;
   loading: boolean;
+  isApproved: boolean;
   signUp: (email: string, password: string, name: string, team: AppRole) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,10 +41,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .from("profiles")
         .select("*")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
 
       if (profileData) {
-        setProfile(profileData);
+        setProfile(profileData as Profile);
       }
 
       // Fetch role
@@ -49,13 +52,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .from("user_roles")
         .select("role")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
 
       if (roleData) {
         setRole(roleData.role as AppRole);
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchUserData(user.id);
     }
   };
 
@@ -100,6 +109,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signUp = async (email: string, password: string, name: string, team: AppRole) => {
+    // Check if trying to register as admin and max reached
+    if (team === "admin") {
+      const { data: adminCount } = await supabase.rpc("count_admins");
+      if (adminCount && adminCount >= 2) {
+        return { error: new Error("Maximum number of admins (2) has been reached. Please select a different team.") };
+      }
+    }
+
     const redirectUrl = `${window.location.origin}/`;
 
     const { data, error } = await supabase.auth.signUp({
@@ -115,11 +132,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (data.user) {
-      // Create profile
+      // Create profile (not approved by default)
       const { error: profileError } = await supabase.from("profiles").insert({
         user_id: data.user.id,
         name,
         email,
+        is_approved: false,
       });
 
       if (profileError) {
@@ -165,9 +183,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         profile,
         role,
         loading,
+        isApproved: profile?.is_approved ?? false,
         signUp,
         signIn,
         signOut,
+        refreshProfile,
       }}
     >
       {children}
