@@ -29,6 +29,7 @@ export type Database = {
           product_code: string
           product_name: string
           quantity: number
+          requested_timeline: string | null
           responded_at: string | null
           responded_by: string | null
           response_availability: string | null
@@ -54,6 +55,7 @@ export type Database = {
           product_code: string
           product_name: string
           quantity: number
+          requested_timeline?: string | null
           responded_at?: string | null
           responded_by?: string | null
           response_availability?: string | null
@@ -79,6 +81,7 @@ export type Database = {
           product_code?: string
           product_name?: string
           quantity?: number
+          requested_timeline?: string | null
           responded_at?: string | null
           responded_by?: string | null
           response_availability?: string | null

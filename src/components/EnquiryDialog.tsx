@@ -30,7 +30,7 @@ import { Enquiry, QueryStatus, EnquiryResponse } from "@/hooks/useEnquiries";
 import { StatusBadge } from "./StatusBadge";
 import { UrgencyIndicator } from "./UrgencyIndicator";
 import { useAuth } from "@/hooks/useAuth";
-import { Package, User, Building2, Hash, Boxes, DollarSign, Clock, CheckCircle, Trash2, Loader2, AlertTriangle } from "lucide-react";
+import { Package, User, Building2, Hash, Boxes, DollarSign, Clock, CheckCircle, Trash2, Loader2, AlertTriangle, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface EnquiryDialogProps {
@@ -195,6 +195,16 @@ export function EnquiryDialog({
                   </div>
                 )}
               </div>
+
+              {enquiry.requested_timeline && (
+                <div className="pt-2 border-t border-border">
+                  <p className="text-sm flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-primary" />
+                    <span className="font-medium">Requested Timeline:</span>
+                    <span className="text-muted-foreground">{enquiry.requested_timeline}</span>
+                  </p>
+                </div>
+              )}
 
               {enquiry.notes && (
                 <div className="pt-2 border-t border-border">

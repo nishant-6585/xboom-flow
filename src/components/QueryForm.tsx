@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EnquiryFormData, UrgencyLevel, PRODUCT_CATEGORIES, ProductCategory } from "@/hooks/useEnquiries";
-import { Send, Package, User, Building2, Loader2 } from "lucide-react";
+import { Send, Package, User, Building2, Loader2, Calendar } from "lucide-react";
 
 interface QueryFormProps {
   onSubmit: (data: EnquiryFormData) => Promise<boolean>;
@@ -28,6 +28,7 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
     customerName: "",
     customerCompany: "",
     urgency: "medium",
+    requestedTimeline: "",
     notes: "",
   });
 
@@ -52,6 +53,7 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
         customerName: "",
         customerCompany: "",
         urgency: "medium",
+        requestedTimeline: "",
         notes: "",
       });
     }
@@ -179,6 +181,21 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Requested Timeline Section */}
+          <div className="space-y-2">
+            <Label htmlFor="requestedTimeline" className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              Requested Delivery Timeline
+            </Label>
+            <Input
+              id="requestedTimeline"
+              placeholder="e.g., Within 2 weeks, By March 15th, ASAP"
+              value={formData.requestedTimeline}
+              onChange={(e) => setFormData({ ...formData, requestedTimeline: e.target.value })}
+              disabled={loading}
+            />
           </div>
 
           {/* Notes Section */}
