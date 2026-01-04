@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Order, PaymentStatus } from '@/hooks/useOrders';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
+import { PaymentStatusTracker } from '@/components/PaymentStatusTracker';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { Package, User, Building2, Truck, Calendar, ExternalLink, TrendingUp, Clock, CreditCard, MapPin } from 'lucide-react';
@@ -82,16 +83,20 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
         )}
 
         {/* Payment Info */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge className={paymentConfig.className}>
-            <CreditCard className="h-3 w-3 mr-1" />
-            {paymentConfig.label}
-          </Badge>
-          {order.total_sales_amount && (
-            <span className="text-sm text-muted-foreground">
-              ₹{order.total_sales_amount.toLocaleString('en-IN')}
-            </span>
-          )}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge className={paymentConfig.className}>
+              <CreditCard className="h-3 w-3 mr-1" />
+              {paymentConfig.label}
+            </Badge>
+            {order.total_sales_amount && (
+              <span className="text-sm text-muted-foreground">
+                ₹{order.total_sales_amount.toLocaleString('en-IN')}
+              </span>
+            )}
+          </div>
+          {/* Payment Records Status */}
+          <PaymentStatusTracker orderId={order.id} compact />
         </div>
 
         {order.tracking_number && (
