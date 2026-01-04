@@ -1,6 +1,7 @@
-import { Package2, Bell, LogOut } from "lucide-react";
+import { Package2, Bell, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { Link } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,18 +40,29 @@ export function Header() {
     <header className="sticky top-0 z-50 glass border-b border-border">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-            <Package2 className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold tracking-tight">
-              <span className="text-gradient">Xboom</span>
-              <span className="text-muted-foreground font-normal"> | Supply Chain</span>
-            </h1>
-          </div>
+          <Link to="/" className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+              <Package2 className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight">
+                <span className="text-gradient">Xboom</span>
+                <span className="text-muted-foreground font-normal"> | Supply Chain</span>
+              </h1>
+            </div>
+          </Link>
         </div>
 
         <div className="flex items-center gap-4">
+          {role === "admin" && (
+            <Link to="/admin">
+              <Button variant="ghost" size="sm" className="gap-2">
+                <Shield className="w-4 h-4" />
+                <span className="hidden sm:inline">Admin</span>
+              </Button>
+            </Link>
+          )}
+
           <Button variant="ghost" size="icon" className="relative">
             <Bell className="w-5 h-5" />
             <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full text-[10px] font-bold flex items-center justify-center text-primary-foreground">
