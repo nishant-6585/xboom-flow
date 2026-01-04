@@ -30,7 +30,8 @@ import { Enquiry, QueryStatus, EnquiryResponse } from "@/hooks/useEnquiries";
 import { StatusBadge } from "./StatusBadge";
 import { UrgencyIndicator } from "./UrgencyIndicator";
 import { useAuth } from "@/hooks/useAuth";
-import { Package, User, Building2, Hash, Boxes, DollarSign, Clock, CheckCircle, Trash2, Loader2 } from "lucide-react";
+import { Package, User, Building2, Hash, Boxes, DollarSign, Clock, CheckCircle, Trash2, Loader2, AlertTriangle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface EnquiryDialogProps {
   enquiry: Enquiry | null;
@@ -38,6 +39,7 @@ interface EnquiryDialogProps {
   onOpenChange: (open: boolean) => void;
   onSubmitResponse: (enquiryId: string, status: QueryStatus, response: EnquiryResponse) => Promise<boolean>;
   onDelete: (enquiryId: string) => Promise<boolean>;
+  onEscalate: (enquiryId: string, reason: string) => Promise<boolean>;
 }
 
 export function EnquiryDialog({
@@ -46,6 +48,7 @@ export function EnquiryDialog({
   onOpenChange,
   onSubmitResponse,
   onDelete,
+  onEscalate,
 }: EnquiryDialogProps) {
   const { role } = useAuth();
   const [status, setStatus] = useState<QueryStatus>("pending");
@@ -56,6 +59,8 @@ export function EnquiryDialog({
   });
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [escalateDialogOpen, setEscalateDialogOpen] = useState(false);
+  const [escalationReason, setEscalationReason] = useState("");
 
   // Reset form when enquiry changes
   useEffect(() => {
@@ -73,6 +78,7 @@ export function EnquiryDialog({
 
   const canRespond = role === "supply_chain" || role === "admin";
   const canDelete = role === "admin";
+  const canEscalate = (role === "sales" || role === "supply_chain") && !enquiry.is_escalated;
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -88,6 +94,18 @@ export function EnquiryDialog({
     const success = await onDelete(enquiry.id);
     setLoading(false);
     setDeleteDialogOpen(false);
+    if (success) {
+      onOpenChange(false);
+    }
+  };
+
+  const handleEscalate = async () => {
+    if (!escalationReason.trim()) return;
+    setLoading(true);
+    const success = await onEscalate(enquiry.id, escalationReason);
+    setLoading(false);
+    setEscalateDialogOpen(false);
+    setEscalationReason("");
     if (success) {
       onOpenChange(false);
     }
@@ -117,6 +135,22 @@ export function EnquiryDialog({
           </DialogHeader>
 
           <div className="space-y-6">
+            {/* Escalation Banner */}
+            {enquiry.is_escalated && (
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-destructive mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium text-destructive">Escalated to Admin</p>
+                  <p className="text-sm text-muted-foreground mt-1">{enquiry.escalation_reason}</p>
+                  {enquiry.escalated_at && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Escalated on {new Date(enquiry.escalated_at).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Query Details Summary */}
             <div className="p-4 rounded-lg bg-secondary/50 space-y-3">
               <div className="flex items-start justify-between">
@@ -126,8 +160,19 @@ export function EnquiryDialog({
                     <Hash className="w-3 h-3" />
                     {enquiry.product_code}
                   </div>
+                  {enquiry.product_category && (
+                    <Badge variant="outline" className="mt-1">{enquiry.product_category}</Badge>
+                  )}
                 </div>
-                <StatusBadge status={enquiry.status} />
+                <div className="flex flex-col items-end gap-2">
+                  <StatusBadge status={enquiry.status} />
+                  {enquiry.is_escalated && (
+                    <Badge variant="destructive" className="text-xs">
+                      <AlertTriangle className="w-3 h-3 mr-1" />
+                      Escalated
+                    </Badge>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -231,6 +276,15 @@ export function EnquiryDialog({
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 {canRespond ? "Cancel" : "Close"}
               </Button>
+              {canEscalate && (
+                <Button 
+                  variant="destructive" 
+                  onClick={() => setEscalateDialogOpen(true)}
+                >
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  Escalate to Admin
+                </Button>
+              )}
               {canRespond && (
                 <Button onClick={handleSubmit} disabled={loading}>
                   {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
@@ -257,6 +311,35 @@ export function EnquiryDialog({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={escalateDialogOpen} onOpenChange={setEscalateDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Escalate to Admin</AlertDialogTitle>
+            <AlertDialogDescription>
+              Escalating this enquiry will notify admins for intervention. Please provide a reason for escalation.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Textarea
+              placeholder="Describe why this enquiry needs admin intervention..."
+              value={escalationReason}
+              onChange={(e) => setEscalationReason(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setEscalationReason("")}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleEscalate}
+              disabled={!escalationReason.trim()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Escalate"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
