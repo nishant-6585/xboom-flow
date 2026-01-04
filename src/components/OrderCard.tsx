@@ -1,15 +1,22 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Order } from '@/hooks/useOrders';
+import { Badge } from '@/components/ui/badge';
+import { Order, PaymentStatus } from '@/hooks/useOrders';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { Package, User, Building2, Truck, Calendar, ExternalLink, TrendingUp, Clock } from 'lucide-react';
+import { Package, User, Building2, Truck, Calendar, ExternalLink, TrendingUp, Clock, CreditCard, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface OrderCardProps {
   order: Order;
   onClick: () => void;
 }
+
+const paymentStatusConfig: Record<PaymentStatus, { label: string; className: string }> = {
+  pending: { label: 'Payment Pending', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' },
+  partial: { label: 'Partial Received', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
+  full: { label: 'Paid in Full', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+};
 
 export function OrderCard({ order, onClick }: OrderCardProps) {
   const { role } = useAuth();
@@ -21,6 +28,8 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
     ? (order.selling_price - order.procurement_rate) * order.quantity
     : null;
 
+  const paymentConfig = paymentStatusConfig[order.payment_status];
+
   return (
     <Card 
       className="cursor-pointer hover:shadow-md transition-shadow"
@@ -31,7 +40,15 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
           <CardTitle className="text-lg line-clamp-1">{order.product_name}</CardTitle>
           <OrderStatusBadge status={order.status} />
         </div>
-        <p className="text-sm text-muted-foreground">{order.product_code} • {order.product_category}</p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-muted-foreground">{order.product_category}</span>
+          <Badge variant="outline" className="text-xs">
+            {order.customer_type.toUpperCase()}
+          </Badge>
+          <Badge variant="outline" className="text-xs capitalize">
+            {order.order_type}
+          </Badge>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-2 text-sm">
@@ -53,11 +70,27 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
               <span className="truncate">{order.committed_timeline}</span>
             </div>
           )}
-          {order.estimated_delivery && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="h-4 w-4" />
-              <span>{format(new Date(order.estimated_delivery), 'dd MMM yyyy')}</span>
-            </div>
+        </div>
+
+        {/* Sales Person - visible to supply chain and admin */}
+        {canSeeProcurement && (
+          <div className="flex items-center gap-2 text-sm">
+            <User className="h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground">Sales:</span>
+            <span className="font-medium">{order.sales_person_name}</span>
+          </div>
+        )}
+
+        {/* Payment Info */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge className={paymentConfig.className}>
+            <CreditCard className="h-3 w-3 mr-1" />
+            {paymentConfig.label}
+          </Badge>
+          {order.total_sales_amount && (
+            <span className="text-sm text-muted-foreground">
+              ₹{order.total_sales_amount.toLocaleString('en-IN')}
+            </span>
           )}
         </div>
 
