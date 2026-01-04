@@ -233,9 +233,11 @@ export function useOrders() {
     }
 
     try {
-      // Sanitize form data - convert empty strings to null for date fields
+      // Sanitize form data - convert empty strings to null for date and UUID fields
       const sanitizedData = {
         ...formData,
+        enquiry_id: formData.enquiry_id || null,
+        sales_person_id: formData.sales_person_id || user.id, // Default to current user if empty
         payment_due_date: formData.payment_due_date || null,
         estimated_delivery: formData.estimated_delivery || null,
         product_code: formData.product_name, // Auto-generate from product name
