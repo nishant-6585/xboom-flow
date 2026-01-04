@@ -167,6 +167,18 @@ export type Database = {
     Functions: {
       can_create_admin: { Args: never; Returns: boolean }
       count_admins: { Args: never; Returns: number }
+      get_pending_registrations: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          id: string
+          is_approved: boolean
+          name: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
