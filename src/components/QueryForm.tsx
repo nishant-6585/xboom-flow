@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EnquiryFormData, UrgencyLevel } from "@/hooks/useEnquiries";
+import { EnquiryFormData, UrgencyLevel, PRODUCT_CATEGORIES, ProductCategory } from "@/hooks/useEnquiries";
 import { Send, Package, User, Building2, Loader2 } from "lucide-react";
 
 interface QueryFormProps {
@@ -23,6 +23,7 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
   const [formData, setFormData] = useState<EnquiryFormData>({
     productName: "",
     productCode: "",
+    productCategory: "Consumer Drones",
     quantity: 1,
     customerName: "",
     customerCompany: "",
@@ -46,6 +47,7 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
       setFormData({
         productName: "",
         productCode: "",
+        productCategory: "Consumer Drones",
         quantity: 1,
         customerName: "",
         customerCompany: "",
@@ -92,6 +94,25 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
                   disabled={loading}
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="productCategory">Product Category *</Label>
+                <Select
+                  value={formData.productCategory}
+                  onValueChange={(value: ProductCategory) => setFormData({ ...formData, productCategory: value })}
+                  disabled={loading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRODUCT_CATEGORIES.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="quantity">Quantity *</Label>

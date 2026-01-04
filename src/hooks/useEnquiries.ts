@@ -10,6 +10,7 @@ export interface Enquiry {
   id: string;
   product_name: string;
   product_code: string;
+  product_category: string;
   quantity: number;
   customer_name: string;
   customer_company: string;
@@ -27,9 +28,45 @@ export interface Enquiry {
   updated_at: string;
 }
 
+export const PRODUCT_CATEGORIES = [
+  "Accessories",
+  "Agri Drones",
+  "Anti-Drone Gun",
+  "Anti-Drone Systems",
+  "Bellabot Robots",
+  "Cameras",
+  "Consumer Drones",
+  "Custom Drones",
+  "DJI Drone",
+  "Drone as a Service",
+  "Drone Components",
+  "Drone Rentals",
+  "Drone Repair",
+  "Drone Shows",
+  "Drone Software",
+  "Enterprise Drones",
+  "Humanoid Robots",
+  "Imported Drone",
+  "Robo Dog",
+  "Robot Rental",
+  "Robots",
+  "Safety Gadgets",
+  "Survey Equipment",
+  "Underwater Drone Repair",
+  "Underwater Drones",
+  "Underwater Robots",
+  "VR Gadgets",
+  "VTOLs",
+  "Cleaning Drones",
+  "Internal Inspection Drone",
+] as const;
+
+export type ProductCategory = typeof PRODUCT_CATEGORIES[number];
+
 export interface EnquiryFormData {
   productName: string;
   productCode: string;
+  productCategory: ProductCategory;
   quantity: number;
   customerName: string;
   customerCompany: string;
@@ -114,6 +151,7 @@ export function useEnquiries() {
       const { error } = await supabase.from("enquiries").insert({
         product_name: formData.productName,
         product_code: formData.productCode,
+        product_category: formData.productCategory,
         quantity: formData.quantity,
         customer_name: formData.customerName,
         customer_company: formData.customerCompany,
