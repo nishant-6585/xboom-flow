@@ -10,6 +10,7 @@ export interface Order {
   enquiry_id: string | null;
   product_name: string;
   product_code: string;
+  product_category: string;
   quantity: number;
   customer_name: string;
   customer_company: string;
@@ -19,9 +20,11 @@ export interface Order {
   supplier_contact: string | null;
   procurement_rate: number | null;
   procurement_currency: string;
+  selling_price: number | null;
   status: OrderStatus;
   tracking_number: string | null;
   tracking_url: string | null;
+  committed_timeline: string | null;
   estimated_delivery: string | null;
   actual_delivery: string | null;
   internal_notes: string | null;
@@ -35,6 +38,7 @@ export interface OrderFormData {
   enquiry_id?: string;
   product_name: string;
   product_code: string;
+  product_category: string;
   quantity: number;
   customer_name: string;
   customer_company: string;
@@ -44,8 +48,10 @@ export interface OrderFormData {
   supplier_contact?: string;
   procurement_rate?: number;
   procurement_currency?: string;
+  selling_price?: number;
   tracking_number?: string;
   tracking_url?: string;
+  committed_timeline?: string;
   estimated_delivery?: string;
   internal_notes?: string;
   customer_notes?: string;
@@ -85,6 +91,7 @@ export function useOrders() {
             enquiry_id,
             product_name,
             product_code,
+            product_category,
             quantity,
             customer_name,
             customer_company,
@@ -93,6 +100,7 @@ export function useOrders() {
             status,
             tracking_number,
             tracking_url,
+            committed_timeline,
             estimated_delivery,
             actual_delivery,
             customer_notes,
@@ -112,6 +120,7 @@ export function useOrders() {
           supplier_contact: null,
           procurement_rate: null,
           procurement_currency: 'INR',
+          selling_price: null,
           internal_notes: null,
         }));
         

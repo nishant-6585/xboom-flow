@@ -3,7 +3,7 @@ import { Order } from '@/hooks/useOrders';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { Package, User, Building2, Truck, Calendar, ExternalLink } from 'lucide-react';
+import { Package, User, Building2, Truck, Calendar, ExternalLink, TrendingUp, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface OrderCardProps {
@@ -14,6 +14,12 @@ interface OrderCardProps {
 export function OrderCard({ order, onClick }: OrderCardProps) {
   const { role } = useAuth();
   const canSeeProcurement = role === 'supply_chain' || role === 'admin';
+  const isAdmin = role === 'admin';
+
+  // Calculate profit (only visible to admin)
+  const profit = order.selling_price && order.procurement_rate 
+    ? (order.selling_price - order.procurement_rate) * order.quantity
+    : null;
 
   return (
     <Card 
@@ -25,7 +31,7 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
           <CardTitle className="text-lg line-clamp-1">{order.product_name}</CardTitle>
           <OrderStatusBadge status={order.status} />
         </div>
-        <p className="text-sm text-muted-foreground">{order.product_code}</p>
+        <p className="text-sm text-muted-foreground">{order.product_code} • {order.product_category}</p>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-2 text-sm">
@@ -41,6 +47,12 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
             <Building2 className="h-4 w-4" />
             <span className="truncate">{order.customer_company}</span>
           </div>
+          {order.committed_timeline && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Clock className="h-4 w-4" />
+              <span className="truncate">{order.committed_timeline}</span>
+            </div>
+          )}
           {order.estimated_delivery && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Calendar className="h-4 w-4" />
@@ -81,6 +93,17 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
                 @ ₹{order.procurement_rate.toLocaleString('en-IN')}
               </span>
             )}
+          </div>
+        )}
+
+        {/* Admin-only: Show profit */}
+        {isAdmin && profit !== null && (
+          <div className="pt-2 border-t flex items-center gap-2">
+            <TrendingUp className={`h-4 w-4 ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+            <span className="text-sm text-muted-foreground">Profit:</span>
+            <span className={`text-sm font-semibold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              ₹{profit.toLocaleString('en-IN')}
+            </span>
           </div>
         )}
 

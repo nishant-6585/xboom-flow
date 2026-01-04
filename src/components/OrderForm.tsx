@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { OrderFormData } from '@/hooks/useOrders';
 import { Loader2, Package } from 'lucide-react';
-import { Enquiry } from '@/hooks/useEnquiries';
+import { Enquiry, PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 
 interface OrderFormProps {
   onSubmit: (data: OrderFormData) => Promise<boolean>;
@@ -19,6 +19,7 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
   const [formData, setFormData] = useState<OrderFormData>({
     product_name: '',
     product_code: '',
+    product_category: 'Consumer Drones',
     quantity: 1,
     customer_name: '',
     customer_company: '',
@@ -28,8 +29,10 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
     supplier_contact: '',
     procurement_rate: undefined,
     procurement_currency: 'INR',
+    selling_price: undefined,
     tracking_number: '',
     tracking_url: '',
+    committed_timeline: '',
     estimated_delivery: '',
     internal_notes: '',
     customer_notes: '',
@@ -53,11 +56,13 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
         enquiry_id: enquiryId,
         product_name: enquiry.product_name,
         product_code: enquiry.product_code,
+        product_category: enquiry.product_category,
         quantity: enquiry.quantity,
         customer_name: enquiry.customer_name,
         customer_company: enquiry.customer_company,
         sales_person_id: enquiry.sales_person_id || '',
         sales_person_name: enquiry.sales_person_name,
+        committed_timeline: enquiry.requested_timeline || '',
       }));
     }
   };
@@ -77,6 +82,7 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
       setFormData({
         product_name: '',
         product_code: '',
+        product_category: 'Consumer Drones',
         quantity: 1,
         customer_name: '',
         customer_company: '',
@@ -86,8 +92,10 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
         supplier_contact: '',
         procurement_rate: undefined,
         procurement_currency: 'INR',
+        selling_price: undefined,
         tracking_number: '',
         tracking_url: '',
+        committed_timeline: '',
         estimated_delivery: '',
         internal_notes: '',
         customer_notes: '',
@@ -153,6 +161,22 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="product_category">Product Category *</Label>
+                <Select 
+                  value={formData.product_category} 
+                  onValueChange={v => setFormData(prev => ({ ...prev, product_category: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRODUCT_CATEGORIES.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="quantity">Quantity *</Label>
                 <Input
                   id="quantity"
@@ -212,12 +236,22 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
                   placeholder="User UUID"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="committed_timeline">Committed Timeline</Label>
+                <Input
+                  id="committed_timeline"
+                  value={formData.committed_timeline || ''}
+                  onChange={e => setFormData(prev => ({ ...prev, committed_timeline: e.target.value }))}
+                  disabled={loading}
+                  placeholder="e.g., 2-3 weeks, End of month"
+                />
+              </div>
             </div>
           </div>
 
           {/* Procurement Details */}
           <div className="space-y-4">
-            <h3 className="font-medium text-sm text-muted-foreground">Procurement Details</h3>
+            <h3 className="font-medium text-sm text-muted-foreground">Procurement & Pricing Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="supplier_name">Supplier Name</Label>
@@ -246,6 +280,18 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
                   step={0.01}
                   value={formData.procurement_rate || ''}
                   onChange={e => setFormData(prev => ({ ...prev, procurement_rate: parseFloat(e.target.value) || undefined }))}
+                  disabled={loading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="selling_price">Selling Price (₹)</Label>
+                <Input
+                  id="selling_price"
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={formData.selling_price || ''}
+                  onChange={e => setFormData(prev => ({ ...prev, selling_price: parseFloat(e.target.value) || undefined }))}
                   disabled={loading}
                 />
               </div>

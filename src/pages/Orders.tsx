@@ -5,10 +5,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { OrderCard } from '@/components/OrderCard';
 import { OrderForm } from '@/components/OrderForm';
 import { OrderDialog } from '@/components/OrderDialog';
+import { OrderProfitAnalytics } from '@/components/OrderProfitAnalytics';
 import { useOrders, Order, ORDER_STATUSES } from '@/hooks/useOrders';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, Plus } from 'lucide-react';
+import { Loader2, Package, Plus, BarChart3 } from 'lucide-react';
 
 export default function Orders() {
   const { role } = useAuth();
@@ -21,6 +22,7 @@ export default function Orders() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const canCreateOrder = role === 'supply_chain' || role === 'admin';
+  const isAdmin = role === 'admin';
 
   const filteredOrders = statusFilter === 'all'
     ? orders
@@ -46,15 +48,21 @@ export default function Orders() {
                 {role === 'sales' ? 'Track your order status and delivery' : 'Manage orders and procurement'}
               </p>
             </div>
-            {canCreateOrder && (
-              <TabsList>
-                <TabsTrigger value="list">Order List</TabsTrigger>
+            <TabsList>
+              <TabsTrigger value="list">Order List</TabsTrigger>
+              {canCreateOrder && (
                 <TabsTrigger value="new" className="gap-1">
                   <Plus className="h-4 w-4" />
                   New Order
                 </TabsTrigger>
-              </TabsList>
-            )}
+              )}
+              {isAdmin && (
+                <TabsTrigger value="analytics" className="gap-1">
+                  <BarChart3 className="h-4 w-4" />
+                  Analytics
+                </TabsTrigger>
+              )}
+            </TabsList>
           </div>
 
           <TabsContent value="list" className="space-y-4">
@@ -109,6 +117,12 @@ export default function Orders() {
                 onSubmit={createOrder}
                 enquiries={enquiries}
               />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="analytics">
+              <OrderProfitAnalytics orders={orders} />
             </TabsContent>
           )}
         </Tabs>
