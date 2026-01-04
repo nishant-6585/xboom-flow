@@ -1,11 +1,14 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Enquiry, PRODUCT_CATEGORIES } from "@/hooks/useEnquiries";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWithinInterval, subMonths, startOfDay } from "date-fns";
-import { BarChart3, Calendar, Package, TrendingUp } from "lucide-react";
+import { BarChart3, Calendar, Package, TrendingUp, Download, FileSpreadsheet, FileText } from "lucide-react";
+import { exportToExcel, exportToPDF, exportCategorySummaryToExcel, exportCategorySummaryToPDF } from "@/lib/exportUtils";
 
 interface EnquiryAnalyticsProps {
   enquiries: Enquiry[];
@@ -161,54 +164,134 @@ export function EnquiryAnalytics({ enquiries }: EnquiryAnalyticsProps) {
     return Array.from(cats).sort();
   }, [enquiries]);
 
+  // Export handlers
+  const handleExportEnquiriesExcel = () => {
+    const monthLabel = availableMonths.find((m) => m.value === selectedMonth)?.label || "All Time";
+    const categoryLabel = selectedCategory === "all" ? "" : ` - ${selectedCategory}`;
+    exportToExcel(currentMonthData.enquiries, {
+      filename: `enquiries_${format(new Date(), "yyyy-MM-dd")}`,
+      title: `Enquiries Report - ${monthLabel}${categoryLabel}`,
+    });
+  };
+
+  const handleExportEnquiriesPDF = () => {
+    const monthLabel = availableMonths.find((m) => m.value === selectedMonth)?.label || "All Time";
+    const categoryLabel = selectedCategory === "all" ? "" : ` - ${selectedCategory}`;
+    exportToPDF(currentMonthData.enquiries, {
+      filename: `enquiries_${format(new Date(), "yyyy-MM-dd")}`,
+      title: `Enquiries Report`,
+      subtitle: `${monthLabel}${categoryLabel} | Total: ${currentMonthData.enquiries.length} enquiries`,
+    });
+  };
+
+  const handleExportCategoryExcel = () => {
+    const monthLabel = availableMonths.find((m) => m.value === selectedMonth)?.label || "All Time";
+    exportCategorySummaryToExcel(categoryData, {
+      filename: `category_report_${format(new Date(), "yyyy-MM-dd")}`,
+      title: `Category Summary - ${monthLabel}`,
+    });
+  };
+
+  const handleExportCategoryPDF = () => {
+    const monthLabel = availableMonths.find((m) => m.value === selectedMonth)?.label || "All Time";
+    exportCategorySummaryToPDF(categoryData, {
+      filename: `category_report_${format(new Date(), "yyyy-MM-dd")}`,
+      title: `Category Summary`,
+      subtitle: monthLabel,
+    });
+  };
+
   return (
     <div className="space-y-6">
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4">
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-muted-foreground" />
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select month" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableMonths.map((month) => (
-                <SelectItem key={month.value} value={month.value}>
-                  {month.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* Filters and Export */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap gap-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-muted-foreground" />
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select month" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableMonths.map((month) => (
+                  <SelectItem key={month.value} value={month.value}>
+                    {month.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Package className="w-4 h-4 text-muted-foreground" />
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {usedCategories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {selectedCategory !== "all" && (
+            <Badge variant="secondary" className="h-9 px-3 flex items-center gap-1">
+              {selectedCategory}
+              <button
+                onClick={() => setSelectedCategory("all")}
+                className="ml-1 hover:text-destructive"
+              >
+                ×
+              </button>
+            </Badge>
+          )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Package className="w-4 h-4 text-muted-foreground" />
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {usedCategories.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {category}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Export Buttons */}
+        <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                Export Enquiries
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportEnquiriesExcel}>
+                <FileSpreadsheet className="w-4 h-4 mr-2 text-green-600" />
+                Download as Excel (.xlsx)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportEnquiriesPDF}>
+                <FileText className="w-4 h-4 mr-2 text-red-600" />
+                Download as PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-        {selectedCategory !== "all" && (
-          <Badge variant="secondary" className="h-9 px-3 flex items-center gap-1">
-            {selectedCategory}
-            <button
-              onClick={() => setSelectedCategory("all")}
-              className="ml-1 hover:text-destructive"
-            >
-              ×
-            </button>
-          </Badge>
-        )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                Export Category Report
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportCategoryExcel}>
+                <FileSpreadsheet className="w-4 h-4 mr-2 text-green-600" />
+                Download as Excel (.xlsx)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCategoryPDF}>
+                <FileText className="w-4 h-4 mr-2 text-red-600" />
+                Download as PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* Summary Stats */}
