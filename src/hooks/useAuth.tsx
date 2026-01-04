@@ -108,12 +108,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Pre-approved admin emails
+  const APPROVED_ADMIN_EMAILS = [
+    "vishal.saurav@xboom.in",
+    "ram@xboom.in",
+  ];
+
   const signUp = async (email: string, password: string, name: string, team: AppRole) => {
+    const normalizedEmail = email.toLowerCase().trim();
+    
     // Check if trying to register as admin and max reached
     if (team === "admin") {
+      // Only allow pre-approved emails to register as admin
+      if (!APPROVED_ADMIN_EMAILS.includes(normalizedEmail)) {
+        return { error: new Error("Only authorized personnel can register as admin.") };
+      }
+      
       const { data: adminCount } = await supabase.rpc("count_admins");
       if (adminCount && adminCount >= 2) {
-        return { error: new Error("Maximum number of admins (2) has been reached. Please select a different team.") };
+        return { error: new Error("Maximum number of admins (2) has been reached.") };
       }
     }
 
@@ -132,12 +145,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (data.user) {
-      // Create profile (not approved by default)
+      // Auto-approve if it's a pre-approved admin email
+      const isAutoApproved = APPROVED_ADMIN_EMAILS.includes(normalizedEmail) && team === "admin";
+      
+      // Create profile
       const { error: profileError } = await supabase.from("profiles").insert({
         user_id: data.user.id,
         name,
-        email,
-        is_approved: false,
+        email: normalizedEmail,
+        is_approved: isAutoApproved,
       });
 
       if (profileError) {
