@@ -233,14 +233,19 @@ export function useOrders() {
     }
 
     try {
+      // Sanitize form data - convert empty strings to null for date fields
+      const sanitizedData = {
+        ...formData,
+        payment_due_date: formData.payment_due_date || null,
+        estimated_delivery: formData.estimated_delivery || null,
+        product_code: formData.product_name, // Auto-generate from product name
+        created_by: user.id,
+        status: 'pending' as const,
+      };
+
       const { error } = await supabase
         .from('orders')
-        .insert({
-          ...formData,
-          product_code: formData.product_name, // Auto-generate from product name
-          created_by: user.id,
-          status: 'pending',
-        });
+        .insert(sanitizedData);
 
       if (error) throw error;
 
