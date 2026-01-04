@@ -12,7 +12,8 @@ import { useOrders } from "@/hooks/useOrders";
 import { EnquiryAnalytics } from "@/components/EnquiryAnalytics";
 import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
 import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
-import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt } from "lucide-react";
+import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound } from "lucide-react";
+import { Navigate } from "react-router-dom";
 
 interface PendingUser {
   id: string;
@@ -24,7 +25,14 @@ interface PendingUser {
   role: string;
 }
 
-import { Navigate } from "react-router-dom";
+interface ApprovedUser {
+  id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  created_at: string;
+  role: string;
+}
 
 const Admin = () => {
   const { role, isApproved } = useAuth();
@@ -32,8 +40,11 @@ const Admin = () => {
   const { enquiries } = useEnquiries();
   const { orders } = useOrders();
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
+  const [approvedUsers, setApprovedUsers] = useState<ApprovedUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [usersLoading, setUsersLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [resetLoading, setResetLoading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("analytics");
 
   // Redirect if not admin or not approved
@@ -43,6 +54,7 @@ const Admin = () => {
 
   useEffect(() => {
     fetchPendingUsers();
+    fetchApprovedUsers();
   }, []);
 
   const fetchPendingUsers = async () => {
@@ -61,6 +73,41 @@ const Admin = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchApprovedUsers = async () => {
+    try {
+      setUsersLoading(true);
+      // Fetch approved users with their roles
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, user_id, name, email, created_at")
+        .eq("is_approved", true);
+
+      if (profilesError) throw profilesError;
+
+      // Fetch roles for these users
+      const { data: roles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id, role");
+
+      if (rolesError) throw rolesError;
+
+      // Combine profiles with roles
+      const usersWithRoles = (profiles || []).map((profile) => {
+        const userRole = roles?.find((r) => r.user_id === profile.user_id);
+        return {
+          ...profile,
+          role: userRole?.role || "unknown",
+        };
+      });
+
+      setApprovedUsers(usersWithRoles);
+    } catch (error) {
+      console.error("Error fetching approved users:", error);
+    } finally {
+      setUsersLoading(false);
     }
   };
 
@@ -118,6 +165,31 @@ const Admin = () => {
       });
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleResetPassword = async (email: string, userName: string) => {
+    setResetLoading(email);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth`,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Password Reset Email Sent",
+        description: `A password reset link has been sent to ${email}`,
+      });
+    } catch (error: any) {
+      console.error("Error sending password reset:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send password reset email",
+        variant: "destructive",
+      });
+    } finally {
+      setResetLoading(null);
     }
   };
 
@@ -218,7 +290,7 @@ const Admin = () => {
                       <Users className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">-</p>
+                      <p className="text-2xl font-bold">{approvedUsers.length}</p>
                       <p className="text-sm text-muted-foreground">Total Users</p>
                     </div>
                   </div>
@@ -305,6 +377,66 @@ const Admin = () => {
                             <span className="ml-1 hidden sm:inline">Approve</span>
                           </Button>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Approved Users with Password Reset */}
+            <Card className="glass mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <KeyRound className="w-5 h-5" />
+                  Approved Users
+                </CardTitle>
+                <CardDescription>
+                  Manage approved users and reset their passwords
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {usersLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : approvedUsers.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No approved users</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {approvedUsers.map((user) => (
+                      <div
+                        key={user.id}
+                        className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 border border-border"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{user.name}</p>
+                            <Badge variant={getRoleBadgeVariant(user.role) as any}>
+                              {getRoleLabel(user.role)}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{user.email}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Joined: {new Date(user.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleResetPassword(user.email, user.name)}
+                          disabled={resetLoading === user.email}
+                        >
+                          {resetLoading === user.email ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <KeyRound className="w-4 h-4" />
+                          )}
+                          <span className="ml-1 hidden sm:inline">Reset Password</span>
+                        </Button>
                       </div>
                     ))}
                   </div>
