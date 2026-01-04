@@ -43,10 +43,8 @@ const Admin = () => {
 
   const fetchPendingUsers = async () => {
     try {
-      const { data, error } = await supabase
-        .from("pending_registrations")
-        .select("*")
-        .order("created_at", { ascending: false });
+      // Use secure RPC function instead of direct view access
+      const { data, error } = await supabase.rpc("get_pending_registrations");
 
       if (error) throw error;
       setPendingUsers(data || []);
