@@ -19,7 +19,11 @@ export type Database = {
           created_at: string
           customer_company: string
           customer_name: string
+          escalated_at: string | null
+          escalated_by: string | null
+          escalation_reason: string | null
           id: string
+          is_escalated: boolean
           notes: string | null
           product_category: string
           product_code: string
@@ -40,7 +44,11 @@ export type Database = {
           created_at?: string
           customer_company: string
           customer_name: string
+          escalated_at?: string | null
+          escalated_by?: string | null
+          escalation_reason?: string | null
           id?: string
+          is_escalated?: boolean
           notes?: string | null
           product_category?: string
           product_code: string
@@ -61,7 +69,11 @@ export type Database = {
           created_at?: string
           customer_company?: string
           customer_name?: string
+          escalated_at?: string | null
+          escalated_by?: string | null
+          escalation_reason?: string | null
           id?: string
+          is_escalated?: boolean
           notes?: string | null
           product_category?: string
           product_code?: string

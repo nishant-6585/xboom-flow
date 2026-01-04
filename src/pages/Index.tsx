@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClipboardList, PlusCircle, Loader2, Package } from "lucide-react";
 
 const Index = () => {
-  const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry } = useEnquiries();
+  const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry, escalateEnquiry } = useEnquiries();
   const { role } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
@@ -132,6 +132,7 @@ const Index = () => {
         onOpenChange={setDialogOpen}
         onSubmitResponse={updateEnquiry}
         onDelete={deleteEnquiry}
+        onEscalate={escalateEnquiry}
       />
     </div>
   );

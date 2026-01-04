@@ -24,6 +24,10 @@ export interface Enquiry {
   response_lead_time: string | null;
   responded_by: string | null;
   responded_at: string | null;
+  is_escalated: boolean;
+  escalated_at: string | null;
+  escalated_by: string | null;
+  escalation_reason: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -255,12 +259,53 @@ export function useEnquiries() {
     }
   };
 
+  const escalateEnquiry = async (enquiryId: string, reason: string) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to escalate an enquiry",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("enquiries")
+        .update({
+          is_escalated: true,
+          escalated_at: new Date().toISOString(),
+          escalated_by: user.id,
+          escalation_reason: reason,
+        })
+        .eq("id", enquiryId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Enquiry Escalated",
+        description: "This enquiry has been escalated to admin for intervention.",
+      });
+
+      return true;
+    } catch (error) {
+      console.error("Error escalating enquiry:", error);
+      toast({
+        title: "Error",
+        description: "Failed to escalate enquiry",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     enquiries,
     loading,
     createEnquiry,
     updateEnquiry,
     deleteEnquiry,
+    escalateEnquiry,
     refetch: fetchEnquiries,
   };
 }
