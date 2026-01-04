@@ -297,6 +297,68 @@ export function PendingPaymentApprovals({ orders }: PendingPaymentApprovalsProps
                             <p className="text-xs text-muted-foreground mt-2">
                               Created {format(new Date(order.created_at), 'dd MMM yyyy, hh:mm a')}
                             </p>
+                            
+                            {/* Show pending payment records with screenshots */}
+                            {pendingOrderRecords.length > 0 && (
+                              <div className="mt-4 space-y-3 border-t border-border pt-3">
+                                <p className="text-sm font-medium text-yellow-600 flex items-center gap-1">
+                                  <Clock className="h-4 w-4" />
+                                  Pending Payment Screenshots
+                                </p>
+                                {pendingOrderRecords.map((record) => (
+                                  <div key={record.id} className="flex items-center gap-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                                    <div
+                                      className="w-16 h-16 rounded-lg border border-border overflow-hidden shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                                      onClick={() => setPreviewImage(record.screenshot_url)}
+                                    >
+                                      <img
+                                        src={record.screenshot_url}
+                                        alt="Payment screenshot"
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-bold text-lg">₹{record.amount.toLocaleString('en-IN')}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {format(new Date(record.submitted_at), 'dd MMM yyyy, hh:mm a')}
+                                      </p>
+                                      {record.notes && (
+                                        <p className="text-xs text-muted-foreground italic mt-1">"{record.notes}"</p>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        onClick={() => openRejectDialog(record)}
+                                        disabled={actionLoading === record.id}
+                                      >
+                                        {actionLoading === record.id ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <X className="h-4 w-4" />
+                                        )}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleApprove(record)}
+                                        disabled={actionLoading === record.id}
+                                      >
+                                        {actionLoading === record.id ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <>
+                                            <Check className="h-4 w-4 mr-1" />
+                                            Approve
+                                          </>
+                                        )}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                           {pendingOrderRecords.length > 0 && (
                             <div className="flex items-center gap-1">
