@@ -4,6 +4,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'procuring' | 'in_transit' | 'customs' | 'delivered' | 'cancelled';
+export type PaymentStatus = 'pending' | 'partial' | 'full';
+export type OrderType = 'prepaid' | 'postpaid';
+export type CustomerType = 'b2b' | 'b2c';
 
 export interface Order {
   id: string;
@@ -16,11 +19,18 @@ export interface Order {
   customer_company: string;
   sales_person_id: string;
   sales_person_name: string;
+  shipping_address: string | null;
+  order_type: OrderType;
+  customer_type: CustomerType;
   supplier_name: string | null;
   supplier_contact: string | null;
   procurement_rate: number | null;
   procurement_currency: string;
   selling_price: number | null;
+  total_sales_amount: number | null;
+  amount_paid: number | null;
+  payment_terms: string | null;
+  payment_status: PaymentStatus;
   status: OrderStatus;
   tracking_number: string | null;
   tracking_url: string | null;
@@ -29,6 +39,7 @@ export interface Order {
   actual_delivery: string | null;
   internal_notes: string | null;
   customer_notes: string | null;
+  sales_notes: string | null;
   created_at: string;
   updated_at: string;
   created_by: string;
@@ -37,24 +48,31 @@ export interface Order {
 export interface OrderFormData {
   enquiry_id?: string;
   product_name: string;
-  product_code: string;
   product_category: string;
   quantity: number;
   customer_name: string;
   customer_company: string;
   sales_person_id: string;
   sales_person_name: string;
+  shipping_address?: string;
+  order_type: OrderType;
+  customer_type: CustomerType;
   supplier_name?: string;
   supplier_contact?: string;
   procurement_rate?: number;
   procurement_currency?: string;
   selling_price?: number;
+  total_sales_amount?: number;
+  amount_paid?: number;
+  payment_terms?: string;
+  payment_status?: PaymentStatus;
   tracking_number?: string;
   tracking_url?: string;
   committed_timeline?: string;
   estimated_delivery?: string;
   internal_notes?: string;
   customer_notes?: string;
+  sales_notes?: string;
 }
 
 export const ORDER_STATUSES: { value: OrderStatus; label: string }[] = [
@@ -65,6 +83,22 @@ export const ORDER_STATUSES: { value: OrderStatus; label: string }[] = [
   { value: 'customs', label: 'Customs' },
   { value: 'delivered', label: 'Delivered' },
   { value: 'cancelled', label: 'Cancelled' },
+];
+
+export const PAYMENT_STATUSES: { value: PaymentStatus; label: string }[] = [
+  { value: 'pending', label: 'Pending Payment' },
+  { value: 'partial', label: 'Partial Received' },
+  { value: 'full', label: 'Full Payment Received' },
+];
+
+export const ORDER_TYPES: { value: OrderType; label: string }[] = [
+  { value: 'prepaid', label: 'Prepaid' },
+  { value: 'postpaid', label: 'Postpaid' },
+];
+
+export const CUSTOMER_TYPES: { value: CustomerType; label: string }[] = [
+  { value: 'b2b', label: 'B2B' },
+  { value: 'b2c', label: 'B2C' },
 ];
 
 export function useOrders() {
@@ -97,6 +131,13 @@ export function useOrders() {
             customer_company,
             sales_person_id,
             sales_person_name,
+            shipping_address,
+            order_type,
+            customer_type,
+            total_sales_amount,
+            amount_paid,
+            payment_terms,
+            payment_status,
             status,
             tracking_number,
             tracking_url,
@@ -104,6 +145,7 @@ export function useOrders() {
             estimated_delivery,
             actual_delivery,
             customer_notes,
+            sales_notes,
             created_at,
             updated_at,
             created_by
@@ -116,6 +158,9 @@ export function useOrders() {
         const mappedOrders: Order[] = (data || []).map(order => ({
           ...order,
           status: order.status as OrderStatus,
+          order_type: (order.order_type || 'prepaid') as OrderType,
+          customer_type: (order.customer_type || 'b2b') as CustomerType,
+          payment_status: (order.payment_status || 'pending') as PaymentStatus,
           supplier_name: null,
           supplier_contact: null,
           procurement_rate: null,
@@ -137,6 +182,9 @@ export function useOrders() {
         const mappedOrders: Order[] = (data || []).map(order => ({
           ...order,
           status: order.status as OrderStatus,
+          order_type: (order.order_type || 'prepaid') as OrderType,
+          customer_type: (order.customer_type || 'b2b') as CustomerType,
+          payment_status: (order.payment_status || 'pending') as PaymentStatus,
         }));
         
         setOrders(mappedOrders);
@@ -184,6 +232,7 @@ export function useOrders() {
         .from('orders')
         .insert({
           ...formData,
+          product_code: formData.product_name, // Auto-generate from product name
           created_by: user.id,
           status: 'pending',
         });

@@ -101,84 +101,108 @@ export type Database = {
       orders: {
         Row: {
           actual_delivery: string | null
+          amount_paid: number | null
           committed_timeline: string | null
           created_at: string
           created_by: string
           customer_company: string
           customer_name: string
           customer_notes: string | null
+          customer_type: string | null
           enquiry_id: string | null
           estimated_delivery: string | null
           id: string
           internal_notes: string | null
+          order_type: string | null
+          payment_status: string | null
+          payment_terms: string | null
           procurement_currency: string | null
           procurement_rate: number | null
           product_category: string | null
           product_code: string
           product_name: string
           quantity: number
+          sales_notes: string | null
           sales_person_id: string
           sales_person_name: string
           selling_price: number | null
+          shipping_address: string | null
           status: Database["public"]["Enums"]["order_status"]
           supplier_contact: string | null
           supplier_name: string | null
+          total_sales_amount: number | null
           tracking_number: string | null
           tracking_url: string | null
           updated_at: string
         }
         Insert: {
           actual_delivery?: string | null
+          amount_paid?: number | null
           committed_timeline?: string | null
           created_at?: string
           created_by: string
           customer_company: string
           customer_name: string
           customer_notes?: string | null
+          customer_type?: string | null
           enquiry_id?: string | null
           estimated_delivery?: string | null
           id?: string
           internal_notes?: string | null
+          order_type?: string | null
+          payment_status?: string | null
+          payment_terms?: string | null
           procurement_currency?: string | null
           procurement_rate?: number | null
           product_category?: string | null
           product_code: string
           product_name: string
           quantity: number
+          sales_notes?: string | null
           sales_person_id: string
           sales_person_name: string
           selling_price?: number | null
+          shipping_address?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           supplier_contact?: string | null
           supplier_name?: string | null
+          total_sales_amount?: number | null
           tracking_number?: string | null
           tracking_url?: string | null
           updated_at?: string
         }
         Update: {
           actual_delivery?: string | null
+          amount_paid?: number | null
           committed_timeline?: string | null
           created_at?: string
           created_by?: string
           customer_company?: string
           customer_name?: string
           customer_notes?: string | null
+          customer_type?: string | null
           enquiry_id?: string | null
           estimated_delivery?: string | null
           id?: string
           internal_notes?: string | null
+          order_type?: string | null
+          payment_status?: string | null
+          payment_terms?: string | null
           procurement_currency?: string | null
           procurement_rate?: number | null
           product_category?: string | null
           product_code?: string
           product_name?: string
           quantity?: number
+          sales_notes?: string | null
           sales_person_id?: string
           sales_person_name?: string
           selling_price?: number | null
+          shipping_address?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           supplier_contact?: string | null
           supplier_name?: string | null
+          total_sales_amount?: number | null
           tracking_number?: string | null
           tracking_url?: string | null
           updated_at?: string
