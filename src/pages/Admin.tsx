@@ -8,8 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useEnquiries } from "@/hooks/useEnquiries";
+import { useOrders } from "@/hooks/useOrders";
 import { EnquiryAnalytics } from "@/components/EnquiryAnalytics";
-import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3 } from "lucide-react";
+import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
+import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard } from "lucide-react";
 
 interface PendingUser {
   id: string;
@@ -27,6 +29,7 @@ const Admin = () => {
   const { role, isApproved } = useAuth();
   const { toast } = useToast();
   const { enquiries } = useEnquiries();
+  const { orders } = useOrders();
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -159,6 +162,10 @@ const Admin = () => {
               <BarChart3 className="w-4 h-4" />
               Analytics
             </TabsTrigger>
+            <TabsTrigger value="payments" className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4" />
+              Payment Reminders
+            </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               User Management
@@ -172,6 +179,10 @@ const Admin = () => {
 
           <TabsContent value="analytics">
             <EnquiryAnalytics enquiries={enquiries} />
+          </TabsContent>
+
+          <TabsContent value="payments">
+            <PaymentRemindersCard orders={orders} />
           </TabsContent>
 
           <TabsContent value="users">

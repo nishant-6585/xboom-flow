@@ -31,6 +31,8 @@ export interface Order {
   amount_paid: number | null;
   payment_terms: string | null;
   payment_status: PaymentStatus;
+  payment_due_date: string | null;
+  last_reminder_sent_at: string | null;
   status: OrderStatus;
   tracking_number: string | null;
   tracking_url: string | null;
@@ -66,6 +68,7 @@ export interface OrderFormData {
   amount_paid?: number;
   payment_terms?: string;
   payment_status?: PaymentStatus;
+  payment_due_date?: string;
   tracking_number?: string;
   tracking_url?: string;
   committed_timeline?: string;
@@ -167,6 +170,8 @@ export function useOrders() {
           procurement_currency: 'INR',
           selling_price: null,
           internal_notes: null,
+          payment_due_date: null,
+          last_reminder_sent_at: null,
         }));
         
         setOrders(mappedOrders);

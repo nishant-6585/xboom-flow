@@ -1,0 +1,165 @@
+import { Bell, Check, CheckCheck, AlertTriangle, Clock, CreditCard } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Notification, useNotifications } from '@/hooks/useNotifications';
+import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
+
+interface NotificationPanelProps {
+  className?: string;
+}
+
+function NotificationItem({
+  notification,
+  onMarkAsRead,
+}: {
+  notification: Notification;
+  onMarkAsRead: (id: string) => void;
+}) {
+  const isOverdue = notification.title.toLowerCase().includes('overdue');
+  const isDueToday = notification.title.toLowerCase().includes('due today');
+
+  return (
+    <div
+      className={cn(
+        'p-4 border-b border-border last:border-0 transition-colors',
+        !notification.is_read && 'bg-primary/5'
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className={cn(
+            'p-2 rounded-lg shrink-0',
+            isOverdue
+              ? 'bg-destructive/10 text-destructive'
+              : isDueToday
+              ? 'bg-warning/10 text-warning'
+              : 'bg-primary/10 text-primary'
+          )}
+        >
+          {isOverdue ? (
+            <AlertTriangle className="w-4 h-4" />
+          ) : isDueToday ? (
+            <Clock className="w-4 h-4" />
+          ) : (
+            <CreditCard className="w-4 h-4" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <p
+              className={cn(
+                'font-medium text-sm truncate',
+                isOverdue && 'text-destructive'
+              )}
+            >
+              {notification.title}
+            </p>
+            {!notification.is_read && (
+              <Badge variant="secondary" className="shrink-0 text-xs">
+                New
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {notification.message}
+          </p>
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-xs text-muted-foreground">
+              {formatDistanceToNow(new Date(notification.created_at), {
+                addSuffix: true,
+              })}
+            </span>
+            {!notification.is_read && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs"
+                onClick={() => onMarkAsRead(notification.id)}
+              >
+                <Check className="w-3 h-3 mr-1" />
+                Mark read
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function NotificationPanel({ className }: NotificationPanelProps) {
+  const { notifications, unreadCount, markAsRead, markAllAsRead, loading } =
+    useNotifications();
+
+  return (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon" className={cn('relative', className)}>
+          <Bell className="w-5 h-5" />
+          {unreadCount > 0 && (
+            <Badge
+              variant="destructive"
+              className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
+            >
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </Badge>
+          )}
+        </Button>
+      </SheetTrigger>
+      <SheetContent className="w-full sm:max-w-md">
+        <SheetHeader>
+          <div className="flex items-center justify-between">
+            <SheetTitle className="flex items-center gap-2">
+              <Bell className="w-5 h-5" />
+              Notifications
+            </SheetTitle>
+            {unreadCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={markAllAsRead}
+                className="text-xs"
+              >
+                <CheckCheck className="w-3 h-3 mr-1" />
+                Mark all read
+              </Button>
+            )}
+          </div>
+          <SheetDescription>Payment reminders and alerts</SheetDescription>
+        </SheetHeader>
+        <ScrollArea className="h-[calc(100vh-120px)] mt-4 -mx-6 px-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+            </div>
+          ) : notifications.length === 0 ? (
+            <div className="text-center py-8">
+              <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <p className="text-muted-foreground">No notifications</p>
+            </div>
+          ) : (
+            <div className="space-y-0">
+              {notifications.map(notification => (
+                <NotificationItem
+                  key={notification.id}
+                  notification={notification}
+                  onMarkAsRead={markAsRead}
+                />
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
+  );
+}

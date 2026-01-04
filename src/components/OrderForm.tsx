@@ -36,6 +36,7 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
     amount_paid: undefined,
     payment_terms: '',
     payment_status: 'pending',
+    payment_due_date: '',
     tracking_number: '',
     tracking_url: '',
     committed_timeline: '',
@@ -105,6 +106,7 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
         amount_paid: undefined,
         payment_terms: '',
         payment_status: 'pending',
+        payment_due_date: '',
         tracking_number: '',
         tracking_url: '',
         committed_timeline: '',
@@ -328,7 +330,7 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
                   disabled={loading}
                 />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2">
                 <Label htmlFor="payment_terms">Payment Terms</Label>
                 <Input
                   id="payment_terms"
@@ -336,6 +338,16 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
                   onChange={e => setFormData(prev => ({ ...prev, payment_terms: e.target.value }))}
                   disabled={loading}
                   placeholder="e.g., 50% advance, 50% on delivery"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="payment_due_date">Payment Due Date</Label>
+                <Input
+                  id="payment_due_date"
+                  type="date"
+                  value={formData.payment_due_date || ''}
+                  onChange={e => setFormData(prev => ({ ...prev, payment_due_date: e.target.value }))}
+                  disabled={loading}
                 />
               </div>
             </div>
