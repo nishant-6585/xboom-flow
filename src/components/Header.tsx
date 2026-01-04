@@ -1,4 +1,4 @@
-import { LogOut, Shield, Package } from "lucide-react";
+import { LogOut, Shield, Package, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
@@ -55,6 +55,15 @@ export function Header() {
               <span className="hidden sm:inline">Orders</span>
             </Button>
           </Link>
+
+          {(role === "admin" || role === "supply_chain") && (
+            <Link to="/suppliers">
+              <Button variant="ghost" size="sm" className="gap-2">
+                <Building2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Suppliers</span>
+              </Button>
+            </Link>
+          )}
 
           {role === "admin" && (
             <Link to="/admin">

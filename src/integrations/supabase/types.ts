@@ -172,6 +172,7 @@ export type Database = {
           shipping_address: string | null
           status: Database["public"]["Enums"]["order_status"]
           supplier_contact: string | null
+          supplier_id: string | null
           supplier_name: string | null
           total_sales_amount: number | null
           tracking_number: string | null
@@ -210,6 +211,7 @@ export type Database = {
           shipping_address?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           supplier_contact?: string | null
+          supplier_id?: string | null
           supplier_name?: string | null
           total_sales_amount?: number | null
           tracking_number?: string | null
@@ -248,6 +250,7 @@ export type Database = {
           shipping_address?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           supplier_contact?: string | null
+          supplier_id?: string | null
           supplier_name?: string | null
           total_sales_amount?: number | null
           tracking_number?: string | null
@@ -260,6 +263,13 @@ export type Database = {
             columns: ["enquiry_id"]
             isOneToOne: false
             referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -347,6 +357,129 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          order_id: string | null
+          payment_date: string
+          payment_mode: string | null
+          payment_type: string
+          reference_number: string | null
+          supplier_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          payment_date?: string
+          payment_mode?: string | null
+          payment_type?: string
+          reference_number?: string | null
+          supplier_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          payment_date?: string
+          payment_mode?: string | null
+          payment_type?: string
+          reference_number?: string | null
+          supplier_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_payments_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          bank_account_holder: string | null
+          bank_account_number: string | null
+          bank_ifsc: string | null
+          bank_name: string | null
+          city: string | null
+          contact_name: string
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          phone: string | null
+          preference: Database["public"]["Enums"]["supplier_preference"]
+          product_category: string
+          products: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          bank_account_holder?: string | null
+          bank_account_number?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          city?: string | null
+          contact_name: string
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          phone?: string | null
+          preference?: Database["public"]["Enums"]["supplier_preference"]
+          product_category?: string
+          products?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          bank_account_holder?: string | null
+          bank_account_number?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          city?: string | null
+          contact_name?: string
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          preference?: Database["public"]["Enums"]["supplier_preference"]
+          product_category?: string
+          products?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -422,6 +555,7 @@ export type Database = {
         | "customs"
         | "delivered"
         | "cancelled"
+      supplier_preference: "low" | "medium" | "high"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -559,6 +693,7 @@ export const Constants = {
         "delivered",
         "cancelled",
       ],
+      supplier_preference: ["low", "medium", "high"],
     },
   },
 } as const
