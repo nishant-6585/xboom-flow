@@ -30,7 +30,7 @@ import { Enquiry, QueryStatus, EnquiryResponse } from "@/hooks/useEnquiries";
 import { StatusBadge } from "./StatusBadge";
 import { UrgencyIndicator } from "./UrgencyIndicator";
 import { useAuth } from "@/hooks/useAuth";
-import { Package, User, Building2, Hash, Boxes, DollarSign, Clock, CheckCircle, Trash2, Loader2, AlertTriangle, Calendar } from "lucide-react";
+import { Package, User, Building2, Hash, Boxes, Clock, CheckCircle, Trash2, Loader2, AlertTriangle, Calendar, IndianRupee } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface EnquiryDialogProps {
@@ -244,12 +244,12 @@ export function EnquiryDialog({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="pricing" className="flex items-center gap-2">
-                      <DollarSign className="w-4 h-4 text-muted-foreground" />
-                      Pricing
+                      <IndianRupee className="w-4 h-4 text-muted-foreground" />
+                      Pricing (INR)
                     </Label>
                     <Input
                       id="pricing"
-                      placeholder="e.g., $45.50/unit"
+                      placeholder="e.g., ₹4,500/unit"
                       value={response.pricing}
                       onChange={(e) => setResponse({ ...response, pricing: e.target.value })}
                     />
