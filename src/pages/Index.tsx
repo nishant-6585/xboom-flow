@@ -4,6 +4,7 @@ import { QueryForm } from "@/components/QueryForm";
 import { EnquiryCard } from "@/components/EnquiryCard";
 import { StatsCards } from "@/components/StatsCards";
 import { SlaStatsCards } from "@/components/SlaStatsCards";
+import { SalesStatsCards } from "@/components/SalesStatsCards";
 import { EnquiryDialog } from "@/components/EnquiryDialog";
 import { useEnquiries, Enquiry } from "@/hooks/useEnquiries";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,13 +13,19 @@ import { ClipboardList, PlusCircle, Loader2, Package } from "lucide-react";
 
 const Index = () => {
   const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry, escalateEnquiry } = useEnquiries();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const canCreateEnquiry = role === "sales" || role === "admin";
+  const canViewSlaStats = role === "supply_chain" || role === "admin";
+  const isSales = role === "sales";
 
+  // Filter enquiries for sales user to show only their own
+  const salesUserEnquiries = isSales && user
+    ? enquiries.filter((e) => e.sales_person_id === user.id)
+    : enquiries;
   const handleEnquiryClick = (enquiry: Enquiry) => {
     setSelectedEnquiry(enquiry);
     setDialogOpen(true);
@@ -34,6 +41,29 @@ const Index = () => {
 
   // Convert enquiries to the format expected by stats components
   const statsQueries = enquiries.map((e) => ({
+    id: e.id,
+    productName: e.product_name,
+    productCode: e.product_code,
+    quantity: e.quantity,
+    customerName: e.customer_name,
+    customerCompany: e.customer_company,
+    salesPerson: e.sales_person_name,
+    urgency: e.urgency as "low" | "medium" | "high" | "critical",
+    notes: e.notes,
+    status: e.status as "pending" | "in_review" | "confirmed" | "rejected",
+    createdAt: new Date(e.created_at),
+    updatedAt: new Date(e.updated_at),
+    response: e.response_pricing
+      ? {
+          pricing: e.response_pricing || undefined,
+          availability: e.response_availability || undefined,
+          leadTime: e.response_lead_time || undefined,
+        }
+      : undefined,
+  }));
+
+  // Sales user's own enquiries for their stats
+  const salesStatsQueries = salesUserEnquiries.map((e) => ({
     id: e.id,
     productName: e.product_name,
     productCode: e.product_code,
@@ -89,7 +119,8 @@ const Index = () => {
             ) : (
               <>
                 <StatsCards queries={statsQueries} />
-                <SlaStatsCards queries={statsQueries} />
+                {canViewSlaStats && <SlaStatsCards queries={statsQueries} />}
+                {isSales && <SalesStatsCards queries={salesStatsQueries} />}
 
                 {enquiries.length === 0 ? (
                   <div className="text-center py-12">
