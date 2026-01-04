@@ -21,6 +21,7 @@ const Index = () => {
   const canCreateEnquiry = role === "sales" || role === "admin";
   const canViewSlaStats = role === "supply_chain" || role === "admin";
   const isSales = role === "sales";
+  const isAdmin = role === "admin";
 
   // Filter enquiries for sales user to show only their own
   const salesUserEnquiries = isSales && user
@@ -120,7 +121,7 @@ const Index = () => {
               <>
                 <StatsCards queries={statsQueries} />
                 {canViewSlaStats && <SlaStatsCards queries={statsQueries} />}
-                {isSales && <SalesStatsCards queries={salesStatsQueries} />}
+                {(isSales || isAdmin) && <SalesStatsCards queries={isAdmin ? statsQueries : salesStatsQueries} />}
 
                 {enquiries.length === 0 ? (
                   <div className="text-center py-12">
