@@ -18,6 +18,7 @@ export interface Enquiry {
   sales_person_name: string;
   urgency: UrgencyLevel;
   notes: string;
+  requested_timeline: string | null;
   status: QueryStatus;
   response_pricing: string | null;
   response_availability: string | null;
@@ -75,6 +76,7 @@ export interface EnquiryFormData {
   customerName: string;
   customerCompany: string;
   urgency: UrgencyLevel;
+  requestedTimeline: string;
   notes: string;
 }
 
@@ -162,6 +164,7 @@ export function useEnquiries() {
         sales_person_id: user.id,
         sales_person_name: profile.name,
         urgency: formData.urgency,
+        requested_timeline: formData.requestedTimeline || null,
         notes: formData.notes,
         status: "pending",
       });
