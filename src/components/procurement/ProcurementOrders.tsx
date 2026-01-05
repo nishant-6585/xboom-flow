@@ -17,8 +17,29 @@ export function ProcurementOrders() {
   const [search, setSearch] = useState("");
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  const getPriorityLabel = (priority: number | null) => {
+    switch (priority) {
+      case 1: return 'Critical';
+      case 2: return 'High';
+      case 3: return 'Medium';
+      case 4: return 'Low';
+      default: return 'Medium';
+    }
+  };
+
+  const getPriorityColor = (priority: number | null) => {
+    switch (priority) {
+      case 1: return 'bg-red-500/10 text-red-500 border-red-500/20';
+      case 2: return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
+      case 3: return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+      case 4: return 'bg-green-500/10 text-green-500 border-green-500/20';
+      default: return 'bg-muted text-muted-foreground';
+    }
+  };
 
   const categories = useMemo(() => {
     const cats = new Set(orders.map(o => o.product_category).filter(Boolean));
@@ -30,7 +51,8 @@ export function ProcurementOrders() {
       const matchesSearch = 
         order.product_name.toLowerCase().includes(search.toLowerCase()) ||
         order.customer_name.toLowerCase().includes(search.toLowerCase()) ||
-        order.customer_company.toLowerCase().includes(search.toLowerCase());
+        order.customer_company.toLowerCase().includes(search.toLowerCase()) ||
+        (order.supplier_name?.toLowerCase().includes(search.toLowerCase()) ?? false);
       
       const matchesSupplier = supplierFilter === "all" || 
         (supplierFilter === "unassigned" && !order.supplier_name) ||
@@ -38,9 +60,12 @@ export function ProcurementOrders() {
       
       const matchesCategory = categoryFilter === "all" || order.product_category === categoryFilter;
       
-      return matchesSearch && matchesSupplier && matchesCategory;
+      const matchesPriority = priorityFilter === "all" || 
+        String(order.priority ?? 3) === priorityFilter;
+      
+      return matchesSearch && matchesSupplier && matchesCategory && matchesPriority;
     });
-  }, [orders, search, supplierFilter, categoryFilter]);
+  }, [orders, search, supplierFilter, categoryFilter, priorityFilter]);
 
   const handleOrderClick = (order: Order) => {
     setSelectedOrder(order);
@@ -124,12 +149,25 @@ export function ProcurementOrders() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <SelectTrigger className="w-full sm:w-[150px]">
+                <SelectValue placeholder="Filter by priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Priorities</SelectItem>
+                <SelectItem value="1">Critical</SelectItem>
+                <SelectItem value="2">High</SelectItem>
+                <SelectItem value="3">Medium</SelectItem>
+                <SelectItem value="4">Low</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Priority</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Supplier</TableHead>
@@ -143,13 +181,18 @@ export function ProcurementOrders() {
               <TableBody>
                 {filteredOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       No orders found
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredOrders.map((order) => (
                     <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrderClick(order)}>
+                      <TableCell>
+                        <Badge variant="outline" className={getPriorityColor(order.priority)}>
+                          {getPriorityLabel(order.priority)}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <div>
                           <p className="font-medium">{order.product_name}</p>
