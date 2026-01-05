@@ -6,14 +6,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { OrderFormData, ORDER_TYPES, CUSTOMER_TYPES, PAYMENT_STATUSES, LEAD_SOURCES, OrderType, CustomerType, PaymentStatus, LeadSource } from '@/hooks/useOrders';
-import { Loader2, Package, ImageIcon, X, Upload } from 'lucide-react';
+import { Loader2, Package, ImageIcon, X, Upload, FileText } from 'lucide-react';
 import { Enquiry, PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { Supplier } from '@/hooks/useSuppliers';
 import { OrderItemsInput } from '@/components/OrderItemsInput';
 import { OrderItemFormData } from '@/hooks/useOrderItems';
 
 interface OrderFormProps {
-  onSubmit: (data: OrderFormData, paymentFile?: File, orderItems?: OrderItemFormData[]) => Promise<boolean>;
+  onSubmit: (data: OrderFormData, paymentFile?: File, orderItems?: OrderItemFormData[], invoiceFile?: File, poFile?: File) => Promise<boolean>;
   enquiries?: Enquiry[];
   suppliers?: Supplier[];
   showProcurementRate?: boolean;
@@ -21,8 +21,14 @@ interface OrderFormProps {
 
 export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcurementRate = true }: OrderFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const invoiceInputRef = useRef<HTMLInputElement>(null);
+  const poInputRef = useRef<HTMLInputElement>(null);
   const [paymentFile, setPaymentFile] = useState<File | null>(null);
   const [paymentPreview, setPaymentPreview] = useState<string | null>(null);
+  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
+  const [invoicePreview, setInvoicePreview] = useState<string | null>(null);
+  const [poFile, setPoFile] = useState<File | null>(null);
+  const [poPreview, setPoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [orderItems, setOrderItems] = useState<OrderItemFormData[]>([
     {
@@ -149,6 +155,38 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     }
   };
 
+  const handleInvoiceFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setInvoiceFile(selectedFile);
+      setInvoicePreview(selectedFile.name);
+    }
+  };
+
+  const handleClearInvoiceFile = () => {
+    setInvoiceFile(null);
+    setInvoicePreview(null);
+    if (invoiceInputRef.current) {
+      invoiceInputRef.current.value = '';
+    }
+  };
+
+  const handlePoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setPoFile(selectedFile);
+      setPoPreview(selectedFile.name);
+    }
+  };
+
+  const handleClearPoFile = () => {
+    setPoFile(null);
+    setPoPreview(null);
+    if (poInputRef.current) {
+      poInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -172,7 +210,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     };
 
     setLoading(true);
-    const success = await onSubmit(updatedFormData, paymentFile || undefined, validItems);
+    const success = await onSubmit(updatedFormData, paymentFile || undefined, validItems, invoiceFile || undefined, poFile || undefined);
     setLoading(false);
 
     if (success) {
@@ -218,6 +256,8 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
         notes: '',
       }]);
       handleClearPaymentFile();
+      handleClearInvoiceFile();
+      handleClearPoFile();
     }
   };
 
@@ -493,6 +533,94 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                 <p className="text-xs text-muted-foreground">
                   Upload proof of payment for admin approval
                 </p>
+              </div>
+
+              {/* Invoice Upload */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Invoice (Optional)
+                </Label>
+                {invoicePreview ? (
+                  <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-sm flex-1 truncate">{invoicePreview}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={handleClearInvoiceFile}
+                      disabled={loading}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div
+                    className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => invoiceInputRef.current?.click()}
+                  >
+                    <FileText className="h-6 w-6 mx-auto text-muted-foreground mb-1" />
+                    <p className="text-sm text-muted-foreground">
+                      Click to upload invoice
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      PDF, PNG, JPG up to 10MB
+                    </p>
+                  </div>
+                )}
+                <input
+                  ref={invoiceInputRef}
+                  type="file"
+                  accept=".pdf,image/*"
+                  onChange={handleInvoiceFileChange}
+                  className="hidden"
+                />
+              </div>
+
+              {/* PO Upload */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  PO Received (Optional)
+                </Label>
+                {poPreview ? (
+                  <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-sm flex-1 truncate">{poPreview}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={handleClearPoFile}
+                      disabled={loading}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div
+                    className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => poInputRef.current?.click()}
+                  >
+                    <FileText className="h-6 w-6 mx-auto text-muted-foreground mb-1" />
+                    <p className="text-sm text-muted-foreground">
+                      Click to upload PO received
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      PDF, PNG, JPG up to 10MB
+                    </p>
+                  </div>
+                )}
+                <input
+                  ref={poInputRef}
+                  type="file"
+                  accept=".pdf,image/*"
+                  onChange={handlePoFileChange}
+                  className="hidden"
+                />
               </div>
             </div>
           </div>
