@@ -113,6 +113,100 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory: {
+        Row: {
+          created_at: string
+          current_stock: number
+          id: string
+          min_stock_level: number | null
+          notes: string | null
+          product_category: string
+          product_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_stock?: number
+          id?: string
+          min_stock_level?: number | null
+          notes?: string | null
+          product_category?: string
+          product_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_stock?: number
+          id?: string
+          min_stock_level?: number | null
+          notes?: string | null
+          product_category?: string
+          product_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      inventory_transactions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          inventory_id: string
+          notes: string | null
+          order_id: string | null
+          order_item_id: string | null
+          quantity: number
+          reference_number: string | null
+          transaction_type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inventory_id: string
+          notes?: string | null
+          order_id?: string | null
+          order_item_id?: string | null
+          quantity: number
+          reference_number?: string | null
+          transaction_type: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inventory_id?: string
+          notes?: string | null
+          order_id?: string | null
+          order_item_id?: string | null
+          quantity?: number
+          reference_number?: string | null
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_transactions_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -157,6 +251,7 @@ export type Database = {
       order_items: {
         Row: {
           created_at: string
+          fulfilled_from_stock: boolean | null
           id: string
           notes: string | null
           order_id: string
@@ -173,6 +268,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          fulfilled_from_stock?: boolean | null
           id?: string
           notes?: string | null
           order_id: string
@@ -189,6 +285,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          fulfilled_from_stock?: boolean | null
           id?: string
           notes?: string | null
           order_id?: string
