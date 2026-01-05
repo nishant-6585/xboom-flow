@@ -12,9 +12,21 @@ export interface OrderItem {
   quantity: number;
   unit_price: number | null;
   procurement_rate: number | null;
+  procurement_date: string | null;
+  status: string;
   notes: string | null;
   created_at: string;
 }
+
+export type OrderItemStatus = 'pending' | 'ordered' | 'in_transit' | 'received' | 'cancelled';
+
+export const ORDER_ITEM_STATUSES: { value: OrderItemStatus; label: string }[] = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'ordered', label: 'Ordered' },
+  { value: 'in_transit', label: 'In Transit' },
+  { value: 'received', label: 'Received' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
 
 export interface OrderItemFormData {
   product_name: string;
@@ -23,6 +35,8 @@ export interface OrderItemFormData {
   quantity: number;
   unit_price?: number;
   procurement_rate?: number;
+  procurement_date?: string;
+  status?: string;
   notes?: string;
 }
 
@@ -36,11 +50,11 @@ export function useOrderItems() {
     try {
       setLoading(true);
       
-      // For sales users, hide procurement_rate
+      // For sales users, hide procurement_rate and procurement_date
       if (role === 'sales') {
         const { data, error } = await supabase
           .from('order_items')
-          .select('id, order_id, product_name, product_code, product_category, quantity, unit_price, notes, created_at')
+          .select('id, order_id, product_name, product_code, product_category, quantity, unit_price, notes, created_at, status')
           .eq('order_id', orderId)
           .order('created_at', { ascending: true });
 
@@ -49,6 +63,7 @@ export function useOrderItems() {
         return (data || []).map(item => ({
           ...item,
           procurement_rate: null,
+          procurement_date: null,
         }));
       } else {
         const { data, error } = await supabase

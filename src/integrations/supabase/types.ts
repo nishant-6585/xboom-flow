@@ -160,11 +160,13 @@ export type Database = {
           id: string
           notes: string | null
           order_id: string
+          procurement_date: string | null
           procurement_rate: number | null
           product_category: string | null
           product_code: string | null
           product_name: string
           quantity: number
+          status: string
           unit_price: number | null
         }
         Insert: {
@@ -172,11 +174,13 @@ export type Database = {
           id?: string
           notes?: string | null
           order_id: string
+          procurement_date?: string | null
           procurement_rate?: number | null
           product_category?: string | null
           product_code?: string | null
           product_name: string
           quantity?: number
+          status?: string
           unit_price?: number | null
         }
         Update: {
@@ -184,11 +188,13 @@ export type Database = {
           id?: string
           notes?: string | null
           order_id?: string
+          procurement_date?: string | null
           procurement_rate?: number | null
           product_category?: string | null
           product_code?: string | null
           product_name?: string
           quantity?: number
+          status?: string
           unit_price?: number | null
         }
         Relationships: [
