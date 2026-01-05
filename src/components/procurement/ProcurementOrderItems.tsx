@@ -5,11 +5,14 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Package, Save, Loader2, Building2 } from 'lucide-react';
+import { Package, Save, Loader2, Building2, Warehouse, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { OrderItem, ORDER_ITEM_STATUSES, OrderItemStatus } from '@/hooks/useOrderItems';
 import { Supplier } from '@/hooks/useSuppliers';
+import { useInventory, InventoryItem } from '@/hooks/useInventory';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 interface ProcurementOrderItemsProps {
   orderId: string;
@@ -25,6 +28,7 @@ interface EditedItem {
   status: string;
   supplier_id: string;
   quantity_procured: string;
+  fulfilled_from_stock: boolean;
 }
 
 const statusColors: Record<string, string> = {
@@ -46,6 +50,15 @@ export function ProcurementOrderItems({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editedItems, setEditedItems] = useState<Record<string, EditedItem>>({});
+  
+  // Inventory integration
+  const { inventory, fulfillFromStock, addStockFromProcurement, canManage: canManageInventory } = useInventory();
+  const [showStockDialog, setShowStockDialog] = useState(false);
+  const [stockDialogItem, setStockDialogItem] = useState<OrderItem | null>(null);
+  const [stockDialogType, setStockDialogType] = useState<'fulfill' | 'add'>('fulfill');
+  const [stockQty, setStockQty] = useState('');
+  const [stockNotes, setStockNotes] = useState('');
+  const [stockSaving, setStockSaving] = useState(false);
 
   useEffect(() => {
     fetchItems();
@@ -72,6 +85,7 @@ export function ProcurementOrderItems({
           status: item.status || 'pending',
           supplier_id: (item as any).supplier_id || '',
           quantity_procured: (item as any).quantity_procured?.toString() || '',
+          fulfilled_from_stock: (item as any).fulfilled_from_stock || false,
         };
       });
       setEditedItems(edited);
@@ -135,6 +149,7 @@ export function ProcurementOrderItems({
       status: item.status || 'pending',
       supplier_id: (item as any).supplier_id || '',
       quantity_procured: (item as any).quantity_procured?.toString() || '',
+      fulfilled_from_stock: (item as any).fulfilled_from_stock || false,
     };
     const edited = editedItems[item.id];
     return edited && (
@@ -142,9 +157,64 @@ export function ProcurementOrderItems({
       original.procurement_date !== edited.procurement_date ||
       original.status !== edited.status ||
       original.supplier_id !== edited.supplier_id ||
-      original.quantity_procured !== edited.quantity_procured
+      original.quantity_procured !== edited.quantity_procured ||
+      original.fulfilled_from_stock !== edited.fulfilled_from_stock
     );
   });
+
+  // Get stock for a product
+  const getStockForProduct = (productName: string, productCategory: string): InventoryItem | undefined => {
+    return inventory.find(
+      i => i.product_name === productName && i.product_category === productCategory
+    );
+  };
+
+  const openStockDialog = (item: OrderItem, type: 'fulfill' | 'add') => {
+    setStockDialogItem(item);
+    setStockDialogType(type);
+    setStockQty('');
+    setStockNotes('');
+    setShowStockDialog(true);
+  };
+
+  const handleStockAction = async () => {
+    if (!stockDialogItem || !stockQty) return;
+    setStockSaving(true);
+
+    const qty = parseInt(stockQty);
+    let success = false;
+
+    if (stockDialogType === 'fulfill') {
+      success = await fulfillFromStock(
+        stockDialogItem.product_name,
+        stockDialogItem.product_category || 'Consumer Drones',
+        qty,
+        orderId,
+        stockDialogItem.id,
+        stockNotes
+      );
+      if (success) {
+        // Update the item to mark as fulfilled from stock
+        await supabase
+          .from('order_items')
+          .update({ fulfilled_from_stock: true })
+          .eq('id', stockDialogItem.id);
+      }
+    } else {
+      success = await addStockFromProcurement(
+        stockDialogItem.product_name,
+        stockDialogItem.product_category || 'Consumer Drones',
+        qty,
+        stockNotes
+      );
+    }
+
+    setStockSaving(false);
+    if (success) {
+      setShowStockDialog(false);
+      fetchItems();
+    }
+  };
 
   if (loading) {
     return (
@@ -199,6 +269,9 @@ export function ProcurementOrderItems({
           const qtyProcured = parseInt(editedItems[item.id]?.quantity_procured) || 0;
           const qtyPending = item.quantity - qtyProcured;
           const selectedSupplier = suppliers.find(s => s.id === editedItems[item.id]?.supplier_id);
+          const stockItem = getStockForProduct(item.product_name, item.product_category || 'Consumer Drones');
+          const availableStock = stockItem?.current_stock || 0;
+          const isFromStock = editedItems[item.id]?.fulfilled_from_stock || (item as any).fulfilled_from_stock;
           
           return (
             <div key={item.id} className="p-3 bg-muted/30 rounded-lg space-y-3">
@@ -207,12 +280,25 @@ export function ProcurementOrderItems({
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
                     <span className="font-medium">{item.product_name}</span>
+                    {isFromStock && (
+                      <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 text-xs">
+                        <Warehouse className="h-3 w-3 mr-1" />
+                        From Stock
+                      </Badge>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {item.product_category} • Code: {item.product_code || '-'}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Stock indicator */}
+                  {stockItem && (
+                    <Badge variant="outline" className="text-xs gap-1">
+                      <Warehouse className="h-3 w-3" />
+                      Stock: {availableStock}
+                    </Badge>
+                  )}
                   <Badge variant="secondary">Order Qty: {item.quantity}</Badge>
                   <Badge className={statusColors[editedItems[item.id]?.status || 'pending']}>
                     {ORDER_ITEM_STATUSES.find(s => s.value === editedItems[item.id]?.status)?.label || 'Pending'}
@@ -332,6 +418,32 @@ export function ProcurementOrderItems({
                   </div>
                 </div>
               </div>
+
+              {/* Stock Actions */}
+              {canManageInventory && (
+                <div className="flex gap-2 pt-2 border-t border-border/50">
+                  {availableStock > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openStockDialog(item, 'fulfill')}
+                      className="text-xs"
+                    >
+                      <ArrowDownCircle className="h-3 w-3 mr-1" />
+                      Fulfill from Stock ({availableStock} available)
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openStockDialog(item, 'add')}
+                    className="text-xs"
+                  >
+                    <ArrowUpCircle className="h-3 w-3 mr-1" />
+                    Add to Stock
+                  </Button>
+                </div>
+              )}
             </div>
           );
         })}
@@ -346,6 +458,71 @@ export function ProcurementOrderItems({
           </div>
         </div>
       </CardContent>
+
+      {/* Stock Action Dialog */}
+      <Dialog open={showStockDialog} onOpenChange={setShowStockDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {stockDialogType === 'fulfill' ? (
+                <>
+                  <ArrowDownCircle className="h-5 w-5 text-blue-600" />
+                  Fulfill from Stock
+                </>
+              ) : (
+                <>
+                  <ArrowUpCircle className="h-5 w-5 text-green-600" />
+                  Add to Stock
+                </>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {stockDialogItem && (
+            <div className="space-y-4 pt-4">
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="font-medium">{stockDialogItem.product_name}</p>
+                <p className="text-sm text-muted-foreground">{stockDialogItem.product_category}</p>
+                {stockDialogType === 'fulfill' && (
+                  <p className="text-sm mt-2">
+                    Available in stock: <strong>{getStockForProduct(stockDialogItem.product_name, stockDialogItem.product_category || 'Consumer Drones')?.current_stock || 0}</strong>
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Quantity</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={stockDialogType === 'fulfill' 
+                    ? getStockForProduct(stockDialogItem.product_name, stockDialogItem.product_category || 'Consumer Drones')?.current_stock 
+                    : undefined
+                  }
+                  value={stockQty}
+                  onChange={(e) => setStockQty(e.target.value)}
+                  placeholder="Enter quantity"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Notes (optional)</Label>
+                <Textarea
+                  value={stockNotes}
+                  onChange={(e) => setStockNotes(e.target.value)}
+                  placeholder={stockDialogType === 'fulfill' ? 'Fulfilled for order...' : 'Procured from supplier...'}
+                  rows={2}
+                />
+              </div>
+              <Button 
+                onClick={handleStockAction} 
+                disabled={stockSaving || !stockQty} 
+                className="w-full"
+              >
+                {stockSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {stockDialogType === 'fulfill' ? 'Fulfill from Stock' : 'Add to Stock'}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
