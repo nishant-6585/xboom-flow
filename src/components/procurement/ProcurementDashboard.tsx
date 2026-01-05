@@ -76,18 +76,22 @@ export function ProcurementDashboard() {
     });
   }, [filteredPayments, dateInterval]);
 
-  // Supplier-wise procurement
+  // Supplier-wise procurement with count
   const supplierWiseProcurement = useMemo(() => {
-    const supplierMap = new Map<string, number>();
+    const supplierMap = new Map<string, { value: number; count: number }>();
     
     filteredOrders.forEach(order => {
       const supplierName = order.supplier_name || 'Unassigned';
       const value = (order.procurement_rate || 0) * (order.quantity || 1);
-      supplierMap.set(supplierName, (supplierMap.get(supplierName) || 0) + value);
+      const current = supplierMap.get(supplierName) || { value: 0, count: 0 };
+      supplierMap.set(supplierName, { 
+        value: current.value + value, 
+        count: current.count + 1 
+      });
     });
 
     return Array.from(supplierMap.entries())
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, data]) => ({ name, ...data }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 10);
   }, [filteredOrders]);
@@ -111,7 +115,7 @@ export function ProcurementDashboard() {
       .sort((a, b) => b.value - a.value);
   }, [filteredOrders]);
 
-  // Summary stats
+  // Summary stats with pending orders
   const stats = useMemo(() => {
     const totalProcurement = filteredOrders.reduce((sum, o) => 
       sum + ((o.procurement_rate || 0) * (o.quantity || 1)), 0
@@ -119,8 +123,16 @@ export function ProcurementDashboard() {
     const totalPayments = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
     const activeSuppliers = new Set(filteredOrders.map(o => o.supplier_name).filter(Boolean)).size;
     
+    // Pending orders (not delivered or cancelled)
+    const pendingOrders = filteredOrders.filter(o => 
+      !['delivered', 'cancelled'].includes(o.status)
+    ).length;
+    const completedOrders = filteredOrders.filter(o => o.status === 'delivered').length;
+    
     return {
       totalOrders: filteredOrders.length,
+      pendingOrders,
+      completedOrders,
       totalProcurement,
       totalPayments,
       activeSuppliers,
@@ -283,12 +295,60 @@ export function ProcurementDashboard() {
         </Card>
       </div>
 
-      {/* Day-wise Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Day-wise Procurement */}
+      {/* Pending vs Total Orders */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Pending vs Total Orders Pie */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Day-wise Procurement</CardTitle>
+            <CardTitle className="text-sm font-medium">Pending vs Completed Orders</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: 'Pending', value: stats.pendingOrders, fill: 'hsl(var(--chart-4))' },
+                      { name: 'Completed', value: stats.completedOrders, fill: 'hsl(var(--chart-2))' },
+                    ]}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}`}
+                  >
+                    <Cell fill="hsl(var(--chart-4))" />
+                    <Cell fill="hsl(var(--chart-2))" />
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--popover))', 
+                      borderColor: 'hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-center gap-6 mt-2">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'hsl(var(--chart-4))' }} />
+                <span className="text-sm text-muted-foreground">Pending ({stats.pendingOrders})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'hsl(var(--chart-2))' }} />
+                <span className="text-sm text-muted-foreground">Completed ({stats.completedOrders})</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Day-wise Procurement Value */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Day-wise Procurement Value</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
@@ -318,54 +378,49 @@ export function ProcurementDashboard() {
             </div>
           </CardContent>
         </Card>
+      </div>
 
-        {/* Day-wise Payments */}
+      {/* Supplier-wise Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Supplier-wise Procurement Count */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Day-wise Payments to Suppliers</CardTitle>
+            <CardTitle className="text-sm font-medium">Supplier-wise No. of Procurements</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={dayWisePayments}>
+                <BarChart data={supplierWiseProcurement} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis 
-                    dataKey="date" 
-                    tick={{ fontSize: 10 }} 
-                    interval="preserveStartEnd"
+                    type="number"
+                    tick={{ fontSize: 10 }}
                   />
                   <YAxis 
+                    type="category" 
+                    dataKey="name" 
                     tick={{ fontSize: 10 }}
-                    tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
+                    width={100}
                   />
                   <Tooltip 
-                    formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Amount']}
+                    formatter={(value: number) => [value, 'Orders']}
                     contentStyle={{ 
                       backgroundColor: 'hsl(var(--popover))', 
                       borderColor: 'hsl(var(--border))',
                       borderRadius: '8px'
                     }}
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="amount" 
-                    stroke="hsl(var(--chart-2))" 
-                    strokeWidth={2}
-                    dot={{ fill: 'hsl(var(--chart-2))' }}
-                  />
-                </LineChart>
+                  <Bar dataKey="count" fill="hsl(var(--chart-5))" radius={[0, 4, 4, 0]} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Supplier-wise and Category-wise */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Supplier-wise Procurement */}
+        {/* Supplier-wise Procurement Value */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Top Suppliers by Procurement Value</CardTitle>
+            <CardTitle className="text-sm font-medium">Supplier-wise Procurement Value</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
@@ -439,6 +494,46 @@ export function ProcurementDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Day-wise Payments */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Day-wise Payments to Suppliers</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={dayWisePayments}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 10 }} 
+                  interval="preserveStartEnd"
+                />
+                <YAxis 
+                  tick={{ fontSize: 10 }}
+                  tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
+                />
+                <Tooltip 
+                  formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Amount']}
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--popover))', 
+                    borderColor: 'hsl(var(--border))',
+                    borderRadius: '8px'
+                  }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="amount" 
+                  stroke="hsl(var(--chart-2))" 
+                  strokeWidth={2}
+                  dot={{ fill: 'hsl(var(--chart-2))' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Category Details Table */}
       <Card>
