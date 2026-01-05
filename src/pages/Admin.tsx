@@ -12,7 +12,25 @@ import { useOrders } from "@/hooks/useOrders";
 import { EnquiryAnalytics } from "@/components/EnquiryAnalytics";
 import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
 import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
-import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound } from "lucide-react";
+import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Navigate } from "react-router-dom";
 
 interface PendingUser {
@@ -45,6 +63,8 @@ const Admin = () => {
   const [usersLoading, setUsersLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [resetLoading, setResetLoading] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [roleChangeLoading, setRoleChangeLoading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("analytics");
 
   // Redirect if not admin or not approved
@@ -190,6 +210,71 @@ const Admin = () => {
       });
     } finally {
       setResetLoading(null);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    setDeleteLoading(userId);
+    try {
+      // Delete user role first
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId);
+
+      if (roleError) throw roleError;
+
+      // Delete user profile
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("user_id", userId);
+
+      if (profileError) throw profileError;
+
+      toast({
+        title: "User Deleted",
+        description: `${userName} has been removed from the system`,
+      });
+
+      fetchApprovedUsers();
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete user",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteLoading(null);
+    }
+  };
+
+  const handleChangeRole = async (userId: string, newRole: string, userName: string) => {
+    setRoleChangeLoading(userId);
+    try {
+      const { error } = await supabase
+        .from("user_roles")
+        .update({ role: newRole as any })
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Role Updated",
+        description: `${userName}'s role has been changed to ${getRoleLabel(newRole)}`,
+      });
+
+      fetchApprovedUsers();
+    } catch (error) {
+      console.error("Error changing role:", error);
+      toast({
+        title: "Error",
+        description: "Failed to change user role",
+        variant: "destructive",
+      });
+    } finally {
+      setRoleChangeLoading(null);
     }
   };
 
@@ -424,19 +509,77 @@ const Admin = () => {
                             Joined: {new Date(user.created_at).toLocaleDateString()}
                           </p>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleResetPassword(user.email, user.name)}
-                          disabled={resetLoading === user.email}
-                        >
-                          {resetLoading === user.email ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <KeyRound className="w-4 h-4" />
-                          )}
-                          <span className="ml-1 hidden sm:inline">Reset Password</span>
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          {/* Role Change Dropdown */}
+                          <Select
+                            value={user.role}
+                            onValueChange={(value) => handleChangeRole(user.user_id, value, user.name)}
+                            disabled={roleChangeLoading === user.user_id}
+                          >
+                            <SelectTrigger className="w-[140px] h-8">
+                              {roleChangeLoading === user.user_id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <SelectValue />
+                              )}
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="sales">Sales Team</SelectItem>
+                              <SelectItem value="supply_chain">Supply Chain</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          {/* Reset Password */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleResetPassword(user.email, user.name)}
+                            disabled={resetLoading === user.email}
+                          >
+                            {resetLoading === user.email ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <KeyRound className="w-4 h-4" />
+                            )}
+                            <span className="ml-1 hidden sm:inline">Reset</span>
+                          </Button>
+
+                          {/* Delete User */}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                disabled={deleteLoading === user.user_id}
+                              >
+                                {deleteLoading === user.user_id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete {user.name}? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteUser(user.user_id, user.name)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </div>
                     ))}
                   </div>
