@@ -442,11 +442,13 @@ export type Database = {
           bank_account_number: string | null
           bank_ifsc: string | null
           bank_name: string | null
+          brand_name: string | null
           city: string | null
           contact_name: string
           created_at: string
           created_by: string | null
           email: string | null
+          gst_number: string | null
           id: string
           is_active: boolean
           name: string
@@ -463,11 +465,13 @@ export type Database = {
           bank_account_number?: string | null
           bank_ifsc?: string | null
           bank_name?: string | null
+          brand_name?: string | null
           city?: string | null
           contact_name: string
           created_at?: string
           created_by?: string | null
           email?: string | null
+          gst_number?: string | null
           id?: string
           is_active?: boolean
           name: string
@@ -484,11 +488,13 @@ export type Database = {
           bank_account_number?: string | null
           bank_ifsc?: string | null
           bank_name?: string | null
+          brand_name?: string | null
           city?: string | null
           contact_name?: string
           created_at?: string
           created_by?: string | null
           email?: string | null
+          gst_number?: string | null
           id?: string
           is_active?: boolean
           name?: string
