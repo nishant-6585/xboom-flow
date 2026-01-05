@@ -8,11 +8,13 @@ import { OrderTable } from '@/components/OrderTable';
 import { OrderForm } from '@/components/OrderForm';
 import { OrderDialog } from '@/components/OrderDialog';
 import { OrderProfitAnalytics } from '@/components/OrderProfitAnalytics';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { useOrders, Order, ORDER_STATUSES } from '@/hooks/useOrders';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table } from 'lucide-react';
+import { startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 
 export default function Orders() {
   const { role } = useAuth();
@@ -25,13 +27,32 @@ export default function Orders() {
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
   const canCreateOrder = role === 'supply_chain' || role === 'admin';
   const isAdmin = role === 'admin';
 
-  const filteredOrders = statusFilter === 'all'
-    ? orders
-    : orders.filter(o => o.status === statusFilter);
+  const filteredOrders = orders.filter(o => {
+    const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
+    
+    const orderDate = new Date(o.created_at);
+    let matchesDate = true;
+    if (startDate && endDate) {
+      matchesDate = isWithinInterval(orderDate, { start: startOfDay(startDate), end: endOfDay(endDate) });
+    } else if (startDate) {
+      matchesDate = orderDate >= startOfDay(startDate);
+    } else if (endDate) {
+      matchesDate = orderDate <= endOfDay(endDate);
+    }
+    
+    return matchesStatus && matchesDate;
+  });
+
+  const clearDateFilter = () => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+  };
 
   const handleOrderClick = (order: Order) => {
     setSelectedOrder(order);
@@ -72,20 +93,29 @@ export default function Orders() {
 
           <TabsContent value="list" className="space-y-4">
             {/* Filters and View Toggle */}
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Filter by status:</span>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="All Statuses" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    {ORDER_STATUSES.map(s => (
-                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Status:</span>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[150px]">
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      {ORDER_STATUSES.map(s => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <DateRangeFilter
+                  startDate={startDate}
+                  endDate={endDate}
+                  onStartDateChange={setStartDate}
+                  onEndDateChange={setEndDate}
+                  onClear={clearDateFilter}
+                />
               </div>
               <div className="flex items-center gap-1 border rounded-md p-1">
                 <Button

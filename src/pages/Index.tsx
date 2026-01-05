@@ -8,12 +8,14 @@ import { StatsCards } from "@/components/StatsCards";
 import { SlaStatsCards } from "@/components/SlaStatsCards";
 import { SalesStatsCards } from "@/components/SalesStatsCards";
 import { EnquiryDialog } from "@/components/EnquiryDialog";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { useEnquiries, Enquiry, PRODUCT_CATEGORIES } from "@/hooks/useEnquiries";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ClipboardList, PlusCircle, Loader2, Package, Filter, TableIcon, LayoutGrid, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { startOfDay, endOfDay, isWithinInterval } from "date-fns";
 
 const Index = () => {
   const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry, escalateEnquiry, updateOutcome } = useEnquiries();
@@ -23,16 +25,35 @@ const Index = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
   const canCreateEnquiry = role === "sales" || role === "admin";
   const canViewSlaStats = role === "supply_chain" || role === "admin";
   const isSales = role === "sales";
   const isAdmin = role === "admin";
 
-  // Filter enquiries by category
-  const filteredEnquiries = categoryFilter === "all"
-    ? enquiries
-    : enquiries.filter((e) => e.product_category === categoryFilter);
+  // Filter enquiries by category and date
+  const filteredEnquiries = enquiries.filter((e) => {
+    const matchesCategory = categoryFilter === "all" || e.product_category === categoryFilter;
+    
+    const enquiryDate = new Date(e.created_at);
+    let matchesDate = true;
+    if (startDate && endDate) {
+      matchesDate = isWithinInterval(enquiryDate, { start: startOfDay(startDate), end: endOfDay(endDate) });
+    } else if (startDate) {
+      matchesDate = enquiryDate >= startOfDay(startDate);
+    } else if (endDate) {
+      matchesDate = enquiryDate <= endOfDay(endDate);
+    }
+    
+    return matchesCategory && matchesDate;
+  });
+
+  const clearDateFilter = () => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+  };
 
   // Filter enquiries for sales user to show only their own
   const salesUserEnquiries = isSales && user
@@ -143,23 +164,32 @@ const Index = () => {
                 {canViewSlaStats && <SlaStatsCards queries={statsQueries} />}
                 {(isSales || isAdmin) && <SalesStatsCards queries={isAdmin ? statsQueries : salesStatsQueries} />}
 
-                {/* Category Filter */}
-                <div className="flex items-center gap-3">
-                  <Filter className="w-4 h-4 text-muted-foreground" />
-                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="w-[250px]">
-                      <SelectValue placeholder="Filter by category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      {PRODUCT_CATEGORIES.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {categoryFilter !== "all" && (
+                {/* Category and Date Filters */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <div className="flex items-center gap-3">
+                    <Filter className="w-4 h-4 text-muted-foreground" />
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="Filter by category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Categories</SelectItem>
+                        {PRODUCT_CATEGORIES.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <DateRangeFilter
+                    startDate={startDate}
+                    endDate={endDate}
+                    onStartDateChange={setStartDate}
+                    onEndDateChange={setEndDate}
+                    onClear={clearDateFilter}
+                  />
+                  {(categoryFilter !== "all" || startDate || endDate) && (
                     <span className="text-sm text-muted-foreground">
                       Showing {filteredEnquiries.length} of {enquiries.length} enquiries
                     </span>
@@ -208,23 +238,32 @@ const Index = () => {
             ) : (
               <>
                 {/* Filters and View Toggle */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <Filter className="w-4 h-4 text-muted-foreground" />
-                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                      <SelectTrigger className="w-[250px]">
-                        <SelectValue placeholder="Filter by category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Categories</SelectItem>
-                        {PRODUCT_CATEGORIES.map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {categoryFilter !== "all" && (
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div className="flex items-center gap-3">
+                      <Filter className="w-4 h-4 text-muted-foreground" />
+                      <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                        <SelectTrigger className="w-[200px]">
+                          <SelectValue placeholder="Filter by category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Categories</SelectItem>
+                          {PRODUCT_CATEGORIES.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <DateRangeFilter
+                      startDate={startDate}
+                      endDate={endDate}
+                      onStartDateChange={setStartDate}
+                      onEndDateChange={setEndDate}
+                      onClear={clearDateFilter}
+                    />
+                    {(categoryFilter !== "all" || startDate || endDate) && (
                       <span className="text-sm text-muted-foreground">
                         {filteredEnquiries.length} of {enquiries.length}
                       </span>
