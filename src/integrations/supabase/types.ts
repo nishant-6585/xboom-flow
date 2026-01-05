@@ -24,7 +24,12 @@ export type Database = {
           escalation_reason: string | null
           id: string
           is_escalated: boolean
+          lost_reason: string | null
+          lost_reason_notes: string | null
           notes: string | null
+          order_outcome: string | null
+          outcome_updated_at: string | null
+          outcome_updated_by: string | null
           product_category: string
           product_code: string
           product_name: string
@@ -51,7 +56,12 @@ export type Database = {
           escalation_reason?: string | null
           id?: string
           is_escalated?: boolean
+          lost_reason?: string | null
+          lost_reason_notes?: string | null
           notes?: string | null
+          order_outcome?: string | null
+          outcome_updated_at?: string | null
+          outcome_updated_by?: string | null
           product_category?: string
           product_code: string
           product_name: string
@@ -78,7 +88,12 @@ export type Database = {
           escalation_reason?: string | null
           id?: string
           is_escalated?: boolean
+          lost_reason?: string | null
+          lost_reason_notes?: string | null
           notes?: string | null
+          order_outcome?: string | null
+          outcome_updated_at?: string | null
+          outcome_updated_by?: string | null
           product_category?: string
           product_code?: string
           product_name?: string
