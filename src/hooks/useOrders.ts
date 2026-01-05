@@ -95,6 +95,8 @@ export interface OrderFormData {
   internal_notes?: string;
   customer_notes?: string;
   sales_notes?: string;
+  invoice_url?: string;
+  po_url?: string;
 }
 
 export const ORDER_STATUSES: { value: OrderStatus; label: string }[] = [
@@ -289,13 +291,61 @@ export function useOrders() {
     };
   }, [user, fetchOrders]);
 
-  const createOrder = async (formData: OrderFormData, paymentFile?: File, orderItems?: { product_name: string; product_code?: string; product_category: string; quantity: number; unit_price?: number; procurement_rate?: number; notes?: string; }[]): Promise<boolean> => {
+  const createOrder = async (
+    formData: OrderFormData, 
+    paymentFile?: File, 
+    orderItems?: { product_name: string; product_code?: string; product_category: string; quantity: number; unit_price?: number; procurement_rate?: number; notes?: string; }[],
+    invoiceFile?: File,
+    poFile?: File
+  ): Promise<boolean> => {
     if (!user) {
       toast.error('You must be logged in to create orders');
       return false;
     }
 
     try {
+      // Upload invoice file if provided
+      let invoiceUrl = formData.invoice_url;
+      if (invoiceFile) {
+        const fileExt = invoiceFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('invoices')
+          .upload(filePath, invoiceFile);
+
+        if (uploadError) {
+          console.error('Error uploading invoice:', uploadError);
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('invoices')
+            .getPublicUrl(filePath);
+          invoiceUrl = publicUrl;
+        }
+      }
+
+      // Upload PO file if provided
+      let poUrl = formData.po_url;
+      if (poFile) {
+        const fileExt = poFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('purchase-orders')
+          .upload(filePath, poFile);
+
+        if (uploadError) {
+          console.error('Error uploading PO:', uploadError);
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('purchase-orders')
+            .getPublicUrl(filePath);
+          poUrl = publicUrl;
+        }
+      }
+
       // Sanitize form data - convert empty strings to null for date and UUID fields
       const sanitizedData = {
         ...formData,
@@ -307,6 +357,8 @@ export function useOrders() {
         product_code: formData.product_name, // Auto-generate from product name
         created_by: user.id,
         status: 'pending' as const,
+        invoice_url: invoiceUrl || null,
+        po_url: poUrl || null,
       };
 
       const { data: orderData, error } = await supabase
