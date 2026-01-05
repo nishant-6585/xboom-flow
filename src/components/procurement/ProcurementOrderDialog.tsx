@@ -18,8 +18,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileText, Building2, CreditCard, Loader2, Plus, Trash2 } from "lucide-react";
+import { Upload, FileText, Building2, CreditCard, Loader2, Plus, Trash2, Package } from "lucide-react";
 import { format } from "date-fns";
+import { ProcurementOrderItems } from "./ProcurementOrderItems";
 
 interface ProcurementOrderDialogProps {
   order: Order | null;
@@ -215,6 +216,15 @@ export function ProcurementOrderDialog({
               </div>
             </CardContent>
           </Card>
+
+
+          {/* Order Items with Procurement Rates */}
+          <ProcurementOrderItems
+            orderId={order.id}
+            orderQuantity={order.quantity}
+            orderProcurementRate={order.procurement_rate || undefined}
+            procurementCurrency={procurementCurrency}
+          />
 
           <Separator />
 
