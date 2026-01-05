@@ -249,7 +249,7 @@ export function useOrders() {
     };
   }, [user, fetchOrders]);
 
-  const createOrder = async (formData: OrderFormData, paymentFile?: File): Promise<boolean> => {
+  const createOrder = async (formData: OrderFormData, paymentFile?: File, orderItems?: { product_name: string; product_code?: string; product_category: string; quantity: number; unit_price?: number; procurement_rate?: number; notes?: string; }[]): Promise<boolean> => {
     if (!user) {
       toast.error('You must be logged in to create orders');
       return false;
@@ -276,6 +276,29 @@ export function useOrders() {
         .single();
 
       if (error) throw error;
+
+      // Insert order items if provided
+      if (orderData && orderItems && orderItems.length > 0) {
+        const itemsToInsert = orderItems.map(item => ({
+          order_id: orderData.id,
+          product_name: item.product_name,
+          product_code: item.product_code || item.product_name,
+          product_category: item.product_category,
+          quantity: item.quantity,
+          unit_price: item.unit_price || null,
+          procurement_rate: item.procurement_rate || null,
+          notes: item.notes || null,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) {
+          console.error('Error creating order items:', itemsError);
+          // Don't fail the order creation, just log the error
+        }
+      }
 
       // If payment file is provided, upload it and create payment record
       if (paymentFile && orderData && formData.amount_paid && formData.amount_paid > 0) {
