@@ -5,6 +5,11 @@ import { Link } from "react-router-dom";
 import logoFull from "@/assets/logo-full.jpeg";
 import { NotificationPanel } from "@/components/NotificationPanel";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -48,30 +53,51 @@ export function Header() {
           </Link>
         </div>
 
-        <div className="flex items-center gap-4">
-          <Link to="/orders">
-            <Button variant="ghost" size="sm" className="gap-2">
-              <Package className="w-4 h-4" />
-              <span>Orders</span>
-            </Button>
-          </Link>
+        <div className="flex items-center gap-2 sm:gap-4">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link to="/orders">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <Package className="w-4 h-4" />
+                  <span className="hidden sm:inline">Orders</span>
+                </Button>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent className="sm:hidden">
+              <p>Orders</p>
+            </TooltipContent>
+          </Tooltip>
 
           {(role === "admin" || role === "supply_chain") && (
-            <Link to="/suppliers">
-              <Button variant="ghost" size="sm" className="gap-2">
-                <Building2 className="w-4 h-4" />
-                <span>Suppliers</span>
-              </Button>
-            </Link>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link to="/suppliers">
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <Building2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Suppliers</span>
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent className="sm:hidden">
+                <p>Suppliers</p>
+              </TooltipContent>
+            </Tooltip>
           )}
 
           {role === "admin" && (
-            <Link to="/admin">
-              <Button variant="ghost" size="sm" className="gap-2">
-                <Shield className="w-4 h-4" />
-                <span className="hidden sm:inline">Admin</span>
-              </Button>
-            </Link>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link to="/admin">
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <Shield className="w-4 h-4" />
+                    <span className="hidden sm:inline">Admin</span>
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent className="sm:hidden">
+                <p>Admin</p>
+              </TooltipContent>
+            </Tooltip>
           )}
 
           {(role === 'admin' || role === 'supply_chain') && (
@@ -90,7 +116,7 @@ export function Header() {
                 </div>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-56 bg-popover">
               <DropdownMenuLabel>
                 <div>
                   <p className="font-medium">{profile?.name}</p>
