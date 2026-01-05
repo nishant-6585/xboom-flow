@@ -267,8 +267,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
               </div>
             </div>
 
-            {/* Admin-only: Profit Display */}
-            {isAdmin && profit !== null && (
+            {/* Profit Display - visible to supply chain and admin */}
+            {canSeeProcurement && profit !== null && (
               <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
