@@ -10,6 +10,7 @@ export interface PaymentRecord {
   order_id: string;
   amount: number;
   screenshot_url: string;
+  screenshot_signed_url?: string;
   notes: string | null;
   status: PaymentRecordStatus;
   submitted_by: string;
@@ -19,6 +20,18 @@ export interface PaymentRecord {
   rejection_reason: string | null;
   created_at: string;
 }
+
+// Helper to extract storage path from a public URL or return as-is if already a path
+const extractStoragePath = (url: string): string => {
+  // If it's a full URL, extract the path after /storage/v1/object/public/payment-screenshots/
+  const publicUrlPattern = /\/storage\/v1\/object\/public\/payment-screenshots\/(.+)$/;
+  const match = url.match(publicUrlPattern);
+  if (match) {
+    return match[1];
+  }
+  // If it's already just a path, return as-is
+  return url;
+};
 
 export function usePaymentRecords(orderId?: string) {
   const [records, setRecords] = useState<PaymentRecord[]>([]);
@@ -47,7 +60,22 @@ export function usePaymentRecords(orderId?: string) {
 
       if (error) throw error;
 
-      setRecords((data || []) as PaymentRecord[]);
+      // Generate signed URLs for each screenshot (1 hour expiry)
+      const recordsWithSignedUrls = await Promise.all(
+        (data || []).map(async (record: any) => {
+          const storagePath = extractStoragePath(record.screenshot_url);
+          const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+            .from('payment-screenshots')
+            .createSignedUrl(storagePath, 3600); // 1 hour expiry
+
+          return {
+            ...record,
+            screenshot_signed_url: signedUrlError ? null : signedUrlData?.signedUrl,
+          } as PaymentRecord;
+        })
+      );
+
+      setRecords(recordsWithSignedUrls);
     } catch (error: any) {
       console.error('Error fetching payment records:', error);
     } finally {
@@ -71,11 +99,8 @@ export function usePaymentRecords(orderId?: string) {
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('payment-screenshots')
-        .getPublicUrl(filePath);
-
-      return publicUrl;
+      // Return the storage path (not a public URL) - we'll generate signed URLs when fetching
+      return filePath;
     } catch (error: any) {
       console.error('Error uploading screenshot:', error);
       toast.error('Failed to upload screenshot');

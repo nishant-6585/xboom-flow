@@ -135,10 +135,10 @@ export function PaymentStatusTracker({ orderId, compact = false }: PaymentStatus
                     {/* Thumbnail */}
                     <div
                       className="w-12 h-12 rounded border border-border overflow-hidden shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => setPreviewImage(record.screenshot_url)}
+                      onClick={() => setPreviewImage(record.screenshot_signed_url || record.screenshot_url)}
                     >
                       <img
-                        src={record.screenshot_url}
+                        src={record.screenshot_signed_url || record.screenshot_url}
                         alt="Payment screenshot"
                         className="w-full h-full object-cover"
                       />
