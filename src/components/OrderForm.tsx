@@ -16,9 +16,10 @@ interface OrderFormProps {
   onSubmit: (data: OrderFormData, paymentFile?: File, orderItems?: OrderItemFormData[]) => Promise<boolean>;
   enquiries?: Enquiry[];
   suppliers?: Supplier[];
+  showProcurementRate?: boolean;
 }
 
-export function OrderForm({ onSubmit, enquiries = [], suppliers = [] }: OrderFormProps) {
+export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcurementRate = true }: OrderFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [paymentFile, setPaymentFile] = useState<File | null>(null);
   const [paymentPreview, setPaymentPreview] = useState<string | null>(null);
@@ -259,6 +260,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [] }: OrderFor
             items={orderItems}
             onChange={setOrderItems}
             disabled={loading}
+            showProcurementRate={showProcurementRate}
           />
 
           {/* Customer Details */}
