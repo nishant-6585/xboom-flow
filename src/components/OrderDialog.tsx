@@ -12,10 +12,12 @@ import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { PaymentRecordsList } from '@/components/PaymentRecordsList';
 import { PaymentUploadDialog } from '@/components/PaymentUploadDialog';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrderItems } from '@/hooks/useOrderItems';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X } from 'lucide-react';
+import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface OrderDialogProps {
   order: Order | null;
@@ -33,6 +35,7 @@ const paymentStatusConfig: Record<PaymentStatus, { label: string; className: str
 
 export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: OrderDialogProps) {
   const { role, user } = useAuth();
+  const { fetchOrderItems } = useOrderItems();
   const canEdit = role === 'supply_chain' || role === 'admin';
   const canDelete = role === 'admin';
   const canSeeProcurement = role === 'supply_chain' || role === 'admin';
@@ -43,6 +46,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
   const [paymentUploadOpen, setPaymentUploadOpen] = useState(false);
   const [invoiceUploading, setInvoiceUploading] = useState(false);
   const invoiceInputRef = useRef<HTMLInputElement>(null);
+  const [orderItems, setOrderItems] = useState<any[]>([]);
 
   const [status, setStatus] = useState<OrderStatus>('pending');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
@@ -91,8 +95,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
       setSalesNotes(order.sales_notes || '');
       setPaymentDueDate(order.payment_due_date || '');
       setInvoiceUrl(order.invoice_url || null);
+      
+      // Fetch order items
+      fetchOrderItems(order.id).then(setOrderItems);
     }
-  }, [order]);
+  }, [order, fetchOrderItems]);
 
   if (!order) return null;
 
@@ -272,6 +279,56 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
                     <p className="font-medium mt-1">{order.shipping_address}</p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Order Items */}
+            {orderItems.length > 0 && (
+              <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                <div className="flex items-center gap-2">
+                  <ShoppingCart className="h-5 w-5" />
+                  <span className="font-medium">Order Items ({orderItems.length})</span>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right">Unit Price</TableHead>
+                      {canSeeProcurement && <TableHead className="text-right">Procurement</TableHead>}
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orderItems.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          <div>
+                            <span className="font-medium">{item.product_name}</span>
+                            {item.product_code && (
+                              <span className="text-xs text-muted-foreground ml-2">({item.product_code})</span>
+                            )}
+                          </div>
+                          {item.notes && (
+                            <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">{item.quantity}</TableCell>
+                        <TableCell className="text-right">
+                          {item.unit_price ? `₹${item.unit_price.toLocaleString('en-IN')}` : '-'}
+                        </TableCell>
+                        {canSeeProcurement && (
+                          <TableCell className="text-right">
+                            {item.procurement_rate ? `₹${item.procurement_rate.toLocaleString('en-IN')}` : '-'}
+                          </TableCell>
+                        )}
+                        <TableCell className="text-right font-medium">
+                          {item.unit_price ? `₹${(item.unit_price * item.quantity).toLocaleString('en-IN')}` : '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             )}
 
