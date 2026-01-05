@@ -17,6 +17,7 @@ export interface Order {
   quantity: number;
   customer_name: string;
   customer_company: string;
+  customer_email: string | null;
   sales_person_id: string;
   sales_person_name: string;
   shipping_address: string | null;
@@ -54,6 +55,7 @@ export interface OrderFormData {
   quantity: number;
   customer_name: string;
   customer_company: string;
+  customer_email?: string;
   sales_person_id: string;
   sales_person_name: string;
   shipping_address?: string;
@@ -133,6 +135,7 @@ export function useOrders() {
             quantity,
             customer_name,
             customer_company,
+            customer_email,
             sales_person_id,
             sales_person_name,
             shipping_address,
@@ -165,6 +168,7 @@ export function useOrders() {
           order_type: (order.order_type || 'prepaid') as OrderType,
           customer_type: (order.customer_type || 'b2b') as CustomerType,
           payment_status: (order.payment_status || 'pending') as PaymentStatus,
+          customer_email: order.customer_email || null,
           supplier_name: null,
           supplier_contact: null,
           procurement_rate: null,
