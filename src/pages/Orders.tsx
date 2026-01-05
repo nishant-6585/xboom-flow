@@ -25,11 +25,15 @@ export default function Orders() {
   
   const [activeTab, setActiveTab] = useState('list');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [paymentTermsFilter, setPaymentTermsFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+
+  // Get unique payment terms from orders
+  const paymentTermsOptions = [...new Set(orders.map(o => o.payment_terms).filter(Boolean))] as string[];
 
   const canCreateOrder = role === 'sales' || role === 'supply_chain' || role === 'admin';
   const isAdmin = role === 'admin';
@@ -40,6 +44,7 @@ export default function Orders() {
 
   const filteredOrders = orders.filter(o => {
     const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
+    const matchesPaymentTerms = paymentTermsFilter === 'all' || o.payment_terms === paymentTermsFilter;
     
     const orderDate = new Date(o.created_at);
     let matchesDate = true;
@@ -51,12 +56,13 @@ export default function Orders() {
       matchesDate = orderDate <= endOfDay(endDate);
     }
     
-    return matchesStatus && matchesDate;
+    return matchesStatus && matchesPaymentTerms && matchesDate;
   });
 
-  const clearDateFilter = () => {
+  const clearFilters = () => {
     setStartDate(undefined);
     setEndDate(undefined);
+    setPaymentTermsFilter('all');
   };
 
   const handleOrderClick = (order: Order) => {
@@ -125,12 +131,26 @@ export default function Orders() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Payment Terms:</span>
+                  <Select value={paymentTermsFilter} onValueChange={setPaymentTermsFilter}>
+                    <SelectTrigger className="w-[150px]">
+                      <SelectValue placeholder="All Terms" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Terms</SelectItem>
+                      {paymentTermsOptions.map(term => (
+                        <SelectItem key={term} value={term}>{term}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <DateRangeFilter
                   startDate={startDate}
                   endDate={endDate}
                   onStartDateChange={setStartDate}
                   onEndDateChange={setEndDate}
-                  onClear={clearDateFilter}
+                  onClear={clearFilters}
                 />
               </div>
               <div className="flex items-center gap-1 border rounded-md p-1">
