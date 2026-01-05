@@ -556,6 +556,7 @@ export type Database = {
           currency: string | null
           description: string | null
           id: string
+          lead_time: string | null
           min_order_quantity: number | null
           notes: string | null
           product_category: string
@@ -572,6 +573,7 @@ export type Database = {
           currency?: string | null
           description?: string | null
           id?: string
+          lead_time?: string | null
           min_order_quantity?: number | null
           notes?: string | null
           product_category?: string
@@ -588,6 +590,7 @@ export type Database = {
           currency?: string | null
           description?: string | null
           id?: string
+          lead_time?: string | null
           min_order_quantity?: number | null
           notes?: string | null
           product_category?: string

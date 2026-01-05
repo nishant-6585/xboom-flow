@@ -12,7 +12,7 @@ export interface PricelistItem {
   unit_price: number | null;
   currency: string;
   availability: string;
-  min_order_quantity: number;
+  lead_time: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -28,7 +28,7 @@ export interface PricelistFormData {
   unit_price?: number;
   currency?: string;
   availability?: string;
-  min_order_quantity?: number;
+  lead_time?: string;
   notes?: string;
 }
 
