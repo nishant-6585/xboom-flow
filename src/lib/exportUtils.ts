@@ -251,3 +251,341 @@ export const exportCategorySummaryToPDF = (
   
   doc.save(`${options.filename}.pdf`);
 };
+
+// ==================== PROCUREMENT EXPORTS ====================
+
+export interface SupplierLedgerExportData {
+  supplierName: string;
+  contactName: string;
+  category: string;
+  totalOrders: number;
+  procurementValue: number;
+  paidAmount: number;
+  pendingAmount: number;
+}
+
+export interface ProcurementAnalyticsExportData {
+  dayWise: { date: string; orders: number; value: number; payments: number }[];
+  supplierWise: { name: string; value: number }[];
+  categoryWise: { name: string; value: number; count: number }[];
+  summary: {
+    totalOrders: number;
+    totalProcurement: number;
+    totalPayments: number;
+    pendingAmount: number;
+    activeSuppliers: number;
+  };
+}
+
+// Export supplier ledger to Excel
+export const exportSupplierLedgerToExcel = (
+  data: SupplierLedgerExportData[],
+  options: ExportOptions
+) => {
+  const formattedData = data.map((d) => ({
+    "Supplier Name": d.supplierName,
+    "Contact": d.contactName,
+    "Category": d.category,
+    "Total Orders": d.totalOrders,
+    "Procurement Value (₹)": d.procurementValue,
+    "Paid (₹)": d.paidAmount,
+    "Pending (₹)": d.pendingAmount,
+  }));
+
+  // Add totals row
+  const totals = data.reduce(
+    (acc, d) => ({
+      procurementValue: acc.procurementValue + d.procurementValue,
+      paidAmount: acc.paidAmount + d.paidAmount,
+      pendingAmount: acc.pendingAmount + d.pendingAmount,
+      totalOrders: acc.totalOrders + d.totalOrders,
+    }),
+    { procurementValue: 0, paidAmount: 0, pendingAmount: 0, totalOrders: 0 }
+  );
+
+  formattedData.push({
+    "Supplier Name": "TOTAL",
+    "Contact": "",
+    "Category": "",
+    "Total Orders": totals.totalOrders,
+    "Procurement Value (₹)": totals.procurementValue,
+    "Paid (₹)": totals.paidAmount,
+    "Pending (₹)": totals.pendingAmount,
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(formattedData);
+  const workbook = XLSX.utils.book_new();
+
+  worksheet["!cols"] = [
+    { wch: 25 },
+    { wch: 20 },
+    { wch: 20 },
+    { wch: 12 },
+    { wch: 20 },
+    { wch: 18 },
+    { wch: 18 },
+  ];
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Supplier Ledger");
+  XLSX.writeFile(workbook, `${options.filename}.xlsx`);
+};
+
+// Export supplier ledger to PDF
+export const exportSupplierLedgerToPDF = (
+  data: SupplierLedgerExportData[],
+  options: ExportOptions
+) => {
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+  // Add title
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text(options.title || "Supplier Ledger Report", 14, 15);
+
+  // Add subtitle
+  if (options.subtitle) {
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100);
+    doc.text(options.subtitle, 14, 22);
+  }
+
+  // Add generation date
+  doc.setFontSize(9);
+  doc.setTextColor(150);
+  doc.text(`Generated: ${format(new Date(), "dd MMM yyyy, HH:mm")}`, 14, 28);
+
+  // Prepare table data
+  const tableData = data.map((d) => [
+    d.supplierName.substring(0, 25),
+    d.contactName.substring(0, 18),
+    d.category.substring(0, 18),
+    d.totalOrders.toString(),
+    `₹${d.procurementValue.toLocaleString()}`,
+    `₹${d.paidAmount.toLocaleString()}`,
+    `₹${d.pendingAmount.toLocaleString()}`,
+  ]);
+
+  // Add totals row
+  const totals = data.reduce(
+    (acc, d) => ({
+      procurementValue: acc.procurementValue + d.procurementValue,
+      paidAmount: acc.paidAmount + d.paidAmount,
+      pendingAmount: acc.pendingAmount + d.pendingAmount,
+      totalOrders: acc.totalOrders + d.totalOrders,
+    }),
+    { procurementValue: 0, paidAmount: 0, pendingAmount: 0, totalOrders: 0 }
+  );
+
+  tableData.push([
+    "TOTAL",
+    "",
+    "",
+    totals.totalOrders.toString(),
+    `₹${totals.procurementValue.toLocaleString()}`,
+    `₹${totals.paidAmount.toLocaleString()}`,
+    `₹${totals.pendingAmount.toLocaleString()}`,
+  ]);
+
+  autoTable(doc, {
+    head: [["Supplier", "Contact", "Category", "Orders", "Procurement", "Paid", "Pending"]],
+    body: tableData,
+    startY: 35,
+    styles: {
+      fontSize: 9,
+      cellPadding: 3,
+    },
+    headStyles: {
+      fillColor: [59, 130, 246],
+      textColor: 255,
+      fontStyle: "bold",
+    },
+    alternateRowStyles: {
+      fillColor: [245, 247, 250],
+    },
+    didParseCell: (data) => {
+      if (data.row.index === tableData.length - 1) {
+        data.cell.styles.fontStyle = "bold";
+        data.cell.styles.fillColor = [229, 231, 235];
+      }
+    },
+  });
+
+  // Add footer
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text(
+      `Page ${i} of ${pageCount}`,
+      doc.internal.pageSize.getWidth() - 25,
+      doc.internal.pageSize.getHeight() - 10
+    );
+    doc.text("Xboom Procurement System", 14, doc.internal.pageSize.getHeight() - 10);
+  }
+
+  doc.save(`${options.filename}.pdf`);
+};
+
+// Export procurement analytics to Excel
+export const exportProcurementAnalyticsToExcel = (
+  data: ProcurementAnalyticsExportData,
+  options: ExportOptions
+) => {
+  const workbook = XLSX.utils.book_new();
+
+  // Summary sheet
+  const summaryData = [
+    { "Metric": "Total Orders", "Value": data.summary.totalOrders },
+    { "Metric": "Total Procurement (₹)", "Value": data.summary.totalProcurement },
+    { "Metric": "Total Payments (₹)", "Value": data.summary.totalPayments },
+    { "Metric": "Pending Amount (₹)", "Value": data.summary.pendingAmount },
+    { "Metric": "Active Suppliers", "Value": data.summary.activeSuppliers },
+  ];
+  const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+  summarySheet["!cols"] = [{ wch: 25 }, { wch: 20 }];
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+
+  // Day-wise sheet
+  const dayWiseData = data.dayWise.map((d) => ({
+    "Date": d.date,
+    "Orders": d.orders,
+    "Procurement Value (₹)": d.value,
+    "Payments (₹)": d.payments,
+  }));
+  const dayWiseSheet = XLSX.utils.json_to_sheet(dayWiseData);
+  dayWiseSheet["!cols"] = [{ wch: 15 }, { wch: 10 }, { wch: 22 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(workbook, dayWiseSheet, "Day-wise");
+
+  // Supplier-wise sheet
+  const supplierWiseData = data.supplierWise.map((d) => ({
+    "Supplier": d.name,
+    "Procurement Value (₹)": d.value,
+  }));
+  const supplierSheet = XLSX.utils.json_to_sheet(supplierWiseData);
+  supplierSheet["!cols"] = [{ wch: 30 }, { wch: 22 }];
+  XLSX.utils.book_append_sheet(workbook, supplierSheet, "Supplier-wise");
+
+  // Category-wise sheet
+  const categoryWiseData = data.categoryWise.map((d) => ({
+    "Category": d.name,
+    "Procurement Value (₹)": d.value,
+    "Order Count": d.count,
+  }));
+  const categorySheet = XLSX.utils.json_to_sheet(categoryWiseData);
+  categorySheet["!cols"] = [{ wch: 25 }, { wch: 22 }, { wch: 15 }];
+  XLSX.utils.book_append_sheet(workbook, categorySheet, "Category-wise");
+
+  XLSX.writeFile(workbook, `${options.filename}.xlsx`);
+};
+
+// Export procurement analytics to PDF
+export const exportProcurementAnalyticsToPDF = (
+  data: ProcurementAnalyticsExportData,
+  options: ExportOptions
+) => {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+  // Add title
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text(options.title || "Procurement Analytics Report", 14, 15);
+
+  // Add subtitle
+  if (options.subtitle) {
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100);
+    doc.text(options.subtitle, 14, 22);
+  }
+
+  // Add generation date
+  doc.setFontSize(9);
+  doc.setTextColor(150);
+  doc.text(`Generated: ${format(new Date(), "dd MMM yyyy, HH:mm")}`, 14, 28);
+
+  // Summary Section
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(0);
+  doc.text("Summary", 14, 40);
+
+  autoTable(doc, {
+    body: [
+      ["Total Orders", data.summary.totalOrders.toString()],
+      ["Total Procurement", `₹${data.summary.totalProcurement.toLocaleString()}`],
+      ["Total Payments", `₹${data.summary.totalPayments.toLocaleString()}`],
+      ["Pending Amount", `₹${data.summary.pendingAmount.toLocaleString()}`],
+      ["Active Suppliers", data.summary.activeSuppliers.toString()],
+    ],
+    startY: 45,
+    styles: { fontSize: 10, cellPadding: 4 },
+    columnStyles: {
+      0: { fontStyle: "bold", cellWidth: 60 },
+      1: { halign: "right", cellWidth: 60 },
+    },
+    theme: "plain",
+  });
+
+  // Top Suppliers Section
+  const supplierStartY = (doc as any).lastAutoTable.finalY + 15;
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Top Suppliers by Procurement", 14, supplierStartY);
+
+  autoTable(doc, {
+    head: [["Supplier", "Value (₹)"]],
+    body: data.supplierWise.slice(0, 10).map((d) => [
+      d.name,
+      `₹${d.value.toLocaleString()}`,
+    ]),
+    startY: supplierStartY + 5,
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: {
+      fillColor: [59, 130, 246],
+      textColor: 255,
+      fontStyle: "bold",
+    },
+    alternateRowStyles: { fillColor: [245, 247, 250] },
+  });
+
+  // Category-wise Section
+  const categoryStartY = (doc as any).lastAutoTable.finalY + 15;
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Category-wise Procurement", 14, categoryStartY);
+
+  autoTable(doc, {
+    head: [["Category", "Value (₹)", "Orders"]],
+    body: data.categoryWise.map((d) => [
+      d.name,
+      `₹${d.value.toLocaleString()}`,
+      d.count.toString(),
+    ]),
+    startY: categoryStartY + 5,
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: {
+      fillColor: [59, 130, 246],
+      textColor: 255,
+      fontStyle: "bold",
+    },
+    alternateRowStyles: { fillColor: [245, 247, 250] },
+  });
+
+  // Add footer
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text(
+      `Page ${i} of ${pageCount}`,
+      doc.internal.pageSize.getWidth() - 25,
+      doc.internal.pageSize.getHeight() - 10
+    );
+    doc.text("Xboom Procurement System", 14, doc.internal.pageSize.getHeight() - 10);
+  }
+
+  doc.save(`${options.filename}.pdf`);
+};
