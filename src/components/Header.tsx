@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LogOut, Shield, Package, Building2, Menu, Home } from "lucide-react";
+import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "react-router-dom";
@@ -58,6 +58,7 @@ export function Header() {
   const navItems = [
     { path: "/", label: "Dashboard", icon: Home, roles: ["sales", "supply_chain", "admin"] },
     { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "supply_chain", "admin"] },
+    { path: "/procurement", label: "Procurement", icon: ShoppingCart, roles: ["admin", "supply_chain"] },
     { path: "/suppliers", label: "Suppliers", icon: Building2, roles: ["admin", "supply_chain"] },
     { path: "/admin", label: "Admin", icon: Shield, roles: ["admin"] },
   ];
@@ -146,6 +147,22 @@ export function Header() {
               <p>Orders</p>
             </TooltipContent>
           </Tooltip>
+
+          {(role === "admin" || role === "supply_chain") && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link to="/procurement">
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <ShoppingCart className="w-4 h-4" />
+                    <span>Procurement</span>
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent className="sm:hidden">
+                <p>Procurement</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
 
           {(role === "admin" || role === "supply_chain") && (
             <Tooltip>
