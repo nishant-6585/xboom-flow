@@ -159,17 +159,6 @@ export function OrderItemsInput({ items, onChange, disabled = false, showProcure
                     />
                   </div>
                 )}
-
-                <div className={`space-y-2 ${showProcurementRate ? '' : 'md:col-span-2'}`}>
-                  <Label htmlFor={`product_code_${index}`}>Product Code</Label>
-                  <Input
-                    id={`product_code_${index}`}
-                    value={item.product_code || ''}
-                    onChange={e => updateItem(index, 'product_code', e.target.value)}
-                    placeholder="Optional SKU/Code"
-                    disabled={disabled}
-                  />
-                </div>
               </div>
             </CardContent>
           </Card>

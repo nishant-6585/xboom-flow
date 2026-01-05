@@ -35,7 +35,7 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.productName || !formData.productCode || !formData.customerName) {
+    if (!formData.productName || !formData.customerName) {
       return;
     }
 
@@ -82,17 +82,6 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
                   placeholder="Enter product name"
                   value={formData.productName}
                   onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
-                  disabled={loading}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="productCode">Product Code *</Label>
-                <Input
-                  id="productCode"
-                  placeholder="e.g., XB-2024-001"
-                  value={formData.productCode}
-                  onChange={(e) => setFormData({ ...formData, productCode: e.target.value })}
                   disabled={loading}
                   required
                 />
