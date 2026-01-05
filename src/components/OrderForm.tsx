@@ -27,6 +27,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [] }: OrderFor
     quantity: 1,
     customer_name: '',
     customer_company: '',
+    customer_email: '',
     sales_person_id: '',
     sales_person_name: '',
     shipping_address: '',
@@ -141,6 +142,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [] }: OrderFor
         quantity: 1,
         customer_name: '',
         customer_company: '',
+        customer_email: '',
         sales_person_id: '',
         sales_person_name: '',
         shipping_address: '',
@@ -269,6 +271,17 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [] }: OrderFor
                   onChange={e => setFormData(prev => ({ ...prev, customer_company: e.target.value }))}
                   required
                   disabled={loading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="customer_email">Customer Email</Label>
+                <Input
+                  id="customer_email"
+                  type="email"
+                  value={formData.customer_email || ''}
+                  onChange={e => setFormData(prev => ({ ...prev, customer_email: e.target.value }))}
+                  disabled={loading}
+                  placeholder="customer@example.com"
                 />
               </div>
               <div className="space-y-2">
