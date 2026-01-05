@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Header } from '@/components/Header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { OrderCard } from '@/components/OrderCard';
+import { OrderTable } from '@/components/OrderTable';
 import { OrderForm } from '@/components/OrderForm';
 import { OrderDialog } from '@/components/OrderDialog';
 import { OrderProfitAnalytics } from '@/components/OrderProfitAnalytics';
@@ -10,7 +12,7 @@ import { useOrders, Order, ORDER_STATUSES } from '@/hooks/useOrders';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, Plus, BarChart3 } from 'lucide-react';
+import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table } from 'lucide-react';
 
 export default function Orders() {
   const { role } = useAuth();
@@ -20,6 +22,7 @@ export default function Orders() {
   
   const [activeTab, setActiveTab] = useState('list');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -68,20 +71,38 @@ export default function Orders() {
           </div>
 
           <TabsContent value="list" className="space-y-4">
-            {/* Status Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Filter by status:</span>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="All Statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  {ORDER_STATUSES.map(s => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Filters and View Toggle */}
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Filter by status:</span>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {ORDER_STATUSES.map(s => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-1 border rounded-md p-1">
+                <Button
+                  variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('cards')}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                >
+                  <Table className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             {loading ? (
@@ -100,6 +121,8 @@ export default function Orders() {
                       : 'No orders have been assigned to you yet'}
                 </p>
               </div>
+            ) : viewMode === 'table' ? (
+              <OrderTable orders={filteredOrders} onOrderClick={handleOrderClick} />
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filteredOrders.map(order => (
