@@ -134,8 +134,8 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
           </div>
         )}
 
-        {/* Admin-only: Show profit */}
-        {isAdmin && profit !== null && (
+        {/* Profit - visible to supply chain and admin */}
+        {canSeeProcurement && profit !== null && (
           <div className="pt-2 border-t flex items-center gap-2">
             <TrendingUp className={`h-4 w-4 ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`} />
             <span className="text-sm text-muted-foreground">Profit:</span>
