@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Header } from "@/components/Header";
 import { QueryForm } from "@/components/QueryForm";
 import { EnquiryCard } from "@/components/EnquiryCard";
+import { EnquiryTable } from "@/components/EnquiryTable";
+import { EnquiryConversionAnalytics } from "@/components/EnquiryConversionAnalytics";
 import { StatsCards } from "@/components/StatsCards";
 import { SlaStatsCards } from "@/components/SlaStatsCards";
 import { SalesStatsCards } from "@/components/SalesStatsCards";
@@ -10,15 +12,17 @@ import { useEnquiries, Enquiry, PRODUCT_CATEGORIES } from "@/hooks/useEnquiries"
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardList, PlusCircle, Loader2, Package, Filter } from "lucide-react";
+import { ClipboardList, PlusCircle, Loader2, Package, Filter, TableIcon, LayoutGrid, BarChart3 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
-  const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry, escalateEnquiry } = useEnquiries();
+  const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry, escalateEnquiry, updateOutcome } = useEnquiries();
   const { role, user } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"cards" | "table">("table");
 
   const canCreateEnquiry = role === "sales" || role === "admin";
   const canViewSlaStats = role === "supply_chain" || role === "admin";
@@ -34,6 +38,7 @@ const Index = () => {
   const salesUserEnquiries = isSales && user
     ? filteredEnquiries.filter((e) => e.sales_person_id === user.id)
     : filteredEnquiries;
+  
   const handleEnquiryClick = (enquiry: Enquiry) => {
     setSelectedEnquiry(enquiry);
     setDialogOpen(true);
@@ -109,12 +114,20 @@ const Index = () => {
           <TabsList className="inline-flex">
             <TabsTrigger value="dashboard" className="gap-2">
               <ClipboardList className="w-4 h-4" />
-              Dashboard
+              <span className="hidden sm:inline">Dashboard</span>
+            </TabsTrigger>
+            <TabsTrigger value="enquiries" className="gap-2">
+              <TableIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">Enquiries</span>
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2">
+              <BarChart3 className="w-4 h-4" />
+              <span className="hidden sm:inline">Analytics</span>
             </TabsTrigger>
             {canCreateEnquiry && (
               <TabsTrigger value="new" className="gap-2">
                 <PlusCircle className="w-4 h-4" />
-                New Enquiry
+                <span className="hidden sm:inline">New Enquiry</span>
               </TabsTrigger>
             )}
           </TabsList>
@@ -167,6 +180,91 @@ const Index = () => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredEnquiries.slice(0, 6).map((enquiry) => (
+                      <EnquiryCard
+                        key={enquiry.id}
+                        enquiry={enquiry}
+                        onClick={() => handleEnquiryClick(enquiry)}
+                      />
+                    ))}
+                  </div>
+                )}
+                {filteredEnquiries.length > 6 && (
+                  <div className="text-center">
+                    <Button variant="outline" onClick={() => setActiveTab("enquiries")}>
+                      View All {filteredEnquiries.length} Enquiries
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </TabsContent>
+
+          <TabsContent value="enquiries" className="space-y-6">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <>
+                {/* Filters and View Toggle */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <Filter className="w-4 h-4 text-muted-foreground" />
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                      <SelectTrigger className="w-[250px]">
+                        <SelectValue placeholder="Filter by category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Categories</SelectItem>
+                        {PRODUCT_CATEGORIES.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {categoryFilter !== "all" && (
+                      <span className="text-sm text-muted-foreground">
+                        {filteredEnquiries.length} of {enquiries.length}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={viewMode === "table" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setViewMode("table")}
+                    >
+                      <TableIcon className="w-4 h-4 mr-1" />
+                      Table
+                    </Button>
+                    <Button
+                      variant={viewMode === "cards" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setViewMode("cards")}
+                    >
+                      <LayoutGrid className="w-4 h-4 mr-1" />
+                      Cards
+                    </Button>
+                  </div>
+                </div>
+
+                {filteredEnquiries.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">
+                      {enquiries.length === 0 ? "No enquiries yet" : "No enquiries in this category"}
+                    </p>
+                  </div>
+                ) : viewMode === "table" ? (
+                  <EnquiryTable
+                    enquiries={filteredEnquiries}
+                    onUpdateOutcome={updateOutcome}
+                    onEnquiryClick={handleEnquiryClick}
+                  />
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredEnquiries.map((enquiry) => (
                       <EnquiryCard
                         key={enquiry.id}
@@ -177,6 +275,16 @@ const Index = () => {
                   </div>
                 )}
               </>
+            )}
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-6">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <EnquiryConversionAnalytics enquiries={isSales && user ? salesUserEnquiries : enquiries} />
             )}
           </TabsContent>
 
