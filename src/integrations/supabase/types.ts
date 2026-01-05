@@ -170,6 +170,7 @@ export type Database = {
           estimated_delivery: string | null
           id: string
           internal_notes: string | null
+          invoice_url: string | null
           last_reminder_sent_at: string | null
           order_type: string | null
           payment_due_date: string | null
@@ -210,6 +211,7 @@ export type Database = {
           estimated_delivery?: string | null
           id?: string
           internal_notes?: string | null
+          invoice_url?: string | null
           last_reminder_sent_at?: string | null
           order_type?: string | null
           payment_due_date?: string | null
@@ -250,6 +252,7 @@ export type Database = {
           estimated_delivery?: string | null
           id?: string
           internal_notes?: string | null
+          invoice_url?: string | null
           last_reminder_sent_at?: string | null
           order_type?: string | null
           payment_due_date?: string | null

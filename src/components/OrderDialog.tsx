@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,8 +12,10 @@ import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { PaymentRecordsList } from '@/components/PaymentRecordsList';
 import { PaymentUploadDialog } from '@/components/PaymentUploadDialog';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload } from 'lucide-react';
+import { toast } from 'sonner';
+import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X } from 'lucide-react';
 
 interface OrderDialogProps {
   order: Order | null;
@@ -30,7 +32,7 @@ const paymentStatusConfig: Record<PaymentStatus, { label: string; className: str
 };
 
 export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: OrderDialogProps) {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const canEdit = role === 'supply_chain' || role === 'admin';
   const canDelete = role === 'admin';
   const canSeeProcurement = role === 'supply_chain' || role === 'admin';
@@ -39,6 +41,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [paymentUploadOpen, setPaymentUploadOpen] = useState(false);
+  const [invoiceUploading, setInvoiceUploading] = useState(false);
+  const invoiceInputRef = useRef<HTMLInputElement>(null);
 
   const [status, setStatus] = useState<OrderStatus>('pending');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
@@ -61,6 +65,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
   const [customerNotes, setCustomerNotes] = useState('');
   const [salesNotes, setSalesNotes] = useState('');
   const [paymentDueDate, setPaymentDueDate] = useState('');
+  const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (order) {
@@ -85,6 +90,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
       setCustomerNotes(order.customer_notes || '');
       setSalesNotes(order.sales_notes || '');
       setPaymentDueDate(order.payment_due_date || '');
+      setInvoiceUrl(order.invoice_url || null);
     }
   }, [order]);
 
@@ -98,6 +104,60 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
   const balanceAmount = order.total_sales_amount && order.amount_paid !== null
     ? order.total_sales_amount - (order.amount_paid || 0)
     : null;
+
+  const handleInvoiceUpload = async (file: File) => {
+    if (!user || !order) return;
+    
+    setInvoiceUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${order.id}-${Date.now()}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('invoices')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('invoices')
+        .getPublicUrl(filePath);
+
+      // Update order with invoice URL
+      const success = await onUpdate(order.id, { invoice_url: publicUrl });
+      if (success) {
+        setInvoiceUrl(publicUrl);
+        toast.success('Invoice uploaded successfully');
+      }
+    } catch (error: any) {
+      console.error('Error uploading invoice:', error);
+      toast.error('Failed to upload invoice');
+    } finally {
+      setInvoiceUploading(false);
+      if (invoiceInputRef.current) {
+        invoiceInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveInvoice = async () => {
+    if (!order) return;
+    
+    setInvoiceUploading(true);
+    try {
+      const success = await onUpdate(order.id, { invoice_url: null });
+      if (success) {
+        setInvoiceUrl(null);
+        toast.success('Invoice removed');
+      }
+    } catch (error: any) {
+      console.error('Error removing invoice:', error);
+      toast.error('Failed to remove invoice');
+    } finally {
+      setInvoiceUploading(false);
+    }
+  };
 
   const handleUpdate = async () => {
     setLoading(true);
@@ -123,6 +183,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
       internal_notes: internalNotes || null,
       customer_notes: customerNotes || null,
       sales_notes: salesNotes || null,
+      invoice_url: invoiceUrl,
     });
     setLoading(false);
     if (success) {
@@ -334,6 +395,78 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
                 )}
               </div>
             )}
+
+            {/* Invoice Section */}
+            <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Invoice
+                </h4>
+              </div>
+              
+              {invoiceUrl ? (
+                <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
+                  <a
+                    href={invoiceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline flex items-center gap-2 text-sm"
+                  >
+                    <FileText className="h-4 w-4" />
+                    View Invoice
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                  {canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={handleRemoveInvoice}
+                      disabled={invoiceUploading}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ) : canEdit ? (
+                <div>
+                  <input
+                    ref={invoiceInputRef}
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleInvoiceUpload(file);
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => invoiceInputRef.current?.click()}
+                    disabled={invoiceUploading}
+                  >
+                    {invoiceUploading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Invoice
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Supports PDF, PNG, JPG (max 10MB)
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No invoice attached</p>
+              )}
+            </div>
 
             {/* Notes */}
             {(order.sales_notes || order.customer_notes) && (

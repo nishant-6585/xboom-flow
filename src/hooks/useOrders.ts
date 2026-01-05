@@ -43,6 +43,7 @@ export interface Order {
   internal_notes: string | null;
   customer_notes: string | null;
   sales_notes: string | null;
+  invoice_url: string | null;
   created_at: string;
   updated_at: string;
   created_by: string;
@@ -177,6 +178,7 @@ export function useOrders() {
           internal_notes: null,
           payment_due_date: null,
           last_reminder_sent_at: null,
+          invoice_url: null,
         }));
         
         setOrders(mappedOrders);
