@@ -156,10 +156,10 @@ export function PendingPaymentApprovals({ orders }: PendingPaymentApprovalsProps
                           {/* Screenshot thumbnail */}
                           <div
                             className="w-20 h-20 rounded-lg border border-border overflow-hidden shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={() => setPreviewImage(record.screenshot_url)}
+                            onClick={() => setPreviewImage(record.screenshot_signed_url || record.screenshot_url)}
                           >
                             <img
-                              src={record.screenshot_url}
+                              src={record.screenshot_signed_url || record.screenshot_url}
                               alt="Payment screenshot"
                               className="w-full h-full object-cover"
                             />
@@ -309,10 +309,10 @@ export function PendingPaymentApprovals({ orders }: PendingPaymentApprovalsProps
                                   <div key={record.id} className="flex items-center gap-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                                     <div
                                       className="w-16 h-16 rounded-lg border border-border overflow-hidden shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                                      onClick={() => setPreviewImage(record.screenshot_url)}
+                                      onClick={() => setPreviewImage(record.screenshot_signed_url || record.screenshot_url)}
                                     >
                                       <img
-                                        src={record.screenshot_url}
+                                        src={record.screenshot_signed_url || record.screenshot_url}
                                         alt="Payment screenshot"
                                         className="w-full h-full object-cover"
                                       />
