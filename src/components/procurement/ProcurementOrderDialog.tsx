@@ -224,6 +224,7 @@ export function ProcurementOrderDialog({
             orderQuantity={order.quantity}
             orderProcurementRate={order.procurement_rate || undefined}
             procurementCurrency={procurementCurrency}
+            suppliers={suppliers}
           />
 
           <Separator />

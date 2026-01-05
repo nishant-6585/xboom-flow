@@ -166,7 +166,9 @@ export type Database = {
           product_code: string | null
           product_name: string
           quantity: number
+          quantity_procured: number | null
           status: string
+          supplier_id: string | null
           unit_price: number | null
         }
         Insert: {
@@ -180,7 +182,9 @@ export type Database = {
           product_code?: string | null
           product_name: string
           quantity?: number
+          quantity_procured?: number | null
           status?: string
+          supplier_id?: string | null
           unit_price?: number | null
         }
         Update: {
@@ -194,7 +198,9 @@ export type Database = {
           product_code?: string | null
           product_name?: string
           quantity?: number
+          quantity_procured?: number | null
           status?: string
+          supplier_id?: string | null
           unit_price?: number | null
         }
         Relationships: [
@@ -203,6 +209,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
