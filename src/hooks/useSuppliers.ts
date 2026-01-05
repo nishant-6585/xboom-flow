@@ -8,6 +8,8 @@ export type SupplierPreference = 'low' | 'medium' | 'high';
 export interface Supplier {
   id: string;
   name: string;
+  brand_name: string | null;
+  gst_number: string | null;
   contact_name: string;
   phone: string | null;
   email: string | null;

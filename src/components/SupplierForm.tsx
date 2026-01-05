@@ -28,6 +28,8 @@ const PRODUCT_CATEGORIES = [
 export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: SupplierFormProps) {
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
+    brand_name: initialData?.brand_name || '',
+    gst_number: initialData?.gst_number || '',
     contact_name: initialData?.contact_name || '',
     phone: initialData?.phone || '',
     email: initialData?.email || '',
@@ -76,6 +78,8 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
 
     const success = await onSubmit({
       ...formData,
+      brand_name: formData.brand_name || null,
+      gst_number: formData.gst_number || null,
       phone: formData.phone || null,
       email: formData.email || null,
       city: formData.city || null,
@@ -107,6 +111,25 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
               onChange={(e) => handleChange('name', e.target.value)}
               placeholder="Company name"
               required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="brand_name">Brand Name</Label>
+            <Input
+              id="brand_name"
+              value={formData.brand_name}
+              onChange={(e) => handleChange('brand_name', e.target.value)}
+              placeholder="Brand name"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="gst_number">GST Number</Label>
+            <Input
+              id="gst_number"
+              value={formData.gst_number}
+              onChange={(e) => handleChange('gst_number', e.target.value.toUpperCase())}
+              placeholder="22AAAAA0000A1Z5"
+              maxLength={15}
             />
           </div>
           <div className="space-y-2">
