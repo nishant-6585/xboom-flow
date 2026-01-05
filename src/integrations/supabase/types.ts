@@ -220,10 +220,14 @@ export type Database = {
           customer_notes: string | null
           customer_type: string | null
           enquiry_id: string | null
+          escalated_at: string | null
+          escalated_by: string | null
+          escalation_reason: string | null
           estimated_delivery: string | null
           id: string
           internal_notes: string | null
           invoice_url: string | null
+          is_escalated: boolean
           is_refund_requested: boolean
           last_reminder_sent_at: string | null
           lead_source: string | null
@@ -232,6 +236,7 @@ export type Database = {
           payment_status: string | null
           payment_terms: string | null
           po_url: string | null
+          priority: number | null
           procurement_currency: string | null
           procurement_rate: number | null
           product_category: string | null
@@ -268,10 +273,14 @@ export type Database = {
           customer_notes?: string | null
           customer_type?: string | null
           enquiry_id?: string | null
+          escalated_at?: string | null
+          escalated_by?: string | null
+          escalation_reason?: string | null
           estimated_delivery?: string | null
           id?: string
           internal_notes?: string | null
           invoice_url?: string | null
+          is_escalated?: boolean
           is_refund_requested?: boolean
           last_reminder_sent_at?: string | null
           lead_source?: string | null
@@ -280,6 +289,7 @@ export type Database = {
           payment_status?: string | null
           payment_terms?: string | null
           po_url?: string | null
+          priority?: number | null
           procurement_currency?: string | null
           procurement_rate?: number | null
           product_category?: string | null
@@ -316,10 +326,14 @@ export type Database = {
           customer_notes?: string | null
           customer_type?: string | null
           enquiry_id?: string | null
+          escalated_at?: string | null
+          escalated_by?: string | null
+          escalation_reason?: string | null
           estimated_delivery?: string | null
           id?: string
           internal_notes?: string | null
           invoice_url?: string | null
+          is_escalated?: boolean
           is_refund_requested?: boolean
           last_reminder_sent_at?: string | null
           lead_source?: string | null
@@ -328,6 +342,7 @@ export type Database = {
           payment_status?: string | null
           payment_terms?: string | null
           po_url?: string | null
+          priority?: number | null
           procurement_currency?: string | null
           procurement_rate?: number | null
           product_category?: string | null

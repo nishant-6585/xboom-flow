@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Order, OrderStatus, ORDER_STATUSES, PaymentStatus, PAYMENT_STATUSES, OrderType, ORDER_TYPES, CustomerType, CUSTOMER_TYPES, RefundStatus, REFUND_STATUSES } from '@/hooks/useOrders';
+import { Order, OrderStatus, ORDER_STATUSES, PaymentStatus, PAYMENT_STATUSES, OrderType, ORDER_TYPES, CustomerType, CUSTOMER_TYPES, RefundStatus, REFUND_STATUSES, ORDER_PRIORITIES } from '@/hooks/useOrders';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { PaymentRecordsList } from '@/components/PaymentRecordsList';
 import { PaymentUploadDialog } from '@/components/PaymentUploadDialog';
@@ -16,7 +16,7 @@ import { useOrderItems, ORDER_ITEM_STATUSES } from '@/hooks/useOrderItems';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw } from 'lucide-react';
+import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface OrderDialogProps {
@@ -25,6 +25,7 @@ interface OrderDialogProps {
   onOpenChange: (open: boolean) => void;
   onUpdate: (orderId: string, updates: Partial<Order>) => Promise<boolean>;
   onDelete: (orderId: string) => Promise<boolean>;
+  onEscalate?: (orderId: string, reason: string) => Promise<boolean>;
 }
 
 const paymentStatusConfig: Record<PaymentStatus, { label: string; className: string }> = {
@@ -33,13 +34,15 @@ const paymentStatusConfig: Record<PaymentStatus, { label: string; className: str
   full: { label: 'Paid in Full', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
 };
 
-export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: OrderDialogProps) {
+export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onEscalate }: OrderDialogProps) {
   const { role, user } = useAuth();
   const { fetchOrderItems } = useOrderItems();
   const canEdit = role === 'supply_chain' || role === 'admin';
   const canDelete = role === 'admin';
   const canSeeProcurement = role === 'supply_chain' || role === 'admin';
   const isAdmin = role === 'admin';
+  const isSales = role === 'sales';
+  const canEscalate = isSales && onEscalate;
 
   const [loading, setLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -47,6 +50,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
   const [invoiceUploading, setInvoiceUploading] = useState(false);
   const invoiceInputRef = useRef<HTMLInputElement>(null);
   const [orderItems, setOrderItems] = useState<any[]>([]);
+  const [escalationReason, setEscalationReason] = useState('');
+  const [showEscalationForm, setShowEscalationForm] = useState(false);
+  const [escalating, setEscalating] = useState(false);
 
   const [status, setStatus] = useState<OrderStatus>('pending');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
@@ -73,6 +79,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
   const [isRefundRequested, setIsRefundRequested] = useState(false);
   const [refundReason, setRefundReason] = useState('');
   const [refundStatus, setRefundStatus] = useState<RefundStatus>('pending');
+  const [priority, setPriority] = useState(3);
 
   useEffect(() => {
     if (order) {
@@ -101,6 +108,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
       setIsRefundRequested(order.is_refund_requested || false);
       setRefundReason(order.refund_reason || '');
       setRefundStatus((order.refund_status as RefundStatus) || 'pending');
+      setPriority(order.priority || 3);
+      setEscalationReason('');
+      setShowEscalationForm(false);
       
       // Fetch order items
       fetchOrderItems(order.id).then(setOrderItems);
@@ -202,11 +212,24 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
       refund_status: isRefundRequested ? refundStatus : null,
       refund_requested_at: isRefundRequested && !order.is_refund_requested ? new Date().toISOString() : order.refund_requested_at,
       refund_requested_by: isRefundRequested && !order.is_refund_requested ? user?.id : order.refund_requested_by,
+      priority,
     };
     const success = await onUpdate(order.id, updates);
     setLoading(false);
     if (success) {
       onOpenChange(false);
+    }
+  };
+
+  const handleEscalate = async () => {
+    if (!onEscalate || !escalationReason.trim()) return;
+    
+    setEscalating(true);
+    const success = await onEscalate(order.id, escalationReason);
+    setEscalating(false);
+    if (success) {
+      setShowEscalationForm(false);
+      setEscalationReason('');
     }
   };
 
@@ -233,7 +256,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
                   <Package className="h-5 w-5" />
                   {order.product_name}
                 </DialogTitle>
-                <DialogDescription className="flex items-center gap-2 mt-1">
+                <DialogDescription className="flex items-center gap-2 mt-1 flex-wrap">
                   {order.product_category}
                   <Badge variant="outline" className="text-xs">
                     {order.customer_type.toUpperCase()}
@@ -241,6 +264,22 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
                   <Badge variant="outline" className="text-xs capitalize">
                     {order.order_type}
                   </Badge>
+                  {/* Priority Badge */}
+                  {(() => {
+                    const priorityConfig = ORDER_PRIORITIES.find(p => p.value === order.priority) || ORDER_PRIORITIES[2];
+                    return (
+                      <Badge className={priorityConfig.color}>
+                        <Flag className="h-3 w-3 mr-1" />
+                        P{order.priority}
+                      </Badge>
+                    );
+                  })()}
+                  {order.is_escalated && (
+                    <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      Escalated
+                    </Badge>
+                  )}
                 </DialogDescription>
               </div>
               <OrderStatusBadge status={order.status} />
@@ -248,6 +287,97 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
           </DialogHeader>
 
           <div className="space-y-6">
+            {/* Escalation Banner */}
+            {order.is_escalated && (
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-red-800 dark:text-red-300">Order Escalated - Priority 1</h4>
+                    <p className="text-sm text-red-700 dark:text-red-400 mt-1">
+                      <strong>Reason:</strong> {order.escalation_reason}
+                    </p>
+                    {order.escalated_at && (
+                      <p className="text-xs text-red-600 dark:text-red-500 mt-1">
+                        Escalated on {format(new Date(order.escalated_at), 'dd MMM yyyy, HH:mm')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Sales Escalation Form (only for sales on non-escalated pending orders) */}
+            {canEscalate && !order.is_escalated && order.status !== 'delivered' && order.status !== 'cancelled' && (
+              <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                {showEscalationForm ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                      <span className="font-medium text-amber-800 dark:text-amber-300">Escalate Order</span>
+                    </div>
+                    <Textarea
+                      placeholder="Describe why this order needs urgent attention..."
+                      value={escalationReason}
+                      onChange={(e) => setEscalationReason(e.target.value)}
+                      rows={2}
+                      className="bg-background"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={handleEscalate}
+                        disabled={escalating || !escalationReason.trim()}
+                        className="bg-amber-600 hover:bg-amber-700"
+                      >
+                        {escalating ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Escalating...
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle className="h-4 w-4 mr-2" />
+                            Confirm Escalation
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setShowEscalationForm(false);
+                          setEscalationReason('');
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      This will mark the order as Priority 1 and notify admins and supply chain.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                      <span className="text-sm text-amber-800 dark:text-amber-300">
+                        Need urgent attention for this order?
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/30"
+                      onClick={() => setShowEscalationForm(true)}
+                    >
+                      Escalate Order
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Order Details */}
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="flex items-center gap-2">
@@ -565,6 +695,24 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
             {canEdit && (
               <div className="space-y-4 border-t pt-4">
                 <h4 className="font-medium">Update Order</h4>
+
+                {/* Priority Selection */}
+                <div className="space-y-2">
+                  <Label htmlFor="priority" className="flex items-center gap-2">
+                    <Flag className="h-4 w-4" />
+                    Priority
+                  </Label>
+                  <Select value={priority.toString()} onValueChange={(v) => setPriority(parseInt(v))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ORDER_PRIORITIES.map(p => (
+                        <SelectItem key={p.value} value={p.value.toString()}>{p.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
