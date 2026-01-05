@@ -8,6 +8,8 @@ export type PaymentStatus = 'pending' | 'partial' | 'full';
 export type OrderType = 'prepaid' | 'postpaid';
 export type CustomerType = 'b2b' | 'b2c';
 
+export type LeadSource = 'call' | 'chat' | 'email' | 'event' | 'walk-in' | 'referral' | 'repeated';
+
 export interface Order {
   id: string;
   enquiry_id: string | null;
@@ -23,6 +25,7 @@ export interface Order {
   shipping_address: string | null;
   order_type: OrderType;
   customer_type: CustomerType;
+  lead_source: LeadSource | null;
   supplier_name: string | null;
   supplier_contact: string | null;
   procurement_rate: number | null;
@@ -62,6 +65,7 @@ export interface OrderFormData {
   shipping_address?: string;
   order_type: OrderType;
   customer_type: CustomerType;
+  lead_source?: LeadSource;
   supplier_id?: string;
   supplier_name?: string;
   supplier_contact?: string;
@@ -106,6 +110,16 @@ export const ORDER_TYPES: { value: OrderType; label: string }[] = [
 export const CUSTOMER_TYPES: { value: CustomerType; label: string }[] = [
   { value: 'b2b', label: 'B2B' },
   { value: 'b2c', label: 'B2C' },
+];
+
+export const LEAD_SOURCES: { value: LeadSource; label: string }[] = [
+  { value: 'call', label: 'Call' },
+  { value: 'chat', label: 'Chat' },
+  { value: 'email', label: 'Email' },
+  { value: 'event', label: 'Event' },
+  { value: 'walk-in', label: 'Walk-in' },
+  { value: 'referral', label: 'Referral' },
+  { value: 'repeated', label: 'Repeated' },
 ];
 
 export function useOrders() {
@@ -169,6 +183,7 @@ export function useOrders() {
           order_type: (order.order_type || 'prepaid') as OrderType,
           customer_type: (order.customer_type || 'b2b') as CustomerType,
           payment_status: (order.payment_status || 'pending') as PaymentStatus,
+          lead_source: null,
           customer_email: order.customer_email || null,
           supplier_name: null,
           supplier_contact: null,
@@ -197,6 +212,7 @@ export function useOrders() {
           order_type: (order.order_type || 'prepaid') as OrderType,
           customer_type: (order.customer_type || 'b2b') as CustomerType,
           payment_status: (order.payment_status || 'pending') as PaymentStatus,
+          lead_source: (order.lead_source || null) as LeadSource | null,
         }));
         
         setOrders(mappedOrders);
