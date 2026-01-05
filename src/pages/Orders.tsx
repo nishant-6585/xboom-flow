@@ -9,11 +9,12 @@ import { OrderForm } from '@/components/OrderForm';
 import { OrderDialog } from '@/components/OrderDialog';
 import { OrderProfitAnalytics } from '@/components/OrderProfitAnalytics';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
+import { RefundRequestsTable } from '@/components/RefundRequestsTable';
 import { useOrders, Order, ORDER_STATUSES } from '@/hooks/useOrders';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table } from 'lucide-react';
+import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw } from 'lucide-react';
 import { startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 
 export default function Orders() {
@@ -32,6 +33,9 @@ export default function Orders() {
 
   const canCreateOrder = role === 'supply_chain' || role === 'admin';
   const isAdmin = role === 'admin';
+  const canViewRefunds = role === 'supply_chain' || role === 'admin';
+
+  const refundCount = orders.filter(o => o.is_refund_requested).length;
 
   const filteredOrders = orders.filter(o => {
     const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
@@ -80,6 +84,17 @@ export default function Orders() {
                 <TabsTrigger value="new" className="gap-1">
                   <Plus className="h-4 w-4" />
                   New Order
+                </TabsTrigger>
+              )}
+              {canViewRefunds && (
+                <TabsTrigger value="refunds" className="gap-1">
+                  <RotateCcw className="h-4 w-4" />
+                  Refunds
+                  {refundCount > 0 && (
+                    <span className="ml-1 rounded-full bg-destructive px-2 py-0.5 text-xs text-destructive-foreground">
+                      {refundCount}
+                    </span>
+                  )}
                 </TabsTrigger>
               )}
               {isAdmin && (
@@ -173,6 +188,12 @@ export default function Orders() {
                 enquiries={enquiries}
                 suppliers={suppliers}
               />
+            </TabsContent>
+          )}
+
+          {canViewRefunds && (
+            <TabsContent value="refunds">
+              <RefundRequestsTable orders={orders} onUpdateOrder={updateOrder} />
             </TabsContent>
           )}
 

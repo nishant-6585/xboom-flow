@@ -224,6 +224,7 @@ export type Database = {
           id: string
           internal_notes: string | null
           invoice_url: string | null
+          is_refund_requested: boolean
           last_reminder_sent_at: string | null
           lead_source: string | null
           order_type: string | null
@@ -237,6 +238,10 @@ export type Database = {
           product_code: string
           product_name: string
           quantity: number
+          refund_reason: string | null
+          refund_requested_at: string | null
+          refund_requested_by: string | null
+          refund_status: string | null
           sales_notes: string | null
           sales_person_id: string
           sales_person_name: string
@@ -267,6 +272,7 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           invoice_url?: string | null
+          is_refund_requested?: boolean
           last_reminder_sent_at?: string | null
           lead_source?: string | null
           order_type?: string | null
@@ -280,6 +286,10 @@ export type Database = {
           product_code: string
           product_name: string
           quantity: number
+          refund_reason?: string | null
+          refund_requested_at?: string | null
+          refund_requested_by?: string | null
+          refund_status?: string | null
           sales_notes?: string | null
           sales_person_id: string
           sales_person_name: string
@@ -310,6 +320,7 @@ export type Database = {
           id?: string
           internal_notes?: string | null
           invoice_url?: string | null
+          is_refund_requested?: boolean
           last_reminder_sent_at?: string | null
           lead_source?: string | null
           order_type?: string | null
@@ -323,6 +334,10 @@ export type Database = {
           product_code?: string
           product_name?: string
           quantity?: number
+          refund_reason?: string | null
+          refund_requested_at?: string | null
+          refund_requested_by?: string | null
+          refund_status?: string | null
           sales_notes?: string | null
           sales_person_id?: string
           sales_person_name?: string

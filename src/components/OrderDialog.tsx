@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Order, OrderStatus, ORDER_STATUSES, PaymentStatus, PAYMENT_STATUSES, OrderType, ORDER_TYPES, CustomerType, CUSTOMER_TYPES } from '@/hooks/useOrders';
+import { Order, OrderStatus, ORDER_STATUSES, PaymentStatus, PAYMENT_STATUSES, OrderType, ORDER_TYPES, CustomerType, CUSTOMER_TYPES, RefundStatus, REFUND_STATUSES } from '@/hooks/useOrders';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { PaymentRecordsList } from '@/components/PaymentRecordsList';
 import { PaymentUploadDialog } from '@/components/PaymentUploadDialog';
@@ -16,7 +16,7 @@ import { useOrderItems, ORDER_ITEM_STATUSES } from '@/hooks/useOrderItems';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart } from 'lucide-react';
+import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface OrderDialogProps {
@@ -70,6 +70,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
   const [salesNotes, setSalesNotes] = useState('');
   const [paymentDueDate, setPaymentDueDate] = useState('');
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
+  const [isRefundRequested, setIsRefundRequested] = useState(false);
+  const [refundReason, setRefundReason] = useState('');
+  const [refundStatus, setRefundStatus] = useState<RefundStatus>('pending');
 
   useEffect(() => {
     if (order) {
@@ -95,6 +98,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
       setSalesNotes(order.sales_notes || '');
       setPaymentDueDate(order.payment_due_date || '');
       setInvoiceUrl(order.invoice_url || null);
+      setIsRefundRequested(order.is_refund_requested || false);
+      setRefundReason(order.refund_reason || '');
+      setRefundStatus((order.refund_status as RefundStatus) || 'pending');
       
       // Fetch order items
       fetchOrderItems(order.id).then(setOrderItems);
@@ -168,7 +174,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
 
   const handleUpdate = async () => {
     setLoading(true);
-    const success = await onUpdate(order.id, {
+    const updates: Partial<Order> = {
       status,
       payment_status: paymentStatus,
       order_type: orderType,
@@ -191,7 +197,13 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
       customer_notes: customerNotes || null,
       sales_notes: salesNotes || null,
       invoice_url: invoiceUrl,
-    });
+      is_refund_requested: isRefundRequested,
+      refund_reason: isRefundRequested ? (refundReason || null) : null,
+      refund_status: isRefundRequested ? refundStatus : null,
+      refund_requested_at: isRefundRequested && !order.is_refund_requested ? new Date().toISOString() : order.refund_requested_at,
+      refund_requested_by: isRefundRequested && !order.is_refund_requested ? user?.id : order.refund_requested_by,
+    };
+    const success = await onUpdate(order.id, updates);
     setLoading(false);
     if (success) {
       onOpenChange(false);
@@ -815,6 +827,56 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
                     disabled={loading}
                     rows={2}
                   />
+                </div>
+
+                {/* Refund Section */}
+                <div className="space-y-4 border-t pt-4">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <RotateCcw className="h-4 w-4" />
+                    Refund Request
+                  </h4>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="is_refund_requested"
+                      checked={isRefundRequested}
+                      onChange={(e) => setIsRefundRequested(e.target.checked)}
+                      disabled={loading}
+                      className="h-4 w-4"
+                    />
+                    <Label htmlFor="is_refund_requested" className="cursor-pointer">
+                      Mark as Refund Request
+                    </Label>
+                  </div>
+
+                  {isRefundRequested && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="refund_reason">Refund Reason</Label>
+                        <Textarea
+                          id="refund_reason"
+                          value={refundReason}
+                          onChange={e => setRefundReason(e.target.value)}
+                          disabled={loading}
+                          rows={2}
+                          placeholder="Describe the reason for refund..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="refund_status">Refund Status</Label>
+                        <Select value={refundStatus} onValueChange={(v) => setRefundStatus(v as RefundStatus)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {REFUND_STATUSES.map(s => (
+                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
