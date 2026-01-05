@@ -177,6 +177,7 @@ export type Database = {
           payment_due_date: string | null
           payment_status: string | null
           payment_terms: string | null
+          po_url: string | null
           procurement_currency: string | null
           procurement_rate: number | null
           product_category: string | null
@@ -219,6 +220,7 @@ export type Database = {
           payment_due_date?: string | null
           payment_status?: string | null
           payment_terms?: string | null
+          po_url?: string | null
           procurement_currency?: string | null
           procurement_rate?: number | null
           product_category?: string | null
@@ -261,6 +263,7 @@ export type Database = {
           payment_due_date?: string | null
           payment_status?: string | null
           payment_terms?: string | null
+          po_url?: string | null
           procurement_currency?: string | null
           procurement_rate?: number | null
           product_category?: string | null
