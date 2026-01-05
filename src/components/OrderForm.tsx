@@ -9,9 +9,11 @@ import { OrderFormData, ORDER_TYPES, CUSTOMER_TYPES, PAYMENT_STATUSES, LEAD_SOUR
 import { Loader2, Package, ImageIcon, X, Upload } from 'lucide-react';
 import { Enquiry, PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { Supplier } from '@/hooks/useSuppliers';
+import { OrderItemsInput } from '@/components/OrderItemsInput';
+import { OrderItemFormData } from '@/hooks/useOrderItems';
 
 interface OrderFormProps {
-  onSubmit: (data: OrderFormData, paymentFile?: File) => Promise<boolean>;
+  onSubmit: (data: OrderFormData, paymentFile?: File, orderItems?: OrderItemFormData[]) => Promise<boolean>;
   enquiries?: Enquiry[];
   suppliers?: Supplier[];
 }
@@ -21,6 +23,17 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [] }: OrderFor
   const [paymentFile, setPaymentFile] = useState<File | null>(null);
   const [paymentPreview, setPaymentPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [orderItems, setOrderItems] = useState<OrderItemFormData[]>([
+    {
+      product_name: '',
+      product_code: '',
+      product_category: 'Consumer Drones',
+      quantity: 1,
+      unit_price: undefined,
+      procurement_rate: undefined,
+      notes: '',
+    }
+  ]);
   const [formData, setFormData] = useState<OrderFormData>({
     product_name: '',
     product_category: 'Consumer Drones',
@@ -102,6 +115,16 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [] }: OrderFor
         sales_person_name: enquiry.sales_person_name,
         committed_timeline: enquiry.requested_timeline || '',
       }));
+      // Also populate order items with enquiry data
+      setOrderItems([{
+        product_name: enquiry.product_name,
+        product_code: enquiry.product_code,
+        product_category: enquiry.product_category,
+        quantity: enquiry.quantity,
+        unit_price: undefined,
+        procurement_rate: undefined,
+        notes: '',
+      }]);
     }
   };
 
@@ -128,12 +151,27 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [] }: OrderFor
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.product_name || !formData.customer_name || !formData.sales_person_name) {
+    // Validate at least one product with a name
+    const validItems = orderItems.filter(item => item.product_name.trim());
+    if (validItems.length === 0) {
+      return;
+    }
+    
+    if (!formData.customer_name || !formData.sales_person_name) {
       return;
     }
 
+    // Use first product as the main order product (for backward compatibility)
+    const firstItem = validItems[0];
+    const updatedFormData = {
+      ...formData,
+      product_name: firstItem.product_name,
+      product_category: firstItem.product_category,
+      quantity: validItems.reduce((sum, item) => sum + item.quantity, 0), // Total quantity
+    };
+
     setLoading(true);
-    const success = await onSubmit(formData, paymentFile || undefined);
+    const success = await onSubmit(updatedFormData, paymentFile || undefined, validItems);
     setLoading(false);
 
     if (success) {
@@ -169,9 +207,19 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [] }: OrderFor
         customer_notes: '',
         sales_notes: '',
       });
+      setOrderItems([{
+        product_name: '',
+        product_code: '',
+        product_category: 'Consumer Drones',
+        quantity: 1,
+        unit_price: undefined,
+        procurement_rate: undefined,
+        notes: '',
+      }]);
       handleClearPaymentFile();
     }
   };
+
 
   return (
     <Card>
@@ -206,50 +254,12 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [] }: OrderFor
             </div>
           )}
 
-          {/* Product Details */}
-          <div className="space-y-4">
-            <h3 className="font-medium text-sm text-muted-foreground">Product Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="product_name">Product Name *</Label>
-                <Input
-                  id="product_name"
-                  value={formData.product_name}
-                  onChange={e => setFormData(prev => ({ ...prev, product_name: e.target.value }))}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="product_category">Product Category *</Label>
-                <Select 
-                  value={formData.product_category} 
-                  onValueChange={v => setFormData(prev => ({ ...prev, product_category: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PRODUCT_CATEGORIES.map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="quantity">Quantity *</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  min={1}
-                  value={formData.quantity}
-                  onChange={e => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
-                  required
-                  disabled={loading}
-                />
-              </div>
-            </div>
-          </div>
+          {/* Product Details - Multiple Products */}
+          <OrderItemsInput
+            items={orderItems}
+            onChange={setOrderItems}
+            disabled={loading}
+          />
 
           {/* Customer Details */}
           <div className="space-y-4">
