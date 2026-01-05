@@ -12,7 +12,7 @@ import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { PaymentRecordsList } from '@/components/PaymentRecordsList';
 import { PaymentUploadDialog } from '@/components/PaymentUploadDialog';
 import { useAuth } from '@/hooks/useAuth';
-import { useOrderItems } from '@/hooks/useOrderItems';
+import { useOrderItems, ORDER_ITEM_STATUSES } from '@/hooks/useOrderItems';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -293,6 +293,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Qty</TableHead>
                       <TableHead className="text-right">Unit Price</TableHead>
                       {canSeeProcurement && <TableHead className="text-right">Procurement</TableHead>}
@@ -312,6 +313,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete }: O
                           {item.notes && (
                             <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {ORDER_ITEM_STATUSES.find(s => s.value === item.status)?.label || item.status}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right">{item.quantity}</TableCell>
                         <TableCell className="text-right">

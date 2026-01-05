@@ -4,10 +4,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Package, Save, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { OrderItem } from '@/hooks/useOrderItems';
+import { OrderItem, ORDER_ITEM_STATUSES, OrderItemStatus } from '@/hooks/useOrderItems';
 
 interface ProcurementOrderItemsProps {
   orderId: string;
@@ -15,6 +16,20 @@ interface ProcurementOrderItemsProps {
   orderProcurementRate?: number;
   procurementCurrency: string;
 }
+
+interface EditedItem {
+  procurement_rate: string;
+  procurement_date: string;
+  status: string;
+}
+
+const statusColors: Record<string, string> = {
+  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+  ordered: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  in_transit: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+  received: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+};
 
 export function ProcurementOrderItems({
   orderId,
@@ -25,7 +40,7 @@ export function ProcurementOrderItems({
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [editedRates, setEditedRates] = useState<Record<string, string>>({});
+  const [editedItems, setEditedItems] = useState<Record<string, EditedItem>>({});
 
   useEffect(() => {
     fetchItems();
@@ -43,12 +58,16 @@ export function ProcurementOrderItems({
       if (error) throw error;
       setItems(data || []);
       
-      // Initialize edited rates
-      const rates: Record<string, string> = {};
+      // Initialize edited items
+      const edited: Record<string, EditedItem> = {};
       (data || []).forEach(item => {
-        rates[item.id] = item.procurement_rate?.toString() || '';
+        edited[item.id] = {
+          procurement_rate: item.procurement_rate?.toString() || '',
+          procurement_date: item.procurement_date || '',
+          status: item.status || 'pending',
+        };
       });
-      setEditedRates(rates);
+      setEditedItems(edited);
     } catch (error: any) {
       console.error('Error fetching order items:', error);
     } finally {
@@ -56,33 +75,36 @@ export function ProcurementOrderItems({
     }
   };
 
-  const handleRateChange = (itemId: string, value: string) => {
-    setEditedRates(prev => ({ ...prev, [itemId]: value }));
+  const handleFieldChange = (itemId: string, field: keyof EditedItem, value: string) => {
+    setEditedItems(prev => ({
+      ...prev,
+      [itemId]: { ...prev[itemId], [field]: value },
+    }));
   };
 
-  const handleSaveRates = async () => {
+  const handleSave = async () => {
     try {
       setSaving(true);
       
-      const updates = items.map(item => ({
-        id: item.id,
-        procurement_rate: editedRates[item.id] ? parseFloat(editedRates[item.id]) : null,
-      }));
-
-      for (const update of updates) {
+      for (const item of items) {
+        const edited = editedItems[item.id];
         const { error } = await supabase
           .from('order_items')
-          .update({ procurement_rate: update.procurement_rate })
-          .eq('id', update.id);
+          .update({
+            procurement_rate: edited.procurement_rate ? parseFloat(edited.procurement_rate) : null,
+            procurement_date: edited.procurement_date || null,
+            status: edited.status,
+          })
+          .eq('id', item.id);
         
         if (error) throw error;
       }
 
-      toast.success('Procurement rates updated');
+      toast.success('Items updated successfully');
       fetchItems();
     } catch (error: any) {
-      console.error('Error updating rates:', error);
-      toast.error('Failed to update rates');
+      console.error('Error updating items:', error);
+      toast.error('Failed to update items');
     } finally {
       setSaving(false);
     }
@@ -92,13 +114,22 @@ export function ProcurementOrderItems({
 
   // Calculate totals
   const totalProcurementValue = items.reduce((sum, item) => {
-    const rate = parseFloat(editedRates[item.id]) || 0;
+    const rate = parseFloat(editedItems[item.id]?.procurement_rate) || 0;
     return sum + (rate * item.quantity);
   }, 0);
 
   const hasChanges = items.some(item => {
-    const originalRate = item.procurement_rate?.toString() || '';
-    return editedRates[item.id] !== originalRate;
+    const original = {
+      procurement_rate: item.procurement_rate?.toString() || '',
+      procurement_date: item.procurement_date || '',
+      status: item.status || 'pending',
+    };
+    const edited = editedItems[item.id];
+    return edited && (
+      original.procurement_rate !== edited.procurement_rate ||
+      original.procurement_date !== edited.procurement_date ||
+      original.status !== edited.status
+    );
   });
 
   if (loading) {
@@ -138,13 +169,13 @@ export function ProcurementOrderItems({
             Order Items ({items.length})
           </CardTitle>
           {hasChanges && (
-            <Button size="sm" onClick={handleSaveRates} disabled={saving}>
+            <Button size="sm" onClick={handleSave} disabled={saving}>
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-1" />
               ) : (
                 <Save className="h-4 w-4 mr-1" />
               )}
-              Save Rates
+              Save Changes
             </Button>
           )}
         </div>
@@ -162,15 +193,41 @@ export function ProcurementOrderItems({
                   {item.product_category} • Code: {item.product_code || '-'}
                 </div>
               </div>
-              <Badge variant="secondary">Qty: {item.quantity}</Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">Qty: {item.quantity}</Badge>
+                <Badge className={statusColors[editedItems[item.id]?.status || 'pending']}>
+                  {ORDER_ITEM_STATUSES.find(s => s.value === editedItems[item.id]?.status)?.label || 'Pending'}
+                </Badge>
+              </div>
             </div>
             
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
               <div className="space-y-1">
-                <Label className="text-xs">Unit Sell Price</Label>
-                <div className="text-sm font-medium">
-                  {item.unit_price ? `${currencySymbol}${item.unit_price.toLocaleString()}` : '-'}
-                </div>
+                <Label className="text-xs">Status</Label>
+                <Select
+                  value={editedItems[item.id]?.status || 'pending'}
+                  onValueChange={(value) => handleFieldChange(item.id, 'status', value)}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ORDER_ITEM_STATUSES.map(status => (
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Procurement Date</Label>
+                <Input
+                  type="date"
+                  value={editedItems[item.id]?.procurement_date || ''}
+                  onChange={(e) => handleFieldChange(item.id, 'procurement_date', e.target.value)}
+                  className="h-8 text-sm"
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Procurement Rate</Label>
@@ -178,29 +235,29 @@ export function ProcurementOrderItems({
                   type="number"
                   min={0}
                   step={0.01}
-                  value={editedRates[item.id] || ''}
-                  onChange={(e) => handleRateChange(item.id, e.target.value)}
+                  value={editedItems[item.id]?.procurement_rate || ''}
+                  onChange={(e) => handleFieldChange(item.id, 'procurement_rate', e.target.value)}
                   placeholder="0.00"
                   className="h-8 text-sm"
                 />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Item Total</Label>
-                <div className="text-sm font-medium">
-                  {currencySymbol}{((parseFloat(editedRates[item.id]) || 0) * item.quantity).toLocaleString()}
+                <div className="text-sm font-medium h-8 flex items-center">
+                  {currencySymbol}{((parseFloat(editedItems[item.id]?.procurement_rate) || 0) * item.quantity).toLocaleString()}
                 </div>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Margin</Label>
-                <div className="text-sm font-medium">
-                  {item.unit_price && editedRates[item.id] ? (
+                <div className="text-sm font-medium h-8 flex items-center">
+                  {item.unit_price && editedItems[item.id]?.procurement_rate ? (
                     <span className={
-                      item.unit_price > parseFloat(editedRates[item.id]) 
+                      item.unit_price > parseFloat(editedItems[item.id]?.procurement_rate) 
                         ? 'text-green-600' 
                         : 'text-red-600'
                     }>
                       {currencySymbol}
-                      {((item.unit_price - parseFloat(editedRates[item.id])) * item.quantity).toLocaleString()}
+                      {((item.unit_price - parseFloat(editedItems[item.id]?.procurement_rate)) * item.quantity).toLocaleString()}
                     </span>
                   ) : '-'}
                 </div>
