@@ -783,18 +783,7 @@ export type Database = {
       }
     }
     Views: {
-      pending_registrations: {
-        Row: {
-          created_at: string | null
-          email: string | null
-          id: string | null
-          is_approved: boolean | null
-          name: string | null
-          role: Database["public"]["Enums"]["app_role"] | null
-          user_id: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       can_create_admin: { Args: never; Returns: boolean }
