@@ -10,7 +10,7 @@ import { OrderDialog } from '@/components/OrderDialog';
 import { OrderProfitAnalytics } from '@/components/OrderProfitAnalytics';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { RefundRequestsTable } from '@/components/RefundRequestsTable';
-import { useOrders, Order, ORDER_STATUSES } from '@/hooks/useOrders';
+import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES } from '@/hooks/useOrders';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
@@ -26,14 +26,18 @@ export default function Orders() {
   const [activeTab, setActiveTab] = useState('list');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [paymentTermsFilter, setPaymentTermsFilter] = useState<string>('all');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
+  const [orderTypeFilter, setOrderTypeFilter] = useState<string>('all');
+  const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
-  // Get unique payment terms from orders
+  // Get unique filter options from orders
   const paymentTermsOptions = [...new Set(orders.map(o => o.payment_terms).filter(Boolean))] as string[];
+  const salesPersonOptions = [...new Set(orders.map(o => o.sales_person_name).filter(Boolean))] as string[];
 
   const canCreateOrder = role === 'sales' || role === 'supply_chain' || role === 'admin';
   const isAdmin = role === 'admin';
@@ -45,6 +49,9 @@ export default function Orders() {
   const filteredOrders = orders.filter(o => {
     const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
     const matchesPaymentTerms = paymentTermsFilter === 'all' || o.payment_terms === paymentTermsFilter;
+    const matchesPaymentStatus = paymentStatusFilter === 'all' || o.payment_status === paymentStatusFilter;
+    const matchesOrderType = orderTypeFilter === 'all' || o.order_type === orderTypeFilter;
+    const matchesSalesPerson = salesPersonFilter === 'all' || o.sales_person_name === salesPersonFilter;
     
     const orderDate = new Date(o.created_at);
     let matchesDate = true;
@@ -56,13 +63,17 @@ export default function Orders() {
       matchesDate = orderDate <= endOfDay(endDate);
     }
     
-    return matchesStatus && matchesPaymentTerms && matchesDate;
+    return matchesStatus && matchesPaymentTerms && matchesPaymentStatus && matchesOrderType && matchesSalesPerson && matchesDate;
   });
 
   const clearFilters = () => {
     setStartDate(undefined);
     setEndDate(undefined);
     setPaymentTermsFilter('all');
+    setPaymentStatusFilter('all');
+    setOrderTypeFilter('all');
+    setSalesPersonFilter('all');
+    setStatusFilter('all');
   };
 
   const handleOrderClick = (order: Order) => {
@@ -116,35 +127,67 @@ export default function Orders() {
           <TabsContent value="list" className="space-y-4">
             {/* Filters and View Toggle */}
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Status:</span>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[150px]">
-                      <SelectValue placeholder="All Statuses" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Statuses</SelectItem>
-                      {ORDER_STATUSES.map(s => (
-                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Payment Terms:</span>
-                  <Select value={paymentTermsFilter} onValueChange={setPaymentTermsFilter}>
-                    <SelectTrigger className="w-[150px]">
-                      <SelectValue placeholder="All Terms" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Terms</SelectItem>
-                      {paymentTermsOptions.map(term => (
-                        <SelectItem key={term} value={term}>{term}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {ORDER_STATUSES.map(s => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Payment Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Payment Status</SelectItem>
+                    {PAYMENT_STATUSES.map(s => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={orderTypeFilter} onValueChange={setOrderTypeFilter}>
+                  <SelectTrigger className="w-[130px]">
+                    <SelectValue placeholder="Order Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    {ORDER_TYPES.map(t => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={paymentTermsFilter} onValueChange={setPaymentTermsFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Payment Terms" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Terms</SelectItem>
+                    {paymentTermsOptions.map(term => (
+                      <SelectItem key={term} value={term}>{term}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Sales Person" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sales Persons</SelectItem>
+                    {salesPersonOptions.map(name => (
+                      <SelectItem key={name} value={name}>{name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
                 <DateRangeFilter
                   startDate={startDate}
                   endDate={endDate}
