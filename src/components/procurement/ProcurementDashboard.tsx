@@ -4,9 +4,13 @@ import { useSuppliers, useSupplierPayments } from "@/hooks/useSuppliers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from "recharts";
-import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, isWithinInterval } from "date-fns";
-import { TrendingUp, IndianRupee, Package, Building2, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
+import { format, subDays, eachDayOfInterval, isSameDay, parseISO, isWithinInterval } from "date-fns";
+import { TrendingUp, IndianRupee, Package, Building2, Calendar, Download, FileSpreadsheet, FileText } from "lucide-react";
+import { exportProcurementAnalyticsToExcel, exportProcurementAnalyticsToPDF, ProcurementAnalyticsExportData } from "@/lib/exportUtils";
+import { toast } from "sonner";
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
@@ -126,6 +130,40 @@ export function ProcurementDashboard() {
 
   const loading = ordersLoading || suppliersLoading || paymentsLoading;
 
+  // Prepare export data
+  const getExportData = (): ProcurementAnalyticsExportData => {
+    const combinedDayWise = dayWiseProcurement.map((d, i) => ({
+      date: d.date,
+      orders: d.orders,
+      value: d.value,
+      payments: dayWisePayments[i]?.amount || 0,
+    }));
+
+    return {
+      dayWise: combinedDayWise,
+      supplierWise: supplierWiseProcurement,
+      categoryWise: categoryWiseProcurement,
+      summary: stats,
+    };
+  };
+
+  const handleExportExcel = () => {
+    exportProcurementAnalyticsToExcel(getExportData(), {
+      filename: `procurement-analytics-${format(new Date(), 'yyyy-MM-dd')}`,
+      title: "Procurement Analytics Report",
+    });
+    toast.success("Excel exported successfully");
+  };
+
+  const handleExportPDF = () => {
+    exportProcurementAnalyticsToPDF(getExportData(), {
+      filename: `procurement-analytics-${format(new Date(), 'yyyy-MM-dd')}`,
+      title: "Procurement Analytics Report",
+      subtitle: `Period: Last ${dateRange} days`,
+    });
+    toast.success("PDF exported successfully");
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -137,23 +175,43 @@ export function ProcurementDashboard() {
   return (
     <div className="space-y-6">
       {/* Date Range Filter */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h3 className="text-lg font-medium flex items-center gap-2">
           <Calendar className="w-5 h-5" />
           Analytics Overview
         </h3>
-        <Select value={dateRange} onValueChange={setDateRange}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select period" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7">Last 7 days</SelectItem>
-            <SelectItem value="14">Last 14 days</SelectItem>
-            <SelectItem value="30">Last 30 days</SelectItem>
-            <SelectItem value="60">Last 60 days</SelectItem>
-            <SelectItem value="90">Last 90 days</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-3">
+          <Select value={dateRange} onValueChange={setDateRange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Last 7 days</SelectItem>
+              <SelectItem value="14">Last 14 days</SelectItem>
+              <SelectItem value="30">Last 30 days</SelectItem>
+              <SelectItem value="60">Last 60 days</SelectItem>
+              <SelectItem value="90">Last 90 days</SelectItem>
+            </SelectContent>
+          </Select>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Download className="w-4 h-4" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportExcel} className="gap-2">
+                <FileSpreadsheet className="w-4 h-4" />
+                Export to Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportPDF} className="gap-2">
+                <FileText className="w-4 h-4" />
+                Export to PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* Summary Cards */}

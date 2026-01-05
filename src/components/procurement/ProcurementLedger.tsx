@@ -6,8 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Building2, TrendingUp, TrendingDown, Eye } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Search, Building2, TrendingUp, TrendingDown, Eye, Download, FileSpreadsheet, FileText } from "lucide-react";
 import { SupplierLedgerDialog } from "@/components/SupplierLedgerDialog";
+import { exportSupplierLedgerToExcel, exportSupplierLedgerToPDF, SupplierLedgerExportData } from "@/lib/exportUtils";
+import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface SupplierSummary {
   supplier: Supplier;
@@ -69,6 +73,43 @@ export function ProcurementLedger() {
   const handleViewLedger = (supplier: Supplier) => {
     setSelectedSupplier(supplier);
     setLedgerDialogOpen(true);
+  };
+
+  const handleExportExcel = () => {
+    const exportData: SupplierLedgerExportData[] = filteredSummaries.map(s => ({
+      supplierName: s.supplier.name,
+      contactName: s.supplier.contact_name,
+      category: s.supplier.product_category,
+      totalOrders: s.totalOrders,
+      procurementValue: s.totalProcurementValue,
+      paidAmount: s.totalPaid,
+      pendingAmount: s.pendingAmount,
+    }));
+
+    exportSupplierLedgerToExcel(exportData, {
+      filename: `supplier-ledger-${format(new Date(), 'yyyy-MM-dd')}`,
+      title: "Supplier Ledger Report",
+    });
+    toast.success("Excel exported successfully");
+  };
+
+  const handleExportPDF = () => {
+    const exportData: SupplierLedgerExportData[] = filteredSummaries.map(s => ({
+      supplierName: s.supplier.name,
+      contactName: s.supplier.contact_name,
+      category: s.supplier.product_category,
+      totalOrders: s.totalOrders,
+      procurementValue: s.totalProcurementValue,
+      paidAmount: s.totalPaid,
+      pendingAmount: s.pendingAmount,
+    }));
+
+    exportSupplierLedgerToPDF(exportData, {
+      filename: `supplier-ledger-${format(new Date(), 'yyyy-MM-dd')}`,
+      title: "Supplier Ledger Report",
+      subtitle: `Generated on ${format(new Date(), 'dd MMM yyyy')}`,
+    });
+    toast.success("PDF exported successfully");
   };
 
   const loading = suppliersLoading || paymentsLoading || ordersLoading;
@@ -141,11 +182,29 @@ export function ProcurementLedger() {
 
       {/* Ledger Table */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Building2 className="w-5 h-5" />
             Supplier Ledger
           </CardTitle>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Download className="w-4 h-4" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportExcel} className="gap-2">
+                <FileSpreadsheet className="w-4 h-4" />
+                Export to Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportPDF} className="gap-2">
+                <FileText className="w-4 h-4" />
+                Export to PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </CardHeader>
         <CardContent>
           <div className="relative mb-4">
