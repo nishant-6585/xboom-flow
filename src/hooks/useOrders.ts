@@ -59,6 +59,7 @@ export interface OrderFormData {
   shipping_address?: string;
   order_type: OrderType;
   customer_type: CustomerType;
+  supplier_id?: string;
   supplier_name?: string;
   supplier_contact?: string;
   procurement_rate?: number;
@@ -237,6 +238,7 @@ export function useOrders() {
       const sanitizedData = {
         ...formData,
         enquiry_id: formData.enquiry_id || null,
+        supplier_id: formData.supplier_id || null,
         sales_person_id: formData.sales_person_id || user.id, // Default to current user if empty
         payment_due_date: formData.payment_due_date || null,
         estimated_delivery: formData.estimated_delivery || null,

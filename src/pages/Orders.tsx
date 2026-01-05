@@ -8,6 +8,7 @@ import { OrderDialog } from '@/components/OrderDialog';
 import { OrderProfitAnalytics } from '@/components/OrderProfitAnalytics';
 import { useOrders, Order, ORDER_STATUSES } from '@/hooks/useOrders';
 import { useEnquiries } from '@/hooks/useEnquiries';
+import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, Package, Plus, BarChart3 } from 'lucide-react';
 
@@ -15,6 +16,7 @@ export default function Orders() {
   const { role } = useAuth();
   const { orders, loading, createOrder, updateOrder, deleteOrder } = useOrders();
   const { enquiries } = useEnquiries();
+  const { suppliers } = useSuppliers();
   
   const [activeTab, setActiveTab] = useState('list');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -116,6 +118,7 @@ export default function Orders() {
               <OrderForm 
                 onSubmit={createOrder}
                 enquiries={enquiries}
+                suppliers={suppliers}
               />
             </TabsContent>
           )}
