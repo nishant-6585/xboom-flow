@@ -52,7 +52,7 @@ export function Header() {
           <Link to="/orders">
             <Button variant="ghost" size="sm" className="gap-2">
               <Package className="w-4 h-4" />
-              <span className="hidden sm:inline">Orders</span>
+              <span>Orders</span>
             </Button>
           </Link>
 
@@ -60,7 +60,7 @@ export function Header() {
             <Link to="/suppliers">
               <Button variant="ghost" size="sm" className="gap-2">
                 <Building2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Suppliers</span>
+                <span>Suppliers</span>
               </Button>
             </Link>
           )}
