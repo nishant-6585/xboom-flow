@@ -129,7 +129,7 @@ export function Header() {
 
           <Link to="/" className="flex items-center gap-3">
             <img src={logoFull} alt="Xboom Logo" className="h-10 w-auto" />
-            <span className="text-muted-foreground font-normal hidden sm:inline">| Supply Chain</span>
+            <span className="text-muted-foreground font-normal hidden sm:inline">| Operations</span>
           </Link>
         </div>
 

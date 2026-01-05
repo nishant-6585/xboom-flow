@@ -114,8 +114,8 @@ const Auth = () => {
           </CardTitle>
           <CardDescription>
             {isLogin
-              ? "Sign in to access the Product Enquiry System"
-              : "Register to start using the Product Enquiry System"}
+              ? "Sign in to access the Operations System"
+              : "Register to start using the Operations System"}
           </CardDescription>
         </CardHeader>
         <CardContent>
