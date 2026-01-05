@@ -1,10 +1,9 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Order } from '@/hooks/useOrders';
-import { TrendingUp, TrendingDown, DollarSign, Package, Calendar } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, startOfDay, isWithinInterval, subDays } from 'date-fns';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-
+import { TrendingUp, DollarSign, Package, Calendar, ShoppingCart, IndianRupee } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, isWithinInterval, subDays } from 'date-fns';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, ComposedChart, Area } from 'recharts';
 interface OrderProfitAnalyticsProps {
   orders: Order[];
 }
@@ -22,7 +21,9 @@ export function OrderProfitAnalytics({ orders }: OrderProfitAnalyticsProps) {
     const now = new Date();
     const monthStart = startOfMonth(now);
     const monthEnd = endOfMonth(now);
-    const last30Days = subDays(now, 30);
+
+    // All orders (excluding cancelled) for order count analytics
+    const allValidOrders = orders.filter(o => o.status !== 'cancelled');
 
     // Filter orders with valid profit data
     const ordersWithProfit = orders.filter(o => 
@@ -44,38 +45,64 @@ export function OrderProfitAnalytics({ orders }: OrderProfitAnalyticsProps) {
     const totalRevenue = ordersWithProfitCalc.reduce((sum, o) => sum + o.revenue, 0);
     const totalOrders = ordersWithProfitCalc.length;
 
-    // Month-to-date profit
+    // Total order value (including orders without profit data)
+    const totalOrderValue = allValidOrders.reduce((sum, o) => sum + ((o.total_sales_amount || 0)), 0);
+    const totalOrderCount = allValidOrders.length;
+
+    // Month-to-date
     const mtdOrders = ordersWithProfitCalc.filter(o => 
       isWithinInterval(new Date(o.created_at), { start: monthStart, end: monthEnd })
     );
     const mtdProfit = mtdOrders.reduce((sum, o) => sum + o.profit, 0);
     const mtdRevenue = mtdOrders.reduce((sum, o) => sum + o.revenue, 0);
 
-    // Daily profit for last 30 days
-    const dailyProfitMap = new Map<string, { date: string; profit: number; revenue: number; orders: number }>();
+    const mtdAllOrders = allValidOrders.filter(o => 
+      isWithinInterval(new Date(o.created_at), { start: monthStart, end: monthEnd })
+    );
+    const mtdOrderValue = mtdAllOrders.reduce((sum, o) => sum + ((o.total_sales_amount || 0)), 0);
+
+    // Daily data for last 30 days
+    const dailyDataMap = new Map<string, { 
+      date: string; 
+      profit: number; 
+      revenue: number; 
+      orderCount: number;
+      orderValue: number;
+    }>();
     
     for (let i = 0; i < 30; i++) {
       const day = subDays(now, i);
       const dayStr = format(day, 'yyyy-MM-dd');
-      dailyProfitMap.set(dayStr, { 
+      dailyDataMap.set(dayStr, { 
         date: format(day, 'MMM dd'), 
         profit: 0, 
         revenue: 0,
-        orders: 0 
+        orderCount: 0,
+        orderValue: 0
       });
     }
 
+    // Populate profit/revenue data
     ordersWithProfitCalc.forEach(order => {
       const orderDate = format(new Date(order.created_at), 'yyyy-MM-dd');
-      const existing = dailyProfitMap.get(orderDate);
+      const existing = dailyDataMap.get(orderDate);
       if (existing) {
         existing.profit += order.profit;
         existing.revenue += order.revenue;
-        existing.orders += 1;
       }
     });
 
-    const dailyProfitData = Array.from(dailyProfitMap.values()).reverse();
+    // Populate order count and value data
+    allValidOrders.forEach(order => {
+      const orderDate = format(new Date(order.created_at), 'yyyy-MM-dd');
+      const existing = dailyDataMap.get(orderDate);
+      if (existing) {
+        existing.orderCount += 1;
+        existing.orderValue += (order.total_sales_amount || 0);
+      }
+    });
+
+    const dailyData = Array.from(dailyDataMap.values()).reverse();
 
     // Category-wise profit
     const categoryProfitMap = new Map<string, { name: string; profit: number; revenue: number; orders: number }>();
@@ -99,7 +126,7 @@ export function OrderProfitAnalytics({ orders }: OrderProfitAnalyticsProps) {
 
     const categoryProfitData = Array.from(categoryProfitMap.values())
       .sort((a, b) => b.profit - a.profit)
-      .slice(0, 10); // Top 10 categories
+      .slice(0, 10);
 
     // Profit margin
     const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
@@ -108,10 +135,14 @@ export function OrderProfitAnalytics({ orders }: OrderProfitAnalyticsProps) {
       totalProfit,
       totalRevenue,
       totalOrders,
+      totalOrderCount,
+      totalOrderValue,
       mtdProfit,
       mtdRevenue,
       mtdOrders: mtdOrders.length,
-      dailyProfitData,
+      mtdOrderCount: mtdAllOrders.length,
+      mtdOrderValue,
+      dailyData,
       categoryProfitData,
       profitMargin,
     };
@@ -131,7 +162,29 @@ export function OrderProfitAnalytics({ orders }: OrderProfitAnalyticsProps) {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{analytics.totalOrderCount}</div>
+            <p className="text-xs text-muted-foreground">All time</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Order Value</CardTitle>
+            <IndianRupee className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">{formatCurrency(analytics.totalOrderValue)}</div>
+            <p className="text-xs text-muted-foreground">All time</p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Profit</CardTitle>
@@ -149,47 +202,135 @@ export function OrderProfitAnalytics({ orders }: OrderProfitAnalyticsProps) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">MTD Orders</CardTitle>
+            <Calendar className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(analytics.totalRevenue)}</div>
-            <p className="text-xs text-muted-foreground">
-              {analytics.totalOrders} orders with pricing
-            </p>
+            <div className="text-2xl font-bold text-blue-500">{analytics.mtdOrderCount}</div>
+            <p className="text-xs text-muted-foreground">This month</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">MTD Order Value</CardTitle>
+            <Package className="h-4 w-4 text-purple-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-500">{formatCurrency(analytics.mtdOrderValue)}</div>
+            <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">MTD Profit</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${analytics.mtdProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`text-2xl font-bold ${analytics.mtdProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
               {formatCurrency(analytics.mtdProfit)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {analytics.mtdOrders} orders this month
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">MTD Revenue</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(analytics.mtdRevenue)}</div>
-            <p className="text-xs text-muted-foreground">
-              Month to date
+              {analytics.mtdOrders} orders
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts */}
+      {/* Order Count and Value Charts */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Number of Orders Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Number of Orders (Last 30 Days)</CardTitle>
+            <CardDescription>Daily order count trend</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analytics.dailyData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 10 }}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip 
+                    formatter={(value: number) => [value, 'Orders']}
+                    labelStyle={{ color: 'hsl(var(--foreground))' }}
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))', 
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Bar 
+                    dataKey="orderCount" 
+                    fill="hsl(var(--chart-2))"
+                    radius={[4, 4, 0, 0]}
+                    name="Orders"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Order Value Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Order Value (Last 30 Days)</CardTitle>
+            <CardDescription>Daily order value trend</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={analytics.dailyData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 10 }}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis 
+                    tickFormatter={(value) => formatCurrency(value)}
+                    tick={{ fontSize: 10 }}
+                  />
+                  <Tooltip 
+                    formatter={(value: number) => [formatCurrency(value), 'Order Value']}
+                    labelStyle={{ color: 'hsl(var(--foreground))' }}
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))', 
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="orderValue" 
+                    fill="hsl(var(--chart-4))"
+                    fillOpacity={0.3}
+                    stroke="hsl(var(--chart-4))"
+                    strokeWidth={2}
+                    name="Value"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="orderValue" 
+                    stroke="hsl(var(--chart-4))"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Profit Charts */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Daily Profit Chart */}
         <Card>
@@ -200,7 +341,7 @@ export function OrderProfitAnalytics({ orders }: OrderProfitAnalyticsProps) {
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analytics.dailyProfitData}>
+                <BarChart data={analytics.dailyData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis 
                     dataKey="date" 
