@@ -84,7 +84,7 @@ export default function Pricelist() {
     unit_price: undefined,
     currency: "INR",
     availability: "In Stock",
-    min_order_quantity: 1,
+    lead_time: "",
     notes: "",
   });
 
@@ -140,7 +140,7 @@ export default function Pricelist() {
         unit_price: parseFloat(row["Price"] || row["unit_price"] || row["Unit Price"] || 0) || undefined,
         currency: row["Currency"] || row["currency"] || "INR",
         availability: row["Availability"] || row["availability"] || "In Stock",
-        min_order_quantity: parseInt(row["MOQ"] || row["min_order_quantity"] || row["Min Order"] || 1) || 1,
+        lead_time: row["Lead Time"] || row["lead_time"] || "",
         notes: row["Notes"] || row["notes"] || "",
       })).filter((item: PricelistFormData) => item.product_name);
 
@@ -230,7 +230,7 @@ export default function Pricelist() {
       unit_price: item.unit_price || undefined,
       currency: item.currency || "INR",
       availability: item.availability || "In Stock",
-      min_order_quantity: item.min_order_quantity || 1,
+      lead_time: item.lead_time || "",
       notes: item.notes || "",
     });
     setEditDialogOpen(true);
@@ -238,7 +238,7 @@ export default function Pricelist() {
 
   const openEnquiryDialog = (item: any) => {
     setSelectedItem(item);
-    setEnquiryQuantity(item.min_order_quantity || 1);
+    setEnquiryQuantity(1);
     setEnquiryDialogOpen(true);
   };
 
@@ -251,7 +251,7 @@ export default function Pricelist() {
       unit_price: undefined,
       currency: "INR",
       availability: "In Stock",
-      min_order_quantity: 1,
+      lead_time: "",
       notes: "",
     });
   };
@@ -355,7 +355,7 @@ export default function Pricelist() {
                       <TableHead>Category</TableHead>
                       <TableHead>Brand</TableHead>
                       <TableHead>Price</TableHead>
-                      <TableHead>MOQ</TableHead>
+                      <TableHead>Lead Time</TableHead>
                       <TableHead>Availability</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -392,7 +392,7 @@ export default function Pricelist() {
                               <span className="text-muted-foreground">On Request</span>
                             )}
                           </TableCell>
-                          <TableCell>{item.min_order_quantity}</TableCell>
+                          <TableCell>{item.lead_time || "-"}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className={getAvailabilityColor(item.availability)}>
                               {item.availability}
@@ -447,7 +447,7 @@ export default function Pricelist() {
             <DialogHeader>
               <DialogTitle>Upload Pricelist Excel</DialogTitle>
               <DialogDescription>
-                Upload an Excel file to replace the current pricelist. Expected columns: Product Name, Category, Brand, Description, Price, Currency, Availability, MOQ, Notes
+                Upload an Excel file to replace the current pricelist. Expected columns: Product Name, Category, Brand, Description, Price, Currency, Availability, Lead Time, Notes
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -536,7 +536,7 @@ export default function Pricelist() {
                   rows={2}
                 />
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Price</Label>
                   <Input
@@ -561,15 +561,14 @@ export default function Pricelist() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>MOQ</Label>
-                  <Input
-                    type="number"
-                    value={formData.min_order_quantity || 1}
-                    onChange={(e) => setFormData({ ...formData, min_order_quantity: parseInt(e.target.value) || 1 })}
-                    placeholder="1"
-                  />
-                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Lead Time</Label>
+                <Input
+                  value={formData.lead_time || ""}
+                  onChange={(e) => setFormData({ ...formData, lead_time: e.target.value })}
+                  placeholder="e.g., 2-3 weeks, 7 days"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Availability</Label>
