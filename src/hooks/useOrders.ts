@@ -7,6 +7,7 @@ export type OrderStatus = 'pending' | 'confirmed' | 'procuring' | 'in_transit' |
 export type PaymentStatus = 'pending' | 'partial' | 'full';
 export type OrderType = 'prepaid' | 'postpaid';
 export type CustomerType = 'b2b' | 'b2c';
+export type RefundStatus = 'pending' | 'approved' | 'done';
 
 export type LeadSource = 'call' | 'chat' | 'email' | 'event' | 'walk-in' | 'referral' | 'repeated';
 
@@ -50,6 +51,11 @@ export interface Order {
   created_at: string;
   updated_at: string;
   created_by: string;
+  is_refund_requested: boolean;
+  refund_reason: string | null;
+  refund_status: RefundStatus | null;
+  refund_requested_at: string | null;
+  refund_requested_by: string | null;
 }
 
 export interface OrderFormData {
@@ -120,6 +126,12 @@ export const LEAD_SOURCES: { value: LeadSource; label: string }[] = [
   { value: 'walk-in', label: 'Walk-in' },
   { value: 'referral', label: 'Referral' },
   { value: 'repeated', label: 'Repeated' },
+];
+
+export const REFUND_STATUSES: { value: RefundStatus; label: string }[] = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'done', label: 'Done' },
 ];
 
 export function useOrders() {
@@ -194,6 +206,11 @@ export function useOrders() {
           payment_due_date: null,
           last_reminder_sent_at: null,
           invoice_url: null,
+          is_refund_requested: false,
+          refund_reason: null,
+          refund_status: null,
+          refund_requested_at: null,
+          refund_requested_by: null,
         }));
         
         setOrders(mappedOrders);
@@ -213,6 +230,7 @@ export function useOrders() {
           customer_type: (order.customer_type || 'b2b') as CustomerType,
           payment_status: (order.payment_status || 'pending') as PaymentStatus,
           lead_source: (order.lead_source || null) as LeadSource | null,
+          refund_status: (order.refund_status || null) as RefundStatus | null,
         }));
         
         setOrders(mappedOrders);
