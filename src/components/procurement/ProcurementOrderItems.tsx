@@ -5,22 +5,26 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Package, Save, Loader2 } from 'lucide-react';
+import { Package, Save, Loader2, Building2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { OrderItem, ORDER_ITEM_STATUSES, OrderItemStatus } from '@/hooks/useOrderItems';
+import { Supplier } from '@/hooks/useSuppliers';
 
 interface ProcurementOrderItemsProps {
   orderId: string;
   orderQuantity: number;
   orderProcurementRate?: number;
   procurementCurrency: string;
+  suppliers?: Supplier[];
 }
 
 interface EditedItem {
   procurement_rate: string;
   procurement_date: string;
   status: string;
+  supplier_id: string;
+  quantity_procured: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -36,6 +40,7 @@ export function ProcurementOrderItems({
   orderQuantity,
   orderProcurementRate,
   procurementCurrency,
+  suppliers = [],
 }: ProcurementOrderItemsProps) {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +70,8 @@ export function ProcurementOrderItems({
           procurement_rate: item.procurement_rate?.toString() || '',
           procurement_date: item.procurement_date || '',
           status: item.status || 'pending',
+          supplier_id: (item as any).supplier_id || '',
+          quantity_procured: (item as any).quantity_procured?.toString() || '',
         };
       });
       setEditedItems(edited);
@@ -94,6 +101,8 @@ export function ProcurementOrderItems({
             procurement_rate: edited.procurement_rate ? parseFloat(edited.procurement_rate) : null,
             procurement_date: edited.procurement_date || null,
             status: edited.status,
+            supplier_id: edited.supplier_id || null,
+            quantity_procured: edited.quantity_procured ? parseInt(edited.quantity_procured) : 0,
           })
           .eq('id', item.id);
         
@@ -115,7 +124,8 @@ export function ProcurementOrderItems({
   // Calculate totals
   const totalProcurementValue = items.reduce((sum, item) => {
     const rate = parseFloat(editedItems[item.id]?.procurement_rate) || 0;
-    return sum + (rate * item.quantity);
+    const qtyProcured = parseInt(editedItems[item.id]?.quantity_procured) || item.quantity;
+    return sum + (rate * qtyProcured);
   }, 0);
 
   const hasChanges = items.some(item => {
@@ -123,12 +133,16 @@ export function ProcurementOrderItems({
       procurement_rate: item.procurement_rate?.toString() || '',
       procurement_date: item.procurement_date || '',
       status: item.status || 'pending',
+      supplier_id: (item as any).supplier_id || '',
+      quantity_procured: (item as any).quantity_procured?.toString() || '',
     };
     const edited = editedItems[item.id];
     return edited && (
       original.procurement_rate !== edited.procurement_rate ||
       original.procurement_date !== edited.procurement_date ||
-      original.status !== edited.status
+      original.status !== edited.status ||
+      original.supplier_id !== edited.supplier_id ||
+      original.quantity_procured !== edited.quantity_procured
     );
   });
 
@@ -181,90 +195,146 @@ export function ProcurementOrderItems({
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {items.map((item, index) => (
-          <div key={item.id} className="p-3 bg-muted/30 rounded-lg space-y-2">
-            <div className="flex items-start justify-between">
-              <div>
+        {items.map((item, index) => {
+          const qtyProcured = parseInt(editedItems[item.id]?.quantity_procured) || 0;
+          const qtyPending = item.quantity - qtyProcured;
+          const selectedSupplier = suppliers.find(s => s.id === editedItems[item.id]?.supplier_id);
+          
+          return (
+            <div key={item.id} className="p-3 bg-muted/30 rounded-lg space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
+                    <span className="font-medium">{item.product_name}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {item.product_category} • Code: {item.product_code || '-'}
+                  </div>
+                </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
-                  <span className="font-medium">{item.product_name}</span>
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {item.product_category} • Code: {item.product_code || '-'}
+                  <Badge variant="secondary">Order Qty: {item.quantity}</Badge>
+                  <Badge className={statusColors[editedItems[item.id]?.status || 'pending']}>
+                    {ORDER_ITEM_STATUSES.find(s => s.value === editedItems[item.id]?.status)?.label || 'Pending'}
+                  </Badge>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">Qty: {item.quantity}</Badge>
-                <Badge className={statusColors[editedItems[item.id]?.status || 'pending']}>
-                  {ORDER_ITEM_STATUSES.find(s => s.value === editedItems[item.id]?.status)?.label || 'Pending'}
-                </Badge>
+
+              {/* Supplier Selection Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border/50">
+                <div className="space-y-1">
+                  <Label className="text-xs flex items-center gap-1">
+                    <Building2 className="h-3 w-3" />
+                    Supplier
+                  </Label>
+                  <Select
+                    value={editedItems[item.id]?.supplier_id || 'none'}
+                    onValueChange={(value) => handleFieldChange(item.id, 'supplier_id', value === 'none' ? '' : value)}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Select supplier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Supplier</SelectItem>
+                      {suppliers.map(supplier => (
+                        <SelectItem key={supplier.id} value={supplier.id}>
+                          {supplier.name} {supplier.brand_name ? `(${supplier.brand_name})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {selectedSupplier && (
+                  <div className="text-xs p-2 bg-muted rounded flex items-center gap-2">
+                    <span className="text-muted-foreground">{selectedSupplier.contact_name}</span>
+                    {selectedSupplier.phone && (
+                      <span className="text-muted-foreground">• {selectedSupplier.phone}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              {/* Procurement Details Row */}
+              <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Status</Label>
+                  <Select
+                    value={editedItems[item.id]?.status || 'pending'}
+                    onValueChange={(value) => handleFieldChange(item.id, 'status', value)}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ORDER_ITEM_STATUSES.map(status => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Qty Procured</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={item.quantity}
+                    value={editedItems[item.id]?.quantity_procured || ''}
+                    onChange={(e) => handleFieldChange(item.id, 'quantity_procured', e.target.value)}
+                    placeholder="0"
+                    className="h-8 text-sm"
+                  />
+                  {qtyPending > 0 && qtyProcured > 0 && (
+                    <p className="text-xs text-orange-600">{qtyPending} pending</p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Procurement Date</Label>
+                  <Input
+                    type="date"
+                    value={editedItems[item.id]?.procurement_date || ''}
+                    onChange={(e) => handleFieldChange(item.id, 'procurement_date', e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Rate/Unit</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={editedItems[item.id]?.procurement_rate || ''}
+                    onChange={(e) => handleFieldChange(item.id, 'procurement_rate', e.target.value)}
+                    placeholder="0.00"
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Item Total</Label>
+                  <div className="text-sm font-medium h-8 flex items-center">
+                    {currencySymbol}{((parseFloat(editedItems[item.id]?.procurement_rate) || 0) * (parseInt(editedItems[item.id]?.quantity_procured) || item.quantity)).toLocaleString()}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Margin</Label>
+                  <div className="text-sm font-medium h-8 flex items-center">
+                    {item.unit_price && editedItems[item.id]?.procurement_rate ? (
+                      <span className={
+                        item.unit_price > parseFloat(editedItems[item.id]?.procurement_rate) 
+                          ? 'text-green-600' 
+                          : 'text-red-600'
+                      }>
+                        {currencySymbol}
+                        {((item.unit_price - parseFloat(editedItems[item.id]?.procurement_rate)) * (parseInt(editedItems[item.id]?.quantity_procured) || item.quantity)).toLocaleString()}
+                      </span>
+                    ) : '-'}
+                  </div>
+                </div>
               </div>
             </div>
-            
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
-              <div className="space-y-1">
-                <Label className="text-xs">Status</Label>
-                <Select
-                  value={editedItems[item.id]?.status || 'pending'}
-                  onValueChange={(value) => handleFieldChange(item.id, 'status', value)}
-                >
-                  <SelectTrigger className="h-8 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ORDER_ITEM_STATUSES.map(status => (
-                      <SelectItem key={status.value} value={status.value}>
-                        {status.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Procurement Date</Label>
-                <Input
-                  type="date"
-                  value={editedItems[item.id]?.procurement_date || ''}
-                  onChange={(e) => handleFieldChange(item.id, 'procurement_date', e.target.value)}
-                  className="h-8 text-sm"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Procurement Rate</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={editedItems[item.id]?.procurement_rate || ''}
-                  onChange={(e) => handleFieldChange(item.id, 'procurement_rate', e.target.value)}
-                  placeholder="0.00"
-                  className="h-8 text-sm"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Item Total</Label>
-                <div className="text-sm font-medium h-8 flex items-center">
-                  {currencySymbol}{((parseFloat(editedItems[item.id]?.procurement_rate) || 0) * item.quantity).toLocaleString()}
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Margin</Label>
-                <div className="text-sm font-medium h-8 flex items-center">
-                  {item.unit_price && editedItems[item.id]?.procurement_rate ? (
-                    <span className={
-                      item.unit_price > parseFloat(editedItems[item.id]?.procurement_rate) 
-                        ? 'text-green-600' 
-                        : 'text-red-600'
-                    }>
-                      {currencySymbol}
-                      {((item.unit_price - parseFloat(editedItems[item.id]?.procurement_rate)) * item.quantity).toLocaleString()}
-                    </span>
-                  ) : '-'}
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* Totals Summary */}
         <div className="pt-3 border-t">
