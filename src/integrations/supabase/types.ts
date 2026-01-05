@@ -547,6 +547,57 @@ export type Database = {
           },
         ]
       }
+      pricelist: {
+        Row: {
+          availability: string | null
+          brand: string | null
+          created_at: string
+          created_by: string | null
+          currency: string | null
+          description: string | null
+          id: string
+          min_order_quantity: number | null
+          notes: string | null
+          product_category: string
+          product_name: string
+          unit_price: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          availability?: string | null
+          brand?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          description?: string | null
+          id?: string
+          min_order_quantity?: number | null
+          notes?: string | null
+          product_category?: string
+          product_name: string
+          unit_price?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          availability?: string | null
+          brand?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          description?: string | null
+          id?: string
+          min_order_quantity?: number | null
+          notes?: string | null
+          product_category?: string
+          product_name?: string
+          unit_price?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
