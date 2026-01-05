@@ -30,6 +30,7 @@ export default function Suppliers() {
   const filteredSuppliers = suppliers.filter((supplier) => {
     const matchesSearch = 
       supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      supplier.brand_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       supplier.contact_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       supplier.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       supplier.products?.some(p => p.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -91,7 +92,7 @@ export default function Suppliers() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search suppliers, contacts, products..."
+                  placeholder="Search suppliers, brands, contacts, products..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9"
