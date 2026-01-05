@@ -56,6 +56,11 @@ export interface Order {
   refund_status: RefundStatus | null;
   refund_requested_at: string | null;
   refund_requested_by: string | null;
+  priority: number;
+  is_escalated: boolean;
+  escalated_at: string | null;
+  escalated_by: string | null;
+  escalation_reason: string | null;
 }
 
 export interface OrderFormData {
@@ -134,6 +139,13 @@ export const REFUND_STATUSES: { value: RefundStatus; label: string }[] = [
   { value: 'done', label: 'Done' },
 ];
 
+export const ORDER_PRIORITIES: { value: number; label: string; color: string }[] = [
+  { value: 1, label: 'Priority 1 (Urgent)', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
+  { value: 2, label: 'Priority 2 (High)', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' },
+  { value: 3, label: 'Priority 3 (Normal)', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
+  { value: 4, label: 'Priority 4 (Low)', color: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400' },
+];
+
 export function useOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,7 +194,12 @@ export function useOrders() {
             sales_notes,
             created_at,
             updated_at,
-            created_by
+            created_by,
+            priority,
+            is_escalated,
+            escalated_at,
+            escalated_by,
+            escalation_reason
           `)
           .order('created_at', { ascending: false });
 
@@ -211,6 +228,11 @@ export function useOrders() {
           refund_status: null,
           refund_requested_at: null,
           refund_requested_by: null,
+          priority: order.priority || 3,
+          is_escalated: order.is_escalated || false,
+          escalated_at: order.escalated_at || null,
+          escalated_by: order.escalated_by || null,
+          escalation_reason: order.escalation_reason || null,
         }));
         
         setOrders(mappedOrders);
@@ -398,12 +420,66 @@ export function useOrders() {
     }
   };
 
+  const escalateOrder = async (orderId: string, reason: string): Promise<boolean> => {
+    if (!user) {
+      toast.error('You must be logged in to escalate orders');
+      return false;
+    }
+
+    try {
+      // Update order with escalation info and set priority to 1
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({
+          is_escalated: true,
+          escalated_at: new Date().toISOString(),
+          escalated_by: user.id,
+          escalation_reason: reason,
+          priority: 1, // Set to highest priority
+        })
+        .eq('id', orderId);
+
+      if (updateError) throw updateError;
+
+      // Get order details for notification
+      const { data: orderData } = await supabase
+        .from('orders')
+        .select('product_name, customer_name, customer_company')
+        .eq('id', orderId)
+        .single();
+
+      // Create notification for admin and supply chain
+      const { error: notifError } = await supabase
+        .from('notifications')
+        .insert({
+          order_id: orderId,
+          type: 'order_escalation',
+          title: 'Order Escalated - Priority 1',
+          message: `Order for ${orderData?.customer_name || 'Unknown'} (${orderData?.customer_company || 'Unknown'}) - ${orderData?.product_name || 'Unknown'} has been escalated. Reason: ${reason}`,
+          target_role: null, // null means visible to all relevant roles (admin, supply_chain)
+        });
+
+      if (notifError) {
+        console.error('Error creating notification:', notifError);
+        // Don't fail the escalation just because notification failed
+      }
+
+      toast.success('Order escalated successfully');
+      return true;
+    } catch (error: any) {
+      console.error('Error escalating order:', error);
+      toast.error(error.message || 'Failed to escalate order');
+      return false;
+    }
+  };
+
   return {
     orders,
     loading,
     createOrder,
     updateOrder,
     deleteOrder,
+    escalateOrder,
     refetch: fetchOrders,
   };
 }

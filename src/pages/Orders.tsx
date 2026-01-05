@@ -19,7 +19,7 @@ import { startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 
 export default function Orders() {
   const { role } = useAuth();
-  const { orders, loading, createOrder, updateOrder, deleteOrder } = useOrders();
+  const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
@@ -210,6 +210,7 @@ export default function Orders() {
           onOpenChange={setDialogOpen}
           onUpdate={updateOrder}
           onDelete={deleteOrder}
+          onEscalate={escalateOrder}
         />
       </main>
     </div>
