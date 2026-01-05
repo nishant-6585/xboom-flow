@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { OrderFormData, ORDER_TYPES, CUSTOMER_TYPES, PAYMENT_STATUSES, OrderType, CustomerType, PaymentStatus } from '@/hooks/useOrders';
+import { OrderFormData, ORDER_TYPES, CUSTOMER_TYPES, PAYMENT_STATUSES, LEAD_SOURCES, OrderType, CustomerType, PaymentStatus, LeadSource } from '@/hooks/useOrders';
 import { Loader2, Package, ImageIcon, X, Upload } from 'lucide-react';
 import { Enquiry, PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { Supplier } from '@/hooks/useSuppliers';
@@ -33,6 +33,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [] }: OrderFor
     shipping_address: '',
     order_type: 'prepaid',
     customer_type: 'b2b',
+    lead_source: undefined,
     supplier_id: undefined,
     supplier_name: '',
     supplier_contact: '',
@@ -148,6 +149,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [] }: OrderFor
         shipping_address: '',
         order_type: 'prepaid',
         customer_type: 'b2b',
+        lead_source: undefined,
         supplier_id: undefined,
         supplier_name: '',
         supplier_contact: '',
@@ -330,6 +332,22 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [] }: OrderFor
                   disabled={loading}
                   placeholder="e.g., 2-3 weeks, End of month"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lead_source">Lead Source</Label>
+                <Select 
+                  value={formData.lead_source || ''} 
+                  onValueChange={v => setFormData(prev => ({ ...prev, lead_source: v as LeadSource }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select lead source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LEAD_SOURCES.map(s => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>

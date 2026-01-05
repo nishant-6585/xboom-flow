@@ -172,6 +172,7 @@ export type Database = {
           internal_notes: string | null
           invoice_url: string | null
           last_reminder_sent_at: string | null
+          lead_source: string | null
           order_type: string | null
           payment_due_date: string | null
           payment_status: string | null
@@ -213,6 +214,7 @@ export type Database = {
           internal_notes?: string | null
           invoice_url?: string | null
           last_reminder_sent_at?: string | null
+          lead_source?: string | null
           order_type?: string | null
           payment_due_date?: string | null
           payment_status?: string | null
@@ -254,6 +256,7 @@ export type Database = {
           internal_notes?: string | null
           invoice_url?: string | null
           last_reminder_sent_at?: string | null
+          lead_source?: string | null
           order_type?: string | null
           payment_due_date?: string | null
           payment_status?: string | null
