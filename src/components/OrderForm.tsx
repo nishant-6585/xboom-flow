@@ -8,13 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { OrderFormData, ORDER_TYPES, CUSTOMER_TYPES, PAYMENT_STATUSES, OrderType, CustomerType, PaymentStatus } from '@/hooks/useOrders';
 import { Loader2, Package, ImageIcon, X, Upload } from 'lucide-react';
 import { Enquiry, PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
+import { Supplier } from '@/hooks/useSuppliers';
 
 interface OrderFormProps {
   onSubmit: (data: OrderFormData, paymentFile?: File) => Promise<boolean>;
   enquiries?: Enquiry[];
+  suppliers?: Supplier[];
 }
 
-export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
+export function OrderForm({ onSubmit, enquiries = [], suppliers = [] }: OrderFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [paymentFile, setPaymentFile] = useState<File | null>(null);
   const [paymentPreview, setPaymentPreview] = useState<string | null>(null);
@@ -30,6 +32,7 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
     shipping_address: '',
     order_type: 'prepaid',
     customer_type: 'b2b',
+    supplier_id: undefined,
     supplier_name: '',
     supplier_contact: '',
     procurement_rate: undefined,
@@ -50,6 +53,29 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
   });
 
   const confirmedEnquiries = enquiries.filter(e => e.status === 'confirmed');
+  const activeSuppliers = suppliers.filter(s => s.is_active);
+
+  const handleSupplierSelect = (supplierId: string) => {
+    if (supplierId === 'none') {
+      setFormData(prev => ({
+        ...prev,
+        supplier_id: undefined,
+        supplier_name: '',
+        supplier_contact: '',
+      }));
+      return;
+    }
+
+    const supplier = suppliers.find(s => s.id === supplierId);
+    if (supplier) {
+      setFormData(prev => ({
+        ...prev,
+        supplier_id: supplierId,
+        supplier_name: supplier.name,
+        supplier_contact: supplier.phone || supplier.email || '',
+      }));
+    }
+  };
 
   const handleEnquirySelect = (enquiryId: string) => {
     if (enquiryId === 'none') {
@@ -120,6 +146,7 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
         shipping_address: '',
         order_type: 'prepaid',
         customer_type: 'b2b',
+        supplier_id: undefined,
         supplier_name: '',
         supplier_contact: '',
         procurement_rate: undefined,
@@ -431,6 +458,25 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
           <div className="space-y-4">
             <h3 className="font-medium text-sm text-muted-foreground">Procurement Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2 md:col-span-2">
+                <Label>Select Supplier</Label>
+                <Select 
+                  value={formData.supplier_id || 'none'} 
+                  onValueChange={handleSupplierSelect}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a supplier (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Supplier / Enter Manually</SelectItem>
+                    {activeSuppliers.map(supplier => (
+                      <SelectItem key={supplier.id} value={supplier.id}>
+                        {supplier.name} - {supplier.contact_name} ({supplier.product_category})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="supplier_name">Supplier Name</Label>
                 <Input
@@ -438,6 +484,7 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
                   value={formData.supplier_name || ''}
                   onChange={e => setFormData(prev => ({ ...prev, supplier_name: e.target.value }))}
                   disabled={loading}
+                  placeholder={formData.supplier_id ? 'Auto-filled from selection' : 'Enter supplier name'}
                 />
               </div>
               <div className="space-y-2">
@@ -447,6 +494,7 @@ export function OrderForm({ onSubmit, enquiries = [] }: OrderFormProps) {
                   value={formData.supplier_contact || ''}
                   onChange={e => setFormData(prev => ({ ...prev, supplier_contact: e.target.value }))}
                   disabled={loading}
+                  placeholder={formData.supplier_id ? 'Auto-filled from selection' : 'Enter contact info'}
                 />
               </div>
               <div className="space-y-2">
