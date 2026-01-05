@@ -31,9 +31,10 @@ export default function Orders() {
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
-  const canCreateOrder = role === 'supply_chain' || role === 'admin';
+  const canCreateOrder = role === 'sales' || role === 'supply_chain' || role === 'admin';
   const isAdmin = role === 'admin';
   const canViewRefunds = role === 'supply_chain' || role === 'admin';
+  const canViewProcurementCosts = role === 'supply_chain' || role === 'admin';
 
   const refundCount = orders.filter(o => o.is_refund_requested).length;
 
@@ -187,6 +188,7 @@ export default function Orders() {
                 onSubmit={createOrder}
                 enquiries={enquiries}
                 suppliers={suppliers}
+                showProcurementRate={canViewProcurementCosts}
               />
             </TabsContent>
           )}
