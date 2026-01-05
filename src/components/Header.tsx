@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart, Warehouse } from "lucide-react";
+import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart, Warehouse, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "react-router-dom";
@@ -58,6 +58,7 @@ export function Header() {
   const navItems = [
     { path: "/", label: "Dashboard", icon: Home, roles: ["sales", "supply_chain", "admin"] },
     { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "supply_chain", "admin"] },
+    { path: "/pricelist", label: "Pricelist", icon: FileSpreadsheet, roles: ["sales", "supply_chain", "admin"] },
     { path: "/procurement", label: "Procurement", icon: ShoppingCart, roles: ["admin", "supply_chain"] },
     { path: "/inventory", label: "Inventory", icon: Warehouse, roles: ["sales", "supply_chain", "admin"] },
     { path: "/suppliers", label: "Suppliers", icon: Building2, roles: ["admin", "supply_chain"] },
@@ -146,6 +147,20 @@ export function Header() {
             </TooltipTrigger>
             <TooltipContent className="sm:hidden">
               <p>Orders</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link to="/pricelist">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span>Pricelist</span>
+                </Button>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent className="sm:hidden">
+              <p>Pricelist</p>
             </TooltipContent>
           </Tooltip>
 
