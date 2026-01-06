@@ -36,11 +36,17 @@ export interface Enquiry {
   response_lead_time: string | null;
   response_notes: string | null;
   responded_by: string | null;
+  responded_by_name: string | null;
   responded_at: string | null;
   is_escalated: boolean;
   escalated_at: string | null;
   escalated_by: string | null;
+  escalated_by_name: string | null;
   escalation_reason: string | null;
+  admin_response: string | null;
+  admin_response_by: string | null;
+  admin_response_by_name: string | null;
+  admin_response_at: string | null;
   order_outcome: OrderOutcome;
   lost_reason: LostReason | null;
   lost_reason_notes: string | null;
@@ -211,7 +217,7 @@ export function useEnquiries() {
     status: QueryStatus,
     response: EnquiryResponse
   ) => {
-    if (!user) return false;
+    if (!user || !profile) return false;
 
     try {
       const { error } = await supabase
@@ -223,6 +229,7 @@ export function useEnquiries() {
           response_lead_time: response.leadTime || null,
           response_notes: response.notes || null,
           responded_by: user.id,
+          responded_by_name: profile.name,
           responded_at: new Date().toISOString(),
         })
         .eq("id", enquiryId);
@@ -282,7 +289,7 @@ export function useEnquiries() {
   };
 
   const escalateEnquiry = async (enquiryId: string, reason: string) => {
-    if (!user) {
+    if (!user || !profile) {
       toast({
         title: "Error",
         description: "You must be logged in to escalate an enquiry",
@@ -298,6 +305,7 @@ export function useEnquiries() {
           is_escalated: true,
           escalated_at: new Date().toISOString(),
           escalated_by: user.id,
+          escalated_by_name: profile.name,
           escalation_reason: reason,
         })
         .eq("id", enquiryId);
@@ -379,6 +387,46 @@ export function useEnquiries() {
     }
   };
 
+  const submitAdminResponse = async (enquiryId: string, adminResponse: string) => {
+    if (!user || !profile || role !== "admin") {
+      toast({
+        title: "Error",
+        description: "Only admins can submit admin responses",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("enquiries")
+        .update({
+          admin_response: adminResponse,
+          admin_response_by: user.id,
+          admin_response_by_name: profile.name,
+          admin_response_at: new Date().toISOString(),
+        })
+        .eq("id", enquiryId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Admin Response Submitted",
+        description: "Your response to the escalated enquiry has been saved.",
+      });
+
+      return true;
+    } catch (error) {
+      console.error("Error submitting admin response:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit admin response",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     enquiries,
     loading,
@@ -387,6 +435,7 @@ export function useEnquiries() {
     deleteEnquiry,
     escalateEnquiry,
     updateOutcome,
+    submitAdminResponse,
     refetch: fetchEnquiries,
   };
 }

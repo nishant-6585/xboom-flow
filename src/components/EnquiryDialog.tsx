@@ -30,7 +30,7 @@ import { Enquiry, QueryStatus, EnquiryResponse } from "@/hooks/useEnquiries";
 import { StatusBadge } from "./StatusBadge";
 import { UrgencyIndicator } from "./UrgencyIndicator";
 import { useAuth } from "@/hooks/useAuth";
-import { Package, User, Building2, Hash, Boxes, Clock, CheckCircle, Trash2, Loader2, AlertTriangle, Calendar, IndianRupee } from "lucide-react";
+import { Package, User, Building2, Hash, Boxes, Clock, CheckCircle, Trash2, Loader2, AlertTriangle, Calendar, IndianRupee, UserCheck, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface EnquiryDialogProps {
@@ -40,6 +40,7 @@ interface EnquiryDialogProps {
   onSubmitResponse: (enquiryId: string, status: QueryStatus, response: EnquiryResponse) => Promise<boolean>;
   onDelete: (enquiryId: string) => Promise<boolean>;
   onEscalate: (enquiryId: string, reason: string) => Promise<boolean>;
+  onSubmitAdminResponse?: (enquiryId: string, adminResponse: string) => Promise<boolean>;
 }
 
 export function EnquiryDialog({
@@ -49,8 +50,9 @@ export function EnquiryDialog({
   onSubmitResponse,
   onDelete,
   onEscalate,
+  onSubmitAdminResponse,
 }: EnquiryDialogProps) {
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
   const [status, setStatus] = useState<QueryStatus>("pending");
   const [response, setResponse] = useState({
     pricing: "",
@@ -62,6 +64,7 @@ export function EnquiryDialog({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [escalateDialogOpen, setEscalateDialogOpen] = useState(false);
   const [escalationReason, setEscalationReason] = useState("");
+  const [adminResponseText, setAdminResponseText] = useState("");
 
   // Reset form when enquiry changes
   useEffect(() => {
@@ -73,6 +76,7 @@ export function EnquiryDialog({
         leadTime: enquiry.response_lead_time || "",
         notes: enquiry.response_notes || "",
       });
+      setAdminResponseText(enquiry.admin_response || "");
     }
   }, [enquiry]);
 
@@ -81,6 +85,7 @@ export function EnquiryDialog({
   const canRespond = role === "supply_chain" || role === "admin";
   const canDelete = role === "admin";
   const canEscalate = (role === "sales" || role === "supply_chain") && !enquiry.is_escalated;
+  const canRespondToEscalation = role === "admin" && enquiry.is_escalated && onSubmitAdminResponse;
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -113,10 +118,20 @@ export function EnquiryDialog({
     }
   };
 
+  const handleAdminResponse = async () => {
+    if (!onSubmitAdminResponse || !adminResponseText.trim()) return;
+    setLoading(true);
+    const success = await onSubmitAdminResponse(enquiry.id, adminResponseText);
+    setLoading(false);
+    if (success) {
+      onOpenChange(false);
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl glass">
+        <DialogContent className="max-w-2xl glass max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <span className="flex items-center gap-2">
@@ -144,11 +159,10 @@ export function EnquiryDialog({
                 <div className="flex-1">
                   <p className="font-medium text-destructive">Escalated to Admin</p>
                   <p className="text-sm text-muted-foreground mt-1">{enquiry.escalation_reason}</p>
-                  {enquiry.escalated_at && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Escalated on {new Date(enquiry.escalated_at).toLocaleString()}
-                    </p>
-                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Escalated by <span className="font-medium text-foreground">{enquiry.escalated_by_name || 'Unknown'}</span>
+                    {enquiry.escalated_at && ` on ${new Date(enquiry.escalated_at).toLocaleString()}`}
+                  </p>
                 </div>
               </div>
             )}
@@ -221,11 +235,68 @@ export function EnquiryDialog({
               </div>
             </div>
 
+            {/* Display existing Supply Chain Response (for everyone to see) */}
+            {enquiry.responded_at && (
+              <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 space-y-3">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-primary" />
+                  <h4 className="font-medium">Supply Chain Response</h4>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                  {enquiry.response_pricing && (
+                    <div>
+                      <span className="text-muted-foreground">Pricing:</span>
+                      <span className="ml-2 font-medium">{enquiry.response_pricing}</span>
+                    </div>
+                  )}
+                  {enquiry.response_availability && (
+                    <div>
+                      <span className="text-muted-foreground">Availability:</span>
+                      <span className="ml-2 font-medium">{enquiry.response_availability}</span>
+                    </div>
+                  )}
+                  {enquiry.response_lead_time && (
+                    <div>
+                      <span className="text-muted-foreground">Lead Time:</span>
+                      <span className="ml-2 font-medium">{enquiry.response_lead_time}</span>
+                    </div>
+                  )}
+                </div>
+                
+                {enquiry.response_notes && (
+                  <p className="text-sm text-muted-foreground">{enquiry.response_notes}</p>
+                )}
+                
+                <p className="text-xs text-muted-foreground border-t border-border pt-2">
+                  Responded by <span className="font-medium text-foreground">{enquiry.responded_by_name || 'Unknown'}</span>
+                  {enquiry.responded_at && ` on ${new Date(enquiry.responded_at).toLocaleString()}`}
+                </p>
+              </div>
+            )}
+
+            {/* Display Admin Response (for escalated enquiries) */}
+            {enquiry.is_escalated && enquiry.admin_response && (
+              <div className="p-4 rounded-lg bg-success/5 border border-success/20 space-y-3">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-success" />
+                  <h4 className="font-medium">Admin Response</h4>
+                </div>
+                
+                <p className="text-sm">{enquiry.admin_response}</p>
+                
+                <p className="text-xs text-muted-foreground border-t border-border pt-2">
+                  Responded by <span className="font-medium text-foreground">{enquiry.admin_response_by_name || 'Unknown'}</span>
+                  {enquiry.admin_response_at && ` on ${new Date(enquiry.admin_response_at).toLocaleString()}`}
+                </p>
+              </div>
+            )}
+
             {/* Response Form - Only show for supply chain or admin */}
             {canRespond && (
               <div className="space-y-4">
                 <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                  Supply Chain Response
+                  {enquiry.responded_at ? 'Update Response' : 'Supply Chain Response'}
                 </h4>
 
                 <div className="space-y-2">
@@ -295,9 +366,30 @@ export function EnquiryDialog({
               </div>
             )}
 
-            <div className="flex justify-end gap-3">
+            {/* Admin Response Form - Only show for admin on escalated enquiries */}
+            {canRespondToEscalation && (
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4" />
+                  {enquiry.admin_response ? 'Update Admin Response' : 'Admin Response to Escalation'}
+                </h4>
+
+                <div className="space-y-2">
+                  <Label htmlFor="adminResponse">Your Response</Label>
+                  <Textarea
+                    id="adminResponse"
+                    placeholder="Provide your admin response to this escalated enquiry..."
+                    rows={4}
+                    value={adminResponseText}
+                    onChange={(e) => setAdminResponseText(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-wrap justify-end gap-3">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                {canRespond ? "Cancel" : "Close"}
+                {canRespond || canRespondToEscalation ? "Cancel" : "Close"}
               </Button>
               {canEscalate && (
                 <Button 
@@ -306,6 +398,17 @@ export function EnquiryDialog({
                 >
                   <AlertTriangle className="w-4 h-4 mr-2" />
                   Escalate to Admin
+                </Button>
+              )}
+              {canRespondToEscalation && (
+                <Button 
+                  onClick={handleAdminResponse} 
+                  disabled={loading || !adminResponseText.trim()}
+                  variant="default"
+                >
+                  {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  <ShieldCheck className="w-4 h-4 mr-2" />
+                  Submit Admin Response
                 </Button>
               )}
               {canRespond && (
