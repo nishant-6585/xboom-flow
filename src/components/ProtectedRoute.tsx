@@ -14,7 +14,7 @@ export const ProtectedRoute = ({ children, requireApproval = true }: ProtectedRo
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-[100dvh] bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
           <p className="text-muted-foreground">Loading...</p>
@@ -30,8 +30,8 @@ export const ProtectedRoute = ({ children, requireApproval = true }: ProtectedRo
   // Check if user is approved (if required)
   if (requireApproval && !isApproved) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-md glass animate-fade-in">
+      <div className="min-h-[100dvh] bg-background flex items-center justify-center p-4 overflow-y-auto">
+        <Card className="w-full max-w-md glass animate-fade-in my-auto">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
               <div className="p-3 rounded-full bg-warning/10">

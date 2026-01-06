@@ -120,10 +120,10 @@ const Index = () => {
   }));
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-[100dvh] bg-background flex flex-col">
       <Header />
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-6 sm:py-8 flex-1 overflow-x-hidden">
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-2">Product Enquiry System</h2>
           <p className="text-muted-foreground">
