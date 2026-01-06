@@ -360,6 +360,7 @@ export default function Pricelist() {
                       <TableHead>Brand</TableHead>
                       <TableHead>Price</TableHead>
                       {canManage && <TableHead>Cost Price</TableHead>}
+                      {canManage && <TableHead>Margin</TableHead>}
                       <TableHead>Lead Time</TableHead>
                       <TableHead>Availability</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -368,7 +369,7 @@ export default function Pricelist() {
                   <TableBody>
                     {filteredItems.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={canManage ? 9 : 8} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={canManage ? 10 : 8} className="text-center py-8 text-muted-foreground">
                           No products found
                         </TableCell>
                       </TableRow>
@@ -403,6 +404,23 @@ export default function Pricelist() {
                                 <span className="font-medium text-muted-foreground">
                                   {item.currency === "USD" ? "$" : "₹"}
                                   {item.cost_price.toLocaleString()}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                          )}
+                          {canManage && (
+                            <TableCell>
+                              {item.unit_price && item.cost_price ? (
+                                <span className={`font-medium ${
+                                  ((item.unit_price - item.cost_price) / item.unit_price) * 100 >= 20 
+                                    ? "text-green-600" 
+                                    : ((item.unit_price - item.cost_price) / item.unit_price) * 100 >= 10 
+                                      ? "text-yellow-600" 
+                                      : "text-red-600"
+                                }`}>
+                                  {(((item.unit_price - item.cost_price) / item.unit_price) * 100).toFixed(1)}%
                                 </span>
                               ) : (
                                 <span className="text-muted-foreground">-</span>
