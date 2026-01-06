@@ -16,11 +16,16 @@ export type Database = {
     Tables: {
       enquiries: {
         Row: {
+          admin_response: string | null
+          admin_response_at: string | null
+          admin_response_by: string | null
+          admin_response_by_name: string | null
           created_at: string
           customer_company: string
           customer_name: string
           escalated_at: string | null
           escalated_by: string | null
+          escalated_by_name: string | null
           escalation_reason: string | null
           id: string
           is_escalated: boolean
@@ -37,6 +42,7 @@ export type Database = {
           requested_timeline: string | null
           responded_at: string | null
           responded_by: string | null
+          responded_by_name: string | null
           response_availability: string | null
           response_lead_time: string | null
           response_notes: string | null
@@ -48,11 +54,16 @@ export type Database = {
           urgency: string
         }
         Insert: {
+          admin_response?: string | null
+          admin_response_at?: string | null
+          admin_response_by?: string | null
+          admin_response_by_name?: string | null
           created_at?: string
           customer_company: string
           customer_name: string
           escalated_at?: string | null
           escalated_by?: string | null
+          escalated_by_name?: string | null
           escalation_reason?: string | null
           id?: string
           is_escalated?: boolean
@@ -69,6 +80,7 @@ export type Database = {
           requested_timeline?: string | null
           responded_at?: string | null
           responded_by?: string | null
+          responded_by_name?: string | null
           response_availability?: string | null
           response_lead_time?: string | null
           response_notes?: string | null
@@ -80,11 +92,16 @@ export type Database = {
           urgency: string
         }
         Update: {
+          admin_response?: string | null
+          admin_response_at?: string | null
+          admin_response_by?: string | null
+          admin_response_by_name?: string | null
           created_at?: string
           customer_company?: string
           customer_name?: string
           escalated_at?: string | null
           escalated_by?: string | null
+          escalated_by_name?: string | null
           escalation_reason?: string | null
           id?: string
           is_escalated?: boolean
@@ -101,6 +118,7 @@ export type Database = {
           requested_timeline?: string | null
           responded_at?: string | null
           responded_by?: string | null
+          responded_by_name?: string | null
           response_availability?: string | null
           response_lead_time?: string | null
           response_notes?: string | null

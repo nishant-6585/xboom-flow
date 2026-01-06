@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { startOfDay, endOfDay, isWithinInterval } from "date-fns";
 
 const Index = () => {
-  const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry, escalateEnquiry, updateOutcome } = useEnquiries();
+  const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry, escalateEnquiry, updateOutcome, submitAdminResponse } = useEnquiries();
   const { role, user } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
@@ -344,6 +344,7 @@ const Index = () => {
         onSubmitResponse={updateEnquiry}
         onDelete={deleteEnquiry}
         onEscalate={escalateEnquiry}
+        onSubmitAdminResponse={submitAdminResponse}
       />
     </div>
   );
