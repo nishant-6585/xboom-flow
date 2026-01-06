@@ -569,6 +569,7 @@ export type Database = {
         Row: {
           availability: string | null
           brand: string | null
+          cost_price: number | null
           created_at: string
           created_by: string | null
           currency: string | null
@@ -586,6 +587,7 @@ export type Database = {
         Insert: {
           availability?: string | null
           brand?: string | null
+          cost_price?: number | null
           created_at?: string
           created_by?: string | null
           currency?: string | null
@@ -603,6 +605,7 @@ export type Database = {
         Update: {
           availability?: string | null
           brand?: string | null
+          cost_price?: number | null
           created_at?: string
           created_by?: string | null
           currency?: string | null

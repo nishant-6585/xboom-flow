@@ -82,6 +82,7 @@ export default function Pricelist() {
     brand: "",
     description: "",
     unit_price: undefined,
+    cost_price: undefined,
     currency: "INR",
     availability: "In Stock",
     lead_time: "",
@@ -137,7 +138,8 @@ export default function Pricelist() {
         product_category: row["Category"] || row["product_category"] || "Consumer Drones",
         brand: row["Brand"] || row["brand"] || "",
         description: row["Description"] || row["description"] || "",
-        unit_price: parseFloat(row["Price"] || row["unit_price"] || row["Unit Price"] || 0) || undefined,
+        unit_price: parseFloat(row["Price"] || row["unit_price"] || row["Unit Price"] || row["Selling Price"] || 0) || undefined,
+        cost_price: parseFloat(row["Cost Price"] || row["cost_price"] || row["Cost"] || 0) || undefined,
         currency: row["Currency"] || row["currency"] || "INR",
         availability: row["Availability"] || row["availability"] || "In Stock",
         lead_time: row["Lead Time"] || row["lead_time"] || "",
@@ -228,6 +230,7 @@ export default function Pricelist() {
       brand: item.brand || "",
       description: item.description || "",
       unit_price: item.unit_price || undefined,
+      cost_price: item.cost_price || undefined,
       currency: item.currency || "INR",
       availability: item.availability || "In Stock",
       lead_time: item.lead_time || "",
@@ -249,6 +252,7 @@ export default function Pricelist() {
       brand: "",
       description: "",
       unit_price: undefined,
+      cost_price: undefined,
       currency: "INR",
       availability: "In Stock",
       lead_time: "",
@@ -355,6 +359,7 @@ export default function Pricelist() {
                       <TableHead>Category</TableHead>
                       <TableHead>Brand</TableHead>
                       <TableHead>Price</TableHead>
+                      {canManage && <TableHead>Cost Price</TableHead>}
                       <TableHead>Lead Time</TableHead>
                       <TableHead>Availability</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -363,7 +368,7 @@ export default function Pricelist() {
                   <TableBody>
                     {filteredItems.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={canManage ? 9 : 8} className="text-center py-8 text-muted-foreground">
                           No products found
                         </TableCell>
                       </TableRow>
@@ -392,6 +397,18 @@ export default function Pricelist() {
                               <span className="text-muted-foreground">On Request</span>
                             )}
                           </TableCell>
+                          {canManage && (
+                            <TableCell>
+                              {item.cost_price ? (
+                                <span className="font-medium text-muted-foreground">
+                                  {item.currency === "USD" ? "$" : "₹"}
+                                  {item.cost_price.toLocaleString()}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                          )}
                           <TableCell>{item.lead_time || "-"}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className={getAvailabilityColor(item.availability)}>
@@ -538,7 +555,7 @@ export default function Pricelist() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Price</Label>
+                  <Label>Selling Price</Label>
                   <Input
                     type="number"
                     value={formData.unit_price || ""}
@@ -547,20 +564,29 @@ export default function Pricelist() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Currency</Label>
-                  <Select
-                    value={formData.currency}
-                    onValueChange={(value) => setFormData({ ...formData, currency: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="INR">INR</SelectItem>
-                      <SelectItem value="USD">USD</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Cost Price</Label>
+                  <Input
+                    type="number"
+                    value={formData.cost_price || ""}
+                    onChange={(e) => setFormData({ ...formData, cost_price: parseFloat(e.target.value) || undefined })}
+                    placeholder="0"
+                  />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Currency</Label>
+                <Select
+                  value={formData.currency}
+                  onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="INR">INR</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Lead Time</Label>
