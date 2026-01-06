@@ -82,9 +82,9 @@ export default function Orders() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-[100dvh] bg-background flex flex-col">
       <Header />
-      <main className="container mx-auto py-6 px-4">
+      <main className="container mx-auto py-4 sm:py-6 px-4 flex-1 overflow-x-hidden">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>

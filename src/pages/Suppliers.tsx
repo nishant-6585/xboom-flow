@@ -66,9 +66,9 @@ export default function Suppliers() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-[100dvh] bg-background flex flex-col">
       <Header />
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-4 sm:py-8 flex-1 overflow-x-hidden">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">

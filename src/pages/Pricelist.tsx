@@ -112,7 +112,7 @@ export default function Pricelist() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-background">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>
     );
@@ -272,9 +272,9 @@ export default function Pricelist() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-[100dvh] bg-background flex flex-col">
       <Header />
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-4 sm:py-6 flex-1 overflow-x-hidden">
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">Product Pricelist</h1>

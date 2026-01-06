@@ -67,9 +67,17 @@
     @apply border-border;
   }
 
-  body {
+  html, body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', sans-serif;
+    -webkit-overflow-scrolling: touch;
+    overflow-x: hidden;
+  }
+
+  /* Improve touch scrolling on mobile */
+  .scroll-container {
+    -webkit-overflow-scrolling: touch;
+    overflow-y: auto;
   }
 }
 

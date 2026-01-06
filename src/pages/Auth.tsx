@@ -103,8 +103,8 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md glass animate-fade-in">
+    <div className="min-h-[100dvh] bg-background flex items-center justify-center p-4 overflow-y-auto">
+      <Card className="w-full max-w-md glass animate-fade-in my-auto">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <img src={logoIcon} alt="Xboom Logo" className="w-16 h-16 rounded-xl" />
