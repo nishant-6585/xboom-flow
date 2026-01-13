@@ -13,6 +13,7 @@ import { OrderProfitAnalytics } from '@/components/OrderProfitAnalytics';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { RefundRequestsTable } from '@/components/RefundRequestsTable';
 import { PipelineOrders } from '@/components/pipeline/PipelineOrders';
+import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
@@ -61,6 +62,7 @@ export default function Orders() {
   const isAdmin = role === 'admin';
   const canViewRefunds = role === 'supply_chain' || role === 'admin';
   const canViewProcurementCosts = role === 'supply_chain' || role === 'admin';
+  const canViewProcurementWidget = role === 'admin' || role === 'supply_chain' || role === 'finance';
 
   const refundCount = orders.filter(o => o.is_refund_requested).length;
 
@@ -210,6 +212,13 @@ export default function Orders() {
           </div>
 
           <TabsContent value="list" className="space-y-4">
+            {/* Unlinked Orders Widget for procurement team */}
+            {canViewProcurementWidget && (
+              <div className="mb-4">
+                <UnlinkedOrdersWidget maxItems={3} showViewAll={true} />
+              </div>
+            )}
+
             {/* Filters and View Toggle */}
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-3">
