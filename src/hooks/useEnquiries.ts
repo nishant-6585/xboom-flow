@@ -416,6 +416,36 @@ export function useEnquiries() {
         }
       }
 
+      // Auto-create order when marked as won
+      if (newStatus === "order_won") {
+        const { error: orderError } = await supabase
+          .from("orders")
+          .insert({
+            customer_name: enquiry.customer_name,
+            customer_company: enquiry.customer_company,
+            product_name: enquiry.product_name,
+            product_category: enquiry.product_category,
+            product_code: enquiry.product_code || "N/A",
+            quantity: enquiry.quantity,
+            sales_person_id: enquiry.sales_person_id || user.id,
+            sales_person_name: enquiry.sales_person_name || profile.name,
+            status: "po_received",
+            enquiry_id: enquiry.id,
+            sales_notes: enquiry.notes,
+            internal_notes: enquiry.response_notes ? `From enquiry response: ${enquiry.response_notes}` : null,
+            created_by: user.id,
+          });
+
+        if (orderError) {
+          console.error("Error creating order:", orderError);
+          toast({
+            title: "Warning",
+            description: "Status updated but failed to create order automatically. Please create the order manually.",
+            variant: "destructive",
+          });
+        }
+      }
+
       const statusLabels: Record<QueryStatus, string> = {
         pending: "Pending",
         responded: "Responded",
@@ -428,7 +458,7 @@ export function useEnquiries() {
       toast({
         title: `Status Updated to ${statusLabels[newStatus]}`,
         description: newStatus === "order_won" 
-          ? "Congratulations! The order has been marked as won."
+          ? "Congratulations! The order has been created and moved to Order Management."
           : newStatus === "order_lost"
           ? "The order has been marked as lost."
           : newStatus === "moved_to_pipeline"
