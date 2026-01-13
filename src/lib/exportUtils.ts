@@ -589,3 +589,146 @@ export const exportProcurementAnalyticsToPDF = (
 
   doc.save(`${options.filename}.pdf`);
 };
+
+// ==================== SUPPLIER PAYMENT HISTORY EXPORTS ====================
+
+export interface SupplierPaymentExportData {
+  date: string;
+  amount: number;
+  type: string;
+  mode: string;
+  referenceNumber: string;
+  notes: string;
+  orderId?: string;
+}
+
+export interface SupplierPaymentHistoryExport {
+  supplierName: string;
+  supplierContact: string;
+  totalPaid: number;
+  payments: SupplierPaymentExportData[];
+}
+
+// Export supplier payment history to Excel
+export const exportSupplierPaymentHistoryToExcel = (
+  data: SupplierPaymentHistoryExport,
+  options: ExportOptions
+) => {
+  const formattedData = data.payments.map((p) => ({
+    "Date": p.date,
+    "Amount (₹)": p.amount,
+    "Type": p.type.charAt(0).toUpperCase() + p.type.slice(1),
+    "Mode": p.mode ? p.mode.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-',
+    "Reference Number": p.referenceNumber || '-',
+    "Notes": p.notes || '-',
+  }));
+
+  // Add totals row
+  formattedData.push({
+    "Date": "TOTAL",
+    "Amount (₹)": data.totalPaid,
+    "Type": "",
+    "Mode": "",
+    "Reference Number": "",
+    "Notes": "",
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(formattedData);
+  const workbook = XLSX.utils.book_new();
+
+  worksheet["!cols"] = [
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 12 },
+    { wch: 15 },
+    { wch: 25 },
+    { wch: 35 },
+  ];
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Payment History");
+  XLSX.writeFile(workbook, `${options.filename}.xlsx`);
+};
+
+// Export supplier payment history to PDF
+export const exportSupplierPaymentHistoryToPDF = (
+  data: SupplierPaymentHistoryExport,
+  options: ExportOptions
+) => {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+  // Add title
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text(options.title || "Payment History", 14, 15);
+
+  // Add supplier name
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(80);
+  doc.text(`Supplier: ${data.supplierName}`, 14, 24);
+  
+  if (data.supplierContact) {
+    doc.setFontSize(10);
+    doc.text(`Contact: ${data.supplierContact}`, 14, 30);
+  }
+
+  // Add generation date and total
+  doc.setFontSize(9);
+  doc.setTextColor(150);
+  doc.text(`Generated: ${format(new Date(), "dd MMM yyyy, HH:mm")}`, 14, 38);
+  doc.setTextColor(0);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Total Paid: ₹${data.totalPaid.toLocaleString('en-IN')}`, 14, 45);
+
+  // Prepare table data
+  const tableData = data.payments.map((p) => [
+    p.date,
+    `₹${p.amount.toLocaleString('en-IN')}`,
+    p.type.charAt(0).toUpperCase() + p.type.slice(1),
+    p.mode ? p.mode.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : '-',
+    p.referenceNumber || '-',
+    (p.notes || '-').substring(0, 30) + ((p.notes?.length || 0) > 30 ? '...' : ''),
+  ]);
+
+  autoTable(doc, {
+    head: [["Date", "Amount", "Type", "Mode", "Reference", "Notes"]],
+    body: tableData,
+    startY: 52,
+    styles: {
+      fontSize: 9,
+      cellPadding: 3,
+    },
+    headStyles: {
+      fillColor: [59, 130, 246],
+      textColor: 255,
+      fontStyle: "bold",
+    },
+    alternateRowStyles: {
+      fillColor: [245, 247, 250],
+    },
+    columnStyles: {
+      0: { cellWidth: 25 },
+      1: { cellWidth: 25 },
+      2: { cellWidth: 22 },
+      3: { cellWidth: 28 },
+      4: { cellWidth: 35 },
+      5: { cellWidth: 45 },
+    },
+  });
+
+  // Add footer
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text(
+      `Page ${i} of ${pageCount}`,
+      doc.internal.pageSize.getWidth() - 25,
+      doc.internal.pageSize.getHeight() - 10
+    );
+    doc.text("Xboom Supplier Payments", 14, doc.internal.pageSize.getHeight() - 10);
+  }
+
+  doc.save(`${options.filename}.pdf`);
+};

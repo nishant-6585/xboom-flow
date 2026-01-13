@@ -26,9 +26,15 @@ import {
   Upload,
   X,
   Image as ImageIcon,
-  ExternalLink
+  ExternalLink,
+  Download
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { 
+  exportSupplierPaymentHistoryToExcel, 
+  exportSupplierPaymentHistoryToPDF,
+  SupplierPaymentHistoryExport
+} from '@/lib/exportUtils';
 
 interface SupplierLedgerDialogProps {
   supplier: Supplier | null;
@@ -439,8 +445,64 @@ export function SupplierLedgerDialog({ supplier, open, onOpenChange }: SupplierL
 
               {/* Payment History */}
               <Card>
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-3 flex flex-row items-center justify-between">
                   <CardTitle className="text-base">Payment History</CardTitle>
+                  {paymentsWithUrls.length > 0 && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const exportData: SupplierPaymentHistoryExport = {
+                            supplierName: supplier.name,
+                            supplierContact: supplier.contact_name,
+                            totalPaid: ledger.totalPaid,
+                            payments: paymentsWithUrls.map(p => ({
+                              date: format(new Date(p.payment_date), 'dd MMM yyyy'),
+                              amount: p.amount,
+                              type: p.payment_type,
+                              mode: p.payment_mode || '',
+                              referenceNumber: p.reference_number || '',
+                              notes: p.notes || '',
+                            })),
+                          };
+                          exportSupplierPaymentHistoryToExcel(exportData, {
+                            filename: `${supplier.name.replace(/\s+/g, '_')}_payments_${format(new Date(), 'yyyy-MM-dd')}`,
+                            title: `Payment History - ${supplier.name}`,
+                          });
+                        }}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Excel
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const exportData: SupplierPaymentHistoryExport = {
+                            supplierName: supplier.name,
+                            supplierContact: supplier.contact_name,
+                            totalPaid: ledger.totalPaid,
+                            payments: paymentsWithUrls.map(p => ({
+                              date: format(new Date(p.payment_date), 'dd MMM yyyy'),
+                              amount: p.amount,
+                              type: p.payment_type,
+                              mode: p.payment_mode || '',
+                              referenceNumber: p.reference_number || '',
+                              notes: p.notes || '',
+                            })),
+                          };
+                          exportSupplierPaymentHistoryToPDF(exportData, {
+                            filename: `${supplier.name.replace(/\s+/g, '_')}_payments_${format(new Date(), 'yyyy-MM-dd')}`,
+                            title: `Payment History - ${supplier.name}`,
+                          });
+                        }}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        PDF
+                      </Button>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent>
                   {paymentsWithUrls.length === 0 ? (
