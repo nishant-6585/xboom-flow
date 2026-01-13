@@ -19,13 +19,14 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, FileText, Building2, CreditCard, Loader2, Plus, Trash2, Package, Image, X, CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { ProcurementOrderItems } from "./ProcurementOrderItems";
 import { OrderNumberBadge } from "@/components/OrderNumberBadge";
 import { useRef } from "react";
+import { calculatePaymentDueDate } from "@/lib/paymentTerms";
 
 interface ProcurementOrderDialogProps {
   order: Order | null;
@@ -321,7 +322,14 @@ export function ProcurementOrderDialog({
                 <Label>Payment Terms</Label>
                 <Select value={(order as any)?.supplier_payment_terms || ''} onValueChange={(value) => {
                   if (order) {
-                    onUpdate(order.id, { supplier_payment_terms: value } as any);
+                    // Calculate due date based on order creation date
+                    const referenceDate = order.created_at ? parseISO(order.created_at) : new Date();
+                    const dueDate = calculatePaymentDueDate(value, referenceDate);
+                    
+                    onUpdate(order.id, { 
+                      supplier_payment_terms: value,
+                      supplier_payment_due_date: dueDate,
+                    } as any);
                   }
                 }}>
                   <SelectTrigger>
@@ -337,6 +345,11 @@ export function ProcurementOrderDialog({
                     <SelectItem value="net_60">Net 60</SelectItem>
                   </SelectContent>
                 </Select>
+                {(order as any)?.supplier_payment_due_date && (
+                  <p className="text-xs text-muted-foreground">
+                    Due: {format(parseISO((order as any).supplier_payment_due_date), 'dd MMM yyyy')}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Total Procurement Value</Label>

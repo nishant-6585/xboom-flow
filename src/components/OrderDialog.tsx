@@ -14,7 +14,8 @@ import { PaymentUploadDialog } from '@/components/PaymentUploadDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrderItems, ORDER_ITEM_STATUSES } from '@/hooks/useOrderItems';
 import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
+import { calculatePaymentDueDate } from '@/lib/paymentTerms';
 import { toast } from 'sonner';
 import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle } from 'lucide-react';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
@@ -95,6 +96,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [lostReason, setLostReason] = useState<LostReason>('price');
   const [lostReasonNotes, setLostReasonNotes] = useState('');
   const [supplierPaymentTerms, setSupplierPaymentTerms] = useState('');
+  const [supplierPaymentDueDate, setSupplierPaymentDueDate] = useState('');
 
   useEffect(() => {
     if (order) {
@@ -129,6 +131,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setLostReason((order.lost_reason as LostReason) || 'price');
       setLostReasonNotes(order.lost_reason_notes || '');
       setSupplierPaymentTerms((order as any).supplier_payment_terms || '');
+      setSupplierPaymentDueDate((order as any).supplier_payment_due_date || '');
       setEscalationReason('');
       setShowEscalationForm(false);
       
@@ -309,6 +312,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       outcome_updated_at: orderOutcome !== order.order_outcome ? new Date().toISOString() : order.outcome_updated_at,
       outcome_updated_by: orderOutcome !== order.order_outcome ? user?.id : order.outcome_updated_by,
       supplier_payment_terms: supplierPaymentTerms || null,
+      supplier_payment_due_date: supplierPaymentDueDate || null,
     } as Partial<Order>;
     const success = await onUpdate(order.id, updates);
     setLoading(false);
@@ -1108,7 +1112,16 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
                     <div className="space-y-2">
                       <Label htmlFor="supplier_payment_terms">Supplier Payment Terms</Label>
-                      <Select value={supplierPaymentTerms} onValueChange={setSupplierPaymentTerms}>
+                      <Select 
+                        value={supplierPaymentTerms} 
+                        onValueChange={(value) => {
+                          setSupplierPaymentTerms(value);
+                          // Auto-calculate due date based on order creation date
+                          const referenceDate = order.created_at ? parseISO(order.created_at) : new Date();
+                          const dueDate = calculatePaymentDueDate(value, referenceDate);
+                          setSupplierPaymentDueDate(dueDate || '');
+                        }}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select payment terms" />
                         </SelectTrigger>
@@ -1122,6 +1135,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                           <SelectItem value="net_60">Net 60 Days</SelectItem>
                         </SelectContent>
                       </Select>
+                      {supplierPaymentDueDate && (
+                        <p className="text-xs text-muted-foreground">
+                          Due: {format(parseISO(supplierPaymentDueDate), 'dd MMM yyyy')}
+                        </p>
+                      )}
                     </div>
 
                     {/* Supplier Payments Section */}
