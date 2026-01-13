@@ -16,8 +16,11 @@ import {
 } from "recharts";
 import { Package, DollarSign, AlertCircle, CheckCircle } from "lucide-react";
 
+export type PriceFilterType = "all" | "with_price" | "missing_price" | "website" | "dealer" | "cost";
+
 interface PricelistAnalyticsProps {
   items: PricelistItem[];
+  onFilterClick?: (filter: PriceFilterType, category?: string) => void;
 }
 
 const COLORS = [
@@ -33,7 +36,7 @@ const COLORS = [
   "#00C49F",
 ];
 
-export function PricelistAnalytics({ items }: PricelistAnalyticsProps) {
+export function PricelistAnalytics({ items, onFilterClick }: PricelistAnalyticsProps) {
   const stats = useMemo(() => {
     const total = items.length;
     const withWebsitePrice = items.filter((i) => i.website_price && i.website_price > 0).length;
@@ -59,8 +62,8 @@ export function PricelistAnalytics({ items }: PricelistAnalyticsProps) {
 
   const pricingData = useMemo(() => {
     return [
-      { name: "With Price", value: stats.withAnyPrice, fill: "hsl(142.1, 76.2%, 36.3%)" },
-      { name: "Missing Price", value: stats.missingAllPrices, fill: "hsl(0, 84.2%, 60.2%)" },
+      { name: "With Price", value: stats.withAnyPrice, fill: "hsl(142.1, 76.2%, 36.3%)", filter: "with_price" as PriceFilterType },
+      { name: "Missing Price", value: stats.missingAllPrices, fill: "hsl(0, 84.2%, 60.2%)", filter: "missing_price" as PriceFilterType },
     ];
   }, [stats]);
 
@@ -93,17 +96,42 @@ export function PricelistAnalytics({ items }: PricelistAnalyticsProps) {
 
   const priceBreakdownData = useMemo(() => {
     return [
-      { name: "Website Price", count: stats.withWebsitePrice, percent: parseFloat(stats.websitePricePercent) },
-      { name: "Dealer Price", count: stats.withDealerPrice, percent: parseFloat(stats.dealerPricePercent) },
-      { name: "Cost Price", count: stats.withCostPrice, percent: parseFloat(stats.costPricePercent) },
+      { name: "Website Price", count: stats.withWebsitePrice, percent: parseFloat(stats.websitePricePercent), filter: "website" as PriceFilterType },
+      { name: "Dealer Price", count: stats.withDealerPrice, percent: parseFloat(stats.dealerPricePercent), filter: "dealer" as PriceFilterType },
+      { name: "Cost Price", count: stats.withCostPrice, percent: parseFloat(stats.costPricePercent), filter: "cost" as PriceFilterType },
     ];
   }, [stats]);
+
+  const handleCardClick = (filter: PriceFilterType) => {
+    onFilterClick?.(filter);
+  };
+
+  const handlePieClick = (data: any) => {
+    if (data && data.filter) {
+      onFilterClick?.(data.filter);
+    }
+  };
+
+  const handleBarClick = (data: any) => {
+    if (data && data.filter) {
+      onFilterClick?.(data.filter);
+    }
+  };
+
+  const handleCategoryClick = (data: any) => {
+    if (data && data.fullName) {
+      onFilterClick?.("all", data.fullName);
+    }
+  };
 
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card 
+          className="cursor-pointer transition-all hover:shadow-md hover:border-primary/50"
+          onClick={() => handleCardClick("all")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Products</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
@@ -114,7 +142,10 @@ export function PricelistAnalytics({ items }: PricelistAnalyticsProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer transition-all hover:shadow-md hover:border-green-500/50"
+          onClick={() => handleCardClick("with_price")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Products with Price</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-500" />
@@ -127,7 +158,10 @@ export function PricelistAnalytics({ items }: PricelistAnalyticsProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer transition-all hover:shadow-md hover:border-red-500/50"
+          onClick={() => handleCardClick("missing_price")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Missing Price</CardTitle>
             <AlertCircle className="h-4 w-4 text-red-500" />
@@ -172,6 +206,8 @@ export function PricelistAnalytics({ items }: PricelistAnalyticsProps) {
                     paddingAngle={5}
                     dataKey="value"
                     label={({ name, value }) => `${name}: ${value}`}
+                    onClick={handlePieClick}
+                    style={{ cursor: "pointer" }}
                   >
                     {pricingData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -203,7 +239,13 @@ export function PricelistAnalytics({ items }: PricelistAnalyticsProps) {
                       name,
                     ]}
                   />
-                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  <Bar 
+                    dataKey="count" 
+                    fill="hsl(var(--primary))" 
+                    radius={[0, 4, 4, 0]}
+                    onClick={handleBarClick}
+                    style={{ cursor: "pointer" }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -240,8 +282,22 @@ export function PricelistAnalytics({ items }: PricelistAnalyticsProps) {
                   }}
                 />
                 <Legend />
-                <Bar dataKey="withPrice" stackId="a" fill="hsl(142.1, 76.2%, 36.3%)" name="With Price" />
-                <Bar dataKey="missingPrice" stackId="a" fill="hsl(0, 84.2%, 60.2%)" name="Missing Price" />
+                <Bar 
+                  dataKey="withPrice" 
+                  stackId="a" 
+                  fill="hsl(142.1, 76.2%, 36.3%)" 
+                  name="With Price"
+                  onClick={handleCategoryClick}
+                  style={{ cursor: "pointer" }}
+                />
+                <Bar 
+                  dataKey="missingPrice" 
+                  stackId="a" 
+                  fill="hsl(0, 84.2%, 60.2%)" 
+                  name="Missing Price"
+                  onClick={handleCategoryClick}
+                  style={{ cursor: "pointer" }}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -267,7 +323,11 @@ export function PricelistAnalytics({ items }: PricelistAnalyticsProps) {
               </thead>
               <tbody>
                 {categoryData.map((cat, index) => (
-                  <tr key={index} className="border-b last:border-0">
+                  <tr 
+                    key={index} 
+                    className="border-b last:border-0 cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => onFilterClick?.("all", cat.fullName)}
+                  >
                     <td className="p-3">{cat.fullName}</td>
                     <td className="p-3 text-right font-medium">{cat.total}</td>
                     <td className="p-3 text-right text-green-600">{cat.withPrice}</td>
