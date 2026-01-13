@@ -6,6 +6,7 @@ import { format, startOfMonth, endOfMonth, isWithinInterval, subDays } from 'dat
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, ComposedChart, Area } from 'recharts';
 interface OrderProfitAnalyticsProps {
   orders: Order[];
+  onCardClick?: (filter: { type: string; value: string }) => void;
 }
 
 const COLORS = [
@@ -16,7 +17,7 @@ const COLORS = [
   'hsl(var(--chart-5))',
 ];
 
-export function OrderProfitAnalytics({ orders }: OrderProfitAnalyticsProps) {
+export function OrderProfitAnalytics({ orders, onCardClick }: OrderProfitAnalyticsProps) {
   const analytics = useMemo(() => {
     const now = new Date();
     const monthStart = startOfMonth(now);
@@ -163,7 +164,10 @@ export function OrderProfitAnalytics({ orders }: OrderProfitAnalyticsProps) {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <Card>
+        <Card 
+          className={`${onCardClick ? 'cursor-pointer hover:scale-105 hover:shadow-lg transition-all hover:ring-2 hover:ring-primary/50' : ''}`}
+          onClick={() => onCardClick?.({ type: 'view', value: 'all' })}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
             <ShoppingCart className="h-4 w-4 text-blue-600" />
@@ -174,7 +178,10 @@ export function OrderProfitAnalytics({ orders }: OrderProfitAnalyticsProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`${onCardClick ? 'cursor-pointer hover:scale-105 hover:shadow-lg transition-all hover:ring-2 hover:ring-primary/50' : ''}`}
+          onClick={() => onCardClick?.({ type: 'view', value: 'all' })}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Order Value</CardTitle>
             <IndianRupee className="h-4 w-4 text-purple-600" />
@@ -185,7 +192,10 @@ export function OrderProfitAnalytics({ orders }: OrderProfitAnalyticsProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`${onCardClick ? 'cursor-pointer hover:scale-105 hover:shadow-lg transition-all hover:ring-2 hover:ring-primary/50' : ''}`}
+          onClick={() => onCardClick?.({ type: 'view', value: 'profitable' })}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Profit</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-600" />
@@ -200,7 +210,10 @@ export function OrderProfitAnalytics({ orders }: OrderProfitAnalyticsProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`${onCardClick ? 'cursor-pointer hover:scale-105 hover:shadow-lg transition-all hover:ring-2 hover:ring-primary/50' : ''}`}
+          onClick={() => onCardClick?.({ type: 'mtd', value: 'orders' })}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">MTD Orders</CardTitle>
             <Calendar className="h-4 w-4 text-blue-500" />
@@ -211,7 +224,10 @@ export function OrderProfitAnalytics({ orders }: OrderProfitAnalyticsProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`${onCardClick ? 'cursor-pointer hover:scale-105 hover:shadow-lg transition-all hover:ring-2 hover:ring-primary/50' : ''}`}
+          onClick={() => onCardClick?.({ type: 'mtd', value: 'value' })}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">MTD Order Value</CardTitle>
             <Package className="h-4 w-4 text-purple-500" />
@@ -222,7 +238,10 @@ export function OrderProfitAnalytics({ orders }: OrderProfitAnalyticsProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`${onCardClick ? 'cursor-pointer hover:scale-105 hover:shadow-lg transition-all hover:ring-2 hover:ring-primary/50' : ''}`}
+          onClick={() => onCardClick?.({ type: 'mtd', value: 'profit' })}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">MTD Profit</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-500" />

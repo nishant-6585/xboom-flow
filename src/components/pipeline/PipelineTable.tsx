@@ -23,6 +23,8 @@ interface PipelineTableProps {
   orders: PipelineOrder[];
   onUpdate: (id: string, updates: Partial<PipelineOrder>) => Promise<boolean>;
   onDelete: (id: string) => Promise<boolean>;
+  statusFilter?: PipelineStatus | 'all';
+  onStatusFilterChange?: (status: PipelineStatus | 'all') => void;
 }
 
 interface SalesTeamMember {
@@ -48,15 +50,19 @@ const getPriorityBadge = (priority: number | null) => {
   }
 };
 
-export function PipelineTable({ orders, onUpdate, onDelete }: PipelineTableProps) {
+export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: externalStatusFilter, onStatusFilterChange }: PipelineTableProps) {
   const { role } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [internalStatusFilter, setInternalStatusFilter] = useState<PipelineStatus | 'all'>('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [salesPersonFilter, setSalesPersonFilter] = useState('all');
   const [salesTeam, setSalesTeam] = useState<SalesTeamMember[]>([]);
   const [editOrder, setEditOrder] = useState<PipelineOrder | null>(null);
   const [editClosureDate, setEditClosureDate] = useState<Date | undefined>(undefined);
+
+  // Use external filter if provided, otherwise use internal
+  const statusFilter = externalStatusFilter ?? internalStatusFilter;
+  const setStatusFilter = onStatusFilterChange ?? setInternalStatusFilter;
 
   useEffect(() => {
     const fetchSalesTeam = async () => {

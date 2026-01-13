@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { usePipelineOrders } from '@/hooks/usePipelineOrders';
+import { usePipelineOrders, PipelineStatus } from '@/hooks/usePipelineOrders';
 import { PipelineForm } from './PipelineForm';
 import { PipelineTable } from './PipelineTable';
 import { PipelineAnalytics } from './PipelineAnalytics';
@@ -11,9 +11,29 @@ export function PipelineOrders() {
   const { role } = useAuth();
   const { pipelineOrders, loading, createPipelineOrder, updatePipelineOrder, deletePipelineOrder } = usePipelineOrders();
   const [activeTab, setActiveTab] = useState('list');
+  const [statusFilter, setStatusFilter] = useState<PipelineStatus | 'all'>('all');
 
   const canCreate = role === 'sales' || role === 'supply_chain' || role === 'admin';
   const canViewAnalytics = role === 'sales' || role === 'supply_chain' || role === 'admin';
+
+  const handleAnalyticsCardClick = (filter: { type: string; value: string }) => {
+    setActiveTab('list');
+    if (filter.type === 'status') {
+      // Filter by specific status
+      if (filter.value === 'pending') {
+        // Show all non-closed statuses
+        setStatusFilter('all');
+      } else if (filter.value === 'won') {
+        setStatusFilter('won');
+      } else if (filter.value === 'lost') {
+        setStatusFilter('lost');
+      } else {
+        setStatusFilter(filter.value as PipelineStatus);
+      }
+    } else {
+      setStatusFilter('all');
+    }
+  };
 
   if (loading) {
     return (
@@ -49,6 +69,8 @@ export function PipelineOrders() {
           orders={pipelineOrders} 
           onUpdate={updatePipelineOrder}
           onDelete={deletePipelineOrder}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
         />
       </TabsContent>
 
@@ -60,7 +82,7 @@ export function PipelineOrders() {
 
       {canViewAnalytics && (
         <TabsContent value="analytics">
-          <PipelineAnalytics orders={pipelineOrders} />
+          <PipelineAnalytics orders={pipelineOrders} onCardClick={handleAnalyticsCardClick} />
         </TabsContent>
       )}
     </Tabs>

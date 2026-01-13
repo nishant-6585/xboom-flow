@@ -1,12 +1,18 @@
-import { ProductQuery } from "@/types/query";
+import { QueryStatus } from "@/hooks/useEnquiries";
 import { Card, CardContent } from "@/components/ui/card";
 import { Send, CheckCircle2, Clock, ShoppingCart } from "lucide-react";
 
-interface SalesStatsCardsProps {
-  queries: ProductQuery[];
+interface ProductQuery {
+  id: string;
+  status: QueryStatus;
 }
 
-export function SalesStatsCards({ queries }: SalesStatsCardsProps) {
+interface SalesStatsCardsProps {
+  queries: ProductQuery[];
+  onStatusClick?: (status: QueryStatus | "all") => void;
+}
+
+export function SalesStatsCards({ queries, onStatusClick }: SalesStatsCardsProps) {
   const stats = {
     total: queries.length,
     pending: queries.filter((q) => q.status === "pending" || q.status === "on_hold").length,
@@ -18,13 +24,21 @@ export function SalesStatsCards({ queries }: SalesStatsCardsProps) {
     ? Math.round((stats.responded / stats.total) * 100) 
     : 0;
 
-  const cards = [
+  const cards: {
+    label: string;
+    value: number;
+    icon: typeof Send;
+    color: string;
+    bg: string;
+    clickAction: QueryStatus | "all";
+  }[] = [
     {
       label: "My Total Enquiries",
       value: stats.total,
       icon: Send,
       color: "text-primary",
       bg: "bg-primary/10",
+      clickAction: "all",
     },
     {
       label: "Awaiting Response",
@@ -32,6 +46,7 @@ export function SalesStatsCards({ queries }: SalesStatsCardsProps) {
       icon: Clock,
       color: "text-warning",
       bg: "bg-warning/10",
+      clickAction: "pending",
     },
     {
       label: "Responded",
@@ -39,6 +54,7 @@ export function SalesStatsCards({ queries }: SalesStatsCardsProps) {
       icon: CheckCircle2,
       color: "text-success",
       bg: "bg-success/10",
+      clickAction: "responded",
     },
     {
       label: "Orders Won",
@@ -46,6 +62,7 @@ export function SalesStatsCards({ queries }: SalesStatsCardsProps) {
       icon: ShoppingCart,
       color: "text-accent-foreground",
       bg: "bg-accent",
+      clickAction: "order_won",
     },
   ];
 
@@ -59,7 +76,11 @@ export function SalesStatsCards({ queries }: SalesStatsCardsProps) {
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {cards.map((card) => (
-          <Card key={card.label} className="glass">
+          <Card 
+            key={card.label} 
+            className={`glass cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${onStatusClick ? 'hover:ring-2 hover:ring-primary/50' : ''}`}
+            onClick={() => onStatusClick?.(card.clickAction)}
+          >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
