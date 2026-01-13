@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { QueryForm } from "@/components/QueryForm";
 import { EnquiryCard } from "@/components/EnquiryCard";
@@ -11,11 +11,17 @@ import { EnquiryDialog } from "@/components/EnquiryDialog";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { useEnquiries, Enquiry, PRODUCT_CATEGORIES } from "@/hooks/useEnquiries";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardList, PlusCircle, Loader2, Package, Filter, TableIcon, LayoutGrid, BarChart3 } from "lucide-react";
+import { ClipboardList, PlusCircle, Loader2, Package, Filter, TableIcon, LayoutGrid, BarChart3, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { startOfDay, endOfDay, isWithinInterval } from "date-fns";
+
+interface SalesTeamMember {
+  user_id: string;
+  name: string;
+}
 
 const Index = () => {
   const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry, escalateEnquiry, updateOutcome, submitAdminResponse } = useEnquiries();
@@ -24,18 +30,36 @@ const Index = () => {
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [salesPersonFilter, setSalesPersonFilter] = useState<string>("all");
+  const [salesTeam, setSalesTeam] = useState<SalesTeamMember[]>([]);
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+
+  // Fetch sales team for filter dropdown (admin/supply_chain only)
+  useEffect(() => {
+    const fetchSalesTeam = async () => {
+      if (role === 'admin' || role === 'supply_chain') {
+        const { data } = await supabase.rpc('get_sales_team');
+        if (data) {
+          setSalesTeam(data);
+        }
+      }
+    };
+    fetchSalesTeam();
+  }, [role]);
 
   const canCreateEnquiry = role === "sales" || role === "admin";
   const canViewSlaStats = role === "supply_chain" || role === "admin";
   const isSales = role === "sales";
   const isAdmin = role === "admin";
 
-  // Filter enquiries by category and date
+  const canFilterBySalesPerson = role === 'admin' || role === 'supply_chain';
+
+  // Filter enquiries by category, date, and sales person
   const filteredEnquiries = enquiries.filter((e) => {
     const matchesCategory = categoryFilter === "all" || e.product_category === categoryFilter;
+    const matchesSalesPerson = salesPersonFilter === "all" || e.sales_person_id === salesPersonFilter;
     
     const enquiryDate = new Date(e.created_at);
     let matchesDate = true;
@@ -47,7 +71,7 @@ const Index = () => {
       matchesDate = enquiryDate <= endOfDay(endDate);
     }
     
-    return matchesCategory && matchesDate;
+    return matchesCategory && matchesDate && matchesSalesPerson;
   });
 
   const clearDateFilter = () => {
@@ -256,6 +280,22 @@ const Index = () => {
                         </SelectContent>
                       </Select>
                     </div>
+                    {canFilterBySalesPerson && (
+                      <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
+                        <SelectTrigger className="w-[180px]">
+                          <User className="h-4 w-4 mr-2" />
+                          <SelectValue placeholder="Sales Person" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Sales Persons</SelectItem>
+                          {salesTeam.map((member) => (
+                            <SelectItem key={member.user_id} value={member.user_id}>
+                              {member.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                     <DateRangeFilter
                       startDate={startDate}
                       endDate={endDate}
@@ -263,7 +303,7 @@ const Index = () => {
                       onEndDateChange={setEndDate}
                       onClear={clearDateFilter}
                     />
-                    {(categoryFilter !== "all" || startDate || endDate) && (
+                    {(categoryFilter !== "all" || startDate || endDate || salesPersonFilter !== "all") && (
                       <span className="text-sm text-muted-foreground">
                         {filteredEnquiries.length} of {enquiries.length}
                       </span>
