@@ -38,12 +38,14 @@ export default function Suppliers() {
 
   // Filter suppliers
   const filteredSuppliers = suppliers.filter((supplier) => {
+    const query = searchQuery.toLowerCase();
     const matchesSearch = 
-      supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      supplier.brand_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      supplier.contact_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      supplier.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      supplier.products?.some(p => p.toLowerCase().includes(searchQuery.toLowerCase()));
+      supplier.name.toLowerCase().includes(query) ||
+      supplier.brand_name?.toLowerCase().includes(query) ||
+      supplier.contact_name.toLowerCase().includes(query) ||
+      supplier.city?.toLowerCase().includes(query) ||
+      supplier.product_category.toLowerCase().includes(query) ||
+      supplier.products?.some(p => p.toLowerCase().includes(query));
     
     const matchesPreference = preferenceFilter === 'all' || supplier.preference === preferenceFilter;
     const matchesCategory = categoryFilter === 'all' || supplier.product_category === categoryFilter;
