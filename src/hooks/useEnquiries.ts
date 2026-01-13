@@ -344,7 +344,7 @@ export function useEnquiries() {
     lostReason?: LostReason,
     lostReasonNotes?: string
   ) => {
-    if (!user) {
+    if (!user || !profile) {
       toast({
         title: "Error",
         description: "You must be logged in to update status",
@@ -354,6 +354,17 @@ export function useEnquiries() {
     }
 
     try {
+      // Find the enquiry to get its data for pipeline creation
+      const enquiry = enquiries.find(e => e.id === enquiryId);
+      if (!enquiry) {
+        toast({
+          title: "Error",
+          description: "Enquiry not found",
+          variant: "destructive",
+        });
+        return false;
+      }
+
       const updateData: Record<string, unknown> = {
         status: newStatus,
         outcome_updated_at: new Date().toISOString(),
@@ -375,6 +386,36 @@ export function useEnquiries() {
 
       if (error) throw error;
 
+      // Auto-create pipeline order when moved to pipeline
+      if (newStatus === "moved_to_pipeline") {
+        const { error: pipelineError } = await supabase
+          .from("pipeline_orders")
+          .insert({
+            customer_name: enquiry.customer_name,
+            customer_company: enquiry.customer_company,
+            product_name: enquiry.product_name,
+            product_category: enquiry.product_category,
+            product_code: enquiry.product_code,
+            quantity: enquiry.quantity,
+            sales_person_id: enquiry.sales_person_id || user.id,
+            sales_person_name: enquiry.sales_person_name || profile.name,
+            status: "pending_confirmation",
+            priority: enquiry.urgency === "critical" ? 1 : enquiry.urgency === "high" ? 1 : enquiry.urgency === "medium" ? 2 : 3,
+            customer_notes: enquiry.notes,
+            internal_notes: enquiry.response_notes,
+            created_by: user.id,
+          });
+
+        if (pipelineError) {
+          console.error("Error creating pipeline order:", pipelineError);
+          toast({
+            title: "Warning",
+            description: "Status updated but failed to create pipeline order automatically.",
+            variant: "destructive",
+          });
+        }
+      }
+
       const statusLabels: Record<QueryStatus, string> = {
         pending: "Pending",
         responded: "Responded",
@@ -391,7 +432,7 @@ export function useEnquiries() {
           : newStatus === "order_lost"
           ? "The order has been marked as lost."
           : newStatus === "moved_to_pipeline"
-          ? "The enquiry has been moved to the sales pipeline."
+          ? "The enquiry has been moved to the sales pipeline and a pipeline order was created."
           : `Status changed to ${statusLabels[newStatus]}.`,
       });
 
