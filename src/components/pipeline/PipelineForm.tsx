@@ -47,6 +47,7 @@ export function PipelineForm({ onSubmit }: PipelineFormProps) {
     sales_person_name: profile?.name || '',
     lead_source: '',
     priority: 3,
+    probability: 50,
     internal_notes: '',
   });
 
@@ -101,6 +102,7 @@ export function PipelineForm({ onSubmit }: PipelineFormProps) {
       expected_closure_date: closureDate ? format(closureDate, 'yyyy-MM-dd') : undefined,
       status: formData.status as any,
       priority: Number(formData.priority),
+      probability: Number(formData.probability),
     });
 
     if (success) {
@@ -120,6 +122,7 @@ export function PipelineForm({ onSubmit }: PipelineFormProps) {
         sales_person_name: profile?.name || '',
         lead_source: '',
         priority: 3,
+        probability: 50,
         internal_notes: '',
       });
       setClosureDate(undefined);
@@ -288,6 +291,18 @@ export function PipelineForm({ onSubmit }: PipelineFormProps) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="probability">Probability (%)</Label>
+              <Input
+                id="probability"
+                type="number"
+                min={0}
+                max={100}
+                value={formData.probability}
+                onChange={(e) => handleChange('probability', Math.min(100, Math.max(0, Number(e.target.value))))}
+                placeholder="0-100%"
+              />
             </div>
             <div className="space-y-2">
               <Label>Lead Source</Label>

@@ -598,6 +598,7 @@ export type Database = {
           internal_notes: string | null
           lead_source: string | null
           priority: number | null
+          probability: number | null
           product_category: string | null
           product_code: string | null
           product_name: string
@@ -621,6 +622,7 @@ export type Database = {
           internal_notes?: string | null
           lead_source?: string | null
           priority?: number | null
+          probability?: number | null
           product_category?: string | null
           product_code?: string | null
           product_name: string
@@ -644,6 +646,7 @@ export type Database = {
           internal_notes?: string | null
           lead_source?: string | null
           priority?: number | null
+          probability?: number | null
           product_category?: string | null
           product_code?: string | null
           product_name?: string
