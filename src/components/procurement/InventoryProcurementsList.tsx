@@ -6,21 +6,27 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useInventoryProcurements, InventoryProcurement } from '@/hooks/useInventoryProcurements';
+import { useInventoryProcurementPayments } from '@/hooks/useInventoryProcurementPayments';
 import { useAuth } from '@/hooks/useAuth';
 import { format, parseISO, isBefore, addDays } from 'date-fns';
 import { getPaymentTermsLabel } from '@/lib/paymentTerms';
-import { Package, Trash2, CreditCard, AlertTriangle, CheckCircle2, Clock, Loader2 } from 'lucide-react';
+import { Package, Trash2, CreditCard, AlertTriangle, CheckCircle2, Clock, Loader2, History, Plus } from 'lucide-react';
 import { InventoryProcurementPaymentDialog } from './InventoryProcurementPaymentDialog';
+import { InventoryProcurementPaymentHistory } from './InventoryProcurementPaymentHistory';
 
 export function InventoryProcurementsList() {
   const { procurements, loading, updateProcurement, deleteProcurement, refetch } = useInventoryProcurements();
+  const { getPaymentsByProcurementMap, refetch: refetchPayments } = useInventoryProcurementPayments();
   const { role } = useAuth();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [paymentProcurement, setPaymentProcurement] = useState<InventoryProcurement | null>(null);
+  const [historyProcurement, setHistoryProcurement] = useState<InventoryProcurement | null>(null);
 
   const isAdmin = role === 'admin';
   const canManagePayments = role === 'admin' || role === 'supply_chain';
+  
+  const paymentsByProcurement = getPaymentsByProcurementMap();
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -34,12 +40,22 @@ export function InventoryProcurementsList() {
     await updateProcurement(id, { payment_status: status });
   };
 
-  const getPaymentStatusBadge = (procurement: InventoryProcurement) => {
-    const { payment_status, payment_due_date } = procurement;
-    const isOverdue = payment_due_date && isBefore(parseISO(payment_due_date), new Date()) && payment_status !== 'paid';
-    const isDueSoon = payment_due_date && !isOverdue && isBefore(parseISO(payment_due_date), addDays(new Date(), 7)) && payment_status !== 'paid';
+  const handlePaymentAdded = () => {
+    refetch();
+    refetchPayments();
+  };
 
-    if (payment_status === 'paid') {
+  const getPaymentStatusBadge = (procurement: InventoryProcurement, totalPaid: number) => {
+    const { payment_due_date } = procurement;
+    const totalAmount = procurement.total_amount || 0;
+    const remainingBalance = totalAmount - totalPaid;
+    
+    const isPaidInFull = remainingBalance <= 0 && totalAmount > 0;
+    const isPartiallyPaid = totalPaid > 0 && remainingBalance > 0;
+    const isOverdue = payment_due_date && isBefore(parseISO(payment_due_date), new Date()) && !isPaidInFull;
+    const isDueSoon = payment_due_date && !isOverdue && isBefore(parseISO(payment_due_date), addDays(new Date(), 7)) && !isPaidInFull;
+
+    if (isPaidInFull) {
       return (
         <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
           <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -66,7 +82,7 @@ export function InventoryProcurementsList() {
       );
     }
 
-    if (payment_status === 'partial') {
+    if (isPartiallyPaid) {
       return (
         <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
           Partial
@@ -123,93 +139,113 @@ export function InventoryProcurementsList() {
                 <TableHead>Supplier</TableHead>
                 <TableHead className="text-right">Qty</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Payment</TableHead>
-                <TableHead>Due Date</TableHead>
+                <TableHead className="text-right">Paid</TableHead>
+                <TableHead className="text-right">Balance</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {procurements.map((procurement) => (
-                <TableRow key={procurement.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{procurement.product_name}</p>
-                      <p className="text-xs text-muted-foreground">{procurement.product_category}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {procurement.supplier_name || (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">{procurement.quantity}</TableCell>
-                  <TableCell className="text-right">
-                    {procurement.total_amount ? (
-                      `₹${procurement.total_amount.toLocaleString()}`
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={procurement.payment_status}
-                      onValueChange={(value) => handlePaymentStatusChange(procurement.id, value)}
-                    >
-                      <SelectTrigger className="w-[120px] h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="partial">Partial</SelectItem>
-                        <SelectItem value="paid">Paid</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      {getPaymentStatusBadge(procurement)}
-                      {procurement.payment_due_date && (
-                        <span className="text-xs text-muted-foreground">
-                          {format(parseISO(procurement.payment_due_date), 'dd MMM yyyy')}
+              {procurements.map((procurement) => {
+                const paymentData = paymentsByProcurement[procurement.id] || { payments: [], totalPaid: 0 };
+                const totalAmount = procurement.total_amount || 0;
+                const remainingBalance = totalAmount - paymentData.totalPaid;
+                const paymentCount = paymentData.payments.length;
+
+                return (
+                  <TableRow key={procurement.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{procurement.product_name}</p>
+                        <p className="text-xs text-muted-foreground">{procurement.product_category}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {procurement.supplier_name || (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">{procurement.quantity}</TableCell>
+                    <TableCell className="text-right">
+                      {totalAmount ? (
+                        `₹${totalAmount.toLocaleString()}`
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex flex-col items-end">
+                        <span className={paymentData.totalPaid > 0 ? 'text-green-600 dark:text-green-400 font-medium' : 'text-muted-foreground'}>
+                          ₹{paymentData.totalPaid.toLocaleString()}
                         </span>
-                      )}
-                      {procurement.payment_terms && (
-                        <span className="text-xs text-muted-foreground">
-                          {getPaymentTermsLabel(procurement.payment_terms)}
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {format(parseISO(procurement.procurement_date), 'dd MMM yyyy')}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-2">
-                      {procurement.supplier_id && canManagePayments && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPaymentProcurement(procurement)}
-                          title="Record Payment"
-                        >
-                          <CreditCard className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {isAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => setDeleteId(procurement.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        {paymentCount > 0 && (
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                            onClick={() => setHistoryProcurement(procurement)}
+                          >
+                            {paymentCount} payment{paymentCount > 1 ? 's' : ''}
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className={remainingBalance > 0 ? 'text-orange-600 dark:text-orange-400 font-medium' : 'text-green-600 dark:text-green-400'}>
+                        ₹{Math.max(0, remainingBalance).toLocaleString()}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        {getPaymentStatusBadge(procurement, paymentData.totalPaid)}
+                        {procurement.payment_due_date && (
+                          <span className="text-xs text-muted-foreground">
+                            Due: {format(parseISO(procurement.payment_due_date), 'dd MMM')}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {format(parseISO(procurement.procurement_date), 'dd MMM yyyy')}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
+                        {paymentCount > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setHistoryProcurement(procurement)}
+                            title="View Payment History"
+                          >
+                            <History className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {procurement.supplier_id && canManagePayments && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPaymentProcurement(procurement)}
+                            title="Add Payment"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setDeleteId(procurement.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
@@ -240,7 +276,16 @@ export function InventoryProcurementsList() {
         open={!!paymentProcurement}
         onOpenChange={(open) => !open && setPaymentProcurement(null)}
         procurement={paymentProcurement}
-        onPaymentAdded={refetch}
+        onPaymentAdded={handlePaymentAdded}
+      />
+
+      <InventoryProcurementPaymentHistory
+        open={!!historyProcurement}
+        onOpenChange={(open) => !open && setHistoryProcurement(null)}
+        procurement={historyProcurement}
+        payments={historyProcurement ? (paymentsByProcurement[historyProcurement.id]?.payments || []) : []}
+        totalPaid={historyProcurement ? (paymentsByProcurement[historyProcurement.id]?.totalPaid || 0) : 0}
+        onPaymentDeleted={handlePaymentAdded}
       />
     </>
   );
