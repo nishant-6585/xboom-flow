@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, FileText, ExternalLink, Upload, CreditCard } from "lucide-react";
+import { Search, FileText, ExternalLink, Upload, CreditCard, AlertCircle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { ProcurementOrderDialog } from "./ProcurementOrderDialog";
 import { PaymentStatusRequestDialog } from "./PaymentStatusRequestDialog";
@@ -27,6 +29,7 @@ export function ProcurementOrders() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [paymentRequestDialogOpen, setPaymentRequestDialogOpen] = useState(false);
   const [paymentRequestOrder, setPaymentRequestOrder] = useState<Order | null>(null);
+  const [showUnplannedOnly, setShowUnplannedOnly] = useState(false);
 
   const getPriorityLabel = (priority: number | null) => {
     switch (priority) {
@@ -53,6 +56,10 @@ export function ProcurementOrders() {
     return Array.from(cats);
   }, [orders]);
 
+  const unplannedCount = useMemo(() => {
+    return orders.filter(order => !order.procurement_date).length;
+  }, [orders]);
+
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
       const matchesSearch = 
@@ -73,9 +80,11 @@ export function ProcurementOrders() {
       
       const matchesOrderNumber = orderNumberFilter === "all" || order.order_number === orderNumberFilter;
       
-      return matchesSearch && matchesSupplier && matchesCategory && matchesPriority && matchesOrderNumber;
+      const matchesUnplanned = !showUnplannedOnly || !order.procurement_date;
+      
+      return matchesSearch && matchesSupplier && matchesCategory && matchesPriority && matchesOrderNumber && matchesUnplanned;
     });
-  }, [orders, search, supplierFilter, categoryFilter, priorityFilter, orderNumberFilter]);
+  }, [orders, search, supplierFilter, categoryFilter, priorityFilter, orderNumberFilter, showUnplannedOnly]);
 
   const handleOrderClick = (order: Order) => {
     setSelectedOrder(order);
@@ -131,10 +140,31 @@ export function ProcurementOrders() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5" />
-            Procurement Orders
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Procurement Orders
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="unplanned-filter"
+                checked={showUnplannedOnly}
+                onCheckedChange={setShowUnplannedOnly}
+              />
+              <Label 
+                htmlFor="unplanned-filter" 
+                className="flex items-center gap-1.5 cursor-pointer text-sm"
+              >
+                <AlertCircle className="w-4 h-4 text-orange-500" />
+                Unplanned Only
+                {unplannedCount > 0 && (
+                  <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20 ml-1">
+                    {unplannedCount}
+                  </Badge>
+                )}
+              </Label>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
