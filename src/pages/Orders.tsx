@@ -10,7 +10,7 @@ import { OrderDialog } from '@/components/OrderDialog';
 import { OrderProfitAnalytics } from '@/components/OrderProfitAnalytics';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { RefundRequestsTable } from '@/components/RefundRequestsTable';
-import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES } from '@/hooks/useOrders';
+import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,7 +18,7 @@ import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw } from 
 import { startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 
 export default function Orders() {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
@@ -28,6 +28,7 @@ export default function Orders() {
   const [paymentTermsFilter, setPaymentTermsFilter] = useState<string>('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
   const [orderTypeFilter, setOrderTypeFilter] = useState<string>('all');
+  const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -51,6 +52,7 @@ export default function Orders() {
     const matchesPaymentTerms = paymentTermsFilter === 'all' || o.payment_terms === paymentTermsFilter;
     const matchesPaymentStatus = paymentStatusFilter === 'all' || o.payment_status === paymentStatusFilter;
     const matchesOrderType = orderTypeFilter === 'all' || o.order_type === orderTypeFilter;
+    const matchesOutcome = outcomeFilter === 'all' || o.order_outcome === outcomeFilter;
     const matchesSalesPerson = salesPersonFilter === 'all' || o.sales_person_name === salesPersonFilter;
     
     const orderDate = new Date(o.created_at);
@@ -63,7 +65,7 @@ export default function Orders() {
       matchesDate = orderDate <= endOfDay(endDate);
     }
     
-    return matchesStatus && matchesPaymentTerms && matchesPaymentStatus && matchesOrderType && matchesSalesPerson && matchesDate;
+    return matchesStatus && matchesPaymentTerms && matchesPaymentStatus && matchesOrderType && matchesOutcome && matchesSalesPerson && matchesDate;
   });
 
   const clearFilters = () => {
@@ -72,8 +74,20 @@ export default function Orders() {
     setPaymentTermsFilter('all');
     setPaymentStatusFilter('all');
     setOrderTypeFilter('all');
+    setOutcomeFilter('all');
     setSalesPersonFilter('all');
     setStatusFilter('all');
+  };
+
+  const handleUpdateOutcome = async (orderId: string, outcome: OrderOutcome, lostReason?: LostReason, lostReasonNotes?: string): Promise<boolean> => {
+    const updates: Partial<Order> = {
+      order_outcome: outcome,
+      outcome_updated_at: new Date().toISOString(),
+      outcome_updated_by: user?.id || null,
+      lost_reason: outcome === 'lost' ? (lostReason || null) : null,
+      lost_reason_notes: outcome === 'lost' ? (lostReasonNotes || null) : null,
+    };
+    return updateOrder(orderId, updates);
   };
 
   const handleOrderClick = (order: Order) => {
@@ -164,6 +178,18 @@ export default function Orders() {
                   </SelectContent>
                 </Select>
 
+                <Select value={outcomeFilter} onValueChange={setOutcomeFilter}>
+                  <SelectTrigger className="w-[130px]">
+                    <SelectValue placeholder="Outcome" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Outcomes</SelectItem>
+                    {ORDER_OUTCOMES.map(o => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
                 <Select value={paymentTermsFilter} onValueChange={setPaymentTermsFilter}>
                   <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder="Payment Terms" />
@@ -231,7 +257,7 @@ export default function Orders() {
                 </p>
               </div>
             ) : viewMode === 'table' ? (
-              <OrderTable orders={filteredOrders} onOrderClick={handleOrderClick} />
+              <OrderTable orders={filteredOrders} onOrderClick={handleOrderClick} onUpdateOutcome={handleUpdateOutcome} />
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filteredOrders.map(order => (

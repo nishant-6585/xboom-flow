@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Order, OrderStatus, ORDER_STATUSES, PaymentStatus, PAYMENT_STATUSES, OrderType, ORDER_TYPES, CustomerType, CUSTOMER_TYPES, RefundStatus, REFUND_STATUSES, ORDER_PRIORITIES } from '@/hooks/useOrders';
+import { Order, OrderStatus, ORDER_STATUSES, PaymentStatus, PAYMENT_STATUSES, OrderType, ORDER_TYPES, CustomerType, CUSTOMER_TYPES, RefundStatus, REFUND_STATUSES, ORDER_PRIORITIES, OrderOutcome, ORDER_OUTCOMES, LostReason, LOST_REASONS } from '@/hooks/useOrders';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { PaymentRecordsList } from '@/components/PaymentRecordsList';
 import { PaymentUploadDialog } from '@/components/PaymentUploadDialog';
@@ -16,7 +16,7 @@ import { useOrderItems, ORDER_ITEM_STATUSES } from '@/hooks/useOrderItems';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag } from 'lucide-react';
+import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface OrderDialogProps {
@@ -32,6 +32,12 @@ const paymentStatusConfig: Record<PaymentStatus, { label: string; className: str
   pending: { label: 'Payment Pending', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' },
   partial: { label: 'Partial Received', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
   full: { label: 'Paid in Full', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+};
+
+const outcomeConfig: Record<OrderOutcome, { label: string; className: string }> = {
+  pending: { label: 'Pending', className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400' },
+  won: { label: 'Won', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+  lost: { label: 'Lost', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
 };
 
 export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onEscalate }: OrderDialogProps) {
@@ -80,6 +86,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [refundReason, setRefundReason] = useState('');
   const [refundStatus, setRefundStatus] = useState<RefundStatus>('pending');
   const [priority, setPriority] = useState(3);
+  const [orderOutcome, setOrderOutcome] = useState<OrderOutcome>('pending');
+  const [lostReason, setLostReason] = useState<LostReason>('price');
+  const [lostReasonNotes, setLostReasonNotes] = useState('');
 
   useEffect(() => {
     if (order) {
@@ -109,6 +118,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setRefundReason(order.refund_reason || '');
       setRefundStatus((order.refund_status as RefundStatus) || 'pending');
       setPriority(order.priority || 3);
+      setOrderOutcome((order.order_outcome || 'pending') as OrderOutcome);
+      setLostReason((order.lost_reason as LostReason) || 'price');
+      setLostReasonNotes(order.lost_reason_notes || '');
       setEscalationReason('');
       setShowEscalationForm(false);
       
@@ -213,6 +225,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       refund_requested_at: isRefundRequested && !order.is_refund_requested ? new Date().toISOString() : order.refund_requested_at,
       refund_requested_by: isRefundRequested && !order.is_refund_requested ? user?.id : order.refund_requested_by,
       priority,
+      order_outcome: orderOutcome,
+      lost_reason: orderOutcome === 'lost' ? lostReason : null,
+      lost_reason_notes: orderOutcome === 'lost' ? (lostReasonNotes || null) : null,
+      outcome_updated_at: orderOutcome !== order.order_outcome ? new Date().toISOString() : order.outcome_updated_at,
+      outcome_updated_by: orderOutcome !== order.order_outcome ? user?.id : order.outcome_updated_by,
     };
     const success = await onUpdate(order.id, updates);
     setLoading(false);
@@ -278,6 +295,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                       <AlertTriangle className="h-3 w-3 mr-1" />
                       Escalated
+                    </Badge>
+                  )}
+                  {order.order_outcome && order.order_outcome !== 'pending' && (
+                    <Badge className={outcomeConfig[order.order_outcome].className}>
+                      {order.order_outcome === 'won' ? <Trophy className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
+                      {outcomeConfig[order.order_outcome].label}
                     </Badge>
                   )}
                 </DialogDescription>

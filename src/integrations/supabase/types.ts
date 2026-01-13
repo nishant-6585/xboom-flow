@@ -360,7 +360,12 @@ export type Database = {
           is_refund_requested: boolean
           last_reminder_sent_at: string | null
           lead_source: string | null
+          lost_reason: string | null
+          lost_reason_notes: string | null
+          order_outcome: string | null
           order_type: string | null
+          outcome_updated_at: string | null
+          outcome_updated_by: string | null
           payment_due_date: string | null
           payment_status: string | null
           payment_terms: string | null
@@ -414,7 +419,12 @@ export type Database = {
           is_refund_requested?: boolean
           last_reminder_sent_at?: string | null
           lead_source?: string | null
+          lost_reason?: string | null
+          lost_reason_notes?: string | null
+          order_outcome?: string | null
           order_type?: string | null
+          outcome_updated_at?: string | null
+          outcome_updated_by?: string | null
           payment_due_date?: string | null
           payment_status?: string | null
           payment_terms?: string | null
@@ -468,7 +478,12 @@ export type Database = {
           is_refund_requested?: boolean
           last_reminder_sent_at?: string | null
           lead_source?: string | null
+          lost_reason?: string | null
+          lost_reason_notes?: string | null
+          order_outcome?: string | null
           order_type?: string | null
+          outcome_updated_at?: string | null
+          outcome_updated_by?: string | null
           payment_due_date?: string | null
           payment_status?: string | null
           payment_terms?: string | null

@@ -1,11 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Order, PaymentStatus } from '@/hooks/useOrders';
+import { Order, PaymentStatus, OrderOutcome } from '@/hooks/useOrders';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { PaymentStatusTracker } from '@/components/PaymentStatusTracker';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { Package, User, Building2, Truck, Calendar, ExternalLink, TrendingUp, Clock, CreditCard, MapPin } from 'lucide-react';
+import { Package, User, Building2, Truck, Calendar, ExternalLink, TrendingUp, Clock, CreditCard, MapPin, Trophy, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface OrderCardProps {
@@ -17,6 +17,12 @@ const paymentStatusConfig: Record<PaymentStatus, { label: string; className: str
   pending: { label: 'Payment Pending', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' },
   partial: { label: 'Partial Received', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
   full: { label: 'Paid in Full', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+};
+
+const outcomeConfig: Record<OrderOutcome, { label: string; className: string; icon: React.ComponentType<{ className?: string }> | null }> = {
+  pending: { label: 'Pending', className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400', icon: null },
+  won: { label: 'Won', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400', icon: Trophy },
+  lost: { label: 'Lost', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', icon: XCircle },
 };
 
 export function OrderCard({ order, onClick }: OrderCardProps) {
@@ -49,6 +55,16 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
           <Badge variant="outline" className="text-xs capitalize">
             {order.order_type}
           </Badge>
+          {order.order_outcome && order.order_outcome !== 'pending' && (() => {
+            const config = outcomeConfig[order.order_outcome];
+            const IconComponent = config.icon;
+            return (
+              <Badge className={config.className}>
+                {IconComponent && <IconComponent className="h-3 w-3 mr-1" />}
+                {config.label}
+              </Badge>
+            );
+          })()}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
