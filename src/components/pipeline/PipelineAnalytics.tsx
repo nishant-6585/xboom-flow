@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { PipelineOrder, PIPELINE_STATUSES } from '@/hooks/usePipelineOrders';
 import { format, parseISO, startOfWeek, endOfWeek, addDays, isWithinInterval, startOfMonth, endOfMonth, addMonths } from 'date-fns';
 import { TrendingUp, DollarSign, Users, Calendar, Target, PieChartIcon } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface PipelineAnalyticsProps {
   orders: PipelineOrder[];
@@ -12,31 +13,44 @@ interface PipelineAnalyticsProps {
 const COLORS = ['#22c55e', '#ef4444', '#3b82f6', '#f59e0b', '#f97316'];
 
 export function PipelineAnalytics({ orders }: PipelineAnalyticsProps) {
+  const { role, user } = useAuth();
+  
+  // Filter orders for sales role - only show their own pipeline
+  const filteredOrders = useMemo(() => {
+    if (role === 'sales' && user) {
+      return orders.filter(o => o.sales_person_id === user.id);
+    }
+    return orders;
+  }, [orders, role, user]);
+  
+  const isSalesView = role === 'sales';
   const analytics = useMemo(() => {
     const now = new Date();
-    const pendingOrders = orders.filter(o => !['won', 'lost'].includes(o.status));
+    const pendingOrders = filteredOrders.filter(o => !['won', 'lost'].includes(o.status));
     
     // Total pipeline value (only pending orders)
     const totalPipelineValue = pendingOrders.reduce((sum, o) => sum + (o.expected_price || 0) * o.quantity, 0);
     
     // Won value
-    const wonOrders = orders.filter(o => o.status === 'won');
+    const wonOrders = filteredOrders.filter(o => o.status === 'won');
     const wonValue = wonOrders.reduce((sum, o) => sum + (o.expected_price || 0) * o.quantity, 0);
     
-    // Pipeline by sales person
+    // Pipeline by sales person (only show for non-sales roles)
     const bySalesPerson: Record<string, { name: string; value: number; count: number }> = {};
-    pendingOrders.forEach(o => {
-      if (!bySalesPerson[o.sales_person_id]) {
-        bySalesPerson[o.sales_person_id] = { name: o.sales_person_name, value: 0, count: 0 };
-      }
-      bySalesPerson[o.sales_person_id].value += (o.expected_price || 0) * o.quantity;
-      bySalesPerson[o.sales_person_id].count++;
-    });
+    if (!isSalesView) {
+      pendingOrders.forEach(o => {
+        if (!bySalesPerson[o.sales_person_id]) {
+          bySalesPerson[o.sales_person_id] = { name: o.sales_person_name, value: 0, count: 0 };
+        }
+        bySalesPerson[o.sales_person_id].value += (o.expected_price || 0) * o.quantity;
+        bySalesPerson[o.sales_person_id].count++;
+      });
+    }
     const salesPersonData = Object.values(bySalesPerson).sort((a, b) => b.value - a.value);
     
     // Pipeline by status
     const byStatus: Record<string, { label: string; value: number; count: number }> = {};
-    orders.forEach(o => {
+    filteredOrders.forEach(o => {
       if (!byStatus[o.status]) {
         byStatus[o.status] = { 
           label: PIPELINE_STATUSES.find(s => s.value === o.status)?.label || o.status, 
@@ -89,7 +103,7 @@ export function PipelineAnalytics({ orders }: PipelineAnalyticsProps) {
     }
     
     // Conversion rate
-    const totalClosedOrders = orders.filter(o => ['won', 'lost'].includes(o.status)).length;
+    const totalClosedOrders = filteredOrders.filter(o => ['won', 'lost'].includes(o.status)).length;
     const conversionRate = totalClosedOrders > 0 
       ? ((wonOrders.length / totalClosedOrders) * 100).toFixed(1) 
       : '0';
@@ -105,7 +119,7 @@ export function PipelineAnalytics({ orders }: PipelineAnalyticsProps) {
       weeklyData,
       monthlyData,
     };
-  }, [orders]);
+  }, [filteredOrders, isSalesView]);
 
   const formatCurrency = (value: number) => {
     if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
@@ -116,8 +130,13 @@ export function PipelineAnalytics({ orders }: PipelineAnalyticsProps) {
 
   return (
     <div className="space-y-6">
+      {isSalesView && (
+        <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+          Showing analytics for your pipeline only
+        </div>
+      )}
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className={`grid gap-4 md:grid-cols-2 ${isSalesView ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -154,18 +173,20 @@ export function PipelineAnalytics({ orders }: PipelineAnalyticsProps) {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Active Sales Persons</p>
-                <p className="text-2xl font-bold">{analytics.salesPersonData.length}</p>
-                <p className="text-sm text-muted-foreground">With pipeline orders</p>
+        {!isSalesView && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Active Sales Persons</p>
+                  <p className="text-2xl font-bold">{analytics.salesPersonData.length}</p>
+                  <p className="text-sm text-muted-foreground">With pipeline orders</p>
+                </div>
+                <Users className="h-10 w-10 text-purple-500 opacity-80" />
               </div>
-              <Users className="h-10 w-10 text-purple-500 opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Pipeline by Date Charts */}
@@ -216,50 +237,52 @@ export function PipelineAnalytics({ orders }: PipelineAnalyticsProps) {
         </Card>
       </div>
 
-      {/* Pipeline by Sales Person */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Pipeline Value by Sales Person
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={analytics.salesPersonData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" tickFormatter={formatCurrency} fontSize={12} />
-              <YAxis dataKey="name" type="category" width={120} fontSize={12} />
-              <Tooltip 
-                formatter={(value: number) => [formatCurrency(value), 'Pipeline Value']}
-                labelFormatter={(label) => `${label}`}
-              />
-              <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-          {/* Summary table */}
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2">Sales Person</th>
-                  <th className="text-right py-2">Orders</th>
-                  <th className="text-right py-2">Pipeline Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {analytics.salesPersonData.map((sp, idx) => (
-                  <tr key={idx} className="border-b last:border-0">
-                    <td className="py-2">{sp.name}</td>
-                    <td className="text-right py-2">{sp.count}</td>
-                    <td className="text-right py-2 font-medium">{formatCurrency(sp.value)}</td>
+      {/* Pipeline by Sales Person - only visible for non-sales roles */}
+      {!isSalesView && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Pipeline Value by Sales Person
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={analytics.salesPersonData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" tickFormatter={formatCurrency} fontSize={12} />
+                <YAxis dataKey="name" type="category" width={120} fontSize={12} />
+                <Tooltip 
+                  formatter={(value: number) => [formatCurrency(value), 'Pipeline Value']}
+                  labelFormatter={(label) => `${label}`}
+                />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+            {/* Summary table */}
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2">Sales Person</th>
+                    <th className="text-right py-2">Orders</th>
+                    <th className="text-right py-2">Pipeline Value</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                </thead>
+                <tbody>
+                  {analytics.salesPersonData.map((sp, idx) => (
+                    <tr key={idx} className="border-b last:border-0">
+                      <td className="py-2">{sp.name}</td>
+                      <td className="text-right py-2">{sp.count}</td>
+                      <td className="text-right py-2 font-medium">{formatCurrency(sp.value)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Pipeline by Status */}
       <Card>
