@@ -1,20 +1,23 @@
 import { useState, useMemo } from "react";
 import { useOrders, Order } from "@/hooks/useOrders";
 import { useSuppliers, Supplier } from "@/hooks/useSuppliers";
+import { useProcurementPaymentRequests } from "@/hooks/useProcurementPaymentRequests";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, FileText, ExternalLink, Upload } from "lucide-react";
+import { Search, FileText, ExternalLink, Upload, CreditCard } from "lucide-react";
 import { format } from "date-fns";
 import { ProcurementOrderDialog } from "./ProcurementOrderDialog";
+import { PaymentStatusRequestDialog } from "./PaymentStatusRequestDialog";
 import { OrderNumberBadge } from "@/components/OrderNumberBadge";
 
 export function ProcurementOrders() {
   const { orders, loading: ordersLoading, updateOrder, refetch } = useOrders();
   const { suppliers, loading: suppliersLoading } = useSuppliers();
+  const { requests: paymentRequests, refetch: refetchRequests } = useProcurementPaymentRequests();
   const [search, setSearch] = useState("");
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -22,6 +25,8 @@ export function ProcurementOrders() {
   const [orderNumberFilter, setOrderNumberFilter] = useState<string>("all");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [paymentRequestDialogOpen, setPaymentRequestDialogOpen] = useState(false);
+  const [paymentRequestOrder, setPaymentRequestOrder] = useState<Order | null>(null);
 
   const getPriorityLabel = (priority: number | null) => {
     switch (priority) {
@@ -81,6 +86,17 @@ export function ProcurementOrders() {
     setDialogOpen(false);
     setSelectedOrder(null);
     refetch();
+  };
+
+  const handlePaymentRequestClick = (order: Order, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPaymentRequestOrder(order);
+    setPaymentRequestDialogOpen(true);
+  };
+
+  const getOrderPaymentRequestStatus = (orderId: string) => {
+    const request = paymentRequests.find(r => r.order_id === orderId);
+    return request;
   };
 
   const getPaymentStatusColor = (status: string) => {
@@ -281,10 +297,40 @@ export function ProcurementOrders() {
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleOrderClick(order); }}>
-                          Manage
-                        </Button>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-2">
+                          {(() => {
+                            const paymentRequest = getOrderPaymentRequestStatus(order.id);
+                            if (paymentRequest?.status === 'approved') {
+                              return (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs">
+                                  ✓ {paymentRequest.approved_by_name}
+                                </Badge>
+                              );
+                            } else if (paymentRequest?.status === 'pending') {
+                              return (
+                                <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 text-xs">
+                                  Pending Approval
+                                </Badge>
+                              );
+                            } else {
+                              return (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={(e) => handlePaymentRequestClick(order, e)}
+                                  className="text-xs"
+                                >
+                                  <CreditCard className="w-3 h-3 mr-1" />
+                                  Request
+                                </Button>
+                              );
+                            }
+                          })()}
+                          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleOrderClick(order); }}>
+                            Manage
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -302,6 +348,17 @@ export function ProcurementOrders() {
         onOpenChange={handleDialogClose}
         onUpdate={updateOrder}
       />
+
+      {paymentRequestOrder && (
+        <PaymentStatusRequestDialog
+          orderId={paymentRequestOrder.id}
+          orderNumber={paymentRequestOrder.order_number}
+          productName={paymentRequestOrder.product_name}
+          open={paymentRequestDialogOpen}
+          onOpenChange={setPaymentRequestDialogOpen}
+          onSuccess={() => refetchRequests()}
+        />
+      )}
     </div>
   );
 }
