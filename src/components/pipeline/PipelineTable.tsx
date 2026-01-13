@@ -17,6 +17,7 @@ import { PipelineOrder, PIPELINE_STATUSES, PipelineStatus } from '@/hooks/usePip
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { ProductSelect } from '@/components/ProductSelect';
 
 interface PipelineTableProps {
   orders: PipelineOrder[];
@@ -257,9 +258,14 @@ export function PipelineTable({ orders, onUpdate, onDelete }: PipelineTableProps
                   </div>
                   <div className="space-y-2">
                     <Label>Product Name</Label>
-                    <Input
+                    <ProductSelect
                       value={editOrder.product_name}
-                      onChange={(e) => setEditOrder({...editOrder, product_name: e.target.value})}
+                      onChange={(value, product) => setEditOrder({
+                        ...editOrder, 
+                        product_name: value,
+                        product_category: product?.product_category || editOrder.product_category,
+                      })}
+                      placeholder="Search or enter product name"
                     />
                   </div>
                   <div className="space-y-2">
