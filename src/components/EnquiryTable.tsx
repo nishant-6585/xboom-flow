@@ -41,8 +41,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { format } from "date-fns";
-import { MoreHorizontal, Trophy, XCircle, Clock, GitBranch, ExternalLink, ShoppingCart } from "lucide-react";
+import { format, differenceInMinutes, differenceInHours, differenceInDays } from "date-fns";
+import { MoreHorizontal, Trophy, XCircle, Clock, GitBranch, ExternalLink, ShoppingCart, Timer } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { useNavigate } from "react-router-dom";
 
@@ -144,6 +144,38 @@ export function EnquiryTable({ enquiries, onUpdateStatus, onEnquiryClick }: Enqu
     return LOST_REASONS.find(r => r.value === reason)?.label || reason;
   };
 
+  const getResponseTimeDisplay = (enquiry: Enquiry) => {
+    if (!enquiry.responded_at) {
+      return { text: "Pending", colorClass: "text-muted-foreground" };
+    }
+    
+    const createdAt = new Date(enquiry.created_at);
+    const respondedAt = new Date(enquiry.responded_at);
+    const totalMinutes = differenceInMinutes(respondedAt, createdAt);
+    const totalHours = differenceInHours(respondedAt, createdAt);
+    const totalDays = differenceInDays(respondedAt, createdAt);
+    
+    let text = "";
+    let colorClass = "";
+    
+    if (totalMinutes < 60) {
+      text = `${totalMinutes}m`;
+      colorClass = "text-success";
+    } else if (totalHours < 24) {
+      const mins = totalMinutes % 60;
+      text = mins > 0 ? `${totalHours}h ${mins}m` : `${totalHours}h`;
+      colorClass = totalHours <= 6 ? "text-success" : 
+                   totalHours <= 12 ? "text-warning" : 
+                   "text-destructive";
+    } else {
+      const remainingHours = totalHours % 24;
+      text = remainingHours > 0 ? `${totalDays}d ${remainingHours}h` : `${totalDays}d`;
+      colorClass = "text-destructive";
+    }
+    
+    return { text, colorClass };
+  };
+
   const navigateToOrder = (enquiryId: string) => {
     navigate(`/orders?enquiry_id=${enquiryId}`);
   };
@@ -164,6 +196,7 @@ export function EnquiryTable({ enquiries, onUpdateStatus, onEnquiryClick }: Enqu
               <TableHead>Sales Person</TableHead>
               <TableHead className="text-center">Qty</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Response Time</TableHead>
               <TableHead>Links</TableHead>
               <TableHead>Lost Reason</TableHead>
               {canUpdateStatus && <TableHead className="w-[100px]">Actions</TableHead>}
@@ -172,13 +205,14 @@ export function EnquiryTable({ enquiries, onUpdateStatus, onEnquiryClick }: Enqu
           <TableBody>
             {enquiries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canUpdateStatus ? 9 : 8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={canUpdateStatus ? 10 : 9} className="text-center py-8 text-muted-foreground">
                   No enquiries found
                 </TableCell>
               </TableRow>
             ) : (
               enquiries.map((enquiry) => {
                 const related = relatedRecords[enquiry.id] || { hasOrder: false, hasPipeline: false };
+                const responseTime = getResponseTimeDisplay(enquiry);
                 
                 return (
                   <TableRow key={enquiry.id} className="cursor-pointer hover:bg-muted/50">
@@ -205,6 +239,12 @@ export function EnquiryTable({ enquiries, onUpdateStatus, onEnquiryClick }: Enqu
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={enquiry.status} />
+                    </TableCell>
+                    <TableCell>
+                      <div className={`flex items-center gap-1 text-sm font-medium ${responseTime.colorClass}`}>
+                        <Timer className="w-3.5 h-3.5" />
+                        <span>{responseTime.text}</span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
