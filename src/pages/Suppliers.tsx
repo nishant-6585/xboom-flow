@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useSuppliers, Supplier, SupplierPreference } from '@/hooks/useSuppliers';
+import { useAuth } from '@/hooks/useAuth';
 import { SupplierCard } from '@/components/SupplierCard';
 import { SupplierForm } from '@/components/SupplierForm';
 import { SupplierLedgerDialog } from '@/components/SupplierLedgerDialog';
@@ -14,7 +15,10 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 export default function Suppliers() {
+  const { role } = useAuth();
   const { suppliers, loading, createSupplier, bulkImportSuppliers, updateSupplier } = useSuppliers();
+  
+  const canManage = role === 'admin' || role === 'supply_chain';
   
   const [searchQuery, setSearchQuery] = useState('');
   const [preferenceFilter, setPreferenceFilter] = useState<string>('all');
@@ -176,16 +180,18 @@ export default function Suppliers() {
               Manage supplier information and track payments
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              Import Excel
-            </Button>
-            <Button onClick={() => handleOpenForm()}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Supplier
-            </Button>
-          </div>
+          {canManage && (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Import Excel
+              </Button>
+              <Button onClick={() => handleOpenForm()}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Supplier
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Filters */}
