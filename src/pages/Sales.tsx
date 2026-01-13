@@ -1,13 +1,14 @@
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
 import { SuggestionBox } from "@/components/sales/SuggestionBox";
 import { OutboundSalesPanel } from "@/components/sales/OutboundSalesPanel";
 import { ManagerDashboard } from "@/components/sales/ManagerDashboard";
+import { TestimonialsPanel } from "@/components/sales/TestimonialsPanel";
 
 export default function Sales() {
   const { role } = useAuth();
@@ -52,6 +53,10 @@ export default function Sales() {
               <Phone className="w-4 h-4" />
               Outbound
             </TabsTrigger>
+            <TabsTrigger value="testimonials" className="gap-2">
+              <Quote className="w-4 h-4" />
+              Testimonials
+            </TabsTrigger>
             <TabsTrigger value="suggestions" className="gap-2">
               <Lightbulb className="w-4 h-4" />
               Suggestions
@@ -87,6 +92,10 @@ export default function Sales() {
 
           <TabsContent value="outbound" className="space-y-6">
             <OutboundSalesPanel />
+          </TabsContent>
+
+          <TabsContent value="testimonials" className="space-y-6">
+            <TestimonialsPanel />
           </TabsContent>
 
           <TabsContent value="suggestions" className="space-y-6">

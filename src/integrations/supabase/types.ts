@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      customer_testimonials: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          approved_by_name: string | null
+          created_at: string
+          customer_company: string | null
+          customer_name: string
+          id: string
+          is_approved: boolean | null
+          order_id: string | null
+          rating: number | null
+          submitted_by: string
+          submitted_by_name: string
+          testimonial: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
+          created_at?: string
+          customer_company?: string | null
+          customer_name: string
+          id?: string
+          is_approved?: boolean | null
+          order_id?: string | null
+          rating?: number | null
+          submitted_by: string
+          submitted_by_name: string
+          testimonial: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
+          created_at?: string
+          customer_company?: string | null
+          customer_name?: string
+          id?: string
+          is_approved?: boolean | null
+          order_id?: string | null
+          rating?: number | null
+          submitted_by?: string
+          submitted_by_name?: string
+          testimonial?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_testimonials_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       edit_history: {
         Row: {
           edited_at: string
