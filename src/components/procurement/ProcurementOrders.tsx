@@ -308,41 +308,53 @@ export function ProcurementOrders() {
                         )}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            {order.procurement_date ? (
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                className="h-auto p-1 hover:bg-green-500/20"
-                              >
-                                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 cursor-pointer">
-                                  {format(new Date(order.procurement_date), 'dd MMM')}
-                                </Badge>
-                              </Button>
-                            ) : (
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                className="h-auto p-1 hover:bg-orange-500/20"
-                              >
-                                <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20 cursor-pointer flex items-center gap-1">
-                                  <CalendarIcon className="w-3 h-3" />
-                                  Set Date
-                                </Badge>
-                              </Button>
-                            )}
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={order.procurement_date ? new Date(order.procurement_date) : undefined}
-                              onSelect={(date) => handleQuickSetProcurementDate(order, date, { stopPropagation: () => {} } as React.MouseEvent)}
-                              initialFocus
-                              className={cn("p-3 pointer-events-auto")}
-                            />
-                          </PopoverContent>
-                        </Popover>
+                        <div className="flex items-center gap-1">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              {order.procurement_date ? (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="h-auto p-1 hover:bg-green-500/20"
+                                >
+                                  <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 cursor-pointer">
+                                    {format(new Date(order.procurement_date), 'dd MMM')}
+                                  </Badge>
+                                </Button>
+                              ) : (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="h-auto p-1 hover:bg-orange-500/20"
+                                >
+                                  <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20 cursor-pointer flex items-center gap-1">
+                                    <CalendarIcon className="w-3 h-3" />
+                                    Set
+                                  </Badge>
+                                </Button>
+                              )}
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={order.procurement_date ? new Date(order.procurement_date) : undefined}
+                                onSelect={(date) => handleQuickSetProcurementDate(order, date, { stopPropagation: () => {} } as React.MouseEvent)}
+                                initialFocus
+                                className={cn("p-3 pointer-events-auto")}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          {!order.procurement_date && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 px-2 text-xs bg-primary/10 hover:bg-primary/20 text-primary border-primary/20"
+                              onClick={(e) => handleQuickSetProcurementDate(order, new Date(), e)}
+                            >
+                              Today
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={getOrderStatusColor(order.status)}>
