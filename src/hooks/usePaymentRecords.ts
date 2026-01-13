@@ -205,6 +205,42 @@ export function usePaymentRecords(orderId?: string) {
     }
   };
 
+  const deletePaymentRecord = async (record: PaymentRecord): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      // First delete screenshots from storage
+      const screenshotPaths = record.screenshot_url.split(',').map((p: string) => p.trim());
+      
+      for (const path of screenshotPaths) {
+        const storagePath = extractStoragePath(path);
+        const { error: deleteStorageError } = await supabase.storage
+          .from('payment-screenshots')
+          .remove([storagePath]);
+        
+        if (deleteStorageError) {
+          console.error('Error deleting screenshot from storage:', deleteStorageError);
+        }
+      }
+
+      // Then delete the record
+      const { error } = await supabase
+        .from('payment_records')
+        .delete()
+        .eq('id', record.id);
+
+      if (error) throw error;
+
+      toast.success('Payment record deleted');
+      await fetchRecords();
+      return true;
+    } catch (error: any) {
+      console.error('Error deleting payment record:', error);
+      toast.error(error.message || 'Failed to delete payment record');
+      return false;
+    }
+  };
+
   return {
     records,
     loading,
@@ -212,6 +248,7 @@ export function usePaymentRecords(orderId?: string) {
     submitPayment,
     approvePayment,
     rejectPayment,
+    deletePaymentRecord,
     refetch: fetchRecords,
   };
 }

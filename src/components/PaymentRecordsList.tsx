@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { PaymentRecord, usePaymentRecords } from '@/hooks/usePaymentRecords';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { Check, X, Clock, Image, Loader2, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, X, Clock, Image, Loader2, ExternalLink, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 
 interface PaymentRecordsListProps {
   orderId: string;
@@ -34,12 +34,14 @@ const statusConfig: Record<string, { label: string; icon: React.ReactNode; class
 };
 
 export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecordsListProps) {
-  const { role } = useAuth();
-  const { records, loading, approvePayment, rejectPayment } = usePaymentRecords(orderId);
+  const { role, user } = useAuth();
+  const { records, loading, approvePayment, rejectPayment, deletePaymentRecord } = usePaymentRecords(orderId);
   const isAdmin = role === 'admin';
+  const isSales = role === 'sales';
 
   const [selectedRecord, setSelectedRecord] = useState<PaymentRecord | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
@@ -68,6 +70,26 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
   const openRejectDialog = (record: PaymentRecord) => {
     setSelectedRecord(record);
     setRejectDialogOpen(true);
+  };
+
+  const openDeleteDialog = (record: PaymentRecord) => {
+    setSelectedRecord(record);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedRecord) return;
+
+    setActionLoading(selectedRecord.id);
+    await deletePaymentRecord(selectedRecord);
+    setActionLoading(null);
+    setDeleteDialogOpen(false);
+    setSelectedRecord(null);
+  };
+
+  // Check if current user can delete this record (only own pending records)
+  const canDeleteRecord = (record: PaymentRecord) => {
+    return isSales && record.submitted_by === user?.id && record.status === 'pending';
   };
 
   if (loading) {
@@ -151,34 +173,54 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
                   </div>
 
                   {/* Actions */}
-                  {isAdmin && record.status === 'pending' && (
-                    <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* Delete button for sales users on their own pending records */}
+                    {canDeleteRecord(record) && (
                       <Button
                         size="sm"
                         variant="outline"
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => openRejectDialog(record)}
+                        onClick={() => openDeleteDialog(record)}
                         disabled={actionLoading === record.id}
                       >
                         {actionLoading === record.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          <X className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                         )}
                       </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleApprove(record)}
-                        disabled={actionLoading === record.id}
-                      >
-                        {actionLoading === record.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Check className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                  )}
+                    )}
+                    
+                    {/* Admin approve/reject buttons */}
+                    {isAdmin && record.status === 'pending' && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => openRejectDialog(record)}
+                          disabled={actionLoading === record.id}
+                        >
+                          {actionLoading === record.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <X className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleApprove(record)}
+                          disabled={actionLoading === record.id}
+                        >
+                          {actionLoading === record.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Check className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -218,6 +260,33 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
               Reject Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Payment Record</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this payment record of ₹{selectedRecord?.amount.toLocaleString('en-IN')}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={actionLoading === selectedRecord?.id}
+            >
+              {actionLoading === selectedRecord?.id && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
