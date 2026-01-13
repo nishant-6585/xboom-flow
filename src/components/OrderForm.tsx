@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +19,11 @@ interface FileWithPreview {
   id: string;
 }
 
+interface SalesTeamMember {
+  user_id: string;
+  name: string;
+}
+
 interface OrderFormProps {
   onSubmit: (data: OrderFormData, paymentFiles?: File[], orderItems?: OrderItemFormData[], invoiceFile?: File, poFiles?: File[]) => Promise<boolean>;
   enquiries?: Enquiry[];
@@ -29,6 +35,17 @@ interface OrderFormProps {
 export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcurementRate = true, userRole = 'sales' }: OrderFormProps) {
   const canViewProcurement = userRole === 'admin' || userRole === 'supply_chain';
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [salesTeam, setSalesTeam] = useState<SalesTeamMember[]>([]);
+
+  useEffect(() => {
+    const fetchSalesTeam = async () => {
+      const { data, error } = await supabase.rpc('get_sales_team');
+      if (!error && data) {
+        setSalesTeam(data);
+      }
+    };
+    fetchSalesTeam();
+  }, []);
   const invoiceInputRef = useRef<HTMLInputElement>(null);
   const poInputRef = useRef<HTMLInputElement>(null);
   const [paymentFiles, setPaymentFiles] = useState<FileWithPreview[]>([]);
@@ -392,13 +409,31 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sales_person_name">Sales Person Name *</Label>
-                <Input
-                  id="sales_person_name"
-                  value={formData.sales_person_name}
-                  onChange={e => setFormData(prev => ({ ...prev, sales_person_name: e.target.value }))}
-                  required
+                <Select
+                  value={formData.sales_person_id || ''}
+                  onValueChange={(value) => {
+                    const member = salesTeam.find(m => m.user_id === value);
+                    if (member) {
+                      setFormData(prev => ({
+                        ...prev,
+                        sales_person_id: member.user_id,
+                        sales_person_name: member.name,
+                      }));
+                    }
+                  }}
                   disabled={loading}
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select sales person" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {salesTeam.map(member => (
+                      <SelectItem key={member.user_id} value={member.user_id}>
+                        {member.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="shipping_address">Shipping Address</Label>
