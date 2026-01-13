@@ -509,25 +509,47 @@ export function ProcurementOrderDialog({
                   {orderPayments.map(payment => (
                     <div 
                       key={payment.id} 
-                      className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                      className="p-3 bg-muted/30 rounded-lg space-y-2"
                     >
-                      <div>
-                        <p className="font-medium">₹{payment.amount.toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(payment.payment_date), 'dd MMM yyyy')} • {payment.payment_mode}
-                        </p>
-                        {payment.notes && (
-                          <p className="text-xs text-muted-foreground mt-1">{payment.notes}</p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">₹{payment.amount.toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(payment.payment_date), 'dd MMM yyyy')} • {payment.payment_mode}
+                          </p>
+                          {payment.notes && (
+                            <p className="text-xs text-muted-foreground mt-1">{payment.notes}</p>
+                          )}
+                        </div>
+                        {role === 'admin' && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleDeletePayment(payment.id)}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
                         )}
                       </div>
-                      {role === 'admin' && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleDeletePayment(payment.id)}
-                        >
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
+                      {/* Payment Screenshots */}
+                      {payment.screenshot_urls && payment.screenshot_urls.length > 0 && (
+                        <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
+                          {payment.screenshot_urls.map((url, index) => (
+                            <a
+                              key={index}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block"
+                            >
+                              <img
+                                src={url}
+                                alt={`Payment screenshot ${index + 1}`}
+                                className="w-16 h-16 object-cover rounded border hover:opacity-80 transition-opacity cursor-pointer"
+                              />
+                            </a>
+                          ))}
+                        </div>
                       )}
                     </div>
                   ))}
