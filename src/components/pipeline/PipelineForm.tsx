@@ -16,6 +16,7 @@ import { PipelineOrderFormData, PIPELINE_STATUSES, PIPELINE_PRIORITIES } from '@
 import { LEAD_SOURCES } from '@/hooks/useOrders';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { toast } from 'sonner';
+import { ProductSelect } from '@/components/ProductSelect';
 
 interface PipelineFormProps {
   onSubmit: (data: PipelineOrderFormData) => Promise<boolean>;
@@ -188,12 +189,16 @@ export function PipelineForm({ onSubmit }: PipelineFormProps) {
             {/* Product Information */}
             <div className="space-y-2">
               <Label htmlFor="product_name">Product Name *</Label>
-              <Input
-                id="product_name"
+              <ProductSelect
                 value={formData.product_name}
-                onChange={(e) => handleChange('product_name', e.target.value)}
-                placeholder="Enter product name"
-                required
+                onChange={(value, product) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    product_name: value,
+                    product_category: product?.product_category || prev.product_category,
+                  }));
+                }}
+                placeholder="Search or enter product name"
               />
             </div>
             <div className="space-y-2">
