@@ -755,6 +755,54 @@ export type Database = {
           },
         ]
       }
+      outbound_activities: {
+        Row: {
+          activity_date: string
+          calls_made: number | null
+          created_at: string
+          demos_given: number | null
+          emails_sent: number | null
+          follow_ups: number | null
+          id: string
+          meetings_scheduled: number | null
+          new_contacts: number | null
+          notes: string | null
+          updated_at: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          activity_date?: string
+          calls_made?: number | null
+          created_at?: string
+          demos_given?: number | null
+          emails_sent?: number | null
+          follow_ups?: number | null
+          id?: string
+          meetings_scheduled?: number | null
+          new_contacts?: number | null
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          activity_date?: string
+          calls_made?: number | null
+          created_at?: string
+          demos_given?: number | null
+          emails_sent?: number | null
+          follow_ups?: number | null
+          id?: string
+          meetings_scheduled?: number | null
+          new_contacts?: number | null
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
       payment_records: {
         Row: {
           amount: number
@@ -1037,6 +1085,135 @@ export type Database = {
           name?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      sales_daily_activities: {
+        Row: {
+          activity_date: string
+          bonus_earned: number | null
+          channel: string | null
+          created_at: string
+          id: string
+          leads_handled: number | null
+          monthly_pipeline: number | null
+          notes: string | null
+          orders_won: number | null
+          payment_expected_today: number | null
+          pipeline_created: number | null
+          sweet_pipeline: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_date?: string
+          bonus_earned?: number | null
+          channel?: string | null
+          created_at?: string
+          id?: string
+          leads_handled?: number | null
+          monthly_pipeline?: number | null
+          notes?: string | null
+          orders_won?: number | null
+          payment_expected_today?: number | null
+          pipeline_created?: number | null
+          sweet_pipeline?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_date?: string
+          bonus_earned?: number | null
+          channel?: string | null
+          created_at?: string
+          id?: string
+          leads_handled?: number | null
+          monthly_pipeline?: number | null
+          notes?: string | null
+          orders_won?: number | null
+          payment_expected_today?: number | null
+          pipeline_created?: number | null
+          sweet_pipeline?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sales_points: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          earned_at: string
+          id: string
+          points: number
+          reference_id: string | null
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          earned_at?: string
+          id?: string
+          points?: number
+          reference_id?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          earned_at?: string
+          id?: string
+          points?: number
+          reference_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sales_suggestions: {
+        Row: {
+          admin_response: string | null
+          created_at: string
+          description: string
+          id: string
+          responded_at: string | null
+          responded_by: string | null
+          responded_by_name: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          admin_response?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          responded_at?: string | null
+          responded_by?: string | null
+          responded_by_name?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          admin_response?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          responded_at?: string | null
+          responded_by?: string | null
+          responded_by_name?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          user_name?: string
         }
         Relationships: []
       }
@@ -1379,6 +1556,19 @@ export type Database = {
           name: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
+        }[]
+      }
+      get_sales_leaderboard: {
+        Args: { end_date?: string; start_date?: string }
+        Returns: {
+          leads_handled: number
+          orders_won: number
+          pipeline_created: number
+          rank: number
+          total_pipeline_value: number
+          total_points: number
+          user_id: string
+          user_name: string
         }[]
       }
       get_sales_team: {
