@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,10 +6,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PaymentRecord, usePaymentRecords } from '@/hooks/usePaymentRecords';
 import { Order } from '@/hooks/useOrders';
 import { format } from 'date-fns';
-import { Check, X, Clock, Image, Loader2, ExternalLink, CreditCard, Package, AlertCircle, CheckCircle, Trash2, Undo2 } from 'lucide-react';
+import { Check, X, Clock, Image, Loader2, ExternalLink, CreditCard, Package, AlertCircle, CheckCircle, Trash2, Undo2, User } from 'lucide-react';
 
 interface PendingPaymentApprovalsProps {
   orders: Order[];
@@ -58,9 +59,30 @@ export function PendingPaymentApprovals({ orders }: PendingPaymentApprovalsProps
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('pending_payments');
+  const [selectedSalesPerson, setSelectedSalesPerson] = useState<string>('all');
 
   const pendingRecords = records.filter(r => r.status === 'pending');
   const approvedRecords = records.filter(r => r.status === 'approved');
+  
+  // Get unique sales persons from orders
+  const salesPersons = useMemo(() => {
+    const uniqueSalesPersons = new Map<string, string>();
+    orders.forEach(order => {
+      if (order.sales_person_id && order.sales_person_name) {
+        uniqueSalesPersons.set(order.sales_person_id, order.sales_person_name);
+      }
+    });
+    return Array.from(uniqueSalesPersons.entries()).map(([id, name]) => ({ id, name }));
+  }, [orders]);
+
+  // Filter approved records by selected sales person
+  const filteredApprovedRecords = useMemo(() => {
+    if (selectedSalesPerson === 'all') return approvedRecords;
+    return approvedRecords.filter(record => {
+      const order = orders.find(o => o.id === record.order_id);
+      return order?.sales_person_id === selectedSalesPerson;
+    });
+  }, [approvedRecords, selectedSalesPerson, orders]);
   
   // New orders that need payment attention (pending/partial payment status)
   const ordersNeedingPayment = orders.filter(order => {
@@ -265,18 +287,44 @@ export function PendingPaymentApprovals({ orders }: PendingPaymentApprovalsProps
             </TabsContent>
 
             <TabsContent value="payments_confirmed">
+              {/* Sales Person Filter */}
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <Label htmlFor="sales-filter" className="text-sm text-muted-foreground">Filter by Sales Person:</Label>
+                </div>
+                <Select value={selectedSalesPerson} onValueChange={setSelectedSalesPerson}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="All Sales Team" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sales Team</SelectItem>
+                    {salesPersons.map((sp) => (
+                      <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedSalesPerson !== 'all' && (
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedSalesPerson('all')}>
+                    Clear
+                  </Button>
+                )}
+              </div>
+
               {loading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
-              ) : approvedRecords.length === 0 ? (
+              ) : filteredApprovedRecords.length === 0 ? (
                 <div className="text-center py-8">
                   <CheckCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground">No confirmed payments yet</p>
+                  <p className="text-muted-foreground">
+                    {selectedSalesPerson === 'all' ? 'No confirmed payments yet' : 'No confirmed payments for this sales person'}
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {approvedRecords.map((record) => {
+                  {filteredApprovedRecords.map((record) => {
                     const order = getOrderDetails(record.order_id);
                     const config = statusConfig[record.status];
 
