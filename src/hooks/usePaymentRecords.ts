@@ -219,6 +219,32 @@ export function usePaymentRecords(orderId?: string) {
     }
   };
 
+  const disapprovePayment = async (recordId: string): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from('payment_records')
+        .update({
+          status: 'pending',
+          reviewed_by: null,
+          reviewed_at: null,
+          rejection_reason: null,
+        })
+        .eq('id', recordId);
+
+      if (error) throw error;
+
+      toast.success('Payment moved back to pending');
+      await fetchRecords();
+      return true;
+    } catch (error: any) {
+      console.error('Error disapproving payment:', error);
+      toast.error(error.message || 'Failed to disapprove payment');
+      return false;
+    }
+  };
+
   const deletePaymentRecord = async (record: PaymentRecord): Promise<boolean> => {
     if (!user) return false;
 
@@ -262,6 +288,7 @@ export function usePaymentRecords(orderId?: string) {
     submitPayment,
     approvePayment,
     rejectPayment,
+    disapprovePayment,
     deletePaymentRecord,
     refetch: fetchRecords,
   };

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PaymentRecord, usePaymentRecords } from '@/hooks/usePaymentRecords';
 import { Order } from '@/hooks/useOrders';
 import { format } from 'date-fns';
-import { Check, X, Clock, Image, Loader2, ExternalLink, CreditCard, Package, AlertCircle } from 'lucide-react';
+import { Check, X, Clock, Image, Loader2, ExternalLink, CreditCard, Package, AlertCircle, CheckCircle, Trash2, Undo2 } from 'lucide-react';
 
 interface PendingPaymentApprovalsProps {
   orders: Order[];
@@ -49,16 +49,18 @@ const paymentStatusConfig: Record<string, { label: string; className: string }> 
 };
 
 export function PendingPaymentApprovals({ orders }: PendingPaymentApprovalsProps) {
-  const { records, loading, approvePayment, rejectPayment } = usePaymentRecords();
+  const { records, loading, approvePayment, rejectPayment, disapprovePayment, deletePaymentRecord } = usePaymentRecords();
 
   const [selectedRecord, setSelectedRecord] = useState<PaymentRecord | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('pending_payments');
 
   const pendingRecords = records.filter(r => r.status === 'pending');
+  const approvedRecords = records.filter(r => r.status === 'approved');
   
   // New orders that need payment attention (pending/partial payment status)
   const ordersNeedingPayment = orders.filter(order => {
@@ -92,6 +94,26 @@ export function PendingPaymentApprovals({ orders }: PendingPaymentApprovalsProps
     setRejectDialogOpen(true);
   };
 
+  const openDeleteDialog = (record: PaymentRecord) => {
+    setSelectedRecord(record);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedRecord) return;
+    setActionLoading(selectedRecord.id);
+    await deletePaymentRecord(selectedRecord);
+    setActionLoading(null);
+    setDeleteDialogOpen(false);
+    setSelectedRecord(null);
+  };
+
+  const handleDisapprove = async (record: PaymentRecord) => {
+    setActionLoading(record.id);
+    await disapprovePayment(record.id);
+    setActionLoading(null);
+  };
+
   const getOrderPaymentRecords = (orderId: string) => {
     return records.filter(r => r.order_id === orderId);
   };
@@ -117,6 +139,15 @@ export function PendingPaymentApprovals({ orders }: PendingPaymentApprovalsProps
                 {pendingRecords.length > 0 && (
                   <Badge variant="destructive" className="ml-1 h-5 min-w-5 p-0 flex items-center justify-center text-xs">
                     {pendingRecords.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="payments_confirmed" className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4" />
+                Payments Confirmed
+                {approvedRecords.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 min-w-5 p-0 flex items-center justify-center text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                    {approvedRecords.length}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -222,6 +253,118 @@ export function PendingPaymentApprovals({ orders }: PendingPaymentApprovalsProps
                                   <Check className="h-4 w-4 mr-1" />
                                   Approve
                                 </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="payments_confirmed">
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : approvedRecords.length === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                  <p className="text-muted-foreground">No confirmed payments yet</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {approvedRecords.map((record) => {
+                    const order = getOrderDetails(record.order_id);
+                    const config = statusConfig[record.status];
+
+                    return (
+                      <div
+                        key={record.id}
+                        className="p-4 rounded-lg border border-green-500/30 bg-green-900/10"
+                      >
+                        <div className="flex items-start gap-4">
+                          {/* Screenshot thumbnail */}
+                          <div
+                            className="w-20 h-20 rounded-lg border border-border overflow-hidden shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => setPreviewImage(record.screenshot_signed_url || record.screenshot_url)}
+                          >
+                            <img
+                              src={record.screenshot_signed_url || record.screenshot_url}
+                              alt="Payment screenshot"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+
+                          {/* Details */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-bold text-lg">₹{record.amount.toLocaleString('en-IN')}</span>
+                              <Badge className={config.className}>
+                                {config.icon}
+                                <span className="ml-1">{config.label}</span>
+                              </Badge>
+                            </div>
+                            {order && (
+                              <div className="text-sm space-y-1">
+                                <p className="font-medium">
+                                  {order.customer_name} - {order.customer_company}
+                                </p>
+                                <p className="text-muted-foreground">
+                                  {order.product_name} (Qty: {order.quantity})
+                                </p>
+                                <p className="text-muted-foreground">
+                                  Sales: {order.sales_person_name}
+                                </p>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                              <span>Submitted: {format(new Date(record.submitted_at), 'dd MMM yyyy, hh:mm a')}</span>
+                            </div>
+                            {record.reviewed_at && (
+                              <p className="text-xs text-green-600 mt-1">
+                                Approved by {record.reviewed_by_name || 'Admin'} on {format(new Date(record.reviewed_at), 'dd MMM yyyy, hh:mm a')}
+                              </p>
+                            )}
+                            {record.notes && (
+                              <p className="text-sm text-muted-foreground mt-1 italic">
+                                "{record.notes}"
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Admin Actions */}
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDisapprove(record)}
+                              disabled={actionLoading === record.id}
+                              title="Move back to pending"
+                            >
+                              {actionLoading === record.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Undo2 className="h-4 w-4 mr-1" />
+                                  Disapprove
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => openDeleteDialog(record)}
+                              disabled={actionLoading === record.id}
+                              title="Delete payment record"
+                            >
+                              {actionLoading === record.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
                               )}
                             </Button>
                           </div>
@@ -409,6 +552,33 @@ export function PendingPaymentApprovals({ orders }: PendingPaymentApprovalsProps
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
               Reject Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Payment Record</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this payment record of ₹{selectedRecord?.amount.toLocaleString('en-IN')}? This action cannot be undone and will also delete the associated screenshots.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={actionLoading === selectedRecord?.id}
+            >
+              {actionLoading === selectedRecord?.id && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
+              Delete Payment
             </Button>
           </DialogFooter>
         </DialogContent>
