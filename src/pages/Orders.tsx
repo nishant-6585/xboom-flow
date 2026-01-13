@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,16 +16,22 @@ import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target } from 'lucide-react';
+import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft } from 'lucide-react';
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth } from 'date-fns';
+import { Link } from 'react-router-dom';
 
 export default function Orders() {
   const { role, user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
-  const [activeTab, setActiveTab] = useState('list');
+  // Get filter from URL params
+  const enquiryIdFromUrl = searchParams.get('enquiry_id');
+  const tabFromUrl = searchParams.get('tab');
+  
+  const [activeTab, setActiveTab] = useState(tabFromUrl === 'pipeline' ? 'pipeline' : 'list');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [paymentTermsFilter, setPaymentTermsFilter] = useState<string>('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
@@ -36,6 +43,13 @@ export default function Orders() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+
+  // Update active tab when URL changes
+  useEffect(() => {
+    if (tabFromUrl === 'pipeline') {
+      setActiveTab('pipeline');
+    }
+  }, [tabFromUrl]);
 
   // Get unique filter options from orders
   const paymentTermsOptions = [...new Set(orders.map(o => o.payment_terms).filter(Boolean))] as string[];
@@ -49,6 +63,11 @@ export default function Orders() {
   const refundCount = orders.filter(o => o.is_refund_requested).length;
 
   const filteredOrders = orders.filter(o => {
+    // If filtering by enquiry_id from URL, only show that order
+    if (enquiryIdFromUrl && activeTab === 'list') {
+      return o.enquiry_id === enquiryIdFromUrl;
+    }
+    
     const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
     const matchesPaymentTerms = paymentTermsFilter === 'all' || o.payment_terms === paymentTermsFilter;
     const matchesPaymentStatus = paymentStatusFilter === 'all' || o.payment_status === paymentStatusFilter;
@@ -78,6 +97,8 @@ export default function Orders() {
     setOutcomeFilter('all');
     setSalesPersonFilter('all');
     setStatusFilter('all');
+    // Clear URL params
+    setSearchParams({});
   };
 
   const handleAnalyticsCardClick = (filter: { type: string; value: string }) => {
@@ -134,6 +155,15 @@ export default function Orders() {
               <p className="text-muted-foreground">
                 {role === 'sales' ? 'Track your order status and delivery' : 'Manage orders and procurement'}
               </p>
+              {enquiryIdFromUrl && (
+                <Link 
+                  to="/" 
+                  className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
+                >
+                  <ArrowLeft className="h-3 w-3" />
+                  Back to Enquiries
+                </Link>
+              )}
             </div>
             <TabsList>
               <TabsTrigger value="list">Order List</TabsTrigger>
@@ -301,7 +331,7 @@ export default function Orders() {
           </TabsContent>
 
           <TabsContent value="pipeline">
-            <PipelineOrders />
+            <PipelineOrders enquiryIdFilter={enquiryIdFromUrl} />
           </TabsContent>
 
           {canCreateOrder && (
