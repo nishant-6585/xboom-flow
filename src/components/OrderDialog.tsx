@@ -346,6 +346,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 <DialogTitle className="flex items-center gap-2">
                   <Package className="h-5 w-5" />
                   {order.product_name}
+                  {order.order_number && (
+                    <span className="font-mono text-sm font-medium text-primary bg-primary/10 px-2 py-0.5 rounded">
+                      {order.order_number}
+                    </span>
+                  )}
                 </DialogTitle>
                 <DialogDescription className="flex items-center gap-2 mt-1 flex-wrap">
                   {order.product_category}
