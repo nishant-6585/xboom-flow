@@ -224,30 +224,114 @@ export function useEnquiries() {
   const updateEnquiry = async (
     enquiryId: string,
     status: QueryStatus,
-    response: EnquiryResponse
+    response: EnquiryResponse,
+    lostReason?: LostReason,
+    lostReasonNotes?: string
   ) => {
     if (!user || !profile) return false;
 
     try {
+      // Find the enquiry to get its data for auto-creation
+      const enquiry = enquiries.find(e => e.id === enquiryId);
+      
+      const updateData: Record<string, unknown> = {
+        status,
+        response_pricing: response.pricing || null,
+        response_availability: response.availability || null,
+        response_lead_time: response.leadTime || null,
+        response_notes: response.notes || null,
+        responded_by: user.id,
+        responded_by_name: profile.name,
+        responded_at: new Date().toISOString(),
+        outcome_updated_at: new Date().toISOString(),
+        outcome_updated_by: user.id,
+      };
+
+      // Handle lost reason
+      if (status === "order_lost") {
+        updateData.lost_reason = lostReason || null;
+        updateData.lost_reason_notes = lostReasonNotes || null;
+      } else {
+        updateData.lost_reason = null;
+        updateData.lost_reason_notes = null;
+      }
+
       const { error } = await supabase
         .from("enquiries")
-        .update({
-          status,
-          response_pricing: response.pricing || null,
-          response_availability: response.availability || null,
-          response_lead_time: response.leadTime || null,
-          response_notes: response.notes || null,
-          responded_by: user.id,
-          responded_by_name: profile.name,
-          responded_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("id", enquiryId);
 
       if (error) throw error;
 
+      // Auto-create pipeline order when moved to pipeline
+      if (status === "moved_to_pipeline" && enquiry) {
+        const { error: pipelineError } = await supabase
+          .from("pipeline_orders")
+          .insert({
+            customer_name: enquiry.customer_name,
+            customer_company: enquiry.customer_company,
+            product_name: enquiry.product_name,
+            product_category: enquiry.product_category,
+            product_code: enquiry.product_code,
+            quantity: enquiry.quantity,
+            sales_person_id: enquiry.sales_person_id || user.id,
+            sales_person_name: enquiry.sales_person_name || profile.name,
+            status: "pending_confirmation",
+            priority: enquiry.urgency === "critical" ? 1 : enquiry.urgency === "high" ? 1 : enquiry.urgency === "medium" ? 2 : 3,
+            customer_notes: enquiry.notes,
+            internal_notes: response.notes || enquiry.response_notes,
+            created_by: user.id,
+            enquiry_id: enquiry.id,
+          });
+
+        if (pipelineError) {
+          console.error("Error creating pipeline order:", pipelineError);
+        }
+      }
+
+      // Auto-create order when marked as won
+      if (status === "order_won" && enquiry) {
+        const { error: orderError } = await supabase
+          .from("orders")
+          .insert({
+            customer_name: enquiry.customer_name,
+            customer_company: enquiry.customer_company,
+            product_name: enquiry.product_name,
+            product_category: enquiry.product_category,
+            product_code: enquiry.product_code || "N/A",
+            quantity: enquiry.quantity,
+            sales_person_id: enquiry.sales_person_id || user.id,
+            sales_person_name: enquiry.sales_person_name || profile.name,
+            status: "po_received",
+            enquiry_id: enquiry.id,
+            sales_notes: enquiry.notes,
+            internal_notes: response.notes ? `From enquiry response: ${response.notes}` : null,
+            created_by: user.id,
+          });
+
+        if (orderError) {
+          console.error("Error creating order:", orderError);
+        }
+      }
+
+      const statusLabels: Record<QueryStatus, string> = {
+        pending: "Pending",
+        responded: "Responded",
+        on_hold: "On Hold",
+        moved_to_pipeline: "Moved to Pipeline",
+        order_won: "Order Won",
+        order_lost: "Order Lost",
+      };
+
       toast({
-        title: "Response Submitted",
-        description: "The enquiry has been updated successfully.",
+        title: `Status Updated to ${statusLabels[status]}`,
+        description: status === "order_won" 
+          ? "Congratulations! The order has been created and moved to Order Management."
+          : status === "order_lost"
+          ? "The enquiry has been marked as lost."
+          : status === "moved_to_pipeline"
+          ? "The enquiry has been moved to the sales pipeline."
+          : "The enquiry has been updated successfully.",
       });
 
       return true;

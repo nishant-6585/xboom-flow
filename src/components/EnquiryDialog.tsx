@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Enquiry, QueryStatus, EnquiryResponse } from "@/hooks/useEnquiries";
+import { Enquiry, QueryStatus, EnquiryResponse, ENQUIRY_STATUSES, LOST_REASONS, LostReason } from "@/hooks/useEnquiries";
 import { StatusBadge } from "./StatusBadge";
 import { UrgencyIndicator } from "./UrgencyIndicator";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,7 +37,7 @@ interface EnquiryDialogProps {
   enquiry: Enquiry | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmitResponse: (enquiryId: string, status: QueryStatus, response: EnquiryResponse) => Promise<boolean>;
+  onSubmitResponse: (enquiryId: string, status: QueryStatus, response: EnquiryResponse, lostReason?: LostReason, lostReasonNotes?: string) => Promise<boolean>;
   onDelete: (enquiryId: string) => Promise<boolean>;
   onEscalate: (enquiryId: string, reason: string) => Promise<boolean>;
   onSubmitAdminResponse?: (enquiryId: string, adminResponse: string) => Promise<boolean>;
@@ -65,6 +65,8 @@ export function EnquiryDialog({
   const [escalateDialogOpen, setEscalateDialogOpen] = useState(false);
   const [escalationReason, setEscalationReason] = useState("");
   const [adminResponseText, setAdminResponseText] = useState("");
+  const [lostReason, setLostReason] = useState<LostReason | "">("");
+  const [lostReasonNotes, setLostReasonNotes] = useState("");
 
   // Reset form when enquiry changes
   useEffect(() => {
@@ -77,6 +79,8 @@ export function EnquiryDialog({
         notes: enquiry.response_notes || "",
       });
       setAdminResponseText(enquiry.admin_response || "");
+      setLostReason(enquiry.lost_reason || "");
+      setLostReasonNotes(enquiry.lost_reason_notes || "");
     }
   }, [enquiry]);
 
@@ -88,8 +92,18 @@ export function EnquiryDialog({
   const canRespondToEscalation = role === "admin" && enquiry.is_escalated && onSubmitAdminResponse;
 
   const handleSubmit = async () => {
+    // Validate lost reason is required when status is order_lost
+    if (status === "order_lost" && !lostReason) {
+      return; // Don't submit without lost reason
+    }
     setLoading(true);
-    const success = await onSubmitResponse(enquiry.id, status, response);
+    const success = await onSubmitResponse(
+      enquiry.id, 
+      status, 
+      response, 
+      status === "order_lost" ? (lostReason as LostReason) : undefined,
+      status === "order_lost" ? lostReasonNotes : undefined
+    );
     setLoading(false);
     if (success) {
       onOpenChange(false);
@@ -301,22 +315,57 @@ export function EnquiryDialog({
 
                 <div className="space-y-2">
                   <Label htmlFor="status">Update Status</Label>
-                  <Select value={status} onValueChange={(v: QueryStatus) => setStatus(v)}>
+                  <Select value={status} onValueChange={(v: QueryStatus) => {
+                    setStatus(v);
+                    // Clear lost reason when status changes away from order_lost
+                    if (v !== "order_lost") {
+                      setLostReason("");
+                      setLostReasonNotes("");
+                    }
+                  }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="in_review">In Review</SelectItem>
-                      <SelectItem value="confirmed">Confirmed</SelectItem>
-                      <SelectItem value="on_hold">On Hold</SelectItem>
-                      <SelectItem value="moved_to_pipeline">Move to Pipeline</SelectItem>
-                      <SelectItem value="order_won">Order Won (Create Order)</SelectItem>
-                      <SelectItem value="order_lost">Order Lost</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
+                      {ENQUIRY_STATUSES.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Lost Reason Section - Show when status is order_lost */}
+                {status === "order_lost" && (
+                  <div className="space-y-4 p-4 rounded-lg bg-destructive/5 border border-destructive/20">
+                    <div className="space-y-2">
+                      <Label htmlFor="lostReason" className="text-destructive">Lost Reason *</Label>
+                      <Select value={lostReason} onValueChange={(v: LostReason) => setLostReason(v)}>
+                        <SelectTrigger className="border-destructive/30">
+                          <SelectValue placeholder="Select reason for losing" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LOST_REASONS.map((r) => (
+                            <SelectItem key={r.value} value={r.value}>
+                              {r.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lostReasonNotes">Additional Notes</Label>
+                      <Textarea
+                        id="lostReasonNotes"
+                        placeholder="Provide more details about why this order was lost..."
+                        rows={2}
+                        value={lostReasonNotes}
+                        onChange={(e) => setLostReasonNotes(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
