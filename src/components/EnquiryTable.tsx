@@ -248,15 +248,13 @@ export function EnquiryTable({ enquiries, onUpdateStatus, onEnquiryClick }: Enqu
               <TableHead>Status</TableHead>
               <TableHead>Response Time</TableHead>
               <TableHead>SLA Status</TableHead>
-              <TableHead>Links</TableHead>
-              <TableHead>Lost Reason</TableHead>
               {canUpdateStatus && <TableHead className="w-[100px]">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {enquiries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canUpdateStatus ? 11 : 10} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={canUpdateStatus ? 9 : 8} className="text-center py-8 text-muted-foreground">
                   No enquiries found
                 </TableCell>
               </TableRow>
@@ -313,64 +311,6 @@ export function EnquiryTable({ enquiries, onUpdateStatus, onEnquiryClick }: Enqu
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <TooltipProvider>
-                          {related.hasOrder && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-100"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigateToOrder(enquiry.id);
-                                  }}
-                                >
-                                  <ShoppingCart className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>View linked Order</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                          {related.hasPipeline && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-purple-600 hover:text-purple-700 hover:bg-purple-100"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigateToPipeline(enquiry.id);
-                                  }}
-                                >
-                                  <GitBranch className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>View linked Pipeline entry</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                          {!related.hasOrder && !related.hasPipeline && (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </TooltipProvider>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {enquiry.status === "order_lost" ? (
-                        <span className="text-sm text-muted-foreground">
-                          {getLostReasonLabel(enquiry.lost_reason)}
-                        </span>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">-</span>
-                      )}
                     </TableCell>
                     {canUpdateStatus && (
                       <TableCell>
