@@ -17,6 +17,7 @@ export interface PaymentRecord {
   submitted_by: string;
   submitted_at: string;
   reviewed_by: string | null;
+  reviewed_by_name?: string | null;
   reviewed_at: string | null;
   rejection_reason: string | null;
   created_at: string;
@@ -79,10 +80,23 @@ export function usePaymentRecords(orderId?: string) {
             }
           }
 
+          // Fetch reviewer name if reviewed_by exists
+          let reviewerName: string | null = null;
+          if (record.reviewed_by) {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('name')
+              .eq('user_id', record.reviewed_by)
+              .single();
+            
+            reviewerName = profileData?.name || null;
+          }
+
           return {
             ...record,
             screenshot_signed_url: signedUrls[0] || null, // Keep first for backward compatibility
             screenshot_signed_urls: signedUrls,
+            reviewed_by_name: reviewerName,
           } as PaymentRecord;
         })
       );
