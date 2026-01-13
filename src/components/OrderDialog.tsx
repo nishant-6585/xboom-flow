@@ -94,6 +94,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [orderOutcome, setOrderOutcome] = useState<OrderOutcome>('pending');
   const [lostReason, setLostReason] = useState<LostReason>('price');
   const [lostReasonNotes, setLostReasonNotes] = useState('');
+  const [supplierPaymentTerms, setSupplierPaymentTerms] = useState('');
 
   useEffect(() => {
     if (order) {
@@ -127,6 +128,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setOrderOutcome((order.order_outcome || 'pending') as OrderOutcome);
       setLostReason((order.lost_reason as LostReason) || 'price');
       setLostReasonNotes(order.lost_reason_notes || '');
+      setSupplierPaymentTerms((order as any).supplier_payment_terms || '');
       setEscalationReason('');
       setShowEscalationForm(false);
       
@@ -306,7 +308,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       lost_reason_notes: orderOutcome === 'lost' ? (lostReasonNotes || null) : null,
       outcome_updated_at: orderOutcome !== order.order_outcome ? new Date().toISOString() : order.outcome_updated_at,
       outcome_updated_by: orderOutcome !== order.order_outcome ? user?.id : order.outcome_updated_by,
-    };
+      supplier_payment_terms: supplierPaymentTerms || null,
+    } as Partial<Order>;
     const success = await onUpdate(order.id, updates);
     setLoading(false);
     if (success) {
@@ -1101,6 +1104,24 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                           disabled={loading}
                         />
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="supplier_payment_terms">Supplier Payment Terms</Label>
+                      <Select value={supplierPaymentTerms} onValueChange={setSupplierPaymentTerms}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select payment terms" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="advance">Advance</SelectItem>
+                          <SelectItem value="cod">Cash on Delivery</SelectItem>
+                          <SelectItem value="net_7">Net 7 Days</SelectItem>
+                          <SelectItem value="net_15">Net 15 Days</SelectItem>
+                          <SelectItem value="net_30">Net 30 Days</SelectItem>
+                          <SelectItem value="net_45">Net 45 Days</SelectItem>
+                          <SelectItem value="net_60">Net 60 Days</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     {/* Supplier Payments Section */}
