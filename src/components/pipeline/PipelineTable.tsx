@@ -10,10 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Edit, Trash2, Search, Filter, User } from 'lucide-react';
+import { CalendarIcon, Edit, Trash2, Search, Filter, User, FolderOpen } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { PipelineOrder, PIPELINE_STATUSES, PipelineStatus } from '@/hooks/usePipelineOrders';
+import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -50,6 +51,7 @@ export function PipelineTable({ orders, onUpdate, onDelete }: PipelineTableProps
   const { role } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [salesPersonFilter, setSalesPersonFilter] = useState('all');
   const [salesTeam, setSalesTeam] = useState<SalesTeamMember[]>([]);
   const [editOrder, setEditOrder] = useState<PipelineOrder | null>(null);
@@ -71,8 +73,9 @@ export function PipelineTable({ orders, onUpdate, onDelete }: PipelineTableProps
       order.customer_company.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.product_name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    const matchesCategory = categoryFilter === 'all' || order.product_category === categoryFilter;
     const matchesSalesPerson = salesPersonFilter === 'all' || order.sales_person_id === salesPersonFilter;
-    return matchesSearch && matchesStatus && matchesSalesPerson;
+    return matchesSearch && matchesStatus && matchesCategory && matchesSalesPerson;
   });
 
   const handleEditClick = (order: PipelineOrder) => {
@@ -126,6 +129,18 @@ export function PipelineTable({ orders, onUpdate, onDelete }: PipelineTableProps
               <SelectItem value="all">All Statuses</SelectItem>
               {PIPELINE_STATUSES.map(s => (
                 <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[180px]">
+              <FolderOpen className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {PRODUCT_CATEGORIES.map(cat => (
+                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
               ))}
             </SelectContent>
           </Select>
