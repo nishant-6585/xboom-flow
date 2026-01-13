@@ -62,7 +62,7 @@ export default function Procurement() {
           <TabsList className="grid w-full grid-cols-7 lg:w-[840px]">
             <TabsTrigger value="orders" className="gap-2">
               <FileText className="w-4 h-4" />
-              <span className="hidden sm:inline">Orders</span>
+              <span className="hidden sm:inline">Procurements</span>
             </TabsTrigger>
             <TabsTrigger value="inventory" className="gap-2">
               <Package className="w-4 h-4" />
