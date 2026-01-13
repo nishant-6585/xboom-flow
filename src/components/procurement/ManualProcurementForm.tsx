@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,13 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Badge } from '@/components/ui/badge';
 import { useInventoryProcurements } from '@/hooks/useInventoryProcurements';
 import { useSuppliers, Supplier } from '@/hooks/useSuppliers';
 import { useInventory } from '@/hooks/useInventory';
+import { useOrders } from '@/hooks/useOrders';
 import { calculatePaymentDueDate } from '@/lib/paymentTerms';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, Loader2, Package, Plus } from 'lucide-react';
+import { CalendarIcon, Loader2, Package, Plus, Search, FileText } from 'lucide-react';
 
 interface ManualProcurementFormProps {
   open: boolean;
@@ -36,9 +38,13 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
   const { createProcurement } = useInventoryProcurements();
   const { suppliers } = useSuppliers();
   const { inventory } = useInventory();
+  const { orders } = useOrders();
   const [loading, setLoading] = useState(false);
 
   // Form state
+  const [isInventoryProcurement, setIsInventoryProcurement] = useState(true);
+  const [selectedOrderId, setSelectedOrderId] = useState('');
+  const [orderSearch, setOrderSearch] = useState('');
   const [productName, setProductName] = useState('');
   const [productCategory, setProductCategory] = useState('Consumer Drones');
   const [productCode, setProductCode] = useState('');
@@ -58,6 +64,36 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
 
   // Get selected supplier name
   const selectedSupplier = suppliers.find(s => s.id === supplierId);
+  
+  // Get selected order
+  const selectedOrder = orders.find(o => o.id === selectedOrderId);
+
+  // Filter orders for search
+  const filteredOrders = useMemo(() => {
+    if (!orderSearch.trim()) return orders.slice(0, 50);
+    const search = orderSearch.toLowerCase();
+    return orders.filter(o => 
+      o.order_number?.toLowerCase().includes(search) ||
+      o.product_name.toLowerCase().includes(search) ||
+      o.customer_company.toLowerCase().includes(search)
+    ).slice(0, 50);
+  }, [orders, orderSearch]);
+
+  // Handle order selection - auto-fill product details
+  useEffect(() => {
+    if (selectedOrderId && selectedOrder) {
+      setProductName(selectedOrder.product_name);
+      setProductCategory(selectedOrder.product_category || 'Consumer Drones');
+      setProductCode(selectedOrder.product_code || '');
+      setQuantity(String(selectedOrder.quantity));
+      if (selectedOrder.procurement_rate) {
+        setUnitPrice(String(selectedOrder.procurement_rate));
+      }
+      if (selectedOrder.supplier_id) {
+        setSupplierId(selectedOrder.supplier_id);
+      }
+    }
+  }, [selectedOrderId, selectedOrder]);
 
   // Handle payment terms change - auto-calculate due date
   const handlePaymentTermsChange = (value: string) => {
@@ -82,6 +118,9 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
   }, [useExistingProduct, selectedInventoryId, inventory]);
 
   const resetForm = () => {
+    setIsInventoryProcurement(true);
+    setSelectedOrderId('');
+    setOrderSearch('');
     setProductName('');
     setProductCategory('Consumer Drones');
     setProductCode('');
@@ -97,10 +136,13 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
     setSelectedInventoryId('');
   };
 
+  // Validation - order is required for non-inventory procurements
+  const isValid = productName.trim() && (isInventoryProcurement || selectedOrderId);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!productName.trim()) {
+    if (!isValid) {
       return;
     }
 
@@ -122,7 +164,8 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
       procurement_date: format(procurementDate, 'yyyy-MM-dd'),
       notes: notes || null,
       inventory_id: useExistingProduct ? selectedInventoryId : null,
-    }, addToInventory);
+      order_id: selectedOrderId || null,
+    }, addToInventory && isInventoryProcurement);
 
     setLoading(false);
 
@@ -146,20 +189,139 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Procurement Type Toggle */}
+          <div className="space-y-3 p-4 bg-muted/30 rounded-lg border">
+            <Label className="text-sm font-medium">Procurement Type</Label>
+            <div className="flex gap-4">
+              <div 
+                className={cn(
+                  "flex-1 p-3 rounded-lg border-2 cursor-pointer transition-all",
+                  isInventoryProcurement 
+                    ? "border-primary bg-primary/5" 
+                    : "border-muted hover:border-muted-foreground/50"
+                )}
+                onClick={() => {
+                  setIsInventoryProcurement(true);
+                  setSelectedOrderId('');
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <Package className={cn("h-4 w-4", isInventoryProcurement && "text-primary")} />
+                  <span className={cn("font-medium", isInventoryProcurement && "text-primary")}>
+                    Inventory Procurement
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Standalone procurement for stock (Order optional)
+                </p>
+              </div>
+              <div 
+                className={cn(
+                  "flex-1 p-3 rounded-lg border-2 cursor-pointer transition-all",
+                  !isInventoryProcurement 
+                    ? "border-primary bg-primary/5" 
+                    : "border-muted hover:border-muted-foreground/50"
+                )}
+                onClick={() => setIsInventoryProcurement(false)}
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className={cn("h-4 w-4", !isInventoryProcurement && "text-primary")} />
+                  <span className={cn("font-medium", !isInventoryProcurement && "text-primary")}>
+                    Order Procurement
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Linked to specific order (Order required)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Order Selection */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>
+                Link to Order {!isInventoryProcurement && <span className="text-destructive">*</span>}
+              </Label>
+              {selectedOrder && (
+                <Badge variant="secondary" className="gap-1">
+                  {selectedOrder.order_number || 'No Order #'}
+                </Badge>
+              )}
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={orderSearch}
+                onChange={(e) => setOrderSearch(e.target.value)}
+                placeholder="Search by order number, product, or company..."
+                className="pl-9"
+              />
+            </div>
+            <Select 
+              value={selectedOrderId} 
+              onValueChange={(val) => {
+                if (val === 'none') {
+                  setSelectedOrderId('');
+                  setProductName('');
+                  setProductCategory('Consumer Drones');
+                  setProductCode('');
+                  setQuantity('1');
+                  setUnitPrice('');
+                  setSupplierId('');
+                } else {
+                  setSelectedOrderId(val);
+                }
+              }}
+            >
+              <SelectTrigger className={cn(!isInventoryProcurement && !selectedOrderId && "border-destructive")}>
+                <SelectValue placeholder="Select an order to link" />
+              </SelectTrigger>
+              <SelectContent className="max-h-60">
+                {isInventoryProcurement && (
+                  <SelectItem value="none">No order (Inventory only)</SelectItem>
+                )}
+                {filteredOrders.map((order) => (
+                  <SelectItem key={order.id} value={order.id}>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{order.order_number || 'No #'}</span>
+                      <span className="text-muted-foreground">-</span>
+                      <span className="truncate max-w-[200px]">{order.product_name}</span>
+                      <span className="text-xs text-muted-foreground">({order.customer_company})</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedOrder && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-900 text-sm space-y-1">
+                <div className="font-medium text-blue-700 dark:text-blue-300">Order Details Auto-filled</div>
+                <div className="grid grid-cols-2 gap-2 text-xs text-blue-600 dark:text-blue-400">
+                  <div>Product: {selectedOrder.product_name}</div>
+                  <div>Qty: {selectedOrder.quantity}</div>
+                  <div>Customer: {selectedOrder.customer_company}</div>
+                  <div>Status: {selectedOrder.status.replace(/_/g, ' ')}</div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Product Selection */}
           <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="useExisting"
-                checked={useExistingProduct}
-                onCheckedChange={(checked) => setUseExistingProduct(checked === true)}
-              />
-              <Label htmlFor="useExisting" className="cursor-pointer">
-                Select from existing inventory items
-              </Label>
-            </div>
+            {!selectedOrderId && (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="useExisting"
+                  checked={useExistingProduct}
+                  onCheckedChange={(checked) => setUseExistingProduct(checked === true)}
+                />
+                <Label htmlFor="useExisting" className="cursor-pointer">
+                  Select from existing inventory items
+                </Label>
+              </div>
+            )}
 
-            {useExistingProduct ? (
+            {useExistingProduct && !selectedOrderId ? (
               <div className="space-y-2">
                 <Label>Select Inventory Item</Label>
                 <Select value={selectedInventoryId} onValueChange={setSelectedInventoryId}>
@@ -185,11 +347,12 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
                     onChange={(e) => setProductName(e.target.value)}
                     placeholder="Enter product name"
                     required
+                    disabled={!!selectedOrderId}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="productCategory">Category</Label>
-                  <Select value={productCategory} onValueChange={setProductCategory}>
+                  <Select value={productCategory} onValueChange={setProductCategory} disabled={!!selectedOrderId}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -337,24 +500,26 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
             />
           </div>
 
-          {/* Add to Inventory Option */}
-          <div className="flex items-center space-x-2 p-3 bg-muted/50 rounded-lg">
-            <Checkbox
-              id="addToInventory"
-              checked={addToInventory}
-              onCheckedChange={(checked) => setAddToInventory(checked === true)}
-            />
-            <Label htmlFor="addToInventory" className="cursor-pointer">
-              Automatically add {quantity} unit(s) to inventory stock
-            </Label>
-          </div>
+          {/* Add to Inventory Option - only for inventory procurements */}
+          {isInventoryProcurement && (
+            <div className="flex items-center space-x-2 p-3 bg-muted/50 rounded-lg">
+              <Checkbox
+                id="addToInventory"
+                checked={addToInventory}
+                onCheckedChange={(checked) => setAddToInventory(checked === true)}
+              />
+              <Label htmlFor="addToInventory" className="cursor-pointer">
+                Automatically add {quantity} unit(s) to inventory stock
+              </Label>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || !productName.trim()}>
+            <Button type="submit" disabled={loading || !isValid}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

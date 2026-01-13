@@ -20,6 +20,7 @@ export interface InventoryProcurement {
   procurement_date: string;
   notes: string | null;
   inventory_id: string | null;
+  order_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

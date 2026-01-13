@@ -7,21 +7,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useInventoryProcurements, InventoryProcurement } from '@/hooks/useInventoryProcurements';
 import { useInventoryProcurementPayments } from '@/hooks/useInventoryProcurementPayments';
+import { useOrders } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
 import { format, parseISO, isBefore, addDays } from 'date-fns';
 import { getPaymentTermsLabel } from '@/lib/paymentTerms';
-import { Package, Trash2, CreditCard, AlertTriangle, CheckCircle2, Clock, Loader2, History, Plus } from 'lucide-react';
+import { Package, Trash2, CreditCard, AlertTriangle, CheckCircle2, Clock, Loader2, History, Plus, FileText } from 'lucide-react';
 import { InventoryProcurementPaymentDialog } from './InventoryProcurementPaymentDialog';
 import { InventoryProcurementPaymentHistory } from './InventoryProcurementPaymentHistory';
 
 export function InventoryProcurementsList() {
   const { procurements, loading, updateProcurement, deleteProcurement, refetch } = useInventoryProcurements();
   const { getPaymentsByProcurementMap, refetch: refetchPayments } = useInventoryProcurementPayments();
+  const { orders } = useOrders();
   const { role } = useAuth();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [paymentProcurement, setPaymentProcurement] = useState<InventoryProcurement | null>(null);
   const [historyProcurement, setHistoryProcurement] = useState<InventoryProcurement | null>(null);
+
+  // Create a map of order IDs to order numbers
+  const orderNumberMap = new Map(orders.map(o => [o.id, o.order_number || o.id.slice(0, 8)]));
 
   const isAdmin = role === 'admin';
   const canManagePayments = role === 'admin' || role === 'supply_chain';
@@ -136,6 +141,7 @@ export function InventoryProcurementsList() {
             <TableHeader>
               <TableRow>
                 <TableHead>Proc. No.</TableHead>
+                <TableHead>Order No.</TableHead>
                 <TableHead>Product</TableHead>
                 <TableHead>Supplier</TableHead>
                 <TableHead className="text-right">Qty</TableHead>
@@ -160,6 +166,16 @@ export function InventoryProcurementsList() {
                       <Badge variant="outline" className="font-mono text-xs">
                         {procurement.procurement_number || '-'}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {procurement.order_id ? (
+                        <Badge variant="secondary" className="gap-1 text-xs">
+                          <FileText className="h-3 w-3" />
+                          {orderNumberMap.get(procurement.order_id) || procurement.order_id.slice(0, 8)}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">Inventory</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div>

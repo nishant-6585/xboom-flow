@@ -171,6 +171,7 @@ export type Database = {
           id: string
           inventory_id: string | null
           notes: string | null
+          order_id: string | null
           payment_due_date: string | null
           payment_status: string
           payment_terms: string | null
@@ -192,6 +193,7 @@ export type Database = {
           id?: string
           inventory_id?: string | null
           notes?: string | null
+          order_id?: string | null
           payment_due_date?: string | null
           payment_status?: string
           payment_terms?: string | null
@@ -213,6 +215,7 @@ export type Database = {
           id?: string
           inventory_id?: string | null
           notes?: string | null
+          order_id?: string | null
           payment_due_date?: string | null
           payment_status?: string
           payment_terms?: string | null
@@ -234,6 +237,13 @@ export type Database = {
             columns: ["inventory_id"]
             isOneToOne: false
             referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_procurements_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
           {
