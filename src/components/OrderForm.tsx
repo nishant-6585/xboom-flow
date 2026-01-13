@@ -17,9 +17,11 @@ interface OrderFormProps {
   enquiries?: Enquiry[];
   suppliers?: Supplier[];
   showProcurementRate?: boolean;
+  userRole?: 'sales' | 'supply_chain' | 'admin';
 }
 
-export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcurementRate = true }: OrderFormProps) {
+export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcurementRate = true, userRole = 'sales' }: OrderFormProps) {
+  const canViewProcurement = userRole === 'admin' || userRole === 'supply_chain';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const invoiceInputRef = useRef<HTMLInputElement>(null);
   const poInputRef = useRef<HTMLInputElement>(null);
@@ -640,112 +642,116 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
             </div>
           </div>
 
-          {/* Procurement Details */}
-          <div className="space-y-4">
-            <h3 className="font-medium text-sm text-muted-foreground">Procurement Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2 md:col-span-2">
-                <Label>Select Supplier</Label>
-                <Select 
-                  value={formData.supplier_id || 'none'} 
-                  onValueChange={handleSupplierSelect}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a supplier (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Supplier / Enter Manually</SelectItem>
-                    {activeSuppliers.map(supplier => (
-                      <SelectItem key={supplier.id} value={supplier.id}>
-                        {supplier.name} - {supplier.contact_name} ({supplier.product_category})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="supplier_name">Supplier Name</Label>
-                <Input
-                  id="supplier_name"
-                  value={formData.supplier_name || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, supplier_name: e.target.value }))}
-                  disabled={loading}
-                  placeholder={formData.supplier_id ? 'Auto-filled from selection' : 'Enter supplier name'}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="supplier_contact">Supplier Contact</Label>
-                <Input
-                  id="supplier_contact"
-                  value={formData.supplier_contact || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, supplier_contact: e.target.value }))}
-                  disabled={loading}
-                  placeholder={formData.supplier_id ? 'Auto-filled from selection' : 'Enter contact info'}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="procurement_rate">Procurement Rate (₹)</Label>
-                <Input
-                  id="procurement_rate"
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={formData.procurement_rate || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, procurement_rate: parseFloat(e.target.value) || undefined }))}
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="selling_price">Selling Price per Unit (₹)</Label>
-                <Input
-                  id="selling_price"
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={formData.selling_price || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, selling_price: parseFloat(e.target.value) || undefined }))}
-                  disabled={loading}
-                />
+          {/* Procurement Details - Only visible to Admin/Supply Chain */}
+          {canViewProcurement && (
+            <div className="space-y-4">
+              <h3 className="font-medium text-sm text-muted-foreground">Procurement Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Select Supplier</Label>
+                  <Select 
+                    value={formData.supplier_id || 'none'} 
+                    onValueChange={handleSupplierSelect}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a supplier (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Supplier / Enter Manually</SelectItem>
+                      {activeSuppliers.map(supplier => (
+                        <SelectItem key={supplier.id} value={supplier.id}>
+                          {supplier.name} - {supplier.contact_name} ({supplier.product_category})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="supplier_name">Supplier Name</Label>
+                  <Input
+                    id="supplier_name"
+                    value={formData.supplier_name || ''}
+                    onChange={e => setFormData(prev => ({ ...prev, supplier_name: e.target.value }))}
+                    disabled={loading}
+                    placeholder={formData.supplier_id ? 'Auto-filled from selection' : 'Enter supplier name'}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="supplier_contact">Supplier Contact</Label>
+                  <Input
+                    id="supplier_contact"
+                    value={formData.supplier_contact || ''}
+                    onChange={e => setFormData(prev => ({ ...prev, supplier_contact: e.target.value }))}
+                    disabled={loading}
+                    placeholder={formData.supplier_id ? 'Auto-filled from selection' : 'Enter contact info'}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="procurement_rate">Procurement Rate (₹)</Label>
+                  <Input
+                    id="procurement_rate"
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={formData.procurement_rate || ''}
+                    onChange={e => setFormData(prev => ({ ...prev, procurement_rate: parseFloat(e.target.value) || undefined }))}
+                    disabled={loading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="selling_price">Selling Price per Unit (₹)</Label>
+                  <Input
+                    id="selling_price"
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={formData.selling_price || ''}
+                    onChange={e => setFormData(prev => ({ ...prev, selling_price: parseFloat(e.target.value) || undefined }))}
+                    disabled={loading}
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Tracking Details */}
-          <div className="space-y-4">
-            <h3 className="font-medium text-sm text-muted-foreground">Tracking Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="tracking_number">Tracking Number</Label>
-                <Input
-                  id="tracking_number"
-                  value={formData.tracking_number || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, tracking_number: e.target.value }))}
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tracking_url">Tracking URL</Label>
-                <Input
-                  id="tracking_url"
-                  type="url"
-                  value={formData.tracking_url || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, tracking_url: e.target.value }))}
-                  disabled={loading}
-                  placeholder="https://..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="estimated_delivery">Estimated Delivery</Label>
-                <Input
-                  id="estimated_delivery"
-                  type="date"
-                  value={formData.estimated_delivery || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, estimated_delivery: e.target.value }))}
-                  disabled={loading}
-                />
+          {/* Tracking Details - Only visible to Admin/Supply Chain */}
+          {canViewProcurement && (
+            <div className="space-y-4">
+              <h3 className="font-medium text-sm text-muted-foreground">Tracking Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="tracking_number">Tracking Number</Label>
+                  <Input
+                    id="tracking_number"
+                    value={formData.tracking_number || ''}
+                    onChange={e => setFormData(prev => ({ ...prev, tracking_number: e.target.value }))}
+                    disabled={loading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tracking_url">Tracking URL</Label>
+                  <Input
+                    id="tracking_url"
+                    type="url"
+                    value={formData.tracking_url || ''}
+                    onChange={e => setFormData(prev => ({ ...prev, tracking_url: e.target.value }))}
+                    disabled={loading}
+                    placeholder="https://..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="estimated_delivery">Estimated Delivery</Label>
+                  <Input
+                    id="estimated_delivery"
+                    type="date"
+                    value={formData.estimated_delivery || ''}
+                    onChange={e => setFormData(prev => ({ ...prev, estimated_delivery: e.target.value }))}
+                    disabled={loading}
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Notes */}
           <div className="space-y-4">
@@ -763,16 +769,18 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                 />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="internal_notes">Internal Notes (Supply Chain Only)</Label>
-                  <Textarea
-                    id="internal_notes"
-                    value={formData.internal_notes || ''}
-                    onChange={e => setFormData(prev => ({ ...prev, internal_notes: e.target.value }))}
-                    disabled={loading}
-                    rows={2}
-                  />
-                </div>
+                {canViewProcurement && (
+                  <div className="space-y-2">
+                    <Label htmlFor="internal_notes">Internal Notes (Supply Chain Only)</Label>
+                    <Textarea
+                      id="internal_notes"
+                      value={formData.internal_notes || ''}
+                      onChange={e => setFormData(prev => ({ ...prev, internal_notes: e.target.value }))}
+                      disabled={loading}
+                      rows={2}
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="customer_notes">Customer Notes (Visible to Sales)</Label>
                   <Textarea

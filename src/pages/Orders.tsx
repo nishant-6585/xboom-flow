@@ -278,6 +278,7 @@ export default function Orders() {
                 enquiries={enquiries}
                 suppliers={suppliers}
                 showProcurementRate={canViewProcurementCosts}
+                userRole={role || 'sales'}
               />
             </TabsContent>
           )}
