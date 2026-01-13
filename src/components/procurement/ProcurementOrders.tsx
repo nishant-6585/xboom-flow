@@ -8,10 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, FileText, ExternalLink, Upload, CreditCard, AlertCircle } from "lucide-react";
+import { Search, FileText, ExternalLink, Upload, CreditCard, AlertCircle, CalendarIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { ProcurementOrderDialog } from "./ProcurementOrderDialog";
 import { PaymentStatusRequestDialog } from "./PaymentStatusRequestDialog";
 import { OrderNumberBadge } from "@/components/OrderNumberBadge";
@@ -101,6 +105,21 @@ export function ProcurementOrders() {
     e.stopPropagation();
     setPaymentRequestOrder(order);
     setPaymentRequestDialogOpen(true);
+  };
+
+  const handleQuickSetProcurementDate = async (order: Order, date: Date | undefined, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!date) return;
+    
+    try {
+      await updateOrder(order.id, { 
+        procurement_date: format(date, 'yyyy-MM-dd') 
+      });
+      toast.success(`Procurement date set to ${format(date, 'dd MMM yyyy')}`);
+      refetch();
+    } catch (error) {
+      toast.error("Failed to update procurement date");
+    }
   };
 
   const getOrderPaymentRequestStatus = (orderId: string) => {
@@ -288,16 +307,42 @@ export function ProcurementOrders() {
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell>
-                        {order.procurement_date ? (
-                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
-                            {format(new Date(order.procurement_date), 'dd MMM')}
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">
-                            Not Set
-                          </Badge>
-                        )}
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            {order.procurement_date ? (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                className="h-auto p-1 hover:bg-green-500/20"
+                              >
+                                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 cursor-pointer">
+                                  {format(new Date(order.procurement_date), 'dd MMM')}
+                                </Badge>
+                              </Button>
+                            ) : (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                className="h-auto p-1 hover:bg-orange-500/20"
+                              >
+                                <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20 cursor-pointer flex items-center gap-1">
+                                  <CalendarIcon className="w-3 h-3" />
+                                  Set Date
+                                </Badge>
+                              </Button>
+                            )}
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={order.procurement_date ? new Date(order.procurement_date) : undefined}
+                              onSelect={(date) => handleQuickSetProcurementDate(order, date, { stopPropagation: () => {} } as React.MouseEvent)}
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={getOrderStatusColor(order.status)}>
