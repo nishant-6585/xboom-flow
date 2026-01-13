@@ -43,6 +43,7 @@ export interface SupplierPayment {
   payment_date: string;
   created_at: string;
   created_by: string | null;
+  screenshot_urls: string[] | null;
 }
 
 export interface SupplierLedger {
@@ -255,8 +256,44 @@ export function useSupplierPayments(supplierId?: string) {
     fetchPayments();
   }, [fetchPayments]);
 
+  const uploadScreenshots = async (files: File[]): Promise<string[]> => {
+    const urls: string[] = [];
+    
+    for (const file of files) {
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}-${file.name}`;
+      const filePath = `${user?.id}/${fileName}`;
+      
+      const { error } = await supabase.storage
+        .from('supplier-payment-screenshots')
+        .upload(filePath, file);
+      
+      if (error) {
+        console.error('Error uploading screenshot:', error);
+        continue;
+      }
+      
+      urls.push(filePath);
+    }
+    
+    return urls;
+  };
+
+  const getSignedUrl = async (path: string): Promise<string | null> => {
+    const { data, error } = await supabase.storage
+      .from('supplier-payment-screenshots')
+      .createSignedUrl(path, 3600); // 1 hour expiry
+    
+    if (error) {
+      console.error('Error getting signed URL:', error);
+      return null;
+    }
+    
+    return data.signedUrl;
+  };
+
   const createPayment = async (
-    paymentData: Omit<SupplierPayment, 'id' | 'created_at' | 'created_by'>
+    paymentData: Omit<SupplierPayment, 'id' | 'created_at' | 'created_by' | 'screenshot_urls'>,
+    screenshots?: File[]
   ): Promise<boolean> => {
     if (!user) {
       toast.error('You must be logged in');
@@ -264,8 +301,15 @@ export function useSupplierPayments(supplierId?: string) {
     }
 
     try {
+      let screenshot_urls: string[] | null = null;
+      
+      if (screenshots && screenshots.length > 0) {
+        screenshot_urls = await uploadScreenshots(screenshots);
+      }
+
       const { error } = await supabase.from('supplier_payments').insert({
         ...paymentData,
+        screenshot_urls,
         created_by: user.id,
       });
 
@@ -307,6 +351,8 @@ export function useSupplierPayments(supplierId?: string) {
     loading,
     createPayment,
     deletePayment,
+    uploadScreenshots,
+    getSignedUrl,
     refetch: fetchPayments,
   };
 }

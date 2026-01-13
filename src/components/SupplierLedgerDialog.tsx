@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,9 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Supplier, useSupplierLedger, useSupplierPayments } from '@/hooks/useSuppliers';
+import { Supplier, SupplierPayment, useSupplierLedger, useSupplierPayments } from '@/hooks/useSuppliers';
 import { format } from 'date-fns';
 import { 
   Loader2, 
@@ -23,7 +22,11 @@ import {
   Phone,
   Mail,
   MapPin,
-  Landmark
+  Landmark,
+  Upload,
+  X,
+  Image as ImageIcon,
+  ExternalLink
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -41,14 +44,28 @@ const PAYMENT_MODES = [
   { value: 'other', label: 'Other' },
 ];
 
+interface FileWithPreview {
+  file: File;
+  preview: string;
+  id: string;
+}
+
+interface PaymentWithSignedUrls extends SupplierPayment {
+  signedUrls?: string[];
+}
+
 export function SupplierLedgerDialog({ supplier, open, onOpenChange }: SupplierLedgerDialogProps) {
   const { ledger, loading, refetch } = useSupplierLedger(supplier?.id || '');
-  const { createPayment, deletePayment } = useSupplierPayments(supplier?.id);
+  const { createPayment, deletePayment, getSignedUrl } = useSupplierPayments(supplier?.id);
   const { role } = useAuth();
   const isAdmin = role === 'admin';
+  const canManage = role === 'admin' || role === 'supply_chain';
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [uploadFiles, setUploadFiles] = useState<FileWithPreview[]>([]);
+  const [paymentsWithUrls, setPaymentsWithUrls] = useState<PaymentWithSignedUrls[]>([]);
   const [paymentForm, setPaymentForm] = useState({
     amount: '',
     payment_type: 'payment',
@@ -58,20 +75,80 @@ export function SupplierLedgerDialog({ supplier, open, onOpenChange }: SupplierL
     payment_date: format(new Date(), 'yyyy-MM-dd'),
   });
 
+  // Load signed URLs for payment screenshots
+  useEffect(() => {
+    const loadSignedUrls = async () => {
+      if (!ledger?.payments) {
+        setPaymentsWithUrls([]);
+        return;
+      }
+
+      const paymentsWithSignedUrls = await Promise.all(
+        ledger.payments.map(async (payment) => {
+          if (payment.screenshot_urls && payment.screenshot_urls.length > 0) {
+            const signedUrls = await Promise.all(
+              payment.screenshot_urls.map(async (url) => {
+                const signedUrl = await getSignedUrl(url);
+                return signedUrl || '';
+              })
+            );
+            return { ...payment, signedUrls: signedUrls.filter(Boolean) };
+          }
+          return { ...payment, signedUrls: [] };
+        })
+      );
+
+      setPaymentsWithUrls(paymentsWithSignedUrls);
+    };
+
+    loadSignedUrls();
+  }, [ledger?.payments, getSignedUrl]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newFiles: FileWithPreview[] = Array.from(files).map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+      id: Math.random().toString(36).substring(7),
+    }));
+
+    setUploadFiles((prev) => [...prev, ...newFiles]);
+    
+    // Reset the input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveFile = (id: string) => {
+    setUploadFiles((prev) => {
+      const toRemove = prev.find((f) => f.id === id);
+      if (toRemove) {
+        URL.revokeObjectURL(toRemove.preview);
+      }
+      return prev.filter((f) => f.id !== id);
+    });
+  };
+
   const handleAddPayment = async () => {
     if (!supplier || !paymentForm.amount) return;
 
     setPaymentLoading(true);
-    const success = await createPayment({
-      supplier_id: supplier.id,
-      order_id: null,
-      amount: parseFloat(paymentForm.amount),
-      payment_type: paymentForm.payment_type,
-      payment_mode: paymentForm.payment_mode || null,
-      reference_number: paymentForm.reference_number || null,
-      notes: paymentForm.notes || null,
-      payment_date: paymentForm.payment_date,
-    });
+    const success = await createPayment(
+      {
+        supplier_id: supplier.id,
+        order_id: null,
+        amount: parseFloat(paymentForm.amount),
+        payment_type: paymentForm.payment_type,
+        payment_mode: paymentForm.payment_mode || null,
+        reference_number: paymentForm.reference_number || null,
+        notes: paymentForm.notes || null,
+        payment_date: paymentForm.payment_date,
+      },
+      uploadFiles.map((f) => f.file)
+    );
 
     if (success) {
       setShowAddPayment(false);
@@ -83,6 +160,9 @@ export function SupplierLedgerDialog({ supplier, open, onOpenChange }: SupplierL
         notes: '',
         payment_date: format(new Date(), 'yyyy-MM-dd'),
       });
+      // Clean up previews
+      uploadFiles.forEach((f) => URL.revokeObjectURL(f.preview));
+      setUploadFiles([]);
       refetch();
     }
     setPaymentLoading(false);
@@ -93,6 +173,20 @@ export function SupplierLedgerDialog({ supplier, open, onOpenChange }: SupplierL
     
     await deletePayment(paymentId);
     refetch();
+  };
+
+  const handleCancelAddPayment = () => {
+    setShowAddPayment(false);
+    uploadFiles.forEach((f) => URL.revokeObjectURL(f.preview));
+    setUploadFiles([]);
+    setPaymentForm({
+      amount: '',
+      payment_type: 'payment',
+      payment_mode: 'bank_transfer',
+      reference_number: '',
+      notes: '',
+      payment_date: format(new Date(), 'yyyy-MM-dd'),
+    });
   };
 
   if (!supplier) return null;
@@ -275,8 +369,58 @@ export function SupplierLedgerDialog({ supplier, open, onOpenChange }: SupplierL
                         rows={2}
                       />
                     </div>
+
+                    {/* Screenshot Upload */}
+                    <div className="space-y-2">
+                      <Label>Payment Screenshots</Label>
+                      <div className="border-2 border-dashed rounded-lg p-4">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleFileChange}
+                          className="hidden"
+                        />
+                        
+                        {uploadFiles.length > 0 && (
+                          <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mb-4">
+                            {uploadFiles.map((f) => (
+                              <div key={f.id} className="relative group">
+                                <img
+                                  src={f.preview}
+                                  alt="Preview"
+                                  className="w-full h-20 object-cover rounded-md border"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveFile(f.id)}
+                                  className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full"
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          {uploadFiles.length > 0 ? 'Add More Screenshots' : 'Upload Screenshots'}
+                        </Button>
+                        <p className="text-xs text-muted-foreground text-center mt-2">
+                          Upload payment proof screenshots (multiple allowed)
+                        </p>
+                      </div>
+                    </div>
+
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setShowAddPayment(false)}>
+                      <Button variant="outline" onClick={handleCancelAddPayment}>
                         Cancel
                       </Button>
                       <Button onClick={handleAddPayment} disabled={paymentLoading || !paymentForm.amount}>
@@ -286,7 +430,7 @@ export function SupplierLedgerDialog({ supplier, open, onOpenChange }: SupplierL
                     </div>
                   </CardContent>
                 </Card>
-              ) : (
+              ) : canManage && (
                 <Button onClick={() => setShowAddPayment(true)} className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
                   Record Payment
@@ -299,44 +443,76 @@ export function SupplierLedgerDialog({ supplier, open, onOpenChange }: SupplierL
                   <CardTitle className="text-base">Payment History</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {ledger.payments.length === 0 ? (
+                  {paymentsWithUrls.length === 0 ? (
                     <p className="text-center text-muted-foreground py-4">No payments recorded yet</p>
                   ) : (
                     <div className="space-y-3">
-                      {ledger.payments.map((payment) => (
+                      {paymentsWithUrls.map((payment) => (
                         <div
                           key={payment.id}
-                          className="flex items-center justify-between p-3 rounded-lg border bg-secondary/30"
+                          className="p-3 rounded-lg border bg-secondary/30"
                         >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-lg">₹{payment.amount.toLocaleString('en-IN')}</span>
-                              <Badge variant="outline" className="capitalize">{payment.payment_type}</Badge>
-                              {payment.payment_mode && (
-                                <Badge variant="secondary" className="capitalize">
-                                  {payment.payment_mode.replace('_', ' ')}
-                                </Badge>
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-lg">₹{payment.amount.toLocaleString('en-IN')}</span>
+                                <Badge variant="outline" className="capitalize">{payment.payment_type}</Badge>
+                                {payment.payment_mode && (
+                                  <Badge variant="secondary" className="capitalize">
+                                    {payment.payment_mode.replace('_', ' ')}
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="text-sm text-muted-foreground mt-1">
+                                {format(new Date(payment.payment_date), 'dd MMM yyyy')}
+                                {payment.reference_number && (
+                                  <span className="ml-2">• Ref: {payment.reference_number}</span>
+                                )}
+                              </div>
+                              {payment.notes && (
+                                <p className="text-sm text-muted-foreground mt-1 italic">"{payment.notes}"</p>
                               )}
                             </div>
-                            <div className="text-sm text-muted-foreground mt-1">
-                              {format(new Date(payment.payment_date), 'dd MMM yyyy')}
-                              {payment.reference_number && (
-                                <span className="ml-2">• Ref: {payment.reference_number}</span>
-                              )}
-                            </div>
-                            {payment.notes && (
-                              <p className="text-sm text-muted-foreground mt-1 italic">"{payment.notes}"</p>
+                            {isAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => handleDeletePayment(payment.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             )}
                           </div>
-                          {isAdmin && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => handleDeletePayment(payment.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+
+                          {/* Payment Screenshots */}
+                          {payment.signedUrls && payment.signedUrls.length > 0 && (
+                            <div className="mt-3 pt-3 border-t">
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                                <ImageIcon className="h-4 w-4" />
+                                <span>Payment Screenshots ({payment.signedUrls.length})</span>
+                              </div>
+                              <div className="flex gap-2 flex-wrap">
+                                {payment.signedUrls.map((url, idx) => (
+                                  <a
+                                    key={idx}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="relative group"
+                                  >
+                                    <img
+                                      src={url}
+                                      alt={`Payment screenshot ${idx + 1}`}
+                                      className="h-16 w-16 object-cover rounded border hover:opacity-80 transition-opacity"
+                                    />
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded">
+                                      <ExternalLink className="h-4 w-4 text-white" />
+                                    </div>
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
                           )}
                         </div>
                       ))}

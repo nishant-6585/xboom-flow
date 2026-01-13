@@ -774,6 +774,7 @@ export type Database = {
           payment_mode: string | null
           payment_type: string
           reference_number: string | null
+          screenshot_urls: string[] | null
           supplier_id: string
         }
         Insert: {
@@ -787,6 +788,7 @@ export type Database = {
           payment_mode?: string | null
           payment_type?: string
           reference_number?: string | null
+          screenshot_urls?: string[] | null
           supplier_id: string
         }
         Update: {
@@ -800,6 +802,7 @@ export type Database = {
           payment_mode?: string | null
           payment_type?: string
           reference_number?: string | null
+          screenshot_urls?: string[] | null
           supplier_id?: string
         }
         Relationships: [
