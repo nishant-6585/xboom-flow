@@ -254,9 +254,9 @@ const Index = () => {
 
       <main className="container mx-auto px-4 py-6 sm:py-8 flex-1 overflow-x-hidden">
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-2">Product Enquiry System</h2>
+          <h2 className="text-2xl font-bold mb-2">Xboom OS Dashboard</h2>
           <p className="text-muted-foreground">
-            Submit and track pricing, availability, and lead time queries with the supply chain team
+            Track daily operations across Sales, Supply Chain, and Finance for customer delight
           </p>
         </div>
 

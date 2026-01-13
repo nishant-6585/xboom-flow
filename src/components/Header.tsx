@@ -43,11 +43,11 @@ export function Header() {
   const getRoleLabel = (role: string | null) => {
     switch (role) {
       case "sales":
-        return "Sales Team";
+        return "Sales";
       case "supply_chain":
         return "Supply Chain";
       case "admin":
-        return "Admin";
+        return "Finance & Admin";
       default:
         return "User";
     }
@@ -130,7 +130,7 @@ export function Header() {
 
           <Link to="/" className="flex items-center gap-3">
             <img src={logoFull} alt="Xboom Logo" className="h-10 w-auto" />
-            <span className="text-muted-foreground font-normal hidden sm:inline">| Operations</span>
+            <span className="text-muted-foreground font-normal hidden sm:inline">| OS</span>
           </Link>
         </div>
 
