@@ -23,6 +23,7 @@ export interface PipelineOrder {
   sales_person_name: string;
   lead_source: string | null;
   priority: number | null;
+  probability: number | null;
   internal_notes: string | null;
   created_at: string;
   updated_at: string;
@@ -46,6 +47,7 @@ export interface PipelineOrderFormData {
   sales_person_name: string;
   lead_source?: string;
   priority?: number;
+  probability?: number;
   internal_notes?: string;
 }
 
