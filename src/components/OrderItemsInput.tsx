@@ -7,6 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Trash2, Package } from 'lucide-react';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { OrderItemFormData } from '@/hooks/useOrderItems';
+import { ProductSelect } from '@/components/ProductSelect';
+import { PricelistItem } from '@/hooks/usePricelist';
 
 interface OrderItemsInputProps {
   items: OrderItemFormData[];
@@ -39,6 +41,21 @@ export function OrderItemsInput({ items, onChange, disabled = false, showProcure
     const updated = items.map((item, i) => {
       if (i === index) {
         return { ...item, [field]: value };
+      }
+      return item;
+    });
+    onChange(updated);
+  };
+
+  const handleProductSelect = (index: number, productName: string, product?: PricelistItem) => {
+    const updated = items.map((item, i) => {
+      if (i === index) {
+        return {
+          ...item,
+          product_name: productName,
+          product_category: product?.product_category || item.product_category,
+          unit_price: product?.dealer_price || product?.website_price || item.unit_price,
+        };
       }
       return item;
     });
@@ -89,12 +106,10 @@ export function OrderItemsInput({ items, onChange, disabled = false, showProcure
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor={`product_name_${index}`}>Product Name *</Label>
-                  <Input
-                    id={`product_name_${index}`}
+                  <ProductSelect
                     value={item.product_name}
-                    onChange={e => updateItem(index, 'product_name', e.target.value)}
-                    placeholder="Enter product name"
-                    required
+                    onChange={(name, product) => handleProductSelect(index, name, product)}
+                    placeholder="Select or type product..."
                     disabled={disabled}
                   />
                 </div>

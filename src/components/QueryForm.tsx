@@ -13,6 +13,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EnquiryFormData, UrgencyLevel, PRODUCT_CATEGORIES, ProductCategory } from "@/hooks/useEnquiries";
 import { Send, Package, User, Building2, Loader2, Calendar } from "lucide-react";
+import { ProductSelect } from "@/components/ProductSelect";
+import { PricelistItem } from "@/hooks/usePricelist";
 
 interface QueryFormProps {
   onSubmit: (data: EnquiryFormData) => Promise<boolean>;
@@ -59,6 +61,14 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
     }
   };
 
+  const handleProductSelect = (productName: string, product?: PricelistItem) => {
+    setFormData({
+      ...formData,
+      productName,
+      productCategory: (product?.product_category as ProductCategory) || formData.productCategory,
+    });
+  };
+
   return (
     <Card className="glass animate-fade-in">
       <CardHeader>
@@ -77,13 +87,11 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="productName">Product Name *</Label>
-                <Input
-                  id="productName"
-                  placeholder="Enter product name"
+                <ProductSelect
                   value={formData.productName}
-                  onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
+                  onChange={handleProductSelect}
+                  placeholder="Select or type product..."
                   disabled={loading}
-                  required
                 />
               </div>
               <div className="space-y-2">

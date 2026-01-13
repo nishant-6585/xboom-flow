@@ -1,0 +1,151 @@
+import { useState, useMemo } from 'react';
+import { Check, ChevronsUpDown, Search } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { usePricelist, PricelistItem } from '@/hooks/usePricelist';
+
+interface ProductSelectProps {
+  value: string;
+  onChange: (value: string, product?: PricelistItem) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+}
+
+export function ProductSelect({
+  value,
+  onChange,
+  placeholder = "Select or type product...",
+  disabled = false,
+  className,
+}: ProductSelectProps) {
+  const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const { items, loading } = usePricelist();
+
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery) return items.slice(0, 100); // Show first 100 when no search
+    
+    const query = searchQuery.toLowerCase();
+    return items
+      .filter(item => 
+        item.product_name.toLowerCase().includes(query) ||
+        (item.brand?.toLowerCase().includes(query) ?? false)
+      )
+      .slice(0, 100);
+  }, [items, searchQuery]);
+
+  const selectedProduct = items.find(p => p.product_name === value);
+
+  const handleSelect = (productName: string) => {
+    const product = items.find(p => p.product_name === productName);
+    onChange(productName, product);
+    setOpen(false);
+    setSearchQuery('');
+  };
+
+  const handleInputChange = (newValue: string) => {
+    setSearchQuery(newValue);
+    // Allow typing custom value
+    if (newValue && !items.some(p => p.product_name === newValue)) {
+      onChange(newValue, undefined);
+    }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className={cn("w-full justify-between font-normal", className)}
+          disabled={disabled}
+        >
+          <span className="truncate">
+            {value || placeholder}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[400px] p-0 z-50" align="start">
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Search products..."
+            value={searchQuery}
+            onValueChange={handleInputChange}
+          />
+          <CommandList>
+            {loading ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">
+                Loading products...
+              </div>
+            ) : (
+              <>
+                <CommandEmpty>
+                  <div className="py-4 text-center text-sm">
+                    <p className="text-muted-foreground mb-2">No product found.</p>
+                    {searchQuery && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSelect(searchQuery)}
+                      >
+                        Use "{searchQuery}" as custom product
+                      </Button>
+                    )}
+                  </div>
+                </CommandEmpty>
+                <CommandGroup heading={`Products (${filteredProducts.length}${items.length > 100 ? '+' : ''})`}>
+                  {filteredProducts.map((product) => (
+                    <CommandItem
+                      key={product.id}
+                      value={product.product_name}
+                      onSelect={() => handleSelect(product.product_name)}
+                      className="flex items-center justify-between"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Check
+                            className={cn(
+                              "h-4 w-4 shrink-0",
+                              value === product.product_name ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <span className="truncate font-medium">{product.product_name}</span>
+                        </div>
+                        <div className="ml-6 text-xs text-muted-foreground flex gap-2">
+                          {product.brand && <span>{product.brand}</span>}
+                          <span>•</span>
+                          <span>{product.product_category}</span>
+                        </div>
+                      </div>
+                      {product.website_price && (
+                        <span className="text-xs text-muted-foreground shrink-0 ml-2">
+                          ₹{product.website_price.toLocaleString()}
+                        </span>
+                      )}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
