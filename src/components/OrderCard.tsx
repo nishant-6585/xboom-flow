@@ -44,7 +44,16 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-lg line-clamp-1">{order.product_name}</CardTitle>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              {order.order_number && (
+                <span className="font-mono text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded shrink-0">
+                  {order.order_number}
+                </span>
+              )}
+            </div>
+            <CardTitle className="text-lg line-clamp-1">{order.product_name}</CardTitle>
+          </div>
           <OrderStatusBadge status={order.status} />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
