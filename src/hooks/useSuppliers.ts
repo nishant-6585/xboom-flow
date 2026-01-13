@@ -12,6 +12,7 @@ export interface Supplier {
   gst_number: string | null;
   contact_name: string;
   phone: string | null;
+  mobile: string | null;
   email: string | null;
   city: string | null;
   address: string | null;
@@ -22,6 +23,7 @@ export interface Supplier {
   product_category: string;
   products: string[] | null;
   preference: SupplierPreference;
+  status: string | null;
   notes: string | null;
   is_active: boolean;
   created_at: string;
