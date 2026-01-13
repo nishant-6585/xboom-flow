@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle } from 'lucide-react';
+import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface OrderDialogProps {
@@ -346,11 +347,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 <DialogTitle className="flex items-center gap-2">
                   <Package className="h-5 w-5" />
                   {order.product_name}
-                  {order.order_number && (
-                    <span className="font-mono text-sm font-medium text-primary bg-primary/10 px-2 py-0.5 rounded">
-                      {order.order_number}
-                    </span>
-                  )}
+                  <OrderNumberBadge orderNumber={order.order_number} size="md" />
                 </DialogTitle>
                 <DialogDescription className="flex items-center gap-2 mt-1 flex-wrap">
                   {order.product_category}

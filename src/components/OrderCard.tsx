@@ -2,10 +2,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Order, PaymentStatus, OrderOutcome } from '@/hooks/useOrders';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
+import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { PaymentStatusTracker } from '@/components/PaymentStatusTracker';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { Package, User, Building2, Truck, Calendar, ExternalLink, TrendingUp, Clock, CreditCard, MapPin, Trophy, XCircle } from 'lucide-react';
+import { Package, User, Building2, Truck, ExternalLink, TrendingUp, Clock, CreditCard, Trophy, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface OrderCardProps {
@@ -28,7 +29,6 @@ const outcomeConfig: Record<OrderOutcome, { label: string; className: string; ic
 export function OrderCard({ order, onClick }: OrderCardProps) {
   const { role } = useAuth();
   const canSeeProcurement = role === 'supply_chain' || role === 'admin';
-  const isAdmin = role === 'admin';
 
   // Calculate profit (only visible to admin)
   const profit = order.selling_price && order.procurement_rate 
@@ -46,11 +46,7 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              {order.order_number && (
-                <span className="font-mono text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded shrink-0">
-                  {order.order_number}
-                </span>
-              )}
+              <OrderNumberBadge orderNumber={order.order_number} />
             </div>
             <CardTitle className="text-lg line-clamp-1">{order.product_name}</CardTitle>
           </div>

@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Order, PaymentStatus, OrderOutcome, LostReason, LOST_REASONS } from '@/hooks/useOrders';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
+import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { Eye, MoreHorizontal, Trophy, XCircle, RotateCcw, Loader2 } from 'lucide-react';
@@ -113,12 +114,10 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
                 const outcome = outcomeConfig[order.order_outcome || 'pending'];
 
                 return (
-                  <TableRow key={order.id} className="cursor-pointer" onClick={() => onOrderClick(order)}>
-                    <TableCell>
-                      <span className="font-mono text-xs font-medium text-primary">
-                        {order.order_number || '-'}
-                      </span>
-                    </TableCell>
+                    <TableRow key={order.id} className="cursor-pointer" onClick={() => onOrderClick(order)}>
+                      <TableCell>
+                        <OrderNumberBadge orderNumber={order.order_number} />
+                      </TableCell>
                     <TableCell>
                       <div>
                         <div className="font-medium">{order.product_name}</div>

@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, FileText, Building2, CreditCard, Loader2, Plus, Trash2, Package } from "lucide-react";
 import { format } from "date-fns";
 import { ProcurementOrderItems } from "./ProcurementOrderItems";
+import { OrderNumberBadge } from "@/components/OrderNumberBadge";
 
 interface ProcurementOrderDialogProps {
   order: Order | null;
@@ -183,9 +184,12 @@ export function ProcurementOrderDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
             <FileText className="w-5 h-5" />
-            Manage Procurement - {order.order_number || 'Order'} - {order.product_name}
+            Manage Procurement
+            <OrderNumberBadge orderNumber={order.order_number} size="md" />
+            <span className="text-muted-foreground">-</span>
+            {order.product_name}
           </DialogTitle>
         </DialogHeader>
 
