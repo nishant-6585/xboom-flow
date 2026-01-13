@@ -35,6 +35,7 @@ export interface Order {
   supplier_contact: string | null;
   procurement_rate: number | null;
   procurement_currency: string;
+  procurement_date: string | null;
   selling_price: number | null;
   total_sales_amount: number | null;
   amount_paid: number | null;
@@ -252,6 +253,7 @@ export function useOrders() {
           supplier_contact: null,
           procurement_rate: null,
           procurement_currency: 'INR',
+          procurement_date: null,
           selling_price: null,
           internal_notes: null,
           payment_due_date: null,

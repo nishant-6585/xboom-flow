@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { format, subDays, eachDayOfInterval, isSameDay, parseISO, isWithinInterval } from "date-fns";
-import { TrendingUp, IndianRupee, Package, Building2, Calendar, Download, FileSpreadsheet, FileText } from "lucide-react";
+import { TrendingUp, IndianRupee, Package, Building2, Calendar, Download, FileSpreadsheet, FileText, CalendarCheck, AlertTriangle } from "lucide-react";
 import { exportProcurementAnalyticsToExcel, exportProcurementAnalyticsToPDF, ProcurementAnalyticsExportData } from "@/lib/exportUtils";
 import { toast } from "sonner";
 
@@ -115,7 +115,7 @@ export function ProcurementDashboard() {
       .sort((a, b) => b.value - a.value);
   }, [filteredOrders]);
 
-  // Summary stats with pending orders
+  // Summary stats with pending orders and procurement planning
   const stats = useMemo(() => {
     const totalProcurement = filteredOrders.reduce((sum, o) => 
       sum + ((o.procurement_rate || 0) * (o.quantity || 1)), 0
@@ -129,10 +129,20 @@ export function ProcurementDashboard() {
     ).length;
     const completedOrders = filteredOrders.filter(o => o.status === 'delivery_done').length;
     
+    // Procurement planning stats - orders with procurement_date set
+    const plannedOrders = filteredOrders.filter(o => 
+      o.procurement_date && !['delivery_done', 'cancelled'].includes(o.status)
+    ).length;
+    const unplannedOrders = filteredOrders.filter(o => 
+      !o.procurement_date && !['delivery_done', 'cancelled'].includes(o.status)
+    ).length;
+    
     return {
       totalOrders: filteredOrders.length,
       pendingOrders,
       completedOrders,
+      plannedOrders,
+      unplannedOrders,
       totalProcurement,
       totalPayments,
       activeSuppliers,
@@ -224,6 +234,38 @@ export function ProcurementDashboard() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+      </div>
+
+      {/* Procurement Planning Highlight */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="border-green-500/50 bg-green-500/5">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-green-500/20 rounded-lg">
+                <CalendarCheck className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Planned (Date Set)</p>
+                <p className="text-3xl font-bold text-green-600">{stats.plannedOrders}</p>
+                <p className="text-xs text-muted-foreground">Orders with procurement date</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-orange-500/50 bg-orange-500/5">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-orange-500/20 rounded-lg">
+                <AlertTriangle className="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Unplanned (Date Missing)</p>
+                <p className="text-3xl font-bold text-orange-600">{stats.unplannedOrders}</p>
+                <p className="text-xs text-muted-foreground">Orders need planning attention</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Summary Cards */}

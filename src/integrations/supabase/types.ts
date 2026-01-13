@@ -532,6 +532,7 @@ export type Database = {
           po_url: string | null
           priority: number | null
           procurement_currency: string | null
+          procurement_date: string | null
           procurement_rate: number | null
           product_category: string | null
           product_code: string
@@ -594,6 +595,7 @@ export type Database = {
           po_url?: string | null
           priority?: number | null
           procurement_currency?: string | null
+          procurement_date?: string | null
           procurement_rate?: number | null
           product_category?: string | null
           product_code: string
@@ -656,6 +658,7 @@ export type Database = {
           po_url?: string | null
           priority?: number | null
           procurement_currency?: string | null
+          procurement_date?: string | null
           procurement_rate?: number | null
           product_category?: string | null
           product_code?: string
