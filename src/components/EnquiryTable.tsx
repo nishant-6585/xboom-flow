@@ -42,9 +42,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { format, differenceInMinutes, differenceInHours, differenceInDays } from "date-fns";
-import { MoreHorizontal, Trophy, XCircle, Clock, GitBranch, ExternalLink, ShoppingCart, Timer } from "lucide-react";
+import { MoreHorizontal, Trophy, XCircle, Clock, GitBranch, ExternalLink, ShoppingCart, Timer, CheckCircle2, AlertTriangle } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { useNavigate } from "react-router-dom";
+import { getSlaStatus, SLA_HOURS, UrgencyLevel } from "@/lib/sla";
 
 interface EnquiryTableProps {
   enquiries: Enquiry[];
@@ -176,6 +177,55 @@ export function EnquiryTable({ enquiries, onUpdateStatus, onEnquiryClick }: Enqu
     return { text, colorClass };
   };
 
+  const getSlaComplianceDisplay = (enquiry: Enquiry) => {
+    const urgency = enquiry.urgency as UrgencyLevel;
+    const createdAt = new Date(enquiry.created_at);
+    const respondedAt = enquiry.responded_at ? new Date(enquiry.responded_at) : null;
+    const isResponded = enquiry.status !== "pending";
+    
+    const slaStatus = getSlaStatus(createdAt, respondedAt, urgency, isResponded);
+    const slaTarget = SLA_HOURS[urgency];
+    
+    const config: Record<string, { icon: typeof CheckCircle2; label: string; colorClass: string; bgClass: string }> = {
+      met: {
+        icon: CheckCircle2,
+        label: "SLA Met",
+        colorClass: "text-success",
+        bgClass: "bg-success/10"
+      },
+      delayed: {
+        icon: XCircle,
+        label: "SLA Breached",
+        colorClass: "text-destructive",
+        bgClass: "bg-destructive/10"
+      },
+      on_track: {
+        icon: Clock,
+        label: "On Track",
+        colorClass: "text-success",
+        bgClass: "bg-success/10"
+      },
+      at_risk: {
+        icon: AlertTriangle,
+        label: "At Risk",
+        colorClass: "text-warning",
+        bgClass: "bg-warning/10"
+      },
+      breached: {
+        icon: XCircle,
+        label: "Breached",
+        colorClass: "text-destructive",
+        bgClass: "bg-destructive/10"
+      }
+    };
+    
+    return {
+      ...config[slaStatus],
+      slaTarget: `${slaTarget}h`,
+      urgency: urgency.charAt(0).toUpperCase() + urgency.slice(1)
+    };
+  };
+
   const navigateToOrder = (enquiryId: string) => {
     navigate(`/orders?enquiry_id=${enquiryId}`);
   };
@@ -197,6 +247,7 @@ export function EnquiryTable({ enquiries, onUpdateStatus, onEnquiryClick }: Enqu
               <TableHead className="text-center">Qty</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Response Time</TableHead>
+              <TableHead>SLA Status</TableHead>
               <TableHead>Links</TableHead>
               <TableHead>Lost Reason</TableHead>
               {canUpdateStatus && <TableHead className="w-[100px]">Actions</TableHead>}
@@ -205,7 +256,7 @@ export function EnquiryTable({ enquiries, onUpdateStatus, onEnquiryClick }: Enqu
           <TableBody>
             {enquiries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canUpdateStatus ? 10 : 9} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={canUpdateStatus ? 11 : 10} className="text-center py-8 text-muted-foreground">
                   No enquiries found
                 </TableCell>
               </TableRow>
@@ -213,6 +264,8 @@ export function EnquiryTable({ enquiries, onUpdateStatus, onEnquiryClick }: Enqu
               enquiries.map((enquiry) => {
                 const related = relatedRecords[enquiry.id] || { hasOrder: false, hasPipeline: false };
                 const responseTime = getResponseTimeDisplay(enquiry);
+                const slaCompliance = getSlaComplianceDisplay(enquiry);
+                const SlaIcon = slaCompliance.icon;
                 
                 return (
                   <TableRow key={enquiry.id} className="cursor-pointer hover:bg-muted/50">
@@ -245,6 +298,21 @@ export function EnquiryTable({ enquiries, onUpdateStatus, onEnquiryClick }: Enqu
                         <Timer className="w-3.5 h-3.5" />
                         <span>{responseTime.text}</span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${slaCompliance.colorClass} ${slaCompliance.bgClass}`}>
+                              <SlaIcon className="w-3 h-3" />
+                              <span>{slaCompliance.label}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Urgency: {slaCompliance.urgency} (Target: {slaCompliance.slaTarget})</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
