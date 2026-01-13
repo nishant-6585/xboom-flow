@@ -132,7 +132,7 @@ export function PendingPaymentApprovals({ orders }: PendingPaymentApprovalsProps
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-4">
+            <TabsList className="mb-4 flex-wrap h-auto gap-2">
               <TabsTrigger value="pending_payments" className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
                 Pending Approvals
