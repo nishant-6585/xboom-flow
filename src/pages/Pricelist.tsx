@@ -136,14 +136,14 @@ export default function Pricelist() {
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
       const parsedItems: PricelistFormData[] = jsonData.map((row: any) => ({
-        product_name: row["Product Name"] || row["product_name"] || row["Name"] || "",
-        product_category: row["Category"] || row["product_category"] || "Consumer Drones",
+        product_name: row["Product Name"] || row["product_name"] || row["Product"] || row["Name"] || row["product"] || row["name"] || "",
+        product_category: row["Category"] || row["product_category"] || row["Product Category"] || "Consumer Drones",
         brand: row["Brand"] || row["brand"] || "",
         description: row["Description"] || row["description"] || "",
         unit_price: parseFloat(row["Price"] || row["unit_price"] || row["Unit Price"] || row["Selling Price"] || 0) || undefined,
         cost_price: parseFloat(row["Cost Price"] || row["cost_price"] || row["Cost"] || 0) || undefined,
-        website_price: parseFloat(row["Website Price"] || row["website_price"] || 0) || undefined,
-        dealer_price: parseFloat(row["Dealer Price"] || row["dealer_price"] || 0) || undefined,
+        website_price: parseFloat(row["Website Price"] || row["website_price"] || row["website price"] || 0) || undefined,
+        dealer_price: parseFloat(row["Dealer Price"] || row["dealer_price"] || row["dealer price"] || 0) || undefined,
         currency: row["Currency"] || row["currency"] || "INR",
         availability: row["Availability"] || row["availability"] || "In Stock",
         lead_time: row["Lead Time"] || row["lead_time"] || "",
