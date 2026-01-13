@@ -735,6 +735,59 @@ export type Database = {
         }
         Relationships: []
       }
+      procurement_payment_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          approved_by_name: string | null
+          created_at: string
+          id: string
+          order_id: string
+          rejection_reason: string | null
+          request_notes: string | null
+          requested_by: string
+          requested_by_name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
+          created_at?: string
+          id?: string
+          order_id: string
+          rejection_reason?: string | null
+          request_notes?: string | null
+          requested_by: string
+          requested_by_name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
+          created_at?: string
+          id?: string
+          order_id?: string
+          rejection_reason?: string | null
+          request_notes?: string | null
+          requested_by?: string
+          requested_by_name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_payment_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

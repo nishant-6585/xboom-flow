@@ -6,11 +6,16 @@ import { Navigate } from "react-router-dom";
 import { ProcurementOrders } from "@/components/procurement/ProcurementOrders";
 import { ProcurementLedger } from "@/components/procurement/ProcurementLedger";
 import { ProcurementDashboard } from "@/components/procurement/ProcurementDashboard";
-import { FileText, BookOpen, LayoutDashboard } from "lucide-react";
+import { PendingPaymentStatusRequests } from "@/components/procurement/PendingPaymentStatusRequests";
+import { FileText, BookOpen, LayoutDashboard, CreditCard } from "lucide-react";
+import { useProcurementPaymentRequests } from "@/hooks/useProcurementPaymentRequests";
+import { Badge } from "@/components/ui/badge";
 
 export default function Procurement() {
   const { role, loading: authLoading } = useAuth();
+  const { getPendingCount } = useProcurementPaymentRequests();
   const [activeTab, setActiveTab] = useState("orders");
+  const pendingCount = getPendingCount();
 
   if (authLoading) {
     return (
@@ -37,10 +42,19 @@ export default function Procurement() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
+          <TabsList className="grid w-full grid-cols-4 lg:w-[500px]">
             <TabsTrigger value="orders" className="gap-2">
               <FileText className="w-4 h-4" />
               <span className="hidden sm:inline">Orders</span>
+            </TabsTrigger>
+            <TabsTrigger value="requests" className="gap-2 relative">
+              <CreditCard className="w-4 h-4" />
+              <span className="hidden sm:inline">Requests</span>
+              {role === 'admin' && pendingCount > 0 && (
+                <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  {pendingCount}
+                </Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger value="ledger" className="gap-2">
               <BookOpen className="w-4 h-4" />
@@ -54,6 +68,10 @@ export default function Procurement() {
 
           <TabsContent value="orders" className="mt-6">
             <ProcurementOrders />
+          </TabsContent>
+
+          <TabsContent value="requests" className="mt-6">
+            <PendingPaymentStatusRequests />
           </TabsContent>
 
           <TabsContent value="ledger" className="mt-6">
