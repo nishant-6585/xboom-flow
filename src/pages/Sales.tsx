@@ -1,7 +1,7 @@
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -10,6 +10,7 @@ import { OutboundSalesPanel } from "@/components/sales/OutboundSalesPanel";
 import { ManagerDashboard } from "@/components/sales/ManagerDashboard";
 import { TestimonialsPanel } from "@/components/sales/TestimonialsPanel";
 import { SalesRulesPanel } from "@/components/sales/SalesRulesPanel";
+import { LeadsPanel } from "@/components/sales/LeadsPanel";
 
 export default function Sales() {
   const { role } = useAuth();
@@ -45,6 +46,10 @@ export default function Sales() {
             <TabsTrigger value="activity" className="gap-2">
               <Rocket className="w-4 h-4" />
               Daily Activity
+            </TabsTrigger>
+            <TabsTrigger value="leads" className="gap-2">
+              <Users className="w-4 h-4" />
+              Leads
             </TabsTrigger>
             <TabsTrigger value="leaderboard" className="gap-2">
               <Trophy className="w-4 h-4" />
@@ -84,6 +89,10 @@ export default function Sales() {
                 <SalesLeaderboard />
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="leads" className="space-y-6">
+            <LeadsPanel />
           </TabsContent>
 
           <TabsContent value="leaderboard" className="space-y-6">
