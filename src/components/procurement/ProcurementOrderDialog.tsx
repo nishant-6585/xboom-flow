@@ -295,7 +295,7 @@ export function ProcurementOrderDialog({
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label>Procurement Rate (per unit)</Label>
                 <Input
@@ -314,6 +314,27 @@ export function ProcurementOrderDialog({
                   <SelectContent>
                     <SelectItem value="INR">INR (₹)</SelectItem>
                     <SelectItem value="USD">USD ($)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Terms</Label>
+                <Select value={(order as any)?.supplier_payment_terms || ''} onValueChange={(value) => {
+                  if (order) {
+                    onUpdate(order.id, { supplier_payment_terms: value } as any);
+                  }
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select terms" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="advance">Advance</SelectItem>
+                    <SelectItem value="cod">COD</SelectItem>
+                    <SelectItem value="net_7">Net 7</SelectItem>
+                    <SelectItem value="net_15">Net 15</SelectItem>
+                    <SelectItem value="net_30">Net 30</SelectItem>
+                    <SelectItem value="net_45">Net 45</SelectItem>
+                    <SelectItem value="net_60">Net 60</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

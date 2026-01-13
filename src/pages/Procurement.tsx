@@ -7,7 +7,8 @@ import { ProcurementOrders } from "@/components/procurement/ProcurementOrders";
 import { ProcurementLedger } from "@/components/procurement/ProcurementLedger";
 import { ProcurementDashboard } from "@/components/procurement/ProcurementDashboard";
 import { PendingPaymentStatusRequests } from "@/components/procurement/PendingPaymentStatusRequests";
-import { FileText, BookOpen, LayoutDashboard, CreditCard } from "lucide-react";
+import { SupplierPaymentAnalytics } from "@/components/procurement/SupplierPaymentAnalytics";
+import { FileText, BookOpen, LayoutDashboard, CreditCard, IndianRupee } from "lucide-react";
 import { useProcurementPaymentRequests } from "@/hooks/useProcurementPaymentRequests";
 import { Badge } from "@/components/ui/badge";
 
@@ -42,7 +43,7 @@ export default function Procurement() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 lg:w-[500px]">
+          <TabsList className="grid w-full grid-cols-5 lg:w-[600px]">
             <TabsTrigger value="orders" className="gap-2">
               <FileText className="w-4 h-4" />
               <span className="hidden sm:inline">Orders</span>
@@ -60,6 +61,10 @@ export default function Procurement() {
               <BookOpen className="w-4 h-4" />
               <span className="hidden sm:inline">Ledger</span>
             </TabsTrigger>
+            <TabsTrigger value="payments" className="gap-2">
+              <IndianRupee className="w-4 h-4" />
+              <span className="hidden sm:inline">Payments</span>
+            </TabsTrigger>
             <TabsTrigger value="dashboard" className="gap-2">
               <LayoutDashboard className="w-4 h-4" />
               <span className="hidden sm:inline">Dashboard</span>
@@ -76,6 +81,10 @@ export default function Procurement() {
 
           <TabsContent value="ledger" className="mt-6">
             <ProcurementLedger />
+          </TabsContent>
+
+          <TabsContent value="payments" className="mt-6">
+            <SupplierPaymentAnalytics />
           </TabsContent>
 
           <TabsContent value="dashboard" className="mt-6">
