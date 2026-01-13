@@ -72,6 +72,8 @@ export default function Pricelist() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [availabilityFilter, setAvailabilityFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<string>("products");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 70;
   
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -112,6 +114,17 @@ export default function Pricelist() {
       return matchesSearch && matchesCategory && matchesAvailability;
     });
   }, [items, search, categoryFilter, availabilityFilter]);
+
+  // Reset to page 1 when filters change
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [search, categoryFilter, availabilityFilter]);
+
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredItems.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredItems, currentPage, itemsPerPage]);
 
   const categories = useMemo(() => {
     const cats = new Set(items.map((i) => i.product_category).filter(Boolean));
@@ -394,14 +407,14 @@ export default function Pricelist() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredItems.length === 0 ? (
+                        {paginatedItems.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={canManage ? 12 : 10} className="text-center py-8 text-muted-foreground">
                               No products found
                             </TableCell>
                           </TableRow>
                         ) : (
-                          filteredItems.map((item) => (
+                          paginatedItems.map((item) => (
                             <TableRow key={item.id}>
                               <TableCell>
                                 <div>
@@ -508,6 +521,52 @@ export default function Pricelist() {
                         )}
                       </TableBody>
                     </Table>
+                  </div>
+                )}
+
+                {/* Pagination Controls */}
+                {filteredItems.length > itemsPerPage && (
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredItems.length)} of {filteredItems.length} products
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(1)}
+                        disabled={currentPage === 1}
+                      >
+                        First
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm px-3">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                      >
+                        Next
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(totalPages)}
+                        disabled={currentPage === totalPages}
+                      >
+                        Last
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
