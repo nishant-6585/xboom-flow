@@ -164,12 +164,91 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_procurements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          inventory_id: string | null
+          notes: string | null
+          payment_due_date: string | null
+          payment_status: string
+          payment_terms: string | null
+          procurement_date: string
+          product_category: string
+          product_code: string | null
+          product_name: string
+          quantity: number
+          supplier_id: string | null
+          supplier_name: string | null
+          total_amount: number | null
+          unit_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inventory_id?: string | null
+          notes?: string | null
+          payment_due_date?: string | null
+          payment_status?: string
+          payment_terms?: string | null
+          procurement_date?: string
+          product_category?: string
+          product_code?: string | null
+          product_name: string
+          quantity?: number
+          supplier_id?: string | null
+          supplier_name?: string | null
+          total_amount?: number | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inventory_id?: string | null
+          notes?: string | null
+          payment_due_date?: string | null
+          payment_status?: string
+          payment_terms?: string | null
+          procurement_date?: string
+          product_category?: string
+          product_code?: string | null
+          product_name?: string
+          quantity?: number
+          supplier_id?: string | null
+          supplier_name?: string | null
+          total_amount?: number | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_procurements_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_procurements_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_transactions: {
         Row: {
           created_at: string
           created_by: string | null
           id: string
           inventory_id: string
+          inventory_procurement_id: string | null
           notes: string | null
           order_id: string | null
           order_item_id: string | null
@@ -182,6 +261,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           inventory_id: string
+          inventory_procurement_id?: string | null
           notes?: string | null
           order_id?: string | null
           order_item_id?: string | null
@@ -194,6 +274,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           inventory_id?: string
+          inventory_procurement_id?: string | null
           notes?: string | null
           order_id?: string | null
           order_item_id?: string | null
@@ -207,6 +288,13 @@ export type Database = {
             columns: ["inventory_id"]
             isOneToOne: false
             referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transactions_inventory_procurement_id_fkey"
+            columns: ["inventory_procurement_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_procurements"
             referencedColumns: ["id"]
           },
           {
@@ -830,6 +918,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          inventory_procurement_id: string | null
           notes: string | null
           order_id: string | null
           payment_date: string
@@ -844,6 +933,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          inventory_procurement_id?: string | null
           notes?: string | null
           order_id?: string | null
           payment_date?: string
@@ -858,6 +948,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          inventory_procurement_id?: string | null
           notes?: string | null
           order_id?: string | null
           payment_date?: string
@@ -868,6 +959,13 @@ export type Database = {
           supplier_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "supplier_payments_inventory_procurement_id_fkey"
+            columns: ["inventory_procurement_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_procurements"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "supplier_payments_order_id_fkey"
             columns: ["order_id"]
