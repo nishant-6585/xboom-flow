@@ -12,8 +12,8 @@ export function PipelineOrders() {
   const { pipelineOrders, loading, createPipelineOrder, updatePipelineOrder, deletePipelineOrder } = usePipelineOrders();
   const [activeTab, setActiveTab] = useState('list');
 
-  const canCreate = role === 'sales' || role === 'admin';
-  const canViewAnalytics = role === 'admin';
+  const canCreate = role === 'sales' || role === 'supply_chain' || role === 'admin';
+  const canViewAnalytics = role === 'supply_chain' || role === 'admin';
 
   if (loading) {
     return (
