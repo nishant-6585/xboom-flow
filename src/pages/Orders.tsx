@@ -10,11 +10,12 @@ import { OrderDialog } from '@/components/OrderDialog';
 import { OrderProfitAnalytics } from '@/components/OrderProfitAnalytics';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { RefundRequestsTable } from '@/components/RefundRequestsTable';
+import { PipelineOrders } from '@/components/pipeline/PipelineOrders';
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw } from 'lucide-react';
+import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target } from 'lucide-react';
 import { startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 
 export default function Orders() {
@@ -112,6 +113,10 @@ export default function Orders() {
             </div>
             <TabsList>
               <TabsTrigger value="list">Order List</TabsTrigger>
+              <TabsTrigger value="pipeline" className="gap-1">
+                <Target className="h-4 w-4" />
+                Pipeline
+              </TabsTrigger>
               {canCreateOrder && (
                 <TabsTrigger value="new" className="gap-1">
                   <Plus className="h-4 w-4" />
@@ -269,6 +274,10 @@ export default function Orders() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="pipeline">
+            <PipelineOrders />
           </TabsContent>
 
           {canCreateOrder && (

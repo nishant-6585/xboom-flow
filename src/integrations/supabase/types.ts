@@ -583,6 +583,78 @@ export type Database = {
           },
         ]
       }
+      pipeline_orders: {
+        Row: {
+          created_at: string
+          created_by: string
+          customer_company: string
+          customer_email: string | null
+          customer_name: string
+          customer_notes: string | null
+          customer_phone: string | null
+          expected_closure_date: string | null
+          expected_price: number | null
+          id: string
+          internal_notes: string | null
+          lead_source: string | null
+          priority: number | null
+          product_category: string | null
+          product_code: string | null
+          product_name: string
+          quantity: number
+          sales_person_id: string
+          sales_person_name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          customer_company: string
+          customer_email?: string | null
+          customer_name: string
+          customer_notes?: string | null
+          customer_phone?: string | null
+          expected_closure_date?: string | null
+          expected_price?: number | null
+          id?: string
+          internal_notes?: string | null
+          lead_source?: string | null
+          priority?: number | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name: string
+          quantity?: number
+          sales_person_id: string
+          sales_person_name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          customer_company?: string
+          customer_email?: string | null
+          customer_name?: string
+          customer_notes?: string | null
+          customer_phone?: string | null
+          expected_closure_date?: string | null
+          expected_price?: number | null
+          id?: string
+          internal_notes?: string | null
+          lead_source?: string | null
+          priority?: number | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name?: string
+          quantity?: number
+          sales_person_id?: string
+          sales_person_name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pricelist: {
         Row: {
           availability: string | null
