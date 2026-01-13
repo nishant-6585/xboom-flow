@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
-export type OrderStatus = 'pending' | 'confirmed' | 'procuring' | 'in_transit' | 'customs' | 'delivered' | 'cancelled';
+export type OrderStatus = 'po_received' | 'payment_received' | 'partial_payment_received' | 'procurement_to_plan' | 'procurement_in_process' | 'procurement_done' | 'delivery_done' | 'cancelled';
 export type PaymentStatus = 'pending' | 'partial' | 'full';
 export type OrderType = 'prepaid' | 'postpaid';
 export type CustomerType = 'b2b' | 'b2c';
@@ -109,12 +109,13 @@ export interface OrderFormData {
 }
 
 export const ORDER_STATUSES: { value: OrderStatus; label: string }[] = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'procuring', label: 'Procuring' },
-  { value: 'in_transit', label: 'In Transit' },
-  { value: 'customs', label: 'Customs' },
-  { value: 'delivered', label: 'Delivered' },
+  { value: 'po_received', label: 'PO Received' },
+  { value: 'payment_received', label: 'Payment Received' },
+  { value: 'partial_payment_received', label: 'Partial Payment Received' },
+  { value: 'procurement_to_plan', label: 'Procurement to Plan' },
+  { value: 'procurement_in_process', label: 'Procurement in Process' },
+  { value: 'procurement_done', label: 'Procurement Done' },
+  { value: 'delivery_done', label: 'Delivery Done' },
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
@@ -388,7 +389,7 @@ export function useOrders() {
         estimated_delivery: formData.estimated_delivery || null,
         product_code: formData.product_name, // Auto-generate from product name
         created_by: user.id,
-        status: 'pending' as const,
+        status: 'po_received' as const,
         invoice_url: invoiceUrl || null,
         po_url: poUrl || null,
       };

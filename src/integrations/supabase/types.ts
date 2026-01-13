@@ -856,12 +856,13 @@ export type Database = {
     Enums: {
       app_role: "sales" | "supply_chain" | "admin"
       order_status:
-        | "pending"
-        | "confirmed"
-        | "procuring"
-        | "in_transit"
-        | "customs"
-        | "delivered"
+        | "po_received"
+        | "payment_received"
+        | "partial_payment_received"
+        | "procurement_to_plan"
+        | "procurement_in_process"
+        | "procurement_done"
+        | "delivery_done"
         | "cancelled"
       supplier_preference: "low" | "medium" | "high"
     }
@@ -993,12 +994,13 @@ export const Constants = {
     Enums: {
       app_role: ["sales", "supply_chain", "admin"],
       order_status: [
-        "pending",
-        "confirmed",
-        "procuring",
-        "in_transit",
-        "customs",
-        "delivered",
+        "po_received",
+        "payment_received",
+        "partial_payment_received",
+        "procurement_to_plan",
+        "procurement_in_process",
+        "procurement_done",
+        "delivery_done",
         "cancelled",
       ],
       supplier_preference: ["low", "medium", "high"],
