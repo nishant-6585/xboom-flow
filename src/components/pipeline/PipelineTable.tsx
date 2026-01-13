@@ -127,7 +127,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
               className="pl-9"
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as PipelineStatus | 'all')}>
             <SelectTrigger className="w-[160px]">
               <Filter className="h-4 w-4 mr-2" />
               <SelectValue placeholder="Status" />
