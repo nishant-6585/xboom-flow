@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Plus, X } from 'lucide-react';
 import { Supplier, SupplierPreference } from '@/hooks/useSuppliers';
+import { ProductSelect } from '@/components/ProductSelect';
 
 interface SupplierFormProps {
   initialData?: Partial<Supplier>;
@@ -54,11 +55,11 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const addProduct = () => {
-    if (newProduct.trim() && !formData.products.includes(newProduct.trim())) {
+  const addProduct = (productName: string) => {
+    if (productName.trim() && !formData.products.includes(productName.trim())) {
       setFormData(prev => ({
         ...prev,
-        products: [...prev.products, newProduct.trim()],
+        products: [...prev.products, productName.trim()],
       }));
       setNewProduct('');
     }
@@ -252,13 +253,14 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
         <div className="space-y-2">
           <Label>Products Supplied</Label>
           <div className="flex gap-2">
-            <Input
-              value={newProduct}
-              onChange={(e) => setNewProduct(e.target.value)}
-              placeholder="Add product name"
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addProduct())}
-            />
-            <Button type="button" variant="outline" onClick={addProduct}>
+            <div className="flex-1">
+              <ProductSelect
+                value={newProduct}
+                onChange={(value) => setNewProduct(value)}
+                placeholder="Search and select product..."
+              />
+            </div>
+            <Button type="button" variant="outline" onClick={() => addProduct(newProduct)} disabled={!newProduct.trim()}>
               <Plus className="h-4 w-4" />
             </Button>
           </div>
