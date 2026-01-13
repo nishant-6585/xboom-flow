@@ -12,19 +12,21 @@ import { format, parseISO } from 'date-fns';
 import { 
   Link2, Package, IndianRupee, Search, Loader2, Trash2, 
   CheckCircle2, Clock, AlertTriangle, TrendingUp, BarChart3,
-  FileText, CreditCard
+  FileText, CreditCard, Wand2
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, LineChart, Line, Area, AreaChart
 } from 'recharts';
+import { AutoMatchProcurements } from './AutoMatchProcurements';
 
 export function OrderProcurementTracker() {
-  const { links, loading, deleteLink } = useOrderProcurementLinks();
+  const { links, loading, deleteLink, refetch } = useOrderProcurementLinks();
   const { getPaymentsForProcurement, getTotalPaidForProcurement } = useInventoryProcurementPayments();
   const { role } = useAuth();
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
+  const [autoMatchOpen, setAutoMatchOpen] = useState(false);
 
   const canManage = role === 'admin' || role === 'supply_chain';
 
@@ -155,22 +157,33 @@ export function OrderProcurementTracker() {
   }
 
   return (
-    <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
-          <TabsTrigger value="overview" className="gap-2">
-            <BarChart3 className="h-4 w-4" />
-            <span className="hidden sm:inline">Overview</span>
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="gap-2">
-            <TrendingUp className="h-4 w-4" />
-            <span className="hidden sm:inline">Analytics</span>
-          </TabsTrigger>
-          <TabsTrigger value="details" className="gap-2">
-            <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">Details</span>
-          </TabsTrigger>
-        </TabsList>
+    <>
+      <div className="space-y-6">
+        {/* Header with Auto-Match Button */}
+        {canManage && (
+          <div className="flex justify-end">
+            <Button onClick={() => setAutoMatchOpen(true)} variant="outline" className="gap-2">
+              <Wand2 className="h-4 w-4" />
+              Auto-Match
+            </Button>
+          </div>
+        )}
+
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
+            <TabsTrigger value="overview" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Overview</span>
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2">
+              <TrendingUp className="h-4 w-4" />
+              <span className="hidden sm:inline">Analytics</span>
+            </TabsTrigger>
+            <TabsTrigger value="details" className="gap-2">
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline">Details</span>
+            </TabsTrigger>
+          </TabsList>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="mt-6">
@@ -525,7 +538,14 @@ export function OrderProcurementTracker() {
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
-    </div>
+        </Tabs>
+      </div>
+
+      <AutoMatchProcurements
+        open={autoMatchOpen}
+        onOpenChange={setAutoMatchOpen}
+        onMatchesCreated={refetch}
+      />
+    </>
   );
 }
