@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { QueryForm } from "@/components/QueryForm";
 import { EnquiryCard } from "@/components/EnquiryCard";
@@ -15,9 +16,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardList, PlusCircle, Loader2, Package, Filter, TableIcon, LayoutGrid, BarChart3, User, ListFilter, X } from "lucide-react";
+import { ClipboardList, PlusCircle, Loader2, Package, Filter, TableIcon, LayoutGrid, BarChart3, User, ListFilter, X, IndianRupee } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { startOfDay, endOfDay, isWithinInterval } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { startOfDay, endOfDay, isWithinInterval, startOfMonth, startOfWeek, format } from "date-fns";
 
 interface SalesTeamMember {
   user_id: string;
@@ -27,6 +29,7 @@ interface SalesTeamMember {
 const Index = () => {
   const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry, escalateEnquiry, updateStatus, submitAdminResponse } = useEnquiries();
   const { role, user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -39,6 +42,24 @@ const Index = () => {
   const [statusFilter, setStatusFilter] = useState<QueryStatus | "all">("all");
   const [lostReasonFilter, setLostReasonFilter] = useState<LostReason | null>(null);
   const [slaStatusFilter, setSlaStatusFilter] = useState<SlaStatusFilter>("all");
+  const [valueFilter, setValueFilter] = useState<string>("all");
+  const [valueFilterDate, setValueFilterDate] = useState<Date | null>(null);
+
+  // Handle URL params for value filter from Admin analytics
+  useEffect(() => {
+    const urlValueFilter = searchParams.get("valueFilter");
+    const urlValueDate = searchParams.get("valueDate");
+    
+    if (urlValueFilter) {
+      setValueFilter(urlValueFilter);
+      if (urlValueDate) {
+        setValueFilterDate(new Date(urlValueDate));
+      }
+      setActiveTab("enquiries");
+      // Clear params after applying
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
 
   // Fetch sales team for filter dropdown (admin/supply_chain only)
   useEffect(() => {
@@ -60,34 +81,53 @@ const Index = () => {
 
   const canFilterBySalesPerson = role === 'admin' || role === 'supply_chain';
 
-  // Filter enquiries by category, date, sales person, status, lost reason, and SLA status
-  const filteredEnquiries = enquiries.filter((e) => {
-    const matchesCategory = categoryFilter === "all" || e.product_category === categoryFilter;
-    const matchesSalesPerson = salesPersonFilter === "all" || e.sales_person_id === salesPersonFilter;
-    const matchesStatus = statusFilter === "all" || e.status === statusFilter;
-    const matchesLostReason = !lostReasonFilter || e.lost_reason === lostReasonFilter;
-    
-    const enquiryDate = new Date(e.created_at);
-    let matchesDate = true;
-    if (startDate && endDate) {
-      matchesDate = isWithinInterval(enquiryDate, { start: startOfDay(startDate), end: endOfDay(endDate) });
-    } else if (startDate) {
-      matchesDate = enquiryDate >= startOfDay(startDate);
-    } else if (endDate) {
-      matchesDate = enquiryDate <= endOfDay(endDate);
-    }
+  // Filter enquiries by category, date, sales person, status, lost reason, SLA status, and value filter
+  const filteredEnquiries = useMemo(() => {
+    return enquiries.filter((e) => {
+      const matchesCategory = categoryFilter === "all" || e.product_category === categoryFilter;
+      const matchesSalesPerson = salesPersonFilter === "all" || e.sales_person_id === salesPersonFilter;
+      const matchesStatus = statusFilter === "all" || e.status === statusFilter;
+      const matchesLostReason = !lostReasonFilter || e.lost_reason === lostReasonFilter;
+      
+      const enquiryDate = new Date(e.created_at);
+      let matchesDate = true;
+      if (startDate && endDate) {
+        matchesDate = isWithinInterval(enquiryDate, { start: startOfDay(startDate), end: endOfDay(endDate) });
+      } else if (startDate) {
+        matchesDate = enquiryDate >= startOfDay(startDate);
+      } else if (endDate) {
+        matchesDate = enquiryDate <= endOfDay(endDate);
+      }
 
-    // SLA status filter
-    let matchesSlaStatus = true;
-    if (slaStatusFilter !== "all") {
-      const isResponded = e.status !== "pending";
-      const respondedAt = isResponded ? new Date(e.updated_at) : null;
-      const slaStatus = getSlaStatus(new Date(e.created_at), respondedAt, e.urgency as UrgencyLevel, isResponded);
-      matchesSlaStatus = slaStatus === slaStatusFilter;
-    }
-    
-    return matchesCategory && matchesDate && matchesSalesPerson && matchesStatus && matchesLostReason && matchesSlaStatus;
-  });
+      // SLA status filter
+      let matchesSlaStatus = true;
+      if (slaStatusFilter !== "all") {
+        const isResponded = e.status !== "pending";
+        const respondedAt = isResponded ? new Date(e.updated_at) : null;
+        const slaStatus = getSlaStatus(new Date(e.created_at), respondedAt, e.urgency as UrgencyLevel, isResponded);
+        matchesSlaStatus = slaStatus === slaStatusFilter;
+      }
+
+      // Value period filter
+      let matchesValueFilter = true;
+      if (valueFilter !== "all") {
+        const now = new Date();
+        if (valueFilter === "mtd") {
+          matchesValueFilter = isWithinInterval(enquiryDate, { start: startOfMonth(now), end: now });
+        } else if (valueFilter === "wtd") {
+          matchesValueFilter = isWithinInterval(enquiryDate, { start: startOfWeek(now, { weekStartsOn: 1 }), end: now });
+        } else if (valueFilter === "today") {
+          const todayStart = startOfDay(now);
+          matchesValueFilter = startOfDay(enquiryDate).getTime() === todayStart.getTime();
+        } else if (valueFilter === "specific_day" && valueFilterDate) {
+          const filterDayStart = startOfDay(valueFilterDate);
+          matchesValueFilter = startOfDay(enquiryDate).getTime() === filterDayStart.getTime();
+        }
+      }
+      
+      return matchesCategory && matchesDate && matchesSalesPerson && matchesStatus && matchesLostReason && matchesSlaStatus && matchesValueFilter;
+    });
+  }, [enquiries, categoryFilter, salesPersonFilter, statusFilter, lostReasonFilter, startDate, endDate, slaStatusFilter, valueFilter, valueFilterDate]);
 
   const clearDateFilter = () => {
     setStartDate(undefined);
@@ -128,6 +168,21 @@ const Index = () => {
   const handleSlaStatusClick = (status: SlaStatusFilter) => {
     setSlaStatusFilter(status);
     setActiveTab("dashboard");
+  };
+
+  const getValueFilterLabel = (filter: string): string => {
+    switch (filter) {
+      case "mtd": return "Month to Date";
+      case "wtd": return "Week to Date";
+      case "today": return "Today";
+      case "specific_day": return valueFilterDate ? format(valueFilterDate, "MMM dd") : "Specific Day";
+      default: return "";
+    }
+  };
+
+  const clearValueFilter = () => {
+    setValueFilter("all");
+    setValueFilterDate(null);
   };
 
   const getSlaStatusLabel = (status: SlaStatusFilter): string => {
@@ -393,7 +448,21 @@ const Index = () => {
                         </Button>
                       </div>
                     )}
-                    {(categoryFilter !== "all" || startDate || endDate || salesPersonFilter !== "all" || statusFilter !== "all" || lostReasonFilter || slaStatusFilter !== "all") && (
+                    {valueFilter !== "all" && (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-success/10 border border-success/20 rounded-md text-sm">
+                        <IndianRupee className="h-3 w-3 text-success" />
+                        <span className="text-success font-medium">{getValueFilterLabel(valueFilter)}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={clearValueFilter}
+                          className="h-5 w-5 p-0 hover:bg-success/20"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                    {(categoryFilter !== "all" || startDate || endDate || salesPersonFilter !== "all" || statusFilter !== "all" || lostReasonFilter || slaStatusFilter !== "all" || valueFilter !== "all") && (
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
                           {filteredEnquiries.length} of {enquiries.length}
@@ -407,6 +476,7 @@ const Index = () => {
                             setStatusFilter("all");
                             setLostReasonFilter(null);
                             setSlaStatusFilter("all");
+                            clearValueFilter();
                             clearDateFilter();
                           }}
                           className="h-6 px-2 text-xs"

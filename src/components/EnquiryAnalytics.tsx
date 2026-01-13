@@ -10,8 +10,11 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWithinInterval, 
 import { BarChart3, Calendar, Package, TrendingUp, Download, FileSpreadsheet, FileText, Filter, IndianRupee } from "lucide-react";
 import { exportToExcel, exportToPDF, exportCategorySummaryToExcel, exportCategorySummaryToPDF } from "@/lib/exportUtils";
 
+export type ValueFilterType = "all" | "mtd" | "wtd" | "today" | "specific_day";
+
 interface EnquiryAnalyticsProps {
   enquiries: Enquiry[];
+  onValueFilterClick?: (filterType: ValueFilterType, specificDate?: Date) => void;
 }
 
 const CHART_COLORS = [
@@ -25,7 +28,7 @@ const CHART_COLORS = [
   "hsl(30, 80%, 55%)",
 ];
 
-export function EnquiryAnalytics({ enquiries }: EnquiryAnalyticsProps) {
+export function EnquiryAnalytics({ enquiries, onValueFilterClick }: EnquiryAnalyticsProps) {
   const [selectedMonth, setSelectedMonth] = useState<string>("current");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
@@ -223,6 +226,7 @@ export function EnquiryAnalytics({ enquiries }: EnquiryAnalyticsProps) {
         fullDate: format(day, "MMM dd"),
         value,
         count,
+        rawDate: day,
       };
     });
   }, [filteredEnquiries]);
@@ -484,7 +488,10 @@ export function EnquiryAnalytics({ enquiries }: EnquiryAnalyticsProps) {
           Enquiry Value Analytics
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="glass border-success/20">
+          <Card 
+            className="glass border-success/20 cursor-pointer hover:shadow-lg transition-all hover:scale-[1.02]"
+            onClick={() => onValueFilterClick?.("mtd")}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-lg bg-success/10">
@@ -502,7 +509,10 @@ export function EnquiryAnalytics({ enquiries }: EnquiryAnalyticsProps) {
             </CardContent>
           </Card>
 
-          <Card className="glass border-chart-2/20">
+          <Card 
+            className="glass border-chart-2/20 cursor-pointer hover:shadow-lg transition-all hover:scale-[1.02]"
+            onClick={() => onValueFilterClick?.("wtd")}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-lg bg-chart-2/10">
@@ -520,7 +530,10 @@ export function EnquiryAnalytics({ enquiries }: EnquiryAnalyticsProps) {
             </CardContent>
           </Card>
 
-          <Card className="glass border-primary/20">
+          <Card 
+            className="glass border-primary/20 cursor-pointer hover:shadow-lg transition-all hover:scale-[1.02]"
+            onClick={() => onValueFilterClick?.("today")}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-lg bg-primary/10">
@@ -542,7 +555,7 @@ export function EnquiryAnalytics({ enquiries }: EnquiryAnalyticsProps) {
           <CardHeader>
             <CardTitle className="text-lg">Daily Enquiry Value (Last 30 Days)</CardTitle>
             <CardDescription>
-              Total quoted value of enquiries received per day
+              Total quoted value of enquiries received per day - Click on a bar to filter
               {selectedCategory !== "all" && ` - ${selectedCategory}`}
             </CardDescription>
           </CardHeader>
@@ -550,7 +563,15 @@ export function EnquiryAnalytics({ enquiries }: EnquiryAnalyticsProps) {
             <div className="h-[300px]">
               {dailyValueChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dailyValueChartData}>
+                  <BarChart 
+                    data={dailyValueChartData}
+                    onClick={(data) => {
+                      if (data?.activePayload?.[0]?.payload?.rawDate) {
+                        onValueFilterClick?.("specific_day", data.activePayload[0].payload.rawDate);
+                      }
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                     <XAxis 
                       dataKey="date" 
@@ -574,6 +595,7 @@ export function EnquiryAnalytics({ enquiries }: EnquiryAnalyticsProps) {
                               <p className="text-sm text-muted-foreground">
                                 {payload[0].payload.count} enquiries
                               </p>
+                              <p className="text-xs text-muted-foreground mt-1">Click to filter</p>
                             </div>
                           );
                         }
@@ -584,6 +606,7 @@ export function EnquiryAnalytics({ enquiries }: EnquiryAnalyticsProps) {
                       dataKey="value"
                       fill="hsl(142, 76%, 36%)"
                       radius={[4, 4, 0, 0]}
+                      className="cursor-pointer"
                     />
                   </BarChart>
                 </ResponsiveContainer>
