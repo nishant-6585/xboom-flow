@@ -11,6 +11,8 @@ export interface PricelistItem {
   description: string | null;
   unit_price: number | null;
   cost_price: number | null;
+  website_price: number | null;
+  dealer_price: number | null;
   currency: string;
   availability: string;
   lead_time: string | null;
@@ -28,6 +30,8 @@ export interface PricelistFormData {
   description?: string;
   unit_price?: number;
   cost_price?: number;
+  website_price?: number;
+  dealer_price?: number;
   currency?: string;
   availability?: string;
   lead_time?: string;
