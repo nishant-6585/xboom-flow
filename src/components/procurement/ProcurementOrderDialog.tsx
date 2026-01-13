@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Order } from "@/hooks/useOrders";
 import { Supplier, useSupplierPayments } from "@/hooks/useSuppliers";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,16 +19,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileText, Building2, CreditCard, Loader2, Plus, Trash2, Package, Image, X, CalendarIcon } from "lucide-react";
+import { Upload, FileText, Building2, CreditCard, Loader2, Plus, Trash2, Package, Image, X, CalendarIcon, ClipboardList } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { ProcurementOrderItems } from "./ProcurementOrderItems";
 import { OrderNumberBadge } from "@/components/OrderNumberBadge";
-import { useRef } from "react";
 import { calculatePaymentDueDate } from "@/lib/paymentTerms";
 import { EditHistoryPanel } from "@/components/EditHistoryPanel";
+import { ProcurementPlanningDialog } from "./ProcurementPlanningDialog";
+import { SupplierPreferenceTag } from "./SupplierPreferenceTag";
 
 interface ProcurementOrderDialogProps {
   order: Order | null;
@@ -56,6 +57,7 @@ export function ProcurementOrderDialog({
   const [poFile, setPoFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showPlanningDialog, setShowPlanningDialog] = useState(false);
 
   const canEdit = role === 'supply_chain' || role === 'admin';
 
@@ -299,9 +301,22 @@ export function ProcurementOrderDialog({
 
           {/* Supplier Selection */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              <h3 className="font-medium">Supplier Details</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4" />
+                <h3 className="font-medium">Supplier Details</h3>
+              </div>
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPlanningDialog(true)}
+                  className="gap-2"
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  Compare Quotations
+                </Button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -314,7 +329,10 @@ export function ProcurementOrderDialog({
                   <SelectContent>
                     {suppliers.map(supplier => (
                       <SelectItem key={supplier.id} value={supplier.id}>
-                        {supplier.name} {supplier.brand_name ? `(${supplier.brand_name})` : ''}
+                        <div className="flex items-center gap-2">
+                          <span>{supplier.name} {supplier.brand_name ? `(${supplier.brand_name})` : ''}</span>
+                          <SupplierPreferenceTag preference={supplier.preference} size="sm" />
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -323,7 +341,10 @@ export function ProcurementOrderDialog({
 
               {selectedSupplier && (
                 <div className="p-3 bg-muted/50 rounded-lg text-sm">
-                  <p className="font-medium">{selectedSupplier.name}</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-medium">{selectedSupplier.name}</p>
+                    <SupplierPreferenceTag preference={selectedSupplier.preference} size="sm" />
+                  </div>
                   <p className="text-muted-foreground">{selectedSupplier.contact_name}</p>
                   <p className="text-muted-foreground">{selectedSupplier.phone}</p>
                 </div>
@@ -730,6 +751,27 @@ export function ProcurementOrderDialog({
           </div>
         </div>
       </DialogContent>
+
+      {/* Procurement Planning Dialog */}
+      {order && (
+        <ProcurementPlanningDialog
+          open={showPlanningDialog}
+          onOpenChange={setShowPlanningDialog}
+          order={{
+            id: order.id,
+            order_number: order.order_number,
+            product_name: order.product_name,
+            product_category: order.product_category,
+            quantity: order.quantity,
+            customer_company: order.customer_company,
+          }}
+          onSupplierSelected={(supplierId, quotation) => {
+            setSelectedSupplierId(supplierId);
+            setProcurementRate(quotation.unit_price.toString());
+            setShowPlanningDialog(false);
+          }}
+        />
+      )}
     </Dialog>
   );
 }

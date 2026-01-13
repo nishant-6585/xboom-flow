@@ -1092,6 +1092,85 @@ export type Database = {
           },
         ]
       }
+      supplier_quotations: {
+        Row: {
+          created_at: string
+          id: string
+          is_selected: boolean | null
+          lead_time: string | null
+          notes: string | null
+          order_id: string | null
+          order_item_id: string | null
+          payment_terms: string | null
+          quantity: number
+          quoted_at: string
+          quoted_by: string | null
+          supplier_id: string
+          total_amount: number | null
+          unit_price: number
+          updated_at: string
+          validity_date: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_selected?: boolean | null
+          lead_time?: string | null
+          notes?: string | null
+          order_id?: string | null
+          order_item_id?: string | null
+          payment_terms?: string | null
+          quantity?: number
+          quoted_at?: string
+          quoted_by?: string | null
+          supplier_id: string
+          total_amount?: number | null
+          unit_price: number
+          updated_at?: string
+          validity_date?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_selected?: boolean | null
+          lead_time?: string | null
+          notes?: string | null
+          order_id?: string | null
+          order_item_id?: string | null
+          payment_terms?: string | null
+          quantity?: number
+          quoted_at?: string
+          quoted_by?: string | null
+          supplier_id?: string
+          total_amount?: number | null
+          unit_price?: number
+          updated_at?: string
+          validity_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_quotations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_quotations_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_quotations_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           address: string | null
