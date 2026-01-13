@@ -82,6 +82,7 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Order No</TableHead>
               <TableHead>Product</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead className="text-center">Qty</TableHead>
@@ -99,7 +100,7 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
           <TableBody>
             {orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canSeeProcurement ? 12 : 8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={canSeeProcurement ? 13 : 9} className="text-center py-8 text-muted-foreground">
                   No orders found
                 </TableCell>
               </TableRow>
@@ -113,6 +114,11 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
 
                 return (
                   <TableRow key={order.id} className="cursor-pointer" onClick={() => onOrderClick(order)}>
+                    <TableCell>
+                      <span className="font-mono text-xs font-medium text-primary">
+                        {order.order_number || '-'}
+                      </span>
+                    </TableCell>
                     <TableCell>
                       <div>
                         <div className="font-medium">{order.product_name}</div>

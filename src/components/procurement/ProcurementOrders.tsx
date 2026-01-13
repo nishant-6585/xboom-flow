@@ -18,6 +18,7 @@ export function ProcurementOrders() {
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [orderNumberFilter, setOrderNumberFilter] = useState<string>("all");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -52,7 +53,8 @@ export function ProcurementOrders() {
         order.product_name.toLowerCase().includes(search.toLowerCase()) ||
         order.customer_name.toLowerCase().includes(search.toLowerCase()) ||
         order.customer_company.toLowerCase().includes(search.toLowerCase()) ||
-        (order.supplier_name?.toLowerCase().includes(search.toLowerCase()) ?? false);
+        (order.supplier_name?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
+        (order.order_number?.toLowerCase().includes(search.toLowerCase()) ?? false);
       
       const matchesSupplier = supplierFilter === "all" || 
         (supplierFilter === "unassigned" && !order.supplier_name) ||
@@ -63,9 +65,11 @@ export function ProcurementOrders() {
       const matchesPriority = priorityFilter === "all" || 
         String(order.priority ?? 3) === priorityFilter;
       
-      return matchesSearch && matchesSupplier && matchesCategory && matchesPriority;
+      const matchesOrderNumber = orderNumberFilter === "all" || order.order_number === orderNumberFilter;
+      
+      return matchesSearch && matchesSupplier && matchesCategory && matchesPriority && matchesOrderNumber;
     });
-  }, [orders, search, supplierFilter, categoryFilter, priorityFilter]);
+  }, [orders, search, supplierFilter, categoryFilter, priorityFilter, orderNumberFilter]);
 
   const handleOrderClick = (order: Order) => {
     setSelectedOrder(order);
@@ -120,12 +124,28 @@ export function ProcurementOrders() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Search orders..."
+                placeholder="Search orders, order numbers..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
               />
             </div>
+            <Select value={orderNumberFilter} onValueChange={setOrderNumberFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Filter by order no" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Orders</SelectItem>
+                {orders
+                  .filter(o => o.order_number)
+                  .sort((a, b) => (b.order_number || '').localeCompare(a.order_number || ''))
+                  .map(o => (
+                    <SelectItem key={o.id} value={o.order_number!}>
+                      {o.order_number} - {o.product_name.substring(0, 20)}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
             <Select value={supplierFilter} onValueChange={setSupplierFilter}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Filter by supplier" />
@@ -167,6 +187,7 @@ export function ProcurementOrders() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Order No</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Customer</TableHead>
@@ -181,13 +202,18 @@ export function ProcurementOrders() {
               <TableBody>
                 {filteredOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                       No orders found
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredOrders.map((order) => (
                     <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrderClick(order)}>
+                      <TableCell>
+                        <span className="font-mono text-xs font-medium text-primary">
+                          {order.order_number || '-'}
+                        </span>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={getPriorityColor(order.priority)}>
                           {getPriorityLabel(order.priority)}

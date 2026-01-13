@@ -15,6 +15,7 @@ export type LeadSource = 'call' | 'chat' | 'email' | 'event' | 'walk-in' | 'refe
 
 export interface Order {
   id: string;
+  order_number: string | null;
   enquiry_id: string | null;
   product_name: string;
   product_code: string;
@@ -236,6 +237,7 @@ export function useOrders() {
         // Map to Order type with null procurement fields
         const mappedOrders: Order[] = (data || []).map(order => ({
           ...order,
+          order_number: null,
           status: order.status as OrderStatus,
           order_type: (order.order_type || 'prepaid') as OrderType,
           customer_type: (order.customer_type || 'b2b') as CustomerType,
