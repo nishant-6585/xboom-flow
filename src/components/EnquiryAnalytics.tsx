@@ -6,8 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Enquiry, PRODUCT_CATEGORIES, QueryStatus } from "@/hooks/useEnquiries";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, FunnelChart, Funnel, LabelList } from "recharts";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWithinInterval, subMonths, startOfDay } from "date-fns";
-import { BarChart3, Calendar, Package, TrendingUp, Download, FileSpreadsheet, FileText, Filter } from "lucide-react";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWithinInterval, subMonths, startOfDay, subDays, startOfWeek, endOfWeek } from "date-fns";
+import { BarChart3, Calendar, Package, TrendingUp, Download, FileSpreadsheet, FileText, Filter, IndianRupee } from "lucide-react";
 import { exportToExcel, exportToPDF, exportCategorySummaryToExcel, exportCategorySummaryToPDF } from "@/lib/exportUtils";
 
 interface EnquiryAnalyticsProps {
@@ -157,6 +157,75 @@ export function EnquiryAnalytics({ enquiries }: EnquiryAnalyticsProps) {
       selectedMonth: currentMonthData.enquiries.length,
     };
   }, [filteredEnquiries, currentMonthData]);
+
+  // Helper function to parse pricing value from string (handles formats like "₹1,50,000" or "1,50,000" or "150000")
+  const parsePriceValue = (pricing: string | null): number => {
+    if (!pricing) return 0;
+    // Remove currency symbols, spaces and commas, then parse
+    const cleanedValue = pricing.replace(/[₹$€£\s,]/g, '');
+    const numValue = parseFloat(cleanedValue);
+    return isNaN(numValue) ? 0 : numValue;
+  };
+
+  // Value-based stats (MTD, WTD, and daily value chart)
+  const valueStats = useMemo(() => {
+    const now = new Date();
+    
+    // Month to Date value
+    const mtdStart = startOfMonth(now);
+    const mtdEnquiries = filteredEnquiries.filter((e) =>
+      isWithinInterval(new Date(e.created_at), { start: mtdStart, end: now })
+    );
+    const mtdValue = mtdEnquiries.reduce((sum, e) => sum + parsePriceValue(e.response_pricing), 0);
+
+    // Week to Date value
+    const wtdStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday as start
+    const wtdEnquiries = filteredEnquiries.filter((e) =>
+      isWithinInterval(new Date(e.created_at), { start: wtdStart, end: now })
+    );
+    const wtdValue = wtdEnquiries.reduce((sum, e) => sum + parsePriceValue(e.response_pricing), 0);
+
+    // Today's value
+    const todayStart = startOfDay(now);
+    const todayEnquiries = filteredEnquiries.filter((e) => {
+      const enquiryDate = startOfDay(new Date(e.created_at));
+      return enquiryDate.getTime() === todayStart.getTime();
+    });
+    const todayValue = todayEnquiries.reduce((sum, e) => sum + parsePriceValue(e.response_pricing), 0);
+
+    return {
+      mtdValue,
+      wtdValue,
+      todayValue,
+      mtdCount: mtdEnquiries.length,
+      wtdCount: wtdEnquiries.length,
+    };
+  }, [filteredEnquiries]);
+
+  // Day-wise value chart data for last 30 days
+  const dailyValueChartData = useMemo(() => {
+    const now = new Date();
+    const thirtyDaysAgo = subDays(now, 29);
+    const days = eachDayOfInterval({ start: thirtyDaysAgo, end: now });
+
+    return days.map((day) => {
+      const dayStart = startOfDay(day);
+      const dayEnquiries = filteredEnquiries.filter((e) => {
+        const enquiryDate = startOfDay(new Date(e.created_at));
+        return enquiryDate.getTime() === dayStart.getTime();
+      });
+      
+      const value = dayEnquiries.reduce((sum, e) => sum + parsePriceValue(e.response_pricing), 0);
+      const count = dayEnquiries.length;
+
+      return {
+        date: format(day, "dd"),
+        fullDate: format(day, "MMM dd"),
+        value,
+        count,
+      };
+    });
+  }, [filteredEnquiries]);
 
   // Funnel data - conversion stages
   const funnelData = useMemo(() => {
@@ -403,6 +472,126 @@ export function EnquiryAnalytics({ enquiries }: EnquiryAnalyticsProps) {
                 <p className="text-2xl font-bold">{stats.previousMonth}</p>
                 <p className="text-xs text-muted-foreground">Previous Month</p>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Value Stats Section */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <IndianRupee className="w-5 h-5 text-success" />
+          Enquiry Value Analytics
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="glass border-success/20">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-lg bg-success/10">
+                  <IndianRupee className="w-5 h-5 text-success" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-success">
+                    ₹{valueStats.mtdValue.toLocaleString('en-IN')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Month to Date ({valueStats.mtdCount} enquiries)
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="glass border-chart-2/20">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-lg bg-chart-2/10">
+                  <IndianRupee className="w-5 h-5 text-chart-2" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-chart-2">
+                    ₹{valueStats.wtdValue.toLocaleString('en-IN')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Week to Date ({valueStats.wtdCount} enquiries)
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="glass border-primary/20">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-lg bg-primary/10">
+                  <IndianRupee className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-primary">
+                    ₹{valueStats.todayValue.toLocaleString('en-IN')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Today's Value</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Daily Value Chart - Last 30 days */}
+        <Card className="glass">
+          <CardHeader>
+            <CardTitle className="text-lg">Daily Enquiry Value (Last 30 Days)</CardTitle>
+            <CardDescription>
+              Total quoted value of enquiries received per day
+              {selectedCategory !== "all" && ` - ${selectedCategory}`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              {dailyValueChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dailyValueChartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 11 }}
+                      className="text-muted-foreground"
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 11 }}
+                      className="text-muted-foreground"
+                      tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
+                    />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="bg-popover border border-border rounded-lg shadow-lg p-3">
+                              <p className="font-medium">{payload[0].payload.fullDate}</p>
+                              <p className="text-sm text-success">
+                                Value: ₹{payload[0].payload.value.toLocaleString('en-IN')}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {payload[0].payload.count} enquiries
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar
+                      dataKey="value"
+                      fill="hsl(142, 76%, 36%)"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  No data available
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
