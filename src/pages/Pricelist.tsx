@@ -3,11 +3,13 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { usePricelist, PricelistFormData } from "@/hooks/usePricelist";
 import { useEnquiries } from "@/hooks/useEnquiries";
+import { PricelistAnalytics } from "@/components/pricelist/PricelistAnalytics";
 import { Navigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -42,6 +44,8 @@ import {
   Trash2,
   Edit,
   RefreshCw,
+  BarChart3,
+  List,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -67,6 +71,7 @@ export default function Pricelist() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [availabilityFilter, setAvailabilityFilter] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<string>("products");
   
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -308,192 +313,211 @@ export default function Pricelist() {
           )}
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileSpreadsheet className="w-5 h-5" />
-              Products ({filteredItems.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row gap-3 mb-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by product name, brand, description..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
-                <SelectTrigger className="w-full sm:w-[150px]">
-                  <SelectValue placeholder="Availability" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  {AVAILABILITY_OPTIONS.map((opt) => (
-                    <SelectItem key={opt} value={opt}>
-                      {opt}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="products" className="flex items-center gap-2">
+              <List className="w-4 h-4" />
+              Products
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Analytics
+            </TabsTrigger>
+          </TabsList>
 
-            {loading ? (
-              <div className="flex items-center justify-center p-8">
-                <div className="animate-pulse text-muted-foreground">Loading pricelist...</div>
-              </div>
-            ) : (
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Brand</TableHead>
-                      <TableHead>Website Price</TableHead>
-                      <TableHead>Dealer Price</TableHead>
-                      {canManage && <TableHead>Cost Price</TableHead>}
-                      {canManage && <TableHead>Margin</TableHead>}
-                      <TableHead>Lead Time</TableHead>
-                      <TableHead>Availability</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredItems.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={canManage ? 12 : 10} className="text-center py-8 text-muted-foreground">
-                          No products found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredItems.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{item.product_name}</p>
-                              {item.description && (
-                                <p className="text-xs text-muted-foreground line-clamp-1">
-                                  {item.description}
-                                </p>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>{item.product_category}</TableCell>
-                          <TableCell>{item.brand || "-"}</TableCell>
-                          <TableCell>
-                            {item.website_price ? (
-                              <span className="font-medium">
-                                {item.currency === "USD" ? "$" : "₹"}
-                                {item.website_price.toLocaleString()}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">On Request</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {item.dealer_price ? (
-                              <span className="font-medium">
-                                {item.currency === "USD" ? "$" : "₹"}
-                                {item.dealer_price.toLocaleString()}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">On Request</span>
-                            )}
-                          </TableCell>
-                          {canManage && (
-                            <TableCell>
-                              {item.cost_price ? (
-                                <span className="font-medium text-muted-foreground">
-                                  {item.currency === "USD" ? "$" : "₹"}
-                                  {item.cost_price.toLocaleString()}
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                          )}
-                          {canManage && (
-                            <TableCell>
-                              {item.dealer_price && item.cost_price ? (
-                                <span className={`font-medium ${
-                                  ((item.dealer_price - item.cost_price) / item.dealer_price) * 100 >= 20 
-                                    ? "text-green-600" 
-                                    : ((item.dealer_price - item.cost_price) / item.dealer_price) * 100 >= 10 
-                                      ? "text-yellow-600" 
-                                      : "text-red-600"
-                                }`}>
-                                  {(((item.dealer_price - item.cost_price) / item.dealer_price) * 100).toFixed(1)}%
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                          )}
-                          <TableCell>{item.lead_time || "-"}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={getAvailabilityColor(item.availability)}>
-                              {item.availability}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openEnquiryDialog(item)}
-                                title="Raise Enquiry"
-                              >
-                                <MessageSquarePlus className="w-4 h-4" />
-                              </Button>
-                              {canManage && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => openEditDialog(item)}
-                                    title="Edit"
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDeleteProduct(item.id)}
-                                    title="Delete"
-                                    className="text-destructive hover:text-destructive"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </TableCell>
+          <TabsContent value="products">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileSpreadsheet className="w-5 h-5" />
+                  Products ({filteredItems.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by product name, brand, description..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
+                    <SelectTrigger className="w-full sm:w-[150px]">
+                      <SelectValue placeholder="Availability" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      {AVAILABILITY_OPTIONS.map((opt) => (
+                        <SelectItem key={opt} value={opt}>
+                          {opt}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {loading ? (
+                  <div className="flex items-center justify-center p-8">
+                    <div className="animate-pulse text-muted-foreground">Loading pricelist...</div>
+                  </div>
+                ) : (
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Product</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead>Brand</TableHead>
+                          <TableHead>Website Price</TableHead>
+                          <TableHead>Dealer Price</TableHead>
+                          {canManage && <TableHead>Cost Price</TableHead>}
+                          {canManage && <TableHead>Margin</TableHead>}
+                          <TableHead>Lead Time</TableHead>
+                          <TableHead>Availability</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredItems.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={canManage ? 12 : 10} className="text-center py-8 text-muted-foreground">
+                              No products found
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredItems.map((item) => (
+                            <TableRow key={item.id}>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium">{item.product_name}</p>
+                                  {item.description && (
+                                    <p className="text-xs text-muted-foreground line-clamp-1">
+                                      {item.description}
+                                    </p>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>{item.product_category}</TableCell>
+                              <TableCell>{item.brand || "-"}</TableCell>
+                              <TableCell>
+                                {item.website_price ? (
+                                  <span className="font-medium">
+                                    {item.currency === "USD" ? "$" : "₹"}
+                                    {item.website_price.toLocaleString()}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">On Request</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {item.dealer_price ? (
+                                  <span className="font-medium">
+                                    {item.currency === "USD" ? "$" : "₹"}
+                                    {item.dealer_price.toLocaleString()}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">On Request</span>
+                                )}
+                              </TableCell>
+                              {canManage && (
+                                <TableCell>
+                                  {item.cost_price ? (
+                                    <span className="font-medium text-muted-foreground">
+                                      {item.currency === "USD" ? "$" : "₹"}
+                                      {item.cost_price.toLocaleString()}
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground">-</span>
+                                  )}
+                                </TableCell>
+                              )}
+                              {canManage && (
+                                <TableCell>
+                                  {item.dealer_price && item.cost_price ? (
+                                    <span className={`font-medium ${
+                                      ((item.dealer_price - item.cost_price) / item.dealer_price) * 100 >= 20 
+                                        ? "text-green-600" 
+                                        : ((item.dealer_price - item.cost_price) / item.dealer_price) * 100 >= 10 
+                                          ? "text-yellow-600" 
+                                          : "text-red-600"
+                                    }`}>
+                                      {(((item.dealer_price - item.cost_price) / item.dealer_price) * 100).toFixed(1)}%
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground">-</span>
+                                  )}
+                                </TableCell>
+                              )}
+                              <TableCell>{item.lead_time || "-"}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={getAvailabilityColor(item.availability)}>
+                                  {item.availability}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => openEnquiryDialog(item)}
+                                    title="Raise Enquiry"
+                                  >
+                                    <MessageSquarePlus className="w-4 h-4" />
+                                  </Button>
+                                  {canManage && (
+                                    <>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => openEditDialog(item)}
+                                        title="Edit"
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDeleteProduct(item.id)}
+                                        title="Delete"
+                                        className="text-destructive hover:text-destructive"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <PricelistAnalytics items={items} />
+          </TabsContent>
+        </Tabs>
 
         {/* Upload Dialog */}
         <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
