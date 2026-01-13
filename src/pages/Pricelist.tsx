@@ -70,6 +70,7 @@ export default function Pricelist() {
   
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [brandFilter, setBrandFilter] = useState<string>("all");
   const [availabilityFilter, setAvailabilityFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<string>("products");
   const [currentPage, setCurrentPage] = useState(1);
@@ -109,16 +110,21 @@ export default function Pricelist() {
         (item.description?.toLowerCase().includes(search.toLowerCase()) ?? false);
       
       const matchesCategory = categoryFilter === "all" || item.product_category === categoryFilter;
-      const matchesAvailability = availabilityFilter === "all" || item.availability === availabilityFilter;
       
-      return matchesSearch && matchesCategory && matchesAvailability;
+      const matchesBrand = brandFilter === "all" || 
+        (brandFilter === "_blank" ? (!item.brand || item.brand.trim() === "") : item.brand === brandFilter);
+      
+      const matchesAvailability = availabilityFilter === "all" || 
+        (availabilityFilter === "_blank" ? (!item.availability || item.availability.trim() === "") : item.availability === availabilityFilter);
+      
+      return matchesSearch && matchesCategory && matchesBrand && matchesAvailability;
     });
-  }, [items, search, categoryFilter, availabilityFilter]);
+  }, [items, search, categoryFilter, brandFilter, availabilityFilter]);
 
   // Reset to page 1 when filters change
   useMemo(() => {
     setCurrentPage(1);
-  }, [search, categoryFilter, availabilityFilter]);
+  }, [search, categoryFilter, brandFilter, availabilityFilter]);
 
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
   const paginatedItems = useMemo(() => {
@@ -128,7 +134,12 @@ export default function Pricelist() {
 
   const categories = useMemo(() => {
     const cats = new Set(items.map((i) => i.product_category).filter(Boolean));
-    return Array.from(cats);
+    return Array.from(cats).sort();
+  }, [items]);
+
+  const brands = useMemo(() => {
+    const brandSet = new Set(items.map((i) => i.brand).filter(Boolean) as string[]);
+    return Array.from(brandSet).sort();
   }, [items]);
 
   if (authLoading) {
@@ -370,12 +381,27 @@ export default function Pricelist() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <Select value={brandFilter} onValueChange={setBrandFilter}>
+                    <SelectTrigger className="w-full sm:w-[150px]">
+                      <SelectValue placeholder="Brand" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Brands</SelectItem>
+                      <SelectItem value="_blank">— Blank —</SelectItem>
+                      {brands.map((brand) => (
+                        <SelectItem key={brand} value={brand}>
+                          {brand}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
                     <SelectTrigger className="w-full sm:w-[150px]">
                       <SelectValue placeholder="Availability" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="_blank">— Blank —</SelectItem>
                       {AVAILABILITY_OPTIONS.map((opt) => (
                         <SelectItem key={opt} value={opt}>
                           {opt}
