@@ -47,6 +47,7 @@ export function ProcurementOrderDialog({
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>("");
   const [procurementRate, setProcurementRate] = useState<string>("");
   const [procurementCurrency, setProcurementCurrency] = useState<string>("INR");
+  const [procurementDate, setProcurementDate] = useState<Date | undefined>(undefined);
   const [supplierPaymentStatus, setSupplierPaymentStatus] = useState<string>("pending");
   const [internalNotes, setInternalNotes] = useState<string>("");
   const [poFile, setPoFile] = useState<File | null>(null);
@@ -76,6 +77,7 @@ export function ProcurementOrderDialog({
       setSelectedSupplierId(supplier?.id || "");
       setProcurementRate(order.procurement_rate?.toString() || "");
       setProcurementCurrency(order.procurement_currency || "INR");
+      setProcurementDate(order.procurement_date ? parseISO(order.procurement_date) : undefined);
       setInternalNotes(order.internal_notes || "");
     }
   }, [order, suppliers]);
@@ -130,6 +132,7 @@ export function ProcurementOrderDialog({
         supplier_contact: supplier?.phone || null,
         procurement_rate: procurementRate ? parseFloat(procurementRate) : null,
         procurement_currency: procurementCurrency,
+        procurement_date: procurementDate ? format(procurementDate, 'yyyy-MM-dd') : null,
         internal_notes: internalNotes || null,
       };
 
@@ -297,7 +300,35 @@ export function ProcurementOrderDialog({
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="space-y-2">
+                <Label>Procurement Date *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !procurementDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {procurementDate ? format(procurementDate, "dd MMM yyyy") : "Select date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={procurementDate}
+                      onSelect={setProcurementDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                {!procurementDate && (
+                  <p className="text-xs text-destructive">Required for planning</p>
+                )}
+              </div>
               <div className="space-y-2">
                 <Label>Procurement Rate (per unit)</Label>
                 <Input

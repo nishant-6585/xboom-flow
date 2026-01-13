@@ -209,7 +209,7 @@ export function ProcurementOrders() {
                   <TableHead>Product</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Supplier</TableHead>
-                  <TableHead>Procurement</TableHead>
+                  <TableHead>Proc. Date</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Payment</TableHead>
                   <TableHead>PO</TableHead>
@@ -259,18 +259,14 @@ export function ProcurementOrders() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {order.procurement_rate ? (
-                          <div>
-                            <p className="font-medium">
-                              {order.procurement_currency === 'USD' ? '$' : '₹'}
-                              {order.procurement_rate.toLocaleString()}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Qty: {order.quantity}
-                            </p>
-                          </div>
+                        {order.procurement_date ? (
+                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                            {format(new Date(order.procurement_date), 'dd MMM')}
+                          </Badge>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">
+                            Not Set
+                          </Badge>
                         )}
                       </TableCell>
                       <TableCell>
