@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Search, FileText, ExternalLink, Upload } from "lucide-react";
 import { format } from "date-fns";
 import { ProcurementOrderDialog } from "./ProcurementOrderDialog";
+import { OrderNumberBadge } from "@/components/OrderNumberBadge";
 
 export function ProcurementOrders() {
   const { orders, loading: ordersLoading, updateOrder, refetch } = useOrders();
@@ -210,9 +211,7 @@ export function ProcurementOrders() {
                   filteredOrders.map((order) => (
                     <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrderClick(order)}>
                       <TableCell>
-                        <span className="font-mono text-xs font-medium text-primary">
-                          {order.order_number || '-'}
-                        </span>
+                        <OrderNumberBadge orderNumber={order.order_number} />
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={getPriorityColor(order.priority)}>
