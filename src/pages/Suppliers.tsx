@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useSuppliers, Supplier, SupplierPreference } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
 import { SupplierCard } from '@/components/SupplierCard';
+import { SupplierTable } from '@/components/SupplierTable';
 import { SupplierForm } from '@/components/SupplierForm';
 import { SupplierLedgerDialog } from '@/components/SupplierLedgerDialog';
 import { SupplierAnalytics } from '@/components/SupplierAnalytics';
-import { Plus, Search, Loader2, Building2, Filter, Upload, FileSpreadsheet, Download, X, BarChart3 } from 'lucide-react';
+import { Plus, Search, Loader2, Building2, Filter, Upload, FileSpreadsheet, Download, X, BarChart3, LayoutGrid, TableIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
@@ -27,6 +28,7 @@ export default function Suppliers() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [activeFilter, setActiveFilter] = useState<{ type: string; value: string } | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(true);
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
   
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -316,6 +318,26 @@ export default function Suppliers() {
                     Clear: {activeFilter.value}
                   </Button>
                 )}
+                <div className="flex border rounded-md">
+                  <Button
+                    variant={viewMode === 'card' ? 'default' : 'ghost'}
+                    size="icon"
+                    className="rounded-r-none"
+                    onClick={() => setViewMode('card')}
+                    title="Card View"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'table' ? 'default' : 'ghost'}
+                    size="icon"
+                    className="rounded-l-none"
+                    onClick={() => setViewMode('table')}
+                    title="Table View"
+                  >
+                    <TableIcon className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -348,6 +370,12 @@ export default function Suppliers() {
               </div>
             </CardContent>
           </Card>
+        ) : viewMode === 'table' ? (
+          <SupplierTable
+            suppliers={filteredSuppliers}
+            onEdit={handleOpenForm}
+            onViewLedger={setLedgerSupplier}
+          />
         ) : (
           <div className="space-y-4">
             {filteredSuppliers.map((supplier) => (
