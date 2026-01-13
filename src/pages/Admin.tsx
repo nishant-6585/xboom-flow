@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useEnquiries } from "@/hooks/useEnquiries";
 import { useOrders } from "@/hooks/useOrders";
-import { EnquiryAnalytics } from "@/components/EnquiryAnalytics";
+import { EnquiryAnalytics, ValueFilterType } from "@/components/EnquiryAnalytics";
 import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
 import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
 import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog } from "lucide-react";
@@ -31,7 +31,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 
 interface PendingUser {
   id: string;
@@ -57,6 +57,7 @@ const Admin = () => {
   const { toast } = useToast();
   const { enquiries } = useEnquiries();
   const { orders } = useOrders();
+  const navigate = useNavigate();
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [approvedUsers, setApprovedUsers] = useState<ApprovedUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,6 +67,16 @@ const Admin = () => {
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [roleChangeLoading, setRoleChangeLoading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("analytics");
+
+  const handleValueFilterClick = (filterType: ValueFilterType, specificDate?: Date) => {
+    // Navigate to main page with filter params
+    const params = new URLSearchParams();
+    params.set("valueFilter", filterType);
+    if (specificDate) {
+      params.set("valueDate", specificDate.toISOString());
+    }
+    navigate(`/?${params.toString()}`);
+  };
 
   // Redirect if not admin or not approved
   if (role !== "admin" || !isApproved) {
@@ -340,7 +351,7 @@ const Admin = () => {
           </TabsList>
 
           <TabsContent value="analytics">
-            <EnquiryAnalytics enquiries={enquiries} />
+            <EnquiryAnalytics enquiries={enquiries} onValueFilterClick={handleValueFilterClick} />
           </TabsContent>
 
           <TabsContent value="payments">
