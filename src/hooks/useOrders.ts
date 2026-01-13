@@ -61,6 +61,7 @@ export interface Order {
   escalated_at: string | null;
   escalated_by: string | null;
   escalation_reason: string | null;
+  delivery_charges: number | null;
 }
 
 export interface OrderFormData {
@@ -97,6 +98,7 @@ export interface OrderFormData {
   sales_notes?: string;
   invoice_url?: string;
   po_url?: string;
+  delivery_charges?: number;
 }
 
 export const ORDER_STATUSES: { value: OrderStatus; label: string }[] = [
@@ -235,6 +237,7 @@ export function useOrders() {
           escalated_at: order.escalated_at || null,
           escalated_by: order.escalated_by || null,
           escalation_reason: order.escalation_reason || null,
+          delivery_charges: null,
         }));
         
         setOrders(mappedOrders);
