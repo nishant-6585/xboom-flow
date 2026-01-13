@@ -114,6 +114,34 @@ export function useSuppliers() {
     }
   };
 
+  const bulkImportSuppliers = async (
+    suppliersData: Omit<Supplier, 'id' | 'created_at' | 'updated_at' | 'created_by'>[]
+  ): Promise<boolean> => {
+    if (!user) {
+      toast.error('You must be logged in');
+      return false;
+    }
+
+    try {
+      const dataWithCreatedBy = suppliersData.map(supplier => ({
+        ...supplier,
+        created_by: user.id,
+      }));
+
+      const { error } = await supabase.from('suppliers').insert(dataWithCreatedBy);
+
+      if (error) throw error;
+
+      toast.success(`Successfully imported ${suppliersData.length} suppliers`);
+      await fetchSuppliers();
+      return true;
+    } catch (error: any) {
+      console.error('Error importing suppliers:', error);
+      toast.error(error.message || 'Failed to import suppliers');
+      return false;
+    }
+  };
+
   const updateSupplier = async (
     id: string,
     updates: Partial<Supplier>
@@ -163,6 +191,7 @@ export function useSuppliers() {
     suppliers,
     loading,
     createSupplier,
+    bulkImportSuppliers,
     updateSupplier,
     deleteSupplier,
     refetch: fetchSuppliers,
