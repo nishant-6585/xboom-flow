@@ -60,7 +60,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [showEscalationForm, setShowEscalationForm] = useState(false);
   const [escalating, setEscalating] = useState(false);
 
-  const [status, setStatus] = useState<OrderStatus>('pending');
+  const [status, setStatus] = useState<OrderStatus>('po_received');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
   const [orderType, setOrderType] = useState<OrderType>('prepaid');
   const [customerType, setCustomerType] = useState<CustomerType>('b2b');
@@ -331,7 +331,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             )}
 
             {/* Sales Escalation Form (only for sales on non-escalated pending orders) */}
-            {canEscalate && !order.is_escalated && order.status !== 'delivered' && order.status !== 'cancelled' && (
+            {canEscalate && !order.is_escalated && order.status !== 'delivery_done' && order.status !== 'cancelled' && (
               <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
                 {showEscalationForm ? (
                   <div className="space-y-3">

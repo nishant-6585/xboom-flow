@@ -29,7 +29,7 @@ export function PaymentRemindersCard({ orders }: PaymentRemindersCardProps) {
       .filter(order => {
         // Only pending/partial payments that are not cancelled or delivered
         const hasUnpaidBalance = order.payment_status === 'pending' || order.payment_status === 'partial';
-        const isActive = order.status !== 'cancelled' && order.status !== 'delivered';
+        const isActive = order.status !== 'cancelled' && order.status !== 'delivery_done';
         const hasDueDate = !!order.payment_due_date;
         return hasUnpaidBalance && isActive && hasDueDate;
       })

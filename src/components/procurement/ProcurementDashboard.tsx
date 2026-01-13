@@ -123,11 +123,11 @@ export function ProcurementDashboard() {
     const totalPayments = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
     const activeSuppliers = new Set(filteredOrders.map(o => o.supplier_name).filter(Boolean)).size;
     
-    // Pending orders (not delivered or cancelled)
+    // Pending orders (not delivery_done or cancelled)
     const pendingOrders = filteredOrders.filter(o => 
-      !['delivered', 'cancelled'].includes(o.status)
+      !['delivery_done', 'cancelled'].includes(o.status)
     ).length;
-    const completedOrders = filteredOrders.filter(o => o.status === 'delivered').length;
+    const completedOrders = filteredOrders.filter(o => o.status === 'delivery_done').length;
     
     return {
       totalOrders: filteredOrders.length,
