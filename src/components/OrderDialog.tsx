@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle } from 'lucide-react';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { OrderSupplierPayments } from '@/components/OrderSupplierPayments';
 
 interface OrderDialogProps {
   order: Order | null;
@@ -1101,6 +1102,18 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                         />
                       </div>
                     </div>
+
+                    {/* Supplier Payments Section */}
+                    {order.supplier_id && (
+                      <div className="border-t pt-4 mt-4">
+                        <OrderSupplierPayments
+                          orderId={order.id}
+                          supplierId={order.supplier_id}
+                          supplierName={order.supplier_name}
+                          procurementValue={order.procurement_rate ? order.procurement_rate * order.quantity : 0}
+                        />
+                      </div>
+                    )}
                   </>
                 )}
 
