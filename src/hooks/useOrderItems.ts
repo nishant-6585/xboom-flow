@@ -36,6 +36,7 @@ export interface OrderItemFormData {
   unit_price?: number;
   procurement_rate?: number;
   procurement_date?: string;
+  supplier_id?: string;
   status?: string;
   notes?: string;
 }
@@ -95,6 +96,8 @@ export function useOrderItems() {
         quantity: item.quantity,
         unit_price: item.unit_price || null,
         procurement_rate: item.procurement_rate || null,
+        procurement_date: item.procurement_date || null,
+        supplier_id: item.supplier_id || null,
         notes: item.notes || null,
       }));
 

@@ -419,7 +419,9 @@ export function useOrders() {
           product_category: item.product_category,
           quantity: item.quantity,
           unit_price: item.unit_price || null,
-          procurement_rate: item.procurement_rate || null,
+          // Flow procurement fields from order to items
+          procurement_rate: item.procurement_rate || formData.procurement_rate || null,
+          supplier_id: formData.supplier_id || null,
           notes: item.notes || null,
         }));
 
