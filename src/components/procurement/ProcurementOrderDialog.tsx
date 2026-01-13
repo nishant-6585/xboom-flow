@@ -18,10 +18,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileText, Building2, CreditCard, Loader2, Plus, Trash2, Package } from "lucide-react";
+import { Upload, FileText, Building2, CreditCard, Loader2, Plus, Trash2, Package, Image, X } from "lucide-react";
 import { format } from "date-fns";
 import { ProcurementOrderItems } from "./ProcurementOrderItems";
 import { OrderNumberBadge } from "@/components/OrderNumberBadge";
+import { useRef } from "react";
 
 interface ProcurementOrderDialogProps {
   order: Order | null;
@@ -53,6 +54,9 @@ export function ProcurementOrderDialog({
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [paymentMode, setPaymentMode] = useState<string>("bank_transfer");
   const [paymentNotes, setPaymentNotes] = useState<string>("");
+  const [paymentScreenshots, setPaymentScreenshots] = useState<File[]>([]);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const screenshotInputRef = useRef<HTMLInputElement>(null);
 
   const { payments, createPayment, deletePayment, loading: paymentsLoading } = useSupplierPayments(selectedSupplierId || undefined);
 
@@ -150,6 +154,7 @@ export function ProcurementOrderDialog({
       return;
     }
 
+    setPaymentLoading(true);
     const success = await createPayment({
       supplier_id: selectedSupplierId,
       order_id: order.id,
@@ -159,13 +164,29 @@ export function ProcurementOrderDialog({
       payment_date: new Date().toISOString().split('T')[0],
       notes: paymentNotes || null,
       reference_number: null,
-    });
+    }, paymentScreenshots.length > 0 ? paymentScreenshots : undefined);
 
+    setPaymentLoading(false);
     if (success) {
       setPaymentAmount("");
       setPaymentNotes("");
+      setPaymentScreenshots([]);
       setShowAddPayment(false);
     }
+  };
+
+  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setPaymentScreenshots(prev => [...prev, ...newFiles]);
+    }
+    if (screenshotInputRef.current) {
+      screenshotInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveScreenshot = (index: number) => {
+    setPaymentScreenshots(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleDeletePayment = async (paymentId: string) => {
@@ -416,11 +437,65 @@ export function ProcurementOrderDialog({
                         rows={2}
                       />
                     </div>
-                    <div className="flex gap-2">
-                      <Button onClick={handleAddPayment} size="sm">
-                        Record Payment
+                    
+                    {/* Screenshot Upload */}
+                    <div className="space-y-2">
+                      <Label>Payment Screenshots</Label>
+                      <input
+                        ref={screenshotInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleScreenshotChange}
+                        className="hidden"
+                      />
+                      {paymentScreenshots.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {paymentScreenshots.map((file, index) => (
+                            <div key={index} className="relative group">
+                              <img 
+                                src={URL.createObjectURL(file)} 
+                                alt={`Screenshot ${index + 1}`}
+                                className="w-16 h-16 object-cover rounded border"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveScreenshot(index)}
+                                className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => screenshotInputRef.current?.click()}
+                        className="w-full"
+                      >
+                        <Image className="h-4 w-4 mr-2" />
+                        {paymentScreenshots.length > 0 ? 'Add More Screenshots' : 'Upload Screenshots'}
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => setShowAddPayment(false)}>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button onClick={handleAddPayment} size="sm" disabled={paymentLoading}>
+                        {paymentLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Recording...
+                          </>
+                        ) : (
+                          'Record Payment'
+                        )}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => {
+                        setShowAddPayment(false);
+                        setPaymentScreenshots([]);
+                      }}>
                         Cancel
                       </Button>
                     </div>
