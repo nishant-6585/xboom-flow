@@ -43,21 +43,18 @@ export function QueryList({ queries, onQueryClick }: QueryListProps) {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
-        <TabsList className="grid grid-cols-5 w-full">
+        <TabsList className="grid grid-cols-4 w-full">
           <TabsTrigger value="all" className="text-xs">
             All ({getStatusCount("all")})
           </TabsTrigger>
           <TabsTrigger value="pending" className="text-xs">
             Pending ({getStatusCount("pending")})
           </TabsTrigger>
-          <TabsTrigger value="in_review" className="text-xs">
-            Review ({getStatusCount("in_review")})
+          <TabsTrigger value="responded" className="text-xs">
+            Responded ({getStatusCount("responded")})
           </TabsTrigger>
-          <TabsTrigger value="confirmed" className="text-xs">
-            Confirmed ({getStatusCount("confirmed")})
-          </TabsTrigger>
-          <TabsTrigger value="rejected" className="text-xs">
-            Rejected ({getStatusCount("rejected")})
+          <TabsTrigger value="order_won" className="text-xs">
+            Won ({getStatusCount("order_won")})
           </TabsTrigger>
         </TabsList>
 

@@ -24,7 +24,7 @@ interface SalesTeamMember {
 }
 
 const Index = () => {
-  const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry, escalateEnquiry, updateOutcome, submitAdminResponse } = useEnquiries();
+  const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry, escalateEnquiry, updateStatus, submitAdminResponse } = useEnquiries();
   const { role, user } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
@@ -339,7 +339,7 @@ const Index = () => {
                 ) : viewMode === "table" ? (
                   <EnquiryTable
                     enquiries={filteredEnquiries}
-                    onUpdateOutcome={updateOutcome}
+                    onUpdateStatus={updateStatus}
                     onEnquiryClick={handleEnquiryClick}
                   />
                 ) : (

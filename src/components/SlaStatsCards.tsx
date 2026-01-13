@@ -10,7 +10,7 @@ interface SlaStatsCardsProps {
 export function SlaStatsCards({ queries }: SlaStatsCardsProps) {
   const slaStats = queries.reduce(
     (acc, query) => {
-      const isResponded = query.status === "confirmed" || query.status === "rejected";
+      const isResponded = query.status !== "pending";
       const respondedAt = isResponded ? query.updatedAt : null;
       const status = getSlaStatus(query.createdAt, respondedAt, query.urgency, isResponded);
 

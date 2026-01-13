@@ -15,7 +15,7 @@ interface EnquiryCardProps {
 export function EnquiryCard({ enquiry, onClick }: EnquiryCardProps) {
   const createdAt = new Date(enquiry.created_at);
   const respondedAt = enquiry.responded_at ? new Date(enquiry.responded_at) : null;
-  const isResponded = enquiry.status === "confirmed" || enquiry.status === "rejected";
+  const isResponded = enquiry.status !== "pending";
   const slaStatus = getSlaStatus(createdAt, respondedAt, enquiry.urgency as UrgencyLevel, isResponded);
   const timeRemaining = getTimeRemainingString(createdAt, enquiry.urgency as UrgencyLevel);
 
@@ -88,7 +88,7 @@ export function EnquiryCard({ enquiry, onClick }: EnquiryCardProps) {
           </div>
         </div>
 
-        {enquiry.response_pricing && enquiry.status === "confirmed" && (
+        {enquiry.response_pricing && enquiry.status === "responded" && (
           <div className="pt-3 border-t border-border space-y-2">
             <p className="text-xs uppercase tracking-wider text-primary font-medium">Response</p>
             <div className="grid grid-cols-3 gap-2 text-sm">

@@ -1,6 +1,6 @@
 import { ProductQuery } from "@/types/query";
 import { Card, CardContent } from "@/components/ui/card";
-import { Clock, CheckCircle2, AlertCircle, XCircle } from "lucide-react";
+import { Clock, CheckCircle2, Trophy, XCircle } from "lucide-react";
 
 interface StatsCardsProps {
   queries: ProductQuery[];
@@ -9,9 +9,9 @@ interface StatsCardsProps {
 export function StatsCards({ queries }: StatsCardsProps) {
   const stats = {
     pending: queries.filter((q) => q.status === "pending").length,
-    in_review: queries.filter((q) => q.status === "in_review").length,
-    confirmed: queries.filter((q) => q.status === "confirmed").length,
-    rejected: queries.filter((q) => q.status === "rejected").length,
+    responded: queries.filter((q) => q.status === "responded").length,
+    won: queries.filter((q) => q.status === "order_won").length,
+    lost: queries.filter((q) => q.status === "order_lost").length,
   };
 
   const cards = [
@@ -23,22 +23,22 @@ export function StatsCards({ queries }: StatsCardsProps) {
       bg: "bg-warning/10",
     },
     {
-      label: "In Review",
-      value: stats.in_review,
-      icon: AlertCircle,
+      label: "Responded",
+      value: stats.responded,
+      icon: CheckCircle2,
       color: "text-primary",
       bg: "bg-primary/10",
     },
     {
-      label: "Confirmed",
-      value: stats.confirmed,
-      icon: CheckCircle2,
+      label: "Order Won",
+      value: stats.won,
+      icon: Trophy,
       color: "text-success",
       bg: "bg-success/10",
     },
     {
-      label: "Rejected",
-      value: stats.rejected,
+      label: "Order Lost",
+      value: stats.lost,
       icon: XCircle,
       color: "text-destructive",
       bg: "bg-destructive/10",

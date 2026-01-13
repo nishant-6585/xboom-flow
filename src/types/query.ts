@@ -1,4 +1,4 @@
-export type QueryStatus = 'pending' | 'in_review' | 'confirmed' | 'rejected';
+export type QueryStatus = "pending" | "responded" | "on_hold" | "moved_to_pipeline" | "order_won" | "order_lost";
 
 export type UrgencyLevel = 'low' | 'medium' | 'high' | 'critical';
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Enquiry, OrderOutcome, LostReason, LOST_REASONS } from "@/hooks/useEnquiries";
+import { Enquiry, QueryStatus, LostReason, LOST_REASONS, ENQUIRY_STATUSES } from "@/hooks/useEnquiries";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Table,
@@ -36,20 +36,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format } from "date-fns";
-import { MoreHorizontal, Trophy, XCircle, Clock, ChevronDown } from "lucide-react";
+import { MoreHorizontal, Trophy, XCircle, Clock, GitBranch, CheckCircle } from "lucide-react";
+import { StatusBadge } from "./StatusBadge";
 
 interface EnquiryTableProps {
   enquiries: Enquiry[];
-  onUpdateOutcome: (
+  onUpdateStatus: (
     enquiryId: string,
-    outcome: OrderOutcome,
+    status: QueryStatus,
     lostReason?: LostReason,
     lostReasonNotes?: string
   ) => Promise<boolean>;
   onEnquiryClick: (enquiry: Enquiry) => void;
 }
 
-export function EnquiryTable({ enquiries, onUpdateOutcome, onEnquiryClick }: EnquiryTableProps) {
+export function EnquiryTable({ enquiries, onUpdateStatus, onEnquiryClick }: EnquiryTableProps) {
   const { role } = useAuth();
   const [lostDialogOpen, setLostDialogOpen] = useState(false);
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
@@ -57,69 +58,29 @@ export function EnquiryTable({ enquiries, onUpdateOutcome, onEnquiryClick }: Enq
   const [lostReasonNotes, setLostReasonNotes] = useState("");
   const [updating, setUpdating] = useState(false);
 
-  const canUpdateOutcome = role === "sales" || role === "admin";
+  const canUpdateStatus = role === "sales" || role === "admin";
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      pending: "secondary",
-      in_review: "outline",
-      confirmed: "default",
-      rejected: "destructive",
-    };
-    const labels: Record<string, string> = {
-      pending: "Pending",
-      in_review: "In Review",
-      confirmed: "Confirmed",
-      rejected: "Rejected",
-    };
-    return <Badge variant={variants[status] || "secondary"}>{labels[status] || status}</Badge>;
-  };
-
-  const getOutcomeBadge = (outcome: OrderOutcome) => {
-    if (outcome === "won") {
-      return (
-        <Badge className="bg-green-600 hover:bg-green-700 text-white">
-          <Trophy className="w-3 h-3 mr-1" />
-          Won
-        </Badge>
-      );
+  const handleStatusChange = async (enquiry: Enquiry, newStatus: QueryStatus) => {
+    if (newStatus === "order_lost") {
+      setSelectedEnquiry(enquiry);
+      setLostReason("");
+      setLostReasonNotes("");
+      setLostDialogOpen(true);
+      return;
     }
-    if (outcome === "lost") {
-      return (
-        <Badge variant="destructive">
-          <XCircle className="w-3 h-3 mr-1" />
-          Lost
-        </Badge>
-      );
-    }
-    return (
-      <Badge variant="outline" className="text-muted-foreground">
-        <Clock className="w-3 h-3 mr-1" />
-        Pending
-      </Badge>
-    );
-  };
-
-  const handleMarkWon = async (enquiry: Enquiry) => {
+    
     setUpdating(true);
-    await onUpdateOutcome(enquiry.id, "won");
+    await onUpdateStatus(enquiry.id, newStatus);
     setUpdating(false);
-  };
-
-  const handleMarkLostClick = (enquiry: Enquiry) => {
-    setSelectedEnquiry(enquiry);
-    setLostReason("");
-    setLostReasonNotes("");
-    setLostDialogOpen(true);
   };
 
   const handleConfirmLost = async () => {
     if (!selectedEnquiry || !lostReason) return;
     
     setUpdating(true);
-    const success = await onUpdateOutcome(
+    const success = await onUpdateStatus(
       selectedEnquiry.id,
-      "lost",
+      "order_lost",
       lostReason as LostReason,
       lostReasonNotes
     );
@@ -129,12 +90,6 @@ export function EnquiryTable({ enquiries, onUpdateOutcome, onEnquiryClick }: Enq
       setLostDialogOpen(false);
       setSelectedEnquiry(null);
     }
-  };
-
-  const handleResetOutcome = async (enquiry: Enquiry) => {
-    setUpdating(true);
-    await onUpdateOutcome(enquiry.id, "pending");
-    setUpdating(false);
   };
 
   const getLostReasonLabel = (reason: LostReason | null) => {
@@ -153,16 +108,15 @@ export function EnquiryTable({ enquiries, onUpdateOutcome, onEnquiryClick }: Enq
               <TableHead>Customer</TableHead>
               <TableHead>Sales Person</TableHead>
               <TableHead className="text-center">Qty</TableHead>
-              <TableHead>Enquiry Status</TableHead>
-              <TableHead>Order Outcome</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Lost Reason</TableHead>
-              {canUpdateOutcome && <TableHead className="w-[100px]">Actions</TableHead>}
+              {canUpdateStatus && <TableHead className="w-[100px]">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {enquiries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canUpdateOutcome ? 9 : 8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={canUpdateStatus ? 8 : 7} className="text-center py-8 text-muted-foreground">
                   No enquiries found
                 </TableCell>
               </TableRow>
@@ -190,14 +144,11 @@ export function EnquiryTable({ enquiries, onUpdateOutcome, onEnquiryClick }: Enq
                   <TableCell onClick={() => onEnquiryClick(enquiry)} className="text-center">
                     {enquiry.quantity}
                   </TableCell>
-                  <TableCell onClick={() => onEnquiryClick(enquiry)}>
-                    {getStatusBadge(enquiry.status)}
+                  <TableCell>
+                    <StatusBadge status={enquiry.status} />
                   </TableCell>
                   <TableCell>
-                    {getOutcomeBadge(enquiry.order_outcome || "pending")}
-                  </TableCell>
-                  <TableCell>
-                    {enquiry.order_outcome === "lost" ? (
+                    {enquiry.status === "order_lost" ? (
                       <span className="text-sm text-muted-foreground">
                         {getLostReasonLabel(enquiry.lost_reason)}
                       </span>
@@ -205,7 +156,7 @@ export function EnquiryTable({ enquiries, onUpdateOutcome, onEnquiryClick }: Enq
                       <span className="text-sm text-muted-foreground">-</span>
                     )}
                   </TableCell>
-                  {canUpdateOutcome && (
+                  {canUpdateStatus && (
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -214,26 +165,30 @@ export function EnquiryTable({ enquiries, onUpdateOutcome, onEnquiryClick }: Enq
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {enquiry.order_outcome !== "won" && (
-                            <DropdownMenuItem onClick={() => handleMarkWon(enquiry)}>
+                          {enquiry.status !== "order_won" && (
+                            <DropdownMenuItem onClick={() => handleStatusChange(enquiry, "order_won")}>
                               <Trophy className="w-4 h-4 mr-2 text-green-600" />
                               Mark as Won
                             </DropdownMenuItem>
                           )}
-                          {enquiry.order_outcome !== "lost" && (
-                            <DropdownMenuItem onClick={() => handleMarkLostClick(enquiry)}>
+                          {enquiry.status !== "order_lost" && (
+                            <DropdownMenuItem onClick={() => handleStatusChange(enquiry, "order_lost")}>
                               <XCircle className="w-4 h-4 mr-2 text-destructive" />
                               Mark as Lost
                             </DropdownMenuItem>
                           )}
-                          {enquiry.order_outcome !== "pending" && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleResetOutcome(enquiry)}>
-                                <Clock className="w-4 h-4 mr-2" />
-                                Reset to Pending
-                              </DropdownMenuItem>
-                            </>
+                          {enquiry.status !== "moved_to_pipeline" && (
+                            <DropdownMenuItem onClick={() => handleStatusChange(enquiry, "moved_to_pipeline")}>
+                              <GitBranch className="w-4 h-4 mr-2 text-purple-600" />
+                              Move to Pipeline
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          {enquiry.status !== "pending" && (
+                            <DropdownMenuItem onClick={() => handleStatusChange(enquiry, "pending")}>
+                              <Clock className="w-4 h-4 mr-2" />
+                              Reset to Pending
+                            </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -250,9 +205,9 @@ export function EnquiryTable({ enquiries, onUpdateOutcome, onEnquiryClick }: Enq
       <Dialog open={lostDialogOpen} onOpenChange={setLostDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Mark Order as Lost</DialogTitle>
+            <DialogTitle>Mark as Lost</DialogTitle>
             <DialogDescription>
-              Please select a reason for losing this order. This helps with analytics and future improvements.
+              Please select a reason for losing this enquiry.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -277,7 +232,7 @@ export function EnquiryTable({ enquiries, onUpdateOutcome, onEnquiryClick }: Enq
                 id="lost_notes"
                 value={lostReasonNotes}
                 onChange={(e) => setLostReasonNotes(e.target.value)}
-                placeholder="Any additional details about why the order was lost..."
+                placeholder="Any additional details..."
                 rows={3}
               />
             </div>
