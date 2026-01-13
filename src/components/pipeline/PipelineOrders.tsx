@@ -13,7 +13,7 @@ export function PipelineOrders() {
   const [activeTab, setActiveTab] = useState('list');
 
   const canCreate = role === 'sales' || role === 'supply_chain' || role === 'admin';
-  const canViewAnalytics = role === 'supply_chain' || role === 'admin';
+  const canViewAnalytics = role === 'sales' || role === 'supply_chain' || role === 'admin';
 
   if (loading) {
     return (
