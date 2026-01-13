@@ -18,8 +18,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileText, Building2, CreditCard, Loader2, Plus, Trash2, Package, Image, X } from "lucide-react";
+import { Upload, FileText, Building2, CreditCard, Loader2, Plus, Trash2, Package, Image, X, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { ProcurementOrderItems } from "./ProcurementOrderItems";
 import { OrderNumberBadge } from "@/components/OrderNumberBadge";
 import { useRef } from "react";
@@ -56,6 +59,7 @@ export function ProcurementOrderDialog({
   const [paymentNotes, setPaymentNotes] = useState<string>("");
   const [paymentReferenceNumber, setPaymentReferenceNumber] = useState<string>("");
   const [paymentScreenshots, setPaymentScreenshots] = useState<File[]>([]);
+  const [paymentDate, setPaymentDate] = useState<Date>(new Date());
   const [paymentLoading, setPaymentLoading] = useState(false);
   const screenshotInputRef = useRef<HTMLInputElement>(null);
 
@@ -162,7 +166,7 @@ export function ProcurementOrderDialog({
       amount: parseFloat(paymentAmount),
       payment_type: 'payment',
       payment_mode: paymentMode,
-      payment_date: new Date().toISOString().split('T')[0],
+      payment_date: format(paymentDate, 'yyyy-MM-dd'),
       notes: paymentNotes || null,
       reference_number: paymentReferenceNumber || null,
     }, paymentScreenshots.length > 0 ? paymentScreenshots : undefined);
@@ -173,6 +177,8 @@ export function ProcurementOrderDialog({
       setPaymentNotes("");
       setPaymentReferenceNumber("");
       setPaymentScreenshots([]);
+      setPaymentDate(new Date());
+      setShowAddPayment(false);
       setShowAddPayment(false);
     }
   };
@@ -428,6 +434,32 @@ export function ProcurementOrderDialog({
                             <SelectItem value="cheque">Cheque</SelectItem>
                           </SelectContent>
                         </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Payment Date</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !paymentDate && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {paymentDate ? format(paymentDate, "dd MMM yyyy") : <span>Pick a date</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={paymentDate}
+                              onSelect={(date) => date && setPaymentDate(date)}
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
                       </div>
                     </div>
                     <div className="space-y-2">
