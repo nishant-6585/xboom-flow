@@ -49,7 +49,7 @@ export function SalesStatsCards({ queries, onStatusClick }: SalesStatsCardsProps
       clickAction: "pending",
     },
     {
-      label: "Responded",
+      label: "Enquiry Processed",
       value: stats.responded,
       icon: CheckCircle2,
       color: "text-success",
