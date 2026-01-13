@@ -666,6 +666,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency: string | null
+          dealer_price: number | null
           description: string | null
           id: string
           lead_time: string | null
@@ -676,6 +677,7 @@ export type Database = {
           unit_price: number | null
           updated_at: string
           updated_by: string | null
+          website_price: number | null
         }
         Insert: {
           availability?: string | null
@@ -684,6 +686,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string | null
+          dealer_price?: number | null
           description?: string | null
           id?: string
           lead_time?: string | null
@@ -694,6 +697,7 @@ export type Database = {
           unit_price?: number | null
           updated_at?: string
           updated_by?: string | null
+          website_price?: number | null
         }
         Update: {
           availability?: string | null
@@ -702,6 +706,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string | null
+          dealer_price?: number | null
           description?: string | null
           id?: string
           lead_time?: string | null
@@ -712,6 +717,7 @@ export type Database = {
           unit_price?: number | null
           updated_at?: string
           updated_by?: string | null
+          website_price?: number | null
         }
         Relationships: []
       }
