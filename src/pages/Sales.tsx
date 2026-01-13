@@ -1,7 +1,7 @@
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -9,6 +9,7 @@ import { SuggestionBox } from "@/components/sales/SuggestionBox";
 import { OutboundSalesPanel } from "@/components/sales/OutboundSalesPanel";
 import { ManagerDashboard } from "@/components/sales/ManagerDashboard";
 import { TestimonialsPanel } from "@/components/sales/TestimonialsPanel";
+import { SalesRulesPanel } from "@/components/sales/SalesRulesPanel";
 
 export default function Sales() {
   const { role } = useAuth();
@@ -61,6 +62,10 @@ export default function Sales() {
               <Lightbulb className="w-4 h-4" />
               Suggestions
             </TabsTrigger>
+            <TabsTrigger value="rules" className="gap-2">
+              <ScrollText className="w-4 h-4" />
+              Rules
+            </TabsTrigger>
           </TabsList>
 
           {isManager && (
@@ -102,6 +107,10 @@ export default function Sales() {
             <div className="max-w-2xl mx-auto">
               <SuggestionBox />
             </div>
+          </TabsContent>
+
+          <TabsContent value="rules" className="space-y-6">
+            <SalesRulesPanel />
           </TabsContent>
         </Tabs>
       </main>
