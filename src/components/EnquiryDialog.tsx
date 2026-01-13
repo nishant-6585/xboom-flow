@@ -30,8 +30,9 @@ import { Enquiry, QueryStatus, EnquiryResponse, ENQUIRY_STATUSES, LOST_REASONS, 
 import { StatusBadge } from "./StatusBadge";
 import { UrgencyIndicator } from "./UrgencyIndicator";
 import { useAuth } from "@/hooks/useAuth";
-import { Package, User, Building2, Hash, Boxes, Clock, CheckCircle, Trash2, Loader2, AlertTriangle, Calendar, IndianRupee, UserCheck, ShieldCheck } from "lucide-react";
+import { Package, User, Building2, Hash, Boxes, Clock, CheckCircle, Trash2, Loader2, AlertTriangle, Calendar, IndianRupee, UserCheck, ShieldCheck, Timer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { differenceInHours, differenceInMinutes, differenceInDays } from "date-fns";
 
 interface EnquiryDialogProps {
   enquiry: Enquiry | null;
@@ -90,6 +91,39 @@ export function EnquiryDialog({
   const canDelete = role === "admin";
   const canEscalate = (role === "sales" || role === "supply_chain") && !enquiry.is_escalated;
   const canRespondToEscalation = role === "admin" && enquiry.is_escalated && onSubmitAdminResponse;
+
+  // Calculate response time
+  const getResponseTimeInfo = () => {
+    if (!enquiry.responded_at) return null;
+    
+    const createdAt = new Date(enquiry.created_at);
+    const respondedAt = new Date(enquiry.responded_at);
+    const totalMinutes = differenceInMinutes(respondedAt, createdAt);
+    const totalHours = differenceInHours(respondedAt, createdAt);
+    const totalDays = differenceInDays(respondedAt, createdAt);
+    
+    let displayText = "";
+    let colorClass = "";
+    
+    if (totalMinutes < 60) {
+      displayText = `${totalMinutes} min`;
+      colorClass = "text-success bg-success/10 border-success/30";
+    } else if (totalHours < 24) {
+      const mins = totalMinutes % 60;
+      displayText = mins > 0 ? `${totalHours}h ${mins}m` : `${totalHours} hours`;
+      colorClass = totalHours <= 6 ? "text-success bg-success/10 border-success/30" : 
+                   totalHours <= 12 ? "text-warning bg-warning/10 border-warning/30" : 
+                   "text-destructive bg-destructive/10 border-destructive/30";
+    } else {
+      const remainingHours = totalHours % 24;
+      displayText = remainingHours > 0 ? `${totalDays}d ${remainingHours}h` : `${totalDays} days`;
+      colorClass = "text-destructive bg-destructive/10 border-destructive/30";
+    }
+    
+    return { displayText, colorClass, totalHours };
+  };
+  
+  const responseTimeInfo = getResponseTimeInfo();
 
   const handleSubmit = async () => {
     // Validate lost reason is required when status is order_lost
@@ -252,9 +286,17 @@ export function EnquiryDialog({
             {/* Display existing Supply Chain Response (for everyone to see) */}
             {enquiry.responded_at && (
               <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 space-y-3">
-                <div className="flex items-center gap-2">
-                  <UserCheck className="w-5 h-5 text-primary" />
-                  <h4 className="font-medium">Supply Chain Response</h4>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="w-5 h-5 text-primary" />
+                    <h4 className="font-medium">Supply Chain Response</h4>
+                  </div>
+                  {responseTimeInfo && (
+                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium ${responseTimeInfo.colorClass}`}>
+                      <Timer className="w-3.5 h-3.5" />
+                      <span>Responded in {responseTimeInfo.displayText}</span>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
