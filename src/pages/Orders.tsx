@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { OrderCard } from '@/components/OrderCard';
@@ -16,7 +17,7 @@ import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft } from 'lucide-react';
+import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search } from 'lucide-react';
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth } from 'date-fns';
 import { Link } from 'react-router-dom';
 
@@ -38,6 +39,7 @@ export default function Orders() {
   const [orderTypeFilter, setOrderTypeFilter] = useState<string>('all');
   const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -68,6 +70,15 @@ export default function Orders() {
       return o.enquiry_id === enquiryIdFromUrl;
     }
     
+    // Search filter - matches order number, product name, customer name/company
+    const searchLower = searchQuery.toLowerCase().trim();
+    const matchesSearch = searchQuery === '' || 
+      (o.order_number?.toLowerCase().includes(searchLower)) ||
+      o.product_name.toLowerCase().includes(searchLower) ||
+      o.customer_name.toLowerCase().includes(searchLower) ||
+      o.customer_company.toLowerCase().includes(searchLower) ||
+      o.product_code?.toLowerCase().includes(searchLower);
+    
     const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
     const matchesPaymentTerms = paymentTermsFilter === 'all' || o.payment_terms === paymentTermsFilter;
     const matchesPaymentStatus = paymentStatusFilter === 'all' || o.payment_status === paymentStatusFilter;
@@ -85,7 +96,7 @@ export default function Orders() {
       matchesDate = orderDate <= endOfDay(endDate);
     }
     
-    return matchesStatus && matchesPaymentTerms && matchesPaymentStatus && matchesOrderType && matchesOutcome && matchesSalesPerson && matchesDate;
+    return matchesSearch && matchesStatus && matchesPaymentTerms && matchesPaymentStatus && matchesOrderType && matchesOutcome && matchesSalesPerson && matchesDate;
   });
 
   const clearFilters = () => {
@@ -97,6 +108,7 @@ export default function Orders() {
     setOutcomeFilter('all');
     setSalesPersonFilter('all');
     setStatusFilter('all');
+    setSearchQuery('');
     // Clear URL params
     setSearchParams({});
   };
@@ -201,6 +213,17 @@ export default function Orders() {
             {/* Filters and View Toggle */}
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-3">
+                {/* Search Input */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search order no, product, customer..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 w-[250px]"
+                  />
+                </div>
+
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder="Status" />
