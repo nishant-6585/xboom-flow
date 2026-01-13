@@ -110,12 +110,12 @@ const Auth = () => {
             <img src={logoIcon} alt="Xboom Logo" className="w-16 h-16 rounded-xl" />
           </div>
           <CardTitle className="text-2xl text-gradient">
-            {isLogin ? "Welcome Back" : "Create Account"}
+            {isLogin ? "Welcome to Xboom OS" : "Join Xboom OS"}
           </CardTitle>
           <CardDescription>
             {isLogin
-              ? "Sign in to access the Operations System"
-              : "Register to start using the Operations System"}
+              ? "Sign in to manage daily operations"
+              : "Register to start streamlining operations"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -180,7 +180,7 @@ const Auth = () => {
                     <Label htmlFor="sales" className="cursor-pointer flex-1">
                       <span className="font-medium">Sales Team</span>
                       <p className="text-sm text-muted-foreground">
-                        Submit product enquiries for customers
+                        Manage customer enquiries and orders
                       </p>
                     </Label>
                   </div>
@@ -189,16 +189,16 @@ const Auth = () => {
                     <Label htmlFor="supply_chain" className="cursor-pointer flex-1">
                       <span className="font-medium">Supply Chain Team</span>
                       <p className="text-sm text-muted-foreground">
-                        Respond to pricing and availability requests
+                        Handle procurement and inventory
                       </p>
                     </Label>
                   </div>
                   <div className="flex items-center space-x-3 p-3 rounded-lg bg-secondary/50 border border-border hover:border-primary/50 transition-colors">
                     <RadioGroupItem value="admin" id="admin" />
                     <Label htmlFor="admin" className="cursor-pointer flex-1">
-                      <span className="font-medium">Admin</span>
+                      <span className="font-medium">Finance & Admin</span>
                       <p className="text-sm text-muted-foreground">
-                        Full access to manage the system
+                        Oversee payments and system management
                       </p>
                     </Label>
                   </div>
