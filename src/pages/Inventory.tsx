@@ -16,6 +16,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Package, Plus, Search, ArrowUpCircle, ArrowDownCircle, RotateCcw, Settings, Loader2, AlertTriangle, History } from 'lucide-react';
 import { format } from 'date-fns';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
+import { ProductSelect } from '@/components/ProductSelect';
+import { PricelistItem } from '@/hooks/usePricelist';
 
 function InventoryContent() {
   const { role } = useAuth();
@@ -45,6 +47,13 @@ function InventoryContent() {
   const [transactionQty, setTransactionQty] = useState('');
   const [transactionNotes, setTransactionNotes] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const handleProductSelect = (productName: string, product?: PricelistItem) => {
+    setNewProductName(productName);
+    if (product?.product_category) {
+      setNewProductCategory(product.product_category);
+    }
+  };
 
   const filteredInventory = inventory.filter(item => {
     const matchesSearch = item.product_name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -191,10 +200,10 @@ function InventoryContent() {
                 <div className="space-y-4 pt-4">
                   <div className="space-y-2">
                     <Label>Product Name *</Label>
-                    <Input
+                    <ProductSelect
                       value={newProductName}
-                      onChange={(e) => setNewProductName(e.target.value)}
-                      placeholder="Enter product name"
+                      onChange={handleProductSelect}
+                      placeholder="Select or type product..."
                     />
                   </div>
                   <div className="space-y-2">
