@@ -54,6 +54,7 @@ export function ProcurementOrderDialog({
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [paymentMode, setPaymentMode] = useState<string>("bank_transfer");
   const [paymentNotes, setPaymentNotes] = useState<string>("");
+  const [paymentReferenceNumber, setPaymentReferenceNumber] = useState<string>("");
   const [paymentScreenshots, setPaymentScreenshots] = useState<File[]>([]);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const screenshotInputRef = useRef<HTMLInputElement>(null);
@@ -163,13 +164,14 @@ export function ProcurementOrderDialog({
       payment_mode: paymentMode,
       payment_date: new Date().toISOString().split('T')[0],
       notes: paymentNotes || null,
-      reference_number: null,
+      reference_number: paymentReferenceNumber || null,
     }, paymentScreenshots.length > 0 ? paymentScreenshots : undefined);
 
     setPaymentLoading(false);
     if (success) {
       setPaymentAmount("");
       setPaymentNotes("");
+      setPaymentReferenceNumber("");
       setPaymentScreenshots([]);
       setShowAddPayment(false);
     }
@@ -429,6 +431,14 @@ export function ProcurementOrderDialog({
                       </div>
                     </div>
                     <div className="space-y-2">
+                      <Label>Reference Number</Label>
+                      <Input
+                        value={paymentReferenceNumber}
+                        onChange={(e) => setPaymentReferenceNumber(e.target.value)}
+                        placeholder="Transaction ID, UTR, Cheque No., etc."
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label>Notes</Label>
                       <Textarea
                         value={paymentNotes}
@@ -516,6 +526,7 @@ export function ProcurementOrderDialog({
                           <p className="font-medium">₹{payment.amount.toLocaleString()}</p>
                           <p className="text-xs text-muted-foreground">
                             {format(new Date(payment.payment_date), 'dd MMM yyyy')} • {payment.payment_mode}
+                            {payment.reference_number && ` • Ref: ${payment.reference_number}`}
                           </p>
                           {payment.notes && (
                             <p className="text-xs text-muted-foreground mt-1">{payment.notes}</p>
