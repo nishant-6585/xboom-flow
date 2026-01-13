@@ -32,6 +32,7 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
     gst_number: initialData?.gst_number || '',
     contact_name: initialData?.contact_name || '',
     phone: initialData?.phone || '',
+    mobile: initialData?.mobile || '',
     email: initialData?.email || '',
     city: initialData?.city || '',
     address: initialData?.address || '',
@@ -42,6 +43,7 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
     product_category: initialData?.product_category || 'Consumer Drones',
     products: initialData?.products || [],
     preference: initialData?.preference || 'medium' as SupplierPreference,
+    status: initialData?.status || 'active',
     notes: initialData?.notes || '',
     is_active: initialData?.is_active ?? true,
   });
@@ -81,6 +83,7 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
       brand_name: formData.brand_name || null,
       gst_number: formData.gst_number || null,
       phone: formData.phone || null,
+      mobile: formData.mobile || null,
       email: formData.email || null,
       city: formData.city || null,
       address: formData.address || null,
@@ -89,6 +92,7 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
       bank_ifsc: formData.bank_ifsc || null,
       bank_account_holder: formData.bank_account_holder || null,
       notes: formData.notes || null,
+      status: formData.status || 'active',
       products: formData.products.length > 0 ? formData.products : null,
     });
 
@@ -152,6 +156,15 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
             />
           </div>
           <div className="space-y-2">
+            <Label htmlFor="mobile">Mobile</Label>
+            <Input
+              id="mobile"
+              value={formData.mobile}
+              onChange={(e) => handleChange('mobile', e.target.value)}
+              placeholder="+91 XXXXX XXXXX"
+            />
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
@@ -183,6 +196,22 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
                 <SelectItem value="high">High Priority</SelectItem>
                 <SelectItem value="medium">Medium Priority</SelectItem>
                 <SelectItem value="low">Low Priority</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="status">Status</Label>
+            <Select
+              value={formData.status}
+              onValueChange={(value) => handleChange('status', value)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="blacklisted">Blacklisted</SelectItem>
               </SelectContent>
             </Select>
           </div>

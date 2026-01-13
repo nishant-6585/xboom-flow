@@ -835,12 +835,14 @@ export type Database = {
           gst_number: string | null
           id: string
           is_active: boolean
+          mobile: string | null
           name: string
           notes: string | null
           phone: string | null
           preference: Database["public"]["Enums"]["supplier_preference"]
           product_category: string
           products: string[] | null
+          status: string | null
           updated_at: string
         }
         Insert: {
@@ -858,12 +860,14 @@ export type Database = {
           gst_number?: string | null
           id?: string
           is_active?: boolean
+          mobile?: string | null
           name: string
           notes?: string | null
           phone?: string | null
           preference?: Database["public"]["Enums"]["supplier_preference"]
           product_category?: string
           products?: string[] | null
+          status?: string | null
           updated_at?: string
         }
         Update: {
@@ -881,12 +885,14 @@ export type Database = {
           gst_number?: string | null
           id?: string
           is_active?: boolean
+          mobile?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
           preference?: Database["public"]["Enums"]["supplier_preference"]
           product_category?: string
           products?: string[] | null
+          status?: string | null
           updated_at?: string
         }
         Relationships: []
