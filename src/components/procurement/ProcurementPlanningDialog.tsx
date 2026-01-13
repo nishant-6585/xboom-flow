@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -8,18 +8,18 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Check, Trash2, Building2, Phone, Mail, Package } from 'lucide-react';
-import { useSuppliers, Supplier } from '@/hooks/useSuppliers';
+import { Plus, Check, Trash2, Building2, Phone, Package, Star } from 'lucide-react';
+import { useSuppliers } from '@/hooks/useSuppliers';
 import { useSupplierQuotations, SupplierQuotation } from '@/hooks/useSupplierQuotations';
+import { useSupplierScores } from '@/hooks/useSupplierRatings';
 import { SupplierPreferenceTag } from './SupplierPreferenceTag';
-import { format } from 'date-fns';
+import { SupplierScoreBadge } from './SupplierScoreBadge';
 
 interface ProcurementPlanningDialogProps {
   open: boolean;
@@ -78,10 +78,20 @@ export const ProcurementPlanningDialog: React.FC<ProcurementPlanningDialogProps>
     return categoryMatch || productMatch;
   });
 
-  // Sort suppliers by preference
+  // Get supplier IDs for score fetching
+  const supplierIds = useMemo(() => matchingSuppliers.map(s => s.id), [matchingSuppliers]);
+  const { scores: supplierScores } = useSupplierScores(supplierIds);
+
+  // Sort suppliers by preference and score
   const sortedSuppliers = [...matchingSuppliers].sort((a, b) => {
     const prefOrder = { high: 0, medium: 1, low: 2 };
-    return prefOrder[a.preference] - prefOrder[b.preference];
+    const prefDiff = prefOrder[a.preference] - prefOrder[b.preference];
+    if (prefDiff !== 0) return prefDiff;
+    
+    // If same preference, sort by score
+    const scoreA = supplierScores[a.id]?.overall_score || 0;
+    const scoreB = supplierScores[b.id]?.overall_score || 0;
+    return scoreB - scoreA;
   });
 
   // Suppliers already quoted
@@ -200,6 +210,7 @@ export const ProcurementPlanningDialog: React.FC<ProcurementPlanningDialogProps>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-medium truncate">{supplier.name}</span>
                                 <SupplierPreferenceTag preference={supplier.preference} />
+                                <SupplierScoreBadge score={supplierScores[supplier.id]} size="sm" />
                                 {quotedSupplierIds.includes(supplier.id) && (
                                   <Badge variant="secondary" className="text-xs">Quoted</Badge>
                                 )}
@@ -280,8 +291,8 @@ export const ProcurementPlanningDialog: React.FC<ProcurementPlanningDialogProps>
                             className={quotation.is_selected ? 'bg-green-500/10' : ''}
                           >
                             <TableCell>
-                              <div>
-                                <div className="flex items-center gap-2">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-medium">{quotation.supplier?.name}</span>
                                   {index === 0 && (
                                     <Badge variant="secondary" className="text-xs bg-amber-500 text-white">
@@ -289,12 +300,20 @@ export const ProcurementPlanningDialog: React.FC<ProcurementPlanningDialogProps>
                                     </Badge>
                                   )}
                                 </div>
-                                {quotation.supplier && (
-                                  <SupplierPreferenceTag 
-                                    preference={quotation.supplier.preference} 
-                                    size="sm" 
-                                  />
-                                )}
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {quotation.supplier && (
+                                    <>
+                                      <SupplierPreferenceTag 
+                                        preference={quotation.supplier.preference} 
+                                        size="sm" 
+                                      />
+                                      <SupplierScoreBadge 
+                                        score={supplierScores[quotation.supplier.id]} 
+                                        size="sm" 
+                                      />
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell className="text-right font-mono">

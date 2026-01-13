@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Supplier } from '@/hooks/useSuppliers';
-import { Building2, Phone, Mail, MapPin, Edit, BookOpen } from 'lucide-react';
+import { useSupplierRatings } from '@/hooks/useSupplierRatings';
+import { Building2, Phone, Mail, MapPin, Edit, BookOpen, Star } from 'lucide-react';
 import { SupplierPreferenceTag } from '@/components/procurement/SupplierPreferenceTag';
+import { SupplierScoreBadge } from '@/components/procurement/SupplierScoreBadge';
+import { SupplierRatingDialog } from '@/components/procurement/SupplierRatingDialog';
 
 interface SupplierCardProps {
   supplier: Supplier;
@@ -12,19 +16,24 @@ interface SupplierCardProps {
 }
 
 export function SupplierCard({ supplier, onEdit, onViewLedger }: SupplierCardProps) {
+  const { score } = useSupplierRatings(supplier.id);
+  const [showRatingDialog, setShowRatingDialog] = useState(false);
+
   return (
-    <Card className="glass hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-              <h3 className="font-semibold truncate">{supplier.name}</h3>
-              <SupplierPreferenceTag preference={supplier.preference} size="md" />
-              {!supplier.is_active && (
-                <Badge variant="outline" className="text-muted-foreground">Inactive</Badge>
-              )}
-            </div>
+    <>
+      <Card className="glass hover:shadow-md transition-shadow">
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                <h3 className="font-semibold truncate">{supplier.name}</h3>
+                <SupplierPreferenceTag preference={supplier.preference} size="md" />
+                <SupplierScoreBadge score={score} size="sm" />
+                {!supplier.is_active && (
+                  <Badge variant="outline" className="text-muted-foreground">Inactive</Badge>
+                )}
+              </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
               <div className="flex items-center gap-2 text-muted-foreground">
@@ -75,9 +84,20 @@ export function SupplierCard({ supplier, onEdit, onViewLedger }: SupplierCardPro
               <BookOpen className="h-4 w-4 mr-1" />
               Ledger
             </Button>
+            <Button size="sm" variant="ghost" onClick={() => setShowRatingDialog(true)}>
+              <Star className="h-4 w-4 mr-1" />
+              Rate
+            </Button>
           </div>
         </div>
       </CardContent>
     </Card>
-  );
+
+    <SupplierRatingDialog
+      open={showRatingDialog}
+      onOpenChange={setShowRatingDialog}
+      supplier={supplier}
+    />
+  </>
+);
 }
