@@ -8,6 +8,8 @@ export type PaymentStatus = 'pending' | 'partial' | 'full';
 export type OrderType = 'prepaid' | 'postpaid';
 export type CustomerType = 'b2b' | 'b2c';
 export type RefundStatus = 'pending' | 'approved' | 'done';
+export type OrderOutcome = 'pending' | 'won' | 'lost';
+export type LostReason = 'price' | 'timeline' | 'competitor' | 'no_response' | 'requirements_changed' | 'other';
 
 export type LeadSource = 'call' | 'chat' | 'email' | 'event' | 'walk-in' | 'referral' | 'repeated';
 
@@ -62,6 +64,11 @@ export interface Order {
   escalated_by: string | null;
   escalation_reason: string | null;
   delivery_charges: number | null;
+  order_outcome: OrderOutcome;
+  lost_reason: LostReason | null;
+  lost_reason_notes: string | null;
+  outcome_updated_at: string | null;
+  outcome_updated_by: string | null;
 }
 
 export interface OrderFormData {
@@ -141,6 +148,21 @@ export const REFUND_STATUSES: { value: RefundStatus; label: string }[] = [
   { value: 'pending', label: 'Pending' },
   { value: 'approved', label: 'Approved' },
   { value: 'done', label: 'Done' },
+];
+
+export const ORDER_OUTCOMES: { value: OrderOutcome; label: string }[] = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'won', label: 'Won' },
+  { value: 'lost', label: 'Lost' },
+];
+
+export const LOST_REASONS: { value: LostReason; label: string }[] = [
+  { value: 'price', label: 'Price too high' },
+  { value: 'timeline', label: 'Timeline not met' },
+  { value: 'competitor', label: 'Lost to competitor' },
+  { value: 'no_response', label: 'No response from customer' },
+  { value: 'requirements_changed', label: 'Requirements changed' },
+  { value: 'other', label: 'Other' },
 ];
 
 export const ORDER_PRIORITIES: { value: number; label: string; color: string }[] = [
@@ -238,6 +260,11 @@ export function useOrders() {
           escalated_by: order.escalated_by || null,
           escalation_reason: order.escalation_reason || null,
           delivery_charges: null,
+          order_outcome: 'pending' as OrderOutcome,
+          lost_reason: null,
+          lost_reason_notes: null,
+          outcome_updated_at: null,
+          outcome_updated_by: null,
         }));
         
         setOrders(mappedOrders);
@@ -256,6 +283,8 @@ export function useOrders() {
           order_type: (order.order_type || 'prepaid') as OrderType,
           customer_type: (order.customer_type || 'b2b') as CustomerType,
           payment_status: (order.payment_status || 'pending') as PaymentStatus,
+          order_outcome: (order.order_outcome || 'pending') as OrderOutcome,
+          lost_reason: (order.lost_reason || null) as LostReason | null,
           lead_source: (order.lead_source || null) as LeadSource | null,
           refund_status: (order.refund_status || null) as RefundStatus | null,
         }));
