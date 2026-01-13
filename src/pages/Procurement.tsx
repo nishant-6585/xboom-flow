@@ -30,10 +30,13 @@ export default function Procurement() {
     );
   }
 
-  // Only admin and supply_chain can access procurement
-  if (role !== "admin" && role !== "supply_chain") {
+  // Only admin, supply_chain, and finance can access procurement
+  if (role !== "admin" && role !== "supply_chain" && role !== "finance") {
     return <Navigate to="/" replace />;
   }
+
+  // Finance role has view-only access (no manual procurement creation)
+  const canCreate = role === "admin" || role === "supply_chain";
 
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col">
@@ -46,10 +49,12 @@ export default function Procurement() {
               Manage procurement orders, supplier payments and view analytics
             </p>
           </div>
-          <Button onClick={() => setManualProcurementOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Manual Procurement
-          </Button>
+          {canCreate && (
+            <Button onClick={() => setManualProcurementOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Manual Procurement
+            </Button>
+          )}
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -65,7 +70,7 @@ export default function Procurement() {
             <TabsTrigger value="requests" className="gap-2 relative">
               <CreditCard className="w-4 h-4" />
               <span className="hidden sm:inline">Requests</span>
-              {role === 'admin' && pendingCount > 0 && (
+              {(role === 'admin' || role === 'finance') && pendingCount > 0 && (
                 <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
                   {pendingCount}
                 </Badge>

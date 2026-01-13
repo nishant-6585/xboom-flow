@@ -46,8 +46,10 @@ export function Header() {
         return "Sales";
       case "supply_chain":
         return "Supply Chain";
+      case "finance":
+        return "Finance";
       case "admin":
-        return "Finance & Admin";
+        return "Admin";
       default:
         return "User";
     }
@@ -56,12 +58,12 @@ export function Header() {
   const isActive = (path: string) => location.pathname === path;
 
   const navItems = [
-    { path: "/", label: "Dashboard", icon: Home, roles: ["sales", "supply_chain", "admin"] },
-    { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "supply_chain", "admin"] },
+    { path: "/", label: "Dashboard", icon: Home, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "supply_chain", "admin", "finance"] },
     { path: "/pricelist", label: "Pricelist", icon: FileSpreadsheet, roles: ["sales", "supply_chain", "admin"] },
-    { path: "/procurement", label: "Procurement", icon: ShoppingCart, roles: ["admin", "supply_chain"] },
+    { path: "/procurement", label: "Procurement", icon: ShoppingCart, roles: ["admin", "supply_chain", "finance"] },
     { path: "/inventory", label: "Inventory", icon: Warehouse, roles: ["sales", "supply_chain", "admin"] },
-    { path: "/suppliers", label: "Suppliers", icon: Building2, roles: ["admin", "supply_chain"] },
+    { path: "/suppliers", label: "Suppliers", icon: Building2, roles: ["admin", "supply_chain", "finance"] },
     { path: "/admin", label: "Admin", icon: Shield, roles: ["admin"] },
   ];
 
@@ -164,7 +166,7 @@ export function Header() {
             </TooltipContent>
           </Tooltip>
 
-          {(role === "admin" || role === "supply_chain") && (
+          {(role === "admin" || role === "supply_chain" || role === "finance") && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link to="/procurement">
@@ -194,7 +196,7 @@ export function Header() {
             </TooltipContent>
           </Tooltip>
 
-          {(role === "admin" || role === "supply_chain") && (
+          {(role === "admin" || role === "supply_chain" || role === "finance") && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link to="/suppliers">
@@ -226,7 +228,7 @@ export function Header() {
             </Tooltip>
           )}
 
-          {(role === 'admin' || role === 'supply_chain') && (
+          {(role === 'admin' || role === 'supply_chain' || role === 'finance') && (
             <NotificationPanel />
           )}
 
@@ -260,7 +262,7 @@ export function Header() {
 
         {/* Mobile: Only show notification + avatar */}
         <div className="flex sm:hidden items-center gap-2">
-          {(role === 'admin' || role === 'supply_chain') && (
+          {(role === 'admin' || role === 'supply_chain' || role === 'finance') && (
             <NotificationPanel />
           )}
           <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">

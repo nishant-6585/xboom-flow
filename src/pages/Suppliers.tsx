@@ -20,6 +20,7 @@ export default function Suppliers() {
   const { suppliers, loading, createSupplier, bulkImportSuppliers, updateSupplier } = useSuppliers();
   
   const canManage = role === 'admin' || role === 'supply_chain';
+  const canView = role === 'admin' || role === 'supply_chain' || role === 'finance';
   
   const [searchQuery, setSearchQuery] = useState('');
   const [preferenceFilter, setPreferenceFilter] = useState<string>('all');
