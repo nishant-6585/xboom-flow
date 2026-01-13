@@ -391,6 +391,8 @@ export type Database = {
           supplier_contact: string | null
           supplier_id: string | null
           supplier_name: string | null
+          supplier_payment_due_date: string | null
+          supplier_payment_terms: string | null
           total_sales_amount: number | null
           tracking_number: string | null
           tracking_url: string | null
@@ -451,6 +453,8 @@ export type Database = {
           supplier_contact?: string | null
           supplier_id?: string | null
           supplier_name?: string | null
+          supplier_payment_due_date?: string | null
+          supplier_payment_terms?: string | null
           total_sales_amount?: number | null
           tracking_number?: string | null
           tracking_url?: string | null
@@ -511,6 +515,8 @@ export type Database = {
           supplier_contact?: string | null
           supplier_id?: string | null
           supplier_name?: string | null
+          supplier_payment_due_date?: string | null
+          supplier_payment_terms?: string | null
           total_sales_amount?: number | null
           tracking_number?: string | null
           tracking_url?: string | null

@@ -30,6 +30,7 @@ export interface Order {
   order_type: OrderType;
   customer_type: CustomerType;
   lead_source: LeadSource | null;
+  supplier_id: string | null;
   supplier_name: string | null;
   supplier_contact: string | null;
   procurement_rate: number | null;
@@ -71,6 +72,8 @@ export interface Order {
   lost_reason_notes: string | null;
   outcome_updated_at: string | null;
   outcome_updated_by: string | null;
+  supplier_payment_terms: string | null;
+  supplier_payment_due_date: string | null;
 }
 
 export interface OrderFormData {
@@ -244,6 +247,7 @@ export function useOrders() {
           payment_status: (order.payment_status || 'pending') as PaymentStatus,
           lead_source: null,
           customer_email: order.customer_email || null,
+          supplier_id: null,
           supplier_name: null,
           supplier_contact: null,
           procurement_rate: null,
@@ -270,6 +274,8 @@ export function useOrders() {
           lost_reason_notes: null,
           outcome_updated_at: null,
           outcome_updated_by: null,
+          supplier_payment_terms: null,
+          supplier_payment_due_date: null,
         }));
         
         setOrders(mappedOrders);
