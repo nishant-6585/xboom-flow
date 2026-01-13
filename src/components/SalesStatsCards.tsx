@@ -1,6 +1,12 @@
 import { QueryStatus } from "@/hooks/useEnquiries";
 import { Card, CardContent } from "@/components/ui/card";
 import { Send, CheckCircle2, Clock, ShoppingCart } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ProductQuery {
   id: string;
@@ -31,6 +37,7 @@ export function SalesStatsCards({ queries, onStatusClick }: SalesStatsCardsProps
     color: string;
     bg: string;
     clickAction: QueryStatus | "all";
+    tooltip?: string;
   }[] = [
     {
       label: "My Total Enquiries",
@@ -55,6 +62,7 @@ export function SalesStatsCards({ queries, onStatusClick }: SalesStatsCardsProps
       color: "text-success",
       bg: "bg-success/10",
       clickAction: "responded",
+      tooltip: "Includes Responded, Pipeline, Order Won, and Order Lost enquiries",
     },
     {
       label: "Orders Won",
@@ -75,25 +83,44 @@ export function SalesStatsCards({ queries, onStatusClick }: SalesStatsCardsProps
         </div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {cards.map((card) => (
-          <Card 
-            key={card.label} 
-            className={`glass cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${onStatusClick ? 'hover:ring-2 hover:ring-primary/50' : ''}`}
-            onClick={() => onStatusClick?.(card.clickAction)}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{card.label}</p>
-                  <p className="text-2xl font-bold mt-1">{card.value}</p>
-                </div>
-                <div className={`p-3 rounded-lg ${card.bg}`}>
-                  <card.icon className={`w-5 h-5 ${card.color}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        <TooltipProvider>
+          {cards.map((card) => {
+            const cardContent = (
+              <Card 
+                key={card.label} 
+                className={`glass cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${onStatusClick ? 'hover:ring-2 hover:ring-primary/50' : ''}`}
+                onClick={() => onStatusClick?.(card.clickAction)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">{card.label}</p>
+                      <p className="text-2xl font-bold mt-1">{card.value}</p>
+                    </div>
+                    <div className={`p-3 rounded-lg ${card.bg}`}>
+                      <card.icon className={`w-5 h-5 ${card.color}`} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+
+            if (card.tooltip) {
+              return (
+                <Tooltip key={card.label}>
+                  <TooltipTrigger asChild>
+                    {cardContent}
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{card.tooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            }
+
+            return cardContent;
+          })}
+        </TooltipProvider>
       </div>
     </div>
   );
