@@ -52,13 +52,32 @@ export function usePricelist() {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('pricelist')
-        .select('*')
-        .order('product_name', { ascending: true });
+      
+      // Fetch all items by paginating through results (Supabase default limit is 1000)
+      let allItems: PricelistItem[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
-      setItems(data || []);
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('pricelist')
+          .select('*')
+          .order('product_name', { ascending: true })
+          .range(from, from + batchSize - 1);
+
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          allItems = [...allItems, ...data];
+          from += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setItems(allItems);
     } catch (error: any) {
       console.error('Error fetching pricelist:', error);
       toast.error('Failed to fetch pricelist');
