@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { PipelineOrderFormData, PIPELINE_STATUSES, PIPELINE_PRIORITIES } from '@/hooks/usePipelineOrders';
 import { LEAD_SOURCES } from '@/hooks/useOrders';
+import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { toast } from 'sonner';
 
 interface PipelineFormProps {
@@ -196,13 +197,17 @@ export function PipelineForm({ onSubmit }: PipelineFormProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="product_category">Product Category</Label>
-              <Input
-                id="product_category"
-                value={formData.product_category}
-                onChange={(e) => handleChange('product_category', e.target.value)}
-                placeholder="Enter category"
-              />
+              <Label>Product Category</Label>
+              <Select value={formData.product_category} onValueChange={(v) => handleChange('product_category', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRODUCT_CATEGORIES.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="product_code">Product Code</Label>

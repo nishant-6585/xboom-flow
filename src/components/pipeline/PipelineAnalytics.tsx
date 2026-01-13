@@ -3,14 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { PipelineOrder, PIPELINE_STATUSES } from '@/hooks/usePipelineOrders';
 import { format, parseISO, startOfWeek, endOfWeek, addDays, isWithinInterval, startOfMonth, endOfMonth, addMonths } from 'date-fns';
-import { TrendingUp, DollarSign, Users, Calendar, Target, PieChartIcon } from 'lucide-react';
+import { TrendingUp, DollarSign, Users, Calendar, Target, PieChartIcon, FolderOpen } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 interface PipelineAnalyticsProps {
   orders: PipelineOrder[];
 }
 
-const COLORS = ['#22c55e', '#ef4444', '#3b82f6', '#f59e0b', '#f97316'];
+const COLORS = ['#22c55e', '#ef4444', '#3b82f6', '#f59e0b', '#f97316', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#6366f1'];
 
 export function PipelineAnalytics({ orders }: PipelineAnalyticsProps) {
   const { role, user } = useAuth();
@@ -62,6 +62,18 @@ export function PipelineAnalytics({ orders }: PipelineAnalyticsProps) {
       byStatus[o.status].count++;
     });
     const statusData = Object.values(byStatus);
+    
+    // Pipeline by category
+    const byCategory: Record<string, { category: string; value: number; count: number }> = {};
+    pendingOrders.forEach(o => {
+      const category = o.product_category || 'Uncategorized';
+      if (!byCategory[category]) {
+        byCategory[category] = { category, value: 0, count: 0 };
+      }
+      byCategory[category].value += (o.expected_price || 0) * o.quantity;
+      byCategory[category].count++;
+    });
+    const categoryData = Object.values(byCategory).sort((a, b) => b.value - a.value);
     
     // Expected payments by week (next 4 weeks)
     const weeklyData: { week: string; value: number; count: number }[] = [];
@@ -116,6 +128,7 @@ export function PipelineAnalytics({ orders }: PipelineAnalyticsProps) {
       conversionRate,
       salesPersonData,
       statusData,
+      categoryData,
       weeklyData,
       monthlyData,
     };
@@ -283,6 +296,51 @@ export function PipelineAnalytics({ orders }: PipelineAnalyticsProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Pipeline by Category */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FolderOpen className="h-5 w-5" />
+            Pipeline by Product Category
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={analytics.categoryData.slice(0, 10)} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" tickFormatter={formatCurrency} fontSize={12} />
+                <YAxis dataKey="category" type="category" width={120} fontSize={11} />
+                <Tooltip 
+                  formatter={(value: number) => [formatCurrency(value), 'Pipeline Value']}
+                />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2">Category</th>
+                    <th className="text-right py-2">Orders</th>
+                    <th className="text-right py-2">Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {analytics.categoryData.map((cat, idx) => (
+                    <tr key={idx} className="border-b last:border-0">
+                      <td className="py-2">{cat.category}</td>
+                      <td className="text-right py-2">{cat.count}</td>
+                      <td className="text-right py-2 font-medium">{formatCurrency(cat.value)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Pipeline by Status */}
       <Card>
