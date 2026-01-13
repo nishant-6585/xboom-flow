@@ -1171,6 +1171,79 @@ export type Database = {
           },
         ]
       }
+      supplier_ratings: {
+        Row: {
+          communication_rating: number | null
+          created_at: string
+          delivery_days_actual: number | null
+          delivery_days_promised: number | null
+          delivery_rating: number | null
+          id: string
+          inventory_procurement_id: string | null
+          notes: string | null
+          order_id: string | null
+          pricing_rating: number | null
+          quality_rating: number | null
+          rated_by: string | null
+          rated_by_name: string | null
+          supplier_id: string
+        }
+        Insert: {
+          communication_rating?: number | null
+          created_at?: string
+          delivery_days_actual?: number | null
+          delivery_days_promised?: number | null
+          delivery_rating?: number | null
+          id?: string
+          inventory_procurement_id?: string | null
+          notes?: string | null
+          order_id?: string | null
+          pricing_rating?: number | null
+          quality_rating?: number | null
+          rated_by?: string | null
+          rated_by_name?: string | null
+          supplier_id: string
+        }
+        Update: {
+          communication_rating?: number | null
+          created_at?: string
+          delivery_days_actual?: number | null
+          delivery_days_promised?: number | null
+          delivery_rating?: number | null
+          id?: string
+          inventory_procurement_id?: string | null
+          notes?: string | null
+          order_id?: string | null
+          pricing_rating?: number | null
+          quality_rating?: number | null
+          rated_by?: string | null
+          rated_by_name?: string | null
+          supplier_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_ratings_inventory_procurement_id_fkey"
+            columns: ["inventory_procurement_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_procurements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_ratings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_ratings_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           address: string | null
@@ -1295,6 +1368,18 @@ export type Database = {
         Returns: {
           name: string
           user_id: string
+        }[]
+      }
+      get_supplier_score: {
+        Args: { p_supplier_id: string }
+        Returns: {
+          avg_communication: number
+          avg_delivery: number
+          avg_pricing: number
+          avg_quality: number
+          on_time_percentage: number
+          overall_score: number
+          total_ratings: number
         }[]
       }
       get_user_role: {
