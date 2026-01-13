@@ -10,7 +10,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { SupplierCard } from '@/components/SupplierCard';
 import { SupplierForm } from '@/components/SupplierForm';
 import { SupplierLedgerDialog } from '@/components/SupplierLedgerDialog';
-import { Plus, Search, Loader2, Building2, Filter, Upload, FileSpreadsheet, Download } from 'lucide-react';
+import { SupplierAnalytics } from '@/components/SupplierAnalytics';
+import { Plus, Search, Loader2, Building2, Filter, Upload, FileSpreadsheet, Download, X, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
@@ -23,6 +24,8 @@ export default function Suppliers() {
   const [searchQuery, setSearchQuery] = useState('');
   const [preferenceFilter, setPreferenceFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [activeFilter, setActiveFilter] = useState<{ type: string; value: string } | null>(null);
+  const [showAnalytics, setShowAnalytics] = useState(true);
   
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -50,7 +53,29 @@ export default function Suppliers() {
     const matchesPreference = preferenceFilter === 'all' || supplier.preference === preferenceFilter;
     const matchesCategory = categoryFilter === 'all' || supplier.product_category === categoryFilter;
 
-    return matchesSearch && matchesPreference && matchesCategory;
+    // Analytics filter
+    let matchesAnalyticsFilter = true;
+    if (activeFilter) {
+      switch (activeFilter.type) {
+        case 'category':
+          matchesAnalyticsFilter = supplier.product_category === activeFilter.value || 
+            (activeFilter.value === 'Uncategorized' && !supplier.product_category);
+          break;
+        case 'brand':
+          matchesAnalyticsFilter = supplier.brand_name === activeFilter.value || 
+            (activeFilter.value === 'No Brand' && !supplier.brand_name);
+          break;
+        case 'city':
+          matchesAnalyticsFilter = supplier.city === activeFilter.value || 
+            (activeFilter.value === 'Unknown' && !supplier.city);
+          break;
+        case 'product':
+          matchesAnalyticsFilter = supplier.products?.includes(activeFilter.value) || false;
+          break;
+      }
+    }
+
+    return matchesSearch && matchesPreference && matchesCategory && matchesAnalyticsFilter;
   });
 
   const handleOpenForm = (supplier?: Supplier) => {
@@ -182,21 +207,67 @@ export default function Suppliers() {
               Manage supplier information and track payments
             </p>
           </div>
-          {canManage && (
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
-                <Upload className="h-4 w-4 mr-2" />
-                Import Excel
-              </Button>
-              <Button onClick={() => handleOpenForm()}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Supplier
-              </Button>
-            </div>
-          )}
+          <div className="flex gap-2">
+            <Button 
+              variant={showAnalytics ? "default" : "outline"} 
+              size="sm"
+              onClick={() => setShowAnalytics(!showAnalytics)}
+            >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Analytics
+            </Button>
+            {canManage && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import Excel
+                </Button>
+                <Button size="sm" onClick={() => handleOpenForm()}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Supplier
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
-        {/* Filters */}
+        {/* Analytics Section */}
+        {showAnalytics && !loading && suppliers.length > 0 && (
+          <div className="mb-6">
+            <SupplierAnalytics
+              suppliers={suppliers}
+              activeFilter={activeFilter}
+              onFilterByCategory={(category) => {
+                if (activeFilter?.type === 'category' && activeFilter?.value === category) {
+                  setActiveFilter(null);
+                } else {
+                  setActiveFilter({ type: 'category', value: category });
+                }
+              }}
+              onFilterByBrand={(brand) => {
+                if (activeFilter?.type === 'brand' && activeFilter?.value === brand) {
+                  setActiveFilter(null);
+                } else {
+                  setActiveFilter({ type: 'brand', value: brand });
+                }
+              }}
+              onFilterByCity={(city) => {
+                if (activeFilter?.type === 'city' && activeFilter?.value === city) {
+                  setActiveFilter(null);
+                } else {
+                  setActiveFilter({ type: 'city', value: city });
+                }
+              }}
+              onFilterByProduct={(product) => {
+                if (activeFilter?.type === 'product' && activeFilter?.value === product) {
+                  setActiveFilter(null);
+                } else {
+                  setActiveFilter({ type: 'product', value: product });
+                }
+              }}
+            />
+          </div>
+        )}
         <Card className="mb-6">
           <CardContent className="p-4">
             <div className="flex flex-col md:flex-row gap-4">
@@ -233,6 +304,17 @@ export default function Suppliers() {
                     ))}
                   </SelectContent>
                 </Select>
+                {activeFilter && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setActiveFilter(null)}
+                    className="text-muted-foreground"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Clear: {activeFilter.value}
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
