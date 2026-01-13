@@ -160,6 +160,12 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
                     <p className="text-xs text-muted-foreground">
                       Submitted {format(new Date(record.submitted_at), 'dd MMM yyyy, hh:mm a')}
                     </p>
+                    {record.status === 'approved' && record.reviewed_by_name && (
+                      <p className="text-xs text-green-600 dark:text-green-400">
+                        Approved by {record.reviewed_by_name}
+                        {record.reviewed_at && ` on ${format(new Date(record.reviewed_at), 'dd MMM yyyy')}`}
+                      </p>
+                    )}
                     {record.notes && (
                       <p className="text-sm text-muted-foreground mt-1 truncate">
                         {record.notes}
