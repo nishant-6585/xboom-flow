@@ -840,6 +840,13 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_sales_team: {
+        Args: never
+        Returns: {
+          name: string
+          user_id: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
