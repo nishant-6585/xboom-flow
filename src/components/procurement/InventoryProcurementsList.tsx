@@ -135,6 +135,7 @@ export function InventoryProcurementsList() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Proc. No.</TableHead>
                 <TableHead>Product</TableHead>
                 <TableHead>Supplier</TableHead>
                 <TableHead className="text-right">Qty</TableHead>
@@ -155,6 +156,11 @@ export function InventoryProcurementsList() {
 
                 return (
                   <TableRow key={procurement.id}>
+                    <TableCell>
+                      <Badge variant="outline" className="font-mono text-xs">
+                        {procurement.procurement_number || '-'}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <div>
                         <p className="font-medium">{procurement.product_name}</p>

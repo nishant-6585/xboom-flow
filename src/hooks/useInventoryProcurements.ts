@@ -5,6 +5,7 @@ import { useAuth } from './useAuth';
 
 export interface InventoryProcurement {
   id: string;
+  procurement_number: string | null;
   product_name: string;
   product_category: string;
   product_code: string | null;

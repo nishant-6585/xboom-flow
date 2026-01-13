@@ -11,7 +11,8 @@ import { PendingPaymentStatusRequests } from "@/components/procurement/PendingPa
 import { SupplierPaymentAnalytics } from "@/components/procurement/SupplierPaymentAnalytics";
 import { InventoryProcurementsList } from "@/components/procurement/InventoryProcurementsList";
 import { ManualProcurementForm } from "@/components/procurement/ManualProcurementForm";
-import { FileText, BookOpen, LayoutDashboard, CreditCard, IndianRupee, Package, Plus } from "lucide-react";
+import { OrderProcurementTracker } from "@/components/procurement/OrderProcurementTracker";
+import { FileText, BookOpen, LayoutDashboard, CreditCard, IndianRupee, Package, Plus, Link2 } from "lucide-react";
 import { useProcurementPaymentRequests } from "@/hooks/useProcurementPaymentRequests";
 import { Badge } from "@/components/ui/badge";
 
@@ -58,7 +59,7 @@ export default function Procurement() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6 lg:w-[720px]">
+          <TabsList className="grid w-full grid-cols-7 lg:w-[840px]">
             <TabsTrigger value="orders" className="gap-2">
               <FileText className="w-4 h-4" />
               <span className="hidden sm:inline">Orders</span>
@@ -66,6 +67,10 @@ export default function Procurement() {
             <TabsTrigger value="inventory" className="gap-2">
               <Package className="w-4 h-4" />
               <span className="hidden sm:inline">Inventory</span>
+            </TabsTrigger>
+            <TabsTrigger value="tracker" className="gap-2">
+              <Link2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Tracker</span>
             </TabsTrigger>
             <TabsTrigger value="requests" className="gap-2 relative">
               <CreditCard className="w-4 h-4" />
@@ -96,6 +101,10 @@ export default function Procurement() {
 
           <TabsContent value="inventory" className="mt-6">
             <InventoryProcurementsList />
+          </TabsContent>
+
+          <TabsContent value="tracker" className="mt-6">
+            <OrderProcurementTracker />
           </TabsContent>
 
           <TabsContent value="requests" className="mt-6">

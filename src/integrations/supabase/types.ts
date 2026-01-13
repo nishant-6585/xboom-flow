@@ -175,6 +175,7 @@ export type Database = {
           payment_status: string
           payment_terms: string | null
           procurement_date: string
+          procurement_number: string | null
           product_category: string
           product_code: string | null
           product_name: string
@@ -195,6 +196,7 @@ export type Database = {
           payment_status?: string
           payment_terms?: string | null
           procurement_date?: string
+          procurement_number?: string | null
           product_category?: string
           product_code?: string | null
           product_name: string
@@ -215,6 +217,7 @@ export type Database = {
           payment_status?: string
           payment_terms?: string | null
           procurement_date?: string
+          procurement_number?: string | null
           product_category?: string
           product_code?: string | null
           product_name?: string
@@ -419,6 +422,64 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_procurement_links: {
+        Row: {
+          created_at: string
+          id: string
+          inventory_procurement_id: string
+          linked_at: string
+          linked_by: string | null
+          notes: string | null
+          order_id: string
+          order_item_id: string | null
+          quantity_used: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inventory_procurement_id: string
+          linked_at?: string
+          linked_by?: string | null
+          notes?: string | null
+          order_id: string
+          order_item_id?: string | null
+          quantity_used?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inventory_procurement_id?: string
+          linked_at?: string
+          linked_by?: string | null
+          notes?: string | null
+          order_id?: string
+          order_item_id?: string | null
+          quantity_used?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_procurement_links_inventory_procurement_id_fkey"
+            columns: ["inventory_procurement_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_procurements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_procurement_links_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_procurement_links_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
             referencedColumns: ["id"]
           },
         ]
