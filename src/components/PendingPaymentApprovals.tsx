@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PaymentRecord, usePaymentRecords } from '@/hooks/usePaymentRecords';
 import { Order } from '@/hooks/useOrders';
+import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { Check, X, Clock, Image, Loader2, ExternalLink, CreditCard, Package, AlertCircle, CheckCircle, Trash2, Undo2, User } from 'lucide-react';
 
@@ -60,20 +61,39 @@ export function PendingPaymentApprovals({ orders }: PendingPaymentApprovalsProps
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('pending_payments');
   const [selectedSalesPerson, setSelectedSalesPerson] = useState<string>('all');
+  const [salesPersons, setSalesPersons] = useState<{ id: string; name: string }[]>([]);
 
   const pendingRecords = records.filter(r => r.status === 'pending');
   const approvedRecords = records.filter(r => r.status === 'approved');
   
-  // Get unique sales persons from orders
-  const salesPersons = useMemo(() => {
-    const uniqueSalesPersons = new Map<string, string>();
-    orders.forEach(order => {
-      if (order.sales_person_id && order.sales_person_name) {
-        uniqueSalesPersons.set(order.sales_person_id, order.sales_person_name);
+  // Fetch all sales team members from profiles
+  useEffect(() => {
+    const fetchSalesPersons = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, name')
+        .eq('is_approved', true);
+      
+      if (!error && data) {
+        // Get user roles to filter only sales
+        const { data: rolesData } = await supabase
+          .from('user_roles')
+          .select('user_id, role')
+          .eq('role', 'sales');
+        
+        const salesUserIds = new Set(rolesData?.map(r => r.user_id) || []);
+        
+        const salesMembers = data
+          .filter(p => salesUserIds.has(p.user_id))
+          .map(p => ({ id: p.user_id, name: p.name }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        
+        setSalesPersons(salesMembers);
       }
-    });
-    return Array.from(uniqueSalesPersons.entries()).map(([id, name]) => ({ id, name }));
-  }, [orders]);
+    };
+    
+    fetchSalesPersons();
+  }, []);
 
   // Filter approved records by selected sales person
   const filteredApprovedRecords = useMemo(() => {
