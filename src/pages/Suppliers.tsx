@@ -1,27 +1,33 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Header } from '@/components/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useSuppliers, Supplier } from '@/hooks/useSuppliers';
+import { useSuppliers, Supplier, SupplierPreference } from '@/hooks/useSuppliers';
 import { SupplierCard } from '@/components/SupplierCard';
 import { SupplierForm } from '@/components/SupplierForm';
 import { SupplierLedgerDialog } from '@/components/SupplierLedgerDialog';
-import { Plus, Search, Loader2, Building2, Filter } from 'lucide-react';
+import { Plus, Search, Loader2, Building2, Filter, Upload, FileSpreadsheet, Download } from 'lucide-react';
+import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 export default function Suppliers() {
-  const { suppliers, loading, createSupplier, updateSupplier } = useSuppliers();
+  const { suppliers, loading, createSupplier, bulkImportSuppliers, updateSupplier } = useSuppliers();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [preferenceFilter, setPreferenceFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   
   const [formDialogOpen, setFormDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [ledgerSupplier, setLedgerSupplier] = useState<Supplier | null>(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get unique categories from suppliers
   const categories = [...new Set(suppliers.map(s => s.product_category))];
@@ -65,6 +71,97 @@ export default function Suppliers() {
     setEditingSupplier(null);
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportLoading(true);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      const parsedSuppliers = jsonData.map((row: any) => ({
+        name: row['Supplier Name'] || row['name'] || row['Name'] || row['Company'] || row['company'] || '',
+        brand_name: row['Brand Name'] || row['brand_name'] || row['Brand'] || row['brand'] || null,
+        gst_number: row['GST Number'] || row['gst_number'] || row['GST'] || row['gst'] || null,
+        contact_name: row['Contact Name'] || row['contact_name'] || row['Contact'] || row['contact'] || row['Contact Person'] || '',
+        phone: row['Phone'] || row['phone'] || row['Telephone'] || null,
+        mobile: row['Mobile'] || row['mobile'] || row['Cell'] || row['cell'] || null,
+        email: row['Email'] || row['email'] || row['E-mail'] || null,
+        city: row['City'] || row['city'] || null,
+        address: row['Address'] || row['address'] || null,
+        bank_name: row['Bank Name'] || row['bank_name'] || row['Bank'] || null,
+        bank_account_number: row['Account Number'] || row['bank_account_number'] || row['Account No'] || null,
+        bank_ifsc: row['IFSC'] || row['bank_ifsc'] || row['IFSC Code'] || null,
+        bank_account_holder: row['Account Holder'] || row['bank_account_holder'] || null,
+        product_category: row['Product Category'] || row['product_category'] || row['Category'] || 'Consumer Drones',
+        products: row['Products'] || row['products'] ? 
+          (typeof (row['Products'] || row['products']) === 'string' 
+            ? (row['Products'] || row['products']).split(',').map((p: string) => p.trim()).filter(Boolean)
+            : null) 
+          : null,
+        preference: (['high', 'medium', 'low'].includes((row['Preference'] || row['preference'] || '').toLowerCase()) 
+          ? (row['Preference'] || row['preference']).toLowerCase() 
+          : 'medium') as SupplierPreference,
+        status: row['Status'] || row['status'] || 'active',
+        notes: row['Notes'] || row['notes'] || null,
+        is_active: row['Active'] === false || row['is_active'] === false ? false : true,
+      })).filter((item: any) => item.name && item.contact_name);
+
+      if (parsedSuppliers.length === 0) {
+        toast.error('No valid suppliers found in Excel file. Ensure "Supplier Name" and "Contact Name" columns exist.');
+        setImportLoading(false);
+        return;
+      }
+
+      const success = await bulkImportSuppliers(parsedSuppliers);
+      if (success) {
+        setImportDialogOpen(false);
+      }
+    } catch (error) {
+      console.error('Error parsing Excel file:', error);
+      toast.error('Failed to parse Excel file');
+    } finally {
+      setImportLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const downloadTemplate = () => {
+    const templateData = [
+      {
+        'Supplier Name': 'Example Supplier',
+        'Brand Name': 'Example Brand',
+        'GST Number': '22AAAAA0000A1Z5',
+        'Contact Name': 'John Doe',
+        'Phone': '+91 9876543210',
+        'Mobile': '+91 9876543211',
+        'Email': 'supplier@example.com',
+        'City': 'Mumbai',
+        'Address': '123 Business Park',
+        'Bank Name': 'State Bank',
+        'Account Number': '1234567890',
+        'IFSC': 'SBIN0001234',
+        'Account Holder': 'Example Supplier Pvt Ltd',
+        'Product Category': 'Consumer Drones',
+        'Products': 'Product 1, Product 2, Product 3',
+        'Preference': 'high',
+        'Status': 'active',
+        'Notes': 'Sample notes',
+      },
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Suppliers');
+    XLSX.writeFile(wb, 'suppliers_import_template.xlsx');
+    toast.success('Template downloaded');
+  };
+
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col">
       <Header />
@@ -79,10 +176,16 @@ export default function Suppliers() {
               Manage supplier information and track payments
             </p>
           </div>
-          <Button onClick={() => handleOpenForm()}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Supplier
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Import Excel
+            </Button>
+            <Button onClick={() => handleOpenForm()}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Supplier
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -186,6 +289,61 @@ export default function Suppliers() {
               onCancel={handleCloseForm}
               isLoading={formLoading}
             />
+          </DialogContent>
+        </Dialog>
+
+        {/* Import Dialog */}
+        <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileSpreadsheet className="h-5 w-5" />
+                Import Suppliers
+              </DialogTitle>
+              <DialogDescription>
+                Upload an Excel file to bulk import suppliers. Download the template for the correct format.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="flex flex-col gap-2">
+                <p className="text-sm text-muted-foreground">
+                  Required columns: <strong>Supplier Name</strong>, <strong>Contact Name</strong>
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Optional columns: Brand Name, GST Number, Phone, Mobile, Email, City, Address, Bank Name, Account Number, IFSC, Account Holder, Product Category, Products (comma-separated), Preference, Status, Notes
+                </p>
+              </div>
+              <Button variant="outline" onClick={downloadTemplate} className="w-full">
+                <Download className="h-4 w-4 mr-2" />
+                Download Template
+              </Button>
+              <div className="border-t pt-4">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <Button 
+                  onClick={() => fileInputRef.current?.click()} 
+                  className="w-full"
+                  disabled={importLoading}
+                >
+                  {importLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Importing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Select Excel File
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
 
