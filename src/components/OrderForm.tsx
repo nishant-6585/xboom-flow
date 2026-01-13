@@ -62,6 +62,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     selling_price: undefined,
     total_sales_amount: undefined,
     amount_paid: undefined,
+    delivery_charges: undefined,
     payment_terms: '',
     payment_status: 'pending',
     payment_due_date: '',
@@ -235,6 +236,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
         selling_price: undefined,
         total_sales_amount: undefined,
         amount_paid: undefined,
+        delivery_charges: undefined,
         payment_terms: '',
         payment_status: 'pending',
         payment_due_date: '',
@@ -462,6 +464,19 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                   value={formData.amount_paid || ''}
                   onChange={e => setFormData(prev => ({ ...prev, amount_paid: parseFloat(e.target.value) || undefined }))}
                   disabled={loading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="delivery_charges">Delivery Charges (₹)</Label>
+                <Input
+                  id="delivery_charges"
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={formData.delivery_charges || ''}
+                  onChange={e => setFormData(prev => ({ ...prev, delivery_charges: parseFloat(e.target.value) || undefined }))}
+                  disabled={loading}
+                  placeholder="0"
                 />
               </div>
               <div className="space-y-2">
