@@ -309,6 +309,10 @@ export function EnquiryDialog({
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="in_review">In Review</SelectItem>
                       <SelectItem value="confirmed">Confirmed</SelectItem>
+                      <SelectItem value="on_hold">On Hold</SelectItem>
+                      <SelectItem value="moved_to_pipeline">Move to Pipeline</SelectItem>
+                      <SelectItem value="order_won">Order Won (Create Order)</SelectItem>
+                      <SelectItem value="order_lost">Order Lost</SelectItem>
                       <SelectItem value="rejected">Rejected</SelectItem>
                     </SelectContent>
                   </Select>
