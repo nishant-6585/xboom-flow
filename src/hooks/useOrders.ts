@@ -326,10 +326,10 @@ export function useOrders() {
 
   const createOrder = async (
     formData: OrderFormData, 
-    paymentFile?: File, 
+    paymentFiles?: File[], 
     orderItems?: { product_name: string; product_code?: string; product_category: string; quantity: number; unit_price?: number; procurement_rate?: number; notes?: string; }[],
     invoiceFile?: File,
-    poFile?: File
+    poFiles?: File[]
   ): Promise<boolean> => {
     if (!user) {
       toast.error('You must be logged in to create orders');
@@ -358,24 +358,30 @@ export function useOrders() {
         }
       }
 
-      // Upload PO file if provided
+      // Upload PO files if provided (multiple)
       let poUrl = formData.po_url;
-      if (poFile) {
-        const fileExt = poFile.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`;
+      if (poFiles && poFiles.length > 0) {
+        const uploadedPoUrls: string[] = [];
+        for (const poFile of poFiles) {
+          const fileExt = poFile.name.split('.').pop();
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+          const filePath = `${user.id}/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('purchase-orders')
-          .upload(filePath, poFile);
-
-        if (uploadError) {
-          console.error('Error uploading PO:', uploadError);
-        } else {
-          const { data: { publicUrl } } = supabase.storage
+          const { error: uploadError } = await supabase.storage
             .from('purchase-orders')
-            .getPublicUrl(filePath);
-          poUrl = publicUrl;
+            .upload(filePath, poFile);
+
+          if (!uploadError) {
+            const { data: { publicUrl } } = supabase.storage
+              .from('purchase-orders')
+              .getPublicUrl(filePath);
+            uploadedPoUrls.push(publicUrl);
+          } else {
+            console.error('Error uploading PO:', uploadError);
+          }
+        }
+        if (uploadedPoUrls.length > 0) {
+          poUrl = uploadedPoUrls.join(',');
         }
       }
 
@@ -425,34 +431,40 @@ export function useOrders() {
         }
       }
 
-      // If payment file is provided, upload it and create payment record
-      if (paymentFile && orderData && formData.amount_paid && formData.amount_paid > 0) {
+      // If payment files are provided, upload them and create payment records
+      if (paymentFiles && paymentFiles.length > 0 && orderData && formData.amount_paid && formData.amount_paid > 0) {
         try {
-          const fileExt = paymentFile.name.split('.').pop();
-          const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-          const filePath = `${user.id}/${fileName}`;
+          const uploadedPaymentUrls: string[] = [];
+          for (const paymentFile of paymentFiles) {
+            const fileExt = paymentFile.name.split('.').pop();
+            const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+            const filePath = `${user.id}/${fileName}`;
 
-          const { error: uploadError } = await supabase.storage
-            .from('payment-screenshots')
-            .upload(filePath, paymentFile);
-
-          if (uploadError) {
-            console.error('Error uploading payment screenshot:', uploadError);
-          } else {
-            const { data: { publicUrl } } = supabase.storage
+            const { error: uploadError } = await supabase.storage
               .from('payment-screenshots')
-              .getPublicUrl(filePath);
+              .upload(filePath, paymentFile);
+
+            if (!uploadError) {
+              uploadedPaymentUrls.push(filePath);
+            } else {
+              console.error('Error uploading payment screenshot:', uploadError);
+            }
+          }
+
+          if (uploadedPaymentUrls.length > 0) {
+            // Store all URLs as comma-separated string
+            const screenshotUrlsString = uploadedPaymentUrls.join(',');
 
             await supabase.from('payment_records').insert({
               order_id: orderData.id,
               amount: formData.amount_paid,
-              screenshot_url: publicUrl,
+              screenshot_url: screenshotUrlsString,
               submitted_by: user.id,
               notes: 'Submitted with order creation',
             });
           }
         } catch (uploadErr) {
-          console.error('Error processing payment screenshot:', uploadErr);
+          console.error('Error processing payment screenshots:', uploadErr);
           // Don't fail the order creation, just log the error
         }
       }

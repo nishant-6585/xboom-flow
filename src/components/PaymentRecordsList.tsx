@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { PaymentRecord, usePaymentRecords } from '@/hooks/usePaymentRecords';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { Check, X, Clock, Image, Loader2, ExternalLink } from 'lucide-react';
+import { Check, X, Clock, Image, Loader2, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface PaymentRecordsListProps {
   orderId: string;
@@ -42,7 +42,8 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [currentPreviewIndex, setCurrentPreviewIndex] = useState(0);
 
   const handleApprove = async (record: PaymentRecord) => {
     setActionLoading(record.id);
@@ -94,16 +95,35 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
             <Card key={record.id} className="overflow-hidden">
               <CardContent className="p-4">
                 <div className="flex items-start gap-4">
-                  {/* Screenshot thumbnail */}
-                  <div
-                    className="w-16 h-16 rounded-lg border border-border overflow-hidden shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => setPreviewImage(record.screenshot_signed_url || record.screenshot_url)}
-                  >
-                    <img
-                      src={record.screenshot_signed_url || record.screenshot_url}
-                      alt="Payment screenshot"
-                      className="w-full h-full object-cover"
-                    />
+                  {/* Screenshot thumbnails */}
+                  <div className="flex gap-1 shrink-0">
+                    {(record.screenshot_signed_urls || [record.screenshot_signed_url || record.screenshot_url]).slice(0, 3).map((url, idx) => (
+                      <div
+                        key={idx}
+                        className="w-12 h-12 rounded-lg border border-border overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => {
+                          setPreviewImages(record.screenshot_signed_urls || [record.screenshot_signed_url || record.screenshot_url]);
+                          setCurrentPreviewIndex(idx);
+                        }}
+                      >
+                        <img
+                          src={url}
+                          alt={`Payment screenshot ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ))}
+                    {(record.screenshot_signed_urls?.length || 1) > 3 && (
+                      <div 
+                        className="w-12 h-12 rounded-lg border border-border bg-muted flex items-center justify-center text-xs text-muted-foreground cursor-pointer hover:bg-muted/80"
+                        onClick={() => {
+                          setPreviewImages(record.screenshot_signed_urls || [record.screenshot_signed_url || record.screenshot_url]);
+                          setCurrentPreviewIndex(0);
+                        }}
+                      >
+                        +{(record.screenshot_signed_urls?.length || 1) - 3}
+                      </div>
+                    )}
                   </div>
 
                   {/* Details */}
@@ -203,24 +223,24 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
         </DialogContent>
       </Dialog>
 
-      {/* Image Preview Dialog */}
-      <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
+      {/* Image Preview Dialog with navigation */}
+      <Dialog open={previewImages.length > 0} onOpenChange={() => setPreviewImages([])}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Image className="h-5 w-5" />
-              Payment Screenshot
+              Payment Screenshot {previewImages.length > 1 && `(${currentPreviewIndex + 1}/${previewImages.length})`}
             </DialogTitle>
           </DialogHeader>
-          {previewImage && (
+          {previewImages.length > 0 && (
             <div className="relative">
               <img
-                src={previewImage}
-                alt="Payment screenshot"
+                src={previewImages[currentPreviewIndex]}
+                alt={`Payment screenshot ${currentPreviewIndex + 1}`}
                 className="w-full max-h-[70vh] object-contain rounded-lg"
               />
               <a
-                href={previewImage}
+                href={previewImages[currentPreviewIndex]}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="absolute top-2 right-2"
@@ -230,6 +250,28 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
                   Open Full Size
                 </Button>
               </a>
+              
+              {/* Navigation buttons */}
+              {previewImages.length > 1 && (
+                <>
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="absolute left-2 top-1/2 -translate-y-1/2"
+                    onClick={() => setCurrentPreviewIndex(prev => prev === 0 ? previewImages.length - 1 : prev - 1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="absolute right-2 top-1/2 -translate-y-1/2"
+                    onClick={() => setCurrentPreviewIndex(prev => prev === previewImages.length - 1 ? 0 : prev + 1)}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
             </div>
           )}
         </DialogContent>

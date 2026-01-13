@@ -11,6 +11,7 @@ export interface PaymentRecord {
   amount: number;
   screenshot_url: string;
   screenshot_signed_url?: string;
+  screenshot_signed_urls?: string[]; // For multiple screenshots
   notes: string | null;
   status: PaymentRecordStatus;
   submitted_by: string;
@@ -61,16 +62,27 @@ export function usePaymentRecords(orderId?: string) {
       if (error) throw error;
 
       // Generate signed URLs for each screenshot (1 hour expiry)
+      // Handle multiple screenshots stored as comma-separated paths
       const recordsWithSignedUrls = await Promise.all(
         (data || []).map(async (record: any) => {
-          const storagePath = extractStoragePath(record.screenshot_url);
-          const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-            .from('payment-screenshots')
-            .createSignedUrl(storagePath, 3600); // 1 hour expiry
+          const screenshotPaths = record.screenshot_url.split(',').map((p: string) => p.trim());
+          const signedUrls: string[] = [];
+          
+          for (const path of screenshotPaths) {
+            const storagePath = extractStoragePath(path);
+            const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+              .from('payment-screenshots')
+              .createSignedUrl(storagePath, 3600);
+            
+            if (!signedUrlError && signedUrlData?.signedUrl) {
+              signedUrls.push(signedUrlData.signedUrl);
+            }
+          }
 
           return {
             ...record,
-            screenshot_signed_url: signedUrlError ? null : signedUrlData?.signedUrl,
+            screenshot_signed_url: signedUrls[0] || null, // Keep first for backward compatibility
+            screenshot_signed_urls: signedUrls,
           } as PaymentRecord;
         })
       );
