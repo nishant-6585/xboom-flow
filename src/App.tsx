@@ -13,6 +13,7 @@ import Suppliers from "./pages/Suppliers";
 import Procurement from "./pages/Procurement";
 import Inventory from "./pages/Inventory";
 import Pricelist from "./pages/Pricelist";
+import Sales from "./pages/Sales";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -79,6 +80,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Pricelist />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/sales"
+              element={
+                <ProtectedRoute>
+                  <Sales />
                 </ProtectedRoute>
               }
             />

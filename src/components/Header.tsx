@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart, Warehouse, FileSpreadsheet } from "lucide-react";
+import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart, Warehouse, FileSpreadsheet, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "react-router-dom";
@@ -59,6 +59,7 @@ export function Header() {
 
   const navItems = [
     { path: "/", label: "Dashboard", icon: Home, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/sales", label: "Sales", icon: Zap, roles: ["sales", "supply_chain", "admin"] },
     { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "supply_chain", "admin", "finance"] },
     { path: "/pricelist", label: "Pricelist", icon: FileSpreadsheet, roles: ["sales", "supply_chain", "admin"] },
     { path: "/procurement", label: "Procurement", icon: ShoppingCart, roles: ["admin", "supply_chain", "finance"] },
@@ -138,6 +139,22 @@ export function Header() {
 
         {/* Desktop Navigation */}
         <div className="hidden sm:flex items-center gap-4">
+          {(role === "sales" || role === "supply_chain" || role === "admin") && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link to="/sales">
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <Zap className="w-4 h-4" />
+                    <span>Sales</span>
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent className="sm:hidden">
+                <p>Sales</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Link to="/orders">
