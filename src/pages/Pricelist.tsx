@@ -3,7 +3,7 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { usePricelist, PricelistFormData } from "@/hooks/usePricelist";
 import { useEnquiries } from "@/hooks/useEnquiries";
-import { PricelistAnalytics } from "@/components/pricelist/PricelistAnalytics";
+import { PricelistAnalytics, PriceFilterType } from "@/components/pricelist/PricelistAnalytics";
 import { Navigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -72,6 +72,7 @@ export default function Pricelist() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [brandFilter, setBrandFilter] = useState<string>("all");
   const [availabilityFilter, setAvailabilityFilter] = useState<string>("all");
+  const [priceFilter, setPriceFilter] = useState<PriceFilterType>("all");
   const [activeTab, setActiveTab] = useState<string>("products");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 70;
@@ -117,14 +118,28 @@ export default function Pricelist() {
       const matchesAvailability = availabilityFilter === "all" || 
         (availabilityFilter === "_blank" ? (!item.availability || item.availability.trim() === "") : item.availability === availabilityFilter);
       
-      return matchesSearch && matchesCategory && matchesBrand && matchesAvailability;
+      // Price filter logic
+      let matchesPrice = true;
+      if (priceFilter === "with_price") {
+        matchesPrice = (item.website_price && item.website_price > 0) || (item.dealer_price && item.dealer_price > 0);
+      } else if (priceFilter === "missing_price") {
+        matchesPrice = !(item.website_price && item.website_price > 0) && !(item.dealer_price && item.dealer_price > 0);
+      } else if (priceFilter === "website") {
+        matchesPrice = !!(item.website_price && item.website_price > 0);
+      } else if (priceFilter === "dealer") {
+        matchesPrice = !!(item.dealer_price && item.dealer_price > 0);
+      } else if (priceFilter === "cost") {
+        matchesPrice = !!(item.cost_price && item.cost_price > 0);
+      }
+      
+      return matchesSearch && matchesCategory && matchesBrand && matchesAvailability && matchesPrice;
     });
-  }, [items, search, categoryFilter, brandFilter, availabilityFilter]);
+  }, [items, search, categoryFilter, brandFilter, availabilityFilter, priceFilter]);
 
   // Reset to page 1 when filters change
   useMemo(() => {
     setCurrentPage(1);
-  }, [search, categoryFilter, brandFilter, availabilityFilter]);
+  }, [search, categoryFilter, brandFilter, availabilityFilter, priceFilter]);
 
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
   const paginatedItems = useMemo(() => {
@@ -312,6 +327,25 @@ export default function Pricelist() {
     }
   };
 
+  const handleAnalyticsFilterClick = (filter: PriceFilterType, category?: string) => {
+    setPriceFilter(filter);
+    if (category) {
+      setCategoryFilter(category);
+    }
+    setActiveTab("products");
+  };
+
+  const getPriceFilterLabel = (filter: PriceFilterType): string => {
+    switch (filter) {
+      case "with_price": return "With Price";
+      case "missing_price": return "Missing Price";
+      case "website": return "Website Price";
+      case "dealer": return "Dealer Price";
+      case "cost": return "Cost Price";
+      default: return "";
+    }
+  };
+
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col">
       <Header />
@@ -410,6 +444,21 @@ export default function Pricelist() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Active price filter indicator */}
+                {priceFilter !== "all" && (
+                  <div className="flex items-center gap-2 mb-4">
+                    <Badge variant="secondary" className="flex items-center gap-1">
+                      Price Filter: {getPriceFilterLabel(priceFilter)}
+                      <button
+                        onClick={() => setPriceFilter("all")}
+                        className="ml-1 hover:text-destructive"
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  </div>
+                )}
 
                 {loading ? (
                   <div className="flex items-center justify-center p-8">
@@ -600,7 +649,7 @@ export default function Pricelist() {
           </TabsContent>
 
           <TabsContent value="analytics">
-            <PricelistAnalytics items={items} />
+            <PricelistAnalytics items={items} onFilterClick={handleAnalyticsFilterClick} />
           </TabsContent>
         </Tabs>
 
