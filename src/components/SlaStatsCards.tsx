@@ -3,11 +3,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";
 import { getSlaStatus, UrgencyLevel } from "@/lib/sla";
 
+export type SlaStatusFilter = "met" | "delayed" | "at_risk" | "breached" | "all";
+
 interface SlaStatsCardsProps {
   queries: ProductQuery[];
+  onSlaStatusClick?: (status: SlaStatusFilter) => void;
 }
 
-export function SlaStatsCards({ queries }: SlaStatsCardsProps) {
+export function SlaStatsCards({ queries, onSlaStatusClick }: SlaStatsCardsProps) {
   const slaStats = queries.reduce(
     (acc, query) => {
       const isResponded = query.status !== "pending";
@@ -30,13 +33,14 @@ export function SlaStatsCards({ queries }: SlaStatsCardsProps) {
     ? Math.round((slaStats.met / totalResponded) * 100) 
     : 100;
 
-  const cards = [
+  const cards: { label: string; value: number; icon: typeof CheckCircle2; color: string; bg: string; filter: SlaStatusFilter }[] = [
     {
       label: "SLA Met",
       value: slaStats.met,
       icon: CheckCircle2,
       color: "text-success",
       bg: "bg-success/10",
+      filter: "met",
     },
     {
       label: "Delayed",
@@ -44,6 +48,7 @@ export function SlaStatsCards({ queries }: SlaStatsCardsProps) {
       icon: XCircle,
       color: "text-destructive",
       bg: "bg-destructive/10",
+      filter: "delayed",
     },
     {
       label: "At Risk",
@@ -51,6 +56,7 @@ export function SlaStatsCards({ queries }: SlaStatsCardsProps) {
       icon: AlertTriangle,
       color: "text-warning",
       bg: "bg-warning/10",
+      filter: "at_risk",
     },
     {
       label: "SLA Breached",
@@ -58,6 +64,7 @@ export function SlaStatsCards({ queries }: SlaStatsCardsProps) {
       icon: XCircle,
       color: "text-destructive",
       bg: "bg-destructive/10",
+      filter: "breached",
     },
   ];
 
@@ -74,7 +81,11 @@ export function SlaStatsCards({ queries }: SlaStatsCardsProps) {
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {cards.map((card) => (
-          <Card key={card.label} className="glass">
+          <Card 
+            key={card.label} 
+            className="glass cursor-pointer transition-all hover:shadow-md hover:border-primary/50"
+            onClick={() => onSlaStatusClick?.(card.filter)}
+          >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>

@@ -5,11 +5,12 @@ import { EnquiryCard } from "@/components/EnquiryCard";
 import { EnquiryTable } from "@/components/EnquiryTable";
 import { EnquiryConversionAnalytics } from "@/components/EnquiryConversionAnalytics";
 import { StatsCards } from "@/components/StatsCards";
-import { SlaStatsCards } from "@/components/SlaStatsCards";
+import { SlaStatsCards, SlaStatusFilter } from "@/components/SlaStatsCards";
 import { SalesStatsCards } from "@/components/SalesStatsCards";
 import { EnquiryDialog } from "@/components/EnquiryDialog";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { useEnquiries, Enquiry, PRODUCT_CATEGORIES, QueryStatus, ENQUIRY_STATUSES, LostReason } from "@/hooks/useEnquiries";
+import { getSlaStatus, UrgencyLevel } from "@/lib/sla";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -37,6 +38,7 @@ const Index = () => {
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<QueryStatus | "all">("all");
   const [lostReasonFilter, setLostReasonFilter] = useState<LostReason | null>(null);
+  const [slaStatusFilter, setSlaStatusFilter] = useState<SlaStatusFilter>("all");
 
   // Fetch sales team for filter dropdown (admin/supply_chain only)
   useEffect(() => {
@@ -58,7 +60,7 @@ const Index = () => {
 
   const canFilterBySalesPerson = role === 'admin' || role === 'supply_chain';
 
-  // Filter enquiries by category, date, sales person, status, and lost reason
+  // Filter enquiries by category, date, sales person, status, lost reason, and SLA status
   const filteredEnquiries = enquiries.filter((e) => {
     const matchesCategory = categoryFilter === "all" || e.product_category === categoryFilter;
     const matchesSalesPerson = salesPersonFilter === "all" || e.sales_person_id === salesPersonFilter;
@@ -74,8 +76,17 @@ const Index = () => {
     } else if (endDate) {
       matchesDate = enquiryDate <= endOfDay(endDate);
     }
+
+    // SLA status filter
+    let matchesSlaStatus = true;
+    if (slaStatusFilter !== "all") {
+      const isResponded = e.status !== "pending";
+      const respondedAt = isResponded ? new Date(e.updated_at) : null;
+      const slaStatus = getSlaStatus(new Date(e.created_at), respondedAt, e.urgency as UrgencyLevel, isResponded);
+      matchesSlaStatus = slaStatus === slaStatusFilter;
+    }
     
-    return matchesCategory && matchesDate && matchesSalesPerson && matchesStatus && matchesLostReason;
+    return matchesCategory && matchesDate && matchesSalesPerson && matchesStatus && matchesLostReason && matchesSlaStatus;
   });
 
   const clearDateFilter = () => {
@@ -112,6 +123,21 @@ const Index = () => {
     setStatusFilter("order_lost");
     setLostReasonFilter(reason);
     setActiveTab("dashboard");
+  };
+
+  const handleSlaStatusClick = (status: SlaStatusFilter) => {
+    setSlaStatusFilter(status);
+    setActiveTab("dashboard");
+  };
+
+  const getSlaStatusLabel = (status: SlaStatusFilter): string => {
+    switch (status) {
+      case "met": return "SLA Met";
+      case "delayed": return "Delayed";
+      case "at_risk": return "At Risk";
+      case "breached": return "SLA Breached";
+      default: return "";
+    }
   };
 
   // Convert enquiries to the format expected by stats components
@@ -209,7 +235,7 @@ const Index = () => {
             ) : (
               <>
                 <StatsCards queries={statsQueries} onStatusClick={handleStatsClick} />
-                {canViewSlaStats && <SlaStatsCards queries={statsQueries} />}
+                {canViewSlaStats && <SlaStatsCards queries={statsQueries} onSlaStatusClick={handleSlaStatusClick} />}
                 {(isSales || isAdmin) && <SalesStatsCards queries={isAdmin ? statsQueries : salesStatsQueries} onStatusClick={handleStatsClick} />}
 
                 {/* Category and Date Filters */}
@@ -354,7 +380,20 @@ const Index = () => {
                         </Button>
                       </div>
                     )}
-                    {(categoryFilter !== "all" || startDate || endDate || salesPersonFilter !== "all" || statusFilter !== "all" || lostReasonFilter) && (
+                    {slaStatusFilter !== "all" && (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-primary/10 border border-primary/20 rounded-md text-sm">
+                        <span className="text-primary font-medium">SLA: {getSlaStatusLabel(slaStatusFilter)}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSlaStatusFilter("all")}
+                          className="h-5 w-5 p-0 hover:bg-primary/20"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                    {(categoryFilter !== "all" || startDate || endDate || salesPersonFilter !== "all" || statusFilter !== "all" || lostReasonFilter || slaStatusFilter !== "all") && (
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
                           {filteredEnquiries.length} of {enquiries.length}
@@ -367,6 +406,7 @@ const Index = () => {
                             setSalesPersonFilter("all");
                             setStatusFilter("all");
                             setLostReasonFilter(null);
+                            setSlaStatusFilter("all");
                             clearDateFilter();
                           }}
                           className="h-6 px-2 text-xs"
