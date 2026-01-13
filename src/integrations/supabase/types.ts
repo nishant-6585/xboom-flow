@@ -534,6 +534,9 @@ export type Database = {
         Row: {
           actual_delivery: string | null
           amount_paid: number | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           committed_timeline: string | null
           created_at: string
           created_by: string
@@ -553,6 +556,7 @@ export type Database = {
           invoice_url: string | null
           is_escalated: boolean
           is_refund_requested: boolean
+          is_rto: boolean
           last_reminder_sent_at: string | null
           lead_source: string | null
           lost_reason: string | null
@@ -578,6 +582,8 @@ export type Database = {
           refund_requested_at: string | null
           refund_requested_by: string | null
           refund_status: string | null
+          rto_marked_at: string | null
+          rto_marked_by: string | null
           sales_notes: string | null
           sales_person_id: string
           sales_person_name: string
@@ -597,6 +603,9 @@ export type Database = {
         Insert: {
           actual_delivery?: string | null
           amount_paid?: number | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           committed_timeline?: string | null
           created_at?: string
           created_by: string
@@ -616,6 +625,7 @@ export type Database = {
           invoice_url?: string | null
           is_escalated?: boolean
           is_refund_requested?: boolean
+          is_rto?: boolean
           last_reminder_sent_at?: string | null
           lead_source?: string | null
           lost_reason?: string | null
@@ -641,6 +651,8 @@ export type Database = {
           refund_requested_at?: string | null
           refund_requested_by?: string | null
           refund_status?: string | null
+          rto_marked_at?: string | null
+          rto_marked_by?: string | null
           sales_notes?: string | null
           sales_person_id: string
           sales_person_name: string
@@ -660,6 +672,9 @@ export type Database = {
         Update: {
           actual_delivery?: string | null
           amount_paid?: number | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           committed_timeline?: string | null
           created_at?: string
           created_by?: string
@@ -679,6 +694,7 @@ export type Database = {
           invoice_url?: string | null
           is_escalated?: boolean
           is_refund_requested?: boolean
+          is_rto?: boolean
           last_reminder_sent_at?: string | null
           lead_source?: string | null
           lost_reason?: string | null
@@ -704,6 +720,8 @@ export type Database = {
           refund_requested_at?: string | null
           refund_requested_by?: string | null
           refund_status?: string | null
+          rto_marked_at?: string | null
+          rto_marked_by?: string | null
           sales_notes?: string | null
           sales_person_id?: string
           sales_person_name?: string

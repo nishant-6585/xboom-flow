@@ -3,10 +3,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { Order, RefundStatus, REFUND_STATUSES } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { RotateCcw, Package, Loader2 } from 'lucide-react';
+import { RotateCcw, Package, Loader2, XCircle, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface RefundRequestsTableProps {
@@ -24,9 +25,10 @@ export function RefundRequestsTable({ orders, onUpdateOrder }: RefundRequestsTab
   const { role } = useAuth();
   const [updating, setUpdating] = useState<string | null>(null);
   
-  const canUpdateRefund = role === 'admin' || role === 'supply_chain';
+  const canUpdateRefund = role === 'admin';
   
-  const refundOrders = orders.filter(o => o.is_refund_requested);
+  // Include both refund requested orders AND cancelled orders
+  const refundOrders = orders.filter(o => o.is_refund_requested || o.status === 'cancelled');
 
   const handleStatusChange = async (orderId: string, newStatus: RefundStatus) => {
     setUpdating(orderId);
@@ -42,7 +44,7 @@ export function RefundRequestsTable({ orders, onUpdateOrder }: RefundRequestsTab
       <div className="text-center py-12">
         <RotateCcw className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
         <h3 className="text-lg font-medium">No refund requests</h3>
-        <p className="text-muted-foreground">There are no refund requests at this time.</p>
+        <p className="text-muted-foreground">There are no refund requests or cancelled orders at this time.</p>
       </div>
     );
   }
@@ -54,7 +56,8 @@ export function RefundRequestsTable({ orders, onUpdateOrder }: RefundRequestsTab
           <TableRow>
             <TableHead>Order</TableHead>
             <TableHead>Customer</TableHead>
-            <TableHead>Refund Reason</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Reason</TableHead>
             <TableHead>Requested At</TableHead>
             <TableHead>Status</TableHead>
             {canUpdateRefund && <TableHead>Action</TableHead>}
@@ -63,6 +66,10 @@ export function RefundRequestsTable({ orders, onUpdateOrder }: RefundRequestsTab
         <TableBody>
           {refundOrders.map((order) => {
             const statusConfig = order.refund_status ? refundStatusConfig[order.refund_status] : refundStatusConfig.pending;
+            const isCancelled = order.status === 'cancelled';
+            const isRto = order.is_rto;
+            const reason = isCancelled ? order.cancellation_reason : order.refund_reason;
+            const requestedAt = isCancelled ? order.cancelled_at : order.refund_requested_at;
             
             return (
               <TableRow key={order.id}>
@@ -82,13 +89,35 @@ export function RefundRequestsTable({ orders, onUpdateOrder }: RefundRequestsTab
                   </div>
                 </TableCell>
                 <TableCell>
-                  <p className="text-sm max-w-xs truncate" title={order.refund_reason || ''}>
-                    {order.refund_reason || '-'}
+                  <div className="flex flex-col gap-1">
+                    {isCancelled && (
+                      <Badge variant="destructive" className="text-xs flex items-center gap-1 w-fit">
+                        <XCircle className="h-3 w-3" />
+                        Cancelled
+                      </Badge>
+                    )}
+                    {isRto && (
+                      <Badge variant="outline" className="text-xs flex items-center gap-1 w-fit border-orange-500 text-orange-600">
+                        <Undo2 className="h-3 w-3" />
+                        RTO
+                      </Badge>
+                    )}
+                    {!isCancelled && !isRto && (
+                      <Badge variant="outline" className="text-xs flex items-center gap-1 w-fit">
+                        <RotateCcw className="h-3 w-3" />
+                        Refund
+                      </Badge>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <p className="text-sm max-w-xs truncate" title={reason || ''}>
+                    {reason || '-'}
                   </p>
                 </TableCell>
                 <TableCell>
-                  {order.refund_requested_at 
-                    ? format(new Date(order.refund_requested_at), 'dd MMM yyyy, HH:mm')
+                  {requestedAt 
+                    ? format(new Date(requestedAt), 'dd MMM yyyy, HH:mm')
                     : '-'
                   }
                 </TableCell>

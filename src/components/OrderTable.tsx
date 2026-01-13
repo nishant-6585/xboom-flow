@@ -12,7 +12,7 @@ import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { Eye, MoreHorizontal, Trophy, XCircle, RotateCcw, Loader2 } from 'lucide-react';
+import { Eye, MoreHorizontal, Trophy, XCircle, RotateCcw, Loader2, Undo2 } from 'lucide-react';
 
 interface OrderTableProps {
   orders: Order[];

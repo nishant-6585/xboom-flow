@@ -75,6 +75,13 @@ export interface Order {
   outcome_updated_by: string | null;
   supplier_payment_terms: string | null;
   supplier_payment_due_date: string | null;
+  // RTO and cancellation fields
+  is_rto: boolean;
+  rto_marked_at: string | null;
+  rto_marked_by: string | null;
+  cancellation_reason: string | null;
+  cancelled_at: string | null;
+  cancelled_by: string | null;
 }
 
 export interface OrderFormData {
@@ -278,6 +285,12 @@ export function useOrders() {
           outcome_updated_by: null,
           supplier_payment_terms: null,
           supplier_payment_due_date: null,
+          is_rto: false,
+          rto_marked_at: null,
+          rto_marked_by: null,
+          cancellation_reason: null,
+          cancelled_at: null,
+          cancelled_by: null,
         }));
         
         setOrders(mappedOrders);
@@ -300,6 +313,12 @@ export function useOrders() {
           lost_reason: (order.lost_reason || null) as LostReason | null,
           lead_source: (order.lead_source || null) as LeadSource | null,
           refund_status: (order.refund_status || null) as RefundStatus | null,
+          is_rto: order.is_rto || false,
+          rto_marked_at: order.rto_marked_at || null,
+          rto_marked_by: order.rto_marked_by || null,
+          cancellation_reason: order.cancellation_reason || null,
+          cancelled_at: order.cancelled_at || null,
+          cancelled_by: order.cancelled_by || null,
         }));
         
         setOrders(mappedOrders);

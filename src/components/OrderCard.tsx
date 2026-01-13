@@ -6,7 +6,7 @@ import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { PaymentStatusTracker } from '@/components/PaymentStatusTracker';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { Package, User, Building2, Truck, ExternalLink, TrendingUp, Clock, CreditCard, Trophy, XCircle } from 'lucide-react';
+import { Package, User, Building2, Truck, ExternalLink, TrendingUp, Clock, CreditCard, Trophy, XCircle, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface OrderCardProps {
@@ -70,6 +70,18 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
               </Badge>
             );
           })()}
+          {order.is_rto && (
+            <Badge variant="outline" className="text-xs border-orange-500 text-orange-600">
+              <Undo2 className="h-3 w-3 mr-1" />
+              RTO
+            </Badge>
+          )}
+          {order.status === 'cancelled' && (
+            <Badge variant="destructive" className="text-xs">
+              <XCircle className="h-3 w-3 mr-1" />
+              Cancelled
+            </Badge>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">

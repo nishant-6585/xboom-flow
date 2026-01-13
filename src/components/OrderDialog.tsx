@@ -18,7 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO } from 'date-fns';
 import { calculatePaymentDueDate } from '@/lib/paymentTerms';
 import { toast } from 'sonner';
-import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle } from 'lucide-react';
+import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2 } from 'lucide-react';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { OrderSupplierPayments } from '@/components/OrderSupplierPayments';
@@ -101,6 +101,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [lostReasonNotes, setLostReasonNotes] = useState('');
   const [supplierPaymentTerms, setSupplierPaymentTerms] = useState('');
   const [supplierPaymentDueDate, setSupplierPaymentDueDate] = useState('');
+  const [isRto, setIsRto] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState('');
 
   useEffect(() => {
     if (order) {
@@ -136,6 +138,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setLostReasonNotes(order.lost_reason_notes || '');
       setSupplierPaymentTerms((order as any).supplier_payment_terms || '');
       setSupplierPaymentDueDate((order as any).supplier_payment_due_date || '');
+      setIsRto(order.is_rto || false);
+      setCancellationReason(order.cancellation_reason || '');
       setEscalationReason('');
       setShowEscalationForm(false);
       
@@ -282,6 +286,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const handleUpdate = async () => {
     if (!canEdit && !canEditSalesFields) return;
     
+    // Validate cancellation reason when status is cancelled
+    if (status === 'cancelled' && !cancellationReason.trim()) {
+      toast.error('Cancellation reason is required when marking order as cancelled');
+      return;
+    }
+    
     setLoading(true);
     const updates: Partial<Order> = {
       status,
@@ -306,11 +316,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       customer_notes: customerNotes || null,
       sales_notes: salesNotes || null,
       invoice_url: invoiceUrl,
-      is_refund_requested: isRefundRequested,
-      refund_reason: isRefundRequested ? (refundReason || null) : null,
-      refund_status: isRefundRequested ? refundStatus : null,
-      refund_requested_at: isRefundRequested && !order.is_refund_requested ? new Date().toISOString() : order.refund_requested_at,
-      refund_requested_by: isRefundRequested && !order.is_refund_requested ? user?.id : order.refund_requested_by,
+      is_refund_requested: isRefundRequested || status === 'cancelled',
+      refund_reason: isRefundRequested ? (refundReason || null) : (status === 'cancelled' ? cancellationReason : null),
+      refund_status: (isRefundRequested || status === 'cancelled') ? refundStatus : null,
+      refund_requested_at: (isRefundRequested || status === 'cancelled') && !order.is_refund_requested ? new Date().toISOString() : order.refund_requested_at,
+      refund_requested_by: (isRefundRequested || status === 'cancelled') && !order.is_refund_requested ? user?.id : order.refund_requested_by,
       priority,
       order_outcome: orderOutcome,
       lost_reason: orderOutcome === 'lost' ? lostReason : null,
@@ -319,6 +329,13 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       outcome_updated_by: orderOutcome !== order.order_outcome ? user?.id : order.outcome_updated_by,
       supplier_payment_terms: supplierPaymentTerms || null,
       supplier_payment_due_date: supplierPaymentDueDate || null,
+      // RTO and cancellation fields
+      is_rto: isRto,
+      rto_marked_at: isRto && !order.is_rto ? new Date().toISOString() : order.rto_marked_at,
+      rto_marked_by: isRto && !order.is_rto ? user?.id : order.rto_marked_by,
+      cancellation_reason: status === 'cancelled' ? cancellationReason : null,
+      cancelled_at: status === 'cancelled' && order.status !== 'cancelled' ? new Date().toISOString() : order.cancelled_at,
+      cancelled_by: status === 'cancelled' && order.status !== 'cancelled' ? user?.id : order.cancelled_by,
     } as Partial<Order>;
 
     // Track changes for edit history
@@ -341,6 +358,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     if (order.internal_notes !== (internalNotes || null)) changes.internal_notes = { old: order.internal_notes, new: internalNotes || null };
     if (order.sales_notes !== (salesNotes || null)) changes.sales_notes = { old: order.sales_notes, new: salesNotes || null };
     if (order.customer_notes !== (customerNotes || null)) changes.customer_notes = { old: order.customer_notes, new: customerNotes || null };
+    if (order.is_rto !== isRto) changes.is_rto = { old: order.is_rto, new: isRto };
+    if (order.cancellation_reason !== (cancellationReason || null)) changes.cancellation_reason = { old: order.cancellation_reason, new: cancellationReason || null };
 
     const success = await onUpdate(order.id, updates);
     
@@ -419,6 +438,18 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <Badge className={outcomeConfig[order.order_outcome].className}>
                       {order.order_outcome === 'won' ? <Trophy className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
                       {outcomeConfig[order.order_outcome].label}
+                    </Badge>
+                  )}
+                  {order.is_rto && (
+                    <Badge variant="outline" className="text-xs border-orange-500 text-orange-600 dark:text-orange-400">
+                      <Undo2 className="h-3 w-3 mr-1" />
+                      RTO
+                    </Badge>
+                  )}
+                  {order.status === 'cancelled' && (
+                    <Badge variant="destructive" className="text-xs">
+                      <XCircle className="h-3 w-3 mr-1" />
+                      Cancelled
                     </Badge>
                   )}
                 </DialogDescription>
@@ -977,6 +1008,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                         ))}
                       </SelectContent>
                     </Select>
+                    {status === 'cancelled' && (
+                      <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                        ⚠️ This will require a cancellation reason below
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="payment_status">Payment Status</Label>
@@ -992,6 +1028,64 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     </Select>
                   </div>
                 </div>
+
+                {/* Cancellation Reason - Required when status is cancelled */}
+                {status === 'cancelled' && (
+                  <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 space-y-3">
+                    <h5 className="font-medium text-red-800 dark:text-red-300 flex items-center gap-2">
+                      <XCircle className="h-4 w-4" />
+                      Cancellation Details (Required)
+                    </h5>
+                    <div className="space-y-2">
+                      <Label htmlFor="cancellation_reason" className="text-red-700 dark:text-red-300">
+                        Reason for Cancellation *
+                      </Label>
+                      <Textarea
+                        id="cancellation_reason"
+                        value={cancellationReason}
+                        onChange={e => setCancellationReason(e.target.value)}
+                        disabled={loading}
+                        rows={3}
+                        placeholder="Provide a detailed reason for cancelling this order..."
+                        className="border-red-300 dark:border-red-700"
+                      />
+                      {!cancellationReason.trim() && (
+                        <p className="text-xs text-red-600">This field is required to cancel the order</p>
+                      )}
+                    </div>
+                    <p className="text-xs text-red-600 dark:text-red-400">
+                      Note: Cancelled orders will be sent to the Refund section for admin approval.
+                    </p>
+                  </div>
+                )}
+
+                {/* RTO Marking - for procured orders */}
+                {(order.status === 'procurement_done' || order.status === 'delivery_done') && (
+                  <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800 space-y-3">
+                    <h5 className="font-medium text-orange-800 dark:text-orange-300 flex items-center gap-2">
+                      <Undo2 className="h-4 w-4" />
+                      Return to Origin (RTO)
+                    </h5>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="is_rto"
+                        checked={isRto}
+                        onChange={(e) => setIsRto(e.target.checked)}
+                        disabled={loading}
+                        className="h-4 w-4"
+                      />
+                      <Label htmlFor="is_rto" className="cursor-pointer">
+                        Mark this order as RTO (Return to Origin)
+                      </Label>
+                    </div>
+                    {isRto && (
+                      <p className="text-xs text-orange-600 dark:text-orange-400">
+                        Order marked as RTO. The item has been returned to origin.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
