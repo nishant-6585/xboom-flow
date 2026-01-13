@@ -59,6 +59,16 @@ export function useSuppliers() {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
+  const requireValidSession = useCallback(async (): Promise<boolean> => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session?.access_token) {
+      toast.error('Your session expired. Please sign in again.');
+      await supabase.auth.signOut();
+      return false;
+    }
+    return true;
+  }, []);
+
   const fetchSuppliers = useCallback(async () => {
     if (!user) {
       setSuppliers([]);
@@ -96,6 +106,10 @@ export function useSuppliers() {
       return false;
     }
 
+    if (!(await requireValidSession())) {
+      return false;
+    }
+
     try {
       const { error } = await supabase.from('suppliers').insert({
         ...supplierData,
@@ -119,6 +133,10 @@ export function useSuppliers() {
   ): Promise<boolean> => {
     if (!user) {
       toast.error('You must be logged in');
+      return false;
+    }
+
+    if (!(await requireValidSession())) {
       return false;
     }
 
