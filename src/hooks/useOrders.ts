@@ -50,6 +50,7 @@ export interface Order {
   customer_notes: string | null;
   sales_notes: string | null;
   invoice_url: string | null;
+  po_url: string | null;
   created_at: string;
   updated_at: string;
   created_by: string;
@@ -250,6 +251,7 @@ export function useOrders() {
           payment_due_date: null,
           last_reminder_sent_at: null,
           invoice_url: null,
+          po_url: null,
           is_refund_requested: false,
           refund_reason: null,
           refund_status: null,

@@ -54,7 +54,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [paymentUploadOpen, setPaymentUploadOpen] = useState(false);
   const [invoiceUploading, setInvoiceUploading] = useState(false);
+  const [poUploading, setPoUploading] = useState(false);
   const invoiceInputRef = useRef<HTMLInputElement>(null);
+  const poInputRef = useRef<HTMLInputElement>(null);
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [escalationReason, setEscalationReason] = useState('');
   const [showEscalationForm, setShowEscalationForm] = useState(false);
@@ -82,6 +84,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [salesNotes, setSalesNotes] = useState('');
   const [paymentDueDate, setPaymentDueDate] = useState('');
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
+  const [poUrl, setPoUrl] = useState<string | null>(null);
   const [isRefundRequested, setIsRefundRequested] = useState(false);
   const [refundReason, setRefundReason] = useState('');
   const [refundStatus, setRefundStatus] = useState<RefundStatus>('pending');
@@ -114,6 +117,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setSalesNotes(order.sales_notes || '');
       setPaymentDueDate(order.payment_due_date || '');
       setInvoiceUrl(order.invoice_url || null);
+      setPoUrl(order.po_url || null);
       setIsRefundRequested(order.is_refund_requested || false);
       setRefundReason(order.refund_reason || '');
       setRefundStatus((order.refund_status as RefundStatus) || 'pending');
@@ -193,6 +197,76 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setInvoiceUploading(false);
     }
   };
+
+  const handlePoUpload = async (file: File) => {
+    if (!user || !order) return;
+    
+    setPoUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${order.id}-${Date.now()}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('purchase-orders')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('purchase-orders')
+        .getPublicUrl(filePath);
+
+      // Append to existing PO URLs or create new
+      const existingUrls = order.po_url ? order.po_url.split(',').map(u => u.trim()) : [];
+      const newPoUrl = [...existingUrls, publicUrl].join(', ');
+
+      const success = await onUpdate(order.id, { po_url: newPoUrl } as any);
+      if (success) {
+        setPoUrl(newPoUrl);
+        toast.success('PO uploaded successfully');
+      }
+    } catch (error: any) {
+      console.error('Error uploading PO:', error);
+      toast.error('Failed to upload PO');
+    } finally {
+      setPoUploading(false);
+      if (poInputRef.current) {
+        poInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemovePo = async (urlToRemove: string) => {
+    if (!order || !poUrl) return;
+    
+    setPoUploading(true);
+    try {
+      // Extract file path from URL for storage deletion
+      const pathMatch = urlToRemove.match(/purchase-orders\/(.+)$/);
+      if (pathMatch) {
+        await supabase.storage.from('purchase-orders').remove([pathMatch[1]]);
+      }
+
+      const existingUrls = poUrl.split(',').map(u => u.trim());
+      const remainingUrls = existingUrls.filter(u => u !== urlToRemove);
+      const newPoUrl = remainingUrls.length > 0 ? remainingUrls.join(', ') : null;
+
+      const success = await onUpdate(order.id, { po_url: newPoUrl } as any);
+      if (success) {
+        setPoUrl(newPoUrl);
+        toast.success('PO removed');
+      }
+    } catch (error: any) {
+      console.error('Error removing PO:', error);
+      toast.error('Failed to remove PO');
+    } finally {
+      setPoUploading(false);
+    }
+  };
+
+  // Check if user can delete PO (sales own orders or admin)
+  const canDeletePo = isAdmin || (isSales && order?.sales_person_id === user?.id);
 
   const handleUpdate = async () => {
     setLoading(true);
@@ -693,6 +767,115 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">No invoice attached</p>
+              )}
+            </div>
+
+            {/* Purchase Order Section */}
+            <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Purchase Order (PO)
+                </h4>
+              </div>
+              
+              {poUrl ? (
+                <div className="space-y-2">
+                  {poUrl.split(',').map((url, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-background rounded-lg border">
+                      <a
+                        href={url.trim()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline flex items-center gap-2 text-sm truncate flex-1"
+                      >
+                        <FileText className="h-4 w-4 shrink-0" />
+                        <span className="truncate">PO Document {idx + 1}</span>
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                      </a>
+                      {canDeletePo && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive shrink-0"
+                          onClick={() => handleRemovePo(url.trim())}
+                          disabled={poUploading}
+                        >
+                          {poUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  {/* Add more PO button */}
+                  {canDeletePo && (
+                    <div>
+                      <input
+                        ref={poInputRef}
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handlePoUpload(file);
+                        }}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => poInputRef.current?.click()}
+                        disabled={poUploading}
+                      >
+                        {poUploading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4 mr-2" />
+                            Add More PO
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : canDeletePo ? (
+                <div>
+                  <input
+                    ref={poInputRef}
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handlePoUpload(file);
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => poInputRef.current?.click()}
+                    disabled={poUploading}
+                  >
+                    {poUploading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload PO
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Supports PDF, PNG, JPG (max 10MB)
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No PO attached</p>
               )}
             </div>
 

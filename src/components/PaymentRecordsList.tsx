@@ -87,8 +87,10 @@ export function PaymentRecordsList({ orderId, onPaymentApproved }: PaymentRecord
     setSelectedRecord(null);
   };
 
-  // Check if current user can delete this record (only own pending records)
+  // Check if current user can delete this record
+  // Sales can delete their own pending records, Admin can delete any record
   const canDeleteRecord = (record: PaymentRecord) => {
+    if (isAdmin) return true;
     return isSales && record.submitted_by === user?.id && record.status === 'pending';
   };
 
