@@ -4,10 +4,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Enquiry, PRODUCT_CATEGORIES } from "@/hooks/useEnquiries";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { Enquiry, PRODUCT_CATEGORIES, QueryStatus } from "@/hooks/useEnquiries";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, FunnelChart, Funnel, LabelList } from "recharts";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWithinInterval, subMonths, startOfDay } from "date-fns";
-import { BarChart3, Calendar, Package, TrendingUp, Download, FileSpreadsheet, FileText } from "lucide-react";
+import { BarChart3, Calendar, Package, TrendingUp, Download, FileSpreadsheet, FileText, Filter } from "lucide-react";
 import { exportToExcel, exportToPDF, exportCategorySummaryToExcel, exportCategorySummaryToPDF } from "@/lib/exportUtils";
 
 interface EnquiryAnalyticsProps {
@@ -157,6 +157,59 @@ export function EnquiryAnalytics({ enquiries }: EnquiryAnalyticsProps) {
       selectedMonth: currentMonthData.enquiries.length,
     };
   }, [filteredEnquiries, currentMonthData]);
+
+  // Funnel data - conversion stages
+  const funnelData = useMemo(() => {
+    const selectedMonthInfo = availableMonths.find((m) => m.value === selectedMonth);
+    const monthEnquiries = selectedMonthInfo 
+      ? filteredEnquiries.filter((e) =>
+          isWithinInterval(new Date(e.created_at), {
+            start: selectedMonthInfo.start,
+            end: selectedMonthInfo.end,
+          })
+        )
+      : filteredEnquiries;
+
+    const total = monthEnquiries.length;
+    const pending = monthEnquiries.filter(e => e.status === 'pending').length;
+    const responded = monthEnquiries.filter(e => e.status === 'responded').length;
+    const onHold = monthEnquiries.filter(e => e.status === 'on_hold').length;
+    const movedToPipeline = monthEnquiries.filter(e => e.status === 'moved_to_pipeline').length;
+    const orderWon = monthEnquiries.filter(e => e.status === 'order_won').length;
+    const orderLost = monthEnquiries.filter(e => e.status === 'order_lost').length;
+
+    // Calculate conversion rates
+    const wonRate = total > 0 ? ((orderWon / total) * 100).toFixed(1) : '0';
+    const lostRate = total > 0 ? ((orderLost / total) * 100).toFixed(1) : '0';
+    const pipelineRate = total > 0 ? ((movedToPipeline / total) * 100).toFixed(1) : '0';
+    const respondedRate = total > 0 ? (((responded + movedToPipeline + orderWon + orderLost) / total) * 100).toFixed(1) : '0';
+
+    return {
+      stages: [
+        { name: 'Total Enquiries', value: total, fill: 'hsl(var(--primary))' },
+        { name: 'Responded', value: responded + movedToPipeline + orderWon + orderLost, fill: 'hsl(var(--chart-2))' },
+        { name: 'In Pipeline', value: movedToPipeline + orderWon, fill: 'hsl(280, 65%, 60%)' },
+        { name: 'Order Won', value: orderWon, fill: 'hsl(142, 76%, 36%)' },
+      ],
+      breakdown: [
+        { status: 'Pending', count: pending, color: 'hsl(var(--muted-foreground))' },
+        { status: 'Responded', count: responded, color: 'hsl(var(--chart-2))' },
+        { status: 'On Hold', count: onHold, color: 'hsl(45, 93%, 47%)' },
+        { status: 'In Pipeline', count: movedToPipeline, color: 'hsl(280, 65%, 60%)' },
+        { status: 'Order Won', count: orderWon, color: 'hsl(142, 76%, 36%)' },
+        { status: 'Order Lost', count: orderLost, color: 'hsl(0, 84%, 60%)' },
+      ],
+      metrics: {
+        total,
+        wonRate,
+        lostRate,
+        pipelineRate,
+        respondedRate,
+        orderWon,
+        orderLost,
+      }
+    };
+  }, [filteredEnquiries, selectedMonth, availableMonths]);
 
   // Get unique categories from enquiries
   const usedCategories = useMemo(() => {
@@ -470,6 +523,141 @@ export function EnquiryAnalytics({ enquiries }: EnquiryAnalyticsProps) {
                   No data available
                 </div>
               )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Conversion Funnel */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Funnel Visualization */}
+        <Card className="glass">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Filter className="w-5 h-5" />
+              Conversion Funnel
+            </CardTitle>
+            <CardDescription>
+              Enquiry progression from receipt to order
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              {funnelData.stages[0].value > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <FunnelChart>
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          const percentage = funnelData.stages[0].value > 0 
+                            ? ((data.value / funnelData.stages[0].value) * 100).toFixed(1)
+                            : 0;
+                          return (
+                            <div className="bg-popover border border-border rounded-lg shadow-lg p-3">
+                              <p className="font-medium">{data.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {data.value} enquiries ({percentage}%)
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Funnel
+                      dataKey="value"
+                      data={funnelData.stages}
+                      isAnimationActive
+                    >
+                      <LabelList 
+                        position="right" 
+                        fill="hsl(var(--foreground))" 
+                        stroke="none" 
+                        dataKey="name"
+                        fontSize={12}
+                      />
+                      <LabelList 
+                        position="center" 
+                        fill="#fff" 
+                        stroke="none" 
+                        dataKey="value"
+                        fontSize={14}
+                        fontWeight="bold"
+                      />
+                    </Funnel>
+                  </FunnelChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground">
+                  No data available for this period
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Status Breakdown */}
+        <Card className="glass">
+          <CardHeader>
+            <CardTitle className="text-lg">Status Breakdown</CardTitle>
+            <CardDescription>
+              Current distribution across all stages
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {funnelData.breakdown.map((item) => {
+                const percentage = funnelData.metrics.total > 0 
+                  ? ((item.count / funnelData.metrics.total) * 100)
+                  : 0;
+                return (
+                  <div key={item.status} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="font-medium">{item.status}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">{percentage.toFixed(1)}%</span>
+                        <span className="font-bold">{item.count}</span>
+                      </div>
+                    </div>
+                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                      <div 
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${percentage}%`,
+                          backgroundColor: item.color 
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Conversion Metrics */}
+            <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t">
+              <div className="text-center p-3 rounded-lg bg-green-500/10">
+                <p className="text-2xl font-bold text-green-600">{funnelData.metrics.wonRate}%</p>
+                <p className="text-xs text-muted-foreground">Win Rate</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-red-500/10">
+                <p className="text-2xl font-bold text-red-600">{funnelData.metrics.lostRate}%</p>
+                <p className="text-xs text-muted-foreground">Loss Rate</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-purple-500/10">
+                <p className="text-2xl font-bold text-purple-600">{funnelData.metrics.pipelineRate}%</p>
+                <p className="text-xs text-muted-foreground">Pipeline Rate</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-blue-500/10">
+                <p className="text-2xl font-bold text-blue-600">{funnelData.metrics.respondedRate}%</p>
+                <p className="text-xs text-muted-foreground">Response Rate</p>
+              </div>
             </div>
           </CardContent>
         </Card>
