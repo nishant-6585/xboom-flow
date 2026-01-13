@@ -5,9 +5,14 @@ import { PipelineForm } from './PipelineForm';
 import { PipelineTable } from './PipelineTable';
 import { PipelineAnalytics } from './PipelineAnalytics';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Plus, List, BarChart3 } from 'lucide-react';
+import { Loader2, Plus, List, BarChart3, ArrowLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-export function PipelineOrders() {
+interface PipelineOrdersProps {
+  enquiryIdFilter?: string | null;
+}
+
+export function PipelineOrders({ enquiryIdFilter }: PipelineOrdersProps) {
   const { role } = useAuth();
   const { pipelineOrders, loading, createPipelineOrder, updatePipelineOrder, deletePipelineOrder } = usePipelineOrders();
   const [activeTab, setActiveTab] = useState('list');
@@ -15,6 +20,11 @@ export function PipelineOrders() {
 
   const canCreate = role === 'sales' || role === 'supply_chain' || role === 'admin';
   const canViewAnalytics = role === 'sales' || role === 'supply_chain' || role === 'admin';
+
+  // Filter by enquiry_id if provided
+  const filteredByEnquiry = enquiryIdFilter 
+    ? pipelineOrders.filter(o => o.enquiry_id === enquiryIdFilter)
+    : pipelineOrders;
 
   const handleAnalyticsCardClick = (filter: { type: string; value: string }) => {
     setActiveTab('list');
@@ -44,47 +54,58 @@ export function PipelineOrders() {
   }
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab}>
-      <TabsList className="mb-4">
-        <TabsTrigger value="list" className="gap-1">
-          <List className="h-4 w-4" />
-          Pipeline List
-        </TabsTrigger>
+    <div>
+      {enquiryIdFilter && (
+        <Link 
+          to="/" 
+          className="text-sm text-primary hover:underline flex items-center gap-1 mb-4"
+        >
+          <ArrowLeft className="h-3 w-3" />
+          Back to Enquiries
+        </Link>
+      )}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="list" className="gap-1">
+            <List className="h-4 w-4" />
+            Pipeline List
+          </TabsTrigger>
+          {canCreate && (
+            <TabsTrigger value="add" className="gap-1">
+              <Plus className="h-4 w-4" />
+              Add Pipeline
+            </TabsTrigger>
+          )}
+          {canViewAnalytics && (
+            <TabsTrigger value="analytics" className="gap-1">
+              <BarChart3 className="h-4 w-4" />
+              Pipeline Analytics
+            </TabsTrigger>
+          )}
+        </TabsList>
+
+        <TabsContent value="list">
+          <PipelineTable 
+            orders={filteredByEnquiry} 
+            onUpdate={updatePipelineOrder}
+            onDelete={deletePipelineOrder}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+          />
+        </TabsContent>
+
         {canCreate && (
-          <TabsTrigger value="add" className="gap-1">
-            <Plus className="h-4 w-4" />
-            Add Pipeline
-          </TabsTrigger>
+          <TabsContent value="add">
+            <PipelineForm onSubmit={createPipelineOrder} />
+          </TabsContent>
         )}
+
         {canViewAnalytics && (
-          <TabsTrigger value="analytics" className="gap-1">
-            <BarChart3 className="h-4 w-4" />
-            Pipeline Analytics
-          </TabsTrigger>
+          <TabsContent value="analytics">
+            <PipelineAnalytics orders={pipelineOrders} onCardClick={handleAnalyticsCardClick} />
+          </TabsContent>
         )}
-      </TabsList>
-
-      <TabsContent value="list">
-        <PipelineTable 
-          orders={pipelineOrders} 
-          onUpdate={updatePipelineOrder}
-          onDelete={deletePipelineOrder}
-          statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
-        />
-      </TabsContent>
-
-      {canCreate && (
-        <TabsContent value="add">
-          <PipelineForm onSubmit={createPipelineOrder} />
-        </TabsContent>
-      )}
-
-      {canViewAnalytics && (
-        <TabsContent value="analytics">
-          <PipelineAnalytics orders={pipelineOrders} onCardClick={handleAnalyticsCardClick} />
-        </TabsContent>
-      )}
-    </Tabs>
+      </Tabs>
+    </div>
   );
 }

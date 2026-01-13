@@ -404,6 +404,7 @@ export function useEnquiries() {
             customer_notes: enquiry.notes,
             internal_notes: enquiry.response_notes,
             created_by: user.id,
+            enquiry_id: enquiry.id,
           });
 
         if (pipelineError) {

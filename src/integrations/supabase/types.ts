@@ -592,6 +592,7 @@ export type Database = {
           customer_name: string
           customer_notes: string | null
           customer_phone: string | null
+          enquiry_id: string | null
           expected_closure_date: string | null
           expected_price: number | null
           id: string
@@ -616,6 +617,7 @@ export type Database = {
           customer_name: string
           customer_notes?: string | null
           customer_phone?: string | null
+          enquiry_id?: string | null
           expected_closure_date?: string | null
           expected_price?: number | null
           id?: string
@@ -640,6 +642,7 @@ export type Database = {
           customer_name?: string
           customer_notes?: string | null
           customer_phone?: string | null
+          enquiry_id?: string | null
           expected_closure_date?: string | null
           expected_price?: number | null
           id?: string
@@ -656,7 +659,15 @@ export type Database = {
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_orders_enquiry_id_fkey"
+            columns: ["enquiry_id"]
+            isOneToOne: false
+            referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pricelist: {
         Row: {

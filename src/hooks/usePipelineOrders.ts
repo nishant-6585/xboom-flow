@@ -28,6 +28,7 @@ export interface PipelineOrder {
   created_at: string;
   updated_at: string;
   created_by: string;
+  enquiry_id: string | null;
 }
 
 export interface PipelineOrderFormData {
