@@ -369,46 +369,41 @@ export function ProcurementOrders() {
                         )}
                       </TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-2">
-                          {(() => {
-                            const paymentRequest = getOrderPaymentRequestStatus(order.id);
-                            if (paymentRequest?.status === 'approved') {
-                              return (
-                                <div className="flex flex-col items-end gap-0.5">
-                                  <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs">
-                                    ✓ {paymentRequest.approved_by_name}
-                                  </Badge>
-                                  {paymentRequest.approved_at && (
-                                    <span className="text-[10px] text-muted-foreground">
-                                      {format(new Date(paymentRequest.approved_at), 'dd MMM, HH:mm')}
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            } else if (paymentRequest?.status === 'pending') {
-                              return (
-                                <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 text-xs">
-                                  Pending Approval
+                        {(() => {
+                          const paymentRequest = getOrderPaymentRequestStatus(order.id);
+                          if (paymentRequest?.status === 'approved') {
+                            return (
+                              <div className="flex flex-col items-end gap-0.5">
+                                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs">
+                                  ✓ {paymentRequest.approved_by_name}
                                 </Badge>
-                              );
-                            } else {
-                              return (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={(e) => handlePaymentRequestClick(order, e)}
-                                  className="text-xs"
-                                >
-                                  <CreditCard className="w-3 h-3 mr-1" />
-                                  Request
-                                </Button>
-                              );
-                            }
-                          })()}
-                          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleOrderClick(order); }}>
-                            Manage
-                          </Button>
-                        </div>
+                                {paymentRequest.approved_at && (
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {format(new Date(paymentRequest.approved_at), 'dd MMM, HH:mm')}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          } else if (paymentRequest?.status === 'pending') {
+                            return (
+                              <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 text-xs">
+                                Pending Approval
+                              </Badge>
+                            );
+                          } else {
+                            return (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={(e) => handlePaymentRequestClick(order, e)}
+                                className="text-xs"
+                              >
+                                <CreditCard className="w-3 h-3 mr-1" />
+                                Request
+                              </Button>
+                            );
+                          }
+                        })()}
                       </TableCell>
                     </TableRow>
                   ))
