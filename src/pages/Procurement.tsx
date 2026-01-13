@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Header } from "@/components/Header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { ProcurementOrders } from "@/components/procurement/ProcurementOrders";
@@ -8,7 +9,9 @@ import { ProcurementLedger } from "@/components/procurement/ProcurementLedger";
 import { ProcurementDashboard } from "@/components/procurement/ProcurementDashboard";
 import { PendingPaymentStatusRequests } from "@/components/procurement/PendingPaymentStatusRequests";
 import { SupplierPaymentAnalytics } from "@/components/procurement/SupplierPaymentAnalytics";
-import { FileText, BookOpen, LayoutDashboard, CreditCard, IndianRupee } from "lucide-react";
+import { InventoryProcurementsList } from "@/components/procurement/InventoryProcurementsList";
+import { ManualProcurementForm } from "@/components/procurement/ManualProcurementForm";
+import { FileText, BookOpen, LayoutDashboard, CreditCard, IndianRupee, Package, Plus } from "lucide-react";
 import { useProcurementPaymentRequests } from "@/hooks/useProcurementPaymentRequests";
 import { Badge } from "@/components/ui/badge";
 
@@ -16,6 +19,7 @@ export default function Procurement() {
   const { role, loading: authLoading } = useAuth();
   const { getPendingCount } = useProcurementPaymentRequests();
   const [activeTab, setActiveTab] = useState("orders");
+  const [manualProcurementOpen, setManualProcurementOpen] = useState(false);
   const pendingCount = getPendingCount();
 
   if (authLoading) {
@@ -35,18 +39,28 @@ export default function Procurement() {
     <div className="min-h-[100dvh] bg-background flex flex-col">
       <Header />
       <main className="container mx-auto px-4 py-4 sm:py-6 flex-1 overflow-x-hidden">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold">Procurement Management</h1>
-          <p className="text-muted-foreground">
-            Manage procurement orders, supplier payments and view analytics
-          </p>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Procurement Management</h1>
+            <p className="text-muted-foreground">
+              Manage procurement orders, supplier payments and view analytics
+            </p>
+          </div>
+          <Button onClick={() => setManualProcurementOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Manual Procurement
+          </Button>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 lg:w-[600px]">
+          <TabsList className="grid w-full grid-cols-6 lg:w-[720px]">
             <TabsTrigger value="orders" className="gap-2">
               <FileText className="w-4 h-4" />
               <span className="hidden sm:inline">Orders</span>
+            </TabsTrigger>
+            <TabsTrigger value="inventory" className="gap-2">
+              <Package className="w-4 h-4" />
+              <span className="hidden sm:inline">Inventory</span>
             </TabsTrigger>
             <TabsTrigger value="requests" className="gap-2 relative">
               <CreditCard className="w-4 h-4" />
@@ -75,6 +89,10 @@ export default function Procurement() {
             <ProcurementOrders />
           </TabsContent>
 
+          <TabsContent value="inventory" className="mt-6">
+            <InventoryProcurementsList />
+          </TabsContent>
+
           <TabsContent value="requests" className="mt-6">
             <PendingPaymentStatusRequests />
           </TabsContent>
@@ -92,6 +110,11 @@ export default function Procurement() {
           </TabsContent>
         </Tabs>
       </main>
+
+      <ManualProcurementForm
+        open={manualProcurementOpen}
+        onOpenChange={setManualProcurementOpen}
+      />
     </div>
   );
 }
