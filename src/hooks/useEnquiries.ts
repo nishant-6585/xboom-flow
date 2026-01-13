@@ -3,9 +3,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useToast } from "./use-toast";
 
-export type QueryStatus = "pending" | "in_review" | "confirmed" | "rejected";
+export type QueryStatus = "pending" | "responded" | "on_hold" | "moved_to_pipeline" | "order_won" | "order_lost";
 export type UrgencyLevel = "low" | "medium" | "high" | "critical";
-export type OrderOutcome = "pending" | "won" | "lost";
+
+export const ENQUIRY_STATUSES: { value: QueryStatus; label: string }[] = [
+  { value: "pending", label: "Pending" },
+  { value: "responded", label: "Responded" },
+  { value: "on_hold", label: "On Hold" },
+  { value: "moved_to_pipeline", label: "Moved to Pipeline" },
+  { value: "order_won", label: "Order Won" },
+  { value: "order_lost", label: "Order Lost" },
+];
+
 export type LostReason = "pricing" | "timeline" | "competition" | "budget" | "specifications" | "other";
 
 export const LOST_REASONS: { value: LostReason; label: string }[] = [
@@ -47,7 +56,7 @@ export interface Enquiry {
   admin_response_by: string | null;
   admin_response_by_name: string | null;
   admin_response_at: string | null;
-  order_outcome: OrderOutcome;
+  order_outcome: string | null;
   lost_reason: LostReason | null;
   lost_reason_notes: string | null;
   outcome_updated_at: string | null;
@@ -329,16 +338,16 @@ export function useEnquiries() {
     }
   };
 
-  const updateOutcome = async (
+  const updateStatus = async (
     enquiryId: string,
-    outcome: OrderOutcome,
+    newStatus: QueryStatus,
     lostReason?: LostReason,
     lostReasonNotes?: string
   ) => {
     if (!user) {
       toast({
         title: "Error",
-        description: "You must be logged in to update outcome",
+        description: "You must be logged in to update status",
         variant: "destructive",
       });
       return false;
@@ -346,12 +355,12 @@ export function useEnquiries() {
 
     try {
       const updateData: Record<string, unknown> = {
-        order_outcome: outcome,
+        status: newStatus,
         outcome_updated_at: new Date().toISOString(),
         outcome_updated_by: user.id,
       };
 
-      if (outcome === "lost") {
+      if (newStatus === "order_lost") {
         updateData.lost_reason = lostReason || null;
         updateData.lost_reason_notes = lostReasonNotes || null;
       } else {
@@ -366,21 +375,32 @@ export function useEnquiries() {
 
       if (error) throw error;
 
+      const statusLabels: Record<QueryStatus, string> = {
+        pending: "Pending",
+        responded: "Responded",
+        on_hold: "On Hold",
+        moved_to_pipeline: "Moved to Pipeline",
+        order_won: "Order Won",
+        order_lost: "Order Lost",
+      };
+
       toast({
-        title: outcome === "won" ? "Order Won!" : outcome === "lost" ? "Order Lost" : "Status Updated",
-        description: outcome === "won" 
+        title: `Status Updated to ${statusLabels[newStatus]}`,
+        description: newStatus === "order_won" 
           ? "Congratulations! The order has been marked as won."
-          : outcome === "lost"
+          : newStatus === "order_lost"
           ? "The order has been marked as lost."
-          : "The outcome has been reset to pending.",
+          : newStatus === "moved_to_pipeline"
+          ? "The enquiry has been moved to the sales pipeline."
+          : `Status changed to ${statusLabels[newStatus]}.`,
       });
 
       return true;
     } catch (error) {
-      console.error("Error updating outcome:", error);
+      console.error("Error updating status:", error);
       toast({
         title: "Error",
-        description: "Failed to update outcome",
+        description: "Failed to update status",
         variant: "destructive",
       });
       return false;
@@ -434,7 +454,7 @@ export function useEnquiries() {
     updateEnquiry,
     deleteEnquiry,
     escalateEnquiry,
-    updateOutcome,
+    updateStatus,
     submitAdminResponse,
     refetch: fetchEnquiries,
   };

@@ -9,9 +9,9 @@ interface SalesStatsCardsProps {
 export function SalesStatsCards({ queries }: SalesStatsCardsProps) {
   const stats = {
     total: queries.length,
-    pending: queries.filter((q) => q.status === "pending" || q.status === "in_review").length,
-    responded: queries.filter((q) => q.status === "confirmed" || q.status === "rejected").length,
-    confirmed: queries.filter((q) => q.status === "confirmed").length,
+    pending: queries.filter((q) => q.status === "pending" || q.status === "on_hold").length,
+    responded: queries.filter((q) => q.status === "responded" || q.status === "moved_to_pipeline" || q.status === "order_won" || q.status === "order_lost").length,
+    won: queries.filter((q) => q.status === "order_won").length,
   };
 
   const responseRate = stats.total > 0 
@@ -41,8 +41,8 @@ export function SalesStatsCards({ queries }: SalesStatsCardsProps) {
       bg: "bg-success/10",
     },
     {
-      label: "Orders Confirmed",
-      value: stats.confirmed,
+      label: "Orders Won",
+      value: stats.won,
       icon: ShoppingCart,
       color: "text-accent-foreground",
       bg: "bg-accent",

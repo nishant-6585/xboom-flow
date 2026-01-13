@@ -9,7 +9,7 @@ interface SlaIndicatorProps {
 }
 
 export function SlaIndicator({ query, showTime = true }: SlaIndicatorProps) {
-  const isResponded = query.status === "confirmed" || query.status === "rejected";
+  const isResponded = query.status !== "pending";
   const respondedAt = isResponded ? query.updatedAt : null;
   
   const slaStatus = getSlaStatus(query.createdAt, respondedAt, query.urgency, isResponded);

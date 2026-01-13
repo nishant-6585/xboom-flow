@@ -98,7 +98,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     sales_notes: '',
   });
 
-  const confirmedEnquiries = enquiries.filter(e => e.status === 'confirmed');
+  const respondedEnquiries = enquiries.filter(e => e.status === 'responded' || e.status === 'moved_to_pipeline');
   const activeSuppliers = suppliers.filter(s => s.is_active);
 
   const handleSupplierSelect = (supplierId: string) => {
@@ -329,7 +329,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Link to Enquiry */}
-          {confirmedEnquiries.length > 0 && (
+          {respondedEnquiries.length > 0 && (
             <div className="space-y-2">
               <Label>Create from Enquiry (Optional)</Label>
               <Select onValueChange={handleEnquirySelect}>
@@ -338,7 +338,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Create Standalone Order</SelectItem>
-                  {confirmedEnquiries.map(enquiry => (
+                  {respondedEnquiries.map(enquiry => (
                     <SelectItem key={enquiry.id} value={enquiry.id}>
                       {enquiry.product_name} - {enquiry.customer_name} ({enquiry.customer_company})
                     </SelectItem>
