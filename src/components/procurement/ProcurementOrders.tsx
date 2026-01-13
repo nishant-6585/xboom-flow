@@ -303,9 +303,16 @@ export function ProcurementOrders() {
                             const paymentRequest = getOrderPaymentRequestStatus(order.id);
                             if (paymentRequest?.status === 'approved') {
                               return (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs">
-                                  ✓ {paymentRequest.approved_by_name}
-                                </Badge>
+                                <div className="flex flex-col items-end gap-0.5">
+                                  <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs">
+                                    ✓ {paymentRequest.approved_by_name}
+                                  </Badge>
+                                  {paymentRequest.approved_at && (
+                                    <span className="text-[10px] text-muted-foreground">
+                                      {format(new Date(paymentRequest.approved_at), 'dd MMM, HH:mm')}
+                                    </span>
+                                  )}
+                                </div>
                               );
                             } else if (paymentRequest?.status === 'pending') {
                               return (

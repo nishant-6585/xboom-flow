@@ -214,7 +214,7 @@ export function PendingPaymentStatusRequests() {
                         </Badge>
                         {request.approved_at && (
                           <p className="text-xs text-muted-foreground mt-1">
-                            {format(new Date(request.approved_at), 'dd MMM yyyy')}
+                            {format(new Date(request.approved_at), 'dd MMM yyyy, HH:mm')}
                           </p>
                         )}
                       </div>
