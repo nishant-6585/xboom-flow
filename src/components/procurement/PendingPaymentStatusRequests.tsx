@@ -34,7 +34,7 @@ import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 
 export function PendingPaymentStatusRequests() {
   const { role } = useAuth();
-  const isAdmin = role === 'admin';
+  const canApprove = role === 'admin' || role === 'finance';
   const { requests, loading, approveRequest, rejectRequest } = useProcurementPaymentRequests();
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<ProcurementPaymentRequestWithOrder | null>(null);
@@ -91,8 +91,8 @@ export function PendingPaymentStatusRequests() {
 
   return (
     <div className="space-y-6">
-      {/* Pending Requests - Show to Admin */}
-      {isAdmin && pendingRequests.length > 0 && (
+      {/* Pending Requests - Show to Admin and Finance */}
+      {canApprove && pendingRequests.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">

@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react";
 import { z } from "zod";
 import logoIcon from "@/assets/logo-icon.jpeg";
 
-type AppRole = "sales" | "supply_chain" | "admin";
+type AppRole = "sales" | "supply_chain" | "admin" | "finance";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
@@ -194,11 +194,20 @@ const Auth = () => {
                     </Label>
                   </div>
                   <div className="flex items-center space-x-3 p-3 rounded-lg bg-secondary/50 border border-border hover:border-primary/50 transition-colors">
+                    <RadioGroupItem value="finance" id="finance" />
+                    <Label htmlFor="finance" className="cursor-pointer flex-1">
+                      <span className="font-medium">Finance Team</span>
+                      <p className="text-sm text-muted-foreground">
+                        Payment tracking and approval workflows
+                      </p>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-secondary/50 border border-border hover:border-primary/50 transition-colors">
                     <RadioGroupItem value="admin" id="admin" />
                     <Label htmlFor="admin" className="cursor-pointer flex-1">
-                      <span className="font-medium">Finance & Admin</span>
+                      <span className="font-medium">Admin</span>
                       <p className="text-sm text-muted-foreground">
-                        Oversee payments and system management
+                        Full system access and user management
                       </p>
                     </Label>
                   </div>

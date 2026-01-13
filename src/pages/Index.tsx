@@ -61,10 +61,10 @@ const Index = () => {
     }
   }, [searchParams, setSearchParams]);
 
-  // Fetch sales team for filter dropdown (admin/supply_chain only)
+  // Fetch sales team for filter dropdown (admin/supply_chain/finance only)
   useEffect(() => {
     const fetchSalesTeam = async () => {
-      if (role === 'admin' || role === 'supply_chain') {
+      if (role === 'admin' || role === 'supply_chain' || role === 'finance') {
         const { data } = await supabase.rpc('get_sales_team');
         if (data) {
           setSalesTeam(data);
@@ -75,11 +75,12 @@ const Index = () => {
   }, [role]);
 
   const canCreateEnquiry = role === "sales" || role === "admin";
-  const canViewSlaStats = role === "supply_chain" || role === "admin";
+  const canViewSlaStats = role === "supply_chain" || role === "admin" || role === "finance";
   const isSales = role === "sales";
   const isAdmin = role === "admin";
+  const isFinance = role === "finance";
 
-  const canFilterBySalesPerson = role === 'admin' || role === 'supply_chain';
+  const canFilterBySalesPerson = role === 'admin' || role === 'supply_chain' || role === 'finance';
 
   // Filter enquiries by category, date, sales person, status, lost reason, SLA status, and value filter
   const filteredEnquiries = useMemo(() => {
@@ -291,7 +292,7 @@ const Index = () => {
               <>
                 <StatsCards queries={statsQueries} onStatusClick={handleStatsClick} />
                 {canViewSlaStats && <SlaStatsCards queries={statsQueries} onSlaStatusClick={handleSlaStatusClick} />}
-                {(isSales || isAdmin) && <SalesStatsCards queries={isAdmin ? statsQueries : salesStatsQueries} onStatusClick={handleStatsClick} />}
+                {(isSales || isAdmin || isFinance) && <SalesStatsCards queries={isAdmin || isFinance ? statsQueries : salesStatsQueries} onStatusClick={handleStatsClick} />}
 
                 {/* Category and Date Filters */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
