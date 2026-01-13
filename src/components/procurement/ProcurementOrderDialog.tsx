@@ -185,7 +185,7 @@ export function ProcurementOrderDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
-            Manage Procurement - {order.product_name}
+            Manage Procurement - {order.order_number || 'Order'} - {order.product_name}
           </DialogTitle>
         </DialogHeader>
 
