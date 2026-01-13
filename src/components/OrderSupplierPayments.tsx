@@ -54,6 +54,7 @@ export function OrderSupplierPayments({
     const success = await createPayment({
       supplier_id: supplierId,
       order_id: orderId,
+      inventory_procurement_id: null,
       amount: parseFloat(paymentAmount),
       payment_type: 'payment',
       payment_mode: paymentMode,

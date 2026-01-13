@@ -35,6 +35,7 @@ export interface SupplierPayment {
   id: string;
   supplier_id: string;
   order_id: string | null;
+  inventory_procurement_id: string | null;
   amount: number;
   payment_type: string;
   payment_mode: string | null;

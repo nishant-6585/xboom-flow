@@ -6,23 +6,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useInventoryProcurements, InventoryProcurement } from '@/hooks/useInventoryProcurements';
-import { useSupplierPayments } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
-import { format, parseISO, isAfter, isBefore, addDays } from 'date-fns';
+import { format, parseISO, isBefore, addDays } from 'date-fns';
 import { getPaymentTermsLabel } from '@/lib/paymentTerms';
 import { Package, Trash2, CreditCard, AlertTriangle, CheckCircle2, Clock, Loader2 } from 'lucide-react';
+import { InventoryProcurementPaymentDialog } from './InventoryProcurementPaymentDialog';
 
-interface InventoryProcurementsListProps {
-  onAddPayment?: (procurement: InventoryProcurement) => void;
-}
-
-export function InventoryProcurementsList({ onAddPayment }: InventoryProcurementsListProps) {
-  const { procurements, loading, updateProcurement, deleteProcurement } = useInventoryProcurements();
+export function InventoryProcurementsList() {
+  const { procurements, loading, updateProcurement, deleteProcurement, refetch } = useInventoryProcurements();
   const { role } = useAuth();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [paymentProcurement, setPaymentProcurement] = useState<InventoryProcurement | null>(null);
 
   const isAdmin = role === 'admin';
+  const canManagePayments = role === 'admin' || role === 'supply_chain';
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -188,11 +186,12 @@ export function InventoryProcurementsList({ onAddPayment }: InventoryProcurement
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-2">
-                      {procurement.supplier_id && onAddPayment && (
+                      {procurement.supplier_id && canManagePayments && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => onAddPayment(procurement)}
+                          onClick={() => setPaymentProcurement(procurement)}
+                          title="Record Payment"
                         >
                           <CreditCard className="h-4 w-4" />
                         </Button>
@@ -236,6 +235,13 @@ export function InventoryProcurementsList({ onAddPayment }: InventoryProcurement
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <InventoryProcurementPaymentDialog
+        open={!!paymentProcurement}
+        onOpenChange={(open) => !open && setPaymentProcurement(null)}
+        procurement={paymentProcurement}
+        onPaymentAdded={refetch}
+      />
     </>
   );
 }

@@ -164,6 +164,7 @@ export function ProcurementOrderDialog({
     const success = await createPayment({
       supplier_id: selectedSupplierId,
       order_id: order.id,
+      inventory_procurement_id: null,
       amount: parseFloat(paymentAmount),
       payment_type: 'payment',
       payment_mode: paymentMode,

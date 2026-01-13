@@ -146,6 +146,7 @@ export function SupplierLedgerDialog({ supplier, open, onOpenChange }: SupplierL
       {
         supplier_id: supplier.id,
         order_id: null,
+        inventory_procurement_id: null,
         amount: parseFloat(paymentForm.amount),
         payment_type: paymentForm.payment_type,
         payment_mode: paymentForm.payment_mode || null,
