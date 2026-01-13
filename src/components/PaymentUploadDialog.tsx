@@ -5,7 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { usePaymentRecords } from '@/hooks/usePaymentRecords';
-import { Loader2, Upload, ImageIcon, X } from 'lucide-react';
+import { Loader2, Upload, ImageIcon, X, Plus } from 'lucide-react';
+
+interface FileWithPreview {
+  file: File;
+  preview: string;
+  id: string;
+}
 
 interface PaymentUploadDialogProps {
   orderId: string;
@@ -19,46 +25,68 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [files, setFiles] = useState<FileWithPreview[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result as string);
-      };
-      reader.readAsDataURL(selectedFile);
+    const selectedFiles = e.target.files;
+    if (selectedFiles) {
+      Array.from(selectedFiles).forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setFiles(prev => [...prev, {
+            file,
+            preview: reader.result as string,
+            id: `${Date.now()}-${Math.random().toString(36).substring(7)}`
+          }]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    // Reset input to allow selecting same file again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
-  const handleClearFile = () => {
-    setFile(null);
-    setPreview(null);
+  const handleRemoveFile = (id: string) => {
+    setFiles(prev => prev.filter(f => f.id !== id));
+  };
+
+  const handleClearAll = () => {
+    setFiles([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
   const handleSubmit = async () => {
-    if (!file || !amount) return;
+    if (files.length === 0 || !amount) return;
 
     setLoading(true);
     try {
-      const screenshotUrl = await uploadScreenshot(file);
-      if (!screenshotUrl) {
+      // Upload all screenshots
+      const uploadedUrls: string[] = [];
+      for (const fileItem of files) {
+        const screenshotUrl = await uploadScreenshot(fileItem.file);
+        if (screenshotUrl) {
+          uploadedUrls.push(screenshotUrl);
+        }
+      }
+
+      if (uploadedUrls.length === 0) {
         setLoading(false);
         return;
       }
 
-      const success = await submitPayment(orderId, parseFloat(amount), screenshotUrl, notes);
+      // Join URLs with comma for storage (or use first one if single)
+      const screenshotUrlsString = uploadedUrls.join(',');
+
+      const success = await submitPayment(orderId, parseFloat(amount), screenshotUrlsString, notes);
       if (success) {
         setAmount('');
         setNotes('');
-        handleClearFile();
+        handleClearAll();
         onOpenChange(false);
         onSuccess?.();
       }
@@ -69,14 +97,14 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            Upload Payment Screenshot
+            Upload Payment Screenshots
           </DialogTitle>
           <DialogDescription>
-            Upload proof of payment for admin approval
+            Upload proof of payment for admin approval (multiple files allowed)
           </DialogDescription>
         </DialogHeader>
 
@@ -96,43 +124,75 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
           </div>
 
           <div className="space-y-2">
-            <Label>Payment Screenshot *</Label>
-            {preview ? (
-              <div className="relative">
-                <img
-                  src={preview}
-                  alt="Payment screenshot preview"
-                  className="w-full h-48 object-contain rounded-lg border border-border bg-muted"
-                />
+            <Label className="flex items-center justify-between">
+              <span>Payment Screenshots * ({files.length} selected)</span>
+              {files.length > 0 && (
                 <Button
                   type="button"
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-2 right-2 h-8 w-8"
-                  onClick={handleClearFile}
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearAll}
                   disabled={loading}
+                  className="h-6 text-xs"
                 >
-                  <X className="h-4 w-4" />
+                  Clear all
                 </Button>
-              </div>
-            ) : (
-              <div
-                className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <ImageIcon className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  Click to upload screenshot
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  PNG, JPG, JPEG up to 10MB
-                </p>
+              )}
+            </Label>
+            
+            {/* File previews grid */}
+            {files.length > 0 && (
+              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1">
+                {files.map((fileItem) => (
+                  <div key={fileItem.id} className="relative group">
+                    <img
+                      src={fileItem.preview}
+                      alt="Payment screenshot preview"
+                      className="w-full h-24 object-cover rounded-lg border border-border bg-muted"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => handleRemoveFile(fileItem.id)}
+                      disabled={loading}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
               </div>
             )}
+
+            {/* Upload area */}
+            <div
+              className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <div className="flex items-center justify-center gap-2">
+                {files.length > 0 ? (
+                  <>
+                    <Plus className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Add more screenshots</span>
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Click to upload screenshots</span>
+                  </>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                PNG, JPG, JPEG up to 10MB each
+              </p>
+            </div>
+            
             <input
               ref={fileInputRef}
               type="file"
               accept="image/*"
+              multiple
               onChange={handleFileChange}
               className="hidden"
             />
@@ -155,7 +215,7 @@ export function PaymentUploadDialog({ orderId, open, onOpenChange, onSuccess }: 
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={loading || !file || !amount}>
+          <Button onClick={handleSubmit} disabled={loading || files.length === 0 || !amount}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Submit for Approval
           </Button>

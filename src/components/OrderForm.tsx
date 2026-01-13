@@ -6,14 +6,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { OrderFormData, ORDER_TYPES, CUSTOMER_TYPES, PAYMENT_STATUSES, LEAD_SOURCES, OrderType, CustomerType, PaymentStatus, LeadSource } from '@/hooks/useOrders';
-import { Loader2, Package, ImageIcon, X, Upload, FileText } from 'lucide-react';
+import { Loader2, Package, ImageIcon, X, Upload, FileText, Plus } from 'lucide-react';
 import { Enquiry, PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { Supplier } from '@/hooks/useSuppliers';
 import { OrderItemsInput } from '@/components/OrderItemsInput';
 import { OrderItemFormData } from '@/hooks/useOrderItems';
 
+interface FileWithPreview {
+  file: File;
+  preview: string;
+  id: string;
+}
+
 interface OrderFormProps {
-  onSubmit: (data: OrderFormData, paymentFile?: File, orderItems?: OrderItemFormData[], invoiceFile?: File, poFile?: File) => Promise<boolean>;
+  onSubmit: (data: OrderFormData, paymentFiles?: File[], orderItems?: OrderItemFormData[], invoiceFile?: File, poFiles?: File[]) => Promise<boolean>;
   enquiries?: Enquiry[];
   suppliers?: Supplier[];
   showProcurementRate?: boolean;
@@ -25,12 +31,10 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
   const fileInputRef = useRef<HTMLInputElement>(null);
   const invoiceInputRef = useRef<HTMLInputElement>(null);
   const poInputRef = useRef<HTMLInputElement>(null);
-  const [paymentFile, setPaymentFile] = useState<File | null>(null);
-  const [paymentPreview, setPaymentPreview] = useState<string | null>(null);
+  const [paymentFiles, setPaymentFiles] = useState<FileWithPreview[]>([]);
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [invoicePreview, setInvoicePreview] = useState<string | null>(null);
-  const [poFile, setPoFile] = useState<File | null>(null);
-  const [poPreview, setPoPreview] = useState<string | null>(null);
+  const [poFiles, setPoFiles] = useState<FileWithPreview[]>([]);
   const [loading, setLoading] = useState(false);
   const [orderItems, setOrderItems] = useState<OrderItemFormData[]>([
     {
@@ -139,20 +143,31 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
   };
 
   const handlePaymentFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setPaymentFile(selectedFile);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPaymentPreview(reader.result as string);
-      };
-      reader.readAsDataURL(selectedFile);
+    const selectedFiles = e.target.files;
+    if (selectedFiles) {
+      Array.from(selectedFiles).forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPaymentFiles(prev => [...prev, {
+            file,
+            preview: reader.result as string,
+            id: `${Date.now()}-${Math.random().toString(36).substring(7)}`
+          }]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
-  const handleClearPaymentFile = () => {
-    setPaymentFile(null);
-    setPaymentPreview(null);
+  const handleRemovePaymentFile = (id: string) => {
+    setPaymentFiles(prev => prev.filter(f => f.id !== id));
+  };
+
+  const handleClearPaymentFiles = () => {
+    setPaymentFiles([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -175,16 +190,31 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
   };
 
   const handlePoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setPoFile(selectedFile);
-      setPoPreview(selectedFile.name);
+    const selectedFiles = e.target.files;
+    if (selectedFiles) {
+      Array.from(selectedFiles).forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPoFiles(prev => [...prev, {
+            file,
+            preview: file.name,
+            id: `${Date.now()}-${Math.random().toString(36).substring(7)}`
+          }]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    if (poInputRef.current) {
+      poInputRef.current.value = '';
     }
   };
 
-  const handleClearPoFile = () => {
-    setPoFile(null);
-    setPoPreview(null);
+  const handleRemovePoFile = (id: string) => {
+    setPoFiles(prev => prev.filter(f => f.id !== id));
+  };
+
+  const handleClearPoFiles = () => {
+    setPoFiles([]);
     if (poInputRef.current) {
       poInputRef.current.value = '';
     }
@@ -213,7 +243,9 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     };
 
     setLoading(true);
-    const success = await onSubmit(updatedFormData, paymentFile || undefined, validItems, invoiceFile || undefined, poFile || undefined);
+    const paymentFilesArray = paymentFiles.length > 0 ? paymentFiles.map(f => f.file) : undefined;
+    const poFilesArray = poFiles.length > 0 ? poFiles.map(f => f.file) : undefined;
+    const success = await onSubmit(updatedFormData, paymentFilesArray, validItems, invoiceFile || undefined, poFilesArray);
     setLoading(false);
 
     if (success) {
@@ -259,9 +291,9 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
         procurement_rate: undefined,
         notes: '',
       }]);
-      handleClearPaymentFile();
+      handleClearPaymentFiles();
       handleClearInvoiceFile();
-      handleClearPoFile();
+      handleClearPoFiles();
     }
   };
 
@@ -502,48 +534,79 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                 />
               </div>
               
-              {/* Payment Screenshot Upload */}
+              {/* Payment Screenshot Upload - Multiple */}
               <div className="space-y-2 md:col-span-2">
-                <Label className="flex items-center gap-2">
-                  <Upload className="h-4 w-4" />
-                  Payment Screenshot (Optional)
-                </Label>
-                {paymentPreview ? (
-                  <div className="relative">
-                    <img
-                      src={paymentPreview}
-                      alt="Payment screenshot preview"
-                      className="w-full h-48 object-contain rounded-lg border border-border bg-muted"
-                    />
+                <Label className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Payment Screenshots (Optional) ({paymentFiles.length} selected)
+                  </span>
+                  {paymentFiles.length > 0 && (
                     <Button
                       type="button"
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2 h-8 w-8"
-                      onClick={handleClearPaymentFile}
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearPaymentFiles}
                       disabled={loading}
+                      className="h-6 text-xs"
                     >
-                      <X className="h-4 w-4" />
+                      Clear all
                     </Button>
-                  </div>
-                ) : (
-                  <div
-                    className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <ImageIcon className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      Click to upload payment screenshot
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      PNG, JPG, JPEG up to 10MB
-                    </p>
+                  )}
+                </Label>
+                
+                {/* Payment file previews grid */}
+                {paymentFiles.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 max-h-36 overflow-y-auto p-1">
+                    {paymentFiles.map((fileItem) => (
+                      <div key={fileItem.id} className="relative group">
+                        <img
+                          src={fileItem.preview}
+                          alt="Payment screenshot preview"
+                          className="w-full h-20 object-cover rounded-lg border border-border bg-muted"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleRemovePaymentFile(fileItem.id)}
+                          disabled={loading}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
                 )}
+
+                {/* Upload area */}
+                <div
+                  className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    {paymentFiles.length > 0 ? (
+                      <>
+                        <Plus className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Add more screenshots</span>
+                      </>
+                    ) : (
+                      <>
+                        <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Click to upload payment screenshots</span>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    PNG, JPG, JPEG up to 10MB each
+                  </p>
+                </div>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={handlePaymentFileChange}
                   className="hidden"
                 />
@@ -596,45 +659,75 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                 />
               </div>
 
-              {/* PO Upload */}
+              {/* PO Upload - Multiple */}
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  PO Received (Optional)
-                </Label>
-                {poPreview ? (
-                  <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted">
-                    <FileText className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-sm flex-1 truncate">{poPreview}</span>
+                <Label className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    PO Received (Optional) ({poFiles.length})
+                  </span>
+                  {poFiles.length > 0 && (
                     <Button
                       type="button"
                       variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={handleClearPoFile}
+                      size="sm"
+                      onClick={handleClearPoFiles}
                       disabled={loading}
+                      className="h-6 text-xs"
                     >
-                      <X className="h-4 w-4" />
+                      Clear
                     </Button>
-                  </div>
-                ) : (
-                  <div
-                    className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                    onClick={() => poInputRef.current?.click()}
-                  >
-                    <FileText className="h-6 w-6 mx-auto text-muted-foreground mb-1" />
-                    <p className="text-sm text-muted-foreground">
-                      Click to upload PO received
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      PDF, PNG, JPG up to 10MB
-                    </p>
+                  )}
+                </Label>
+                
+                {/* PO file list */}
+                {poFiles.length > 0 && (
+                  <div className="space-y-1 max-h-24 overflow-y-auto">
+                    {poFiles.map((fileItem) => (
+                      <div key={fileItem.id} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted">
+                        <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm flex-1 truncate">{fileItem.preview}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 flex-shrink-0"
+                          onClick={() => handleRemovePoFile(fileItem.id)}
+                          disabled={loading}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
                 )}
+
+                <div
+                  className="border-2 border-dashed border-border rounded-lg p-3 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                  onClick={() => poInputRef.current?.click()}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    {poFiles.length > 0 ? (
+                      <>
+                        <Plus className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Add more POs</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Upload PO received</span>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    PDF, PNG, JPG up to 10MB
+                  </p>
+                </div>
                 <input
                   ref={poInputRef}
                   type="file"
                   accept=".pdf,image/*"
+                  multiple
                   onChange={handlePoFileChange}
                   className="hidden"
                 />
