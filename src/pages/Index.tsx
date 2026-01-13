@@ -9,7 +9,7 @@ import { SlaStatsCards } from "@/components/SlaStatsCards";
 import { SalesStatsCards } from "@/components/SalesStatsCards";
 import { EnquiryDialog } from "@/components/EnquiryDialog";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
-import { useEnquiries, Enquiry, PRODUCT_CATEGORIES, QueryStatus, ENQUIRY_STATUSES } from "@/hooks/useEnquiries";
+import { useEnquiries, Enquiry, PRODUCT_CATEGORIES, QueryStatus, ENQUIRY_STATUSES, LostReason } from "@/hooks/useEnquiries";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -36,6 +36,7 @@ const Index = () => {
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<QueryStatus | "all">("all");
+  const [lostReasonFilter, setLostReasonFilter] = useState<LostReason | null>(null);
 
   // Fetch sales team for filter dropdown (admin/supply_chain only)
   useEffect(() => {
@@ -57,11 +58,12 @@ const Index = () => {
 
   const canFilterBySalesPerson = role === 'admin' || role === 'supply_chain';
 
-  // Filter enquiries by category, date, sales person, and status
+  // Filter enquiries by category, date, sales person, status, and lost reason
   const filteredEnquiries = enquiries.filter((e) => {
     const matchesCategory = categoryFilter === "all" || e.product_category === categoryFilter;
     const matchesSalesPerson = salesPersonFilter === "all" || e.sales_person_id === salesPersonFilter;
     const matchesStatus = statusFilter === "all" || e.status === statusFilter;
+    const matchesLostReason = !lostReasonFilter || e.lost_reason === lostReasonFilter;
     
     const enquiryDate = new Date(e.created_at);
     let matchesDate = true;
@@ -73,7 +75,7 @@ const Index = () => {
       matchesDate = enquiryDate <= endOfDay(endDate);
     }
     
-    return matchesCategory && matchesDate && matchesSalesPerson && matchesStatus;
+    return matchesCategory && matchesDate && matchesSalesPerson && matchesStatus && matchesLostReason;
   });
 
   const clearDateFilter = () => {
@@ -97,6 +99,19 @@ const Index = () => {
       setActiveTab("dashboard");
     }
     return success;
+  };
+
+  // Handler for analytics card/chart clicks - navigates to list with filter
+  const handleAnalyticsStatusClick = (status: QueryStatus | "all") => {
+    setStatusFilter(status);
+    setLostReasonFilter(null); // Clear lost reason filter when status changes
+    setActiveTab("dashboard");
+  };
+
+  const handleAnalyticsLostReasonClick = (reason: LostReason) => {
+    setStatusFilter("order_lost");
+    setLostReasonFilter(reason);
+    setActiveTab("dashboard");
   };
 
   // Convert enquiries to the format expected by stats components
@@ -326,7 +341,20 @@ const Index = () => {
                       onEndDateChange={setEndDate}
                       onClear={clearDateFilter}
                     />
-                    {(categoryFilter !== "all" || startDate || endDate || salesPersonFilter !== "all" || statusFilter !== "all") && (
+                    {lostReasonFilter && (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-destructive/10 border border-destructive/20 rounded-md text-sm">
+                        <span className="text-destructive font-medium">Lost: {lostReasonFilter}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLostReasonFilter(null)}
+                          className="h-5 w-5 p-0 hover:bg-destructive/20"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                    {(categoryFilter !== "all" || startDate || endDate || salesPersonFilter !== "all" || statusFilter !== "all" || lostReasonFilter) && (
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
                           {filteredEnquiries.length} of {enquiries.length}
@@ -338,6 +366,7 @@ const Index = () => {
                             setCategoryFilter("all");
                             setSalesPersonFilter("all");
                             setStatusFilter("all");
+                            setLostReasonFilter(null);
                             clearDateFilter();
                           }}
                           className="h-6 px-2 text-xs"
@@ -402,7 +431,11 @@ const Index = () => {
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
               </div>
             ) : (
-              <EnquiryConversionAnalytics enquiries={isSales && user ? salesUserEnquiries : enquiries} />
+              <EnquiryConversionAnalytics 
+                enquiries={isSales && user ? salesUserEnquiries : enquiries} 
+                onStatusClick={handleAnalyticsStatusClick}
+                onLostReasonClick={handleAnalyticsLostReasonClick}
+              />
             )}
           </TabsContent>
 
