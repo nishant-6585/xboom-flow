@@ -3,6 +3,7 @@ import { Order } from "@/hooks/useOrders";
 import { Supplier, useSupplierPayments } from "@/hooks/useSuppliers";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useEditHistory } from "@/hooks/useEditHistory";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -27,6 +28,7 @@ import { ProcurementOrderItems } from "./ProcurementOrderItems";
 import { OrderNumberBadge } from "@/components/OrderNumberBadge";
 import { useRef } from "react";
 import { calculatePaymentDueDate } from "@/lib/paymentTerms";
+import { EditHistoryPanel } from "@/components/EditHistoryPanel";
 
 interface ProcurementOrderDialogProps {
   order: Order | null;
@@ -43,7 +45,8 @@ export function ProcurementOrderDialog({
   onOpenChange,
   onUpdate,
 }: ProcurementOrderDialogProps) {
-  const { user, role } = useAuth();
+  const { user, role, profile } = useAuth();
+  const { recordChanges } = useEditHistory();
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>("");
   const [procurementRate, setProcurementRate] = useState<string>("");
   const [procurementCurrency, setProcurementCurrency] = useState<string>("INR");
@@ -53,6 +56,8 @@ export function ProcurementOrderDialog({
   const [poFile, setPoFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const canEdit = role === 'supply_chain' || role === 'admin';
 
   // Payment to supplier form
   const [showAddPayment, setShowAddPayment] = useState(false);
@@ -121,7 +126,7 @@ export function ProcurementOrderDialog({
   };
 
   const handleSave = async () => {
-    if (!order) return;
+    if (!order || !canEdit) return;
 
     try {
       setSaving(true);
@@ -136,6 +141,26 @@ export function ProcurementOrderDialog({
         internal_notes: internalNotes || null,
       };
 
+      // Track changes for edit history
+      const changes: Record<string, { old: any; new: any }> = {};
+      
+      if (order.supplier_name !== (supplier?.name || null)) {
+        changes.supplier_name = { old: order.supplier_name, new: supplier?.name || null };
+      }
+      if (order.procurement_rate !== (procurementRate ? parseFloat(procurementRate) : null)) {
+        changes.procurement_rate = { old: order.procurement_rate, new: procurementRate ? parseFloat(procurementRate) : null };
+      }
+      if (order.procurement_currency !== procurementCurrency) {
+        changes.procurement_currency = { old: order.procurement_currency, new: procurementCurrency };
+      }
+      const newProcDate = procurementDate ? format(procurementDate, 'yyyy-MM-dd') : null;
+      if (order.procurement_date !== newProcDate) {
+        changes.procurement_date = { old: order.procurement_date, new: newProcDate };
+      }
+      if (order.internal_notes !== (internalNotes || null)) {
+        changes.internal_notes = { old: order.internal_notes, new: internalNotes || null };
+      }
+
       // Also update supplier_id
       const { error } = await supabase
         .from('orders')
@@ -146,6 +171,11 @@ export function ProcurementOrderDialog({
         .eq('id', order.id);
 
       if (error) throw error;
+
+      // Record edit history
+      if (Object.keys(changes).length > 0) {
+        await recordChanges('orders', order.id, changes, profile?.name || 'Unknown');
+      }
 
       toast.success('Order updated successfully');
       onOpenChange(false);
@@ -677,18 +707,26 @@ export function ProcurementOrderDialog({
               onChange={(e) => setInternalNotes(e.target.value)}
               placeholder="Internal notes about this procurement..."
               rows={3}
+              disabled={!canEdit}
             />
           </div>
+
+          {/* Edit History */}
+          {order && (
+            <EditHistoryPanel tableName="orders" recordId={order.id} />
+          )}
 
           {/* Actions */}
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {canEdit ? 'Cancel' : 'Close'}
             </Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Save Changes
-            </Button>
+            {canEdit && (
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Save Changes
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>

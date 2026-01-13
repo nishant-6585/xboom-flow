@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      edit_history: {
+        Row: {
+          edited_at: string
+          edited_by: string
+          edited_by_name: string
+          field_name: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          record_id: string
+          table_name: string
+        }
+        Insert: {
+          edited_at?: string
+          edited_by: string
+          edited_by_name: string
+          field_name: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          record_id: string
+          table_name: string
+        }
+        Update: {
+          edited_at?: string
+          edited_by?: string
+          edited_by_name?: string
+          field_name?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          record_id?: string
+          table_name?: string
+        }
+        Relationships: []
+      }
       enquiries: {
         Row: {
           admin_response: string | null

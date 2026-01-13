@@ -12,6 +12,7 @@ import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { PaymentRecordsList } from '@/components/PaymentRecordsList';
 import { PaymentUploadDialog } from '@/components/PaymentUploadDialog';
 import { useAuth } from '@/hooks/useAuth';
+import { useEditHistory } from '@/hooks/useEditHistory';
 import { useOrderItems, ORDER_ITEM_STATUSES } from '@/hooks/useOrderItems';
 import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO } from 'date-fns';
@@ -21,6 +22,7 @@ import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { OrderSupplierPayments } from '@/components/OrderSupplierPayments';
+import { EditHistoryPanel } from '@/components/EditHistoryPanel';
 
 interface OrderDialogProps {
   order: Order | null;
@@ -44,13 +46,15 @@ const outcomeConfig: Record<OrderOutcome, { label: string; className: string }> 
 };
 
 export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onEscalate }: OrderDialogProps) {
-  const { role, user } = useAuth();
+  const { role, user, profile } = useAuth();
   const { fetchOrderItems } = useOrderItems();
-  const canEdit = role === 'supply_chain' || role === 'admin';
-  const canDelete = role === 'admin';
-  const canSeeProcurement = role === 'supply_chain' || role === 'admin';
+  const { recordChanges } = useEditHistory();
   const isAdmin = role === 'admin';
   const isSales = role === 'sales';
+  const canEdit = role === 'supply_chain' || role === 'admin';
+  const canEditSalesFields = isSales || canEdit;
+  const canDelete = role === 'admin';
+  const canSeeProcurement = role === 'supply_chain' || role === 'admin';
   const canEscalate = isSales && onEscalate;
 
   const [loading, setLoading] = useState(false);
@@ -276,6 +280,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const canDeletePo = isAdmin || (isSales && order?.sales_person_id === user?.id);
 
   const handleUpdate = async () => {
+    if (!canEdit && !canEditSalesFields) return;
+    
     setLoading(true);
     const updates: Partial<Order> = {
       status,
@@ -314,7 +320,35 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       supplier_payment_terms: supplierPaymentTerms || null,
       supplier_payment_due_date: supplierPaymentDueDate || null,
     } as Partial<Order>;
+
+    // Track changes for edit history
+    const changes: Record<string, { old: any; new: any }> = {};
+    
+    if (order.status !== status) changes.status = { old: order.status, new: status };
+    if (order.payment_status !== paymentStatus) changes.payment_status = { old: order.payment_status, new: paymentStatus };
+    if (order.supplier_name !== (supplierName || null)) changes.supplier_name = { old: order.supplier_name, new: supplierName || null };
+    if (order.procurement_rate !== (procurementRate ? parseFloat(procurementRate) : null)) {
+      changes.procurement_rate = { old: order.procurement_rate, new: procurementRate ? parseFloat(procurementRate) : null };
+    }
+    if (order.selling_price !== (sellingPrice ? parseFloat(sellingPrice) : null)) {
+      changes.selling_price = { old: order.selling_price, new: sellingPrice ? parseFloat(sellingPrice) : null };
+    }
+    if (order.total_sales_amount !== (totalSalesAmount ? parseFloat(totalSalesAmount) : null)) {
+      changes.total_sales_amount = { old: order.total_sales_amount, new: totalSalesAmount ? parseFloat(totalSalesAmount) : null };
+    }
+    if (order.priority !== priority) changes.priority = { old: order.priority, new: priority };
+    if (order.order_outcome !== orderOutcome) changes.order_outcome = { old: order.order_outcome, new: orderOutcome };
+    if (order.internal_notes !== (internalNotes || null)) changes.internal_notes = { old: order.internal_notes, new: internalNotes || null };
+    if (order.sales_notes !== (salesNotes || null)) changes.sales_notes = { old: order.sales_notes, new: salesNotes || null };
+    if (order.customer_notes !== (customerNotes || null)) changes.customer_notes = { old: order.customer_notes, new: customerNotes || null };
+
     const success = await onUpdate(order.id, updates);
+    
+    // Record edit history
+    if (success && Object.keys(changes).length > 0) {
+      await recordChanges('orders', order.id, changes, profile?.name || 'Unknown');
+    }
+    
     setLoading(false);
     if (success) {
       onOpenChange(false);
@@ -1289,6 +1323,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               </div>
             )}
           </div>
+
+          {/* Edit History */}
+          <EditHistoryPanel tableName="orders" recordId={order.id} />
 
           <div className="flex justify-between gap-2 pt-4 border-t">
             <div>
