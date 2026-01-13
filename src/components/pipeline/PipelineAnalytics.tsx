@@ -8,11 +8,12 @@ import { useAuth } from '@/hooks/useAuth';
 
 interface PipelineAnalyticsProps {
   orders: PipelineOrder[];
+  onCardClick?: (filter: { type: string; value: string }) => void;
 }
 
 const COLORS = ['#22c55e', '#ef4444', '#3b82f6', '#f59e0b', '#f97316', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#6366f1'];
 
-export function PipelineAnalytics({ orders }: PipelineAnalyticsProps) {
+export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProps) {
   const { role, user } = useAuth();
   
   // Filter orders for sales role - only show their own pipeline
@@ -150,7 +151,10 @@ export function PipelineAnalytics({ orders }: PipelineAnalyticsProps) {
       )}
       {/* Summary Cards */}
       <div className={`grid gap-4 md:grid-cols-2 ${isSalesView ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
-        <Card>
+        <Card 
+          className={`${onCardClick ? 'cursor-pointer hover:scale-105 hover:shadow-lg transition-all hover:ring-2 hover:ring-primary/50' : ''}`}
+          onClick={() => onCardClick?.({ type: 'status', value: 'pending' })}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -162,7 +166,10 @@ export function PipelineAnalytics({ orders }: PipelineAnalyticsProps) {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={`${onCardClick ? 'cursor-pointer hover:scale-105 hover:shadow-lg transition-all hover:ring-2 hover:ring-primary/50' : ''}`}
+          onClick={() => onCardClick?.({ type: 'status', value: 'won' })}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -174,7 +181,10 @@ export function PipelineAnalytics({ orders }: PipelineAnalyticsProps) {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={`${onCardClick ? 'cursor-pointer hover:scale-105 hover:shadow-lg transition-all hover:ring-2 hover:ring-primary/50' : ''}`}
+          onClick={() => onCardClick?.({ type: 'view', value: 'all' })}
+        >
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -187,7 +197,10 @@ export function PipelineAnalytics({ orders }: PipelineAnalyticsProps) {
           </CardContent>
         </Card>
         {!isSalesView && (
-          <Card>
+          <Card 
+            className={`${onCardClick ? 'cursor-pointer hover:scale-105 hover:shadow-lg transition-all hover:ring-2 hover:ring-primary/50' : ''}`}
+            onClick={() => onCardClick?.({ type: 'view', value: 'all' })}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>

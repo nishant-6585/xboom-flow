@@ -16,7 +16,7 @@ import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target } from 'lucide-react';
-import { startOfDay, endOfDay, isWithinInterval } from 'date-fns';
+import { startOfDay, endOfDay, isWithinInterval, startOfMonth } from 'date-fns';
 
 export default function Orders() {
   const { role, user } = useAuth();
@@ -72,6 +72,30 @@ export default function Orders() {
   const clearFilters = () => {
     setStartDate(undefined);
     setEndDate(undefined);
+    setPaymentTermsFilter('all');
+    setPaymentStatusFilter('all');
+    setOrderTypeFilter('all');
+    setOutcomeFilter('all');
+    setSalesPersonFilter('all');
+    setStatusFilter('all');
+  };
+
+  const handleAnalyticsCardClick = (filter: { type: string; value: string }) => {
+    // Switch to list tab
+    setActiveTab('list');
+    
+    if (filter.type === 'mtd') {
+      // Set date filter to current month
+      const now = new Date();
+      setStartDate(startOfMonth(now));
+      setEndDate(now);
+    } else {
+      // Clear date filter for "all time" views
+      setStartDate(undefined);
+      setEndDate(undefined);
+    }
+    
+    // Clear other filters
     setPaymentTermsFilter('all');
     setPaymentStatusFilter('all');
     setOrderTypeFilter('all');
@@ -300,7 +324,7 @@ export default function Orders() {
 
           {isAdmin && (
             <TabsContent value="analytics">
-              <OrderProfitAnalytics orders={orders} />
+              <OrderProfitAnalytics orders={orders} onCardClick={handleAnalyticsCardClick} />
             </TabsContent>
           )}
         </Tabs>

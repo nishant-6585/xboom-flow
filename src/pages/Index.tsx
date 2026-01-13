@@ -9,12 +9,12 @@ import { SlaStatsCards } from "@/components/SlaStatsCards";
 import { SalesStatsCards } from "@/components/SalesStatsCards";
 import { EnquiryDialog } from "@/components/EnquiryDialog";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
-import { useEnquiries, Enquiry, PRODUCT_CATEGORIES } from "@/hooks/useEnquiries";
+import { useEnquiries, Enquiry, PRODUCT_CATEGORIES, QueryStatus, ENQUIRY_STATUSES } from "@/hooks/useEnquiries";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardList, PlusCircle, Loader2, Package, Filter, TableIcon, LayoutGrid, BarChart3, User } from "lucide-react";
+import { ClipboardList, PlusCircle, Loader2, Package, Filter, TableIcon, LayoutGrid, BarChart3, User, ListFilter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { startOfDay, endOfDay, isWithinInterval } from "date-fns";
 
@@ -35,6 +35,7 @@ const Index = () => {
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<QueryStatus | "all">("all");
 
   // Fetch sales team for filter dropdown (admin/supply_chain only)
   useEffect(() => {
@@ -56,10 +57,11 @@ const Index = () => {
 
   const canFilterBySalesPerson = role === 'admin' || role === 'supply_chain';
 
-  // Filter enquiries by category, date, and sales person
+  // Filter enquiries by category, date, sales person, and status
   const filteredEnquiries = enquiries.filter((e) => {
     const matchesCategory = categoryFilter === "all" || e.product_category === categoryFilter;
     const matchesSalesPerson = salesPersonFilter === "all" || e.sales_person_id === salesPersonFilter;
+    const matchesStatus = statusFilter === "all" || e.status === statusFilter;
     
     const enquiryDate = new Date(e.created_at);
     let matchesDate = true;
@@ -71,7 +73,7 @@ const Index = () => {
       matchesDate = enquiryDate <= endOfDay(endDate);
     }
     
-    return matchesCategory && matchesDate && matchesSalesPerson;
+    return matchesCategory && matchesDate && matchesSalesPerson && matchesStatus;
   });
 
   const clearDateFilter = () => {
@@ -108,7 +110,7 @@ const Index = () => {
     salesPerson: e.sales_person_name,
     urgency: e.urgency as "low" | "medium" | "high" | "critical",
     notes: e.notes,
-    status: e.status as "pending" | "in_review" | "confirmed" | "rejected",
+    status: e.status,
     createdAt: new Date(e.created_at),
     updatedAt: new Date(e.updated_at),
     response: e.response_pricing
@@ -131,7 +133,7 @@ const Index = () => {
     salesPerson: e.sales_person_name,
     urgency: e.urgency as "low" | "medium" | "high" | "critical",
     notes: e.notes,
-    status: e.status as "pending" | "in_review" | "confirmed" | "rejected",
+    status: e.status,
     createdAt: new Date(e.created_at),
     updatedAt: new Date(e.updated_at),
     response: e.response_pricing
@@ -142,6 +144,13 @@ const Index = () => {
         }
       : undefined,
   }));
+
+  // Handler for stats card clicks - shows filtered data
+  const handleStatsClick = (status: QueryStatus | "all") => {
+    setActiveTab("enquiries");
+    // The filtering will be handled by a new state
+    setStatusFilter(status);
+  };
 
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col">
@@ -184,9 +193,9 @@ const Index = () => {
               </div>
             ) : (
               <>
-                <StatsCards queries={statsQueries} />
+                <StatsCards queries={statsQueries} onStatusClick={handleStatsClick} />
                 {canViewSlaStats && <SlaStatsCards queries={statsQueries} />}
-                {(isSales || isAdmin) && <SalesStatsCards queries={isAdmin ? statsQueries : salesStatsQueries} />}
+                {(isSales || isAdmin) && <SalesStatsCards queries={isAdmin ? statsQueries : salesStatsQueries} onStatusClick={handleStatsClick} />}
 
                 {/* Category and Date Filters */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -280,6 +289,20 @@ const Index = () => {
                         </SelectContent>
                       </Select>
                     </div>
+                    <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as QueryStatus | "all")}>
+                      <SelectTrigger className="w-[160px]">
+                        <ListFilter className="h-4 w-4 mr-2" />
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        {ENQUIRY_STATUSES.map((status) => (
+                          <SelectItem key={status.value} value={status.value}>
+                            {status.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     {canFilterBySalesPerson && (
                       <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
                         <SelectTrigger className="w-[180px]">
@@ -303,10 +326,26 @@ const Index = () => {
                       onEndDateChange={setEndDate}
                       onClear={clearDateFilter}
                     />
-                    {(categoryFilter !== "all" || startDate || endDate || salesPersonFilter !== "all") && (
-                      <span className="text-sm text-muted-foreground">
-                        {filteredEnquiries.length} of {enquiries.length}
-                      </span>
+                    {(categoryFilter !== "all" || startDate || endDate || salesPersonFilter !== "all" || statusFilter !== "all") && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {filteredEnquiries.length} of {enquiries.length}
+                        </span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => {
+                            setCategoryFilter("all");
+                            setSalesPersonFilter("all");
+                            setStatusFilter("all");
+                            clearDateFilter();
+                          }}
+                          className="h-6 px-2 text-xs"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Clear
+                        </Button>
+                      </div>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
