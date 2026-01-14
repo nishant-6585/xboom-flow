@@ -258,15 +258,23 @@ export function useTasks() {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return false;
 
+    const now = new Date().toISOString();
+    const updates = {
+      timer_status: 'running' as TimerStatus,
+      timer_started_at: now,
+      stage: (task.stage === 'new' ? 'started' : task.stage) as TaskStage,
+      status: (task.status === 'new' ? 'in_progress' : task.status) as TaskStatus,
+    };
+
+    // Optimistic update for immediate UI feedback
+    setTasks(prev => prev.map(t => 
+      t.id === taskId ? { ...t, ...updates } : t
+    ));
+
     try {
       const { error } = await supabase
         .from('tasks')
-        .update({
-          timer_status: 'running',
-          timer_started_at: new Date().toISOString(),
-          stage: task.stage === 'new' ? 'started' : task.stage,
-          status: task.status === 'new' ? 'in_progress' : task.status,
-        })
+        .update(updates)
         .eq('id', taskId);
 
       if (error) throw error;
@@ -275,6 +283,8 @@ export function useTasks() {
     } catch (error: any) {
       console.error('Error starting timer:', error);
       toast.error('Failed to start timer');
+      // Revert on error
+      fetchTasks();
       return false;
     }
   };
@@ -283,19 +293,26 @@ export function useTasks() {
     const task = tasks.find(t => t.id === taskId);
     if (!task || !task.timer_started_at) return false;
 
-    try {
-      const elapsedSeconds = Math.floor(
-        (new Date().getTime() - new Date(task.timer_started_at).getTime()) / 1000
-      );
-      const newTimeSpent = (task.time_spent_seconds || 0) + elapsedSeconds;
+    const elapsedSeconds = Math.floor(
+      (new Date().getTime() - new Date(task.timer_started_at).getTime()) / 1000
+    );
+    const newTimeSpent = (task.time_spent_seconds || 0) + elapsedSeconds;
 
+    const updates = {
+      timer_status: 'paused' as TimerStatus,
+      timer_started_at: null as string | null,
+      time_spent_seconds: newTimeSpent,
+    };
+
+    // Optimistic update for immediate UI feedback
+    setTasks(prev => prev.map(t => 
+      t.id === taskId ? { ...t, ...updates } : t
+    ));
+
+    try {
       const { error } = await supabase
         .from('tasks')
-        .update({
-          timer_status: 'paused',
-          timer_started_at: null,
-          time_spent_seconds: newTimeSpent,
-        })
+        .update(updates)
         .eq('id', taskId);
 
       if (error) throw error;
@@ -304,6 +321,8 @@ export function useTasks() {
     } catch (error: any) {
       console.error('Error pausing timer:', error);
       toast.error('Failed to pause timer');
+      // Revert on error
+      fetchTasks();
       return false;
     }
   };
