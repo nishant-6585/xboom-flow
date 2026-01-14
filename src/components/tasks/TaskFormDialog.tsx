@@ -63,22 +63,33 @@ export function TaskFormDialog({
   useEffect(() => {
     const fetchTeamMembers = async () => {
       try {
-        const { data, error } = await supabase
+        // Fetch profiles and user_roles separately then merge
+        const { data: profiles, error: profilesError } = await supabase
           .from("profiles")
-          .select(`
-            user_id,
-            name,
-            user_roles!inner(role)
-          `)
+          .select("user_id, name")
           .eq("is_approved", true);
 
-        if (error) throw error;
+        if (profilesError) throw profilesError;
 
-        const members: TeamMember[] = (data || []).map((p: any) => ({
-          user_id: p.user_id,
-          name: p.name,
-          role: p.user_roles[0]?.role || "sales",
-        }));
+        const { data: roles, error: rolesError } = await supabase
+          .from("user_roles")
+          .select("user_id, role");
+
+        if (rolesError) throw rolesError;
+
+        // Create a map of user_id to role
+        const roleMap = new Map<string, string>();
+        (roles || []).forEach((r: any) => {
+          roleMap.set(r.user_id, r.role);
+        });
+
+        const members: TeamMember[] = (profiles || [])
+          .filter((p: any) => roleMap.has(p.user_id))
+          .map((p: any) => ({
+            user_id: p.user_id,
+            name: p.name,
+            role: (roleMap.get(p.user_id) || "sales") as TeamMember["role"],
+          }));
 
         setTeamMembers(members);
       } catch (error) {
