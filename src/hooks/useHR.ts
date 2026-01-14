@@ -470,22 +470,24 @@ export function useHR() {
     }
   };
 
-  const getEmployeeKPI = async (employeeId: string, month?: Date): Promise<EmployeeKPI | null> => {
-    try {
-      const targetMonth = month || new Date();
-      const { data, error } = await supabase
-        .rpc('get_employee_kpi', {
+  const getEmployeeKPI = useCallback(
+    async (employeeId: string, month?: Date): Promise<EmployeeKPI | null> => {
+      try {
+        const targetMonth = month || new Date();
+        const { data, error } = await supabase.rpc('get_employee_kpi', {
           p_employee_id: employeeId,
           p_month: targetMonth.toISOString().split('T')[0],
         });
 
-      if (error) throw error;
-      return data?.[0] || null;
-    } catch (error: any) {
-      console.error('Error fetching KPI:', error);
-      return null;
-    }
-  };
+        if (error) throw error;
+        return data?.[0] || null;
+      } catch (error: any) {
+        console.error('Error fetching KPI:', error);
+        return null;
+      }
+    },
+    []
+  );
 
   const createEmployee = async (data: Partial<Employee>): Promise<boolean> => {
     try {
