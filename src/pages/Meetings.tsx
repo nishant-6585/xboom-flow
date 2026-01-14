@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from "@/components/Header";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -14,14 +14,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMeetings, Meeting, MeetingFormData, MEETING_TYPES, MEETING_STATUSES, MeetingType, MeetingStatus } from "@/hooks/useMeetings";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Calendar as CalendarIcon, Plus, Search, Filter, Clock, 
   Users, Video, Phone, Building2, User, Loader2, Edit, 
-  Trash2, CheckCircle2, XCircle, Target, TrendingUp
+  Trash2, CheckCircle2, XCircle, Target, TrendingUp, Link as LinkIcon, ExternalLink
 } from "lucide-react";
 import { format, isToday, isTomorrow, isPast, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+interface LeadOption {
+  id: string;
+  customer_name: string;
+  customer_company: string;
+  product_name: string;
+  lead_type: 'enquiry' | 'pipeline';
+}
 
 const getStatusColor = (status: MeetingStatus) => {
   switch (status) {
@@ -103,6 +112,21 @@ function MeetingCard({ meeting, onEdit, onComplete, onCancel }: {
           </div>
         )}
 
+        {/* Meeting Link */}
+        {meeting.meeting_link && (
+          <div className="flex items-center gap-2">
+            <LinkIcon className="w-4 h-4 text-muted-foreground" />
+            <a 
+              href={meeting.meeting_link} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-sm text-primary hover:underline flex items-center gap-1 truncate"
+            >
+              Join Meeting <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        )}
+
         {/* Agenda */}
         {meeting.agenda && (
           <p className="text-sm text-muted-foreground line-clamp-2">{meeting.agenda}</p>
@@ -145,13 +169,57 @@ const Meetings = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editMeeting, setEditMeeting] = useState<Meeting | null>(null);
   
+  // Lead options for dropdown
+  const [leadOptions, setLeadOptions] = useState<LeadOption[]>([]);
+  const [leadsLoading, setLeadsLoading] = useState(false);
+  
   // Form state
   const [formDate, setFormDate] = useState<Date | undefined>(new Date());
   const [formTime, setFormTime] = useState('10:00');
   const [formType, setFormType] = useState<MeetingType>('discovery');
   const [formAgenda, setFormAgenda] = useState('');
   const [formBackground, setFormBackground] = useState('');
+  const [formLeadId, setFormLeadId] = useState<string>('');
+  const [formLeadType, setFormLeadType] = useState<'enquiry' | 'pipeline' | ''>('');
+  const [formMeetingLink, setFormMeetingLink] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Fetch leads for dropdown
+  useEffect(() => {
+    const fetchLeads = async () => {
+      setLeadsLoading(true);
+      try {
+        // Fetch enquiries
+        const { data: enquiries } = await supabase
+          .from('enquiries')
+          .select('id, customer_name, customer_company, product_name')
+          .not('status', 'in', '(order_won,order_lost)')
+          .order('customer_name');
+        
+        // Fetch pipeline orders
+        const { data: pipeline } = await supabase
+          .from('pipeline_orders')
+          .select('id, customer_name, customer_company, product_name')
+          .not('status', 'in', '(won,lost)')
+          .order('customer_name');
+        
+        const leads: LeadOption[] = [
+          ...(enquiries || []).map(e => ({ ...e, lead_type: 'enquiry' as const })),
+          ...(pipeline || []).map(p => ({ ...p, lead_type: 'pipeline' as const })),
+        ];
+        
+        setLeadOptions(leads);
+      } catch (error) {
+        console.error('Error fetching leads:', error);
+      } finally {
+        setLeadsLoading(false);
+      }
+    };
+    
+    if (createDialogOpen || editMeeting) {
+      fetchLeads();
+    }
+  }, [createDialogOpen, editMeeting]);
 
   // Filter meetings
   const filteredMeetings = meetings.filter(m => {
@@ -180,6 +248,9 @@ const Meetings = () => {
     setFormType('discovery');
     setFormAgenda('');
     setFormBackground('');
+    setFormLeadId('');
+    setFormLeadType('');
+    setFormMeetingLink('');
   };
 
   const handleCreate = async () => {
@@ -200,6 +271,9 @@ const Meetings = () => {
         agenda: formAgenda || undefined,
         background: formBackground || undefined,
         status: 'scheduled',
+        enquiry_id: formLeadType === 'enquiry' ? formLeadId : undefined,
+        pipeline_id: formLeadType === 'pipeline' ? formLeadId : undefined,
+        meeting_link: formMeetingLink || undefined,
       });
 
       if (success) {
@@ -225,6 +299,9 @@ const Meetings = () => {
         meeting_type: formType,
         agenda: formAgenda || null,
         background: formBackground || null,
+        enquiry_id: formLeadType === 'enquiry' ? formLeadId : null,
+        pipeline_id: formLeadType === 'pipeline' ? formLeadId : null,
+        meeting_link: formMeetingLink || null,
       });
 
       if (success) {
@@ -252,6 +329,18 @@ const Meetings = () => {
     setFormType(meeting.meeting_type);
     setFormAgenda(meeting.agenda || '');
     setFormBackground(meeting.background || '');
+    setFormMeetingLink(meeting.meeting_link || '');
+    // Set lead info
+    if (meeting.enquiry_id) {
+      setFormLeadId(meeting.enquiry_id);
+      setFormLeadType('enquiry');
+    } else if (meeting.pipeline_id) {
+      setFormLeadId(meeting.pipeline_id);
+      setFormLeadType('pipeline');
+    } else {
+      setFormLeadId('');
+      setFormLeadType('');
+    }
   };
 
   return (
@@ -421,6 +510,44 @@ const Meetings = () => {
           </DialogHeader>
           <ScrollArea className="max-h-[60vh]">
             <div className="space-y-4 p-1">
+              {/* Lead Selection */}
+              <div className="space-y-2">
+                <Label>Link to Lead (Optional)</Label>
+                <Select 
+                  value={formLeadId ? `${formLeadType}:${formLeadId}` : 'none'}
+                  onValueChange={(v) => {
+                    if (v === 'none') {
+                      setFormLeadId('');
+                      setFormLeadType('');
+                    } else {
+                      const [type, id] = v.split(':');
+                      setFormLeadType(type as 'enquiry' | 'pipeline');
+                      setFormLeadId(id);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={leadsLoading ? "Loading leads..." : "Select a lead"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Lead</SelectItem>
+                    {leadOptions.map((lead) => (
+                      <SelectItem 
+                        key={`${lead.lead_type}:${lead.id}`} 
+                        value={`${lead.lead_type}:${lead.id}`}
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-medium">{lead.customer_name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {lead.customer_company || lead.product_name} ({lead.lead_type === 'enquiry' ? 'Enquiry' : 'Pipeline'})
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Date */}
               <div className="space-y-2">
                 <Label>Date</Label>
@@ -471,6 +598,21 @@ const Meetings = () => {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Meeting Link */}
+              <div className="space-y-2">
+                <Label>Meeting Link (Optional)</Label>
+                <div className="flex items-center gap-2">
+                  <LinkIcon className="w-4 h-4 text-muted-foreground" />
+                  <Input
+                    type="url"
+                    placeholder="https://meet.google.com/... or zoom link"
+                    value={formMeetingLink}
+                    onChange={(e) => setFormMeetingLink(e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
               </div>
 
               {/* Agenda */}

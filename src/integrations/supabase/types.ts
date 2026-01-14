@@ -733,6 +733,7 @@ export type Database = {
           enquiry_id: string | null
           id: string
           meeting_date: string
+          meeting_link: string | null
           meeting_type: string
           next_followup_date: string | null
           next_steps: string | null
@@ -752,6 +753,7 @@ export type Database = {
           enquiry_id?: string | null
           id?: string
           meeting_date: string
+          meeting_link?: string | null
           meeting_type: string
           next_followup_date?: string | null
           next_steps?: string | null
@@ -771,6 +773,7 @@ export type Database = {
           enquiry_id?: string | null
           id?: string
           meeting_date?: string
+          meeting_link?: string | null
           meeting_type?: string
           next_followup_date?: string | null
           next_steps?: string | null
