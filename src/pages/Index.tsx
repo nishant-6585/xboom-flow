@@ -7,6 +7,7 @@ import { EnquiryTable } from "@/components/EnquiryTable";
 import { EnquiryConversionAnalytics } from "@/components/EnquiryConversionAnalytics";
 import { StatsCards } from "@/components/StatsCards";
 import { KeyMetricsDashboard } from "@/components/KeyMetricsDashboard";
+import { KeyMetricsTrendChart } from "@/components/KeyMetricsTrendChart";
 import { EnquiryDialog } from "@/components/EnquiryDialog";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { useEnquiries, Enquiry, PRODUCT_CATEGORIES, QueryStatus, ENQUIRY_STATUSES, LostReason } from "@/hooks/useEnquiries";
@@ -290,7 +291,7 @@ const Index = () => {
               <>
                 <StatsCards queries={statsQueries} onStatusClick={handleStatsClick} />
                 <KeyMetricsDashboard />
-
+                <KeyMetricsTrendChart />
                 {/* Category and Date Filters */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                   <div className="flex items-center gap-3">
