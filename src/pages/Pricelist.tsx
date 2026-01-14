@@ -46,7 +46,9 @@ import {
   RefreshCw,
   BarChart3,
   List,
+  Bot,
 } from "lucide-react";
+import { AISalesAssistant } from "@/components/AISalesAssistant";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
@@ -84,6 +86,8 @@ export default function Pricelist() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [enquiryQuantity, setEnquiryQuantity] = useState(1);
   const [enquiryNotes, setEnquiryNotes] = useState("");
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  
   
   const [formData, setFormData] = useState<PricelistFormData>({
     product_name: "",
@@ -918,6 +922,18 @@ export default function Pricelist() {
           </DialogContent>
         </Dialog>
       </main>
+
+      {/* AI Sales Assistant Floating Button */}
+      <Button
+        onClick={() => setAssistantOpen(true)}
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105 z-40"
+        size="icon"
+      >
+        <Bot className="w-6 h-6" />
+      </Button>
+
+      {/* AI Sales Assistant Dialog */}
+      <AISalesAssistant isOpen={assistantOpen} onClose={() => setAssistantOpen(false)} />
     </div>
   );
 }
