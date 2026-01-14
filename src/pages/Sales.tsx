@@ -1,7 +1,7 @@
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -11,6 +11,7 @@ import { ManagerDashboard } from "@/components/sales/ManagerDashboard";
 import { TestimonialsPanel } from "@/components/sales/TestimonialsPanel";
 import { SalesRulesPanel } from "@/components/sales/SalesRulesPanel";
 import { LeadsPanel } from "@/components/sales/LeadsPanel";
+import { SalesFunnelDashboard } from "@/components/sales/SalesFunnelDashboard";
 
 export default function Sales() {
   const { role } = useAuth();
@@ -43,6 +44,10 @@ export default function Sales() {
                 Manager Dashboard
               </TabsTrigger>
             )}
+            <TabsTrigger value="funnel" className="gap-2">
+              <GitBranch className="w-4 h-4" />
+              Funnel
+            </TabsTrigger>
             <TabsTrigger value="activity" className="gap-2">
               <Rocket className="w-4 h-4" />
               Daily Activity
@@ -78,6 +83,10 @@ export default function Sales() {
               <ManagerDashboard />
             </TabsContent>
           )}
+
+          <TabsContent value="funnel" className="space-y-6">
+            <SalesFunnelDashboard />
+          </TabsContent>
 
           <TabsContent value="activity" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
