@@ -11,7 +11,8 @@ import { LeaveRequestCard } from "@/components/hr/LeaveRequestCard";
 import { LeaveApplyDialog } from "@/components/hr/LeaveApplyDialog";
 import { LeaveApprovalCard } from "@/components/hr/LeaveApprovalCard";
 import { KPICard } from "@/components/hr/KPICard";
-import { Plus, Calendar, Clock, FileText, Users } from "lucide-react";
+import { TeamAttendanceOverview } from "@/components/hr/TeamAttendanceOverview";
+import { Plus, Calendar, Clock, FileText, Users, LayoutList } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function HR() {
@@ -24,6 +25,7 @@ export default function HR() {
     attendanceLogs,
     leaveRequests,
     pendingLeaves,
+    teamAttendanceStatus,
     loading,
     checkIn,
     checkOut,
@@ -33,6 +35,7 @@ export default function HR() {
     approveLeave,
     getEmployeeKPI,
     fetchAttendanceLogs,
+    fetchTeamAttendanceStatus,
   } = useHR();
 
   const [activeTab, setActiveTab] = useState("home");
@@ -110,11 +113,17 @@ export default function HR() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full grid grid-cols-4 mb-6">
+          <TabsList className={`w-full grid ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'} mb-6`}>
             <TabsTrigger value="home" className="gap-1">
               <Clock className="h-4 w-4" />
               <span className="hidden sm:inline">Home</span>
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="team" className="gap-1">
+                <LayoutList className="h-4 w-4" />
+                <span className="hidden sm:inline">Team</span>
+              </TabsTrigger>
+            )}
             <TabsTrigger value="attendance" className="gap-1">
               <Calendar className="h-4 w-4" />
               <span className="hidden sm:inline">Attendance</span>
@@ -158,6 +167,15 @@ export default function HR() {
 
             <KPICard kpi={myKPI} loading={kpiLoading} />
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="team" className="space-y-4">
+              <TeamAttendanceOverview
+                teamStatus={teamAttendanceStatus}
+                loading={loading}
+              />
+            </TabsContent>
+          )}
 
           <TabsContent value="attendance" className="space-y-4">
             <AttendanceCalendar
