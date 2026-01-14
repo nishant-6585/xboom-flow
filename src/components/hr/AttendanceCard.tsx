@@ -105,25 +105,39 @@ export function AttendanceCard({
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Button
-            size="lg"
-            className="w-full"
-            onClick={onCheckIn}
-            disabled={loading || isCheckedIn}
-          >
-            <LogIn className="mr-2 h-4 w-4" />
-            Check In
-          </Button>
-          <Button
-            size="lg"
-            variant="outline"
-            className="w-full"
-            onClick={onCheckOut}
-            disabled={loading || !isCheckedIn || isCheckedOut || isOnBreak}
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Check Out
-          </Button>
+          {isCheckedOut ? (
+            <Button
+              size="lg"
+              className="w-full col-span-2 bg-blue-600 hover:bg-blue-700"
+              onClick={onCheckIn}
+              disabled={loading}
+            >
+              <LogIn className="mr-2 h-4 w-4" />
+              Re-Check In
+            </Button>
+          ) : (
+            <>
+              <Button
+                size="lg"
+                className="w-full"
+                onClick={onCheckIn}
+                disabled={loading || isCheckedIn}
+              >
+                <LogIn className="mr-2 h-4 w-4" />
+                Check In
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="w-full"
+                onClick={onCheckOut}
+                disabled={loading || !isCheckedIn || isOnBreak}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Check Out
+              </Button>
+            </>
+          )}
         </div>
 
         {isCheckedIn && !isCheckedOut && (

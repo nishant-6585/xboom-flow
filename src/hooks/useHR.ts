@@ -243,10 +243,31 @@ export function useHR() {
 
     try {
       const today = new Date().toISOString().split('T')[0];
-      const now = new Date().toISOString();
+      const now = new Date();
+      const nowIso = now.toISOString();
 
-      // Check if already checked in
-      if (todayAttendance?.check_in_time) {
+      // If already checked out, allow re-check-in and record the gap as break
+      if (todayAttendance?.check_in_time && todayAttendance?.check_out_time) {
+        const checkOutTime = new Date(todayAttendance.check_out_time);
+        const breakMinutes = (now.getTime() - checkOutTime.getTime()) / (1000 * 60);
+        const totalBreakMinutes = (todayAttendance.total_break_minutes || 0) + breakMinutes;
+
+        const { error } = await supabase
+          .from('attendance_logs')
+          .update({ 
+            check_out_time: null, 
+            total_break_minutes: totalBreakMinutes,
+            working_hours: null // Will be recalculated on next checkout
+          })
+          .eq('id', todayAttendance.id);
+        
+        if (error) throw error;
+        toast.success(`Re-checked in (${Math.round(breakMinutes)} mins break added)`);
+        return true;
+      }
+
+      // Check if already checked in (without checkout)
+      if (todayAttendance?.check_in_time && !todayAttendance?.check_out_time) {
         toast.error('Already checked in today');
         return false;
       }
@@ -255,7 +276,7 @@ export function useHR() {
         // Update existing record
         const { error } = await supabase
           .from('attendance_logs')
-          .update({ check_in_time: now, status: 'present' })
+          .update({ check_in_time: nowIso, status: 'present' })
           .eq('id', todayAttendance.id);
         if (error) throw error;
       } else {
@@ -265,7 +286,7 @@ export function useHR() {
           .insert({
             employee_id: myEmployee.id,
             date: today,
-            check_in_time: now,
+            check_in_time: nowIso,
             status: 'present',
           });
         if (error) throw error;
