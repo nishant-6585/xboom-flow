@@ -19,8 +19,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardList, PlusCircle, Loader2, Package, Filter, TableIcon, LayoutGrid, BarChart3, User, ListFilter, X, IndianRupee } from "lucide-react";
+import { ClipboardList, PlusCircle, Loader2, Package, Filter, TableIcon, LayoutGrid, BarChart3, User, ListFilter, X, IndianRupee, Flame, Thermometer, Snowflake, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LeadTemperature } from "@/hooks/useEnquiries";
 import { Badge } from "@/components/ui/badge";
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth, startOfWeek, format } from "date-fns";
 
@@ -48,6 +49,7 @@ const Index = () => {
   const [slaStatusFilter, setSlaStatusFilter] = useState<string>("all");
   const [valueFilter, setValueFilter] = useState<string>("all");
   const [valueFilterDate, setValueFilterDate] = useState<Date | null>(null);
+  const [leadFilter, setLeadFilter] = useState<'all' | LeadTemperature | 'mega'>('all');
 
   // Handle URL params for value filter from Admin analytics
   useEffect(() => {
@@ -85,7 +87,7 @@ const Index = () => {
 
   const canFilterBySalesPerson = role === 'admin' || role === 'supply_chain' || role === 'finance';
 
-  // Filter enquiries by category, date, sales person, status, lost reason, SLA status, and value filter
+  // Filter enquiries by category, date, sales person, status, lost reason, SLA status, value filter, and lead filter
   const filteredEnquiries = useMemo(() => {
     return enquiries.filter((e) => {
       const matchesCategory = categoryFilter === "all" || e.product_category === categoryFilter;
@@ -128,10 +130,17 @@ const Index = () => {
           matchesValueFilter = startOfDay(enquiryDate).getTime() === filterDayStart.getTime();
         }
       }
+
+      // Lead temperature / mega deal filter
+      let matchesLead = true;
+      if (leadFilter === 'hot') matchesLead = e.lead_temperature === 'hot';
+      else if (leadFilter === 'warm') matchesLead = e.lead_temperature === 'warm';
+      else if (leadFilter === 'cold') matchesLead = e.lead_temperature === 'cold';
+      else if (leadFilter === 'mega') matchesLead = e.is_mega_deal === true;
       
-      return matchesCategory && matchesDate && matchesSalesPerson && matchesStatus && matchesLostReason && matchesSlaStatus && matchesValueFilter;
+      return matchesCategory && matchesDate && matchesSalesPerson && matchesStatus && matchesLostReason && matchesSlaStatus && matchesValueFilter && matchesLead;
     });
-  }, [enquiries, categoryFilter, salesPersonFilter, statusFilter, lostReasonFilter, startDate, endDate, slaStatusFilter, valueFilter, valueFilterDate]);
+  }, [enquiries, categoryFilter, salesPersonFilter, statusFilter, lostReasonFilter, startDate, endDate, slaStatusFilter, valueFilter, valueFilterDate, leadFilter]);
 
   const clearDateFilter = () => {
     setStartDate(undefined);
@@ -452,6 +461,39 @@ const Index = () => {
                         </SelectContent>
                       </Select>
                     )}
+                    <Select value={leadFilter} onValueChange={(value) => setLeadFilter(value as typeof leadFilter)}>
+                      <SelectTrigger className="w-[150px]">
+                        <Flame className="h-4 w-4 mr-2" />
+                        <SelectValue placeholder="Lead Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Leads</SelectItem>
+                        <SelectItem value="hot">
+                          <div className="flex items-center gap-2">
+                            <Flame className="h-3.5 w-3.5 text-orange-500" />
+                            Hot Leads
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="warm">
+                          <div className="flex items-center gap-2">
+                            <Thermometer className="h-3.5 w-3.5 text-yellow-500" />
+                            Warm Leads
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="cold">
+                          <div className="flex items-center gap-2">
+                            <Snowflake className="h-3.5 w-3.5 text-blue-500" />
+                            Cold Leads
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="mega">
+                          <div className="flex items-center gap-2">
+                            <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                            Mega Deals
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                     <DateRangeFilter
                       startDate={startDate}
                       endDate={endDate}
@@ -499,7 +541,36 @@ const Index = () => {
                         </Button>
                       </div>
                     )}
-                    {(categoryFilter !== "all" || startDate || endDate || salesPersonFilter !== "all" || statusFilter !== "all" || lostReasonFilter || slaStatusFilter !== "all" || valueFilter !== "all") && (
+                    {leadFilter !== "all" && (
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-sm ${
+                        leadFilter === 'hot' ? 'bg-orange-500/10 border border-orange-500/20' :
+                        leadFilter === 'warm' ? 'bg-yellow-500/10 border border-yellow-500/20' :
+                        leadFilter === 'cold' ? 'bg-blue-500/10 border border-blue-500/20' :
+                        'bg-amber-500/10 border border-amber-500/20'
+                      }`}>
+                        {leadFilter === 'hot' && <Flame className="h-3 w-3 text-orange-500" />}
+                        {leadFilter === 'warm' && <Thermometer className="h-3 w-3 text-yellow-500" />}
+                        {leadFilter === 'cold' && <Snowflake className="h-3 w-3 text-blue-500" />}
+                        {leadFilter === 'mega' && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
+                        <span className={`font-medium ${
+                          leadFilter === 'hot' ? 'text-orange-600' :
+                          leadFilter === 'warm' ? 'text-yellow-600' :
+                          leadFilter === 'cold' ? 'text-blue-600' :
+                          'text-amber-600'
+                        }`}>
+                          {leadFilter === 'hot' ? 'Hot' : leadFilter === 'warm' ? 'Warm' : leadFilter === 'cold' ? 'Cold' : 'Mega'}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setLeadFilter("all")}
+                          className="h-5 w-5 p-0 hover:bg-muted"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                    {(categoryFilter !== "all" || startDate || endDate || salesPersonFilter !== "all" || statusFilter !== "all" || lostReasonFilter || slaStatusFilter !== "all" || valueFilter !== "all" || leadFilter !== "all") && (
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
                           {filteredEnquiries.length} of {enquiries.length}
@@ -513,6 +584,7 @@ const Index = () => {
                             setStatusFilter("all");
                             setLostReasonFilter(null);
                             setSlaStatusFilter("all");
+                            setLeadFilter("all");
                             clearValueFilter();
                             clearDateFilter();
                           }}
