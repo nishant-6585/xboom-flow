@@ -446,7 +446,7 @@ const Admin = () => {
                       <ShieldCheck className="w-6 h-6 text-success" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">2</p>
+                      <p className="text-2xl font-bold">5</p>
                       <p className="text-sm text-muted-foreground">Max Admins</p>
                     </div>
                   </div>
