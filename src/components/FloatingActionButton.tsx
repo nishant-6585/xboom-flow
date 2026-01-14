@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Plus, 
-  X,
   Package, 
   TrendingUp, 
   FileText, 
@@ -21,6 +20,18 @@ import { useEnquiries } from "@/hooks/useEnquiries";
 import { useOrders } from "@/hooks/useOrders";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { usePipelineOrders } from "@/hooks/usePipelineOrders";
+
+// Haptic feedback utility
+const triggerHaptic = (style: 'light' | 'medium' | 'heavy' = 'light') => {
+  if ('vibrate' in navigator) {
+    const patterns = {
+      light: [10],
+      medium: [20],
+      heavy: [30, 10, 30]
+    };
+    navigator.vibrate(patterns[style]);
+  }
+};
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -92,10 +103,21 @@ export function FloatingActionButton() {
     action.roles.includes(role || "")
   );
 
-  const handleActionClick = (actionId: DialogType) => {
+  const handleActionClick = useCallback((actionId: DialogType) => {
+    triggerHaptic('medium');
     setIsOpen(false);
     setActiveDialog(actionId);
-  };
+  }, []);
+
+  const handleFabToggle = useCallback(() => {
+    triggerHaptic(isOpen ? 'light' : 'medium');
+    setIsOpen(!isOpen);
+  }, [isOpen]);
+
+  const handleBackdropClick = useCallback(() => {
+    triggerHaptic('light');
+    setIsOpen(false);
+  }, []);
 
   const handleEnquirySubmit = async (data: Parameters<typeof createEnquiry>[0]) => {
     const success = await createEnquiry(data);
@@ -149,17 +171,34 @@ export function FloatingActionButton() {
         {/* Action buttons - appear when FAB is open */}
         <div 
           className={cn(
-            "absolute bottom-16 right-0 flex flex-col-reverse gap-3 transition-all duration-300",
-            isOpen ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+            "absolute bottom-16 right-0 flex flex-col-reverse gap-3",
+            "transition-all duration-300 ease-out",
+            isOpen 
+              ? "opacity-100 translate-y-0 scale-100" 
+              : "opacity-0 translate-y-4 scale-95 pointer-events-none"
           )}
         >
           {filteredActions.map((action, index) => (
             <div 
               key={action.id} 
-              className="flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2"
-              style={{ animationDelay: `${index * 50}ms` }}
+              className={cn(
+                "flex items-center gap-3",
+                "transition-all duration-300 ease-out",
+                isOpen && "animate-scale-in"
+              )}
+              style={{ 
+                animationDelay: `${index * 60}ms`,
+                animationFillMode: 'backwards'
+              }}
             >
-              <span className="text-sm font-medium bg-background/90 backdrop-blur px-3 py-1.5 rounded-full shadow-lg border border-border whitespace-nowrap">
+              <span 
+                className={cn(
+                  "text-sm font-medium bg-background/95 backdrop-blur-md",
+                  "px-3 py-1.5 rounded-full shadow-lg border border-border/50",
+                  "whitespace-nowrap transition-all duration-200",
+                  "hover:bg-background hover:shadow-xl"
+                )}
+              >
                 {action.label}
               </span>
               <Button
@@ -167,7 +206,9 @@ export function FloatingActionButton() {
                 className={cn(
                   "h-12 w-12 rounded-full shadow-lg",
                   action.bg,
-                  "hover:scale-110 transition-transform"
+                  "transition-all duration-200 ease-out",
+                  "hover:scale-110 hover:shadow-xl",
+                  "active:scale-95 active:shadow-md"
                 )}
                 onClick={() => handleActionClick(action.id)}
               >
@@ -180,26 +221,31 @@ export function FloatingActionButton() {
         {/* Main FAB button */}
         <Button
           size="icon"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={handleFabToggle}
           className={cn(
-            "h-14 w-14 rounded-full shadow-xl transition-all duration-300",
+            "h-14 w-14 rounded-full shadow-xl",
+            "transition-all duration-300 ease-out",
+            "active:scale-90",
             isOpen 
-              ? "bg-destructive hover:bg-destructive/90 rotate-45" 
-              : "bg-primary hover:bg-primary/90"
+              ? "bg-destructive hover:bg-destructive/90 rotate-45 shadow-destructive/25" 
+              : "bg-primary hover:bg-primary/90 hover:shadow-primary/25 hover:shadow-2xl"
           )}
         >
-          {isOpen ? (
-            <X className="h-6 w-6" />
-          ) : (
-            <Plus className="h-6 w-6" />
-          )}
+          <Plus className={cn(
+            "h-6 w-6 transition-transform duration-300",
+            isOpen && "rotate-45"
+          )} />
         </Button>
 
         {/* Backdrop */}
         {isOpen && (
           <div 
-            className="fixed inset-0 bg-background/60 backdrop-blur-sm -z-10"
-            onClick={() => setIsOpen(false)}
+            className={cn(
+              "fixed inset-0 -z-10",
+              "bg-background/60 backdrop-blur-sm",
+              "animate-fade-in"
+            )}
+            onClick={handleBackdropClick}
           />
         )}
       </div>
