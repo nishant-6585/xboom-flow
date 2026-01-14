@@ -502,6 +502,38 @@ export function useOrders() {
         }
       }
 
+      // Send email notification for new order
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        await fetch(`${supabaseUrl}/functions/v1/send-order-notification`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            orderNumber: orderData.order_number || orderData.id.slice(0, 8).toUpperCase(),
+            customerName: formData.customer_name,
+            customerCompany: formData.customer_company,
+            customerEmail: formData.customer_email || undefined,
+            productName: formData.product_name,
+            productCode: formData.product_name,
+            quantity: formData.quantity,
+            sellingPrice: formData.selling_price,
+            totalAmount: formData.total_sales_amount,
+            salesPersonName: formData.sales_person_name,
+            estimatedDelivery: formData.estimated_delivery,
+            shippingAddress: formData.shipping_address,
+            paymentTerms: formData.payment_terms,
+            notes: formData.customer_notes,
+          }),
+        });
+        console.log('Order notification email sent');
+      } catch (emailErr) {
+        console.error('Error sending order notification email:', emailErr);
+        // Don't fail the order creation, just log the error
+      }
+
       toast.success('Order created successfully');
       return true;
     } catch (error: any) {
