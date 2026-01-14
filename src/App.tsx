@@ -86,6 +86,14 @@ const App = () => (
               }
             />
             <Route
+              path="/sales"
+              element={
+                <ProtectedRoute>
+                  <Sales />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/finance"
               element={
                 <ProtectedRoute>
