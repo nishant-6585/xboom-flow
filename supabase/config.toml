@@ -2,3 +2,6 @@ project_id = "mxsotxddcvmeluqonuuj"
 
 [functions.ai-lead-scoring]
 verify_jwt = false
+
+[functions.ai-sales-assistant]
+verify_jwt = false

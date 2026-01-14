@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -12,10 +14,12 @@ import { TestimonialsPanel } from "@/components/sales/TestimonialsPanel";
 import { SalesRulesPanel } from "@/components/sales/SalesRulesPanel";
 import { LeadsPanel } from "@/components/sales/LeadsPanel";
 import { SalesFunnelDashboard } from "@/components/sales/SalesFunnelDashboard";
+import { AISalesAssistant } from "@/components/AISalesAssistant";
 
 export default function Sales() {
   const { role } = useAuth();
   const isManager = role === 'admin' || role === 'supply_chain';
+  const [assistantOpen, setAssistantOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -23,15 +27,17 @@ export default function Sales() {
       
       <main className="container mx-auto px-4 py-6">
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-primary to-primary/70">
-              <Zap className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                Sales Arena
-              </h1>
-              <p className="text-muted-foreground">Track, compete, and conquer your sales goals</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-primary to-primary/70">
+                <Zap className="w-6 h-6 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                  Sales Arena
+                </h1>
+                <p className="text-muted-foreground">Track, compete, and conquer your sales goals</p>
+              </div>
             </div>
           </div>
         </div>
@@ -132,6 +138,18 @@ export default function Sales() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Floating AI Assistant Button */}
+      <Button
+        onClick={() => setAssistantOpen(true)}
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105 z-40"
+        size="icon"
+      >
+        <Bot className="w-6 h-6" />
+      </Button>
+
+      {/* AI Sales Assistant Dialog */}
+      <AISalesAssistant isOpen={assistantOpen} onClose={() => setAssistantOpen(false)} />
     </div>
   );
 }
