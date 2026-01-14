@@ -115,6 +115,7 @@ export type Database = {
           created_at: string
           customer_company: string
           customer_name: string
+          customer_state: string | null
           escalated_at: string | null
           escalated_by: string | null
           escalated_by_name: string | null
@@ -155,6 +156,7 @@ export type Database = {
           created_at?: string
           customer_company: string
           customer_name: string
+          customer_state?: string | null
           escalated_at?: string | null
           escalated_by?: string | null
           escalated_by_name?: string | null
@@ -195,6 +197,7 @@ export type Database = {
           created_at?: string
           customer_company?: string
           customer_name?: string
+          customer_state?: string | null
           escalated_at?: string | null
           escalated_by?: string | null
           escalated_by_name?: string | null
@@ -228,6 +231,48 @@ export type Database = {
           urgency?: string
         }
         Relationships: []
+      }
+      enquiry_tags: {
+        Row: {
+          added_at: string | null
+          added_by: string | null
+          custom_tag: string | null
+          enquiry_id: string
+          id: string
+          tag_id: string | null
+        }
+        Insert: {
+          added_at?: string | null
+          added_by?: string | null
+          custom_tag?: string | null
+          enquiry_id: string
+          id?: string
+          tag_id?: string | null
+        }
+        Update: {
+          added_at?: string | null
+          added_by?: string | null
+          custom_tag?: string | null
+          enquiry_id?: string
+          id?: string
+          tag_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enquiry_tags_enquiry_id_fkey"
+            columns: ["enquiry_id"]
+            isOneToOne: false
+            referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enquiry_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "lead_tags"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       expected_payments: {
         Row: {
@@ -477,6 +522,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      lead_tags: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -981,6 +1056,7 @@ export type Database = {
           customer_name: string
           customer_notes: string | null
           customer_phone: string | null
+          customer_state: string | null
           enquiry_id: string | null
           expected_closure_date: string | null
           expected_price: number | null
@@ -1008,6 +1084,7 @@ export type Database = {
           customer_name: string
           customer_notes?: string | null
           customer_phone?: string | null
+          customer_state?: string | null
           enquiry_id?: string | null
           expected_closure_date?: string | null
           expected_price?: number | null
@@ -1035,6 +1112,7 @@ export type Database = {
           customer_name?: string
           customer_notes?: string | null
           customer_phone?: string | null
+          customer_state?: string | null
           enquiry_id?: string | null
           expected_closure_date?: string | null
           expected_price?: number | null
@@ -1064,6 +1142,48 @@ export type Database = {
           },
         ]
       }
+      pipeline_tags: {
+        Row: {
+          added_at: string | null
+          added_by: string | null
+          custom_tag: string | null
+          id: string
+          pipeline_order_id: string
+          tag_id: string | null
+        }
+        Insert: {
+          added_at?: string | null
+          added_by?: string | null
+          custom_tag?: string | null
+          id?: string
+          pipeline_order_id: string
+          tag_id?: string | null
+        }
+        Update: {
+          added_at?: string | null
+          added_by?: string | null
+          custom_tag?: string | null
+          id?: string
+          pipeline_order_id?: string
+          tag_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_tags_pipeline_order_id_fkey"
+            columns: ["pipeline_order_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "lead_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pricelist: {
         Row: {
           availability: string | null
@@ -1076,6 +1196,8 @@ export type Database = {
           description: string | null
           id: string
           lead_time: string | null
+          marketing_collateral_name: string | null
+          marketing_collateral_url: string | null
           min_order_quantity: number | null
           notes: string | null
           product_category: string
@@ -1096,6 +1218,8 @@ export type Database = {
           description?: string | null
           id?: string
           lead_time?: string | null
+          marketing_collateral_name?: string | null
+          marketing_collateral_url?: string | null
           min_order_quantity?: number | null
           notes?: string | null
           product_category?: string
@@ -1116,6 +1240,8 @@ export type Database = {
           description?: string | null
           id?: string
           lead_time?: string | null
+          marketing_collateral_name?: string | null
+          marketing_collateral_url?: string | null
           min_order_quantity?: number | null
           notes?: string | null
           product_category?: string
@@ -1261,6 +1387,66 @@ export type Database = {
         }
         Relationships: []
       }
+      sales_faqs: {
+        Row: {
+          answer: string | null
+          answered_at: string | null
+          answered_by: string | null
+          answered_by_name: string | null
+          approved_at: string | null
+          approved_by: string | null
+          approved_by_name: string | null
+          asked_by: string
+          asked_by_name: string
+          category: string | null
+          created_at: string | null
+          id: string
+          is_approved: boolean | null
+          is_pinned: boolean | null
+          question: string
+          updated_at: string | null
+          views_count: number | null
+        }
+        Insert: {
+          answer?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          answered_by_name?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
+          asked_by: string
+          asked_by_name: string
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_approved?: boolean | null
+          is_pinned?: boolean | null
+          question: string
+          updated_at?: string | null
+          views_count?: number | null
+        }
+        Update: {
+          answer?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          answered_by_name?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
+          asked_by?: string
+          asked_by_name?: string
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_approved?: boolean | null
+          is_pinned?: boolean | null
+          question?: string
+          updated_at?: string | null
+          views_count?: number | null
+        }
+        Relationships: []
+      }
       sales_points: {
         Row: {
           category: string
@@ -1334,6 +1520,63 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
+      sales_targets: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          notes: string | null
+          orders_achieved: number | null
+          orders_target: number | null
+          period_end: string
+          period_start: string
+          pipeline_achieved: number | null
+          pipeline_target: number | null
+          revenue_achieved: number | null
+          revenue_target: number | null
+          target_period: string
+          updated_at: string | null
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          orders_achieved?: number | null
+          orders_target?: number | null
+          period_end: string
+          period_start: string
+          pipeline_achieved?: number | null
+          pipeline_target?: number | null
+          revenue_achieved?: number | null
+          revenue_target?: number | null
+          target_period: string
+          updated_at?: string | null
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          orders_achieved?: number | null
+          orders_target?: number | null
+          period_end?: string
+          period_start?: string
+          pipeline_achieved?: number | null
+          pipeline_target?: number | null
+          revenue_achieved?: number | null
+          revenue_target?: number | null
+          target_period?: string
+          updated_at?: string | null
           user_id?: string
           user_name?: string
         }
