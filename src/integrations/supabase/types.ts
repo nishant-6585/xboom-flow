@@ -2168,6 +2168,7 @@ export type Database = {
           enquiry_id: string | null
           flagged_as_new_supplier: boolean | null
           id: string
+          meeting_id: string | null
           order_id: string | null
           parent_task_id: string | null
           pipeline_id: string | null
@@ -2198,6 +2199,7 @@ export type Database = {
           enquiry_id?: string | null
           flagged_as_new_supplier?: boolean | null
           id?: string
+          meeting_id?: string | null
           order_id?: string | null
           parent_task_id?: string | null
           pipeline_id?: string | null
@@ -2228,6 +2230,7 @@ export type Database = {
           enquiry_id?: string | null
           flagged_as_new_supplier?: boolean | null
           id?: string
+          meeting_id?: string | null
           order_id?: string | null
           parent_task_id?: string | null
           pipeline_id?: string | null
@@ -2248,6 +2251,13 @@ export type Database = {
             columns: ["enquiry_id"]
             isOneToOne: false
             referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
             referencedColumns: ["id"]
           },
           {
@@ -2411,6 +2421,7 @@ export type Database = {
         | "quotation_request"
         | "order_confirmation"
         | "custom"
+        | "meeting_reminder"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2562,6 +2573,7 @@ export const Constants = {
         "quotation_request",
         "order_confirmation",
         "custom",
+        "meeting_reminder",
       ],
     },
   },
