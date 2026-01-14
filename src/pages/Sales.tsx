@@ -3,7 +3,7 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -18,6 +18,7 @@ import { AISalesAssistant } from "@/components/AISalesAssistant";
 import { SalesTargetsPanel } from "@/components/sales/SalesTargetsPanel";
 import { SalesFAQPanel } from "@/components/sales/SalesFAQPanel";
 import { SalesAnalyticsDashboard } from "@/components/sales/SalesAnalyticsDashboard";
+import { TasksPanel } from "@/components/tasks/TasksPanel";
 
 export default function Sales() {
   const { role } = useAuth();
@@ -45,8 +46,12 @@ export default function Sales() {
           </div>
         </div>
 
-        <Tabs defaultValue={isManager ? "manager" : "activity"} className="space-y-6">
-          <TabsList className="bg-muted/50 backdrop-blur-sm">
+        <Tabs defaultValue="tasks" className="space-y-6">
+          <TabsList className="bg-muted/50 backdrop-blur-sm flex-wrap h-auto gap-1 p-1">
+            <TabsTrigger value="tasks" className="gap-2">
+              <ListTodo className="w-4 h-4" />
+              My Tasks
+            </TabsTrigger>
             {isManager && (
               <TabsTrigger value="manager" className="gap-2">
                 <BarChart3 className="w-4 h-4" />
@@ -98,6 +103,10 @@ export default function Sales() {
               Analytics
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="tasks" className="space-y-6">
+            <TasksPanel />
+          </TabsContent>
 
           {isManager && (
             <TabsContent value="manager" className="space-y-6">
