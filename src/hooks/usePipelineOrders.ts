@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 export type PipelineStatus = 'pending_confirmation' | 'won' | 'lost' | 'negotiation' | 'follow_up';
+export type LeadTemperature = 'hot' | 'warm' | 'cold';
 
 export interface PipelineOrder {
   id: string;
@@ -25,6 +26,8 @@ export interface PipelineOrder {
   priority: number | null;
   probability: number | null;
   internal_notes: string | null;
+  lead_temperature: LeadTemperature;
+  is_mega_deal: boolean;
   created_at: string;
   updated_at: string;
   created_by: string;
@@ -50,6 +53,8 @@ export interface PipelineOrderFormData {
   priority?: number;
   probability?: number;
   internal_notes?: string;
+  lead_temperature?: LeadTemperature;
+  is_mega_deal?: boolean;
 }
 
 export const PIPELINE_STATUSES = [

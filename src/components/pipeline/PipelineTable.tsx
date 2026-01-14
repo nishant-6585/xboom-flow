@@ -10,14 +10,16 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Edit, Trash2, Search, Filter, User, FolderOpen } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { CalendarIcon, Edit, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { PipelineOrder, PIPELINE_STATUSES, PipelineStatus } from '@/hooks/usePipelineOrders';
+import { PipelineOrder, PIPELINE_STATUSES, PipelineStatus, LeadTemperature } from '@/hooks/usePipelineOrders';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { ProductSelect } from '@/components/ProductSelect';
+import { LeadTemperatureBadge, LEAD_TEMPERATURES } from '@/components/LeadTemperatureBadge';
 
 interface PipelineTableProps {
   orders: PipelineOrder[];
@@ -171,6 +173,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Lead</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Product</TableHead>
                 <TableHead>Qty</TableHead>
@@ -185,13 +188,20 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
             <TableBody>
               {filteredOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     No pipeline orders found
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredOrders.map(order => (
                   <TableRow key={order.id}>
+                    <TableCell>
+                      <LeadTemperatureBadge 
+                        temperature={order.lead_temperature || "warm"} 
+                        isMegaDeal={order.is_mega_deal || false}
+                        size="sm"
+                      />
+                    </TableCell>
                     <TableCell>
                       <div>
                         <div className="font-medium">{order.customer_name}</div>
@@ -346,6 +356,43 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                         <SelectItem value="3">Low</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Lead Temperature</Label>
+                    <Select 
+                      value={editOrder.lead_temperature || 'warm'} 
+                      onValueChange={(v) => setEditOrder({...editOrder, lead_temperature: v as LeadTemperature})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LEAD_TEMPERATURES.map((temp) => (
+                          <SelectItem key={temp.value} value={temp.value}>
+                            <div className="flex items-center gap-2">
+                              {temp.value === 'hot' && <Flame className="w-4 h-4 text-orange-500" />}
+                              {temp.value === 'warm' && <Thermometer className="w-4 h-4 text-yellow-500" />}
+                              {temp.value === 'cold' && <Snowflake className="w-4 h-4 text-blue-500" />}
+                              {temp.label}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3">
+                    <div className="flex items-center gap-2">
+                      <Star className={cn(
+                        "w-4 h-4",
+                        editOrder.is_mega_deal ? "text-amber-500 fill-amber-500" : "text-muted-foreground"
+                      )} />
+                      <Label htmlFor="mega-deal" className="cursor-pointer">Mega Deal</Label>
+                    </div>
+                    <Switch 
+                      id="mega-deal"
+                      checked={editOrder.is_mega_deal || false}
+                      onCheckedChange={(checked) => setEditOrder({...editOrder, is_mega_deal: checked})}
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
