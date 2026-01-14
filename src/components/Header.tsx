@@ -74,236 +74,140 @@ export function Header() {
   );
 
   return (
-    <header className="sticky top-0 z-50 glass border-b border-border">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* Mobile Menu Trigger */}
-          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="sm:hidden">
-                <Menu className="w-5 h-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-64">
-              <SheetHeader className="mb-6">
-                <SheetTitle className="flex items-center gap-2">
-                  <img src={logoFull} alt="Xboom Logo" className="h-8 w-auto" />
-                </SheetTitle>
-              </SheetHeader>
-              <nav className="flex flex-col gap-2">
-                {filteredNavItems.map((item) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                      isActive(item.path)
-                        ? "bg-primary text-primary-foreground"
-                        : "hover:bg-muted"
-                    }`}
+    <>
+      {/* Top Bar - Logo and App Name */}
+      <header className="sticky top-0 z-50 glass border-b border-border">
+        <div className="container mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* Mobile Menu Trigger */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="sm:hidden">
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-64">
+                <SheetHeader className="mb-6">
+                  <SheetTitle className="flex items-center gap-2">
+                    <img src={logoFull} alt="Xboom Logo" className="h-8 w-auto" />
+                    <span className="font-semibold text-lg">Xboom Flow</span>
+                  </SheetTitle>
+                </SheetHeader>
+                <nav className="flex flex-col gap-2">
+                  {filteredNavItems.map((item) => (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                        isActive(item.path)
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-muted"
+                      }`}
+                    >
+                      <item.icon className="w-5 h-5" />
+                      <span className="font-medium">{item.label}</span>
+                    </Link>
+                  ))}
+                </nav>
+                <div className="absolute bottom-6 left-4 right-4">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                    <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
+                      {profile?.name ? getInitials(profile.name) : "U"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{profile?.name || "User"}</p>
+                      <p className="text-xs text-muted-foreground">{getRoleLabel(role)}</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    className="w-full mt-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      signOut();
+                    }}
                   >
-                    <item.icon className="w-5 h-5" />
-                    <span className="font-medium">{item.label}</span>
-                  </Link>
-                ))}
-              </nav>
-              <div className="absolute bottom-6 left-4 right-4">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
+
+            <Link to="/" className="flex items-center gap-3">
+              <img src={logoFull} alt="Xboom Logo" className="h-9 w-auto" />
+              <span className="font-semibold text-lg text-foreground">Xboom Flow</span>
+            </Link>
+          </div>
+
+          {/* Right side - User info */}
+          <div className="hidden sm:flex items-center gap-4">
+            {(role === 'admin' || role === 'supply_chain' || role === 'finance') && (
+              <NotificationPanel />
+            )}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                  <div className="text-right">
+                    <p className="text-sm font-medium">{profile?.name || "User"}</p>
+                    <p className="text-xs text-muted-foreground">{getRoleLabel(role)}</p>
+                  </div>
                   <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
                     {profile?.name ? getInitials(profile.name) : "U"}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{profile?.name || "User"}</p>
-                    <p className="text-xs text-muted-foreground">{getRoleLabel(role)}</p>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-popover">
+                <DropdownMenuLabel>
+                  <div>
+                    <p className="font-medium">{profile?.name}</p>
+                    <p className="text-xs text-muted-foreground">{profile?.email}</p>
                   </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  className="w-full mt-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    signOut();
-                  }}
-                >
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">
                   <LogOut className="w-4 h-4 mr-2" />
                   Sign Out
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-          <Link to="/" className="flex items-center gap-3">
-            <img src={logoFull} alt="Xboom Logo" className="h-10 w-auto" />
-            <span className="text-muted-foreground font-normal hidden sm:inline">| OS</span>
-          </Link>
-        </div>
-
-        {/* Desktop Navigation */}
-        <div className="hidden sm:flex items-center gap-4">
-          {(role === "sales" || role === "supply_chain" || role === "admin") && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link to="/sales">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <Zap className="w-4 h-4" />
-                    <span>Sales</span>
-                  </Button>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent className="sm:hidden">
-                <p>Sales</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link to="/orders">
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <Package className="w-4 h-4" />
-                  <span>Orders</span>
-                </Button>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent className="sm:hidden">
-              <p>Orders</p>
-            </TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link to="/pricelist">
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <FileSpreadsheet className="w-4 h-4" />
-                  <span>Pricelist</span>
-                </Button>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent className="sm:hidden">
-              <p>Pricelist</p>
-            </TooltipContent>
-          </Tooltip>
-
-          {(role === "admin" || role === "supply_chain" || role === "finance") && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link to="/procurement">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <ShoppingCart className="w-4 h-4" />
-                    <span>Procurement</span>
-                  </Button>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent className="sm:hidden">
-                <p>Procurement</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link to="/inventory">
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <Warehouse className="w-4 h-4" />
-                  <span>Inventory</span>
-                </Button>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent className="sm:hidden">
-              <p>Inventory</p>
-            </TooltipContent>
-          </Tooltip>
-
-          {(role === "admin" || role === "supply_chain" || role === "finance") && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link to="/suppliers">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <Building2 className="w-4 h-4" />
-                    <span>Suppliers</span>
-                  </Button>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent className="sm:hidden">
-                <p>Suppliers</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
-
-          {(role === "admin" || role === "finance") && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link to="/finance">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <IndianRupee className="w-4 h-4" />
-                    <span>Finance</span>
-                  </Button>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent className="sm:hidden">
-                <p>Finance</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
-
-          {role === "admin" && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link to="/admin">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <Shield className="w-4 h-4" />
-                    <span>Admin</span>
-                  </Button>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent className="sm:hidden">
-                <p>Admin</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
-
-          {(role === 'admin' || role === 'supply_chain' || role === 'finance') && (
-            <NotificationPanel />
-          )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                <div className="text-right">
-                  <p className="text-sm font-medium">{profile?.name || "User"}</p>
-                  <p className="text-xs text-muted-foreground">{getRoleLabel(role)}</p>
-                </div>
-                <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
-                  {profile?.name ? getInitials(profile.name) : "U"}
-                </div>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 bg-popover">
-              <DropdownMenuLabel>
-                <div>
-                  <p className="font-medium">{profile?.name}</p>
-                  <p className="text-xs text-muted-foreground">{profile?.email}</p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        {/* Mobile: Only show notification + avatar */}
-        <div className="flex sm:hidden items-center gap-2">
-          {(role === 'admin' || role === 'supply_chain' || role === 'finance') && (
-            <NotificationPanel />
-          )}
-          <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
-            {profile?.name ? getInitials(profile.name) : "U"}
+          {/* Mobile: Only show notification + avatar */}
+          <div className="flex sm:hidden items-center gap-2">
+            {(role === 'admin' || role === 'supply_chain' || role === 'finance') && (
+              <NotificationPanel />
+            )}
+            <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
+              {profile?.name ? getInitials(profile.name) : "U"}
+            </div>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* Navigation Bar - Menu Items */}
+      <nav className="hidden sm:block sticky top-14 z-40 bg-muted/50 border-b border-border">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center gap-1 h-11 overflow-x-auto">
+            {filteredNavItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                  isActive(item.path)
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                <item.icon className="w-4 h-4" />
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </nav>
+    </>
   );
 }
