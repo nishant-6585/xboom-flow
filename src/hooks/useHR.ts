@@ -77,6 +77,13 @@ export interface EmployeeKPI {
   kpi_score: number;
 }
 
+export interface EmployeeAttendanceStatus {
+  employee: Employee;
+  todayLog: AttendanceLog | null;
+  approvedLeave: LeaveRequest | null;
+  pendingLeave: LeaveRequest | null;
+}
+
 export function useHR() {
   const { user, profile } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -87,6 +94,7 @@ export function useHR() {
   const [pendingLeaves, setPendingLeaves] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [weeklyHours, setWeeklyHours] = useState(0);
+  const [teamAttendanceStatus, setTeamAttendanceStatus] = useState<EmployeeAttendanceStatus[]>([]);
 
   const fetchEmployees = useCallback(async () => {
     if (!user) return;
@@ -197,11 +205,73 @@ export function useHR() {
     }
   }, [user]);
 
+  const fetchTeamAttendanceStatus = useCallback(async () => {
+    if (!user) return;
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Fetch all employees
+      const { data: employeesData, error: empError } = await supabase
+        .from('employees')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (empError) throw empError;
+      
+      const allEmployees = (employeesData || []) as unknown as Employee[];
+      
+      // Fetch today's attendance for all employees
+      const { data: attendanceData, error: attError } = await supabase
+        .from('attendance_logs')
+        .select('*')
+        .eq('date', today);
+      
+      if (attError) throw attError;
+      
+      const todayLogs = (attendanceData || []) as unknown as AttendanceLog[];
+      
+      // Fetch leave requests that cover today
+      const { data: leavesData, error: leaveError } = await supabase
+        .from('leave_requests')
+        .select('*')
+        .lte('start_date', today)
+        .gte('end_date', today);
+      
+      if (leaveError) throw leaveError;
+      
+      const todayLeaves = leavesData || [];
+      
+      // Build status for each employee
+      const statusList: EmployeeAttendanceStatus[] = allEmployees.map((emp) => {
+        const todayLog = todayLogs.find((log) => log.employee_id === emp.id) || null;
+        const approvedLeave = todayLeaves.find(
+          (lr: any) => lr.employee_id === emp.id && lr.status === 'approved'
+        ) as LeaveRequest | undefined;
+        const pendingLeave = todayLeaves.find(
+          (lr: any) => lr.employee_id === emp.id && lr.status === 'submitted'
+        ) as LeaveRequest | undefined;
+        
+        return {
+          employee: emp,
+          todayLog,
+          approvedLeave: approvedLeave || null,
+          pendingLeave: pendingLeave || null,
+        };
+      });
+      
+      setTeamAttendanceStatus(statusList);
+    } catch (error: any) {
+      console.error('Error fetching team attendance status:', error);
+    }
+  }, [user]);
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     await fetchEmployees();
+    await fetchTeamAttendanceStatus();
     setLoading(false);
-  }, [fetchEmployees]);
+  }, [fetchEmployees, fetchTeamAttendanceStatus]);
 
   useEffect(() => {
     fetchAll();
@@ -542,6 +612,7 @@ export function useHR() {
     leaveRequests,
     pendingLeaves,
     weeklyHours,
+    teamAttendanceStatus,
     loading,
     checkIn,
     checkOut,
@@ -552,6 +623,7 @@ export function useHR() {
     getEmployeeKPI,
     createEmployee,
     fetchAttendanceLogs,
+    fetchTeamAttendanceStatus,
     refetch: fetchAll,
   };
 }
