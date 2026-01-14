@@ -16,6 +16,7 @@ import Inventory from "./pages/Inventory";
 import Pricelist from "./pages/Pricelist";
 import Sales from "./pages/Sales";
 import Finance from "./pages/Finance";
+import Tasks from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Index />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tasks"
+              element={
+                <ProtectedRoute>
+                  <Tasks />
                 </ProtectedRoute>
               }
             />
