@@ -38,30 +38,28 @@ const Auth = () => {
 
   // Check for password reset flow on mount
   useEffect(() => {
-    const handlePasswordRecovery = async () => {
-      // Check if this is a password recovery redirect
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      // Listen for auth state changes to detect recovery
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
-        if (event === "PASSWORD_RECOVERY") {
-          setIsResetPassword(true);
-        }
-      });
-
-      // Also check URL hash for recovery token (Supabase redirects with hash)
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    // Immediately check URL hash for recovery token (Supabase redirects with hash)
+    const hash = window.location.hash;
+    if (hash) {
+      const hashParams = new URLSearchParams(hash.substring(1));
       const type = hashParams.get("type");
+      const accessToken = hashParams.get("access_token");
       
-      if (type === "recovery" || searchParams.get("reset") === "true") {
+      if (type === "recovery" && accessToken) {
+        setIsResetPassword(true);
+        return; // Don't proceed further, we're in recovery mode
+      }
+    }
+
+    // Listen for auth state changes to detect recovery
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+      if (event === "PASSWORD_RECOVERY") {
         setIsResetPassword(true);
       }
+    });
 
-      return () => subscription.unsubscribe();
-    };
-
-    handlePasswordRecovery();
-  }, [searchParams]);
+    return () => subscription.unsubscribe();
+  }, []);
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string; name?: string; confirmPassword?: string } = {};
