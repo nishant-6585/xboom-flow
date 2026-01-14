@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useMeetings, Meeting, MeetingFormData, MEETING_TYPES, MEETING_STATUSES, MeetingType, MeetingStatus } from "@/hooks/useMeetings";
+import { useMeetings, Meeting, MeetingFormData, MEETING_TYPES, MEETING_STATUSES, MEETING_OUTCOMES, MeetingType, MeetingStatus, MeetingOutcome } from "@/hooks/useMeetings";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -30,6 +30,11 @@ interface LeadOption {
   customer_company: string;
   product_name: string;
   lead_type: 'enquiry' | 'pipeline';
+}
+
+interface UserOption {
+  user_id: string;
+  name: string;
 }
 
 const getStatusColor = (status: MeetingStatus) => {
@@ -166,11 +171,14 @@ const Meetings = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<MeetingStatus | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<MeetingType | 'all'>('all');
+  const [hostFilter, setHostFilter] = useState<string>('all');
+  const [participantFilter, setParticipantFilter] = useState<string>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editMeeting, setEditMeeting] = useState<Meeting | null>(null);
   
-  // Lead options for dropdown
+  // Lead and user options for dropdown
   const [leadOptions, setLeadOptions] = useState<LeadOption[]>([]);
+  const [userOptions, setUserOptions] = useState<UserOption[]>([]);
   const [leadsLoading, setLeadsLoading] = useState(false);
   
   // Form state
@@ -182,11 +190,14 @@ const Meetings = () => {
   const [formLeadId, setFormLeadId] = useState<string>('');
   const [formLeadType, setFormLeadType] = useState<'enquiry' | 'pipeline' | ''>('');
   const [formMeetingLink, setFormMeetingLink] = useState('');
+  const [formHostId, setFormHostId] = useState<string>('');
+  const [formParticipants, setFormParticipants] = useState<string[]>([]);
+  const [formMeetingOutcome, setFormMeetingOutcome] = useState<MeetingOutcome | ''>('');
   const [saving, setSaving] = useState(false);
 
-  // Fetch leads for dropdown
+  // Fetch leads and users for dropdown
   useEffect(() => {
-    const fetchLeads = async () => {
+    const fetchData = async () => {
       setLeadsLoading(true);
       try {
         // Fetch enquiries
@@ -209,15 +220,24 @@ const Meetings = () => {
         ];
         
         setLeadOptions(leads);
+
+        // Fetch all approved users for host/participants
+        const { data: users } = await supabase
+          .from('profiles')
+          .select('user_id, name')
+          .eq('is_approved', true)
+          .order('name');
+        
+        setUserOptions((users as UserOption[]) || []);
       } catch (error) {
-        console.error('Error fetching leads:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLeadsLoading(false);
       }
     };
     
     if (createDialogOpen || editMeeting) {
-      fetchLeads();
+      fetchData();
     }
   }, [createDialogOpen, editMeeting]);
 
@@ -226,11 +246,22 @@ const Meetings = () => {
     const matchesSearch = 
       (m.lead_customer_name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
       (m.lead_customer_company?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-      (m.agenda?.toLowerCase() || '').includes(searchQuery.toLowerCase());
+      (m.agenda?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+      (m.host_name?.toLowerCase() || '').includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || m.status === statusFilter;
     const matchesType = typeFilter === 'all' || m.meeting_type === typeFilter;
-    return matchesSearch && matchesStatus && matchesType;
+    const matchesHost = hostFilter === 'all' || m.host_id === hostFilter;
+    const matchesParticipant = participantFilter === 'all' || 
+      (m.participants && m.participants.includes(participantFilter));
+    return matchesSearch && matchesStatus && matchesType && matchesHost && matchesParticipant;
   });
+
+  // Get unique hosts and participants for filter
+  const uniqueHosts = [...new Map(
+    meetings
+      .filter(m => m.host_id && m.host_name)
+      .map(m => [m.host_id, { id: m.host_id!, name: m.host_name! }])
+  ).values()];
 
   // Stats
   const upcomingCount = meetings.filter(m => m.status === 'scheduled' && !isPast(new Date(m.meeting_date))).length;
@@ -251,6 +282,9 @@ const Meetings = () => {
     setFormLeadId('');
     setFormLeadType('');
     setFormMeetingLink('');
+    setFormHostId('');
+    setFormParticipants([]);
+    setFormMeetingOutcome('');
   };
 
   const handleCreate = async () => {
@@ -258,6 +292,8 @@ const Meetings = () => {
       toast.error('Please select a date');
       return;
     }
+
+    const selectedHost = userOptions.find(u => u.user_id === formHostId);
 
     setSaving(true);
     try {
@@ -274,6 +310,10 @@ const Meetings = () => {
         enquiry_id: formLeadType === 'enquiry' ? formLeadId : undefined,
         pipeline_id: formLeadType === 'pipeline' ? formLeadId : undefined,
         meeting_link: formMeetingLink || undefined,
+        host_id: formHostId || undefined,
+        host_name: selectedHost?.name || undefined,
+        participants: formParticipants.length > 0 ? formParticipants : undefined,
+        meeting_outcome: formMeetingOutcome || undefined,
       });
 
       if (success) {
@@ -287,6 +327,8 @@ const Meetings = () => {
 
   const handleUpdate = async () => {
     if (!editMeeting || !formDate) return;
+
+    const selectedHost = userOptions.find(u => u.user_id === formHostId);
 
     setSaving(true);
     try {
@@ -302,6 +344,10 @@ const Meetings = () => {
         enquiry_id: formLeadType === 'enquiry' ? formLeadId : null,
         pipeline_id: formLeadType === 'pipeline' ? formLeadId : null,
         meeting_link: formMeetingLink || null,
+        host_id: formHostId || null,
+        host_name: selectedHost?.name || null,
+        participants: formParticipants,
+        meeting_outcome: formMeetingOutcome || null,
       });
 
       if (success) {
@@ -330,6 +376,9 @@ const Meetings = () => {
     setFormAgenda(meeting.agenda || '');
     setFormBackground(meeting.background || '');
     setFormMeetingLink(meeting.meeting_link || '');
+    setFormHostId(meeting.host_id || '');
+    setFormParticipants(meeting.participants || []);
+    setFormMeetingOutcome(meeting.meeting_outcome || '');
     // Set lead info
     if (meeting.enquiry_id) {
       setFormLeadId(meeting.enquiry_id);
@@ -430,7 +479,7 @@ const Meetings = () => {
             />
           </div>
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as MeetingStatus | 'all')}>
-            <SelectTrigger className="w-full sm:w-[150px]">
+            <SelectTrigger className="w-full sm:w-[140px]">
               <Filter className="w-4 h-4 mr-2" />
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -442,13 +491,25 @@ const Meetings = () => {
             </SelectContent>
           </Select>
           <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as MeetingType | 'all')}>
-            <SelectTrigger className="w-full sm:w-[150px]">
+            <SelectTrigger className="w-full sm:w-[140px]">
               <SelectValue placeholder="Type" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
               {MEETING_TYPES.map(t => (
                 <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={hostFilter} onValueChange={setHostFilter}>
+            <SelectTrigger className="w-full sm:w-[140px]">
+              <User className="w-4 h-4 mr-2" />
+              <SelectValue placeholder="Host" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Hosts</SelectItem>
+              {uniqueHosts.map(h => (
+                <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -600,6 +661,62 @@ const Meetings = () => {
                 </Select>
               </div>
 
+              {/* Host */}
+              <div className="space-y-2">
+                <Label>Host</Label>
+                <Select value={formHostId || 'none'} onValueChange={(v) => setFormHostId(v === 'none' ? '' : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select host" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Host</SelectItem>
+                    {userOptions.map(u => (
+                      <SelectItem key={u.user_id} value={u.user_id}>{u.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Participants */}
+              <div className="space-y-2">
+                <Label>Participants</Label>
+                <div className="space-y-2">
+                  {userOptions.map(u => (
+                    <label key={u.user_id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={formParticipants.includes(u.user_id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormParticipants([...formParticipants, u.user_id]);
+                          } else {
+                            setFormParticipants(formParticipants.filter(p => p !== u.user_id));
+                          }
+                        }}
+                        className="rounded"
+                      />
+                      {u.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Meeting Outcome (for done meetings) */}
+              <div className="space-y-2">
+                <Label>Meeting Outcome</Label>
+                <Select value={formMeetingOutcome || 'none'} onValueChange={(v) => setFormMeetingOutcome(v === 'none' ? '' : v as MeetingOutcome)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Set outcome" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not Set</SelectItem>
+                    {MEETING_OUTCOMES.map(o => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Meeting Link */}
               <div className="space-y-2">
                 <Label>Meeting Link (Optional)</Label>
@@ -607,7 +724,7 @@ const Meetings = () => {
                   <LinkIcon className="w-4 h-4 text-muted-foreground" />
                   <Input
                     type="url"
-                    placeholder="https://meet.google.com/... or zoom link"
+                    placeholder="https://meet.google.com/..."
                     value={formMeetingLink}
                     onChange={(e) => setFormMeetingLink(e.target.value)}
                     className="flex-1"
@@ -622,7 +739,7 @@ const Meetings = () => {
                   placeholder="What will be discussed?"
                   value={formAgenda}
                   onChange={(e) => setFormAgenda(e.target.value)}
-                  rows={3}
+                  rows={2}
                 />
               </div>
 
@@ -633,7 +750,7 @@ const Meetings = () => {
                   placeholder="Any background information..."
                   value={formBackground}
                   onChange={(e) => setFormBackground(e.target.value)}
-                  rows={3}
+                  rows={2}
                 />
               </div>
             </div>
