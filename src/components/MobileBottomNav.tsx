@@ -1,20 +1,23 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, ListTodo, Zap, Package, MoreHorizontal, Calendar } from 'lucide-react';
+import { Home, ListTodo, Zap, MoreHorizontal, Calendar, LogOut, Package, FileSpreadsheet, ShoppingCart, Warehouse, Building2, IndianRupee, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import { Badge } from '@/components/ui/badge';
 import { useTasks } from '@/hooks/useTasks';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 
 export function MobileBottomNav() {
   const location = useLocation();
   const { role, signOut, profile } = useAuth();
   const { taskCounts } = useTasks();
+  const [moreOpen, setMoreOpen] = useState(false);
 
   if (!profile) return null;
 
@@ -28,20 +31,24 @@ export function MobileBottomNav() {
     { path: "/meetings", label: "Meetings", icon: Calendar },
   ];
 
-  // More menu items based on role
+  // More menu items based on role with icons
   const moreItems = [
-    { path: "/orders", label: "Orders", roles: ["sales", "supply_chain", "admin", "finance"] },
-    { path: "/pricelist", label: "Pricelist", roles: ["sales", "supply_chain", "admin"] },
-    { path: "/procurement", label: "Procurement", roles: ["admin", "supply_chain", "finance"] },
-    { path: "/inventory", label: "Inventory", roles: ["sales", "supply_chain", "admin"] },
-    { path: "/suppliers", label: "Suppliers", roles: ["admin", "supply_chain", "finance"] },
-    { path: "/finance", label: "Finance", roles: ["admin", "finance"] },
-    { path: "/admin", label: "Admin", roles: ["admin"] },
+    { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/pricelist", label: "Pricelist", icon: FileSpreadsheet, roles: ["sales", "supply_chain", "admin"] },
+    { path: "/procurement", label: "Procurement", icon: ShoppingCart, roles: ["admin", "supply_chain", "finance"] },
+    { path: "/inventory", label: "Inventory", icon: Warehouse, roles: ["sales", "supply_chain", "admin"] },
+    { path: "/suppliers", label: "Suppliers", icon: Building2, roles: ["admin", "supply_chain", "finance"] },
+    { path: "/finance", label: "Finance", icon: IndianRupee, roles: ["admin", "finance"] },
+    { path: "/admin", label: "Admin", icon: Shield, roles: ["admin"] },
   ].filter(item => !item.roles || item.roles.includes(role || ""));
 
   const filteredNavItems = navItems.filter(item => 
     !item.roles || item.roles.includes(role || "")
   );
+
+  const handleMoreItemClick = () => {
+    setMoreOpen(false);
+  };
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 sm:hidden bg-background border-t border-border safe-area-bottom">
@@ -76,31 +83,49 @@ export function MobileBottomNav() {
           </Link>
         ))}
 
-        {/* More Menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        {/* More Menu - Using Drawer for better mobile UX */}
+        <Drawer open={moreOpen} onOpenChange={setMoreOpen}>
+          <DrawerTrigger asChild>
             <button className="flex flex-col items-center justify-center flex-1 py-2 px-1 text-muted-foreground">
               <MoreHorizontal className="w-5 h-5" />
               <span className="text-[10px] mt-1 font-medium">More</span>
             </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="top" className="w-48 mb-2">
-            {moreItems.map((item) => (
-              <DropdownMenuItem key={item.path} asChild>
+          </DrawerTrigger>
+          <DrawerContent className="max-h-[85vh]">
+            <DrawerHeader className="pb-2">
+              <DrawerTitle>More Options</DrawerTitle>
+            </DrawerHeader>
+            <div className="px-4 pb-6 space-y-1">
+              {moreItems.map((item) => (
                 <Link 
+                  key={item.path}
                   to={item.path} 
-                  className={`w-full ${isActive(item.path) ? 'text-primary font-medium' : ''}`}
+                  onClick={handleMoreItemClick}
+                  className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${
+                    isActive(item.path) 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'hover:bg-muted'
+                  }`}
                 >
-                  {item.label}
+                  <item.icon className="w-5 h-5" />
+                  <span className="font-medium">{item.label}</span>
                 </Link>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={signOut} className="text-destructive">
-              Sign Out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              ))}
+              <div className="border-t border-border my-3" />
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 px-4 py-3 h-auto"
+                onClick={() => {
+                  setMoreOpen(false);
+                  signOut();
+                }}
+              >
+                <LogOut className="w-5 h-5 mr-3" />
+                <span className="font-medium">Sign Out</span>
+              </Button>
+            </div>
+          </DrawerContent>
+        </Drawer>
       </div>
     </nav>
   );
