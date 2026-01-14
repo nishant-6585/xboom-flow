@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { toast } from 'sonner';
 
 export interface Notification {
@@ -16,6 +17,7 @@ export interface Notification {
 
 export function useNotifications() {
   const { role, isApproved } = useAuth();
+  const { playNotificationSound } = useNotificationSound();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -37,6 +39,9 @@ export function useNotifications() {
 
     const isHotLead = notification.type === 'hot_lead';
     
+    // Play sound alert
+    playNotificationSound(isHotLead ? 'hot_lead' : 'mega_deal');
+    
     toast(notification.title, {
       description: notification.message,
       duration: 8000,
@@ -49,7 +54,7 @@ export function useNotifications() {
         },
       },
     });
-  }, []);
+  }, [playNotificationSound]);
 
   const fetchNotifications = useCallback(async () => {
     if (!isApproved) {
