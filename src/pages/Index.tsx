@@ -6,8 +6,7 @@ import { EnquiryCard } from "@/components/EnquiryCard";
 import { EnquiryTable } from "@/components/EnquiryTable";
 import { EnquiryConversionAnalytics } from "@/components/EnquiryConversionAnalytics";
 import { StatsCards } from "@/components/StatsCards";
-import { SlaStatsCards, SlaStatusFilter } from "@/components/SlaStatsCards";
-import { SalesStatsCards } from "@/components/SalesStatsCards";
+import { KeyMetricsDashboard } from "@/components/KeyMetricsDashboard";
 import { EnquiryDialog } from "@/components/EnquiryDialog";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { useEnquiries, Enquiry, PRODUCT_CATEGORIES, QueryStatus, ENQUIRY_STATUSES, LostReason } from "@/hooks/useEnquiries";
@@ -41,7 +40,7 @@ const Index = () => {
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<QueryStatus | "all">("all");
   const [lostReasonFilter, setLostReasonFilter] = useState<LostReason | null>(null);
-  const [slaStatusFilter, setSlaStatusFilter] = useState<SlaStatusFilter>("all");
+  const [slaStatusFilter, setSlaStatusFilter] = useState<string>("all");
   const [valueFilter, setValueFilter] = useState<string>("all");
   const [valueFilterDate, setValueFilterDate] = useState<Date | null>(null);
 
@@ -75,7 +74,6 @@ const Index = () => {
   }, [role]);
 
   const canCreateEnquiry = role === "sales" || role === "admin";
-  const canViewSlaStats = role === "supply_chain" || role === "admin" || role === "finance";
   const isSales = role === "sales";
   const isAdmin = role === "admin";
   const isFinance = role === "finance";
@@ -166,7 +164,7 @@ const Index = () => {
     setActiveTab("dashboard");
   };
 
-  const handleSlaStatusClick = (status: SlaStatusFilter) => {
+  const handleSlaStatusClick = (status: string) => {
     setSlaStatusFilter(status);
     setActiveTab("dashboard");
   };
@@ -186,7 +184,7 @@ const Index = () => {
     setValueFilterDate(null);
   };
 
-  const getSlaStatusLabel = (status: SlaStatusFilter): string => {
+  const getSlaStatusLabel = (status: string): string => {
     switch (status) {
       case "met": return "SLA Met";
       case "delayed": return "Delayed";
@@ -291,8 +289,7 @@ const Index = () => {
             ) : (
               <>
                 <StatsCards queries={statsQueries} onStatusClick={handleStatsClick} />
-                {canViewSlaStats && <SlaStatsCards queries={statsQueries} onSlaStatusClick={handleSlaStatusClick} />}
-                {(isSales || isAdmin || isFinance) && <SalesStatsCards queries={isAdmin || isFinance ? statsQueries : salesStatsQueries} onStatusClick={handleStatsClick} />}
+                <KeyMetricsDashboard />
 
                 {/* Category and Date Filters */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
