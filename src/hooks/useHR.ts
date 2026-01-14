@@ -40,6 +40,9 @@ export interface AttendanceLog {
   checkout_missing: boolean;
   approved_by: string | null;
   approved_by_name: string | null;
+  break_start_time: string | null;
+  break_end_time: string | null;
+  total_break_minutes: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -310,6 +313,84 @@ export function useHR() {
     }
   };
 
+  const startBreak = async (): Promise<boolean> => {
+    if (!user || !myEmployee || !todayAttendance) {
+      toast.error('No check-in found for today');
+      return false;
+    }
+
+    if (!todayAttendance.check_in_time) {
+      toast.error('Please check in first');
+      return false;
+    }
+
+    if (todayAttendance.check_out_time) {
+      toast.error('Already checked out');
+      return false;
+    }
+
+    if (todayAttendance.break_start_time && !todayAttendance.break_end_time) {
+      toast.error('Already on break');
+      return false;
+    }
+
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('attendance_logs')
+        .update({ break_start_time: now, break_end_time: null })
+        .eq('id', todayAttendance.id);
+
+      if (error) throw error;
+      toast.success('Break started');
+      return true;
+    } catch (error: any) {
+      console.error('Error starting break:', error);
+      toast.error(error.message || 'Failed to start break');
+      return false;
+    }
+  };
+
+  const endBreak = async (): Promise<boolean> => {
+    if (!user || !myEmployee || !todayAttendance) {
+      toast.error('No attendance record found');
+      return false;
+    }
+
+    if (!todayAttendance.break_start_time) {
+      toast.error('No active break found');
+      return false;
+    }
+
+    if (todayAttendance.break_end_time) {
+      toast.error('Break already ended');
+      return false;
+    }
+
+    try {
+      const now = new Date();
+      const breakStart = new Date(todayAttendance.break_start_time);
+      const breakMinutes = (now.getTime() - breakStart.getTime()) / (1000 * 60);
+      const totalBreakMinutes = (todayAttendance.total_break_minutes || 0) + breakMinutes;
+
+      const { error } = await supabase
+        .from('attendance_logs')
+        .update({ 
+          break_end_time: now.toISOString(),
+          total_break_minutes: totalBreakMinutes
+        })
+        .eq('id', todayAttendance.id);
+
+      if (error) throw error;
+      toast.success(`Break ended (${Math.round(breakMinutes)} mins)`);
+      return true;
+    } catch (error: any) {
+      console.error('Error ending break:', error);
+      toast.error(error.message || 'Failed to end break');
+      return false;
+    }
+  };
+
   const applyLeave = async (data: {
     leave_type: LeaveType;
     start_date: string;
@@ -413,6 +494,8 @@ export function useHR() {
     loading,
     checkIn,
     checkOut,
+    startBreak,
+    endBreak,
     applyLeave,
     approveLeave,
     getEmployeeKPI,

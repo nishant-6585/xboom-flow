@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { TrendingUp, Clock, Calendar, Award } from "lucide-react";
@@ -8,7 +9,7 @@ interface KPICardProps {
   loading?: boolean;
 }
 
-export function KPICard({ kpi, loading }: KPICardProps) {
+export const KPICard = forwardRef<HTMLDivElement, KPICardProps>(({ kpi, loading }, ref) => {
   if (loading) {
     return (
       <Card>
@@ -95,4 +96,6 @@ export function KPICard({ kpi, loading }: KPICardProps) {
       </CardContent>
     </Card>
   );
-}
+});
+
+KPICard.displayName = "KPICard";

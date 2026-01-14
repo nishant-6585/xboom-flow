@@ -18,6 +18,8 @@ export type Database = {
         Row: {
           approved_by: string | null
           approved_by_name: string | null
+          break_end_time: string | null
+          break_start_time: string | null
           check_in_time: string | null
           check_out_time: string | null
           checkout_missing: boolean | null
@@ -28,12 +30,15 @@ export type Database = {
           location: string | null
           notes: string | null
           status: string | null
+          total_break_minutes: number | null
           updated_at: string
           working_hours: number | null
         }
         Insert: {
           approved_by?: string | null
           approved_by_name?: string | null
+          break_end_time?: string | null
+          break_start_time?: string | null
           check_in_time?: string | null
           check_out_time?: string | null
           checkout_missing?: boolean | null
@@ -44,12 +49,15 @@ export type Database = {
           location?: string | null
           notes?: string | null
           status?: string | null
+          total_break_minutes?: number | null
           updated_at?: string
           working_hours?: number | null
         }
         Update: {
           approved_by?: string | null
           approved_by_name?: string | null
+          break_end_time?: string | null
+          break_start_time?: string | null
           check_in_time?: string | null
           check_out_time?: string | null
           checkout_missing?: boolean | null
@@ -60,6 +68,7 @@ export type Database = {
           location?: string | null
           notes?: string | null
           status?: string | null
+          total_break_minutes?: number | null
           updated_at?: string
           working_hours?: number | null
         }
