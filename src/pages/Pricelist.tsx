@@ -47,6 +47,7 @@ import {
   BarChart3,
   List,
   Bot,
+  ExternalLink,
 } from "lucide-react";
 import { AISalesAssistant } from "@/components/AISalesAssistant";
 import { toast } from "sonner";
@@ -102,6 +103,8 @@ export default function Pricelist() {
     availability: "In Stock",
     lead_time: "",
     notes: "",
+    marketing_collateral_url: "",
+    marketing_collateral_name: "",
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -289,6 +292,8 @@ export default function Pricelist() {
       availability: item.availability || "In Stock",
       lead_time: item.lead_time || "",
       notes: item.notes || "",
+      marketing_collateral_url: item.marketing_collateral_url || "",
+      marketing_collateral_name: item.marketing_collateral_name || "",
     });
     setEditDialogOpen(true);
   };
@@ -313,6 +318,8 @@ export default function Pricelist() {
       availability: "In Stock",
       lead_time: "",
       notes: "",
+      marketing_collateral_url: "",
+      marketing_collateral_name: "",
     });
   };
 
@@ -482,6 +489,7 @@ export default function Pricelist() {
                           {canManage && <TableHead>Margin</TableHead>}
                           <TableHead>Lead Time</TableHead>
                           <TableHead>Availability</TableHead>
+                          <TableHead>Collateral</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -561,6 +569,21 @@ export default function Pricelist() {
                                 <Badge variant="outline" className={getAvailabilityColor(item.availability)}>
                                   {item.availability}
                                 </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {item.marketing_collateral_url ? (
+                                  <a
+                                    href={item.marketing_collateral_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1 text-primary hover:underline text-sm"
+                                  >
+                                    <ExternalLink className="w-3 h-3" />
+                                    {item.marketing_collateral_name || "View"}
+                                  </a>
+                                ) : (
+                                  <span className="text-muted-foreground text-sm">-</span>
+                                )}
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-1">
@@ -840,6 +863,22 @@ export default function Pricelist() {
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   placeholder="Additional notes"
                   rows={2}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Marketing Collateral Name</Label>
+                <Input
+                  value={formData.marketing_collateral_name || ""}
+                  onChange={(e) => setFormData({ ...formData, marketing_collateral_name: e.target.value })}
+                  placeholder="e.g., Product Brochure, Datasheet"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Marketing Collateral URL (Google Drive)</Label>
+                <Input
+                  value={formData.marketing_collateral_url || ""}
+                  onChange={(e) => setFormData({ ...formData, marketing_collateral_url: e.target.value })}
+                  placeholder="https://drive.google.com/..."
                 />
               </div>
             </div>
