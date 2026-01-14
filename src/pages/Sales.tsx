@@ -3,7 +3,7 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -15,6 +15,8 @@ import { SalesRulesPanel } from "@/components/sales/SalesRulesPanel";
 import { LeadsPanel } from "@/components/sales/LeadsPanel";
 import { SalesFunnelDashboard } from "@/components/sales/SalesFunnelDashboard";
 import { AISalesAssistant } from "@/components/AISalesAssistant";
+import { SalesTargetsPanel } from "@/components/sales/SalesTargetsPanel";
+import { SalesFAQPanel } from "@/components/sales/SalesFAQPanel";
 
 export default function Sales() {
   const { role } = useAuth();
@@ -82,6 +84,14 @@ export default function Sales() {
               <ScrollText className="w-4 h-4" />
               Rules
             </TabsTrigger>
+            <TabsTrigger value="targets" className="gap-2">
+              <Target className="w-4 h-4" />
+              Targets
+            </TabsTrigger>
+            <TabsTrigger value="faq" className="gap-2">
+              <HelpCircle className="w-4 h-4" />
+              FAQ
+            </TabsTrigger>
           </TabsList>
 
           {isManager && (
@@ -135,6 +145,14 @@ export default function Sales() {
 
           <TabsContent value="rules" className="space-y-6">
             <SalesRulesPanel />
+          </TabsContent>
+
+          <TabsContent value="targets" className="space-y-6">
+            <SalesTargetsPanel />
+          </TabsContent>
+
+          <TabsContent value="faq" className="space-y-6">
+            <SalesFAQPanel />
           </TabsContent>
         </Tabs>
       </main>
