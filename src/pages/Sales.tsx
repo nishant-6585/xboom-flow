@@ -46,18 +46,16 @@ export default function Sales() {
           </div>
         </div>
 
-        <Tabs defaultValue="tasks" className="space-y-6">
+        <Tabs defaultValue="manager" className="space-y-6">
           <TabsList className="bg-muted/50 backdrop-blur-sm flex-wrap h-auto gap-1 p-1">
+            <TabsTrigger value="manager" className="gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Dashboard
+            </TabsTrigger>
             <TabsTrigger value="tasks" className="gap-2">
               <ListTodo className="w-4 h-4" />
               My Tasks
             </TabsTrigger>
-            {isManager && (
-              <TabsTrigger value="manager" className="gap-2">
-                <BarChart3 className="w-4 h-4" />
-                Manager Dashboard
-              </TabsTrigger>
-            )}
             <TabsTrigger value="funnel" className="gap-2">
               <GitBranch className="w-4 h-4" />
               Funnel
@@ -108,11 +106,9 @@ export default function Sales() {
             <TasksPanel />
           </TabsContent>
 
-          {isManager && (
-            <TabsContent value="manager" className="space-y-6">
-              <ManagerDashboard />
-            </TabsContent>
-          )}
+          <TabsContent value="manager" className="space-y-6">
+            <ManagerDashboard />
+          </TabsContent>
 
           <TabsContent value="funnel" className="space-y-6">
             <SalesFunnelDashboard />
