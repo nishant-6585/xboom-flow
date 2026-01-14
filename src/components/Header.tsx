@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart, Warehouse, FileSpreadsheet, Zap, IndianRupee, ListTodo } from "lucide-react";
+import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart, Warehouse, FileSpreadsheet, Zap, IndianRupee, ListTodo, Users, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "react-router-dom";
@@ -60,6 +60,8 @@ export function Header() {
   const navItems = [
     { path: "/", label: "Dashboard", icon: Home, roles: ["sales", "supply_chain", "admin", "finance"] },
     { path: "/tasks", label: "Tasks", icon: ListTodo, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/hr", label: "HR", icon: Users, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/meetings", label: "Meetings", icon: CalendarDays, roles: ["sales", "supply_chain", "admin", "finance"] },
     { path: "/sales", label: "Sales", icon: Zap, roles: ["sales", "supply_chain", "admin"] },
     { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "supply_chain", "admin", "finance"] },
     { path: "/pricelist", label: "Pricelist", icon: FileSpreadsheet, roles: ["sales", "supply_chain", "admin"] },
