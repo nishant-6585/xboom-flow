@@ -12,6 +12,7 @@ import { QuickActions } from "@/components/QuickActions";
 import { EnquiryDialog } from "@/components/EnquiryDialog";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { HotLeadsWidget } from "@/components/HotLeadsWidget";
+import { LeadTemperatureAnalytics } from "@/components/LeadTemperatureAnalytics";
 import { useEnquiries, Enquiry, PRODUCT_CATEGORIES, QueryStatus, ENQUIRY_STATUSES, LostReason } from "@/hooks/useEnquiries";
 import { usePipelineOrders } from "@/hooks/usePipelineOrders";
 import { getSlaStatus, UrgencyLevel } from "@/lib/sla";
@@ -652,11 +653,33 @@ const Index = () => {
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
               </div>
             ) : (
-              <EnquiryConversionAnalytics 
-                enquiries={isSales && user ? salesUserEnquiries : enquiries} 
-                onStatusClick={handleAnalyticsStatusClick}
-                onLostReasonClick={handleAnalyticsLostReasonClick}
-              />
+              <>
+                <EnquiryConversionAnalytics 
+                  enquiries={isSales && user ? salesUserEnquiries : enquiries} 
+                  onStatusClick={handleAnalyticsStatusClick}
+                  onLostReasonClick={handleAnalyticsLostReasonClick}
+                />
+                <LeadTemperatureAnalytics 
+                  enquiries={(isSales && user ? salesUserEnquiries : enquiries).map(e => ({
+                    id: e.id,
+                    lead_temperature: e.lead_temperature,
+                    is_mega_deal: e.is_mega_deal,
+                    status: e.status,
+                    created_at: e.created_at
+                  }))}
+                  pipelineOrders={pipelineOrders.map(p => ({
+                    id: p.id,
+                    lead_temperature: p.lead_temperature,
+                    is_mega_deal: p.is_mega_deal,
+                    status: p.status,
+                    created_at: p.created_at
+                  }))}
+                  onFilterClick={(filter) => {
+                    setLeadFilter(filter);
+                    setActiveTab("enquiries");
+                  }}
+                />
+              </>
             )}
           </TabsContent>
 
