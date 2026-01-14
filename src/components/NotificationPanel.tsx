@@ -1,4 +1,4 @@
-import { Bell, Check, CheckCheck, AlertTriangle, Clock, CreditCard } from 'lucide-react';
+import { Bell, Check, CheckCheck, AlertTriangle, Clock, CreditCard, Flame, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -27,6 +27,24 @@ function NotificationItem({
 }) {
   const isOverdue = notification.title.toLowerCase().includes('overdue');
   const isDueToday = notification.title.toLowerCase().includes('due today');
+  const isHotLead = notification.type === 'hot_lead';
+  const isMegaDeal = notification.type === 'mega_deal';
+
+  const getIcon = () => {
+    if (isHotLead) return <Flame className="w-4 h-4" />;
+    if (isMegaDeal) return <Star className="w-4 h-4" />;
+    if (isOverdue) return <AlertTriangle className="w-4 h-4" />;
+    if (isDueToday) return <Clock className="w-4 h-4" />;
+    return <CreditCard className="w-4 h-4" />;
+  };
+
+  const getIconStyle = () => {
+    if (isHotLead) return 'bg-orange-500/10 text-orange-500';
+    if (isMegaDeal) return 'bg-yellow-500/10 text-yellow-500';
+    if (isOverdue) return 'bg-destructive/10 text-destructive';
+    if (isDueToday) return 'bg-warning/10 text-warning';
+    return 'bg-primary/10 text-primary';
+  };
 
   return (
     <div
@@ -36,30 +54,17 @@ function NotificationItem({
       )}
     >
       <div className="flex items-start gap-3">
-        <div
-          className={cn(
-            'p-2 rounded-lg shrink-0',
-            isOverdue
-              ? 'bg-destructive/10 text-destructive'
-              : isDueToday
-              ? 'bg-warning/10 text-warning'
-              : 'bg-primary/10 text-primary'
-          )}
-        >
-          {isOverdue ? (
-            <AlertTriangle className="w-4 h-4" />
-          ) : isDueToday ? (
-            <Clock className="w-4 h-4" />
-          ) : (
-            <CreditCard className="w-4 h-4" />
-          )}
+        <div className={cn('p-2 rounded-lg shrink-0', getIconStyle())}>
+          {getIcon()}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <p
               className={cn(
                 'font-medium text-sm truncate',
-                isOverdue && 'text-destructive'
+                isOverdue && 'text-destructive',
+                isHotLead && 'text-orange-500',
+                isMegaDeal && 'text-yellow-600'
               )}
             >
               {notification.title}
@@ -96,7 +101,6 @@ function NotificationItem({
     </div>
   );
 }
-
 export function NotificationPanel({ className }: NotificationPanelProps) {
   const { notifications, unreadCount, markAsRead, markAllAsRead, loading } =
     useNotifications();

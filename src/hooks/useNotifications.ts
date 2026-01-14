@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 export interface Notification {
   id: string;
@@ -18,9 +19,40 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const shownToastIds = useRef<Set<string>>(new Set());
+  const isInitialLoad = useRef(true);
+
+  const showToastForNotification = useCallback((notification: Notification) => {
+    // Only show toasts for hot leads and mega deals
+    if (notification.type !== 'hot_lead' && notification.type !== 'mega_deal') {
+      return;
+    }
+
+    // Don't show toast if already shown
+    if (shownToastIds.current.has(notification.id)) {
+      return;
+    }
+
+    shownToastIds.current.add(notification.id);
+
+    const isHotLead = notification.type === 'hot_lead';
+    
+    toast(notification.title, {
+      description: notification.message,
+      duration: 8000,
+      icon: isHotLead ? '🔥' : '🌟',
+      action: {
+        label: 'View',
+        onClick: () => {
+          // Mark as read when clicked
+          markAsRead(notification.id);
+        },
+      },
+    });
+  }, []);
 
   const fetchNotifications = useCallback(async () => {
-    if (!isApproved || (role !== 'admin' && role !== 'supply_chain')) {
+    if (!isApproved) {
       setNotifications([]);
       setLoading(false);
       return;
@@ -38,12 +70,15 @@ export function useNotifications() {
       const notifs = (data || []) as Notification[];
       setNotifications(notifs);
       setUnreadCount(notifs.filter(n => !n.is_read).length);
+      
+      // Mark initial load as complete
+      isInitialLoad.current = false;
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
       setLoading(false);
     }
-  }, [role, isApproved]);
+  }, [isApproved]);
 
   useEffect(() => {
     fetchNotifications();
@@ -54,7 +89,29 @@ export function useNotifications() {
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+        },
+        (payload) => {
+          const newNotification = payload.new as Notification;
+          
+          // Add to state
+          setNotifications(prev => [newNotification, ...prev]);
+          if (!newNotification.is_read) {
+            setUnreadCount(prev => prev + 1);
+          }
+          
+          // Show toast for new hot leads and mega deals (skip on initial load)
+          if (!isInitialLoad.current) {
+            showToastForNotification(newNotification);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
           schema: 'public',
           table: 'notifications',
         },
@@ -67,7 +124,7 @@ export function useNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchNotifications]);
+  }, [fetchNotifications, showToastForNotification]);
 
   const markAsRead = async (notificationId: string) => {
     try {
