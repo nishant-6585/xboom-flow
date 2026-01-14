@@ -71,20 +71,21 @@ export function TaskTableView({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[250px]">Task</TableHead>
-            <TableHead className="w-[100px]">Priority</TableHead>
-            <TableHead className="w-[130px]">Stage</TableHead>
-            <TableHead className="w-[150px]">Assigned To</TableHead>
-            <TableHead className="w-[120px]">Due Date</TableHead>
-            <TableHead className="w-[140px]">Timer</TableHead>
-            <TableHead className="w-[100px]">Time Spent</TableHead>
-            <TableHead className="w-[80px]">Actions</TableHead>
+            <TableHead className="w-[220px]">Task</TableHead>
+            <TableHead className="w-[90px]">Priority</TableHead>
+            <TableHead className="w-[110px]">Stage</TableHead>
+            <TableHead className="w-[130px]">Assigned To</TableHead>
+            <TableHead className="w-[130px]">Assigned By</TableHead>
+            <TableHead className="w-[100px]">Due Date</TableHead>
+            <TableHead className="w-[120px]">Timer</TableHead>
+            <TableHead className="w-[90px]">Time Spent</TableHead>
+            <TableHead className="w-[70px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {tasks.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                 No tasks found
               </TableCell>
             </TableRow>
@@ -166,7 +167,7 @@ export function TaskTableView({
                         }
                       }}
                     >
-                      <SelectTrigger className="h-7 w-[130px]">
+                      <SelectTrigger className="h-7 w-[120px]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -180,6 +181,11 @@ export function TaskTableView({
                   ) : (
                     <span className="text-sm">{task.assigned_to_name}</span>
                   )}
+                </TableCell>
+                <TableCell>
+                  <span className="text-sm text-muted-foreground">
+                    {task.assigned_by_name || "System"}
+                  </span>
                 </TableCell>
                 <TableCell>
                   {task.due_date ? (

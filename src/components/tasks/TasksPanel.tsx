@@ -57,6 +57,7 @@ import { TaskFormDialog } from "./TaskFormDialog";
 import { TaskTimer, formatTimeSpent } from "./TaskTimer";
 import { TaskStageSelect, TaskStageBadge } from "./TaskStageSelect";
 import { TaskKanbanView } from "./TaskKanbanView";
+import { TaskTimeReport } from "./TaskTimeReport";
 import { TaskTableView } from "./TaskTableView";
 import {
   DropdownMenu,
@@ -335,6 +336,7 @@ export function TasksPanel() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <TaskTimeReport tasks={role === "admin" ? tasks : myTasks} />
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="w-4 h-4 mr-1" />
             Refresh
@@ -567,6 +569,12 @@ export function TasksPanel() {
                           <User className="w-3 h-3" />
                           {task.assigned_to_name}
                         </span>
+                        {task.assigned_by_name && (
+                          <span className="flex items-center gap-1">
+                            <UserCog className="w-3 h-3" />
+                            by {task.assigned_by_name}
+                          </span>
+                        )}
                         {task.due_date && (
                           <span
                             className={`flex items-center gap-1 ${
@@ -779,6 +787,17 @@ export function TasksPanel() {
                   </p>
                 </div>
               </div>
+
+              {/* Assigned By */}
+              {selectedTask.assigned_by_name && (
+                <div>
+                  <Label className="text-muted-foreground flex items-center gap-1">
+                    <UserCog className="w-3 h-3" />
+                    Assigned By
+                  </Label>
+                  <p className="mt-1">{selectedTask.assigned_by_name}</p>
+                </div>
+              )}
 
               <div>
                 <Label className="text-muted-foreground flex items-center gap-1">
