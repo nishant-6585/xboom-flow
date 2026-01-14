@@ -60,7 +60,27 @@ const HR = () => {
     }
   }, [myEmployee, calendarMonth, fetchAttendanceLogs]);
 
-  if (!myEmployee && !loading) {
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+        <Header />
+        <main className="container mx-auto px-4 py-6">
+          <div className="mb-6">
+            <div className="h-8 bg-muted rounded w-1/4 animate-pulse mb-2" />
+            <div className="h-4 bg-muted rounded w-1/2 animate-pulse" />
+          </div>
+          <div className="space-y-4">
+            <div className="h-48 bg-muted rounded-lg animate-pulse" />
+            <div className="h-32 bg-muted rounded-lg animate-pulse" />
+          </div>
+        </main>
+        {isMobile && <MobileBottomNav />}
+      </div>
+    );
+  }
+
+  if (!myEmployee) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
         <Header />
