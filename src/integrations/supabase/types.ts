@@ -1567,6 +1567,7 @@ export type Database = {
           id: string
           is_approved: boolean
           name: string
+          reporting_manager_id: string | null
           updated_at: string
           user_id: string
         }
@@ -1576,6 +1577,7 @@ export type Database = {
           id?: string
           is_approved?: boolean
           name: string
+          reporting_manager_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1585,6 +1587,7 @@ export type Database = {
           id?: string
           is_approved?: boolean
           name?: string
+          reporting_manager_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -2287,6 +2290,7 @@ export type Database = {
       can_create_admin: { Args: never; Returns: boolean }
       count_admins: { Args: never; Returns: number }
       generate_payment_reminders: { Args: never; Returns: undefined }
+      get_direct_reports: { Args: { _manager_id: string }; Returns: string[] }
       get_employee_kpi: {
         Args: { p_employee_id: string; p_month?: string }
         Returns: {
@@ -2363,6 +2367,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_reporting_manager: {
+        Args: { _employee_id: string; _manager_id: string }
         Returns: boolean
       }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }

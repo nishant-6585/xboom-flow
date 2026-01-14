@@ -50,6 +50,8 @@ interface ApprovedUser {
   email: string;
   created_at: string;
   role: string;
+  reporting_manager_id: string | null;
+  reporting_manager_name?: string;
 }
 
 const Admin = () => {
@@ -66,6 +68,7 @@ const Admin = () => {
   const [resetLoading, setResetLoading] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [roleChangeLoading, setRoleChangeLoading] = useState<string | null>(null);
+  const [managerChangeLoading, setManagerChangeLoading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("analytics");
 
   const handleValueFilterClick = (filterType: ValueFilterType, specificDate?: Date) => {
@@ -110,10 +113,10 @@ const Admin = () => {
   const fetchApprovedUsers = async () => {
     try {
       setUsersLoading(true);
-      // Fetch approved users with their roles
+      // Fetch approved users with their roles and reporting manager
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, user_id, name, email, created_at")
+        .select("id, user_id, name, email, created_at, reporting_manager_id")
         .eq("is_approved", true);
 
       if (profilesError) throw profilesError;
@@ -125,12 +128,19 @@ const Admin = () => {
 
       if (rolesError) throw rolesError;
 
-      // Combine profiles with roles
+      // Create a name lookup map
+      const nameMap = new Map<string, string>();
+      (profiles || []).forEach((p) => nameMap.set(p.user_id, p.name));
+
+      // Combine profiles with roles and manager names
       const usersWithRoles = (profiles || []).map((profile) => {
         const userRole = roles?.find((r) => r.user_id === profile.user_id);
         return {
           ...profile,
           role: userRole?.role || "unknown",
+          reporting_manager_name: profile.reporting_manager_id 
+            ? nameMap.get(profile.reporting_manager_id) || null 
+            : null,
         };
       });
 
@@ -289,12 +299,48 @@ const Admin = () => {
     }
   };
 
+  const handleChangeManager = async (userId: string, managerId: string | null, userName: string) => {
+    setManagerChangeLoading(userId);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ reporting_manager_id: managerId })
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
+      const managerName = managerId 
+        ? approvedUsers.find(u => u.user_id === managerId)?.name 
+        : null;
+
+      toast({
+        title: "Reporting Manager Updated",
+        description: managerName 
+          ? `${userName} now reports to ${managerName}`
+          : `${userName} no longer has a reporting manager`,
+      });
+
+      fetchApprovedUsers();
+    } catch (error) {
+      console.error("Error changing manager:", error);
+      toast({
+        title: "Error",
+        description: "Failed to change reporting manager",
+        variant: "destructive",
+      });
+    } finally {
+      setManagerChangeLoading(null);
+    }
+  };
+
   const getRoleLabel = (role: string) => {
     switch (role) {
       case "sales":
         return "Sales Team";
       case "supply_chain":
         return "Supply Chain";
+      case "finance":
+        return "Finance";
       case "admin":
         return "Admin";
       default:
@@ -506,28 +552,34 @@ const Admin = () => {
                     {approvedUsers.map((user) => (
                       <div
                         key={user.id}
-                        className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 border border-border"
+                        className="flex flex-col lg:flex-row lg:items-center justify-between p-4 rounded-lg bg-secondary/50 border border-border gap-4"
                       >
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-medium">{user.name}</p>
                             <Badge variant={getRoleBadgeVariant(user.role) as any}>
                               {getRoleLabel(user.role)}
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">{user.email}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Joined: {new Date(user.created_at).toLocaleDateString()}
-                          </p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>Joined: {new Date(user.created_at).toLocaleDateString()}</span>
+                            {user.reporting_manager_name && (
+                              <span className="flex items-center gap-1">
+                                <UserCog className="w-3 h-3" />
+                                Reports to: {user.reporting_manager_name}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           {/* Role Change Dropdown */}
                           <Select
                             value={user.role}
                             onValueChange={(value) => handleChangeRole(user.user_id, value, user.name)}
                             disabled={roleChangeLoading === user.user_id}
                           >
-                            <SelectTrigger className="w-[140px] h-8">
+                            <SelectTrigger className="w-[130px] h-8">
                               {roleChangeLoading === user.user_id ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               ) : (
@@ -537,7 +589,38 @@ const Admin = () => {
                             <SelectContent>
                               <SelectItem value="sales">Sales Team</SelectItem>
                               <SelectItem value="supply_chain">Supply Chain</SelectItem>
+                              <SelectItem value="finance">Finance</SelectItem>
                               <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          {/* Reporting Manager Dropdown */}
+                          <Select
+                            value={user.reporting_manager_id || "none"}
+                            onValueChange={(value) => handleChangeManager(
+                              user.user_id, 
+                              value === "none" ? null : value, 
+                              user.name
+                            )}
+                            disabled={managerChangeLoading === user.user_id}
+                          >
+                            <SelectTrigger className="w-[150px] h-8">
+                              {managerChangeLoading === user.user_id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <SelectValue placeholder="Set Manager" />
+                              )}
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">No Manager</SelectItem>
+                              {approvedUsers
+                                .filter(u => u.user_id !== user.user_id) // Can't be own manager
+                                .map((u) => (
+                                  <SelectItem key={u.user_id} value={u.user_id}>
+                                    {u.name}
+                                  </SelectItem>
+                                ))
+                              }
                             </SelectContent>
                           </Select>
 
