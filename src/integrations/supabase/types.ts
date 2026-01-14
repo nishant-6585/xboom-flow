@@ -223,6 +223,60 @@ export type Database = {
         }
         Relationships: []
       }
+      expected_payments: {
+        Row: {
+          actual_received_date: string | null
+          amount: number
+          created_at: string
+          created_by: string
+          created_by_name: string
+          customer_company: string | null
+          customer_name: string
+          expected_date: string
+          id: string
+          notes: string | null
+          order_number: string | null
+          source_id: string | null
+          source_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          actual_received_date?: string | null
+          amount: number
+          created_at?: string
+          created_by: string
+          created_by_name: string
+          customer_company?: string | null
+          customer_name: string
+          expected_date: string
+          id?: string
+          notes?: string | null
+          order_number?: string | null
+          source_id?: string | null
+          source_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          actual_received_date?: string | null
+          amount?: number
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          customer_company?: string | null
+          customer_name?: string
+          expected_date?: string
+          id?: string
+          notes?: string | null
+          order_number?: string | null
+          source_id?: string | null
+          source_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       inventory: {
         Row: {
           created_at: string

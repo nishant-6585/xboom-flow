@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart, Warehouse, FileSpreadsheet, Zap } from "lucide-react";
+import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart, Warehouse, FileSpreadsheet, Zap, IndianRupee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "react-router-dom";
@@ -65,6 +65,7 @@ export function Header() {
     { path: "/procurement", label: "Procurement", icon: ShoppingCart, roles: ["admin", "supply_chain", "finance"] },
     { path: "/inventory", label: "Inventory", icon: Warehouse, roles: ["sales", "supply_chain", "admin"] },
     { path: "/suppliers", label: "Suppliers", icon: Building2, roles: ["admin", "supply_chain", "finance"] },
+    { path: "/finance", label: "Finance", icon: IndianRupee, roles: ["admin", "finance"] },
     { path: "/admin", label: "Admin", icon: Shield, roles: ["admin"] },
   ];
 
@@ -225,6 +226,22 @@ export function Header() {
               </TooltipTrigger>
               <TooltipContent className="sm:hidden">
                 <p>Suppliers</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {(role === "admin" || role === "finance") && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link to="/finance">
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <IndianRupee className="w-4 h-4" />
+                    <span>Finance</span>
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent className="sm:hidden">
+                <p>Finance</p>
               </TooltipContent>
             </Tooltip>
           )}
