@@ -2396,6 +2396,7 @@ export type Database = {
         Returns: boolean
       }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }
+      sync_profiles_to_employees: { Args: never; Returns: number }
     }
     Enums: {
       app_role: "sales" | "supply_chain" | "admin" | "finance"
