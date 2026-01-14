@@ -1,1 +1,4 @@
 project_id = "mxsotxddcvmeluqonuuj"
+
+[functions.ai-lead-scoring]
+verify_jwt = false
