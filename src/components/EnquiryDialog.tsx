@@ -29,6 +29,7 @@ import {
 import { Enquiry, QueryStatus, EnquiryResponse, ENQUIRY_STATUSES, LOST_REASONS, LostReason } from "@/hooks/useEnquiries";
 import { StatusBadge } from "./StatusBadge";
 import { UrgencyIndicator } from "./UrgencyIndicator";
+import { AILeadScoring } from "./AILeadScoring";
 import { useAuth } from "@/hooks/useAuth";
 import { Package, User, Building2, Hash, Boxes, Clock, CheckCircle, Trash2, Loader2, AlertTriangle, Calendar, IndianRupee, UserCheck, ShieldCheck, Timer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -282,6 +283,25 @@ export function EnquiryDialog({
                 Submitted by: {enquiry.sales_person_name}
               </div>
             </div>
+
+            {/* AI Lead Scoring */}
+            <AILeadScoring 
+              enquiry={{
+                customer_name: enquiry.customer_name,
+                customer_company: enquiry.customer_company,
+                product_name: enquiry.product_name,
+                product_category: enquiry.product_category,
+                quantity: enquiry.quantity,
+                urgency: enquiry.urgency,
+                lead_temperature: enquiry.lead_temperature,
+                is_mega_deal: enquiry.is_mega_deal,
+                notes: enquiry.notes,
+                requested_timeline: enquiry.requested_timeline,
+                response_pricing: enquiry.response_pricing,
+                response_availability: enquiry.response_availability,
+                status: enquiry.status,
+              }}
+            />
 
             {/* Display existing Supply Chain Response (for everyone to see) */}
             {enquiry.responded_at && (
