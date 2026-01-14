@@ -10,6 +10,8 @@ import {
   ShoppingCart,
   Users
 } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { QueryForm } from "@/components/QueryForm";
 import { PipelineForm } from "@/components/pipeline/PipelineForm";
@@ -32,8 +34,6 @@ const triggerHaptic = (style: 'light' | 'medium' | 'heavy' = 'light') => {
     navigator.vibrate(patterns[style]);
   }
 };
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 type DialogType = "enquiry" | "pipeline" | "order" | "supplier" | "procurement" | null;
 
