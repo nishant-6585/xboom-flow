@@ -17,22 +17,69 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, userRole } = await req.json() as { messages: Message[]; userRole?: string };
+    // Verify JWT authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY) {
       throw new Error("Supabase configuration missing");
     }
 
+    // Create client with user's auth token to verify JWT and get user
+    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    // Verify the JWT by getting the user - this validates the token server-side
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    
+    if (userError || !user) {
+      console.error("JWT verification failed:", userError);
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const userId = user.id;
+
+    // Use service role client to fetch user's actual role from database
+    const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    
+    // Get user role from user_roles table (server-side verification)
+    const { data: userRoles, error: rolesError } = await serviceClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+
+    if (rolesError) {
+      console.error("Error fetching user roles:", rolesError);
+      throw new Error("Failed to verify user role");
+    }
+
+    // Parse request body (only messages, ignore any client-provided role)
+    const { messages } = await req.json() as { messages: Message[] };
+
+    // Determine role from database (not from client)
+    const roles = userRoles?.map(r => r.role) || [];
+    const canSeeCostPrice = roles.includes("admin") || roles.includes("supply_chain");
+
     // Fetch pricelist data
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { data: pricelist, error: pricelistError } = await supabase
+    const { data: pricelist, error: pricelistError } = await serviceClient
       .from("pricelist")
       .select("*")
       .limit(500);
@@ -42,10 +89,7 @@ serve(async (req) => {
       throw new Error("Failed to fetch pricelist data");
     }
 
-    // Determine what pricing info to show based on role
-    const canSeeCostPrice = userRole === "admin" || userRole === "supply_chain";
-    
-    // Format pricelist for AI context (limit sensitive data based on role)
+    // Format pricelist for AI context (limit sensitive data based on verified role)
     const formattedPricelist = (pricelist || []).map(item => {
       const baseInfo = {
         name: item.product_name,
