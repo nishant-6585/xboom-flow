@@ -14,7 +14,7 @@ import { KPICard } from "@/components/hr/KPICard";
 import { Plus, Calendar, Clock, FileText, Users } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-const HR = () => {
+export default function HR() {
   const isMobile = useIsMobile();
   const { role } = useAuth();
   const {
@@ -275,6 +275,4 @@ const HR = () => {
       {isMobile && <MobileBottomNav />}
     </div>
   );
-};
-
-export default HR;
+}
