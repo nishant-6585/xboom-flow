@@ -22,6 +22,7 @@ export interface Meeting {
   outcome: string | null;
   next_steps: string | null;
   next_followup_date: string | null;
+  meeting_link: string | null;
   created_at: string;
   updated_at: string;
   // Joined fields
@@ -41,6 +42,7 @@ export interface MeetingFormData {
   background?: string;
   participants?: string[];
   status?: MeetingStatus;
+  meeting_link?: string;
 }
 
 export const MEETING_TYPES: { value: MeetingType; label: string }[] = [
