@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTasks, Task, TaskStatus, TASK_STATUSES, TASK_TYPES, TaskType } from "@/hooks/useTasks";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,9 @@ import {
   Trash2,
   Eye,
   MoreHorizontal,
+  Edit,
+  Save,
+  UserCog,
 } from "lucide-react";
 import { format, formatDistanceToNow, isPast } from "date-fns";
 import { TaskFormDialog } from "./TaskFormDialog";
@@ -62,6 +66,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+
+interface TeamMember {
+  user_id: string;
+  name: string;
+  role: 'sales' | 'supply_chain' | 'admin' | 'finance';
+}
 
 export function TasksPanel() {
   const { user, role } = useAuth();
@@ -77,6 +88,44 @@ export function TasksPanel() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  
+  // Edit mode states
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editAssignee, setEditAssignee] = useState("");
+  const [editPriority, setEditPriority] = useState<number>(3);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // Fetch team members for reassignment
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select(`
+            user_id,
+            name,
+            user_roles!inner(role)
+          `)
+          .eq("is_approved", true);
+
+        if (error) throw error;
+
+        const members: TeamMember[] = (data || []).map((p: any) => ({
+          user_id: p.user_id,
+          name: p.name,
+          role: p.user_roles[0]?.role || "sales",
+        }));
+
+        setTeamMembers(members);
+      } catch (error) {
+        console.error("Error fetching team members:", error);
+      }
+    };
+
+    fetchTeamMembers();
+  }, []);
 
   const filteredTasks = useMemo(() => {
     let filtered = role === "admin" ? tasks : myTasks;
@@ -155,6 +204,11 @@ export function TasksPanel() {
 
   const openTaskDetails = (task: Task) => {
     setSelectedTask(task);
+    setIsEditing(false);
+    // Initialize edit fields with current values
+    setEditDueDate(task.due_date ? format(new Date(task.due_date), "yyyy-MM-dd'T'HH:mm") : "");
+    setEditAssignee(task.assigned_to);
+    setEditPriority(task.priority || 3);
     setTaskDialogOpen(true);
   };
 
@@ -168,6 +222,60 @@ export function TasksPanel() {
     await deleteTask(taskToDelete.id);
     setDeleteDialogOpen(false);
     setTaskToDelete(null);
+  };
+
+  const handleStartEdit = () => {
+    if (!selectedTask) return;
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    if (!selectedTask) return;
+    setIsEditing(false);
+    // Reset to original values
+    setEditDueDate(selectedTask.due_date ? format(new Date(selectedTask.due_date), "yyyy-MM-dd'T'HH:mm") : "");
+    setEditAssignee(selectedTask.assigned_to);
+    setEditPriority(selectedTask.priority || 3);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedTask) return;
+    
+    setSavingEdit(true);
+    try {
+      const assignee = teamMembers.find(m => m.user_id === editAssignee);
+      
+      const updates: Partial<Task> = {
+        due_date: editDueDate ? new Date(editDueDate).toISOString() : null,
+        priority: editPriority,
+      };
+
+      // Only update assignee if changed
+      if (editAssignee !== selectedTask.assigned_to && assignee) {
+        updates.assigned_to = assignee.user_id;
+        updates.assigned_to_name = assignee.name;
+        updates.assigned_role = assignee.role;
+      }
+
+      const success = await updateTask(selectedTask.id, updates);
+      if (success) {
+        setIsEditing(false);
+        // Update selected task locally for immediate feedback
+        setSelectedTask({
+          ...selectedTask,
+          ...updates,
+          assigned_to_name: assignee?.name || selectedTask.assigned_to_name,
+        });
+        toast.success("Task updated successfully");
+      }
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const getFilteredTeamMembers = () => {
+    // Show all team members for reassignment, optionally filter by role if needed
+    return teamMembers;
   };
 
   if (loading) {
@@ -462,19 +570,48 @@ export function TasksPanel() {
       />
 
       {/* Task Details Dialog */}
-      <Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
+      <Dialog open={taskDialogOpen} onOpenChange={(open) => {
+        setTaskDialogOpen(open);
+        if (!open) setIsEditing(false);
+      }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{selectedTask?.title}</DialogTitle>
-            <DialogDescription>
-              {getTaskTypeLabel(selectedTask?.task_type || "")}
-            </DialogDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle>{selectedTask?.title}</DialogTitle>
+                <DialogDescription>
+                  {getTaskTypeLabel(selectedTask?.task_type || "")}
+                </DialogDescription>
+              </div>
+              {selectedTask?.status !== "completed" && !isEditing && (
+                <Button variant="outline" size="sm" onClick={handleStartEdit}>
+                  <Edit className="w-4 h-4 mr-1" />
+                  Edit
+                </Button>
+              )}
+            </div>
           </DialogHeader>
           {selectedTask && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 {getStatusBadge(selectedTask.status)}
-                {getPriorityBadge(selectedTask.priority)}
+                {isEditing ? (
+                  <Select
+                    value={editPriority.toString()}
+                    onValueChange={(value) => setEditPriority(parseInt(value))}
+                  >
+                    <SelectTrigger className="w-[120px] h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">High</SelectItem>
+                      <SelectItem value="2">Medium</SelectItem>
+                      <SelectItem value="3">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  getPriorityBadge(selectedTask.priority)
+                )}
               </div>
 
               <div>
@@ -484,21 +621,62 @@ export function TasksPanel() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-muted-foreground">Assigned To</Label>
-                  <p className="mt-1 flex items-center gap-1">
-                    <User className="w-4 h-4" />
-                    {selectedTask.assigned_to_name}
-                  </p>
+                  <Label className="text-muted-foreground flex items-center gap-1">
+                    <UserCog className="w-3 h-3" />
+                    Assigned To
+                  </Label>
+                  {isEditing ? (
+                    <Select
+                      value={editAssignee}
+                      onValueChange={setEditAssignee}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select user" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getFilteredTeamMembers().map((member) => (
+                          <SelectItem key={member.user_id} value={member.user_id}>
+                            <span className="flex items-center gap-2">
+                              {member.name}
+                              <Badge variant="outline" className="text-xs capitalize">
+                                {member.role.replace('_', ' ')}
+                              </Badge>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="mt-1 flex items-center gap-1">
+                      <User className="w-4 h-4" />
+                      {selectedTask.assigned_to_name}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Role</Label>
-                  <p className="mt-1 capitalize">{selectedTask.assigned_role}</p>
+                  <p className="mt-1 capitalize">
+                    {isEditing 
+                      ? teamMembers.find(m => m.user_id === editAssignee)?.role?.replace('_', ' ') || selectedTask.assigned_role
+                      : selectedTask.assigned_role?.replace('_', ' ')
+                    }
+                  </p>
                 </div>
               </div>
 
-              {selectedTask.due_date && (
-                <div>
-                  <Label className="text-muted-foreground">Due Date</Label>
+              <div>
+                <Label className="text-muted-foreground flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  Due Date
+                </Label>
+                {isEditing ? (
+                  <Input
+                    type="datetime-local"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    className="mt-1"
+                  />
+                ) : selectedTask.due_date ? (
                   <p className={`mt-1 flex items-center gap-1 ${
                     isPast(new Date(selectedTask.due_date)) && selectedTask.status !== "completed"
                       ? "text-red-500"
@@ -507,8 +685,10 @@ export function TasksPanel() {
                     <Calendar className="w-4 h-4" />
                     {format(new Date(selectedTask.due_date), "PPp")}
                   </p>
-                </div>
-              )}
+                ) : (
+                  <p className="mt-1 text-muted-foreground">No due date set</p>
+                )}
+              </div>
 
               {selectedTask.completion_notes && (
                 <div>
@@ -526,27 +706,41 @@ export function TasksPanel() {
             </div>
           )}
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            {selectedTask?.status === "new" && (
-              <Button onClick={() => {
-                handleStatusChange(selectedTask, "in_progress");
-                setTaskDialogOpen(false);
-              }}>
-                <Play className="w-4 h-4 mr-2" />
-                Start Task
-              </Button>
+            {isEditing ? (
+              <>
+                <Button variant="outline" onClick={handleCancelEdit} disabled={savingEdit}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveEdit} disabled={savingEdit}>
+                  <Save className="w-4 h-4 mr-2" />
+                  {savingEdit ? "Saving..." : "Save Changes"}
+                </Button>
+              </>
+            ) : (
+              <>
+                {selectedTask?.status === "new" && (
+                  <Button onClick={() => {
+                    handleStatusChange(selectedTask, "in_progress");
+                    setTaskDialogOpen(false);
+                  }}>
+                    <Play className="w-4 h-4 mr-2" />
+                    Start Task
+                  </Button>
+                )}
+                {selectedTask?.status === "in_progress" && (
+                  <Button onClick={() => {
+                    handleStatusChange(selectedTask, "completed");
+                    setTaskDialogOpen(false);
+                  }}>
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Mark Complete
+                  </Button>
+                )}
+                <Button variant="outline" onClick={() => setTaskDialogOpen(false)}>
+                  Close
+                </Button>
+              </>
             )}
-            {selectedTask?.status === "in_progress" && (
-              <Button onClick={() => {
-                handleStatusChange(selectedTask, "completed");
-                setTaskDialogOpen(false);
-              }}>
-                <CheckCircle2 className="w-4 h-4 mr-2" />
-                Mark Complete
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => setTaskDialogOpen(false)}>
-              Close
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
