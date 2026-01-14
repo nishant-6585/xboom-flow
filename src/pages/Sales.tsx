@@ -3,7 +3,7 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -17,6 +17,7 @@ import { SalesFunnelDashboard } from "@/components/sales/SalesFunnelDashboard";
 import { AISalesAssistant } from "@/components/AISalesAssistant";
 import { SalesTargetsPanel } from "@/components/sales/SalesTargetsPanel";
 import { SalesFAQPanel } from "@/components/sales/SalesFAQPanel";
+import { SalesAnalyticsDashboard } from "@/components/sales/SalesAnalyticsDashboard";
 
 export default function Sales() {
   const { role } = useAuth();
@@ -92,6 +93,10 @@ export default function Sales() {
               <HelpCircle className="w-4 h-4" />
               FAQ
             </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2">
+              <PieChart className="w-4 h-4" />
+              Analytics
+            </TabsTrigger>
           </TabsList>
 
           {isManager && (
@@ -153,6 +158,10 @@ export default function Sales() {
 
           <TabsContent value="faq" className="space-y-6">
             <SalesFAQPanel />
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-6">
+            <SalesAnalyticsDashboard />
           </TabsContent>
         </Tabs>
       </main>
