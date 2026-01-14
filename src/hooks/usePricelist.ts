@@ -17,6 +17,8 @@ export interface PricelistItem {
   availability: string;
   lead_time: string | null;
   notes: string | null;
+  marketing_collateral_url: string | null;
+  marketing_collateral_name: string | null;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -36,6 +38,8 @@ export interface PricelistFormData {
   availability?: string;
   lead_time?: string;
   notes?: string;
+  marketing_collateral_url?: string;
+  marketing_collateral_name?: string;
 }
 
 export function usePricelist() {
