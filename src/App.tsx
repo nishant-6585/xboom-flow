@@ -14,6 +14,7 @@ import Procurement from "./pages/Procurement";
 import Inventory from "./pages/Inventory";
 import Pricelist from "./pages/Pricelist";
 import Sales from "./pages/Sales";
+import Finance from "./pages/Finance";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -84,10 +85,10 @@ const App = () => (
               }
             />
             <Route
-              path="/sales"
+              path="/finance"
               element={
                 <ProtectedRoute>
-                  <Sales />
+                  <Finance />
                 </ProtectedRoute>
               }
             />
