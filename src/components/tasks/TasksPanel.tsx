@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useTasks, Task, TaskStatus, TASK_STATUSES, TASK_TYPES, TaskType } from "@/hooks/useTasks";
+import { useTasks, Task, TaskStatus, TaskStage, TASK_STATUSES, TASK_STAGES, TASK_TYPES, TaskType, PRIORITY_OPTIONS } from "@/hooks/useTasks";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -46,9 +46,12 @@ import {
   Edit,
   Save,
   UserCog,
+  Timer,
 } from "lucide-react";
 import { format, formatDistanceToNow, isPast } from "date-fns";
 import { TaskFormDialog } from "./TaskFormDialog";
+import { TaskTimer, formatTimeSpent } from "./TaskTimer";
+import { TaskStageSelect, TaskStageBadge } from "./TaskStageSelect";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,10 +79,10 @@ interface TeamMember {
 
 export function TasksPanel() {
   const { user, role } = useAuth();
-  const { tasks, myTasks, taskCounts, loading, updateTask, deleteTask, completeSupplierValidation, refetch } = useTasks();
+  const { tasks, myTasks, taskCounts, loading, updateTask, deleteTask, completeSupplierValidation, startTimer, pauseTimer, updateStage, refetch } = useTasks();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [stageFilter, setStageFilter] = useState<string>("all");
   const [showCompletedTasks, setShowCompletedTasks] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
@@ -101,22 +104,31 @@ export function TasksPanel() {
   useEffect(() => {
     const fetchTeamMembers = async () => {
       try {
-        const { data, error } = await supabase
+        const { data: profiles, error: profilesError } = await supabase
           .from("profiles")
-          .select(`
-            user_id,
-            name,
-            user_roles!inner(role)
-          `)
+          .select("user_id, name")
           .eq("is_approved", true);
 
-        if (error) throw error;
+        if (profilesError) throw profilesError;
 
-        const members: TeamMember[] = (data || []).map((p: any) => ({
-          user_id: p.user_id,
-          name: p.name,
-          role: p.user_roles[0]?.role || "sales",
-        }));
+        const { data: roles, error: rolesError } = await supabase
+          .from("user_roles")
+          .select("user_id, role");
+
+        if (rolesError) throw rolesError;
+
+        const roleMap = new Map<string, string>();
+        (roles || []).forEach((r: any) => {
+          roleMap.set(r.user_id, r.role);
+        });
+
+        const members: TeamMember[] = (profiles || [])
+          .filter((p: any) => roleMap.has(p.user_id))
+          .map((p: any) => ({
+            user_id: p.user_id,
+            name: p.name,
+            role: (roleMap.get(p.user_id) || "sales") as TeamMember["role"],
+          }));
 
         setTeamMembers(members);
       } catch (error) {
@@ -149,12 +161,12 @@ export function TasksPanel() {
       filtered = filtered.filter((t) => t.status === statusFilter);
     }
 
-    if (typeFilter !== "all") {
-      filtered = filtered.filter((t) => t.task_type === typeFilter);
+    if (stageFilter !== "all") {
+      filtered = filtered.filter((t) => t.stage === stageFilter);
     }
 
     return filtered;
-  }, [tasks, myTasks, role, search, statusFilter, typeFilter, showCompletedTasks]);
+  }, [tasks, myTasks, role, search, statusFilter, stageFilter, showCompletedTasks]);
 
   const getStatusBadge = (status: TaskStatus) => {
     const statusConfig = TASK_STATUSES.find((s) => s.value === status);
@@ -169,14 +181,15 @@ export function TasksPanel() {
   };
 
   const getPriorityBadge = (priority: number | null) => {
-    switch (priority) {
-      case 1:
-        return <Badge variant="destructive">High</Badge>;
-      case 2:
-        return <Badge variant="secondary" className="bg-yellow-500 text-white">Medium</Badge>;
-      default:
-        return <Badge variant="outline">Low</Badge>;
+    const config = PRIORITY_OPTIONS.find(p => p.value === priority);
+    if (config) {
+      return (
+        <Badge variant="outline" className={`${config.color} text-white border-0`}>
+          {config.label}
+        </Badge>
+      );
     }
+    return <Badge variant="outline">Priority 3</Badge>;
   };
 
   const getTaskTypeLabel = (type: string) => {
@@ -398,15 +411,18 @@ export function TasksPanel() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Task Type" />
+            <Select value={stageFilter} onValueChange={setStageFilter}>
+              <SelectTrigger className="w-full sm:w-[160px]">
+                <SelectValue placeholder="Stage" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                {TASK_TYPES.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
+                <SelectItem value="all">All Stages</SelectItem>
+                {TASK_STAGES.map((stage) => (
+                  <SelectItem key={stage.value} value={stage.value}>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${stage.color}`} />
+                      {stage.label}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -440,7 +456,7 @@ export function TasksPanel() {
               <CheckCircle2 className="w-16 h-16 mx-auto mb-4 opacity-30" />
               <p className="text-lg font-medium">No tasks found</p>
               <p className="text-sm">
-                {search || statusFilter !== "all" || typeFilter !== "all"
+                {search || statusFilter !== "all" || stageFilter !== "all"
                   ? "Try adjusting your filters"
                   : "Create a new task to get started"}
               </p>
@@ -465,12 +481,12 @@ export function TasksPanel() {
                   } ${task.status === "completed" ? "opacity-60" : ""}`}
                   onClick={() => openTaskDetails(task)}
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-medium truncate">{task.title}</h4>
                         {getPriorityBadge(task.priority)}
-                        {getStatusBadge(task.status)}
+                        <TaskStageBadge stage={task.stage || 'new'} />
                       </div>
                       {task.description && (
                         <p className="text-sm text-muted-foreground line-clamp-1 mt-1">
@@ -500,32 +516,21 @@ export function TasksPanel() {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {task.status === "new" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStatusChange(task, "in_progress");
-                          }}
-                        >
-                          <Play className="w-4 h-4 mr-1" />
-                          Start
-                        </Button>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Timer display */}
+                      {task.stage !== 'completed' && (
+                        <TaskTimer
+                          task={task}
+                          onStart={() => startTimer(task.id)}
+                          onPause={() => pauseTimer(task.id)}
+                          compact
+                        />
                       )}
-                      {task.status === "in_progress" && (
-                        <Button
-                          size="sm"
-                          variant="default"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStatusChange(task, "completed");
-                          }}
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-1" />
-                          Complete
-                        </Button>
+                      {task.stage === 'completed' && (task.time_spent_seconds || 0) > 0 && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Timer className="w-3 h-3" />
+                          {formatTimeSpent(task.time_spent_seconds || 0)}
+                        </div>
                       )}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -541,6 +546,19 @@ export function TasksPanel() {
                             <Eye className="w-4 h-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {TASK_STAGES.filter(s => s.value !== task.stage).map(stage => (
+                            <DropdownMenuItem 
+                              key={stage.value}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateStage(task.id, stage.value);
+                              }}
+                            >
+                              <div className={`w-2 h-2 rounded-full ${stage.color} mr-2`} />
+                              Move to {stage.label}
+                            </DropdownMenuItem>
+                          ))}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-red-500"
@@ -593,20 +611,53 @@ export function TasksPanel() {
           </DialogHeader>
           {selectedTask && (
             <div className="space-y-4">
+              {/* Stage and Timer row */}
+              <div className="flex items-center justify-between gap-4 p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Stage</Label>
+                    {selectedTask.stage !== 'completed' ? (
+                      <TaskStageSelect
+                        value={selectedTask.stage || 'new'}
+                        onChange={(stage) => updateStage(selectedTask.id, stage)}
+                      />
+                    ) : (
+                      <TaskStageBadge stage={selectedTask.stage} />
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Time Spent</Label>
+                  <div className="mt-1">
+                    <TaskTimer
+                      task={selectedTask}
+                      onStart={() => startTimer(selectedTask.id)}
+                      onPause={() => pauseTimer(selectedTask.id)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Priority */}
               <div className="flex items-center gap-2">
-                {getStatusBadge(selectedTask.status)}
+                <Label className="text-muted-foreground">Priority:</Label>
                 {isEditing ? (
                   <Select
                     value={editPriority.toString()}
                     onValueChange={(value) => setEditPriority(parseInt(value))}
                   >
-                    <SelectTrigger className="w-[120px] h-8">
+                    <SelectTrigger className="w-[140px] h-8">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1">High</SelectItem>
-                      <SelectItem value="2">Medium</SelectItem>
-                      <SelectItem value="3">Low</SelectItem>
+                      {PRIORITY_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value.toString()}>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${opt.color}`} />
+                            {opt.label}
+                          </div>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 ) : (
@@ -701,6 +752,9 @@ export function TasksPanel() {
                 Created: {format(new Date(selectedTask.created_at), "PPp")}
                 {selectedTask.completed_at && (
                   <> • Completed: {format(new Date(selectedTask.completed_at), "PPp")}</>
+                )}
+                {(selectedTask.time_spent_seconds || 0) > 0 && (
+                  <> • Total time: {formatTimeSpent(selectedTask.time_spent_seconds || 0)}</>
                 )}
               </div>
             </div>

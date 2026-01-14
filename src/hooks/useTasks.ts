@@ -16,6 +16,8 @@ export type TaskType =
   | 'custom';
 
 export type TaskStatus = 'new' | 'in_progress' | 'awaiting_approval' | 'completed';
+export type TaskStage = 'new' | 'started' | 'in_review' | 'on_hold' | 'completed';
+export type TimerStatus = 'stopped' | 'running' | 'paused';
 
 export interface Task {
   id: string;
@@ -42,6 +44,11 @@ export interface Task {
   completion_notes: string | null;
   created_at: string;
   updated_at: string;
+  // Timer fields
+  time_spent_seconds: number;
+  timer_started_at: string | null;
+  timer_status: TimerStatus;
+  stage: TaskStage;
 }
 
 export interface TaskFormData {
@@ -84,6 +91,20 @@ export const TASK_STATUSES: { value: TaskStatus; label: string; color: string }[
   { value: 'in_progress', label: 'In Progress', color: 'bg-yellow-500' },
   { value: 'awaiting_approval', label: 'Awaiting Approval', color: 'bg-purple-500' },
   { value: 'completed', label: 'Completed', color: 'bg-green-500' },
+];
+
+export const TASK_STAGES: { value: TaskStage; label: string; color: string }[] = [
+  { value: 'new', label: 'New', color: 'bg-slate-500' },
+  { value: 'started', label: 'Started', color: 'bg-blue-500' },
+  { value: 'in_review', label: 'In Review', color: 'bg-purple-500' },
+  { value: 'on_hold', label: 'On Hold', color: 'bg-yellow-500' },
+  { value: 'completed', label: 'Completed', color: 'bg-green-500' },
+];
+
+export const PRIORITY_OPTIONS = [
+  { value: 1, label: 'Priority 1', color: 'bg-red-500' },
+  { value: 2, label: 'Priority 2', color: 'bg-orange-500' },
+  { value: 3, label: 'Priority 3', color: 'bg-yellow-500' },
 ];
 
 export function useTasks() {
@@ -224,10 +245,101 @@ export function useTasks() {
   ): Promise<boolean> => {
     return updateTask(taskId, {
       status: 'completed',
+      stage: 'completed',
+      timer_status: 'stopped',
       supplier_exists: supplierExists,
       flagged_as_new_supplier: flagAsNewSupplier,
       completion_notes: notes,
     });
+  };
+
+  // Timer functions
+  const startTimer = async (taskId: string): Promise<boolean> => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return false;
+
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({
+          timer_status: 'running',
+          timer_started_at: new Date().toISOString(),
+          stage: task.stage === 'new' ? 'started' : task.stage,
+          status: task.status === 'new' ? 'in_progress' : task.status,
+        })
+        .eq('id', taskId);
+
+      if (error) throw error;
+      toast.success('Timer started');
+      return true;
+    } catch (error: any) {
+      console.error('Error starting timer:', error);
+      toast.error('Failed to start timer');
+      return false;
+    }
+  };
+
+  const pauseTimer = async (taskId: string): Promise<boolean> => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || !task.timer_started_at) return false;
+
+    try {
+      const elapsedSeconds = Math.floor(
+        (new Date().getTime() - new Date(task.timer_started_at).getTime()) / 1000
+      );
+      const newTimeSpent = (task.time_spent_seconds || 0) + elapsedSeconds;
+
+      const { error } = await supabase
+        .from('tasks')
+        .update({
+          timer_status: 'paused',
+          timer_started_at: null,
+          time_spent_seconds: newTimeSpent,
+        })
+        .eq('id', taskId);
+
+      if (error) throw error;
+      toast.success('Timer paused');
+      return true;
+    } catch (error: any) {
+      console.error('Error pausing timer:', error);
+      toast.error('Failed to pause timer');
+      return false;
+    }
+  };
+
+  const updateStage = async (taskId: string, stage: TaskStage): Promise<boolean> => {
+    try {
+      const updates: Partial<Task> = { stage };
+      
+      // Sync status with stage
+      if (stage === 'completed') {
+        updates.status = 'completed';
+        updates.timer_status = 'stopped';
+        updates.completed_at = new Date().toISOString();
+        updates.completed_by = user?.id;
+        updates.completed_by_name = profile?.name;
+      } else if (stage === 'started') {
+        updates.status = 'in_progress';
+      } else if (stage === 'in_review') {
+        updates.status = 'awaiting_approval';
+      } else if (stage === 'on_hold') {
+        updates.timer_status = 'paused';
+      }
+
+      const { error } = await supabase
+        .from('tasks')
+        .update(updates)
+        .eq('id', taskId);
+
+      if (error) throw error;
+      toast.success(`Stage updated to ${stage}`);
+      return true;
+    } catch (error: any) {
+      console.error('Error updating stage:', error);
+      toast.error('Failed to update stage');
+      return false;
+    }
   };
 
   // Filter helpers
@@ -250,6 +362,9 @@ export function useTasks() {
     updateTask,
     deleteTask,
     completeSupplierValidation,
+    startTimer,
+    pauseTimer,
+    updateStage,
     refetch: fetchTasks,
   };
 }
