@@ -95,6 +95,11 @@ export function TaskKanbanView({
                       <User className="w-3 h-3 mr-1" />
                       {task.assigned_to_name?.split(' ')[0]}
                     </Badge>
+                    {task.assigned_by_name && (
+                      <Badge variant="secondary" className="text-xs">
+                        by {task.assigned_by_name.split(' ')[0]}
+                      </Badge>
+                    )}
                     {task.due_date && (
                       <Badge 
                         variant="outline" 
