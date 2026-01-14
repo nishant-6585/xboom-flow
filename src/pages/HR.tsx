@@ -27,6 +27,8 @@ const HR = () => {
     loading,
     checkIn,
     checkOut,
+    startBreak,
+    endBreak,
     applyLeave,
     approveLeave,
     getEmployeeKPI,
@@ -113,6 +115,8 @@ const HR = () => {
               weeklyHours={weeklyHours}
               onCheckIn={checkIn}
               onCheckOut={checkOut}
+              onStartBreak={startBreak}
+              onEndBreak={endBreak}
               loading={loading}
             />
 
@@ -160,6 +164,11 @@ const HR = () => {
                         ? new Date(log.check_out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         : '--:--'}
                     </p>
+                    {log.total_break_minutes && log.total_break_minutes > 0 && (
+                      <p className="text-xs text-orange-600">
+                        Break: {Math.round(log.total_break_minutes)}m
+                      </p>
+                    )}
                   </div>
                   <div className="text-right">
                     <span className="font-medium">

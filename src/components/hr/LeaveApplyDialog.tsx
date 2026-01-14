@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,7 +37,7 @@ const LEAVE_TYPES: { value: LeaveType; label: string }[] = [
   { value: 'half_day', label: 'Half Day' },
 ];
 
-export function LeaveApplyDialog({ open, onOpenChange, onSubmit }: LeaveApplyDialogProps) {
+export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps>(({ open, onOpenChange, onSubmit }, ref) => {
   const [step, setStep] = useState(1);
   const [leaveType, setLeaveType] = useState<LeaveType>('casual');
   const [startDate, setStartDate] = useState('');
@@ -207,4 +207,6 @@ export function LeaveApplyDialog({ open, onOpenChange, onSubmit }: LeaveApplyDia
       </DialogContent>
     </Dialog>
   );
-}
+});
+
+LeaveApplyDialog.displayName = "LeaveApplyDialog";
