@@ -58,6 +58,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
   const [internalStatusFilter, setInternalStatusFilter] = useState<PipelineStatus | 'all'>('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [salesPersonFilter, setSalesPersonFilter] = useState('all');
+  const [leadFilter, setLeadFilter] = useState<'all' | 'hot' | 'warm' | 'cold' | 'mega'>('all');
   const [salesTeam, setSalesTeam] = useState<SalesTeamMember[]>([]);
   const [editOrder, setEditOrder] = useState<PipelineOrder | null>(null);
   const [editClosureDate, setEditClosureDate] = useState<Date | undefined>(undefined);
@@ -84,7 +85,15 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     const matchesCategory = categoryFilter === 'all' || order.product_category === categoryFilter;
     const matchesSalesPerson = salesPersonFilter === 'all' || order.sales_person_id === salesPersonFilter;
-    return matchesSearch && matchesStatus && matchesCategory && matchesSalesPerson;
+    
+    // Lead temperature / mega deal filter
+    let matchesLead = true;
+    if (leadFilter === 'hot') matchesLead = order.lead_temperature === 'hot';
+    else if (leadFilter === 'warm') matchesLead = order.lead_temperature === 'warm';
+    else if (leadFilter === 'cold') matchesLead = order.lead_temperature === 'cold';
+    else if (leadFilter === 'mega') matchesLead = order.is_mega_deal === true;
+    
+    return matchesSearch && matchesStatus && matchesCategory && matchesSalesPerson && matchesLead;
   });
 
   const handleEditClick = (order: PipelineOrder) => {
@@ -167,6 +176,39 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
               </SelectContent>
             </Select>
           )}
+          <Select value={leadFilter} onValueChange={(value) => setLeadFilter(value as typeof leadFilter)}>
+            <SelectTrigger className="w-[150px]">
+              <Flame className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Lead Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Leads</SelectItem>
+              <SelectItem value="hot">
+                <div className="flex items-center gap-2">
+                  <Flame className="h-3.5 w-3.5 text-orange-500" />
+                  Hot Leads
+                </div>
+              </SelectItem>
+              <SelectItem value="warm">
+                <div className="flex items-center gap-2">
+                  <Thermometer className="h-3.5 w-3.5 text-yellow-500" />
+                  Warm Leads
+                </div>
+              </SelectItem>
+              <SelectItem value="cold">
+                <div className="flex items-center gap-2">
+                  <Snowflake className="h-3.5 w-3.5 text-blue-500" />
+                  Cold Leads
+                </div>
+              </SelectItem>
+              <SelectItem value="mega">
+                <div className="flex items-center gap-2">
+                  <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                  Mega Deals
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="rounded-md border overflow-x-auto">
