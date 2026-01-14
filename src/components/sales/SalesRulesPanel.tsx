@@ -8,6 +8,15 @@ import {
 
 const pointRules = [
   {
+    category: "Pipeline Creation",
+    icon: TrendingUp,
+    color: "from-cyan-500 to-teal-600",
+    rules: [
+      { action: "New Pipeline Added", points: 5, description: "Base points for adding a new pipeline" },
+      { action: "Pipeline Value Bonus", points: "+1 per ₹25K", description: "Additional points based on expected pipeline value" },
+    ]
+  },
+  {
     category: "Order Creation",
     icon: ShoppingBag,
     color: "from-green-500 to-emerald-600",
@@ -30,10 +39,10 @@ const pointRules = [
     color: "from-purple-500 to-violet-600",
     rules: [
       { action: "5-Star Rating", points: 50, description: "Customer gives 5-star rating" },
-      { action: "4-Star Rating", points: 35, description: "Customer gives 4-star rating" },
-      { action: "3-Star Rating", points: 20, description: "Customer gives 3-star rating" },
-      { action: "1-2 Star Rating", points: 10, description: "Customer gives 1-2 star rating" },
-      { action: "Testimonial Approved", points: 15, description: "Bonus when testimonial is approved by admin" },
+      { action: "4-Star Rating", points: 40, description: "Customer gives 4-star rating" },
+      { action: "3-Star Rating", points: 30, description: "Customer gives 3-star rating" },
+      { action: "1-2 Star Rating", points: "10-20", description: "Points based on rating" },
+      { action: "Testimonial Approved", points: 15, description: "Bonus when testimonial is approved" },
     ]
   },
   {
@@ -51,7 +60,6 @@ const pointRules = [
     rules: [
       { action: "Repeat Customer Order", points: "Bonus", description: "Orders from returning customers" },
       { action: "Customer Reference", points: "Bonus", description: "New customer from referral" },
-      { action: "Customer Review", points: "Bonus", description: "Collecting customer reviews" },
     ]
   },
   {
