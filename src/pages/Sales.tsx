@@ -3,7 +3,7 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -19,6 +19,7 @@ import { SalesTargetsPanel } from "@/components/sales/SalesTargetsPanel";
 import { SalesFAQPanel } from "@/components/sales/SalesFAQPanel";
 import { SalesAnalyticsDashboard } from "@/components/sales/SalesAnalyticsDashboard";
 import { TasksPanel } from "@/components/tasks/TasksPanel";
+import { PipelineOrders } from "@/components/pipeline/PipelineOrders";
 
 export default function Sales() {
   const { role } = useAuth();
@@ -67,6 +68,10 @@ export default function Sales() {
             <TabsTrigger value="leads" className="gap-2">
               <Users className="w-4 h-4" />
               Leads
+            </TabsTrigger>
+            <TabsTrigger value="pipeline" className="gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Pipeline
             </TabsTrigger>
             <TabsTrigger value="leaderboard" className="gap-2">
               <Trophy className="w-4 h-4" />
@@ -128,6 +133,10 @@ export default function Sales() {
 
           <TabsContent value="leads" className="space-y-6">
             <LeadsPanel />
+          </TabsContent>
+
+          <TabsContent value="pipeline" className="space-y-6">
+            <PipelineOrders />
           </TabsContent>
 
           <TabsContent value="leaderboard" className="space-y-6">
