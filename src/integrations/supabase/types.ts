@@ -553,6 +553,88 @@ export type Database = {
         }
         Relationships: []
       }
+      meetings: {
+        Row: {
+          agenda: string | null
+          background: string | null
+          created_at: string
+          enquiry_id: string | null
+          id: string
+          meeting_date: string
+          meeting_type: string
+          next_followup_date: string | null
+          next_steps: string | null
+          order_id: string | null
+          outcome: string | null
+          owner_id: string
+          owner_name: string
+          participants: string[] | null
+          pipeline_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agenda?: string | null
+          background?: string | null
+          created_at?: string
+          enquiry_id?: string | null
+          id?: string
+          meeting_date: string
+          meeting_type: string
+          next_followup_date?: string | null
+          next_steps?: string | null
+          order_id?: string | null
+          outcome?: string | null
+          owner_id: string
+          owner_name: string
+          participants?: string[] | null
+          pipeline_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agenda?: string | null
+          background?: string | null
+          created_at?: string
+          enquiry_id?: string | null
+          id?: string
+          meeting_date?: string
+          meeting_type?: string
+          next_followup_date?: string | null
+          next_steps?: string | null
+          order_id?: string | null
+          outcome?: string | null
+          owner_id?: string
+          owner_name?: string
+          participants?: string[] | null
+          pipeline_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meetings_enquiry_id_fkey"
+            columns: ["enquiry_id"]
+            isOneToOne: false
+            referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meetings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meetings_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
