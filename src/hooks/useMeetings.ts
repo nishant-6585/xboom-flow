@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 export type MeetingType = 'discovery' | 'pricing' | 'negotiation' | 'closing' | 'internal';
 export type MeetingStatus = 'requested' | 'scheduled' | 'done' | 'cancelled';
+export type MeetingOutcome = 'pursued' | 'deal_closed' | 'deal_lost';
 
 export interface Meeting {
   id: string;
@@ -18,8 +19,11 @@ export interface Meeting {
   participants: string[];
   owner_id: string;
   owner_name: string;
+  host_id: string | null;
+  host_name: string | null;
   status: MeetingStatus;
   outcome: string | null;
+  meeting_outcome: MeetingOutcome | null;
   next_steps: string | null;
   next_followup_date: string | null;
   meeting_link: string | null;
@@ -30,6 +34,8 @@ export interface Meeting {
   lead_customer_company?: string;
   lead_product_name?: string;
   lead_status?: string;
+  // Resolved participant names
+  participant_names?: string[];
 }
 
 export interface MeetingFormData {
@@ -41,8 +47,11 @@ export interface MeetingFormData {
   agenda?: string;
   background?: string;
   participants?: string[];
+  host_id?: string;
+  host_name?: string;
   status?: MeetingStatus;
   meeting_link?: string;
+  meeting_outcome?: MeetingOutcome;
 }
 
 export const MEETING_TYPES: { value: MeetingType; label: string }[] = [
@@ -58,6 +67,12 @@ export const MEETING_STATUSES: { value: MeetingStatus; label: string; color: str
   { value: 'scheduled', label: 'Scheduled', color: 'bg-yellow-500' },
   { value: 'done', label: 'Done', color: 'bg-green-500' },
   { value: 'cancelled', label: 'Cancelled', color: 'bg-red-500' },
+];
+
+export const MEETING_OUTCOMES: { value: MeetingOutcome; label: string; color: string }[] = [
+  { value: 'pursued', label: 'Being Pursued', color: 'bg-blue-500' },
+  { value: 'deal_closed', label: 'Deal Closed', color: 'bg-green-500' },
+  { value: 'deal_lost', label: 'Deal Lost', color: 'bg-red-500' },
 ];
 
 export function useMeetings() {

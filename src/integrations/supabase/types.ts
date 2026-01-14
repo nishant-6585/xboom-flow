@@ -731,9 +731,12 @@ export type Database = {
           background: string | null
           created_at: string
           enquiry_id: string | null
+          host_id: string | null
+          host_name: string | null
           id: string
           meeting_date: string
           meeting_link: string | null
+          meeting_outcome: string | null
           meeting_type: string
           next_followup_date: string | null
           next_steps: string | null
@@ -751,9 +754,12 @@ export type Database = {
           background?: string | null
           created_at?: string
           enquiry_id?: string | null
+          host_id?: string | null
+          host_name?: string | null
           id?: string
           meeting_date: string
           meeting_link?: string | null
+          meeting_outcome?: string | null
           meeting_type: string
           next_followup_date?: string | null
           next_steps?: string | null
@@ -771,9 +777,12 @@ export type Database = {
           background?: string | null
           created_at?: string
           enquiry_id?: string | null
+          host_id?: string | null
+          host_name?: string | null
           id?: string
           meeting_date?: string
           meeting_link?: string | null
+          meeting_outcome?: string | null
           meeting_type?: string
           next_followup_date?: string | null
           next_steps?: string | null

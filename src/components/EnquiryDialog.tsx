@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { LeadMeetingsPanel } from "@/components/meetings/LeadMeetingsPanel";
 import {
   Dialog,
   DialogContent,
@@ -283,6 +284,9 @@ export function EnquiryDialog({
                 Submitted by: {enquiry.sales_person_name}
               </div>
             </div>
+
+            {/* Meetings Panel */}
+            <LeadMeetingsPanel leadType="enquiry" leadId={enquiry.id} />
 
             {/* AI Lead Scoring */}
             <AILeadScoring 
