@@ -2157,9 +2157,13 @@ export type Database = {
           parent_task_id: string | null
           pipeline_id: string | null
           priority: number | null
+          stage: string | null
           status: Database["public"]["Enums"]["task_status"]
           supplier_exists: boolean | null
           task_type: Database["public"]["Enums"]["task_type"]
+          time_spent_seconds: number | null
+          timer_started_at: string | null
+          timer_status: string | null
           title: string
           updated_at: string
         }
@@ -2183,9 +2187,13 @@ export type Database = {
           parent_task_id?: string | null
           pipeline_id?: string | null
           priority?: number | null
+          stage?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           supplier_exists?: boolean | null
           task_type: Database["public"]["Enums"]["task_type"]
+          time_spent_seconds?: number | null
+          timer_started_at?: string | null
+          timer_status?: string | null
           title: string
           updated_at?: string
         }
@@ -2209,9 +2217,13 @@ export type Database = {
           parent_task_id?: string | null
           pipeline_id?: string | null
           priority?: number | null
+          stage?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           supplier_exists?: boolean | null
           task_type?: Database["public"]["Enums"]["task_type"]
+          time_spent_seconds?: number | null
+          timer_started_at?: string | null
+          timer_status?: string | null
           title?: string
           updated_at?: string
         }
