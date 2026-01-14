@@ -106,15 +106,20 @@ export function AttendanceCard({
 
         <div className="grid grid-cols-2 gap-3">
           {isCheckedOut ? (
-            <Button
-              size="lg"
-              className="w-full col-span-2 bg-blue-600 hover:bg-blue-700"
-              onClick={onCheckIn}
-              disabled={loading}
-            >
-              <LogIn className="mr-2 h-4 w-4" />
-              Re-Check In
-            </Button>
+            <>
+              <Button
+                size="lg"
+                className="w-full col-span-2"
+                onClick={onCheckIn}
+                disabled={loading}
+              >
+                <LogIn className="mr-2 h-4 w-4" />
+                Re-Check In
+              </Button>
+              <p className="col-span-2 text-center text-xs text-muted-foreground">
+                Tip: After re-check in, you can use Start Break / End Break.
+              </p>
+            </>
           ) : (
             <>
               <Button

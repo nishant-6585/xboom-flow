@@ -254,14 +254,19 @@ export function useHR() {
 
         const { error } = await supabase
           .from('attendance_logs')
-          .update({ 
-            check_out_time: null, 
+          .update({
+            check_out_time: null,
             total_break_minutes: totalBreakMinutes,
-            working_hours: null // Will be recalculated on next checkout
           })
           .eq('id', todayAttendance.id);
-        
+
         if (error) throw error;
+
+        // Ensure UI reflects the change even if realtime isn't configured
+        await fetchTodayAttendance();
+        await fetchWeeklyHours();
+        await fetchAttendanceLogs(myEmployee.id);
+
         toast.success(`Re-checked in (${Math.round(breakMinutes)} mins break added)`);
         return true;
       }
@@ -291,6 +296,11 @@ export function useHR() {
           });
         if (error) throw error;
       }
+
+      // Ensure UI reflects the change even if realtime isn't configured
+      await fetchTodayAttendance();
+      await fetchWeeklyHours();
+      await fetchAttendanceLogs(myEmployee.id);
 
       toast.success('Checked in successfully');
       return true;
@@ -325,6 +335,12 @@ export function useHR() {
         .eq('id', todayAttendance.id);
 
       if (error) throw error;
+
+      // Ensure UI reflects the change even if realtime isn't configured
+      await fetchTodayAttendance();
+      await fetchWeeklyHours();
+      await fetchAttendanceLogs(myEmployee.id);
+
       toast.success('Checked out successfully');
       return true;
     } catch (error: any) {
@@ -363,6 +379,12 @@ export function useHR() {
         .eq('id', todayAttendance.id);
 
       if (error) throw error;
+
+      // Ensure UI reflects the change even if realtime isn't configured
+      await fetchTodayAttendance();
+      await fetchWeeklyHours();
+      await fetchAttendanceLogs(myEmployee.id);
+
       toast.success('Break started');
       return true;
     } catch (error: any) {
@@ -396,13 +418,19 @@ export function useHR() {
 
       const { error } = await supabase
         .from('attendance_logs')
-        .update({ 
+        .update({
           break_end_time: now.toISOString(),
-          total_break_minutes: totalBreakMinutes
+          total_break_minutes: totalBreakMinutes,
         })
         .eq('id', todayAttendance.id);
 
       if (error) throw error;
+
+      // Ensure UI reflects the change even if realtime isn't configured
+      await fetchTodayAttendance();
+      await fetchWeeklyHours();
+      await fetchAttendanceLogs(myEmployee.id);
+
       toast.success(`Break ended (${Math.round(breakMinutes)} mins)`);
       return true;
     } catch (error: any) {
