@@ -125,8 +125,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       
       const { data: adminCount } = await supabase.rpc("count_admins");
-      if (adminCount && adminCount >= 2) {
-        return { error: new Error("Maximum number of admins (2) has been reached.") };
+      if (adminCount && adminCount >= 5) {
+        return { error: new Error("Maximum number of admins (5) has been reached.") };
       }
     }
 
