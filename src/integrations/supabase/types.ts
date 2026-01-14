@@ -14,6 +14,65 @@ export type Database = {
   }
   public: {
     Tables: {
+      attendance_logs: {
+        Row: {
+          approved_by: string | null
+          approved_by_name: string | null
+          check_in_time: string | null
+          check_out_time: string | null
+          checkout_missing: boolean | null
+          created_at: string
+          date: string
+          employee_id: string
+          id: string
+          location: string | null
+          notes: string | null
+          status: string | null
+          updated_at: string
+          working_hours: number | null
+        }
+        Insert: {
+          approved_by?: string | null
+          approved_by_name?: string | null
+          check_in_time?: string | null
+          check_out_time?: string | null
+          checkout_missing?: boolean | null
+          created_at?: string
+          date?: string
+          employee_id: string
+          id?: string
+          location?: string | null
+          notes?: string | null
+          status?: string | null
+          updated_at?: string
+          working_hours?: number | null
+        }
+        Update: {
+          approved_by?: string | null
+          approved_by_name?: string | null
+          check_in_time?: string | null
+          check_out_time?: string | null
+          checkout_missing?: boolean | null
+          created_at?: string
+          date?: string
+          employee_id?: string
+          id?: string
+          location?: string | null
+          notes?: string | null
+          status?: string | null
+          updated_at?: string
+          working_hours?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_testimonials: {
         Row: {
           approved_at: string | null
@@ -103,6 +162,60 @@ export type Database = {
           old_value?: string | null
           record_id?: string
           table_name?: string
+        }
+        Relationships: []
+      }
+      employees: {
+        Row: {
+          created_at: string
+          department: string
+          id: string
+          is_active: boolean | null
+          manager_id: string | null
+          monthly_attendance_target: number | null
+          name: string
+          role: string | null
+          shift_end_time: string | null
+          shift_start_time: string | null
+          shift_type: string | null
+          updated_at: string
+          user_id: string | null
+          weekly_hours_target: number | null
+          work_location: string | null
+        }
+        Insert: {
+          created_at?: string
+          department?: string
+          id?: string
+          is_active?: boolean | null
+          manager_id?: string | null
+          monthly_attendance_target?: number | null
+          name: string
+          role?: string | null
+          shift_end_time?: string | null
+          shift_start_time?: string | null
+          shift_type?: string | null
+          updated_at?: string
+          user_id?: string | null
+          weekly_hours_target?: number | null
+          work_location?: string | null
+        }
+        Update: {
+          created_at?: string
+          department?: string
+          id?: string
+          is_active?: boolean | null
+          manager_id?: string | null
+          monthly_attendance_target?: number | null
+          name?: string
+          role?: string | null
+          shift_end_time?: string | null
+          shift_start_time?: string | null
+          shift_type?: string | null
+          updated_at?: string
+          user_id?: string | null
+          weekly_hours_target?: number | null
+          work_location?: string | null
         }
         Relationships: []
       }
@@ -552,6 +665,65 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      leave_requests: {
+        Row: {
+          approved_rejected_at: string | null
+          approver_id: string | null
+          approver_name: string | null
+          comments: string | null
+          created_at: string
+          employee_id: string
+          end_date: string
+          id: string
+          leave_type: string
+          reason: string | null
+          start_date: string
+          status: string | null
+          total_days: number | null
+          updated_at: string
+        }
+        Insert: {
+          approved_rejected_at?: string | null
+          approver_id?: string | null
+          approver_name?: string | null
+          comments?: string | null
+          created_at?: string
+          employee_id: string
+          end_date: string
+          id?: string
+          leave_type: string
+          reason?: string | null
+          start_date: string
+          status?: string | null
+          total_days?: number | null
+          updated_at?: string
+        }
+        Update: {
+          approved_rejected_at?: string | null
+          approver_id?: string | null
+          approver_name?: string | null
+          comments?: string | null
+          created_at?: string
+          employee_id?: string
+          end_date?: string
+          id?: string
+          leave_type?: string
+          reason?: string | null
+          start_date?: string
+          status?: string | null
+          total_days?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       meetings: {
         Row: {
@@ -2103,6 +2275,19 @@ export type Database = {
       can_create_admin: { Args: never; Returns: boolean }
       count_admins: { Args: never; Returns: number }
       generate_payment_reminders: { Args: never; Returns: undefined }
+      get_employee_kpi: {
+        Args: { p_employee_id: string; p_month?: string }
+        Returns: {
+          attendance_percentage: number
+          hours_fulfilment_percentage: number
+          kpi_score: number
+          leave_days: number
+          present_days: number
+          target_hours: number
+          total_working_days: number
+          total_working_hours: number
+        }[]
+      }
       get_pending_registrations: {
         Args: never
         Returns: {
