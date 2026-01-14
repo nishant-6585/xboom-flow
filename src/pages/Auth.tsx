@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, CheckCircle } from "lucide-react";
 import { z } from "zod";
 import logoIcon from "@/assets/logo-icon.jpeg";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,25 +19,58 @@ const passwordSchema = z.string().min(6, "Password must be at least 6 characters
 const nameSchema = z.string().min(2, "Name must be at least 2 characters");
 
 const Auth = () => {
+  const [searchParams] = useSearchParams();
   const [isLogin, setIsLogin] = useState(true);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [isResetPassword, setIsResetPassword] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [team, setTeam] = useState<AppRole>("sales");
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; name?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; name?: string; confirmPassword?: string }>({});
 
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const validateForm = () => {
-    const newErrors: { email?: string; password?: string; name?: string } = {};
+  // Check for password reset flow on mount
+  useEffect(() => {
+    const handlePasswordRecovery = async () => {
+      // Check if this is a password recovery redirect
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // Listen for auth state changes to detect recovery
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+        if (event === "PASSWORD_RECOVERY") {
+          setIsResetPassword(true);
+        }
+      });
 
-    const emailResult = emailSchema.safeParse(email);
-    if (!emailResult.success) {
-      newErrors.email = emailResult.error.errors[0].message;
+      // Also check URL hash for recovery token (Supabase redirects with hash)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const type = hashParams.get("type");
+      
+      if (type === "recovery" || searchParams.get("reset") === "true") {
+        setIsResetPassword(true);
+      }
+
+      return () => subscription.unsubscribe();
+    };
+
+    handlePasswordRecovery();
+  }, [searchParams]);
+
+  const validateForm = () => {
+    const newErrors: { email?: string; password?: string; name?: string; confirmPassword?: string } = {};
+
+    if (!isResetPassword) {
+      const emailResult = emailSchema.safeParse(email);
+      if (!emailResult.success) {
+        newErrors.email = emailResult.error.errors[0].message;
+      }
     }
 
     if (!isForgotPassword) {
@@ -47,7 +80,13 @@ const Auth = () => {
       }
     }
 
-    if (!isLogin && !isForgotPassword) {
+    if (isResetPassword) {
+      if (password !== confirmPassword) {
+        newErrors.confirmPassword = "Passwords do not match";
+      }
+    }
+
+    if (!isLogin && !isForgotPassword && !isResetPassword) {
       const nameResult = nameSchema.safeParse(name);
       if (!nameResult.success) {
         newErrors.name = nameResult.error.errors[0].message;
@@ -56,6 +95,43 @@ const Auth = () => {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        setResetSuccess(true);
+        toast({
+          title: "Password updated!",
+          description: "Your password has been successfully reset.",
+        });
+        // Sign out and redirect to login after 2 seconds
+        setTimeout(async () => {
+          await supabase.auth.signOut();
+          setIsResetPassword(false);
+          setResetSuccess(false);
+          setPassword("");
+          setConfirmPassword("");
+          // Clear URL hash
+          window.history.replaceState(null, "", window.location.pathname);
+        }, 2000);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -70,7 +146,7 @@ const Auth = () => {
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth?reset=true`,
+        redirectTo: `${window.location.origin}/auth`,
       });
 
       if (error) {
@@ -139,6 +215,79 @@ const Auth = () => {
       setLoading(false);
     }
   };
+
+  // Reset Password View (after clicking email link)
+  if (isResetPassword) {
+    return (
+      <div className="min-h-[100dvh] bg-background flex items-center justify-center p-4 overflow-y-auto">
+        <Card className="w-full max-w-md glass animate-fade-in my-auto">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <img src={logoIcon} alt="Xboom Logo" className="w-16 h-16 rounded-xl" />
+            </div>
+            {resetSuccess ? (
+              <>
+                <div className="flex justify-center mb-4">
+                  <CheckCircle className="w-16 h-16 text-success" />
+                </div>
+                <CardTitle className="text-2xl text-gradient">Password Updated!</CardTitle>
+                <CardDescription>
+                  Redirecting you to sign in...
+                </CardDescription>
+              </>
+            ) : (
+              <>
+                <CardTitle className="text-2xl text-gradient">Set New Password</CardTitle>
+                <CardDescription>
+                  Enter your new password below
+                </CardDescription>
+              </>
+            )}
+          </CardHeader>
+          {!resetSuccess && (
+            <CardContent>
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="password">New Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Enter new password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                  />
+                  {errors.password && (
+                    <p className="text-sm text-destructive">{errors.password}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={loading}
+                  />
+                  {errors.confirmPassword && (
+                    <p className="text-sm text-destructive">{errors.confirmPassword}</p>
+                  )}
+                </div>
+
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Update Password
+                </Button>
+              </form>
+            </CardContent>
+          )}
+        </Card>
+      </div>
+    );
+  }
 
   // Forgot Password View
   if (isForgotPassword) {
