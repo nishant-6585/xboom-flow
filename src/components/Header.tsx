@@ -57,11 +57,9 @@ export function Header() {
 
   const isActive = (path: string) => location.pathname === path;
 
-  const navItems = [
+  // Main navigation items
+  const mainNavItems = [
     { path: "/", label: "Dashboard", icon: Home, roles: ["sales", "supply_chain", "admin", "finance"] },
-    { path: "/tasks", label: "Tasks", icon: ListTodo, roles: ["sales", "supply_chain", "admin", "finance"] },
-    { path: "/hr", label: "HR", icon: Users, roles: ["sales", "supply_chain", "admin", "finance"] },
-    { path: "/meetings", label: "Meetings", icon: CalendarDays, roles: ["sales", "supply_chain", "admin", "finance"] },
     { path: "/sales", label: "Sales", icon: Zap, roles: ["sales", "supply_chain", "admin"] },
     { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "supply_chain", "admin", "finance"] },
     { path: "/pricelist", label: "Pricelist", icon: FileSpreadsheet, roles: ["sales", "supply_chain", "admin"] },
@@ -72,7 +70,23 @@ export function Header() {
     { path: "/admin", label: "Admin", icon: Shield, roles: ["admin"] },
   ];
 
-  const filteredNavItems = navItems.filter((item) => 
+  // Secondary navigation items (Tasks & HR)
+  const secondaryNavItems = [
+    { path: "/tasks", label: "Tasks", icon: ListTodo, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/hr", label: "HR", icon: Users, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/meetings", label: "Meetings", icon: CalendarDays, roles: ["sales", "supply_chain", "admin", "finance"] },
+  ];
+
+  const filteredMainNavItems = mainNavItems.filter((item) => 
+    item.roles.includes(role || "")
+  );
+
+  const filteredSecondaryNavItems = secondaryNavItems.filter((item) => 
+    item.roles.includes(role || "")
+  );
+
+  // Combined for mobile menu
+  const allNavItems = [...mainNavItems, ...secondaryNavItems].filter((item) => 
     item.roles.includes(role || "")
   );
 
@@ -97,7 +111,7 @@ export function Header() {
                   </SheetTitle>
                 </SheetHeader>
                 <nav className="flex flex-col gap-2">
-                  {filteredNavItems.map((item) => (
+                  {allNavItems.map((item) => (
                     <Link
                       key={item.path}
                       to={item.path}
@@ -190,11 +204,11 @@ export function Header() {
         </div>
       </header>
 
-      {/* Navigation Bar - Menu Items */}
+      {/* Main Navigation Bar */}
       <nav className="hidden sm:block sticky top-14 z-40 bg-muted/50 border-b border-border">
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-1 h-11 overflow-x-auto">
-            {filteredNavItems.map((item) => (
+            {filteredMainNavItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
@@ -211,6 +225,30 @@ export function Header() {
           </div>
         </div>
       </nav>
+
+      {/* Secondary Navigation Bar - Tasks & HR */}
+      {filteredSecondaryNavItems.length > 0 && (
+        <nav className="hidden sm:block sticky top-[6.25rem] z-40 bg-background/80 backdrop-blur-sm border-b border-border/50">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center gap-1 h-9 overflow-x-auto">
+              {filteredSecondaryNavItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                    isActive(item.path)
+                      ? "bg-secondary text-secondary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  <item.icon className="w-3.5 h-3.5" />
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </nav>
+      )}
     </>
   );
 }
