@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CheckCircle2,
   Clock,
@@ -47,11 +48,16 @@ import {
   Save,
   UserCog,
   Timer,
+  LayoutList,
+  Table2,
+  Kanban,
 } from "lucide-react";
 import { format, formatDistanceToNow, isPast } from "date-fns";
 import { TaskFormDialog } from "./TaskFormDialog";
 import { TaskTimer, formatTimeSpent } from "./TaskTimer";
 import { TaskStageSelect, TaskStageBadge } from "./TaskStageSelect";
+import { TaskKanbanView } from "./TaskKanbanView";
+import { TaskTableView } from "./TaskTableView";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -70,6 +76,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+type ViewMode = 'list' | 'table' | 'kanban';
 
 interface TeamMember {
   user_id: string;
@@ -91,6 +99,7 @@ export function TasksPanel() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   
   // Edit mode states
   const [isEditing, setIsEditing] = useState(false);
@@ -287,8 +296,21 @@ export function TasksPanel() {
   };
 
   const getFilteredTeamMembers = () => {
-    // Show all team members for reassignment, optionally filter by role if needed
     return teamMembers;
+  };
+
+  // Handle inline assignee change from table/kanban
+  const handleInlineAssigneeChange = async (taskId: string, userId: string, userName: string, userRole: string) => {
+    await updateTask(taskId, {
+      assigned_to: userId,
+      assigned_to_name: userName,
+      assigned_role: userRole as Task['assigned_role'],
+    });
+  };
+
+  // Handle inline priority change
+  const handleInlinePriorityChange = async (taskId: string, priority: number) => {
+    await updateTask(taskId, { priority });
   };
 
   if (loading) {
@@ -437,20 +459,63 @@ export function TasksPanel() {
               {showCompletedTasks ? "Hide Completed" : "Show Completed"}
             </Button>
           </div>
+          
+          {/* View Mode Toggles */}
+          <div className="flex items-center justify-between mt-3 pt-3 border-t">
+            <span className="text-sm text-muted-foreground">
+              {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''}
+            </span>
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+              <TabsList className="h-8">
+                <TabsTrigger value="list" className="h-7 px-3">
+                  <LayoutList className="w-4 h-4 mr-1" />
+                  <span className="hidden sm:inline">List</span>
+                </TabsTrigger>
+                <TabsTrigger value="table" className="h-7 px-3">
+                  <Table2 className="w-4 h-4 mr-1" />
+                  <span className="hidden sm:inline">Table</span>
+                </TabsTrigger>
+                <TabsTrigger value="kanban" className="h-7 px-3">
+                  <Kanban className="w-4 h-4 mr-1" />
+                  <span className="hidden sm:inline">Kanban</span>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Task List */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center justify-between">
-            <span className="flex items-center gap-2">
+      {/* Task Views */}
+      {viewMode === 'kanban' ? (
+        <TaskKanbanView
+          tasks={filteredTasks}
+          onTaskClick={openTaskDetails}
+          onStartTimer={startTimer}
+          onPauseTimer={pauseTimer}
+          onStageChange={updateStage}
+        />
+      ) : viewMode === 'table' ? (
+        <TaskTableView
+          tasks={filteredTasks}
+          teamMembers={teamMembers}
+          onTaskClick={openTaskDetails}
+          onDeleteClick={handleDeleteClick}
+          onStartTimer={startTimer}
+          onPauseTimer={pauseTimer}
+          onStageChange={updateStage}
+          onAssigneeChange={handleInlineAssigneeChange}
+          onPriorityChange={handleInlinePriorityChange}
+        />
+      ) : (
+        /* List View */
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
               <ListTodo className="w-5 h-5" />
-              Tasks ({filteredTasks.length})
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+              Tasks
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
           {filteredTasks.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <CheckCircle2 className="w-16 h-16 mx-auto mb-4 opacity-30" />
@@ -580,7 +645,7 @@ export function TasksPanel() {
           )}
         </CardContent>
       </Card>
-
+      )}
       {/* Create Task Dialog */}
       <TaskFormDialog
         open={createDialogOpen}
