@@ -11,11 +11,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Upload, FileSpreadsheet, Download, Search, Plus, Users, 
-  Package, Building2, Calendar, Filter, Loader2, Eye, ArrowRight 
+  Package, Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil 
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import { LeadFormDialog } from './LeadFormDialog';
 
 const LEAD_SOURCES = [
   'Website',
@@ -36,16 +37,30 @@ const LEAD_SOURCES = [
 
 export function LeadsPanel() {
   const { enquiries, loading, refetch } = useEnquiries();
-  const { user, profile } = useAuth();
+  const { user, profile, role } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
+  const [formDialogOpen, setFormDialogOpen] = useState(false);
+  const [editingLead, setEditingLead] = useState<Enquiry | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Filter to show only pending/recent leads
+  // Check if user can see all leads (admin or supply_chain)
+  const canSeeAllLeads = role === 'admin' || role === 'supply_chain';
+
+  // Get unique sales persons for filter dropdown
+  const salesPersons = Array.from(new Set(enquiries.map(e => e.sales_person_name))).filter(Boolean).sort();
+
+  // Filter leads based on role and filters
   const leads = enquiries.filter(e => {
+    // Role-based visibility: sales sees only their own, admin/supply_chain sees all
+    if (!canSeeAllLeads && e.sales_person_id !== user?.id) {
+      return false;
+    }
+
     const matchesSearch = 
       e.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       e.customer_company.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -53,10 +68,13 @@ export function LeadsPanel() {
     
     const matchesCategory = categoryFilter === 'all' || e.product_category === categoryFilter;
     
-    // For source filter, we'll need to check notes field (where lead source is stored)
+    // For source filter, check notes field (where lead source is stored)
     const matchesSource = sourceFilter === 'all' || e.notes?.toLowerCase().includes(sourceFilter.toLowerCase());
     
-    return matchesSearch && matchesCategory && matchesSource;
+    // Filter by sales person (only applicable if user can see all leads)
+    const matchesSalesPerson = salesPersonFilter === 'all' || e.sales_person_name === salesPersonFilter;
+    
+    return matchesSearch && matchesCategory && matchesSource && matchesSalesPerson;
   });
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -253,7 +271,7 @@ export function LeadsPanel() {
                 </SelectContent>
               </Select>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -263,9 +281,27 @@ export function LeadsPanel() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button onClick={() => setImportDialogOpen(true)}>
+              {canSeeAllLeads && (
+                <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
+                  <SelectTrigger className="w-[150px]">
+                    <Users className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Sales Person" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sales</SelectItem>
+                    {salesPersons.map((person) => (
+                      <SelectItem key={person} value={person}>{person}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
                 <Upload className="h-4 w-4 mr-2" />
-                Import Leads
+                Import
+              </Button>
+              <Button onClick={() => { setEditingLead(null); setFormDialogOpen(true); }}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Lead
               </Button>
             </div>
           </div>
@@ -293,12 +329,18 @@ export function LeadsPanel() {
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
               <h3 className="text-lg font-medium mb-2">No leads found</h3>
               <p className="text-muted-foreground mb-4">
-                Import leads from Excel or adjust your filters
+                Add a new lead or import from Excel
               </p>
-              <Button onClick={() => setImportDialogOpen(true)}>
-                <Upload className="h-4 w-4 mr-2" />
-                Import Leads
-              </Button>
+              <div className="flex gap-2 justify-center">
+                <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import
+                </Button>
+                <Button onClick={() => { setEditingLead(null); setFormDialogOpen(true); }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Lead
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="border rounded-lg overflow-hidden">
@@ -307,12 +349,14 @@ export function LeadsPanel() {
                   <TableHeader>
                     <TableRow className="bg-muted/50">
                       <TableHead className="w-[180px]">Customer</TableHead>
-                      <TableHead className="w-[200px]">Product</TableHead>
-                      <TableHead className="w-[100px]">Qty</TableHead>
-                      <TableHead className="w-[120px]">Lead Source</TableHead>
-                      <TableHead className="w-[100px]">Urgency</TableHead>
-                      <TableHead className="w-[120px]">Status</TableHead>
-                      <TableHead className="w-[120px]">Date</TableHead>
+                      <TableHead className="w-[180px]">Product</TableHead>
+                      <TableHead className="w-[60px]">Qty</TableHead>
+                      <TableHead className="w-[100px]">Source</TableHead>
+                      {canSeeAllLeads && <TableHead className="w-[120px]">Sales Person</TableHead>}
+                      <TableHead className="w-[80px]">Urgency</TableHead>
+                      <TableHead className="w-[100px]">Status</TableHead>
+                      <TableHead className="w-[100px]">Date</TableHead>
+                      <TableHead className="w-[60px]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -340,20 +384,39 @@ export function LeadsPanel() {
                             {extractLeadSource(lead.notes)}
                           </Badge>
                         </TableCell>
+                        {canSeeAllLeads && (
+                          <TableCell>
+                            <span className="text-sm">{lead.sales_person_name}</span>
+                          </TableCell>
+                        )}
                         <TableCell>
-                          <Badge className={`${getUrgencyColor(lead.urgency)} capitalize`}>
+                          <Badge className={`${getUrgencyColor(lead.urgency)} capitalize text-xs`}>
                             {lead.urgency}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge className={`${getStatusColor(lead.status)} capitalize`}>
+                          <Badge className={`${getStatusColor(lead.status)} capitalize text-xs`}>
                             {lead.status.replace(/_/g, ' ')}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <span className="text-sm text-muted-foreground">
-                            {format(new Date(lead.created_at), 'dd MMM yyyy')}
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(lead.created_at), 'dd MMM')}
                           </span>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => {
+                              setEditingLead(lead);
+                              setFormDialogOpen(true);
+                            }}
+                            title="Edit Lead"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -419,6 +482,14 @@ export function LeadsPanel() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Lead Form Dialog (Add/Edit) */}
+      <LeadFormDialog
+        open={formDialogOpen}
+        onOpenChange={setFormDialogOpen}
+        lead={editingLead}
+        onSuccess={refetch}
+      />
     </div>
   );
 }
