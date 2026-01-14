@@ -121,6 +121,8 @@ export type Database = {
           escalation_reason: string | null
           id: string
           is_escalated: boolean
+          is_mega_deal: boolean | null
+          lead_temperature: string | null
           lost_reason: string | null
           lost_reason_notes: string | null
           notes: string | null
@@ -159,6 +161,8 @@ export type Database = {
           escalation_reason?: string | null
           id?: string
           is_escalated?: boolean
+          is_mega_deal?: boolean | null
+          lead_temperature?: string | null
           lost_reason?: string | null
           lost_reason_notes?: string | null
           notes?: string | null
@@ -197,6 +201,8 @@ export type Database = {
           escalation_reason?: string | null
           id?: string
           is_escalated?: boolean
+          is_mega_deal?: boolean | null
+          lead_temperature?: string | null
           lost_reason?: string | null
           lost_reason_notes?: string | null
           notes?: string | null
@@ -980,7 +986,9 @@ export type Database = {
           expected_price: number | null
           id: string
           internal_notes: string | null
+          is_mega_deal: boolean | null
           lead_source: string | null
+          lead_temperature: string | null
           priority: number | null
           probability: number | null
           product_category: string | null
@@ -1005,7 +1013,9 @@ export type Database = {
           expected_price?: number | null
           id?: string
           internal_notes?: string | null
+          is_mega_deal?: boolean | null
           lead_source?: string | null
+          lead_temperature?: string | null
           priority?: number | null
           probability?: number | null
           product_category?: string | null
@@ -1030,7 +1040,9 @@ export type Database = {
           expected_price?: number | null
           id?: string
           internal_notes?: string | null
+          is_mega_deal?: boolean | null
           lead_source?: string | null
+          lead_temperature?: string | null
           priority?: number | null
           probability?: number | null
           product_category?: string | null

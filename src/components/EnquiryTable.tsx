@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Enquiry, QueryStatus, LostReason, LOST_REASONS } from "@/hooks/useEnquiries";
+import { Enquiry, QueryStatus, LostReason, LOST_REASONS, LeadTemperature } from "@/hooks/useEnquiries";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -17,6 +17,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
@@ -42,10 +45,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { format, differenceInMinutes, differenceInHours, differenceInDays } from "date-fns";
-import { MoreHorizontal, Trophy, XCircle, Clock, GitBranch, ExternalLink, ShoppingCart, Timer, CheckCircle2, AlertTriangle } from "lucide-react";
+import { MoreHorizontal, Trophy, XCircle, Clock, GitBranch, Timer, CheckCircle2, AlertTriangle, Flame, Thermometer, Snowflake, Star } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
+import { LeadTemperatureBadge, LEAD_TEMPERATURES } from "./LeadTemperatureBadge";
 import { useNavigate } from "react-router-dom";
 import { getSlaStatus, SLA_HOURS, UrgencyLevel } from "@/lib/sla";
+import { toast } from "sonner";
 
 interface EnquiryTableProps {
   enquiries: Enquiry[];
@@ -56,6 +61,8 @@ interface EnquiryTableProps {
     lostReasonNotes?: string
   ) => Promise<boolean>;
   onEnquiryClick: (enquiry: Enquiry) => void;
+  onUpdateTemperature?: (enquiryId: string, temperature: LeadTemperature) => Promise<boolean>;
+  onToggleMegaDeal?: (enquiryId: string, isMegaDeal: boolean) => Promise<boolean>;
 }
 
 interface RelatedRecords {
@@ -65,7 +72,13 @@ interface RelatedRecords {
   };
 }
 
-export function EnquiryTable({ enquiries, onUpdateStatus, onEnquiryClick }: EnquiryTableProps) {
+export function EnquiryTable({ 
+  enquiries, 
+  onUpdateStatus, 
+  onEnquiryClick,
+  onUpdateTemperature,
+  onToggleMegaDeal
+}: EnquiryTableProps) {
   const { role } = useAuth();
   const navigate = useNavigate();
   const [lostDialogOpen, setLostDialogOpen] = useState(false);
@@ -241,6 +254,7 @@ export function EnquiryTable({ enquiries, onUpdateStatus, onEnquiryClick }: Enqu
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
+              <TableHead>Lead</TableHead>
               <TableHead>Product</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Sales Person</TableHead>
@@ -254,7 +268,7 @@ export function EnquiryTable({ enquiries, onUpdateStatus, onEnquiryClick }: Enqu
           <TableBody>
             {enquiries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canUpdateStatus ? 9 : 8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={canUpdateStatus ? 10 : 9} className="text-center py-8 text-muted-foreground">
                   No enquiries found
                 </TableCell>
               </TableRow>
@@ -269,6 +283,13 @@ export function EnquiryTable({ enquiries, onUpdateStatus, onEnquiryClick }: Enqu
                   <TableRow key={enquiry.id} className="cursor-pointer hover:bg-muted/50">
                     <TableCell onClick={() => onEnquiryClick(enquiry)}>
                       {format(new Date(enquiry.created_at), "dd MMM yyyy")}
+                    </TableCell>
+                    <TableCell>
+                      <LeadTemperatureBadge 
+                        temperature={enquiry.lead_temperature || "warm"} 
+                        isMegaDeal={enquiry.is_mega_deal || false}
+                        size="sm"
+                      />
                     </TableCell>
                     <TableCell onClick={() => onEnquiryClick(enquiry)}>
                       <div>
@@ -321,6 +342,61 @@ export function EnquiryTable({ enquiries, onUpdateStatus, onEnquiryClick }: Enqu
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            {/* Mark as Hot - Quick action */}
+                            {enquiry.lead_temperature !== "hot" && onUpdateTemperature && (
+                              <DropdownMenuItem 
+                                onClick={() => {
+                                  onUpdateTemperature(enquiry.id, "hot");
+                                  toast.success("Marked as Hot lead 🔥");
+                                }}
+                              >
+                                <Flame className="w-4 h-4 mr-2 text-orange-500" />
+                                Mark as Hot 🔥
+                              </DropdownMenuItem>
+                            )}
+                            
+                            {/* Temperature submenu */}
+                            {onUpdateTemperature && (
+                              <DropdownMenuSub>
+                                <DropdownMenuSubTrigger>
+                                  <Thermometer className="w-4 h-4 mr-2" />
+                                  Set Temperature
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                  {LEAD_TEMPERATURES.map((temp) => (
+                                    <DropdownMenuItem
+                                      key={temp.value}
+                                      onClick={() => {
+                                        onUpdateTemperature(enquiry.id, temp.value);
+                                        toast.success(`Lead marked as ${temp.label}`);
+                                      }}
+                                      disabled={enquiry.lead_temperature === temp.value}
+                                    >
+                                      {temp.value === "hot" && <Flame className="w-4 h-4 mr-2 text-orange-500" />}
+                                      {temp.value === "warm" && <Thermometer className="w-4 h-4 mr-2 text-yellow-500" />}
+                                      {temp.value === "cold" && <Snowflake className="w-4 h-4 mr-2 text-blue-500" />}
+                                      {temp.label}
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuSubContent>
+                              </DropdownMenuSub>
+                            )}
+
+                            {/* Toggle Mega Deal */}
+                            {onToggleMegaDeal && (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  onToggleMegaDeal(enquiry.id, !enquiry.is_mega_deal);
+                                  toast.success(enquiry.is_mega_deal ? "Removed Mega Deal tag" : "Marked as Mega Deal ⭐");
+                                }}
+                              >
+                                <Star className={`w-4 h-4 mr-2 ${enquiry.is_mega_deal ? "text-amber-500 fill-amber-500" : "text-muted-foreground"}`} />
+                                {enquiry.is_mega_deal ? "Remove Mega Deal" : "Mark as Mega Deal"}
+                              </DropdownMenuItem>
+                            )}
+
+                            <DropdownMenuSeparator />
+
                             {enquiry.status !== "order_won" && (
                               <DropdownMenuItem onClick={() => handleStatusChange(enquiry, "order_won")}>
                                 <Trophy className="w-4 h-4 mr-2 text-green-600" />

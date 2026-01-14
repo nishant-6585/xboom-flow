@@ -26,6 +26,8 @@ export const LOST_REASONS: { value: LostReason; label: string }[] = [
   { value: "other", label: "Other reason" },
 ];
 
+export type LeadTemperature = "hot" | "warm" | "cold";
+
 export interface Enquiry {
   id: string;
   product_name: string;
@@ -61,6 +63,8 @@ export interface Enquiry {
   lost_reason_notes: string | null;
   outcome_updated_at: string | null;
   outcome_updated_by: string | null;
+  lead_temperature: LeadTemperature;
+  is_mega_deal: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -110,6 +114,8 @@ export interface EnquiryFormData {
   urgency: UrgencyLevel;
   requestedTimeline: string;
   notes: string;
+  leadTemperature?: LeadTemperature;
+  isMegaDeal?: boolean;
 }
 
 export interface EnquiryResponse {
@@ -200,6 +206,8 @@ export function useEnquiries() {
         requested_timeline: formData.requestedTimeline || null,
         notes: formData.notes,
         status: "pending",
+        lead_temperature: formData.leadTemperature || "warm",
+        is_mega_deal: formData.isMegaDeal || false,
       });
 
       if (error) throw error;
@@ -603,6 +611,46 @@ export function useEnquiries() {
     }
   };
 
+  const updateLeadTemperature = async (enquiryId: string, temperature: LeadTemperature) => {
+    try {
+      const { error } = await supabase
+        .from("enquiries")
+        .update({ lead_temperature: temperature })
+        .eq("id", enquiryId);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error("Error updating lead temperature:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update lead temperature",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const toggleMegaDeal = async (enquiryId: string, isMegaDeal: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("enquiries")
+        .update({ is_mega_deal: isMegaDeal })
+        .eq("id", enquiryId);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error("Error toggling mega deal:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update mega deal status",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     enquiries,
     loading,
@@ -612,6 +660,8 @@ export function useEnquiries() {
     escalateEnquiry,
     updateStatus,
     submitAdminResponse,
+    updateLeadTemperature,
+    toggleMegaDeal,
     refetch: fetchEnquiries,
   };
 }

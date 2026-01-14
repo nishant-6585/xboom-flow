@@ -28,7 +28,7 @@ interface SalesTeamMember {
 }
 
 const Index = () => {
-  const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry, escalateEnquiry, updateStatus, submitAdminResponse } = useEnquiries();
+  const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry, escalateEnquiry, updateStatus, submitAdminResponse, updateLeadTemperature, toggleMegaDeal } = useEnquiries();
   const { role, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -520,6 +520,8 @@ const Index = () => {
                     enquiries={filteredEnquiries}
                     onUpdateStatus={updateStatus}
                     onEnquiryClick={handleEnquiryClick}
+                    onUpdateTemperature={updateLeadTemperature}
+                    onToggleMegaDeal={toggleMegaDeal}
                   />
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
