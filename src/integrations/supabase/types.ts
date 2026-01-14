@@ -1882,6 +1882,116 @@ export type Database = {
         }
         Relationships: []
       }
+      tasks: {
+        Row: {
+          assigned_by: string | null
+          assigned_by_name: string | null
+          assigned_role: Database["public"]["Enums"]["app_role"]
+          assigned_to: string
+          assigned_to_name: string
+          completed_at: string | null
+          completed_by: string | null
+          completed_by_name: string | null
+          completion_notes: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          enquiry_id: string | null
+          flagged_as_new_supplier: boolean | null
+          id: string
+          order_id: string | null
+          parent_task_id: string | null
+          pipeline_id: string | null
+          priority: number | null
+          status: Database["public"]["Enums"]["task_status"]
+          supplier_exists: boolean | null
+          task_type: Database["public"]["Enums"]["task_type"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          assigned_by_name?: string | null
+          assigned_role: Database["public"]["Enums"]["app_role"]
+          assigned_to: string
+          assigned_to_name: string
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_by_name?: string | null
+          completion_notes?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          enquiry_id?: string | null
+          flagged_as_new_supplier?: boolean | null
+          id?: string
+          order_id?: string | null
+          parent_task_id?: string | null
+          pipeline_id?: string | null
+          priority?: number | null
+          status?: Database["public"]["Enums"]["task_status"]
+          supplier_exists?: boolean | null
+          task_type: Database["public"]["Enums"]["task_type"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_by?: string | null
+          assigned_by_name?: string | null
+          assigned_role?: Database["public"]["Enums"]["app_role"]
+          assigned_to?: string
+          assigned_to_name?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_by_name?: string | null
+          completion_notes?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          enquiry_id?: string | null
+          flagged_as_new_supplier?: boolean | null
+          id?: string
+          order_id?: string | null
+          parent_task_id?: string | null
+          pipeline_id?: string | null
+          priority?: number | null
+          status?: Database["public"]["Enums"]["task_status"]
+          supplier_exists?: boolean | null
+          task_type?: Database["public"]["Enums"]["task_type"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_enquiry_id_fkey"
+            columns: ["enquiry_id"]
+            isOneToOne: false
+            referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1959,6 +2069,16 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_user_task_counts: {
+        Args: { p_user_id: string }
+        Returns: {
+          awaiting_approval_tasks: number
+          in_progress_tasks: number
+          new_tasks: number
+          overdue_tasks: number
+          total_tasks: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1980,6 +2100,18 @@ export type Database = {
         | "delivery_done"
         | "cancelled"
       supplier_preference: "low" | "medium" | "high"
+      task_status: "new" | "in_progress" | "awaiting_approval" | "completed"
+      task_type:
+        | "sales_followup"
+        | "supplier_validation"
+        | "supplier_onboarding"
+        | "finance_review"
+        | "sales_confirmation"
+        | "hot_lead_followup"
+        | "mega_deal_review"
+        | "quotation_request"
+        | "order_confirmation"
+        | "custom"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2119,6 +2251,19 @@ export const Constants = {
         "cancelled",
       ],
       supplier_preference: ["low", "medium", "high"],
+      task_status: ["new", "in_progress", "awaiting_approval", "completed"],
+      task_type: [
+        "sales_followup",
+        "supplier_validation",
+        "supplier_onboarding",
+        "finance_review",
+        "sales_confirmation",
+        "hot_lead_followup",
+        "mega_deal_review",
+        "quotation_request",
+        "order_confirmation",
+        "custom",
+      ],
     },
   },
 } as const
