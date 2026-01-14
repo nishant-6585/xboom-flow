@@ -8,6 +8,7 @@ import { EnquiryConversionAnalytics } from "@/components/EnquiryConversionAnalyt
 import { StatsCards } from "@/components/StatsCards";
 import { KeyMetricsDashboard } from "@/components/KeyMetricsDashboard";
 import { KeyMetricsTrendChart } from "@/components/KeyMetricsTrendChart";
+import { QuickActions } from "@/components/QuickActions";
 import { EnquiryDialog } from "@/components/EnquiryDialog";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { useEnquiries, Enquiry, PRODUCT_CATEGORIES, QueryStatus, ENQUIRY_STATUSES, LostReason } from "@/hooks/useEnquiries";
@@ -289,6 +290,7 @@ const Index = () => {
               </div>
             ) : (
               <>
+                <QuickActions />
                 <StatsCards queries={statsQueries} onStatusClick={handleStatsClick} />
                 <KeyMetricsDashboard />
                 <KeyMetricsTrendChart />
