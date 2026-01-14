@@ -11,7 +11,9 @@ import { KeyMetricsTrendChart } from "@/components/KeyMetricsTrendChart";
 import { QuickActions } from "@/components/QuickActions";
 import { EnquiryDialog } from "@/components/EnquiryDialog";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
+import { HotLeadsWidget } from "@/components/HotLeadsWidget";
 import { useEnquiries, Enquiry, PRODUCT_CATEGORIES, QueryStatus, ENQUIRY_STATUSES, LostReason } from "@/hooks/useEnquiries";
+import { usePipelineOrders } from "@/hooks/usePipelineOrders";
 import { getSlaStatus, UrgencyLevel } from "@/lib/sla";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +31,7 @@ interface SalesTeamMember {
 
 const Index = () => {
   const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry, escalateEnquiry, updateStatus, submitAdminResponse, updateLeadTemperature, toggleMegaDeal } = useEnquiries();
+  const { pipelineOrders } = usePipelineOrders();
   const { role, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -291,6 +294,39 @@ const Index = () => {
             ) : (
               <>
                 <QuickActions />
+                <HotLeadsWidget 
+                  enquiries={enquiries.map(e => ({
+                    id: e.id,
+                    customer_name: e.customer_name,
+                    customer_company: e.customer_company,
+                    product_name: e.product_name,
+                    quantity: e.quantity,
+                    lead_temperature: e.lead_temperature,
+                    is_mega_deal: e.is_mega_deal,
+                    created_at: e.created_at,
+                    status: e.status,
+                    type: "enquiry" as const
+                  }))}
+                  pipelineOrders={pipelineOrders.map(p => ({
+                    id: p.id,
+                    customer_name: p.customer_name,
+                    customer_company: p.customer_company,
+                    product_name: p.product_name,
+                    quantity: p.quantity,
+                    lead_temperature: p.lead_temperature,
+                    is_mega_deal: p.is_mega_deal,
+                    created_at: p.created_at,
+                    status: p.status,
+                    type: "pipeline" as const
+                  }))}
+                  onLeadClick={(lead) => {
+                    if (lead.type === "enquiry") {
+                      const enquiry = enquiries.find(e => e.id === lead.id);
+                      if (enquiry) handleEnquiryClick(enquiry);
+                    }
+                  }}
+                  onViewAll={() => setActiveTab("enquiries")}
+                />
                 <StatsCards queries={statsQueries} onStatusClick={handleStatsClick} />
                 <KeyMetricsDashboard />
                 <KeyMetricsTrendChart />
