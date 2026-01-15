@@ -12,7 +12,8 @@ import { SupplierPaymentAnalytics } from "@/components/procurement/SupplierPayme
 import { InventoryProcurementsList } from "@/components/procurement/InventoryProcurementsList";
 import { ManualProcurementForm } from "@/components/procurement/ManualProcurementForm";
 import { OrderProcurementTracker } from "@/components/procurement/OrderProcurementTracker";
-import { FileText, BookOpen, LayoutDashboard, CreditCard, IndianRupee, Package, Plus, Link2 } from "lucide-react";
+import { ImportsList } from "@/components/imports/ImportsList";
+import { FileText, BookOpen, LayoutDashboard, CreditCard, IndianRupee, Package, Plus, Link2, Ship } from "lucide-react";
 import { useProcurementPaymentRequests } from "@/hooks/useProcurementPaymentRequests";
 import { Badge } from "@/components/ui/badge";
 
@@ -59,10 +60,14 @@ export default function Procurement() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-7 lg:w-[840px]">
+          <TabsList className="grid w-full grid-cols-8 lg:w-[960px]">
             <TabsTrigger value="orders" className="gap-2">
               <FileText className="w-4 h-4" />
               <span className="hidden sm:inline">Procurements</span>
+            </TabsTrigger>
+            <TabsTrigger value="imports" className="gap-2">
+              <Ship className="w-4 h-4" />
+              <span className="hidden sm:inline">Imports</span>
             </TabsTrigger>
             <TabsTrigger value="inventory" className="gap-2">
               <Package className="w-4 h-4" />
@@ -97,6 +102,10 @@ export default function Procurement() {
 
           <TabsContent value="orders" className="mt-6">
             <ProcurementOrders />
+          </TabsContent>
+
+          <TabsContent value="imports" className="mt-6">
+            <ImportsList />
           </TabsContent>
 
           <TabsContent value="inventory" className="mt-6">

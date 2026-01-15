@@ -450,6 +450,134 @@ export type Database = {
         }
         Relationships: []
       }
+      imports: {
+        Row: {
+          actual_arrival: string | null
+          bill_of_entry_url: string | null
+          bl_number: string | null
+          clearance_date: string | null
+          commercial_invoice_url: string | null
+          container_number: string | null
+          courier_document_url: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          currency: string | null
+          expected_arrival: string | null
+          id: string
+          import_number: string | null
+          notes: string | null
+          order_date: string | null
+          origin_country: string | null
+          other_documents_urls: string[] | null
+          packing_list_url: string | null
+          payment_amount: number | null
+          payment_date: string | null
+          payment_proof_url: string | null
+          payment_status: string | null
+          po_document_url: string | null
+          port_of_destination: string | null
+          port_of_origin: string | null
+          product_category: string | null
+          product_name: string
+          quantity: number | null
+          shipping_line: string | null
+          shipping_method: string | null
+          status: string | null
+          supplier_id: string | null
+          supplier_name: string | null
+          total_amount: number | null
+          unit_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          actual_arrival?: string | null
+          bill_of_entry_url?: string | null
+          bl_number?: string | null
+          clearance_date?: string | null
+          commercial_invoice_url?: string | null
+          container_number?: string | null
+          courier_document_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          currency?: string | null
+          expected_arrival?: string | null
+          id?: string
+          import_number?: string | null
+          notes?: string | null
+          order_date?: string | null
+          origin_country?: string | null
+          other_documents_urls?: string[] | null
+          packing_list_url?: string | null
+          payment_amount?: number | null
+          payment_date?: string | null
+          payment_proof_url?: string | null
+          payment_status?: string | null
+          po_document_url?: string | null
+          port_of_destination?: string | null
+          port_of_origin?: string | null
+          product_category?: string | null
+          product_name: string
+          quantity?: number | null
+          shipping_line?: string | null
+          shipping_method?: string | null
+          status?: string | null
+          supplier_id?: string | null
+          supplier_name?: string | null
+          total_amount?: number | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          actual_arrival?: string | null
+          bill_of_entry_url?: string | null
+          bl_number?: string | null
+          clearance_date?: string | null
+          commercial_invoice_url?: string | null
+          container_number?: string | null
+          courier_document_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          currency?: string | null
+          expected_arrival?: string | null
+          id?: string
+          import_number?: string | null
+          notes?: string | null
+          order_date?: string | null
+          origin_country?: string | null
+          other_documents_urls?: string[] | null
+          packing_list_url?: string | null
+          payment_amount?: number | null
+          payment_date?: string | null
+          payment_proof_url?: string | null
+          payment_status?: string | null
+          po_document_url?: string | null
+          port_of_destination?: string | null
+          port_of_origin?: string | null
+          product_category?: string | null
+          product_name?: string
+          quantity?: number | null
+          shipping_line?: string | null
+          shipping_method?: string | null
+          status?: string | null
+          supplier_id?: string | null
+          supplier_name?: string | null
+          total_amount?: number | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imports_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory: {
         Row: {
           created_at: string
