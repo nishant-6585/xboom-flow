@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useOrders, Order } from "@/hooks/useOrders";
 import { useSuppliers, Supplier } from "@/hooks/useSuppliers";
 import { useProcurementPaymentRequests } from "@/hooks/useProcurementPaymentRequests";
+import { useInventoryProcurements } from "@/hooks/useInventoryProcurements";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,15 @@ export function ProcurementOrders() {
   const { orders, loading: ordersLoading, updateOrder, refetch } = useOrders();
   const { suppliers, loading: suppliersLoading } = useSuppliers();
   const { requests: paymentRequests, refetch: refetchRequests } = useProcurementPaymentRequests();
+  const { procurements } = useInventoryProcurements();
+
+  // Get procurement numbers linked to an order
+  const getProcurementNumbersForOrder = (orderId: string) => {
+    return procurements
+      .filter(p => p.order_id === orderId)
+      .map(p => p.procurement_number)
+      .filter(Boolean);
+  };
   const [search, setSearch] = useState("");
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -254,6 +264,7 @@ export function ProcurementOrders() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Order No</TableHead>
+                  <TableHead>Proc No</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Customer</TableHead>
@@ -268,7 +279,7 @@ export function ProcurementOrders() {
               <TableBody>
                 {filteredOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                       No orders found
                     </TableCell>
                   </TableRow>
@@ -277,6 +288,23 @@ export function ProcurementOrders() {
                     <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleOrderClick(order)}>
                       <TableCell>
                         <OrderNumberBadge orderNumber={order.order_number} />
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const procNos = getProcurementNumbersForOrder(order.id);
+                          if (procNos.length === 0) {
+                            return <span className="text-muted-foreground text-xs">-</span>;
+                          }
+                          return (
+                            <div className="flex flex-col gap-0.5">
+                              {procNos.map((procNo, idx) => (
+                                <Badge key={idx} variant="outline" className="font-mono text-xs w-fit">
+                                  {procNo}
+                                </Badge>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={getPriorityColor(order.priority)}>
