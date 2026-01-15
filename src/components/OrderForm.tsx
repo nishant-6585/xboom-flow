@@ -100,6 +100,22 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     sales_notes: '',
   });
 
+  // Auto-calculate total sales amount from order items + delivery charges
+  useEffect(() => {
+    const itemsTotal = orderItems.reduce((sum, item) => {
+      const price = item.unit_price || 0;
+      const qty = item.quantity || 0;
+      return sum + (price * qty);
+    }, 0);
+    const delivery = formData.delivery_charges || 0;
+    const total = itemsTotal + delivery;
+    
+    setFormData(prev => ({
+      ...prev,
+      total_sales_amount: total > 0 ? total : undefined
+    }));
+  }, [orderItems, formData.delivery_charges]);
+
   const respondedEnquiries = enquiries.filter(e => e.status === 'responded' || e.status === 'moved_to_pipeline');
   const activeSuppliers = suppliers.filter(s => s.is_active);
 
@@ -551,7 +567,11 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                   value={formData.total_sales_amount || ''}
                   onChange={e => setFormData(prev => ({ ...prev, total_sales_amount: parseFloat(e.target.value) || undefined }))}
                   disabled={loading}
+                  readOnly
+                  className="bg-muted"
+                  title="Auto-calculated from items total + delivery charges"
                 />
+                <p className="text-xs text-muted-foreground">Auto-calculated from items + delivery</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="amount_paid">Amount Paid (₹)</Label>
