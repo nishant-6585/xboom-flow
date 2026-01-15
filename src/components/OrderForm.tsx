@@ -7,12 +7,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { OrderFormData, ORDER_TYPES, CUSTOMER_TYPES, PAYMENT_STATUSES, LEAD_SOURCES, OrderType, CustomerType, PaymentStatus, LeadSource } from '@/hooks/useOrders';
-import { Loader2, Package, ImageIcon, X, Upload, FileText, Plus } from 'lucide-react';
+import { Loader2, Package, ImageIcon, X, Upload, FileText, Plus, Users, CreditCard, Truck, MessageSquare, Check, ChevronRight, ChevronLeft, ShoppingCart } from 'lucide-react';
 import { Enquiry, PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { Supplier } from '@/hooks/useSuppliers';
 import { OrderItemsInput } from '@/components/OrderItemsInput';
 import { OrderItemFormData } from '@/hooks/useOrderItems';
+import { cn } from '@/lib/utils';
 
 interface FileWithPreview {
   file: File;
@@ -33,10 +36,18 @@ interface OrderFormProps {
   userRole?: 'sales' | 'supply_chain' | 'admin';
 }
 
+const STEPS = [
+  { id: 1, title: 'Products', icon: ShoppingCart, description: 'Add order items' },
+  { id: 2, title: 'Customer', icon: Users, description: 'Customer details' },
+  { id: 3, title: 'Payment', icon: CreditCard, description: 'Payment info' },
+  { id: 4, title: 'Delivery', icon: Truck, description: 'Shipping & notes' },
+];
+
 export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcurementRate = true, userRole = 'sales' }: OrderFormProps) {
   const canViewProcurement = userRole === 'admin' || userRole === 'supply_chain';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [salesTeam, setSalesTeam] = useState<SalesTeamMember[]>([]);
+  const [currentStep, setCurrentStep] = useState(1);
 
   useEffect(() => {
     const fetchSalesTeam = async () => {
@@ -47,6 +58,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     };
     fetchSalesTeam();
   }, []);
+  
   const invoiceInputRef = useRef<HTMLInputElement>(null);
   const poInputRef = useRef<HTMLInputElement>(null);
   const [paymentFiles, setPaymentFiles] = useState<FileWithPreview[]>([]);
@@ -164,7 +176,6 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
         sales_person_name: enquiry.sales_person_name,
         committed_timeline: enquiry.requested_timeline || '',
       }));
-      // Also populate order items with enquiry data
       setOrderItems([{
         product_name: enquiry.product_name,
         product_code: enquiry.product_code,
@@ -258,24 +269,21 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate at least one product with a name
     const validItems = orderItems.filter(item => item.product_name.trim());
     if (validItems.length === 0) {
       return;
     }
     
-    // Sales person is optional for website orders
     if (!formData.customer_name || (!formData.is_website_order && !formData.sales_person_name)) {
       return;
     }
 
-    // Use first product as the main order product (for backward compatibility)
     const firstItem = validItems[0];
     const updatedFormData = {
       ...formData,
       product_name: firstItem.product_name,
       product_category: firstItem.product_category,
-      quantity: validItems.reduce((sum, item) => sum + item.quantity, 0), // Total quantity
+      quantity: validItems.reduce((sum, item) => sum + item.quantity, 0),
     };
 
     setLoading(true);
@@ -330,588 +338,743 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
       handleClearPaymentFiles();
       handleClearInvoiceFile();
       handleClearPoFiles();
+      setCurrentStep(1);
     }
   };
 
+  const canGoNext = () => {
+    if (currentStep === 1) {
+      return orderItems.some(item => item.product_name.trim());
+    }
+    if (currentStep === 2) {
+      return formData.customer_name && formData.customer_company && 
+             (formData.is_website_order || formData.sales_person_name);
+    }
+    return true;
+  };
+
+  const goToStep = (step: number) => {
+    if (step < currentStep || canGoNext()) {
+      setCurrentStep(step);
+    }
+  };
+
+  const totalItems = orderItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const totalAmount = formData.total_sales_amount || 0;
+
+  // Step Progress Indicator
+  const StepIndicator = () => (
+    <div className="mb-6">
+      {/* Desktop Steps */}
+      <div className="hidden md:flex items-center justify-between">
+        {STEPS.map((step, index) => {
+          const isActive = currentStep === step.id;
+          const isCompleted = currentStep > step.id;
+          const Icon = step.icon;
+          
+          return (
+            <div key={step.id} className="flex items-center flex-1">
+              <button
+                type="button"
+                onClick={() => goToStep(step.id)}
+                className={cn(
+                  "flex items-center gap-3 p-3 rounded-xl transition-all w-full",
+                  isActive && "bg-primary/10 border-2 border-primary",
+                  isCompleted && "bg-green-50 dark:bg-green-900/20",
+                  !isActive && !isCompleted && "hover:bg-muted"
+                )}
+              >
+                <div className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-colors",
+                  isActive && "bg-primary text-primary-foreground",
+                  isCompleted && "bg-green-500 text-white",
+                  !isActive && !isCompleted && "bg-muted text-muted-foreground"
+                )}>
+                  {isCompleted ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+                </div>
+                <div className="text-left min-w-0">
+                  <p className={cn(
+                    "font-medium text-sm truncate",
+                    isActive && "text-primary",
+                    isCompleted && "text-green-600 dark:text-green-400"
+                  )}>
+                    {step.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">{step.description}</p>
+                </div>
+              </button>
+              {index < STEPS.length - 1 && (
+                <div className={cn(
+                  "h-0.5 w-8 mx-2 shrink-0",
+                  currentStep > step.id ? "bg-green-500" : "bg-border"
+                )} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      
+      {/* Mobile Steps */}
+      <div className="md:hidden">
+        <div className="flex items-center justify-between mb-3">
+          {STEPS.map((step, index) => {
+            const isActive = currentStep === step.id;
+            const isCompleted = currentStep > step.id;
+            
+            return (
+              <div key={step.id} className="flex items-center flex-1">
+                <button
+                  type="button"
+                  onClick={() => goToStep(step.id)}
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all",
+                    isActive && "bg-primary text-primary-foreground ring-4 ring-primary/20",
+                    isCompleted && "bg-green-500 text-white",
+                    !isActive && !isCompleted && "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {isCompleted ? <Check className="h-4 w-4" /> : step.id}
+                </button>
+                {index < STEPS.length - 1 && (
+                  <div className={cn(
+                    "h-0.5 flex-1 mx-1",
+                    currentStep > step.id ? "bg-green-500" : "bg-border"
+                  )} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="text-center">
+          <p className="font-medium text-sm">{STEPS[currentStep - 1].title}</p>
+          <p className="text-xs text-muted-foreground">{STEPS[currentStep - 1].description}</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Order Summary Card
+  const OrderSummary = () => (
+    <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl p-4 border border-primary/20">
+      <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
+        <Package className="h-4 w-4 text-primary" />
+        Order Summary
+      </h4>
+      <div className="space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Items</span>
+          <span className="font-medium">{orderItems.filter(i => i.product_name).length} products</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Total Quantity</span>
+          <span className="font-medium">{totalItems} units</span>
+        </div>
+        {formData.delivery_charges && formData.delivery_charges > 0 && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Delivery</span>
+            <span className="font-medium">₹{formData.delivery_charges.toLocaleString()}</span>
+          </div>
+        )}
+        <Separator className="my-2" />
+        <div className="flex justify-between text-base">
+          <span className="font-medium">Total Amount</span>
+          <span className="font-bold text-primary">₹{totalAmount.toLocaleString()}</span>
+        </div>
+        {formData.customer_name && (
+          <>
+            <Separator className="my-2" />
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Customer</span>
+              <span className="font-medium truncate ml-2">{formData.customer_name}</span>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Package className="h-5 w-5" />
-          Create New Order
-        </CardTitle>
-        <CardDescription>
-          Create a new order from an enquiry or enter details manually
-        </CardDescription>
+    <Card className="border-0 shadow-lg">
+      <CardHeader className="pb-4 border-b bg-gradient-to-r from-primary/5 to-transparent">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Package className="h-5 w-5 text-primary" />
+              </div>
+              Create New Order
+            </CardTitle>
+            <CardDescription className="mt-1">
+              Add a new customer order in just a few steps
+            </CardDescription>
+          </div>
+          <Badge variant="outline" className="hidden md:flex gap-1">
+            Step {currentStep} of {STEPS.length}
+          </Badge>
+        </div>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Link to Enquiry */}
-          {respondedEnquiries.length > 0 && (
-            <div className="space-y-2">
-              <Label>Create from Enquiry (Optional)</Label>
-              <Select onValueChange={handleEnquirySelect}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select an enquiry or create standalone" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Create Standalone Order</SelectItem>
-                  {respondedEnquiries.map(enquiry => (
-                    <SelectItem key={enquiry.id} value={enquiry.id}>
-                      {enquiry.product_name} - {enquiry.customer_name} ({enquiry.customer_company})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+      <CardContent className="pt-6">
+        <form onSubmit={handleSubmit}>
+          <StepIndicator />
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Form Area */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Step 1: Products */}
+              {currentStep === 1 && (
+                <div className="space-y-6 animate-fade-in">
+                  {/* Link to Enquiry */}
+                  {respondedEnquiries.length > 0 && (
+                    <div className="p-4 bg-muted/50 rounded-xl space-y-3">
+                      <Label className="text-sm font-medium">Quick Fill from Enquiry</Label>
+                      <Select onValueChange={handleEnquirySelect}>
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Select an enquiry to auto-fill..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Create Standalone Order</SelectItem>
+                          {respondedEnquiries.map(enquiry => (
+                            <SelectItem key={enquiry.id} value={enquiry.id}>
+                              {enquiry.product_name} - {enquiry.customer_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
-          {/* Product Details - Multiple Products */}
-          <OrderItemsInput
-            items={orderItems}
-            onChange={setOrderItems}
-            disabled={loading}
-            showProcurementRate={showProcurementRate}
-          />
-
-          {/* Customer Details */}
-          <div className="space-y-4">
-            <h3 className="font-medium text-sm text-muted-foreground">Customer Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="customer_name">Customer Name *</Label>
-                <Input
-                  id="customer_name"
-                  value={formData.customer_name}
-                  onChange={e => setFormData(prev => ({ ...prev, customer_name: e.target.value }))}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="customer_company">Customer Company *</Label>
-                <Input
-                  id="customer_company"
-                  value={formData.customer_company}
-                  onChange={e => setFormData(prev => ({ ...prev, customer_company: e.target.value }))}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="customer_email">Customer Email</Label>
-                <Input
-                  id="customer_email"
-                  type="email"
-                  value={formData.customer_email || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, customer_email: e.target.value }))}
-                  disabled={loading}
-                  placeholder="customer@example.com"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="customer_type">Customer Type</Label>
-                <Select 
-                  value={formData.customer_type} 
-                  onValueChange={v => setFormData(prev => ({ ...prev, customer_type: v as CustomerType }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CUSTOMER_TYPES.map(t => (
-                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Order Source</Label>
-                <RadioGroup
-                  value={formData.is_website_order ? 'website' : 'sales'}
-                  onValueChange={(value) => {
-                    const isWebsite = value === 'website';
-                    setFormData(prev => ({
-                      ...prev,
-                      is_website_order: isWebsite,
-                      // Clear sales person if switching to website order
-                      ...(isWebsite ? { sales_person_id: '', sales_person_name: '' } : {}),
-                    }));
-                  }}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="sales" id="sales_order" />
-                    <Label htmlFor="sales_order" className="cursor-pointer font-normal">Sales Order</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="website" id="website_order" />
-                    <Label htmlFor="website_order" className="cursor-pointer font-normal">Website Order</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-              {!formData.is_website_order && (
-                <div className="space-y-2">
-                  <Label htmlFor="sales_person_name">Sales Person Name *</Label>
-                  <Select
-                    value={formData.sales_person_id || ''}
-                    onValueChange={(value) => {
-                      const member = salesTeam.find(m => m.user_id === value);
-                      if (member) {
-                        setFormData(prev => ({
-                          ...prev,
-                          sales_person_id: member.user_id,
-                          sales_person_name: member.name,
-                        }));
-                      }
-                    }}
+                  {/* Product Items */}
+                  <OrderItemsInput
+                    items={orderItems}
+                    onChange={setOrderItems}
                     disabled={loading}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select sales person" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {salesTeam.map(member => (
-                        <SelectItem key={member.user_id} value={member.user_id}>
-                          {member.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    showProcurementRate={showProcurementRate}
+                  />
                 </div>
               )}
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="shipping_address">Shipping Address</Label>
-                <Textarea
-                  id="shipping_address"
-                  value={formData.shipping_address || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, shipping_address: e.target.value }))}
-                  disabled={loading}
-                  rows={2}
-                  placeholder="Full shipping address"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="committed_timeline">Committed Timeline</Label>
-                <Input
-                  id="committed_timeline"
-                  value={formData.committed_timeline || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, committed_timeline: e.target.value }))}
-                  disabled={loading}
-                  placeholder="e.g., 2-3 weeks, End of month"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lead_source">Lead Source</Label>
-                <Select 
-                  value={formData.lead_source || ''} 
-                  onValueChange={v => setFormData(prev => ({ ...prev, lead_source: v as LeadSource }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select lead source" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LEAD_SOURCES.map(s => (
-                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
 
-          {/* Payment Details */}
-          <div className="space-y-4">
-            <h3 className="font-medium text-sm text-muted-foreground">Payment Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="order_type">Order Type</Label>
-                <Select 
-                  value={formData.order_type} 
-                  onValueChange={v => setFormData(prev => ({ ...prev, order_type: v as OrderType }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ORDER_TYPES.map(t => (
-                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="payment_status">Payment Status</Label>
-                <Select 
-                  value={formData.payment_status} 
-                  onValueChange={v => setFormData(prev => ({ ...prev, payment_status: v as PaymentStatus }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PAYMENT_STATUSES.map(s => (
-                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="total_sales_amount">Total Sales Amount (₹)</Label>
-                <Input
-                  id="total_sales_amount"
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={formData.total_sales_amount || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, total_sales_amount: parseFloat(e.target.value) || undefined }))}
-                  disabled={loading}
-                  readOnly
-                  className="bg-muted"
-                  title="Auto-calculated from items total + delivery charges"
-                />
-                <p className="text-xs text-muted-foreground">Auto-calculated from items + delivery</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="amount_paid">Amount Paid (₹)</Label>
-                <Input
-                  id="amount_paid"
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={formData.amount_paid || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, amount_paid: parseFloat(e.target.value) || undefined }))}
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="delivery_charges">Delivery Charges (₹)</Label>
-                <Input
-                  id="delivery_charges"
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={formData.delivery_charges || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, delivery_charges: parseFloat(e.target.value) || undefined }))}
-                  disabled={loading}
-                  placeholder="0"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="payment_terms">Payment Terms</Label>
-                <Input
-                  id="payment_terms"
-                  value={formData.payment_terms || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, payment_terms: e.target.value }))}
-                  disabled={loading}
-                  placeholder="e.g., 50% advance, 50% on delivery"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="payment_due_date">Payment Due Date</Label>
-                <Input
-                  id="payment_due_date"
-                  type="date"
-                  value={formData.payment_due_date || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, payment_due_date: e.target.value }))}
-                  disabled={loading}
-                />
-              </div>
-              
-              {/* Payment Screenshot Upload - Multiple */}
-              <div className="space-y-2 md:col-span-2">
-                <Label className="flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <Upload className="h-4 w-4" />
-                    Payment Screenshots (Optional) ({paymentFiles.length} selected)
-                  </span>
-                  {paymentFiles.length > 0 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleClearPaymentFiles}
-                      disabled={loading}
-                      className="h-6 text-xs"
+              {/* Step 2: Customer Details */}
+              {currentStep === 2 && (
+                <div className="space-y-5 animate-fade-in">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="customer_name">Customer Name *</Label>
+                      <Input
+                        id="customer_name"
+                        value={formData.customer_name}
+                        onChange={e => setFormData(prev => ({ ...prev, customer_name: e.target.value }))}
+                        required
+                        disabled={loading}
+                        placeholder="Enter customer name"
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="customer_company">Company Name *</Label>
+                      <Input
+                        id="customer_company"
+                        value={formData.customer_company}
+                        onChange={e => setFormData(prev => ({ ...prev, customer_company: e.target.value }))}
+                        required
+                        disabled={loading}
+                        placeholder="Enter company name"
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="customer_email">Email</Label>
+                      <Input
+                        id="customer_email"
+                        type="email"
+                        value={formData.customer_email || ''}
+                        onChange={e => setFormData(prev => ({ ...prev, customer_email: e.target.value }))}
+                        disabled={loading}
+                        placeholder="customer@example.com"
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Customer Type</Label>
+                      <Select 
+                        value={formData.customer_type} 
+                        onValueChange={v => setFormData(prev => ({ ...prev, customer_type: v as CustomerType }))}
+                      >
+                        <SelectTrigger className="h-11">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CUSTOMER_TYPES.map(t => (
+                            <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <Label>Order Source</Label>
+                    <RadioGroup
+                      value={formData.is_website_order ? 'website' : 'sales'}
+                      onValueChange={(value) => {
+                        const isWebsite = value === 'website';
+                        setFormData(prev => ({
+                          ...prev,
+                          is_website_order: isWebsite,
+                          ...(isWebsite ? { sales_person_id: '', sales_person_name: '' } : {}),
+                        }));
+                      }}
+                      className="grid grid-cols-2 gap-4"
                     >
-                      Clear all
-                    </Button>
+                      <label
+                        htmlFor="sales_order"
+                        className={cn(
+                          "flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all",
+                          !formData.is_website_order ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground"
+                        )}
+                      >
+                        <RadioGroupItem value="sales" id="sales_order" />
+                        <div>
+                          <p className="font-medium">Sales Order</p>
+                          <p className="text-xs text-muted-foreground">From sales team</p>
+                        </div>
+                      </label>
+                      <label
+                        htmlFor="website_order"
+                        className={cn(
+                          "flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all",
+                          formData.is_website_order ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground"
+                        )}
+                      >
+                        <RadioGroupItem value="website" id="website_order" />
+                        <div>
+                          <p className="font-medium">Website Order</p>
+                          <p className="text-xs text-muted-foreground">Online purchase</p>
+                        </div>
+                      </label>
+                    </RadioGroup>
+                  </div>
+
+                  {!formData.is_website_order && (
+                    <div className="space-y-2">
+                      <Label>Sales Person *</Label>
+                      <Select
+                        value={formData.sales_person_id || ''}
+                        onValueChange={(value) => {
+                          const member = salesTeam.find(m => m.user_id === value);
+                          if (member) {
+                            setFormData(prev => ({
+                              ...prev,
+                              sales_person_id: member.user_id,
+                              sales_person_name: member.name,
+                            }));
+                          }
+                        }}
+                        disabled={loading}
+                      >
+                        <SelectTrigger className="h-11">
+                          <SelectValue placeholder="Select sales person" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {salesTeam.map(member => (
+                            <SelectItem key={member.user_id} value={member.user_id}>
+                              {member.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   )}
-                </Label>
-                
-                {/* Payment file previews grid */}
-                {paymentFiles.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2 max-h-36 overflow-y-auto p-1">
-                    {paymentFiles.map((fileItem) => (
-                      <div key={fileItem.id} className="relative group">
-                        <img
-                          src={fileItem.preview}
-                          alt="Payment screenshot preview"
-                          className="w-full h-20 object-cover rounded-lg border border-border bg-muted"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => handleRemovePaymentFile(fileItem.id)}
-                          disabled={loading}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Committed Timeline</Label>
+                      <Input
+                        value={formData.committed_timeline || ''}
+                        onChange={e => setFormData(prev => ({ ...prev, committed_timeline: e.target.value }))}
+                        disabled={loading}
+                        placeholder="e.g., 2-3 weeks"
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Lead Source</Label>
+                      <Select 
+                        value={formData.lead_source || ''} 
+                        onValueChange={v => setFormData(prev => ({ ...prev, lead_source: v as LeadSource }))}
+                      >
+                        <SelectTrigger className="h-11">
+                          <SelectValue placeholder="Select source" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LEAD_SOURCES.map(s => (
+                            <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                )}
 
-                {/* Upload area */}
-                <div
-                  className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    {paymentFiles.length > 0 ? (
-                      <>
-                        <Plus className="h-5 w-5 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Add more screenshots</span>
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Click to upload payment screenshots</span>
-                      </>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    PNG, JPG, JPEG up to 10MB each
-                  </p>
-                </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handlePaymentFileChange}
-                  className="hidden"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Upload proof of payment for admin approval
-                </p>
-              </div>
-
-              {/* Invoice Upload */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Invoice (Optional)
-                </Label>
-                {invoicePreview ? (
-                  <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted">
-                    <FileText className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-sm flex-1 truncate">{invoicePreview}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={handleClearInvoiceFile}
-                      disabled={loading}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div
-                    className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                    onClick={() => invoiceInputRef.current?.click()}
-                  >
-                    <FileText className="h-6 w-6 mx-auto text-muted-foreground mb-1" />
-                    <p className="text-sm text-muted-foreground">
-                      Click to upload invoice
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      PDF, PNG, JPG up to 10MB
-                    </p>
-                  </div>
-                )}
-                <input
-                  ref={invoiceInputRef}
-                  type="file"
-                  accept=".pdf,image/*"
-                  onChange={handleInvoiceFileChange}
-                  className="hidden"
-                />
-              </div>
-
-              {/* PO Upload - Multiple */}
-              <div className="space-y-2">
-                <Label className="flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    PO Received (Optional) ({poFiles.length})
-                  </span>
-                  {poFiles.length > 0 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleClearPoFiles}
-                      disabled={loading}
-                      className="h-6 text-xs"
-                    >
-                      Clear
-                    </Button>
-                  )}
-                </Label>
-                
-                {/* PO file list */}
-                {poFiles.length > 0 && (
-                  <div className="space-y-1 max-h-24 overflow-y-auto">
-                    {poFiles.map((fileItem) => (
-                      <div key={fileItem.id} className="flex items-center gap-2 p-2 rounded-lg border border-border bg-muted">
-                        <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <span className="text-sm flex-1 truncate">{fileItem.preview}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5 flex-shrink-0"
-                          onClick={() => handleRemovePoFile(fileItem.id)}
-                          disabled={loading}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div
-                  className="border-2 border-dashed border-border rounded-lg p-3 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                  onClick={() => poInputRef.current?.click()}
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    {poFiles.length > 0 ? (
-                      <>
-                        <Plus className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Add more POs</span>
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="h-5 w-5 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Upload PO received</span>
-                      </>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    PDF, PNG, JPG up to 10MB
-                  </p>
-                </div>
-                <input
-                  ref={poInputRef}
-                  type="file"
-                  accept=".pdf,image/*"
-                  multiple
-                  onChange={handlePoFileChange}
-                  className="hidden"
-                />
-              </div>
-            </div>
-          </div>
-
-
-          {/* Tracking Details - Only visible to Admin/Supply Chain */}
-          {canViewProcurement && (
-            <div className="space-y-4">
-              <h3 className="font-medium text-sm text-muted-foreground">Tracking Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="tracking_number">Tracking Number</Label>
-                  <Input
-                    id="tracking_number"
-                    value={formData.tracking_number || ''}
-                    onChange={e => setFormData(prev => ({ ...prev, tracking_number: e.target.value }))}
-                    disabled={loading}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tracking_url">Tracking URL</Label>
-                  <Input
-                    id="tracking_url"
-                    type="url"
-                    value={formData.tracking_url || ''}
-                    onChange={e => setFormData(prev => ({ ...prev, tracking_url: e.target.value }))}
-                    disabled={loading}
-                    placeholder="https://..."
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="estimated_delivery">Estimated Delivery</Label>
-                  <Input
-                    id="estimated_delivery"
-                    type="date"
-                    value={formData.estimated_delivery || ''}
-                    onChange={e => setFormData(prev => ({ ...prev, estimated_delivery: e.target.value }))}
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Notes */}
-          <div className="space-y-4">
-            <h3 className="font-medium text-sm text-muted-foreground">Notes</h3>
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="sales_notes">Sales Notes (From Sales Team)</Label>
-                <Textarea
-                  id="sales_notes"
-                  value={formData.sales_notes || ''}
-                  onChange={e => setFormData(prev => ({ ...prev, sales_notes: e.target.value }))}
-                  disabled={loading}
-                  rows={2}
-                  placeholder="Notes from sales team about the order"
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {canViewProcurement && (
                   <div className="space-y-2">
-                    <Label htmlFor="internal_notes">Internal Notes (Supply Chain Only)</Label>
+                    <Label>Shipping Address</Label>
                     <Textarea
-                      id="internal_notes"
-                      value={formData.internal_notes || ''}
-                      onChange={e => setFormData(prev => ({ ...prev, internal_notes: e.target.value }))}
+                      value={formData.shipping_address || ''}
+                      onChange={e => setFormData(prev => ({ ...prev, shipping_address: e.target.value }))}
                       disabled={loading}
                       rows={2}
+                      placeholder="Full shipping address"
+                      className="resize-none"
                     />
                   </div>
-                )}
-                <div className="space-y-2">
-                  <Label htmlFor="customer_notes">Customer Notes (Visible to Sales)</Label>
-                  <Textarea
-                    id="customer_notes"
-                    value={formData.customer_notes || ''}
-                    onChange={e => setFormData(prev => ({ ...prev, customer_notes: e.target.value }))}
-                    disabled={loading}
-                    rows={2}
-                  />
+                </div>
+              )}
+
+              {/* Step 3: Payment Details */}
+              {currentStep === 3 && (
+                <div className="space-y-5 animate-fade-in">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Order Type</Label>
+                      <Select 
+                        value={formData.order_type} 
+                        onValueChange={v => setFormData(prev => ({ ...prev, order_type: v as OrderType }))}
+                      >
+                        <SelectTrigger className="h-11">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ORDER_TYPES.map(t => (
+                            <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Payment Status</Label>
+                      <Select 
+                        value={formData.payment_status} 
+                        onValueChange={v => setFormData(prev => ({ ...prev, payment_status: v as PaymentStatus }))}
+                      >
+                        <SelectTrigger className="h-11">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PAYMENT_STATUSES.map(s => (
+                            <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Total Amount (₹)</Label>
+                      <Input
+                        type="number"
+                        value={formData.total_sales_amount || ''}
+                        readOnly
+                        className="h-11 bg-muted font-medium"
+                      />
+                      <p className="text-xs text-muted-foreground">Auto-calculated</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Amount Paid (₹)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={formData.amount_paid || ''}
+                        onChange={e => setFormData(prev => ({ ...prev, amount_paid: parseFloat(e.target.value) || undefined }))}
+                        disabled={loading}
+                        className="h-11"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Delivery Charges (₹)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={formData.delivery_charges || ''}
+                        onChange={e => setFormData(prev => ({ ...prev, delivery_charges: parseFloat(e.target.value) || undefined }))}
+                        disabled={loading}
+                        className="h-11"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Payment Terms</Label>
+                      <Input
+                        value={formData.payment_terms || ''}
+                        onChange={e => setFormData(prev => ({ ...prev, payment_terms: e.target.value }))}
+                        disabled={loading}
+                        placeholder="e.g., 50% advance"
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Payment Due Date</Label>
+                      <Input
+                        type="date"
+                        value={formData.payment_due_date || ''}
+                        onChange={e => setFormData(prev => ({ ...prev, payment_due_date: e.target.value }))}
+                        disabled={loading}
+                        className="h-11"
+                      />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* File Uploads */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Payment Screenshots */}
+                    <div className="space-y-3">
+                      <Label className="flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <Upload className="h-4 w-4" />
+                          Payment Screenshots ({paymentFiles.length})
+                        </span>
+                        {paymentFiles.length > 0 && (
+                          <Button type="button" variant="ghost" size="sm" onClick={handleClearPaymentFiles} disabled={loading} className="h-6 text-xs">
+                            Clear
+                          </Button>
+                        )}
+                      </Label>
+                      
+                      {paymentFiles.length > 0 && (
+                        <div className="grid grid-cols-3 gap-2">
+                          {paymentFiles.map((fileItem) => (
+                            <div key={fileItem.id} className="relative group">
+                              <img src={fileItem.preview} alt="Payment" className="w-full h-16 object-cover rounded-lg border" />
+                              <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100" onClick={() => handleRemovePaymentFile(fileItem.id)} disabled={loading}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="border-2 border-dashed border-border rounded-xl p-4 text-center cursor-pointer hover:border-primary/50 transition-colors" onClick={() => fileInputRef.current?.click()}>
+                        <ImageIcon className="h-6 w-6 mx-auto text-muted-foreground mb-1" />
+                        <p className="text-xs text-muted-foreground">Click to upload</p>
+                      </div>
+                      <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handlePaymentFileChange} className="hidden" />
+                    </div>
+
+                    {/* Invoice & PO */}
+                    <div className="space-y-4">
+                      {/* Invoice */}
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          Invoice
+                        </Label>
+                        {invoicePreview ? (
+                          <div className="flex items-center gap-2 p-3 rounded-lg border bg-muted">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm flex-1 truncate">{invoicePreview}</span>
+                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={handleClearInvoiceFile} disabled={loading}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="border-2 border-dashed border-border rounded-lg p-3 text-center cursor-pointer hover:border-primary/50" onClick={() => invoiceInputRef.current?.click()}>
+                            <p className="text-xs text-muted-foreground">Upload invoice</p>
+                          </div>
+                        )}
+                        <input ref={invoiceInputRef} type="file" accept=".pdf,image/*" onChange={handleInvoiceFileChange} className="hidden" />
+                      </div>
+
+                      {/* PO */}
+                      <div className="space-y-2">
+                        <Label className="flex items-center justify-between">
+                          <span className="flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            PO Documents ({poFiles.length})
+                          </span>
+                          {poFiles.length > 0 && (
+                            <Button type="button" variant="ghost" size="sm" onClick={handleClearPoFiles} disabled={loading} className="h-6 text-xs">
+                              Clear
+                            </Button>
+                          )}
+                        </Label>
+                        
+                        {poFiles.length > 0 && (
+                          <div className="space-y-1 max-h-20 overflow-y-auto">
+                            {poFiles.map((fileItem) => (
+                              <div key={fileItem.id} className="flex items-center gap-2 p-2 rounded-lg border bg-muted text-sm">
+                                <FileText className="h-4 w-4 text-muted-foreground" />
+                                <span className="flex-1 truncate">{fileItem.preview}</span>
+                                <Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={() => handleRemovePoFile(fileItem.id)} disabled={loading}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="border-2 border-dashed border-border rounded-lg p-3 text-center cursor-pointer hover:border-primary/50" onClick={() => poInputRef.current?.click()}>
+                          <p className="text-xs text-muted-foreground">{poFiles.length > 0 ? 'Add more' : 'Upload PO'}</p>
+                        </div>
+                        <input ref={poInputRef} type="file" accept=".pdf,image/*" multiple onChange={handlePoFileChange} className="hidden" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4: Delivery & Notes */}
+              {currentStep === 4 && (
+                <div className="space-y-5 animate-fade-in">
+                  {/* Tracking Details */}
+                  {canViewProcurement && (
+                    <div className="space-y-4">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Truck className="h-4 w-4" />
+                        Tracking Details
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label>Tracking Number</Label>
+                          <Input
+                            value={formData.tracking_number || ''}
+                            onChange={e => setFormData(prev => ({ ...prev, tracking_number: e.target.value }))}
+                            disabled={loading}
+                            placeholder="Enter tracking number"
+                            className="h-11"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Tracking URL</Label>
+                          <Input
+                            type="url"
+                            value={formData.tracking_url || ''}
+                            onChange={e => setFormData(prev => ({ ...prev, tracking_url: e.target.value }))}
+                            disabled={loading}
+                            placeholder="https://..."
+                            className="h-11"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Estimated Delivery</Label>
+                          <Input
+                            type="date"
+                            value={formData.estimated_delivery || ''}
+                            onChange={e => setFormData(prev => ({ ...prev, estimated_delivery: e.target.value }))}
+                            disabled={loading}
+                            className="h-11"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  {/* Notes */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4" />
+                      Notes
+                    </h4>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Sales Notes</Label>
+                        <Textarea
+                          value={formData.sales_notes || ''}
+                          onChange={e => setFormData(prev => ({ ...prev, sales_notes: e.target.value }))}
+                          disabled={loading}
+                          rows={2}
+                          placeholder="Notes from sales team..."
+                          className="resize-none"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {canViewProcurement && (
+                          <div className="space-y-2">
+                            <Label>Internal Notes (Supply Chain)</Label>
+                            <Textarea
+                              value={formData.internal_notes || ''}
+                              onChange={e => setFormData(prev => ({ ...prev, internal_notes: e.target.value }))}
+                              disabled={loading}
+                              rows={2}
+                              className="resize-none"
+                            />
+                          </div>
+                        )}
+                        <div className="space-y-2">
+                          <Label>Customer Notes</Label>
+                          <Textarea
+                            value={formData.customer_notes || ''}
+                            onChange={e => setFormData(prev => ({ ...prev, customer_notes: e.target.value }))}
+                            disabled={loading}
+                            rows={2}
+                            placeholder="Notes visible to sales..."
+                            className="resize-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sidebar - Order Summary */}
+            <div className="lg:col-span-1">
+              <div className="sticky top-4 space-y-4">
+                <OrderSummary />
+                
+                {/* Navigation Buttons */}
+                <div className="flex flex-col gap-2">
+                  {currentStep < 4 ? (
+                    <Button
+                      type="button"
+                      onClick={() => goToStep(currentStep + 1)}
+                      disabled={!canGoNext()}
+                      className="w-full h-12 text-base"
+                    >
+                      Continue
+                      <ChevronRight className="ml-2 h-5 w-5" />
+                    </Button>
+                  ) : (
+                    <Button type="submit" disabled={loading} className="w-full h-12 text-base bg-green-600 hover:bg-green-700">
+                      {loading ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="mr-2 h-5 w-5" />
+                          Create Order
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  
+                  {currentStep > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => goToStep(currentStep - 1)}
+                      className="w-full"
+                    >
+                      <ChevronLeft className="mr-2 h-4 w-4" />
+                      Back
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-
-          <Button type="submit" disabled={loading} className="w-full">
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating Order...
-              </>
-            ) : (
-              'Create Order'
-            )}
-          </Button>
         </form>
       </CardContent>
     </Card>
