@@ -19,11 +19,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO } from 'date-fns';
 import { calculatePaymentDueDate } from '@/lib/paymentTerms';
 import { toast } from 'sonner';
-import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2 } from 'lucide-react';
+import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon } from 'lucide-react';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { OrderSupplierPayments } from '@/components/OrderSupplierPayments';
 import { EditHistoryPanel } from '@/components/EditHistoryPanel';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 interface OrderDialogProps {
   order: Order | null;
@@ -105,6 +108,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [supplierPaymentDueDate, setSupplierPaymentDueDate] = useState('');
   const [isRto, setIsRto] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
+  const [orderDate, setOrderDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     if (order) {
@@ -142,6 +146,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setSupplierPaymentDueDate((order as any).supplier_payment_due_date || '');
       setIsRto(order.is_rto || false);
       setCancellationReason(order.cancellation_reason || '');
+      setOrderDate(order.order_date ? new Date(order.order_date) : new Date(order.created_at));
       setEscalationReason('');
       setShowEscalationForm(false);
       
@@ -341,6 +346,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       outcome_updated_by: orderOutcome !== order.order_outcome ? user?.id : order.outcome_updated_by,
       supplier_payment_terms: supplierPaymentTerms || null,
       supplier_payment_due_date: supplierPaymentDueDate || null,
+      order_date: orderDate ? format(orderDate, 'yyyy-MM-dd') : null,
       // RTO and cancellation fields
       is_rto: isRto,
       rto_marked_at: isRto && !order.is_rto ? new Date().toISOString() : order.rto_marked_at,
@@ -567,12 +573,38 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2 text-sm font-medium">
-                    <Calendar className="h-4 w-4" />
+                    <CalendarIcon className="h-4 w-4" />
                     Order Date
                   </Label>
-                  <p className="text-sm font-medium bg-background p-2 rounded border">
-                    {format(new Date(order.created_at), 'dd MMM yyyy, HH:mm')}
-                  </p>
+                  {canEditSalesFields ? (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal bg-background",
+                            !orderDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {orderDate ? format(orderDate, "dd MMM yyyy") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={orderDate}
+                          onSelect={setOrderDate}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    <p className="text-sm font-medium bg-background p-2 rounded border">
+                      {orderDate ? format(orderDate, 'dd MMM yyyy') : format(new Date(order.created_at), 'dd MMM yyyy')}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2 text-sm font-medium">
