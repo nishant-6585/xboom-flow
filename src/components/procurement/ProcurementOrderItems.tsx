@@ -159,11 +159,15 @@ export function ProcurementOrderItems({
 
   const currencySymbol = procurementCurrency === 'USD' ? '$' : '₹';
 
-  // Calculate totals
+  // Calculate totals (including GST)
   const totalProcurementValue = items.reduce((sum, item) => {
     const rate = parseFloat(editedItems[item.id]?.procurement_rate) || 0;
+    const gstAmt = parseFloat(editedItems[item.id]?.procurement_gst_amount) || 0;
+    const includesGst = editedItems[item.id]?.procurement_price_includes_gst;
     const qtyProcured = parseInt(editedItems[item.id]?.quantity_procured) || item.quantity;
-    return sum + (rate * qtyProcured);
+    // If price includes GST, use rate directly; otherwise add GST
+    const rateWithGst = includesGst ? rate : rate + gstAmt;
+    return sum + (rateWithGst * qtyProcured);
   }, 0);
 
   const hasChanges = items.some(item => {
