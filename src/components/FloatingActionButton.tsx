@@ -166,8 +166,8 @@ export function FloatingActionButton() {
 
   return (
     <>
-      {/* FAB Menu - Only visible on mobile */}
-      <div className="fixed bottom-6 right-6 z-50 md:hidden">
+      {/* FAB Menu - Visible on all screen sizes */}
+      <div className="fixed bottom-6 right-6 z-50">
         {/* Action buttons - appear when FAB is open */}
         <div 
           className={cn(
