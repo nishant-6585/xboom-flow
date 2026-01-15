@@ -92,8 +92,9 @@ export interface OrderFormData {
   customer_name: string;
   customer_company: string;
   customer_email?: string;
-  sales_person_id: string;
-  sales_person_name: string;
+  sales_person_id?: string;
+  sales_person_name?: string;
+  is_website_order?: boolean;
   shipping_address?: string;
   order_type: OrderType;
   customer_type: CustomerType;
@@ -419,11 +420,16 @@ export function useOrders() {
       }
 
       // Sanitize form data - convert empty strings to null for date and UUID fields
+      // For website orders, use 'Website Order' as placeholder
+      const salesPersonId = formData.sales_person_id || user.id;
+      const salesPersonName = formData.sales_person_name || 'Website Order';
+      
       const sanitizedData = {
         ...formData,
         enquiry_id: formData.enquiry_id || null,
         supplier_id: formData.supplier_id || null,
-        sales_person_id: formData.sales_person_id || user.id, // Default to current user if empty
+        sales_person_id: salesPersonId,
+        sales_person_name: salesPersonName,
         payment_due_date: formData.payment_due_date || null,
         estimated_delivery: formData.estimated_delivery || null,
         product_code: formData.product_name, // Auto-generate from product name
@@ -432,6 +438,9 @@ export function useOrders() {
         invoice_url: invoiceUrl || null,
         po_url: poUrl || null,
       };
+      
+      // Remove is_website_order from the data as it's not a database field
+      delete (sanitizedData as any).is_website_order;
 
       const { data: orderData, error } = await supabase
         .from('orders')
