@@ -450,6 +450,56 @@ export type Database = {
         }
         Relationships: []
       }
+      import_items: {
+        Row: {
+          created_at: string
+          hsn_code: string | null
+          id: string
+          import_id: string
+          notes: string | null
+          product_category: string | null
+          product_code: string | null
+          product_name: string
+          quantity: number | null
+          total_amount: number | null
+          unit_price: number | null
+        }
+        Insert: {
+          created_at?: string
+          hsn_code?: string | null
+          id?: string
+          import_id: string
+          notes?: string | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name: string
+          quantity?: number | null
+          total_amount?: number | null
+          unit_price?: number | null
+        }
+        Update: {
+          created_at?: string
+          hsn_code?: string | null
+          id?: string
+          import_id?: string
+          notes?: string | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name?: string
+          quantity?: number | null
+          total_amount?: number | null
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_items_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       imports: {
         Row: {
           actual_arrival: string | null
