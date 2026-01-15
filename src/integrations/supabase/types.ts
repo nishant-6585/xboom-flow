@@ -879,6 +879,7 @@ export type Database = {
           procurement_date: string | null
           procurement_gst_amount: number | null
           procurement_gst_percent: number | null
+          procurement_price_includes_gst: boolean | null
           procurement_rate: number | null
           product_category: string | null
           product_code: string | null
@@ -887,6 +888,7 @@ export type Database = {
           quantity_procured: number | null
           sales_gst_amount: number | null
           sales_gst_percent: number | null
+          sales_price_includes_gst: boolean | null
           status: string
           supplier_id: string | null
           unit_price: number | null
@@ -900,6 +902,7 @@ export type Database = {
           procurement_date?: string | null
           procurement_gst_amount?: number | null
           procurement_gst_percent?: number | null
+          procurement_price_includes_gst?: boolean | null
           procurement_rate?: number | null
           product_category?: string | null
           product_code?: string | null
@@ -908,6 +911,7 @@ export type Database = {
           quantity_procured?: number | null
           sales_gst_amount?: number | null
           sales_gst_percent?: number | null
+          sales_price_includes_gst?: boolean | null
           status?: string
           supplier_id?: string | null
           unit_price?: number | null
@@ -921,6 +925,7 @@ export type Database = {
           procurement_date?: string | null
           procurement_gst_amount?: number | null
           procurement_gst_percent?: number | null
+          procurement_price_includes_gst?: boolean | null
           procurement_rate?: number | null
           product_category?: string | null
           product_code?: string | null
@@ -929,6 +934,7 @@ export type Database = {
           quantity_procured?: number | null
           sales_gst_amount?: number | null
           sales_gst_percent?: number | null
+          sales_price_includes_gst?: boolean | null
           status?: string
           supplier_id?: string | null
           unit_price?: number | null
