@@ -1863,6 +1863,12 @@ export type Database = {
       supplier_payments: {
         Row: {
           amount: number
+          approved_at: string | null
+          approved_by: string | null
+          approved_by_name: string | null
+          completed_at: string | null
+          completed_by: string | null
+          completed_by_name: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -1871,13 +1877,24 @@ export type Database = {
           order_id: string | null
           payment_date: string
           payment_mode: string | null
+          payment_request_status: string | null
           payment_type: string
           reference_number: string | null
+          request_notes: string | null
+          requested_at: string | null
+          requested_by: string | null
+          requested_by_name: string | null
           screenshot_urls: string[] | null
           supplier_id: string
         }
         Insert: {
           amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_by_name?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -1886,13 +1903,24 @@ export type Database = {
           order_id?: string | null
           payment_date?: string
           payment_mode?: string | null
+          payment_request_status?: string | null
           payment_type?: string
           reference_number?: string | null
+          request_notes?: string | null
+          requested_at?: string | null
+          requested_by?: string | null
+          requested_by_name?: string | null
           screenshot_urls?: string[] | null
           supplier_id: string
         }
         Update: {
           amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_by_name?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -1901,8 +1929,13 @@ export type Database = {
           order_id?: string | null
           payment_date?: string
           payment_mode?: string | null
+          payment_request_status?: string | null
           payment_type?: string
           reference_number?: string | null
+          request_notes?: string | null
+          requested_at?: string | null
+          requested_by?: string | null
+          requested_by_name?: string | null
           screenshot_urls?: string[] | null
           supplier_id?: string
         }

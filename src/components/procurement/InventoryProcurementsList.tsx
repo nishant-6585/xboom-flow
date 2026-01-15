@@ -9,27 +9,34 @@ import { useInventoryProcurements, InventoryProcurement } from '@/hooks/useInven
 import { useInventoryProcurementPayments } from '@/hooks/useInventoryProcurementPayments';
 import { useOrders } from '@/hooks/useOrders';
 import { useAuth } from '@/hooks/useAuth';
+import { SupplierPayment } from '@/hooks/useSuppliers';
 import { format, parseISO, isBefore, addDays } from 'date-fns';
 import { getPaymentTermsLabel } from '@/lib/paymentTerms';
-import { Package, Trash2, CreditCard, AlertTriangle, CheckCircle2, Clock, Loader2, History, Plus, FileText } from 'lucide-react';
+import { Package, Trash2, CreditCard, AlertTriangle, CheckCircle2, Clock, Loader2, History, Plus, FileText, Send, Ban, Check } from 'lucide-react';
 import { InventoryProcurementPaymentDialog } from './InventoryProcurementPaymentDialog';
 import { InventoryProcurementPaymentHistory } from './InventoryProcurementPaymentHistory';
+import { PaymentRequestDialog } from './PaymentRequestDialog';
+import { MarkPaymentDoneDialog } from './MarkPaymentDoneDialog';
 
 export function InventoryProcurementsList() {
   const { procurements, loading, updateProcurement, deleteProcurement, refetch } = useInventoryProcurements();
-  const { getPaymentsByProcurementMap, refetch: refetchPayments } = useInventoryProcurementPayments();
+  const { payments: allPayments, getPaymentsByProcurementMap, refetch: refetchPayments } = useInventoryProcurementPayments();
   const { orders } = useOrders();
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [paymentProcurement, setPaymentProcurement] = useState<InventoryProcurement | null>(null);
   const [historyProcurement, setHistoryProcurement] = useState<InventoryProcurement | null>(null);
+  const [requestPaymentProcurement, setRequestPaymentProcurement] = useState<{ procurement: InventoryProcurement; remainingBalance: number } | null>(null);
+  const [markDonePayment, setMarkDonePayment] = useState<SupplierPayment | null>(null);
 
   // Create a map of order IDs to order numbers
   const orderNumberMap = new Map(orders.map(o => [o.id, o.order_number || o.id.slice(0, 8)]));
 
   const isAdmin = role === 'admin';
+  const isFinance = role === 'finance';
   const canManagePayments = role === 'admin' || role === 'supply_chain';
+  const canApprovePayments = role === 'admin' || role === 'finance';
   
   const paymentsByProcurement = getPaymentsByProcurementMap();
 
@@ -159,6 +166,12 @@ export function InventoryProcurementsList() {
                 const totalAmount = procurement.total_amount || 0;
                 const remainingBalance = totalAmount - paymentData.totalPaid;
                 const paymentCount = paymentData.payments.length;
+                
+                // Get pending payment requests for this procurement
+                const procurementPayments = allPayments.filter(p => p.inventory_procurement_id === procurement.id);
+                const requestedPayments = procurementPayments.filter(p => p.payment_request_status === 'requested');
+                const approvedPayments = procurementPayments.filter(p => p.payment_request_status === 'approved');
+                const donePayments = procurementPayments.filter(p => p.payment_request_status === 'done');
 
                 return (
                   <TableRow key={procurement.id}>
@@ -221,6 +234,19 @@ export function InventoryProcurementsList() {
                     <TableCell>
                       <div className="flex flex-col gap-1">
                         {getPaymentStatusBadge(procurement, paymentData.totalPaid)}
+                        {/* Payment Request Status Badges */}
+                        {requestedPayments.length > 0 && (
+                          <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 text-xs">
+                            <Send className="h-3 w-3 mr-1" />
+                            {requestedPayments.length} Requested
+                          </Badge>
+                        )}
+                        {approvedPayments.length > 0 && (
+                          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-xs">
+                            <Check className="h-3 w-3 mr-1" />
+                            {approvedPayments.length} Approved
+                          </Badge>
+                        )}
                         {procurement.payment_due_date && (
                           <span className="text-xs text-muted-foreground">
                             Due: {format(parseISO(procurement.payment_due_date), 'dd MMM')}
@@ -232,7 +258,7 @@ export function InventoryProcurementsList() {
                       {format(parseISO(procurement.procurement_date), 'dd MMM yyyy')}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1 flex-wrap">
                         {paymentCount > 0 && (
                           <Button
                             variant="ghost"
@@ -243,16 +269,45 @@ export function InventoryProcurementsList() {
                             <History className="h-4 w-4" />
                           </Button>
                         )}
-                        {procurement.supplier_id && canManagePayments && (
+                        
+                        {/* Request Payment button for supply chain team when balance exists */}
+                        {procurement.supplier_id && remainingBalance > 0 && canManagePayments && !canApprovePayments && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setRequestPaymentProcurement({ procurement, remainingBalance })}
+                            title="Request Payment"
+                            className="text-yellow-600 border-yellow-300 hover:bg-yellow-50 dark:text-yellow-400 dark:border-yellow-600 dark:hover:bg-yellow-950"
+                          >
+                            <Send className="h-4 w-4" />
+                          </Button>
+                        )}
+                        
+                        {/* Mark as Done button for admin/finance on approved payments */}
+                        {approvedPayments.length > 0 && canApprovePayments && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setMarkDonePayment(approvedPayments[0])}
+                            title="Mark Payment Done"
+                            className="text-green-600 border-green-300 hover:bg-green-50 dark:text-green-400 dark:border-green-600 dark:hover:bg-green-950"
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        
+                        {/* Direct Add Payment for admin/finance */}
+                        {procurement.supplier_id && canApprovePayments && (
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => setPaymentProcurement(procurement)}
-                            title="Add Payment"
+                            title="Add Direct Payment"
                           >
                             <Plus className="h-4 w-4" />
                           </Button>
                         )}
+                        
                         {isAdmin && (
                           <Button
                             variant="ghost"
@@ -308,6 +363,21 @@ export function InventoryProcurementsList() {
         payments={historyProcurement ? (paymentsByProcurement[historyProcurement.id]?.payments || []) : []}
         totalPaid={historyProcurement ? (paymentsByProcurement[historyProcurement.id]?.totalPaid || 0) : 0}
         onPaymentDeleted={handlePaymentAdded}
+      />
+
+      <PaymentRequestDialog
+        open={!!requestPaymentProcurement}
+        onOpenChange={(open) => !open && setRequestPaymentProcurement(null)}
+        procurement={requestPaymentProcurement?.procurement || null}
+        remainingBalance={requestPaymentProcurement?.remainingBalance || 0}
+        onPaymentRequested={handlePaymentAdded}
+      />
+
+      <MarkPaymentDoneDialog
+        open={!!markDonePayment}
+        onOpenChange={(open) => !open && setMarkDonePayment(null)}
+        payment={markDonePayment}
+        onPaymentCompleted={handlePaymentAdded}
       />
     </>
   );
