@@ -150,15 +150,19 @@ function ProcurementSummary({
   quantity,
   unitPrice,
   totalAmount,
+  gstAmount,
   supplierName,
   paymentStatus,
+  priceIncludesGst,
 }: {
   productName: string;
   quantity: string;
   unitPrice: string;
   totalAmount: number;
+  gstAmount: number;
   supplierName?: string;
   paymentStatus: string;
+  priceIncludesGst: boolean;
 }) {
   return (
     <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
@@ -191,12 +195,19 @@ function ProcurementSummary({
             <p className="text-sm font-medium truncate">{supplierName}</p>
           </div>
         )}
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">GST</p>
+          <p className="text-sm font-medium">
+            ₹{gstAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            {priceIncludesGst && <span className="text-xs text-muted-foreground ml-1">(incl.)</span>}
+          </p>
+        </div>
         <div className="pt-3 border-t border-primary/20">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Total</span>
             <span className="text-lg font-bold text-primary flex items-center">
               <IndianRupee className="h-4 w-4" />
-              {totalAmount.toLocaleString()}
+              {totalAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
             </span>
           </div>
         </div>
@@ -249,9 +260,35 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
   const [paymentMode, setPaymentMode] = useState('bank_transfer');
   const [paymentReferenceNumber, setPaymentReferenceNumber] = useState('');
   const screenshotInputRef = useRef<HTMLInputElement>(null);
+  
+  // GST fields
+  const [gstPercent, setGstPercent] = useState('18');
+  const [priceIncludesGst, setPriceIncludesGst] = useState(false);
 
-  // Calculate total
-  const totalAmount = Number(quantity || 0) * Number(unitPrice || 0);
+  // Calculate totals with GST
+  const baseAmount = Number(quantity || 0) * Number(unitPrice || 0);
+  
+  const gstAmount = useMemo(() => {
+    if (!baseAmount || !gstPercent) return 0;
+    const gstRate = Number(gstPercent) / 100;
+    if (priceIncludesGst) {
+      // Price includes GST, extract GST from total
+      return baseAmount - (baseAmount / (1 + gstRate));
+    } else {
+      // Price excludes GST, calculate GST on top
+      return baseAmount * gstRate;
+    }
+  }, [baseAmount, gstPercent, priceIncludesGst]);
+
+  const totalAmount = useMemo(() => {
+    if (priceIncludesGst) {
+      // Price already includes GST
+      return baseAmount;
+    } else {
+      // Add GST to base amount
+      return baseAmount + gstAmount;
+    }
+  }, [baseAmount, gstAmount, priceIncludesGst]);
 
   // Get selected supplier name
   const selectedSupplier = suppliers.find(s => s.id === supplierId);
@@ -331,6 +368,8 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
     setPaymentAmount('');
     setPaymentMode('bank_transfer');
     setPaymentReferenceNumber('');
+    setGstPercent('18');
+    setPriceIncludesGst(false);
   };
 
   // Screenshot handlers
@@ -610,7 +649,7 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
                           </div>
                         )}
 
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label>Quantity *</Label>
                             <Input
@@ -631,11 +670,63 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
                               placeholder="0.00"
                             />
                           </div>
-                          <div className="space-y-2">
-                            <Label>Total Amount</Label>
-                            <div className="h-10 px-3 rounded-md bg-muted flex items-center font-medium">
-                              ₹{totalAmount.toLocaleString()}
+                        </div>
+
+                        {/* GST Section */}
+                        <div className="p-4 rounded-lg border bg-muted/30 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-medium">GST Details</Label>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                id="priceIncludesGst"
+                                checked={priceIncludesGst}
+                                onCheckedChange={(checked) => setPriceIncludesGst(checked === true)}
+                              />
+                              <Label htmlFor="priceIncludesGst" className="text-sm cursor-pointer">
+                                Price includes GST
+                              </Label>
                             </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                              <Label>GST %</Label>
+                              <Select value={gstPercent} onValueChange={setGstPercent}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="0">0%</SelectItem>
+                                  <SelectItem value="5">5%</SelectItem>
+                                  <SelectItem value="12">12%</SelectItem>
+                                  <SelectItem value="18">18%</SelectItem>
+                                  <SelectItem value="28">28%</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>GST Amount</Label>
+                              <div className="h-10 px-3 rounded-md bg-muted flex items-center font-medium text-muted-foreground">
+                                ₹{gstAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Base Amount</Label>
+                              <div className="h-10 px-3 rounded-md bg-muted flex items-center font-medium text-muted-foreground">
+                                ₹{(priceIncludesGst ? baseAmount - gstAmount : baseAmount).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Total Amount */}
+                        <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">Total Amount (incl. GST)</span>
+                            <span className="text-xl font-bold text-primary flex items-center">
+                              <IndianRupee className="h-4 w-4" />
+                              {totalAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                            </span>
                           </div>
                         </div>
                       </CardContent>
@@ -924,22 +1015,41 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
                           </div>
                         </div>
 
-                        <div className="p-4 bg-muted/50 rounded-lg">
-                          <h4 className="font-medium text-sm flex items-center gap-2 mb-3">
-                            <CreditCard className="h-4 w-4" />
-                            Payment Details
-                          </h4>
-                          <div className="grid grid-cols-3 gap-4 text-sm">
-                            <p><span className="text-muted-foreground">Status:</span> {paymentStatus}</p>
-                            <p><span className="text-muted-foreground">Mode:</span> {paymentMode.replace('_', ' ')}</p>
-                            <p><span className="text-muted-foreground">Terms:</span> {paymentTerms || 'Not set'}</p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="p-4 bg-muted/50 rounded-lg">
+                            <h4 className="font-medium text-sm flex items-center gap-2 mb-3">
+                              <CreditCard className="h-4 w-4" />
+                              Payment Details
+                            </h4>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <p><span className="text-muted-foreground">Status:</span> {paymentStatus}</p>
+                              <p><span className="text-muted-foreground">Mode:</span> {paymentMode.replace('_', ' ')}</p>
+                              <p><span className="text-muted-foreground">Terms:</span> {paymentTerms || 'Not set'}</p>
+                            </div>
+                          </div>
+
+                          <div className="p-4 bg-muted/50 rounded-lg">
+                            <h4 className="font-medium text-sm flex items-center gap-2 mb-3">
+                              <IndianRupee className="h-4 w-4" />
+                              GST Details
+                            </h4>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <p><span className="text-muted-foreground">GST %:</span> {gstPercent}%</p>
+                              <p><span className="text-muted-foreground">GST Amount:</span> ₹{gstAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                              <p className="col-span-2">
+                                <span className="text-muted-foreground">Price includes GST:</span> {priceIncludesGst ? 'Yes' : 'No'}
+                              </p>
+                            </div>
                           </div>
                         </div>
 
                         <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
                           <div className="flex items-center justify-between">
-                            <span className="font-medium">Total Procurement Value</span>
-                            <span className="text-2xl font-bold text-primary">₹{totalAmount.toLocaleString()}</span>
+                            <div>
+                              <span className="font-medium">Total Procurement Value</span>
+                              <p className="text-xs text-muted-foreground">(Including GST)</p>
+                            </div>
+                            <span className="text-2xl font-bold text-primary">₹{totalAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                           </div>
                         </div>
 
@@ -979,8 +1089,10 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
                     quantity={quantity}
                     unitPrice={unitPrice}
                     totalAmount={totalAmount}
+                    gstAmount={gstAmount}
                     supplierName={selectedSupplier?.name}
                     paymentStatus={paymentStatus}
+                    priceIncludesGst={priceIncludesGst}
                   />
                 </div>
               </div>
