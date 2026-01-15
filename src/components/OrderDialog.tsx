@@ -14,6 +14,7 @@ import { PaymentUploadDialog } from '@/components/PaymentUploadDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useEditHistory } from '@/hooks/useEditHistory';
 import { useOrderItems, ORDER_ITEM_STATUSES } from '@/hooks/useOrderItems';
+import { useSuppliers } from '@/hooks/useSuppliers';
 import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO } from 'date-fns';
 import { calculatePaymentDueDate } from '@/lib/paymentTerms';
@@ -48,6 +49,7 @@ const outcomeConfig: Record<OrderOutcome, { label: string; className: string }> 
 export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onEscalate }: OrderDialogProps) {
   const { role, user, profile } = useAuth();
   const { fetchOrderItems } = useOrderItems();
+  const { suppliers } = useSuppliers();
   const { recordChanges } = useEditHistory();
   const isAdmin = role === 'admin';
   const isSales = role === 'sales';
@@ -1193,12 +1195,28 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="supplier_name">Supplier Name</Label>
-                        <Input
-                          id="supplier_name"
-                          value={supplierName}
-                          onChange={e => setSupplierName(e.target.value)}
+                        <Select
+                          value={supplierName || ""}
+                          onValueChange={(value) => {
+                            setSupplierName(value);
+                            const selectedSupplier = suppliers.find(s => s.name === value);
+                            if (selectedSupplier) {
+                              setSupplierContact(selectedSupplier.contact_name || '');
+                            }
+                          }}
                           disabled={loading}
-                        />
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select supplier" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {suppliers.filter(s => s.status === 'active').map((supplier) => (
+                              <SelectItem key={supplier.id} value={supplier.name}>
+                                {supplier.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="supplier_contact">Supplier Contact</Label>
