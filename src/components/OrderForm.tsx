@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { OrderFormData, ORDER_TYPES, CUSTOMER_TYPES, PAYMENT_STATUSES, LEAD_SOURCES, OrderType, CustomerType, PaymentStatus, LeadSource } from '@/hooks/useOrders';
 import { Loader2, Package, ImageIcon, X, Upload, FileText, Plus } from 'lucide-react';
 import { Enquiry, PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
@@ -73,6 +74,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     customer_email: '',
     sales_person_id: '',
     sales_person_name: '',
+    is_website_order: false,
     shipping_address: '',
     order_type: 'prepaid',
     customer_type: 'b2b',
@@ -246,7 +248,8 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
       return;
     }
     
-    if (!formData.customer_name || !formData.sales_person_name) {
+    // Sales person is optional for website orders
+    if (!formData.customer_name || (!formData.is_website_order && !formData.sales_person_name)) {
       return;
     }
 
@@ -408,33 +411,60 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sales_person_name">Sales Person Name *</Label>
-                <Select
-                  value={formData.sales_person_id || ''}
+                <Label>Order Source</Label>
+                <RadioGroup
+                  value={formData.is_website_order ? 'website' : 'sales'}
                   onValueChange={(value) => {
-                    const member = salesTeam.find(m => m.user_id === value);
-                    if (member) {
-                      setFormData(prev => ({
-                        ...prev,
-                        sales_person_id: member.user_id,
-                        sales_person_name: member.name,
-                      }));
-                    }
+                    const isWebsite = value === 'website';
+                    setFormData(prev => ({
+                      ...prev,
+                      is_website_order: isWebsite,
+                      // Clear sales person if switching to website order
+                      ...(isWebsite ? { sales_person_id: '', sales_person_name: '' } : {}),
+                    }));
                   }}
-                  disabled={loading}
+                  className="flex gap-4"
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select sales person" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {salesTeam.map(member => (
-                      <SelectItem key={member.user_id} value={member.user_id}>
-                        {member.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="sales" id="sales_order" />
+                    <Label htmlFor="sales_order" className="cursor-pointer font-normal">Sales Order</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="website" id="website_order" />
+                    <Label htmlFor="website_order" className="cursor-pointer font-normal">Website Order</Label>
+                  </div>
+                </RadioGroup>
               </div>
+              {!formData.is_website_order && (
+                <div className="space-y-2">
+                  <Label htmlFor="sales_person_name">Sales Person Name *</Label>
+                  <Select
+                    value={formData.sales_person_id || ''}
+                    onValueChange={(value) => {
+                      const member = salesTeam.find(m => m.user_id === value);
+                      if (member) {
+                        setFormData(prev => ({
+                          ...prev,
+                          sales_person_id: member.user_id,
+                          sales_person_name: member.name,
+                        }));
+                      }
+                    }}
+                    disabled={loading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select sales person" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {salesTeam.map(member => (
+                        <SelectItem key={member.user_id} value={member.user_id}>
+                          {member.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="shipping_address">Shipping Address</Label>
                 <Textarea
