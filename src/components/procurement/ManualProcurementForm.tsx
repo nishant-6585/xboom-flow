@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,14 +9,15 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { useInventoryProcurements } from '@/hooks/useInventoryProcurements';
-import { useSuppliers, Supplier } from '@/hooks/useSuppliers';
+import { useSuppliers } from '@/hooks/useSuppliers';
 import { useInventory } from '@/hooks/useInventory';
 import { useOrders } from '@/hooks/useOrders';
 import { calculatePaymentDueDate } from '@/lib/paymentTerms';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, Loader2, Package, Plus, Search, FileText } from 'lucide-react';
+import { CalendarIcon, Loader2, Package, Plus, Search, FileText, Upload, X, Image } from 'lucide-react';
 
 interface ManualProcurementFormProps {
   open: boolean;
@@ -58,6 +59,14 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
   const [addToInventory, setAddToInventory] = useState(true);
   const [useExistingProduct, setUseExistingProduct] = useState(false);
   const [selectedInventoryId, setSelectedInventoryId] = useState('');
+  
+  // Payment status and screenshot
+  const [paymentStatus, setPaymentStatus] = useState('pending');
+  const [paymentScreenshots, setPaymentScreenshots] = useState<File[]>([]);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMode, setPaymentMode] = useState('bank_transfer');
+  const [paymentReferenceNumber, setPaymentReferenceNumber] = useState('');
+  const screenshotInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate total
   const totalAmount = Number(quantity || 0) * Number(unitPrice || 0);
@@ -134,6 +143,23 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
     setAddToInventory(true);
     setUseExistingProduct(false);
     setSelectedInventoryId('');
+    setPaymentStatus('pending');
+    setPaymentScreenshots([]);
+    setPaymentAmount('');
+    setPaymentMode('bank_transfer');
+    setPaymentReferenceNumber('');
+  };
+
+  // Screenshot handlers
+  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setPaymentScreenshots(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const handleRemoveScreenshot = (index: number) => {
+    setPaymentScreenshots(prev => prev.filter((_, i) => i !== index));
   };
 
   // Validation - order is required for non-inventory procurements
@@ -160,7 +186,7 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
       supplier_name: selectedSupplier?.name || null,
       payment_terms: paymentTerms || null,
       payment_due_date: paymentDueDate ? format(paymentDueDate, 'yyyy-MM-dd') : null,
-      payment_status: 'pending',
+      payment_status: paymentStatus,
       procurement_date: format(procurementDate, 'yyyy-MM-dd'),
       notes: notes || null,
       inventory_id: useExistingProduct ? selectedInventoryId : null,
@@ -487,6 +513,117 @@ export function ManualProcurementForm({ open, onOpenChange }: ManualProcurementF
               </Popover>
             </div>
           </div>
+
+          {/* Payout Details Section */}
+          <Card className="border-dashed">
+            <CardContent className="pt-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Upload className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <h4 className="font-medium">Supplier Payout Details</h4>
+                  <p className="text-xs text-muted-foreground">Track payment status and upload proof</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Payment Status</Label>
+                  <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="partial">Partial</SelectItem>
+                      <SelectItem value="done">Done</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Payment Mode</Label>
+                  <Select value={paymentMode} onValueChange={setPaymentMode}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="upi">UPI</SelectItem>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="cheque">Cheque</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {(paymentStatus === 'partial' || paymentStatus === 'done') && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Amount Paid (₹)</Label>
+                    <Input
+                      type="number"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Reference Number</Label>
+                    <Input
+                      value={paymentReferenceNumber}
+                      onChange={(e) => setPaymentReferenceNumber(e.target.value)}
+                      placeholder="Transaction ID / UTR"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Screenshots */}
+              <div className="space-y-2">
+                <Label>Payment Screenshots</Label>
+                <div className="flex flex-wrap gap-2">
+                  {paymentScreenshots.map((file, index) => (
+                    <div key={index} className="relative group">
+                      <div className="w-20 h-20 rounded-lg border bg-muted flex items-center justify-center overflow-hidden">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={`Screenshot ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveScreenshot(index)}
+                        className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => screenshotInputRef.current?.click()}
+                    className="w-20 h-20 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    <Image className="h-5 w-5" />
+                    <span className="text-xs">Add</span>
+                  </button>
+                  <input
+                    ref={screenshotInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleScreenshotChange}
+                    className="hidden"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Upload payment proof screenshots (optional)
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Notes */}
           <div className="space-y-2">
