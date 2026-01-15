@@ -2,17 +2,17 @@ import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Order, PaymentStatus, OrderOutcome, LostReason, LOST_REASONS } from '@/hooks/useOrders';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { Eye, MoreHorizontal, Trophy, XCircle, RotateCcw, Loader2, Undo2 } from 'lucide-react';
+import { Eye, MoreHorizontal, Trophy, XCircle, RotateCcw, Loader2, Undo2, IndianRupee, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface OrderTableProps {
   orders: Order[];
@@ -21,15 +21,15 @@ interface OrderTableProps {
 }
 
 const paymentStatusConfig: Record<PaymentStatus, { label: string; className: string }> = {
-  pending: { label: 'Pending', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' },
-  partial: { label: 'Partial', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
-  full: { label: 'Paid', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+  pending: { label: 'Pending', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200/50' },
+  partial: { label: 'Partial', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200/50' },
+  full: { label: 'Paid', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200/50' },
 };
 
-const outcomeConfig: Record<OrderOutcome, { label: string; className: string }> = {
-  pending: { label: 'Pending', className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400' },
-  won: { label: 'Won', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
-  lost: { label: 'Lost', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
+const outcomeConfig: Record<OrderOutcome, { label: string; className: string; icon: React.ComponentType<{ className?: string }> | null }> = {
+  pending: { label: 'Pending', className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400', icon: null },
+  won: { label: 'Won', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400', icon: Trophy },
+  lost: { label: 'Lost', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', icon: XCircle },
 };
 
 export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTableProps) {
@@ -79,107 +79,147 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
 
   return (
     <>
-      <div className="rounded-md border">
+      <div className="rounded-lg border-0 overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Order No</TableHead>
-              <TableHead>Product</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead className="text-center">Qty</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Payment</TableHead>
-              <TableHead>Outcome</TableHead>
-              {canSeeProcurement && <TableHead>Supplier</TableHead>}
-              {canSeeProcurement && <TableHead className="text-right">Selling Price</TableHead>}
-              {canSeeProcurement && <TableHead className="text-right">Procurement</TableHead>}
-              {canSeeProcurement && <TableHead className="text-right">Profit</TableHead>}
-              <TableHead>Created</TableHead>
-              <TableHead className="text-center">Actions</TableHead>
+            <TableRow className="bg-muted/50 hover:bg-muted/50">
+              <TableHead className="font-semibold">Order No</TableHead>
+              <TableHead className="font-semibold">Product</TableHead>
+              <TableHead className="font-semibold">Customer</TableHead>
+              <TableHead className="font-semibold text-center">Qty</TableHead>
+              <TableHead className="font-semibold">Status</TableHead>
+              <TableHead className="font-semibold">Payment</TableHead>
+              <TableHead className="font-semibold">Outcome</TableHead>
+              {canSeeProcurement && <TableHead className="font-semibold">Supplier</TableHead>}
+              {canSeeProcurement && <TableHead className="font-semibold text-right">Selling</TableHead>}
+              {canSeeProcurement && <TableHead className="font-semibold text-right">Procurement</TableHead>}
+              {canSeeProcurement && <TableHead className="font-semibold text-right">Profit</TableHead>}
+              <TableHead className="font-semibold">Created</TableHead>
+              <TableHead className="font-semibold text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canSeeProcurement ? 13 : 9} className="text-center py-8 text-muted-foreground">
-                  No orders found
+                <TableCell colSpan={canSeeProcurement ? 13 : 9} className="text-center py-12 text-muted-foreground">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="p-3 rounded-full bg-muted">
+                      <Eye className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <p>No orders found</p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
-              orders.map((order) => {
+              orders.map((order, index) => {
                 const profit = order.selling_price && order.procurement_rate 
                   ? (order.selling_price - order.procurement_rate) * order.quantity
                   : null;
                 const paymentConfig = paymentStatusConfig[order.payment_status];
                 const outcome = outcomeConfig[order.order_outcome || 'pending'];
+                const OutcomeIcon = outcome.icon;
 
                 return (
-                    <TableRow key={order.id} className="cursor-pointer" onClick={() => onOrderClick(order)}>
-                      <TableCell>
+                  <TableRow 
+                    key={order.id} 
+                    className={`cursor-pointer transition-colors hover:bg-muted/50 ${index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`} 
+                    onClick={() => onOrderClick(order)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-2">
                         <OrderNumberBadge orderNumber={order.order_number} />
-                      </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{order.product_name}</div>
-                        <div className="text-xs text-muted-foreground">{order.product_category}</div>
+                        {order.is_rto && (
+                          <Badge variant="outline" className="text-xs border-orange-400 text-orange-600 bg-orange-50 dark:bg-orange-950/30 h-5 px-1">
+                            <Undo2 className="h-3 w-3" />
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div>
-                        <div className="font-medium">{order.customer_name}</div>
-                        <div className="text-xs text-muted-foreground">{order.customer_company}</div>
+                      <div className="max-w-[200px]">
+                        <div className="font-medium truncate">{order.product_name}</div>
+                        <div className="text-xs text-muted-foreground truncate">{order.product_category}</div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-center">{order.quantity}</TableCell>
+                    <TableCell>
+                      <div className="max-w-[150px]">
+                        <div className="font-medium truncate">{order.customer_name}</div>
+                        <div className="text-xs text-muted-foreground truncate">{order.customer_company}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="secondary" className="font-mono">{order.quantity}</Badge>
+                    </TableCell>
                     <TableCell>
                       <OrderStatusBadge status={order.status} />
                     </TableCell>
                     <TableCell>
-                      <Badge className={paymentConfig.className}>{paymentConfig.label}</Badge>
+                      <Badge className={`${paymentConfig.className} border`}>{paymentConfig.label}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge className={outcome.className}>{outcome.label}</Badge>
+                      <Badge className={outcome.className}>
+                        {OutcomeIcon && <OutcomeIcon className="h-3 w-3 mr-1" />}
+                        {outcome.label}
+                      </Badge>
                     </TableCell>
                     {canSeeProcurement && (
                       <TableCell>
-                        {order.supplier_name || <span className="text-muted-foreground">-</span>}
+                        <span className="truncate max-w-[120px] block">
+                          {order.supplier_name || <span className="text-muted-foreground">—</span>}
+                        </span>
                       </TableCell>
                     )}
                     {canSeeProcurement && (
                       <TableCell className="text-right">
-                        {order.selling_price 
-                          ? `₹${order.selling_price.toLocaleString('en-IN')}`
-                          : <span className="text-muted-foreground">-</span>
-                        }
+                        {order.selling_price ? (
+                          <span className="font-medium flex items-center justify-end gap-0.5">
+                            <IndianRupee className="h-3 w-3" />
+                            {order.selling_price.toLocaleString('en-IN')}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                     )}
                     {canSeeProcurement && (
                       <TableCell className="text-right">
-                        {order.procurement_rate 
-                          ? `₹${order.procurement_rate.toLocaleString('en-IN')}`
-                          : <span className="text-muted-foreground">-</span>
-                        }
+                        {order.procurement_rate ? (
+                          <span className="text-muted-foreground flex items-center justify-end gap-0.5">
+                            <IndianRupee className="h-3 w-3" />
+                            {order.procurement_rate.toLocaleString('en-IN')}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                     )}
                     {canSeeProcurement && (
                       <TableCell className="text-right">
                         {profit !== null ? (
-                          <span className={profit >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
-                            ₹{profit.toLocaleString('en-IN')}
+                          <span className={`font-semibold flex items-center justify-end gap-1 ${profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {profit >= 0 ? (
+                              <TrendingUp className="h-3.5 w-3.5" />
+                            ) : (
+                              <TrendingDown className="h-3.5 w-3.5" />
+                            )}
+                            ₹{Math.abs(profit).toLocaleString('en-IN')}
                           </span>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
                     )}
-                    <TableCell className="text-sm text-muted-foreground">
-                      {format(new Date(order.created_at), 'dd MMM yyyy')}
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">
+                        {format(new Date(order.created_at), 'dd MMM yyyy')}
+                      </span>
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1">
                         <Button 
                           variant="ghost" 
                           size="sm"
+                          className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
                           onClick={(e) => {
                             e.stopPropagation();
                             onOrderClick(order);
@@ -190,28 +230,37 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
                         {canUpdateOutcome && onUpdateOutcome && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                              <Button variant="ghost" size="sm" disabled={updating}>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={updating}>
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
                               {order.order_outcome !== 'won' && (
-                                <DropdownMenuItem onClick={() => handleMarkWon(order.id)}>
-                                  <Trophy className="h-4 w-4 mr-2 text-green-600" />
+                                <DropdownMenuItem 
+                                  onClick={() => handleMarkWon(order.id)}
+                                  className="text-emerald-600 focus:text-emerald-600 focus:bg-emerald-50 dark:focus:bg-emerald-950/30"
+                                >
+                                  <Trophy className="h-4 w-4 mr-2" />
                                   Mark as Won
                                 </DropdownMenuItem>
                               )}
                               {order.order_outcome !== 'lost' && (
-                                <DropdownMenuItem onClick={() => handleMarkLostClick(order.id)}>
-                                  <XCircle className="h-4 w-4 mr-2 text-red-600" />
+                                <DropdownMenuItem 
+                                  onClick={() => handleMarkLostClick(order.id)}
+                                  className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30"
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
                                   Mark as Lost
                                 </DropdownMenuItem>
                               )}
                               {order.order_outcome !== 'pending' && (
-                                <DropdownMenuItem onClick={() => handleResetOutcome(order.id)}>
-                                  <RotateCcw className="h-4 w-4 mr-2" />
-                                  Reset to Pending
-                                </DropdownMenuItem>
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleResetOutcome(order.id)}>
+                                    <RotateCcw className="h-4 w-4 mr-2" />
+                                    Reset to Pending
+                                  </DropdownMenuItem>
+                                </>
                               )}
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -228,15 +277,23 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
 
       {/* Lost Reason Dialog */}
       <Dialog open={lostDialogOpen} onOpenChange={setLostDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Mark Order as Lost</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-red-100 dark:bg-red-950/30">
+                <XCircle className="h-5 w-5 text-red-600" />
+              </div>
+              Mark Order as Lost
+            </DialogTitle>
+            <DialogDescription>
+              Please provide the reason for losing this order.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Reason for Loss</Label>
+              <Label className="text-sm font-medium">Reason for Loss</Label>
               <Select value={lostReason} onValueChange={(v) => setLostReason(v as LostReason)}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-background">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -249,31 +306,36 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Additional Notes (Optional)</Label>
+              <Label className="text-sm font-medium">Additional Notes <span className="text-muted-foreground font-normal">(Optional)</span></Label>
               <Textarea
                 value={lostReasonNotes}
                 onChange={(e) => setLostReasonNotes(e.target.value)}
-                placeholder="Add any additional details..."
+                placeholder="Add any additional details about why the order was lost..."
                 rows={3}
+                className="resize-none"
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setLostDialogOpen(false)}>
               Cancel
             </Button>
             <Button 
               onClick={handleConfirmLost} 
               disabled={updating}
-              className="bg-red-600 hover:bg-red-700"
+              variant="destructive"
+              className="gap-2"
             >
               {updating ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Updating...
                 </>
               ) : (
-                'Confirm Lost'
+                <>
+                  <XCircle className="h-4 w-4" />
+                  Confirm Lost
+                </>
               )}
             </Button>
           </DialogFooter>
