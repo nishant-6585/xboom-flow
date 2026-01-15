@@ -57,6 +57,18 @@ const statusConfig: Record<OrderStatus, {
     className: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400',
     icon: CheckCircle
   },
+  to_ship: { 
+    label: 'To Ship', 
+    variant: 'default', 
+    className: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
+    icon: Package
+  },
+  in_transit: { 
+    label: 'In Transit', 
+    variant: 'default', 
+    className: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400',
+    icon: Truck
+  },
   delivery_done: { 
     label: 'Delivery Done', 
     variant: 'default', 

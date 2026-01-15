@@ -2451,6 +2451,8 @@ export type Database = {
         | "procurement_done"
         | "delivery_done"
         | "cancelled"
+        | "to_ship"
+        | "in_transit"
       supplier_preference: "low" | "medium" | "high"
       task_status: "new" | "in_progress" | "awaiting_approval" | "completed"
       task_type:
@@ -2602,6 +2604,8 @@ export const Constants = {
         "procurement_done",
         "delivery_done",
         "cancelled",
+        "to_ship",
+        "in_transit",
       ],
       supplier_preference: ["low", "medium", "high"],
       task_status: ["new", "in_progress", "awaiting_approval", "completed"],
