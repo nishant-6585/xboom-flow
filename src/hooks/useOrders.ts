@@ -211,6 +211,7 @@ export function useOrders() {
           .select(`
             id,
             enquiry_id,
+            order_number,
             product_name,
             product_code,
             product_category,
@@ -251,7 +252,7 @@ export function useOrders() {
         // Map to Order type with null procurement fields
         const mappedOrders: Order[] = (data || []).map(order => ({
           ...order,
-          order_number: null,
+          order_number: order.order_number || null,
           status: order.status as OrderStatus,
           order_type: (order.order_type || 'prepaid') as OrderType,
           customer_type: (order.customer_type || 'b2b') as CustomerType,
