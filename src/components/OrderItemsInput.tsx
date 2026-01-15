@@ -25,6 +25,10 @@ const emptyItem: OrderItemFormData = {
   unit_price: undefined,
   procurement_rate: undefined,
   notes: '',
+  sales_gst_percent: 0,
+  sales_gst_amount: 0,
+  procurement_gst_percent: 0,
+  procurement_gst_amount: 0,
 };
 
 export function OrderItemsInput({ items, onChange, disabled = false, showProcurementRate = true }: OrderItemsInputProps) {
@@ -40,7 +44,25 @@ export function OrderItemsInput({ items, onChange, disabled = false, showProcure
   const updateItem = (index: number, field: keyof OrderItemFormData, value: any) => {
     const updated = items.map((item, i) => {
       if (i === index) {
-        return { ...item, [field]: value };
+        const newItem = { ...item, [field]: value };
+        
+        // Auto-calculate GST amounts when percent or base price changes
+        if (field === 'sales_gst_percent' || field === 'unit_price') {
+          const price = field === 'unit_price' ? value : item.unit_price;
+          const percent = field === 'sales_gst_percent' ? value : item.sales_gst_percent;
+          if (price && percent) {
+            newItem.sales_gst_amount = parseFloat(((price * percent) / 100).toFixed(2));
+          }
+        }
+        if (field === 'procurement_gst_percent' || field === 'procurement_rate') {
+          const rate = field === 'procurement_rate' ? value : item.procurement_rate;
+          const percent = field === 'procurement_gst_percent' ? value : item.procurement_gst_percent;
+          if (rate && percent) {
+            newItem.procurement_gst_amount = parseFloat(((rate * percent) / 100).toFixed(2));
+          }
+        }
+        
+        return newItem;
       }
       return item;
     });
@@ -159,20 +181,80 @@ export function OrderItemsInput({ items, onChange, disabled = false, showProcure
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor={`sales_gst_percent_${index}`}>Sales GST %</Label>
+                  <Input
+                    id={`sales_gst_percent_${index}`}
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.01}
+                    value={item.sales_gst_percent || ''}
+                    onChange={e => updateItem(index, 'sales_gst_percent', parseFloat(e.target.value) || 0)}
+                    placeholder="GST %"
+                    disabled={disabled}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor={`sales_gst_amount_${index}`}>GST Amount (₹)</Label>
+                  <Input
+                    id={`sales_gst_amount_${index}`}
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={item.sales_gst_amount || ''}
+                    onChange={e => updateItem(index, 'sales_gst_amount', parseFloat(e.target.value) || 0)}
+                    placeholder="Auto-calculated"
+                    disabled={disabled}
+                  />
+                </div>
+
                 {showProcurementRate && (
-                  <div className="space-y-2">
-                    <Label htmlFor={`procurement_rate_${index}`}>Procurement Rate (₹)</Label>
-                    <Input
-                      id={`procurement_rate_${index}`}
-                      type="number"
-                      min={0}
-                      step={0.01}
-                      value={item.procurement_rate || ''}
-                      onChange={e => updateItem(index, 'procurement_rate', parseFloat(e.target.value) || undefined)}
-                      placeholder="Cost price"
-                      disabled={disabled}
-                    />
-                  </div>
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor={`procurement_rate_${index}`}>Procurement Rate (₹)</Label>
+                      <Input
+                        id={`procurement_rate_${index}`}
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={item.procurement_rate || ''}
+                        onChange={e => updateItem(index, 'procurement_rate', parseFloat(e.target.value) || undefined)}
+                        placeholder="Cost price"
+                        disabled={disabled}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`procurement_gst_percent_${index}`}>Proc. GST %</Label>
+                      <Input
+                        id={`procurement_gst_percent_${index}`}
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.01}
+                        value={item.procurement_gst_percent || ''}
+                        onChange={e => updateItem(index, 'procurement_gst_percent', parseFloat(e.target.value) || 0)}
+                        placeholder="GST %"
+                        disabled={disabled}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`procurement_gst_amount_${index}`}>Proc. GST Amt (₹)</Label>
+                      <Input
+                        id={`procurement_gst_amount_${index}`}
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={item.procurement_gst_amount || ''}
+                        onChange={e => updateItem(index, 'procurement_gst_amount', parseFloat(e.target.value) || 0)}
+                        placeholder="Auto-calculated"
+                        disabled={disabled}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
             </CardContent>

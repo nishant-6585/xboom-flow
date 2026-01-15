@@ -877,12 +877,16 @@ export type Database = {
           notes: string | null
           order_id: string
           procurement_date: string | null
+          procurement_gst_amount: number | null
+          procurement_gst_percent: number | null
           procurement_rate: number | null
           product_category: string | null
           product_code: string | null
           product_name: string
           quantity: number
           quantity_procured: number | null
+          sales_gst_amount: number | null
+          sales_gst_percent: number | null
           status: string
           supplier_id: string | null
           unit_price: number | null
@@ -894,12 +898,16 @@ export type Database = {
           notes?: string | null
           order_id: string
           procurement_date?: string | null
+          procurement_gst_amount?: number | null
+          procurement_gst_percent?: number | null
           procurement_rate?: number | null
           product_category?: string | null
           product_code?: string | null
           product_name: string
           quantity?: number
           quantity_procured?: number | null
+          sales_gst_amount?: number | null
+          sales_gst_percent?: number | null
           status?: string
           supplier_id?: string | null
           unit_price?: number | null
@@ -911,12 +919,16 @@ export type Database = {
           notes?: string | null
           order_id?: string
           procurement_date?: string | null
+          procurement_gst_amount?: number | null
+          procurement_gst_percent?: number | null
           procurement_rate?: number | null
           product_category?: string | null
           product_code?: string | null
           product_name?: string
           quantity?: number
           quantity_procured?: number | null
+          sales_gst_amount?: number | null
+          sales_gst_percent?: number | null
           status?: string
           supplier_id?: string | null
           unit_price?: number | null
