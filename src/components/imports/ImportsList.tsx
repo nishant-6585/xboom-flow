@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useImports, Import } from "@/hooks/useImports";
+import { useImports, Import, ImportItem } from "@/hooks/useImports";
 import { ImportFormDialog } from "./ImportFormDialog";
 import { ImportStatusBadge } from "./ImportStatusBadge";
 import { 
@@ -79,11 +79,11 @@ export function ImportsList() {
     }
   };
 
-  const handleSubmit = async (data: Omit<Import, 'id' | 'created_at' | 'updated_at'>) => {
+  const handleSubmit = async (data: Omit<Import, 'id' | 'created_at' | 'updated_at'>, items: ImportItem[]) => {
     if (editingImport) {
-      await updateImport(editingImport.id, data);
+      await updateImport(editingImport.id, data, items);
     } else {
-      await createImport(data);
+      await createImport(data, items);
     }
     setEditingImport(null);
   };

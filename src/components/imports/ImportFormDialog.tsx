@@ -16,20 +16,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Card } from "@/components/ui/card";
 import { useSuppliers } from "@/hooks/useSuppliers";
-import { Import, IMPORT_STATUSES, PAYMENT_STATUSES, SHIPPING_METHODS } from "@/hooks/useImports";
-import { Package, Building2, Ship, FileText, CreditCard, CheckCircle2 } from "lucide-react";
+import { Import, ImportItem, IMPORT_STATUSES, PAYMENT_STATUSES, SHIPPING_METHODS } from "@/hooks/useImports";
+import { Package, Building2, Ship, FileText, CreditCard, CheckCircle2, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ImportFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: Omit<Import, 'id' | 'created_at' | 'updated_at'>) => Promise<any>;
+  onSubmit: (data: Omit<Import, 'id' | 'created_at' | 'updated_at'>, items: ImportItem[]) => Promise<any>;
   editingImport?: Import | null;
 }
 
 const STEPS = [
-  { id: 1, title: 'Product', icon: Package },
+  { id: 1, title: 'Products', icon: Package },
   { id: 2, title: 'Supplier', icon: Building2 },
   { id: 3, title: 'Shipping', icon: Ship },
   { id: 4, title: 'Documents', icon: FileText },
@@ -37,6 +38,17 @@ const STEPS = [
 ];
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'INR', 'CNY', 'AED'];
+
+const emptyItem: ImportItem = {
+  product_name: '',
+  product_category: '',
+  product_code: '',
+  quantity: 1,
+  unit_price: 0,
+  total_amount: 0,
+  hsn_code: '',
+  notes: '',
+};
 
 export function ImportFormDialog({
   open,
@@ -47,6 +59,7 @@ export function ImportFormDialog({
   const { suppliers } = useSuppliers();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [items, setItems] = useState<ImportItem[]>([{ ...emptyItem }]);
   const [formData, setFormData] = useState({
     import_number: '',
     supplier_id: '',
@@ -122,6 +135,12 @@ export function ImportFormDialog({
         created_by: editingImport.created_by,
         created_by_name: editingImport.created_by_name,
       });
+      
+      if (editingImport.items && editingImport.items.length > 0) {
+        setItems(editingImport.items);
+      } else {
+        setItems([{ ...emptyItem }]);
+      }
     } else {
       resetForm();
     }
@@ -164,6 +183,7 @@ export function ImportFormDialog({
       created_by: null,
       created_by_name: null,
     });
+    setItems([{ ...emptyItem }]);
     setStep(1);
   };
 
@@ -176,21 +196,44 @@ export function ImportFormDialog({
     }));
   };
 
-  const calculateTotal = () => {
-    const total = formData.quantity * formData.unit_price;
-    setFormData(prev => ({ ...prev, total_amount: total }));
+  const addItem = () => {
+    setItems(prev => [...prev, { ...emptyItem }]);
   };
 
-  useEffect(() => {
-    calculateTotal();
-  }, [formData.quantity, formData.unit_price]);
+  const removeItem = (index: number) => {
+    if (items.length > 1) {
+      setItems(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateItem = (index: number, field: keyof ImportItem, value: any) => {
+    setItems(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      
+      // Auto-calculate total
+      if (field === 'quantity' || field === 'unit_price') {
+        updated[index].total_amount = updated[index].quantity * updated[index].unit_price;
+      }
+      
+      return updated;
+    });
+  };
+
+  const getTotalAmount = () => {
+    return items.reduce((sum, item) => sum + (item.total_amount || 0), 0);
+  };
+
+  const getTotalQuantity = () => {
+    return items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  };
 
   const handleSubmit = async () => {
-    if (!formData.product_name) return;
+    if (items.length === 0 || !items[0].product_name) return;
     
     setLoading(true);
     try {
-      await onSubmit(formData);
+      await onSubmit(formData, items);
       onOpenChange(false);
       resetForm();
     } finally {
@@ -201,7 +244,7 @@ export function ImportFormDialog({
   const canProceed = () => {
     switch (step) {
       case 1:
-        return formData.product_name.trim() !== '';
+        return items.length > 0 && items[0].product_name.trim() !== '';
       default:
         return true;
     }
@@ -209,7 +252,7 @@ export function ImportFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {editingImport ? 'Edit Import' : 'Add New Import'}
@@ -254,80 +297,148 @@ export function ImportFormDialog({
         </div>
 
         <div className="space-y-4">
-          {/* Step 1: Product Details */}
+          {/* Step 1: Products */}
           {step === 1 && (
             <div className="space-y-4">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <Package className="w-5 h-5 text-primary" />
-                Product Details
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <Label htmlFor="product_name">Product Name *</Label>
-                  <Input
-                    id="product_name"
-                    value={formData.product_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, product_name: e.target.value }))}
-                    placeholder="Enter product name"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="product_category">Category</Label>
-                  <Input
-                    id="product_category"
-                    value={formData.product_category}
-                    onChange={(e) => setFormData(prev => ({ ...prev, product_category: e.target.value }))}
-                    placeholder="e.g., Electronics"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="quantity">Quantity</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    min={1}
-                    value={formData.quantity}
-                    onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="unit_price">Unit Price</Label>
-                  <Input
-                    id="unit_price"
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    value={formData.unit_price}
-                    onChange={(e) => setFormData(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="currency">Currency</Label>
-                  <Select
-                    value={formData.currency}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CURRENCIES.map(c => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="col-span-2">
-                  <Label>Total Amount</Label>
-                  <div className="text-2xl font-bold text-primary">
-                    {formData.currency} {formData.total_amount.toLocaleString()}
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <Package className="w-5 h-5 text-primary" />
+                  Products
+                </h3>
+                <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Product
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {items.map((item, index) => (
+                  <Card key={index} className="p-4 relative">
+                    {items.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => removeItem(index)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                    
+                    <div className="grid grid-cols-12 gap-3">
+                      <div className="col-span-12 sm:col-span-5">
+                        <Label className="text-xs">Product Name *</Label>
+                        <Input
+                          value={item.product_name}
+                          onChange={(e) => updateItem(index, 'product_name', e.target.value)}
+                          placeholder="Enter product name"
+                          className="mt-1"
+                        />
+                      </div>
+                      
+                      <div className="col-span-6 sm:col-span-3">
+                        <Label className="text-xs">Category</Label>
+                        <Input
+                          value={item.product_category}
+                          onChange={(e) => updateItem(index, 'product_category', e.target.value)}
+                          placeholder="Category"
+                          className="mt-1"
+                        />
+                      </div>
+                      
+                      <div className="col-span-6 sm:col-span-2">
+                        <Label className="text-xs">HSN Code</Label>
+                        <Input
+                          value={item.hsn_code}
+                          onChange={(e) => updateItem(index, 'hsn_code', e.target.value)}
+                          placeholder="HSN"
+                          className="mt-1"
+                        />
+                      </div>
+                      
+                      <div className="col-span-4 sm:col-span-2">
+                        <Label className="text-xs">Product Code</Label>
+                        <Input
+                          value={item.product_code}
+                          onChange={(e) => updateItem(index, 'product_code', e.target.value)}
+                          placeholder="Code"
+                          className="mt-1"
+                        />
+                      </div>
+                      
+                      <div className="col-span-4 sm:col-span-2">
+                        <Label className="text-xs">Quantity</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={item.quantity}
+                          onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                          className="mt-1"
+                        />
+                      </div>
+                      
+                      <div className="col-span-4 sm:col-span-3">
+                        <Label className="text-xs">Unit Price</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={item.unit_price}
+                          onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                          className="mt-1"
+                        />
+                      </div>
+                      
+                      <div className="col-span-12 sm:col-span-3">
+                        <Label className="text-xs">Total</Label>
+                        <div className="mt-1 h-9 px-3 py-2 bg-muted rounded-md text-sm font-medium">
+                          {formData.currency} {item.total_amount.toLocaleString()}
+                        </div>
+                      </div>
+                      
+                      <div className="col-span-12 sm:col-span-4">
+                        <Label className="text-xs">Notes</Label>
+                        <Input
+                          value={item.notes}
+                          onChange={(e) => updateItem(index, 'notes', e.target.value)}
+                          placeholder="Item notes"
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Currency & Summary */}
+              <div className="flex items-center justify-between pt-4 border-t">
+                <div className="flex items-center gap-4">
+                  <div>
+                    <Label className="text-xs">Currency</Label>
+                    <Select
+                      value={formData.currency}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}
+                    >
+                      <SelectTrigger className="w-24 mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CURRENCIES.map(c => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
+                </div>
+                
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">
+                    {items.length} item(s) · {getTotalQuantity()} units
+                  </p>
+                  <p className="text-2xl font-bold text-primary">
+                    {formData.currency} {getTotalAmount().toLocaleString()}
+                  </p>
                 </div>
               </div>
             </div>
@@ -629,23 +740,41 @@ export function ImportFormDialog({
               <div className="mt-6 p-4 bg-muted/50 rounded-lg space-y-2">
                 <h4 className="font-semibold">Import Summary</h4>
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  <span className="text-muted-foreground">Product:</span>
-                  <span className="font-medium">{formData.product_name}</span>
+                  <span className="text-muted-foreground">Products:</span>
+                  <span className="font-medium">{items.length} item(s)</span>
                   
                   <span className="text-muted-foreground">Supplier:</span>
                   <span className="font-medium">{formData.supplier_name || 'Not selected'}</span>
                   
-                  <span className="text-muted-foreground">Quantity:</span>
-                  <span className="font-medium">{formData.quantity}</span>
+                  <span className="text-muted-foreground">Total Quantity:</span>
+                  <span className="font-medium">{getTotalQuantity()}</span>
                   
                   <span className="text-muted-foreground">Total Value:</span>
                   <span className="font-medium text-primary">
-                    {formData.currency} {formData.total_amount.toLocaleString()}
+                    {formData.currency} {getTotalAmount().toLocaleString()}
                   </span>
                   
                   <span className="text-muted-foreground">Status:</span>
                   <span className="font-medium capitalize">{formData.status.replace('_', ' ')}</span>
                 </div>
+                
+                {items.length > 0 && (
+                  <div className="mt-3 pt-3 border-t">
+                    <p className="text-xs text-muted-foreground mb-2">Products:</p>
+                    <div className="space-y-1">
+                      {items.slice(0, 3).map((item, idx) => (
+                        <p key={idx} className="text-sm">
+                          {item.product_name} × {item.quantity}
+                        </p>
+                      ))}
+                      {items.length > 3 && (
+                        <p className="text-xs text-muted-foreground">
+                          +{items.length - 3} more item(s)
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -670,7 +799,7 @@ export function ImportFormDialog({
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={loading || !formData.product_name}
+              disabled={loading || items.length === 0 || !items[0].product_name}
             >
               {loading ? 'Saving...' : editingImport ? 'Update Import' : 'Create Import'}
             </Button>

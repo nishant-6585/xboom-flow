@@ -2,6 +2,19 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+export interface ImportItem {
+  id?: string;
+  import_id?: string;
+  product_name: string;
+  product_category: string;
+  product_code: string;
+  quantity: number;
+  unit_price: number;
+  total_amount: number;
+  hsn_code: string;
+  notes: string;
+}
+
 export interface Import {
   id: string;
   import_number: string | null;
@@ -40,6 +53,7 @@ export interface Import {
   updated_at: string;
   created_by: string | null;
   created_by_name: string | null;
+  items?: ImportItem[];
 }
 
 export type ImportStatus = 'pending' | 'shipped' | 'in_transit' | 'at_port' | 'customs_clearance' | 'cleared' | 'delivered' | 'cancelled';
@@ -81,7 +95,21 @@ export function useImports() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setImports((data || []) as Import[]);
+      
+      // Fetch items for each import
+      const importsWithItems = await Promise.all(
+        (data || []).map(async (imp: any) => {
+          const { data: items } = await supabase
+            .from('import_items')
+            .select('*')
+            .eq('import_id', imp.id)
+            .order('created_at', { ascending: true });
+          
+          return { ...imp, items: items || [] } as Import;
+        })
+      );
+      
+      setImports(importsWithItems);
     } catch (error: any) {
       console.error('Error fetching imports:', error);
       toast.error('Failed to fetch imports');
@@ -90,7 +118,10 @@ export function useImports() {
     }
   }, []);
 
-  const createImport = async (importData: Omit<Import, 'id' | 'created_at' | 'updated_at'>) => {
+  const createImport = async (
+    importData: Omit<Import, 'id' | 'created_at' | 'updated_at'>, 
+    items: ImportItem[]
+  ) => {
     try {
       const { data: userData } = await supabase.auth.getUser();
       const { data: profile } = await supabase
@@ -102,11 +133,19 @@ export function useImports() {
       // Generate import number
       const importNumber = `IMP-${Date.now().toString(36).toUpperCase()}`;
 
+      // Calculate totals from items
+      const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+      const totalAmount = items.reduce((sum, item) => sum + item.total_amount, 0);
+      const productNames = items.map(i => i.product_name).join(', ');
+
       const { data, error } = await supabase
         .from('imports')
         .insert({
           ...importData,
           import_number: importNumber,
+          product_name: productNames || importData.product_name,
+          quantity: totalQuantity || importData.quantity,
+          total_amount: totalAmount || importData.total_amount,
           created_by: userData.user?.id,
           created_by_name: profile?.name || 'Unknown',
         })
@@ -114,6 +153,27 @@ export function useImports() {
         .single();
 
       if (error) throw error;
+
+      // Insert items
+      if (items.length > 0) {
+        const itemsToInsert = items.map(item => ({
+          import_id: data.id,
+          product_name: item.product_name,
+          product_category: item.product_category,
+          product_code: item.product_code,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_amount: item.total_amount,
+          hsn_code: item.hsn_code,
+          notes: item.notes,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('import_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) throw itemsError;
+      }
       
       toast.success('Import created successfully');
       await fetchImports();
@@ -125,14 +185,59 @@ export function useImports() {
     }
   };
 
-  const updateImport = async (id: string, updates: Partial<Import>) => {
+  const updateImport = async (
+    id: string, 
+    updates: Partial<Import>,
+    items?: ImportItem[]
+  ) => {
     try {
+      // Calculate totals from items if provided
+      if (items && items.length > 0) {
+        const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+        const totalAmount = items.reduce((sum, item) => sum + item.total_amount, 0);
+        const productNames = items.map(i => i.product_name).join(', ');
+        
+        updates.product_name = productNames;
+        updates.quantity = totalQuantity;
+        updates.total_amount = totalAmount;
+      }
+
       const { error } = await supabase
         .from('imports')
         .update(updates)
         .eq('id', id);
 
       if (error) throw error;
+
+      // Update items if provided
+      if (items) {
+        // Delete existing items
+        await supabase
+          .from('import_items')
+          .delete()
+          .eq('import_id', id);
+
+        // Insert new items
+        if (items.length > 0) {
+          const itemsToInsert = items.map(item => ({
+            import_id: id,
+            product_name: item.product_name,
+            product_category: item.product_category,
+            product_code: item.product_code,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_amount: item.total_amount,
+            hsn_code: item.hsn_code,
+            notes: item.notes,
+          }));
+
+          const { error: itemsError } = await supabase
+            .from('import_items')
+            .insert(itemsToInsert);
+
+          if (itemsError) throw itemsError;
+        }
+      }
       
       toast.success('Import updated successfully');
       await fetchImports();
