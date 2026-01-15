@@ -437,6 +437,15 @@ export function useSupplierPayments(supplierId?: string) {
     }
 
     try {
+      // First, get the payment to find linked order
+      const { data: paymentData, error: fetchError } = await supabase
+        .from('supplier_payments')
+        .select('order_id, inventory_procurement_id')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
       let screenshot_urls: string[] | null = null;
       
       if (screenshots && screenshots.length > 0) {
@@ -459,6 +468,38 @@ export function useSupplierPayments(supplierId?: string) {
         .eq('id', id);
 
       if (error) throw error;
+
+      // Update order status to "to_ship" when payment is done
+      if (paymentData?.order_id) {
+        const { error: orderError } = await supabase
+          .from('orders')
+          .update({ status: 'to_ship' })
+          .eq('id', paymentData.order_id);
+
+        if (orderError) {
+          console.error('Error updating order status to to_ship:', orderError);
+        }
+      }
+
+      // If payment is for an inventory procurement, get the linked order via order_procurement_links
+      if (paymentData?.inventory_procurement_id) {
+        const { data: linkData } = await supabase
+          .from('order_procurement_links')
+          .select('order_id')
+          .eq('inventory_procurement_id', paymentData.inventory_procurement_id)
+          .limit(1);
+
+        if (linkData && linkData.length > 0) {
+          const { error: orderError } = await supabase
+            .from('orders')
+            .update({ status: 'to_ship' })
+            .eq('id', linkData[0].order_id);
+
+          if (orderError) {
+            console.error('Error updating linked order status to to_ship:', orderError);
+          }
+        }
+      }
 
       toast.success('Payment marked as done');
       await fetchPayments();

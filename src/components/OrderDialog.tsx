@@ -295,8 +295,18 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     }
     
     setLoading(true);
+
+    // Determine if status should auto-change based on tracking details
+    let finalStatus = status;
+    const trackingWasAdded = trackingNumber && !order.tracking_number;
+    const trackingWasUpdated = trackingNumber && order.tracking_number !== trackingNumber;
+    
+    if ((trackingWasAdded || trackingWasUpdated) && status !== 'in_transit' && status !== 'delivery_done' && status !== 'cancelled') {
+      finalStatus = 'in_transit' as OrderStatus;
+    }
+
     const updates: Partial<Order> = {
-      status,
+      status: finalStatus,
       payment_status: paymentStatus,
       order_type: orderType,
       customer_type: customerType,
@@ -318,11 +328,11 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       customer_notes: customerNotes || null,
       sales_notes: salesNotes || null,
       invoice_url: invoiceUrl,
-      is_refund_requested: isRefundRequested || status === 'cancelled',
-      refund_reason: isRefundRequested ? (refundReason || null) : (status === 'cancelled' ? cancellationReason : null),
-      refund_status: (isRefundRequested || status === 'cancelled') ? refundStatus : null,
-      refund_requested_at: (isRefundRequested || status === 'cancelled') && !order.is_refund_requested ? new Date().toISOString() : order.refund_requested_at,
-      refund_requested_by: (isRefundRequested || status === 'cancelled') && !order.is_refund_requested ? user?.id : order.refund_requested_by,
+      is_refund_requested: isRefundRequested || finalStatus === 'cancelled',
+      refund_reason: isRefundRequested ? (refundReason || null) : (finalStatus === 'cancelled' ? cancellationReason : null),
+      refund_status: (isRefundRequested || finalStatus === 'cancelled') ? refundStatus : null,
+      refund_requested_at: (isRefundRequested || finalStatus === 'cancelled') && !order.is_refund_requested ? new Date().toISOString() : order.refund_requested_at,
+      refund_requested_by: (isRefundRequested || finalStatus === 'cancelled') && !order.is_refund_requested ? user?.id : order.refund_requested_by,
       priority,
       order_outcome: orderOutcome,
       lost_reason: orderOutcome === 'lost' ? lostReason : null,
@@ -335,15 +345,15 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       is_rto: isRto,
       rto_marked_at: isRto && !order.is_rto ? new Date().toISOString() : order.rto_marked_at,
       rto_marked_by: isRto && !order.is_rto ? user?.id : order.rto_marked_by,
-      cancellation_reason: status === 'cancelled' ? cancellationReason : null,
-      cancelled_at: status === 'cancelled' && order.status !== 'cancelled' ? new Date().toISOString() : order.cancelled_at,
-      cancelled_by: status === 'cancelled' && order.status !== 'cancelled' ? user?.id : order.cancelled_by,
+      cancellation_reason: finalStatus === 'cancelled' ? cancellationReason : null,
+      cancelled_at: finalStatus === 'cancelled' && order.status !== 'cancelled' ? new Date().toISOString() : order.cancelled_at,
+      cancelled_by: finalStatus === 'cancelled' && order.status !== 'cancelled' ? user?.id : order.cancelled_by,
     } as Partial<Order>;
 
     // Track changes for edit history
     const changes: Record<string, { old: any; new: any }> = {};
     
-    if (order.status !== status) changes.status = { old: order.status, new: status };
+    if (order.status !== finalStatus) changes.status = { old: order.status, new: finalStatus };
     if (order.payment_status !== paymentStatus) changes.payment_status = { old: order.payment_status, new: paymentStatus };
     if (order.supplier_name !== (supplierName || null)) changes.supplier_name = { old: order.supplier_name, new: supplierName || null };
     if (order.procurement_rate !== (procurementRate ? parseFloat(procurementRate) : null)) {
