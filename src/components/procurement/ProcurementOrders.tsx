@@ -2,14 +2,15 @@ import { useState, useMemo } from "react";
 import { useOrders, Order } from "@/hooks/useOrders";
 import { useSuppliers, Supplier } from "@/hooks/useSuppliers";
 import { useProcurementPaymentRequests } from "@/hooks/useProcurementPaymentRequests";
-import { useInventoryProcurements } from "@/hooks/useInventoryProcurements";
+import { useInventoryProcurements, InventoryProcurement } from "@/hooks/useInventoryProcurements";
+import { useInventoryProcurementPayments } from "@/hooks/useInventoryProcurementPayments";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, FileText, ExternalLink, Upload, CreditCard, AlertCircle, CalendarIcon } from "lucide-react";
+import { Search, FileText, ExternalLink, Upload, CreditCard, AlertCircle, CalendarIcon, CheckCircle2, Clock } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
@@ -26,13 +27,32 @@ export function ProcurementOrders() {
   const { suppliers, loading: suppliersLoading } = useSuppliers();
   const { requests: paymentRequests, refetch: refetchRequests } = useProcurementPaymentRequests();
   const { procurements } = useInventoryProcurements();
+  const { getPaymentsByProcurementMap } = useInventoryProcurementPayments();
 
-  // Get procurement numbers linked to an order
-  const getProcurementNumbersForOrder = (orderId: string) => {
+  const paymentsByProcurement = getPaymentsByProcurementMap();
+
+  // Get procurement info with payment status for an order
+  const getProcurementsWithPaymentStatus = (orderId: string) => {
     return procurements
       .filter(p => p.order_id === orderId)
-      .map(p => p.procurement_number)
-      .filter(Boolean);
+      .map(p => {
+        const paymentData = paymentsByProcurement[p.id] || { payments: [], totalPaid: 0 };
+        const totalAmount = p.total_amount || 0;
+        const totalPaid = paymentData.totalPaid;
+        
+        let paymentStatus: 'pending' | 'partial' | 'full' = 'pending';
+        if (totalAmount > 0 && totalPaid >= totalAmount) {
+          paymentStatus = 'full';
+        } else if (totalPaid > 0) {
+          paymentStatus = 'partial';
+        }
+        
+        return {
+          procurementNumber: p.procurement_number,
+          paymentStatus,
+        };
+      })
+      .filter(p => p.procurementNumber);
   };
   const [search, setSearch] = useState("");
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
@@ -291,16 +311,36 @@ export function ProcurementOrders() {
                       </TableCell>
                       <TableCell>
                         {(() => {
-                          const procNos = getProcurementNumbersForOrder(order.id);
-                          if (procNos.length === 0) {
+                          const procData = getProcurementsWithPaymentStatus(order.id);
+                          if (procData.length === 0) {
                             return <span className="text-muted-foreground text-xs">-</span>;
                           }
                           return (
-                            <div className="flex flex-col gap-0.5">
-                              {procNos.map((procNo, idx) => (
-                                <Badge key={idx} variant="outline" className="font-mono text-xs w-fit">
-                                  {procNo}
-                                </Badge>
+                            <div className="flex flex-col gap-1">
+                              {procData.map((proc, idx) => (
+                                <div key={idx} className="flex items-center gap-1.5">
+                                  <Badge variant="outline" className="font-mono text-xs">
+                                    {proc.procurementNumber}
+                                  </Badge>
+                                  {proc.paymentStatus === 'full' && (
+                                    <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-[10px] px-1 py-0">
+                                      <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
+                                      Paid
+                                    </Badge>
+                                  )}
+                                  {proc.paymentStatus === 'partial' && (
+                                    <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-[10px] px-1 py-0">
+                                      <Clock className="h-2.5 w-2.5 mr-0.5" />
+                                      Partial
+                                    </Badge>
+                                  )}
+                                  {proc.paymentStatus === 'pending' && (
+                                    <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                                      <Clock className="h-2.5 w-2.5 mr-0.5" />
+                                      Pending
+                                    </Badge>
+                                  )}
+                                </div>
                               ))}
                             </div>
                           );
