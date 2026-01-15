@@ -31,6 +31,8 @@ export interface Supplier {
   created_by: string | null;
 }
 
+export type PaymentRequestStatus = 'pending' | 'requested' | 'approved' | 'done';
+
 export interface SupplierPayment {
   id: string;
   supplier_id: string;
@@ -45,6 +47,17 @@ export interface SupplierPayment {
   created_at: string;
   created_by: string | null;
   screenshot_urls: string[] | null;
+  payment_request_status: PaymentRequestStatus;
+  requested_at: string | null;
+  requested_by: string | null;
+  requested_by_name: string | null;
+  request_notes: string | null;
+  approved_at: string | null;
+  approved_by: string | null;
+  approved_by_name: string | null;
+  completed_at: string | null;
+  completed_by: string | null;
+  completed_by_name: string | null;
 }
 
 export interface SupplierLedger {
@@ -293,7 +306,7 @@ export function useSupplierPayments(supplierId?: string) {
   };
 
   const createPayment = async (
-    paymentData: Omit<SupplierPayment, 'id' | 'created_at' | 'created_by' | 'screenshot_urls'>,
+    paymentData: Omit<SupplierPayment, 'id' | 'created_at' | 'created_by' | 'screenshot_urls' | 'payment_request_status' | 'requested_at' | 'requested_by' | 'requested_by_name' | 'request_notes' | 'approved_at' | 'approved_by' | 'approved_by_name' | 'completed_at' | 'completed_by' | 'completed_by_name'>,
     screenshots?: File[]
   ): Promise<boolean> => {
     if (!user) {
@@ -311,6 +324,9 @@ export function useSupplierPayments(supplierId?: string) {
       const { error } = await supabase.from('supplier_payments').insert({
         ...paymentData,
         screenshot_urls,
+        payment_request_status: 'done',
+        completed_at: new Date().toISOString(),
+        completed_by: user.id,
         created_by: user.id,
       });
 
@@ -347,6 +363,134 @@ export function useSupplierPayments(supplierId?: string) {
     }
   };
 
+  const requestPayment = async (
+    paymentData: Omit<SupplierPayment, 'id' | 'created_at' | 'created_by' | 'screenshot_urls' | 'payment_request_status' | 'requested_at' | 'requested_by' | 'requested_by_name' | 'request_notes' | 'approved_at' | 'approved_by' | 'approved_by_name' | 'completed_at' | 'completed_by' | 'completed_by_name'>,
+    requestNotes?: string,
+    userName?: string
+  ): Promise<boolean> => {
+    if (!user) {
+      toast.error('You must be logged in');
+      return false;
+    }
+
+    try {
+      const { error } = await supabase.from('supplier_payments').insert({
+        ...paymentData,
+        payment_request_status: 'requested',
+        requested_at: new Date().toISOString(),
+        requested_by: user.id,
+        requested_by_name: userName || 'Unknown',
+        request_notes: requestNotes || null,
+        created_by: user.id,
+      });
+
+      if (error) throw error;
+
+      toast.success('Payment request submitted');
+      await fetchPayments();
+      return true;
+    } catch (error: any) {
+      console.error('Error creating payment request:', error);
+      toast.error(error.message || 'Failed to submit payment request');
+      return false;
+    }
+  };
+
+  const approvePaymentRequest = async (id: string, userName: string): Promise<boolean> => {
+    if (!user) {
+      toast.error('You must be logged in');
+      return false;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('supplier_payments')
+        .update({
+          payment_request_status: 'approved',
+          approved_at: new Date().toISOString(),
+          approved_by: user.id,
+          approved_by_name: userName,
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Payment request approved');
+      await fetchPayments();
+      return true;
+    } catch (error: any) {
+      console.error('Error approving payment request:', error);
+      toast.error(error.message || 'Failed to approve payment request');
+      return false;
+    }
+  };
+
+  const markPaymentDone = async (
+    id: string,
+    userName: string,
+    screenshots?: File[],
+    paymentDetails?: { payment_mode?: string; reference_number?: string; payment_date?: string; notes?: string }
+  ): Promise<boolean> => {
+    if (!user) {
+      toast.error('You must be logged in');
+      return false;
+    }
+
+    try {
+      let screenshot_urls: string[] | null = null;
+      
+      if (screenshots && screenshots.length > 0) {
+        screenshot_urls = await uploadScreenshots(screenshots);
+      }
+
+      const { error } = await supabase
+        .from('supplier_payments')
+        .update({
+          payment_request_status: 'done',
+          completed_at: new Date().toISOString(),
+          completed_by: user.id,
+          completed_by_name: userName,
+          ...(screenshot_urls && { screenshot_urls }),
+          ...(paymentDetails?.payment_mode && { payment_mode: paymentDetails.payment_mode }),
+          ...(paymentDetails?.reference_number && { reference_number: paymentDetails.reference_number }),
+          ...(paymentDetails?.payment_date && { payment_date: paymentDetails.payment_date }),
+          ...(paymentDetails?.notes && { notes: paymentDetails.notes }),
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Payment marked as done');
+      await fetchPayments();
+      return true;
+    } catch (error: any) {
+      console.error('Error marking payment done:', error);
+      toast.error(error.message || 'Failed to mark payment done');
+      return false;
+    }
+  };
+
+  const rejectPaymentRequest = async (id: string): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from('supplier_payments')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Payment request rejected');
+      await fetchPayments();
+      return true;
+    } catch (error: any) {
+      console.error('Error rejecting payment request:', error);
+      toast.error(error.message || 'Failed to reject payment request');
+      return false;
+    }
+  };
+
   return {
     payments,
     loading,
@@ -354,6 +498,10 @@ export function useSupplierPayments(supplierId?: string) {
     deletePayment,
     uploadScreenshots,
     getSignedUrl,
+    requestPayment,
+    approvePaymentRequest,
+    markPaymentDone,
+    rejectPaymentRequest,
     refetch: fetchPayments,
   };
 }
