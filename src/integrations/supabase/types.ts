@@ -1027,6 +1027,7 @@ export type Database = {
           lead_source: string | null
           lost_reason: string | null
           lost_reason_notes: string | null
+          order_date: string | null
           order_number: string | null
           order_outcome: string | null
           order_type: string | null
@@ -1096,6 +1097,7 @@ export type Database = {
           lead_source?: string | null
           lost_reason?: string | null
           lost_reason_notes?: string | null
+          order_date?: string | null
           order_number?: string | null
           order_outcome?: string | null
           order_type?: string | null
@@ -1165,6 +1167,7 @@ export type Database = {
           lead_source?: string | null
           lost_reason?: string | null
           lost_reason_notes?: string | null
+          order_date?: string | null
           order_number?: string | null
           order_outcome?: string | null
           order_type?: string | null
