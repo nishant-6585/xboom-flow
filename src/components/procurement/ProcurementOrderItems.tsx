@@ -436,16 +436,19 @@ export function ProcurementOrderItems({
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">GST %</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.01}
-                    value={editedItems[item.id]?.procurement_gst_percent || ''}
-                    onChange={(e) => handleFieldChange(item.id, 'procurement_gst_percent', e.target.value)}
-                    placeholder="0"
-                    className="h-8 text-sm"
-                  />
+                  <Select
+                    value={editedItems[item.id]?.procurement_gst_percent || '0'}
+                    onValueChange={(value) => handleFieldChange(item.id, 'procurement_gst_percent', value)}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="GST %" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">0%</SelectItem>
+                      <SelectItem value="5">5%</SelectItem>
+                      <SelectItem value="18">18%</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">GST Amt</Label>

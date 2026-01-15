@@ -196,17 +196,20 @@ export function OrderItemsInput({ items, onChange, disabled = false, showProcure
 
                 <div className="space-y-2">
                   <Label htmlFor={`sales_gst_percent_${index}`}>Sales GST %</Label>
-                  <Input
-                    id={`sales_gst_percent_${index}`}
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.01}
-                    value={item.sales_gst_percent || ''}
-                    onChange={e => updateItem(index, 'sales_gst_percent', parseFloat(e.target.value) || 0)}
-                    placeholder="GST %"
+                  <Select
+                    value={item.sales_gst_percent?.toString() || '0'}
+                    onValueChange={v => updateItem(index, 'sales_gst_percent', parseFloat(v))}
                     disabled={disabled}
-                  />
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select GST %" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">0%</SelectItem>
+                      <SelectItem value="5">5%</SelectItem>
+                      <SelectItem value="18">18%</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
@@ -251,17 +254,20 @@ export function OrderItemsInput({ items, onChange, disabled = false, showProcure
 
                     <div className="space-y-2">
                       <Label htmlFor={`procurement_gst_percent_${index}`}>Proc. GST %</Label>
-                      <Input
-                        id={`procurement_gst_percent_${index}`}
-                        type="number"
-                        min={0}
-                        max={100}
-                        step={0.01}
-                        value={item.procurement_gst_percent || ''}
-                        onChange={e => updateItem(index, 'procurement_gst_percent', parseFloat(e.target.value) || 0)}
-                        placeholder="GST %"
+                      <Select
+                        value={item.procurement_gst_percent?.toString() || '0'}
+                        onValueChange={v => updateItem(index, 'procurement_gst_percent', parseFloat(v))}
                         disabled={disabled}
-                      />
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select GST %" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">0%</SelectItem>
+                          <SelectItem value="5">5%</SelectItem>
+                          <SelectItem value="18">18%</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="space-y-2">
