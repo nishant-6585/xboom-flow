@@ -718,27 +718,38 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             </div>
 
             {/* Profit Display - visible to supply chain and admin */}
-            {canSeeProcurement && profit !== null && (
+            {canSeeProcurement && order.selling_price && order.procurement_rate && (
               <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
-                  <span className="font-medium text-green-800 dark:text-green-300">Profit</span>
+                  <span className="font-medium text-green-800 dark:text-green-300">Profit Analysis</span>
                 </div>
-                <div className="mt-2 grid grid-cols-3 gap-4 text-sm">
+                <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
-                    <span className="text-muted-foreground">Procurement:</span>
+                    <span className="text-muted-foreground">Procurement (per unit):</span>
                     <p className="font-medium">₹{order.procurement_rate?.toLocaleString('en-IN')}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Selling:</span>
+                    <span className="text-muted-foreground">Selling (per unit):</span>
                     <p className="font-medium">₹{order.selling_price?.toLocaleString('en-IN')}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Total Profit:</span>
-                    <p className={`font-bold text-lg ${profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                      ₹{profit.toLocaleString('en-IN')}
-                    </p>
+                    <span className="text-muted-foreground">Total Cost (×{order.quantity}):</span>
+                    <p className="font-medium">₹{(order.procurement_rate * order.quantity).toLocaleString('en-IN')}</p>
                   </div>
+                  <div>
+                    <span className="text-muted-foreground">Total Revenue (×{order.quantity}):</span>
+                    <p className="font-medium">₹{(order.selling_price * order.quantity).toLocaleString('en-IN')}</p>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-700">
+                  <span className="text-muted-foreground">Total Profit:</span>
+                  <p className={`font-bold text-lg ${profit && profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    ₹{profit?.toLocaleString('en-IN')}
+                    <span className="text-xs font-normal text-muted-foreground ml-2">
+                      (₹{(order.selling_price - order.procurement_rate).toLocaleString('en-IN')} × {order.quantity})
+                    </span>
+                  </p>
                 </div>
               </div>
             )}
