@@ -29,6 +29,8 @@ interface EditedItem {
   supplier_id: string;
   quantity_procured: string;
   fulfilled_from_stock: boolean;
+  procurement_gst_percent: string;
+  procurement_gst_amount: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -86,6 +88,8 @@ export function ProcurementOrderItems({
           supplier_id: (item as any).supplier_id || '',
           quantity_procured: (item as any).quantity_procured?.toString() || '',
           fulfilled_from_stock: (item as any).fulfilled_from_stock || false,
+          procurement_gst_percent: (item as any).procurement_gst_percent?.toString() || '0',
+          procurement_gst_amount: (item as any).procurement_gst_amount?.toString() || '0',
         };
       });
       setEditedItems(edited);
@@ -97,10 +101,24 @@ export function ProcurementOrderItems({
   };
 
   const handleFieldChange = (itemId: string, field: keyof EditedItem, value: string) => {
-    setEditedItems(prev => ({
-      ...prev,
-      [itemId]: { ...prev[itemId], [field]: value },
-    }));
+    setEditedItems(prev => {
+      const currentItem = prev[itemId];
+      const newItem = { ...currentItem, [field]: value };
+      
+      // Auto-calculate GST amount when percent or rate changes
+      if (field === 'procurement_gst_percent' || field === 'procurement_rate') {
+        const rate = field === 'procurement_rate' ? parseFloat(value) : parseFloat(currentItem.procurement_rate);
+        const percent = field === 'procurement_gst_percent' ? parseFloat(value) : parseFloat(currentItem.procurement_gst_percent);
+        if (rate && percent) {
+          newItem.procurement_gst_amount = ((rate * percent) / 100).toFixed(2);
+        }
+      }
+      
+      return {
+        ...prev,
+        [itemId]: newItem,
+      };
+    });
   };
 
   const handleSave = async () => {
@@ -117,6 +135,8 @@ export function ProcurementOrderItems({
             status: edited.status,
             supplier_id: edited.supplier_id || null,
             quantity_procured: edited.quantity_procured ? parseInt(edited.quantity_procured) : 0,
+            procurement_gst_percent: edited.procurement_gst_percent ? parseFloat(edited.procurement_gst_percent) : 0,
+            procurement_gst_amount: edited.procurement_gst_amount ? parseFloat(edited.procurement_gst_amount) : 0,
           })
           .eq('id', item.id);
         
@@ -150,6 +170,8 @@ export function ProcurementOrderItems({
       supplier_id: (item as any).supplier_id || '',
       quantity_procured: (item as any).quantity_procured?.toString() || '',
       fulfilled_from_stock: (item as any).fulfilled_from_stock || false,
+      procurement_gst_percent: (item as any).procurement_gst_percent?.toString() || '0',
+      procurement_gst_amount: (item as any).procurement_gst_amount?.toString() || '0',
     };
     const edited = editedItems[item.id];
     return edited && (
@@ -158,7 +180,9 @@ export function ProcurementOrderItems({
       original.status !== edited.status ||
       original.supplier_id !== edited.supplier_id ||
       original.quantity_procured !== edited.quantity_procured ||
-      original.fulfilled_from_stock !== edited.fulfilled_from_stock
+      original.fulfilled_from_stock !== edited.fulfilled_from_stock ||
+      original.procurement_gst_percent !== edited.procurement_gst_percent ||
+      original.procurement_gst_amount !== edited.procurement_gst_amount
     );
   });
 
@@ -397,9 +421,50 @@ export function ProcurementOrderItems({
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Item Total</Label>
+                  <Label className="text-xs">GST %</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.01}
+                    value={editedItems[item.id]?.procurement_gst_percent || ''}
+                    onChange={(e) => handleFieldChange(item.id, 'procurement_gst_percent', e.target.value)}
+                    placeholder="0"
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">GST Amt</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={editedItems[item.id]?.procurement_gst_amount || ''}
+                    onChange={(e) => handleFieldChange(item.id, 'procurement_gst_amount', e.target.value)}
+                    placeholder="Auto"
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+              
+              {/* Totals Row */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-border/50">
+                <div className="space-y-1">
+                  <Label className="text-xs">Item Total (excl. GST)</Label>
                   <div className="text-sm font-medium h-8 flex items-center">
                     {currencySymbol}{((parseFloat(editedItems[item.id]?.procurement_rate) || 0) * (parseInt(editedItems[item.id]?.quantity_procured) || item.quantity)).toLocaleString()}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Total GST</Label>
+                  <div className="text-sm font-medium h-8 flex items-center text-muted-foreground">
+                    {currencySymbol}{((parseFloat(editedItems[item.id]?.procurement_gst_amount) || 0) * (parseInt(editedItems[item.id]?.quantity_procured) || item.quantity)).toLocaleString()}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Total (incl. GST)</Label>
+                  <div className="text-sm font-medium h-8 flex items-center">
+                    {currencySymbol}{(((parseFloat(editedItems[item.id]?.procurement_rate) || 0) + (parseFloat(editedItems[item.id]?.procurement_gst_amount) || 0)) * (parseInt(editedItems[item.id]?.quantity_procured) || item.quantity)).toLocaleString()}
                   </div>
                 </div>
                 <div className="space-y-1">
