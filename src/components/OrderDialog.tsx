@@ -984,6 +984,48 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               </div>
             )}
 
+            {/* Edit Form for Sales Users - Order Status only */}
+            {isSales && !canEdit && (
+              <div className="space-y-4 border-t pt-4">
+                <h4 className="font-medium">Update Order</h4>
+                <div className="space-y-2">
+                  <Label htmlFor="status">Order Status</Label>
+                  <Select value={status} onValueChange={(v) => setStatus(v as OrderStatus)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ORDER_STATUSES.map(s => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {status === 'cancelled' && (
+                    <div className="mt-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 space-y-3">
+                      <h5 className="font-medium text-red-800 dark:text-red-300 flex items-center gap-2">
+                        <XCircle className="h-4 w-4" />
+                        Cancellation Details (Required)
+                      </h5>
+                      <div className="space-y-2">
+                        <Label htmlFor="cancellation_reason" className="text-red-700 dark:text-red-300">
+                          Reason for Cancellation *
+                        </Label>
+                        <Textarea
+                          id="cancellation_reason"
+                          value={cancellationReason}
+                          onChange={e => setCancellationReason(e.target.value)}
+                          disabled={loading}
+                          rows={3}
+                          placeholder="Please provide a detailed reason for cancellation..."
+                          className="bg-background"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Edit Form (Supply Chain / Admin only) */}
             {canEdit && (
               <div className="space-y-4 border-t pt-4">
@@ -1464,9 +1506,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-                {canEdit ? 'Cancel' : 'Close'}
+                {(canEdit || canEditSalesFields) ? 'Cancel' : 'Close'}
               </Button>
-              {canEdit && (
+              {(canEdit || canEditSalesFields) && (
                 <Button onClick={handleUpdate} disabled={loading}>
                   {loading ? (
                     <>
