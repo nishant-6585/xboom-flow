@@ -562,6 +562,59 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               </div>
             )}
 
+            {/* Quick Status Update */}
+            <div className="p-4 bg-muted/30 rounded-lg border">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-sm font-medium">
+                    <Calendar className="h-4 w-4" />
+                    Order Date
+                  </Label>
+                  <p className="text-sm font-medium bg-background p-2 rounded border">
+                    {format(new Date(order.created_at), 'dd MMM yyyy, HH:mm')}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-sm font-medium">
+                    <Package className="h-4 w-4" />
+                    Order Status
+                  </Label>
+                  {canEditSalesFields ? (
+                    <Select value={status} onValueChange={(v) => setStatus(v as OrderStatus)}>
+                      <SelectTrigger className="bg-background">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ORDER_STATUSES.map(s => (
+                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="p-2">
+                      <OrderStatusBadge status={order.status} />
+                    </div>
+                  )}
+                </div>
+              </div>
+              {status === 'cancelled' && canEditSalesFields && (
+                <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 space-y-3">
+                  <h5 className="font-medium text-red-800 dark:text-red-300 flex items-center gap-2">
+                    <XCircle className="h-4 w-4" />
+                    Cancellation Reason (Required)
+                  </h5>
+                  <Textarea
+                    value={cancellationReason}
+                    onChange={e => setCancellationReason(e.target.value)}
+                    disabled={loading}
+                    rows={2}
+                    placeholder="Please provide a reason for cancellation..."
+                    className="bg-background"
+                  />
+                </div>
+              )}
+            </div>
+
             {/* Order Details */}
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="flex items-center gap-2">
@@ -995,48 +1048,6 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               </div>
             )}
 
-            {/* Edit Form for Sales Users - Order Status only */}
-            {isSales && !canEdit && (
-              <div className="space-y-4 border-t pt-4">
-                <h4 className="font-medium">Update Order</h4>
-                <div className="space-y-2">
-                  <Label htmlFor="status">Order Status</Label>
-                  <Select value={status} onValueChange={(v) => setStatus(v as OrderStatus)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ORDER_STATUSES.map(s => (
-                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {status === 'cancelled' && (
-                    <div className="mt-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 space-y-3">
-                      <h5 className="font-medium text-red-800 dark:text-red-300 flex items-center gap-2">
-                        <XCircle className="h-4 w-4" />
-                        Cancellation Details (Required)
-                      </h5>
-                      <div className="space-y-2">
-                        <Label htmlFor="cancellation_reason" className="text-red-700 dark:text-red-300">
-                          Reason for Cancellation *
-                        </Label>
-                        <Textarea
-                          id="cancellation_reason"
-                          value={cancellationReason}
-                          onChange={e => setCancellationReason(e.target.value)}
-                          disabled={loading}
-                          rows={3}
-                          placeholder="Please provide a detailed reason for cancellation..."
-                          className="bg-background"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* Edit Form (Supply Chain / Admin only) */}
             {canEdit && (
               <div className="space-y-4 border-t pt-4">
@@ -1060,69 +1071,19 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   </Select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="status">Order Status</Label>
-                    <Select value={status} onValueChange={(v) => setStatus(v as OrderStatus)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ORDER_STATUSES.map(s => (
-                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {status === 'cancelled' && (
-                      <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-                        ⚠️ This will require a cancellation reason below
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="payment_status">Payment Status</Label>
-                    <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as PaymentStatus)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PAYMENT_STATUSES.map(s => (
-                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="payment_status">Payment Status</Label>
+                  <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as PaymentStatus)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_STATUSES.map(s => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-
-                {/* Cancellation Reason - Required when status is cancelled */}
-                {status === 'cancelled' && (
-                  <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 space-y-3">
-                    <h5 className="font-medium text-red-800 dark:text-red-300 flex items-center gap-2">
-                      <XCircle className="h-4 w-4" />
-                      Cancellation Details (Required)
-                    </h5>
-                    <div className="space-y-2">
-                      <Label htmlFor="cancellation_reason" className="text-red-700 dark:text-red-300">
-                        Reason for Cancellation *
-                      </Label>
-                      <Textarea
-                        id="cancellation_reason"
-                        value={cancellationReason}
-                        onChange={e => setCancellationReason(e.target.value)}
-                        disabled={loading}
-                        rows={3}
-                        placeholder="Provide a detailed reason for cancelling this order..."
-                        className="border-red-300 dark:border-red-700"
-                      />
-                      {!cancellationReason.trim() && (
-                        <p className="text-xs text-red-600">This field is required to cancel the order</p>
-                      )}
-                    </div>
-                    <p className="text-xs text-red-600 dark:text-red-400">
-                      Note: Cancelled orders will be sent to the Refund section for admin approval.
-                    </p>
-                  </div>
-                )}
 
                 {/* RTO Marking - for procured orders */}
                 {(order.status === 'procurement_done' || order.status === 'delivery_done') && (
