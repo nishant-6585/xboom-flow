@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Trash2, Package } from 'lucide-react';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { OrderItemFormData } from '@/hooks/useOrderItems';
@@ -29,6 +30,8 @@ const emptyItem: OrderItemFormData = {
   sales_gst_amount: 0,
   procurement_gst_percent: 0,
   procurement_gst_amount: 0,
+  sales_price_includes_gst: false,
+  procurement_price_includes_gst: false,
 };
 
 export function OrderItemsInput({ items, onChange, disabled = false, showProcurementRate = true }: OrderItemsInputProps) {
@@ -181,6 +184,16 @@ export function OrderItemsInput({ items, onChange, disabled = false, showProcure
                   />
                 </div>
 
+                <div className="flex items-center space-x-2 pt-6">
+                  <Checkbox
+                    id={`sales_price_includes_gst_${index}`}
+                    checked={item.sales_price_includes_gst || false}
+                    onCheckedChange={(checked) => updateItem(index, 'sales_price_includes_gst', checked === true)}
+                    disabled={disabled}
+                  />
+                  <Label htmlFor={`sales_price_includes_gst_${index}`} className="text-xs">Price incl. GST</Label>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor={`sales_gst_percent_${index}`}>Sales GST %</Label>
                   <Input
@@ -224,6 +237,16 @@ export function OrderItemsInput({ items, onChange, disabled = false, showProcure
                         placeholder="Cost price"
                         disabled={disabled}
                       />
+                    </div>
+
+                    <div className="flex items-center space-x-2 pt-6">
+                      <Checkbox
+                        id={`procurement_price_includes_gst_${index}`}
+                        checked={item.procurement_price_includes_gst || false}
+                        onCheckedChange={(checked) => updateItem(index, 'procurement_price_includes_gst', checked === true)}
+                        disabled={disabled}
+                      />
+                      <Label htmlFor={`procurement_price_includes_gst_${index}`} className="text-xs">Price incl. GST</Label>
                     </div>
 
                     <div className="space-y-2">

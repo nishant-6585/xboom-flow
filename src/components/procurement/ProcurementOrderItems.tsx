@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Package, Save, Loader2, Building2, Warehouse, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -31,6 +32,7 @@ interface EditedItem {
   fulfilled_from_stock: boolean;
   procurement_gst_percent: string;
   procurement_gst_amount: string;
+  procurement_price_includes_gst: boolean;
 }
 
 const statusColors: Record<string, string> = {
@@ -90,6 +92,7 @@ export function ProcurementOrderItems({
           fulfilled_from_stock: (item as any).fulfilled_from_stock || false,
           procurement_gst_percent: (item as any).procurement_gst_percent?.toString() || '0',
           procurement_gst_amount: (item as any).procurement_gst_amount?.toString() || '0',
+          procurement_price_includes_gst: (item as any).procurement_price_includes_gst || false,
         };
       });
       setEditedItems(edited);
@@ -100,15 +103,15 @@ export function ProcurementOrderItems({
     }
   };
 
-  const handleFieldChange = (itemId: string, field: keyof EditedItem, value: string) => {
+  const handleFieldChange = (itemId: string, field: keyof EditedItem, value: string | boolean) => {
     setEditedItems(prev => {
       const currentItem = prev[itemId];
       const newItem = { ...currentItem, [field]: value };
       
       // Auto-calculate GST amount when percent or rate changes
       if (field === 'procurement_gst_percent' || field === 'procurement_rate') {
-        const rate = field === 'procurement_rate' ? parseFloat(value) : parseFloat(currentItem.procurement_rate);
-        const percent = field === 'procurement_gst_percent' ? parseFloat(value) : parseFloat(currentItem.procurement_gst_percent);
+        const rate = field === 'procurement_rate' ? parseFloat(value as string) : parseFloat(currentItem.procurement_rate);
+        const percent = field === 'procurement_gst_percent' ? parseFloat(value as string) : parseFloat(currentItem.procurement_gst_percent);
         if (rate && percent) {
           newItem.procurement_gst_amount = ((rate * percent) / 100).toFixed(2);
         }
@@ -137,6 +140,7 @@ export function ProcurementOrderItems({
             quantity_procured: edited.quantity_procured ? parseInt(edited.quantity_procured) : 0,
             procurement_gst_percent: edited.procurement_gst_percent ? parseFloat(edited.procurement_gst_percent) : 0,
             procurement_gst_amount: edited.procurement_gst_amount ? parseFloat(edited.procurement_gst_amount) : 0,
+            procurement_price_includes_gst: edited.procurement_price_includes_gst || false,
           })
           .eq('id', item.id);
         
@@ -172,6 +176,7 @@ export function ProcurementOrderItems({
       fulfilled_from_stock: (item as any).fulfilled_from_stock || false,
       procurement_gst_percent: (item as any).procurement_gst_percent?.toString() || '0',
       procurement_gst_amount: (item as any).procurement_gst_amount?.toString() || '0',
+      procurement_price_includes_gst: (item as any).procurement_price_includes_gst || false,
     };
     const edited = editedItems[item.id];
     return edited && (
@@ -182,7 +187,8 @@ export function ProcurementOrderItems({
       original.quantity_procured !== edited.quantity_procured ||
       original.fulfilled_from_stock !== edited.fulfilled_from_stock ||
       original.procurement_gst_percent !== edited.procurement_gst_percent ||
-      original.procurement_gst_amount !== edited.procurement_gst_amount
+      original.procurement_gst_amount !== edited.procurement_gst_amount ||
+      original.procurement_price_includes_gst !== edited.procurement_price_includes_gst
     );
   });
 
@@ -420,6 +426,14 @@ export function ProcurementOrderItems({
                     className="h-8 text-sm"
                   />
                 </div>
+                <div className="flex items-center space-x-2 pt-5">
+                  <Checkbox
+                    id={`price_includes_gst_${item.id}`}
+                    checked={editedItems[item.id]?.procurement_price_includes_gst || false}
+                    onCheckedChange={(checked) => handleFieldChange(item.id, 'procurement_price_includes_gst', checked === true)}
+                  />
+                  <Label htmlFor={`price_includes_gst_${item.id}`} className="text-xs">Incl. GST</Label>
+                </div>
                 <div className="space-y-1">
                   <Label className="text-xs">GST %</Label>
                   <Input
@@ -452,7 +466,14 @@ export function ProcurementOrderItems({
                 <div className="space-y-1">
                   <Label className="text-xs">Item Total (excl. GST)</Label>
                   <div className="text-sm font-medium h-8 flex items-center">
-                    {currencySymbol}{((parseFloat(editedItems[item.id]?.procurement_rate) || 0) * (parseInt(editedItems[item.id]?.quantity_procured) || item.quantity)).toLocaleString()}
+                    {(() => {
+                      const rate = parseFloat(editedItems[item.id]?.procurement_rate) || 0;
+                      const gstAmt = parseFloat(editedItems[item.id]?.procurement_gst_amount) || 0;
+                      const includesGst = editedItems[item.id]?.procurement_price_includes_gst;
+                      const baseRate = includesGst ? rate - gstAmt : rate;
+                      const qty = parseInt(editedItems[item.id]?.quantity_procured) || item.quantity;
+                      return `${currencySymbol}${(baseRate * qty).toLocaleString()}`;
+                    })()}
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -464,22 +485,41 @@ export function ProcurementOrderItems({
                 <div className="space-y-1">
                   <Label className="text-xs">Total (incl. GST)</Label>
                   <div className="text-sm font-medium h-8 flex items-center">
-                    {currencySymbol}{(((parseFloat(editedItems[item.id]?.procurement_rate) || 0) + (parseFloat(editedItems[item.id]?.procurement_gst_amount) || 0)) * (parseInt(editedItems[item.id]?.quantity_procured) || item.quantity)).toLocaleString()}
+                    {(() => {
+                      const rate = parseFloat(editedItems[item.id]?.procurement_rate) || 0;
+                      const gstAmt = parseFloat(editedItems[item.id]?.procurement_gst_amount) || 0;
+                      const includesGst = editedItems[item.id]?.procurement_price_includes_gst;
+                      const totalRate = includesGst ? rate : rate + gstAmt;
+                      const qty = parseInt(editedItems[item.id]?.quantity_procured) || item.quantity;
+                      return `${currencySymbol}${(totalRate * qty).toLocaleString()}`;
+                    })()}
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Margin</Label>
+                  <Label className="text-xs">Margin (excl. GST)</Label>
                   <div className="text-sm font-medium h-8 flex items-center">
-                    {item.unit_price && editedItems[item.id]?.procurement_rate ? (
-                      <span className={
-                        item.unit_price > parseFloat(editedItems[item.id]?.procurement_rate) 
-                          ? 'text-green-600' 
-                          : 'text-red-600'
-                      }>
-                        {currencySymbol}
-                        {((item.unit_price - parseFloat(editedItems[item.id]?.procurement_rate)) * (parseInt(editedItems[item.id]?.quantity_procured) || item.quantity)).toLocaleString()}
-                      </span>
-                    ) : '-'}
+                    {(() => {
+                      const procRate = parseFloat(editedItems[item.id]?.procurement_rate) || 0;
+                      const procGst = parseFloat(editedItems[item.id]?.procurement_gst_amount) || 0;
+                      const procIncludesGst = editedItems[item.id]?.procurement_price_includes_gst;
+                      const baseProcRate = procIncludesGst ? procRate - procGst : procRate;
+                      
+                      const salesPrice = item.unit_price || 0;
+                      const salesGst = (item as any).sales_gst_amount || 0;
+                      const salesIncludesGst = (item as any).sales_price_includes_gst;
+                      const baseSalesPrice = salesIncludesGst ? salesPrice - salesGst : salesPrice;
+                      
+                      const qty = parseInt(editedItems[item.id]?.quantity_procured) || item.quantity;
+                      const margin = (baseSalesPrice - baseProcRate) * qty;
+                      
+                      if (!salesPrice || !procRate) return '-';
+                      
+                      return (
+                        <span className={margin > 0 ? 'text-green-600' : 'text-red-600'}>
+                          {currencySymbol}{margin.toLocaleString()}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

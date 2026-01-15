@@ -20,6 +20,8 @@ export interface OrderItem {
   sales_gst_amount: number | null;
   procurement_gst_percent: number | null;
   procurement_gst_amount: number | null;
+  sales_price_includes_gst: boolean | null;
+  procurement_price_includes_gst: boolean | null;
 }
 
 export type OrderItemStatus = 'pending' | 'ordered' | 'in_transit' | 'received' | 'cancelled';
@@ -47,6 +49,8 @@ export interface OrderItemFormData {
   sales_gst_amount?: number;
   procurement_gst_percent?: number;
   procurement_gst_amount?: number;
+  sales_price_includes_gst?: boolean;
+  procurement_price_includes_gst?: boolean;
 }
 
 export function useOrderItems() {
@@ -63,7 +67,7 @@ export function useOrderItems() {
       if (role === 'sales') {
         const { data, error } = await supabase
           .from('order_items')
-          .select('id, order_id, product_name, product_code, product_category, quantity, unit_price, notes, created_at, status, sales_gst_percent, sales_gst_amount')
+          .select('id, order_id, product_name, product_code, product_category, quantity, unit_price, notes, created_at, status, sales_gst_percent, sales_gst_amount, sales_price_includes_gst')
           .eq('order_id', orderId)
           .order('created_at', { ascending: true });
 
@@ -75,6 +79,7 @@ export function useOrderItems() {
           procurement_date: null,
           procurement_gst_percent: null,
           procurement_gst_amount: null,
+          procurement_price_includes_gst: null,
         }));
       } else {
         const { data, error } = await supabase
@@ -113,6 +118,8 @@ export function useOrderItems() {
         sales_gst_amount: item.sales_gst_amount || 0,
         procurement_gst_percent: item.procurement_gst_percent || 0,
         procurement_gst_amount: item.procurement_gst_amount || 0,
+        sales_price_includes_gst: item.sales_price_includes_gst || false,
+        procurement_price_includes_gst: item.procurement_price_includes_gst || false,
       }));
 
       const { error } = await supabase
