@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { sendSlackNotification } from '@/hooks/useSlackSettings';
 
 export type OrderStatus = 'po_received' | 'payment_received' | 'partial_payment_received' | 'procurement_to_plan' | 'procurement_in_process' | 'procurement_done' | 'to_ship' | 'in_transit' | 'delivery_done' | 'cancelled';
 export type PaymentStatus = 'pending' | 'partial' | 'full';
@@ -548,6 +549,22 @@ export function useOrders() {
         // Don't fail the order creation, just log the error
       }
 
+      // Send Slack notification for new order
+      try {
+        await sendSlackNotification('new_order', {
+          order_number: orderData.order_number || orderData.id.slice(0, 8).toUpperCase(),
+          customer_name: formData.customer_name,
+          customer_company: formData.customer_company,
+          product_name: formData.product_name,
+          quantity: formData.quantity,
+          total_sales_amount: formData.total_sales_amount,
+          sales_person_name: formData.sales_person_name || salesPersonName,
+        });
+      } catch (slackErr) {
+        console.error('Error sending Slack notification:', slackErr);
+        // Don't fail the order creation, just log the error
+      }
+
       toast.success('Order created successfully');
       return true;
     } catch (error: any) {
@@ -562,12 +579,30 @@ export function useOrders() {
     updates: Partial<Order>
   ): Promise<boolean> => {
     try {
+      // Get current order to check for status change
+      const currentOrder = orders.find(o => o.id === orderId);
+      const oldStatus = currentOrder?.status;
+
       const { error } = await supabase
         .from('orders')
         .update(updates)
         .eq('id', orderId);
 
       if (error) throw error;
+
+      // Send Slack notification if status changed
+      if (updates.status && oldStatus && updates.status !== oldStatus) {
+        try {
+          await sendSlackNotification('status_change', {
+            order_number: currentOrder?.order_number || orderId.slice(0, 8).toUpperCase(),
+            customer_name: currentOrder?.customer_name || 'Unknown',
+            old_status: oldStatus.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            new_status: updates.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          });
+        } catch (slackErr) {
+          console.error('Error sending Slack notification:', slackErr);
+        }
+      }
 
       toast.success('Order updated successfully');
       return true;

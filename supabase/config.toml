@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.ai-sales-assistant]
 verify_jwt = false
+
+[functions.send-slack-notification]
+verify_jwt = false

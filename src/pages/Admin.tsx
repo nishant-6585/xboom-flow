@@ -12,7 +12,7 @@ import { useOrders } from "@/hooks/useOrders";
 import { EnquiryAnalytics, ValueFilterType } from "@/components/EnquiryAnalytics";
 import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
 import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
-import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog } from "lucide-react";
+import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -32,6 +32,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Navigate, useNavigate } from "react-router-dom";
+import { SlackSettingsPanel } from "@/components/admin/SlackSettingsPanel";
 
 interface PendingUser {
   id: string;
@@ -394,6 +395,10 @@ const Admin = () => {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="integrations" className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              Integrations
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="analytics">
@@ -680,6 +685,10 @@ const Admin = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="integrations">
+            <SlackSettingsPanel />
           </TabsContent>
         </Tabs>
       </main>

@@ -2059,6 +2059,42 @@ export type Database = {
         }
         Relationships: []
       }
+      slack_settings: {
+        Row: {
+          created_at: string
+          id: string
+          is_enabled: boolean
+          notify_hot_leads: boolean
+          notify_new_orders: boolean
+          notify_payment_reminders: boolean
+          notify_status_changes: boolean
+          updated_at: string
+          webhook_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          notify_hot_leads?: boolean
+          notify_new_orders?: boolean
+          notify_payment_reminders?: boolean
+          notify_status_changes?: boolean
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          notify_hot_leads?: boolean
+          notify_new_orders?: boolean
+          notify_payment_reminders?: boolean
+          notify_status_changes?: boolean
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
       supplier_payments: {
         Row: {
           amount: number
