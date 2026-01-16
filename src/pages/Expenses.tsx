@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,17 +11,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useExpenses, EXPENSE_TYPES, EXPENSE_STATUSES, PAYMENT_MODES, Expense } from "@/hooks/useExpenses";
 import { usePettyCash } from "@/hooks/usePettyCash";
+import { useOrders } from "@/hooks/useOrders";
+import { useInventoryProcurements } from "@/hooks/useInventoryProcurements";
+import { useAllExpenseLinks } from "@/hooks/useExpenseLinks";
 import { useAuth } from "@/hooks/useAuth";
 import { format, parseISO } from "date-fns";
-import { Plus, Receipt, Loader2, Check, X, Wallet, TrendingUp, Clock, CheckCircle, CreditCard, Banknote, Users } from "lucide-react";
+import { Plus, Receipt, Loader2, Check, X, Wallet, TrendingUp, Clock, CheckCircle, CreditCard, Banknote, Users, Package, ShoppingCart, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function Expenses() {
   const { expenses, loading, createExpense, approveExpense, rejectExpense, markReimbursed, deleteExpense, canApprove, canDelete, refetch: refetchExpenses } = useExpenses();
   const { myBalance, getUserBalance, getAllUserBalances, givePettyCash, deductForExpense, creditOverpayment, canManage, transactions, refetch: refetchPettyCash } = usePettyCash();
+  const { orders, loading: ordersLoading } = useOrders();
+  const { procurements, loading: procurementsLoading } = useInventoryProcurements();
+  const { linkOrdersToExpense, linkProcurementsToExpense, getLinkedOrdersForExpense, getLinkedProcurementsForExpense, refetch: refetchLinks } = useAllExpenseLinks();
   const { user, profile } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
@@ -38,6 +45,8 @@ export default function Expenses() {
   const [submitting, setSubmitting] = useState(false);
   const [useFromPettyCash, setUseFromPettyCash] = useState(false);
   const [pettyCashAmount, setPettyCashAmount] = useState("");
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [selectedProcurementIds, setSelectedProcurementIds] = useState<string[]>([]);
 
   // Give petty cash dialog
   const [giveCashDialogOpen, setGiveCashDialogOpen] = useState(false);
@@ -68,6 +77,8 @@ export default function Expenses() {
     setNotes("");
     setUseFromPettyCash(false);
     setPettyCashAmount("");
+    setSelectedOrderIds([]);
+    setSelectedProcurementIds([]);
   };
 
   const handleSubmit = async () => {
@@ -98,11 +109,22 @@ export default function Expenses() {
       await deductForExpense(result.id, pettyCashToUse, `Used for ${EXPENSE_TYPES.find(t => t.value === expenseType)?.label || expenseType} expense`);
     }
 
+    // Link orders and procurements if selected
+    if (result) {
+      if (selectedOrderIds.length > 0) {
+        await linkOrdersToExpense(result.id, selectedOrderIds);
+      }
+      if (selectedProcurementIds.length > 0) {
+        await linkProcurementsToExpense(result.id, selectedProcurementIds);
+      }
+    }
+
     setSubmitting(false);
     if (result) {
       resetForm();
       setDialogOpen(false);
       refetchPettyCash();
+      refetchLinks();
     }
   };
 
@@ -424,6 +446,78 @@ export default function Expenses() {
                     />
                   </div>
 
+                  {/* Link to Orders */}
+                  <div className="space-y-2 p-3 border rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                      <Label className="text-sm font-medium">Link to Orders (Optional)</Label>
+                    </div>
+                    <ScrollArea className="h-32 border rounded-md p-2">
+                      {orders.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center py-4">No orders available</p>
+                      ) : (
+                        orders.slice(0, 50).map((order) => (
+                          <div key={order.id} className="flex items-center gap-2 py-1">
+                            <Checkbox
+                              id={`order-${order.id}`}
+                              checked={selectedOrderIds.includes(order.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedOrderIds([...selectedOrderIds, order.id]);
+                                } else {
+                                  setSelectedOrderIds(selectedOrderIds.filter(id => id !== order.id));
+                                }
+                              }}
+                            />
+                            <Label htmlFor={`order-${order.id}`} className="text-xs cursor-pointer flex-1 truncate">
+                              <span className="font-medium">{order.order_number || 'No Order#'}</span>
+                              <span className="text-muted-foreground"> - {order.product_name} ({order.customer_company})</span>
+                            </Label>
+                          </div>
+                        ))
+                      )}
+                    </ScrollArea>
+                    {selectedOrderIds.length > 0 && (
+                      <p className="text-xs text-primary">{selectedOrderIds.length} order(s) selected</p>
+                    )}
+                  </div>
+
+                  {/* Link to Procurements */}
+                  <div className="space-y-2 p-3 border rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Package className="h-4 w-4 text-muted-foreground" />
+                      <Label className="text-sm font-medium">Link to Procurements (Optional)</Label>
+                    </div>
+                    <ScrollArea className="h-32 border rounded-md p-2">
+                      {procurements.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center py-4">No procurements available</p>
+                      ) : (
+                        procurements.slice(0, 50).map((proc) => (
+                          <div key={proc.id} className="flex items-center gap-2 py-1">
+                            <Checkbox
+                              id={`proc-${proc.id}`}
+                              checked={selectedProcurementIds.includes(proc.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedProcurementIds([...selectedProcurementIds, proc.id]);
+                                } else {
+                                  setSelectedProcurementIds(selectedProcurementIds.filter(id => id !== proc.id));
+                                }
+                              }}
+                            />
+                            <Label htmlFor={`proc-${proc.id}`} className="text-xs cursor-pointer flex-1 truncate">
+                              <span className="font-medium">{proc.procurement_number || 'No Proc#'}</span>
+                              <span className="text-muted-foreground"> - {proc.product_name} ({proc.supplier_name || 'Unknown'})</span>
+                            </Label>
+                          </div>
+                        ))
+                      )}
+                    </ScrollArea>
+                    {selectedProcurementIds.length > 0 && (
+                      <p className="text-xs text-primary">{selectedProcurementIds.length} procurement(s) selected</p>
+                    )}
+                  </div>
+
                   {/* Use Petty Cash Option */}
                   {myBalance > 0 && amount && (
                     <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
@@ -647,6 +741,7 @@ export default function Expenses() {
                           <TableHead>Type</TableHead>
                           <TableHead>Description</TableHead>
                           <TableHead>Vendor</TableHead>
+                          <TableHead>Linked To</TableHead>
                           <TableHead className="text-right">Amount</TableHead>
                           <TableHead className="text-right">Paid</TableHead>
                           <TableHead>Status</TableHead>
@@ -657,7 +752,7 @@ export default function Expenses() {
                       <TableBody>
                         {filteredExpenses.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={canApprove ? 9 : 8} className="text-center py-8 text-muted-foreground">
+                            <TableCell colSpan={canApprove ? 10 : 9} className="text-center py-8 text-muted-foreground">
                               No expenses found
                             </TableCell>
                           </TableRow>
@@ -666,6 +761,10 @@ export default function Expenses() {
                             const amountPaid = (expense as any).amount_paid || 0;
                             const paidFromPetty = (expense as any).paid_from_petty_cash || 0;
                             const pendingAmount = expense.amount - amountPaid;
+                            const linkedOrderIds = getLinkedOrdersForExpense(expense.id);
+                            const linkedProcurementIds = getLinkedProcurementsForExpense(expense.id);
+                            const linkedOrders = orders.filter(o => linkedOrderIds.includes(o.id));
+                            const linkedProcs = procurements.filter(p => linkedProcurementIds.includes(p.id));
 
                             return (
                               <TableRow key={expense.id}>
@@ -679,6 +778,33 @@ export default function Expenses() {
                                   {expense.description || '-'}
                                 </TableCell>
                                 <TableCell>{expense.vendor_name || '-'}</TableCell>
+                                <TableCell>
+                                  <div className="space-y-1">
+                                    {linkedOrders.length > 0 && (
+                                      <div className="flex flex-wrap gap-1">
+                                        {linkedOrders.map(o => (
+                                          <Badge key={o.id} variant="secondary" className="text-xs">
+                                            <ShoppingCart className="h-3 w-3 mr-1" />
+                                            {o.order_number || 'Order'}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {linkedProcs.length > 0 && (
+                                      <div className="flex flex-wrap gap-1">
+                                        {linkedProcs.map(p => (
+                                          <Badge key={p.id} variant="outline" className="text-xs">
+                                            <Package className="h-3 w-3 mr-1" />
+                                            {p.procurement_number || 'Proc'}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {linkedOrders.length === 0 && linkedProcs.length === 0 && (
+                                      <span className="text-xs text-muted-foreground">-</span>
+                                    )}
+                                  </div>
+                                </TableCell>
                                 <TableCell className="text-right font-medium">
                                   ₹{expense.amount.toLocaleString()}
                                   {paidFromPetty > 0 && (

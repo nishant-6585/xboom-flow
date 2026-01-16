@@ -11,6 +11,7 @@ import { format, subDays, eachDayOfInterval, isSameDay, parseISO, isWithinInterv
 import { TrendingUp, IndianRupee, Package, Building2, Calendar, Download, FileSpreadsheet, FileText, CalendarCheck, AlertTriangle } from "lucide-react";
 import { exportProcurementAnalyticsToExcel, exportProcurementAnalyticsToPDF, ProcurementAnalyticsExportData } from "@/lib/exportUtils";
 import { toast } from "sonner";
+import { ExpenseSummaryByOrders } from "./OrderLinkedExpenses";
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
@@ -606,6 +607,9 @@ export function ProcurementDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Expenses Summary */}
+      <ExpenseSummaryByOrders />
     </div>
   );
 }
