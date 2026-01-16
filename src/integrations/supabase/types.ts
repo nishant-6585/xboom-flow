@@ -354,6 +354,62 @@ export type Database = {
         }
         Relationships: []
       }
+      enquiry_items: {
+        Row: {
+          created_at: string
+          enquiry_id: string
+          gst_amount: number | null
+          gst_percent: number | null
+          id: string
+          notes: string | null
+          price_includes_gst: boolean | null
+          product_category: string | null
+          product_code: string | null
+          product_name: string
+          quantity: number
+          total_amount: number | null
+          unit_price: number | null
+        }
+        Insert: {
+          created_at?: string
+          enquiry_id: string
+          gst_amount?: number | null
+          gst_percent?: number | null
+          id?: string
+          notes?: string | null
+          price_includes_gst?: boolean | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name: string
+          quantity?: number
+          total_amount?: number | null
+          unit_price?: number | null
+        }
+        Update: {
+          created_at?: string
+          enquiry_id?: string
+          gst_amount?: number | null
+          gst_percent?: number | null
+          id?: string
+          notes?: string | null
+          price_includes_gst?: boolean | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name?: string
+          quantity?: number
+          total_amount?: number | null
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enquiry_items_enquiry_id_fkey"
+            columns: ["enquiry_id"]
+            isOneToOne: false
+            referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enquiry_tags: {
         Row: {
           added_at: string | null
