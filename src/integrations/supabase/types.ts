@@ -1405,6 +1405,7 @@ export type Database = {
           customer_notes: string | null
           customer_type: string | null
           delivery_charges: number | null
+          discount_amount: number | null
           enquiry_id: string | null
           escalated_at: string | null
           escalated_by: string | null
@@ -1475,6 +1476,7 @@ export type Database = {
           customer_notes?: string | null
           customer_type?: string | null
           delivery_charges?: number | null
+          discount_amount?: number | null
           enquiry_id?: string | null
           escalated_at?: string | null
           escalated_by?: string | null
@@ -1545,6 +1547,7 @@ export type Database = {
           customer_notes?: string | null
           customer_type?: string | null
           delivery_charges?: number | null
+          discount_amount?: number | null
           enquiry_id?: string | null
           escalated_at?: string | null
           escalated_by?: string | null
