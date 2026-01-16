@@ -12,11 +12,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { SupplierPayment } from '@/hooks/useSuppliers';
 import { format, parseISO, isBefore, addDays } from 'date-fns';
 import { getPaymentTermsLabel } from '@/lib/paymentTerms';
-import { Package, Trash2, CreditCard, AlertTriangle, CheckCircle2, Clock, Loader2, History, Plus, FileText, Send, Ban, Check } from 'lucide-react';
+import { Package, Trash2, CreditCard, AlertTriangle, CheckCircle2, Clock, Loader2, History, Plus, FileText, Send, Ban, Check, Pencil } from 'lucide-react';
 import { InventoryProcurementPaymentDialog } from './InventoryProcurementPaymentDialog';
 import { InventoryProcurementPaymentHistory } from './InventoryProcurementPaymentHistory';
 import { PaymentRequestDialog } from './PaymentRequestDialog';
 import { MarkPaymentDoneDialog } from './MarkPaymentDoneDialog';
+import { EditProcurementDialog } from './EditProcurementDialog';
 
 export function InventoryProcurementsList() {
   const { procurements, loading, updateProcurement, deleteProcurement, refetch } = useInventoryProcurements();
@@ -29,12 +30,15 @@ export function InventoryProcurementsList() {
   const [historyProcurement, setHistoryProcurement] = useState<InventoryProcurement | null>(null);
   const [requestPaymentProcurement, setRequestPaymentProcurement] = useState<{ procurement: InventoryProcurement; remainingBalance: number } | null>(null);
   const [markDonePayment, setMarkDonePayment] = useState<SupplierPayment | null>(null);
+  const [editProcurement, setEditProcurement] = useState<InventoryProcurement | null>(null);
 
   // Create a map of order IDs to order numbers
   const orderNumberMap = new Map(orders.map(o => [o.id, o.order_number || o.id.slice(0, 8)]));
 
   const isAdmin = role === 'admin';
   const isFinance = role === 'finance';
+  const isSupplyChain = role === 'supply_chain';
+  const canEdit = isAdmin || isSupplyChain;
   const canManagePayments = role === 'admin' || role === 'supply_chain';
   const canApprovePayments = role === 'admin' || role === 'finance';
   
@@ -259,6 +263,18 @@ export function InventoryProcurementsList() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1 flex-wrap">
+                        {/* Edit button */}
+                        {canEdit && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditProcurement(procurement)}
+                            title="Edit Procurement"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        
                         {paymentCount > 0 && (
                           <Button
                             variant="ghost"
@@ -378,6 +394,19 @@ export function InventoryProcurementsList() {
         onOpenChange={(open) => !open && setMarkDonePayment(null)}
         payment={markDonePayment}
         onPaymentCompleted={handlePaymentAdded}
+      />
+
+      <EditProcurementDialog
+        open={!!editProcurement}
+        onOpenChange={(open) => !open && setEditProcurement(null)}
+        procurement={editProcurement}
+        onSave={async (id, updates) => {
+          const success = await updateProcurement(id, updates);
+          if (success) {
+            refetch();
+          }
+          return success;
+        }}
       />
     </>
   );
