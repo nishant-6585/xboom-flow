@@ -656,36 +656,34 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                     </RadioGroup>
                   </div>
 
-                  {!formData.is_website_order && (
-                    <div className="space-y-2">
-                      <Label>Sales Person *</Label>
-                      <Select
-                        value={formData.sales_person_id || ''}
-                        onValueChange={(value) => {
-                          const member = salesTeam.find(m => m.user_id === value);
-                          if (member) {
-                            setFormData(prev => ({
-                              ...prev,
-                              sales_person_id: member.user_id,
-                              sales_person_name: member.name,
-                            }));
-                          }
-                        }}
-                        disabled={loading}
-                      >
-                        <SelectTrigger className="h-11">
-                          <SelectValue placeholder="Select sales person" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {salesTeam.map(member => (
-                            <SelectItem key={member.user_id} value={member.user_id}>
-                              {member.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                  <div className="space-y-2">
+                    <Label>Sales Person {!formData.is_website_order && '*'}</Label>
+                    <Select
+                      value={formData.sales_person_id || ''}
+                      onValueChange={(value) => {
+                        const member = salesTeam.find(m => m.user_id === value);
+                        if (member) {
+                          setFormData(prev => ({
+                            ...prev,
+                            sales_person_id: member.user_id,
+                            sales_person_name: member.name,
+                          }));
+                        }
+                      }}
+                      disabled={loading}
+                    >
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder={formData.is_website_order ? "Optional - Select sales person" : "Select sales person"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {salesTeam.map(member => (
+                          <SelectItem key={member.user_id} value={member.user_id}>
+                            {member.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
