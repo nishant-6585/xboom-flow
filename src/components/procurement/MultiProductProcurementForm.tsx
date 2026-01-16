@@ -57,6 +57,15 @@ interface ProcurementItem {
   linkType: 'order' | 'inventory';
   orderId: string;
   addToInventory: boolean;
+  fulfillFromStock: boolean;
+  selectedInventoryId: string;
+}
+
+interface InventoryItem {
+  id: string;
+  product_name: string;
+  product_category: string;
+  current_stock: number;
 }
 
 const PRODUCT_CATEGORIES = [
@@ -172,6 +181,8 @@ function createEmptyItem(): ProcurementItem {
     linkType: 'inventory',
     orderId: '',
     addToInventory: true,
+    fulfillFromStock: false,
+    selectedInventoryId: '',
   };
 }
 
@@ -197,12 +208,13 @@ interface ProductItemCardProps {
   item: ProcurementItem;
   index: number;
   orders: any[];
+  inventory: InventoryItem[];
   onUpdate: (id: string, updates: Partial<ProcurementItem>) => void;
   onRemove: (id: string) => void;
   canRemove: boolean;
 }
 
-function ProductItemCard({ item, index, orders, onUpdate, onRemove, canRemove }: ProductItemCardProps) {
+function ProductItemCard({ item, index, orders, inventory, onUpdate, onRemove, canRemove }: ProductItemCardProps) {
   const [orderSearch, setOrderSearch] = useState('');
   
   const filteredOrders = useMemo(() => {
@@ -218,6 +230,27 @@ function ProductItemCard({ item, index, orders, onUpdate, onRemove, canRemove }:
   const selectedOrder = orders.find(o => o.id === item.orderId);
   const { totalAmount, gstAmount } = calculateItemTotal(item);
   
+  // Find matching inventory items based on product name/category
+  const matchingInventory = useMemo(() => {
+    if (!item.productName && !selectedOrder) return [];
+    
+    const productName = item.productName || selectedOrder?.product_name || '';
+    const productCategory = item.productCategory || selectedOrder?.product_category || '';
+    
+    return inventory.filter(inv => {
+      const nameMatch = inv.product_name.toLowerCase().includes(productName.toLowerCase()) ||
+                       productName.toLowerCase().includes(inv.product_name.toLowerCase());
+      const categoryMatch = !productCategory || inv.product_category === productCategory;
+      return nameMatch && categoryMatch && inv.current_stock > 0;
+    });
+  }, [inventory, item.productName, item.productCategory, selectedOrder]);
+  
+  const selectedInventory = inventory.find(inv => inv.id === item.selectedInventoryId);
+  const hasAvailableStock = matchingInventory.length > 0;
+  const requiredQty = Number(item.quantity || 0);
+  const availableStock = selectedInventory?.current_stock || 0;
+  const canFulfillFully = availableStock >= requiredQty;
+  
   // Auto-fill from order
   useEffect(() => {
     if (item.orderId && selectedOrder) {
@@ -227,6 +260,8 @@ function ProductItemCard({ item, index, orders, onUpdate, onRemove, canRemove }:
         productCode: selectedOrder.product_code || '',
         quantity: String(selectedOrder.quantity),
         unitPrice: selectedOrder.procurement_rate ? String(selectedOrder.procurement_rate) : item.unitPrice,
+        fulfillFromStock: false,
+        selectedInventoryId: '',
       });
     }
   }, [item.orderId]);
@@ -242,9 +277,16 @@ function ProductItemCard({ item, index, orders, onUpdate, onRemove, canRemove }:
             Product Item
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs">
-              ₹{totalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            </Badge>
+            {!item.fulfillFromStock && (
+              <Badge variant="outline" className="text-xs">
+                ₹{totalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </Badge>
+            )}
+            {item.fulfillFromStock && (
+              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                From Stock
+              </Badge>
+            )}
             {canRemove && (
               <Button
                 type="button"
@@ -271,7 +313,7 @@ function ProductItemCard({ item, index, orders, onUpdate, onRemove, canRemove }:
                 : "border-muted hover:border-muted-foreground/50"
             )}
             onClick={() => {
-              onUpdate(item.id, { linkType: 'order', addToInventory: false });
+              onUpdate(item.id, { linkType: 'order', addToInventory: false, fulfillFromStock: false, selectedInventoryId: '' });
             }}
           >
             <ShoppingCart className={cn("h-4 w-4 mb-1", item.linkType === 'order' && "text-primary")} />
@@ -288,7 +330,7 @@ function ProductItemCard({ item, index, orders, onUpdate, onRemove, canRemove }:
                 : "border-muted hover:border-muted-foreground/50"
             )}
             onClick={() => {
-              onUpdate(item.id, { linkType: 'inventory', orderId: '', addToInventory: true });
+              onUpdate(item.id, { linkType: 'inventory', orderId: '', addToInventory: true, fulfillFromStock: false, selectedInventoryId: '' });
             }}
           >
             <Warehouse className={cn("h-4 w-4 mb-1", item.linkType === 'inventory' && "text-primary")} />
@@ -313,7 +355,7 @@ function ProductItemCard({ item, index, orders, onUpdate, onRemove, canRemove }:
             </div>
             <Select 
               value={item.orderId} 
-              onValueChange={(val) => onUpdate(item.id, { orderId: val })}
+              onValueChange={(val) => onUpdate(item.id, { orderId: val, fulfillFromStock: false, selectedInventoryId: '' })}
             >
               <SelectTrigger className={cn("h-8 text-sm", !item.orderId && "border-amber-500")}>
                 <SelectValue placeholder="Select an order" />
@@ -333,95 +375,171 @@ function ProductItemCard({ item, index, orders, onUpdate, onRemove, canRemove }:
                 {selectedOrder.customer_company} • Qty: {selectedOrder.quantity}
               </div>
             )}
+            
+            {/* Fulfill from Stock Option - Only show when order is selected and matching inventory exists */}
+            {item.linkType === 'order' && selectedOrder && hasAvailableStock && (
+              <div className="p-3 rounded-lg border border-green-200 bg-green-50 dark:bg-green-950/30 dark:border-green-900 space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`stock-${item.id}`}
+                    checked={item.fulfillFromStock}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        // Auto-select first matching inventory item
+                        onUpdate(item.id, { 
+                          fulfillFromStock: true, 
+                          selectedInventoryId: matchingInventory[0]?.id || '',
+                          unitPrice: '0',
+                        });
+                      } else {
+                        onUpdate(item.id, { 
+                          fulfillFromStock: false, 
+                          selectedInventoryId: '',
+                          unitPrice: selectedOrder?.procurement_rate ? String(selectedOrder.procurement_rate) : '',
+                        });
+                      }
+                    }}
+                  />
+                  <Label htmlFor={`stock-${item.id}`} className="text-xs cursor-pointer font-medium text-green-700 dark:text-green-400">
+                    Fulfill from existing inventory stock
+                  </Label>
+                </div>
+                
+                {item.fulfillFromStock && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-green-700 dark:text-green-400">Select Inventory Item</Label>
+                    <Select 
+                      value={item.selectedInventoryId} 
+                      onValueChange={(val) => onUpdate(item.id, { selectedInventoryId: val })}
+                    >
+                      <SelectTrigger className="h-8 text-sm bg-white dark:bg-background">
+                        <SelectValue placeholder="Select inventory item" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {matchingInventory.map((inv) => (
+                          <SelectItem key={inv.id} value={inv.id} className="text-sm">
+                            <span>{inv.product_name}</span>
+                            <span className="text-muted-foreground mx-1">•</span>
+                            <span className={cn(
+                              inv.current_stock >= requiredQty ? "text-green-600" : "text-amber-600"
+                            )}>
+                              Stock: {inv.current_stock}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    {selectedInventory && (
+                      <div className={cn(
+                        "text-xs p-2 rounded",
+                        canFulfillFully 
+                          ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300" 
+                          : "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
+                      )}>
+                        {canFulfillFully 
+                          ? `✓ Sufficient stock (${availableStock} available, ${requiredQty} needed)`
+                          : `⚠ Partial stock (${availableStock} available, ${requiredQty} needed)`
+                        }
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
         
-        {/* Product Details */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs">Product Name *</Label>
-            <Input
-              value={item.productName}
-              onChange={(e) => onUpdate(item.id, { productName: e.target.value })}
-              placeholder="Enter product"
-              className="h-8 text-sm"
-              disabled={item.linkType === 'order' && !!item.orderId}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Category</Label>
-            <Select 
-              value={item.productCategory} 
-              onValueChange={(val) => onUpdate(item.id, { productCategory: val })}
-              disabled={item.linkType === 'order' && !!item.orderId}
-            >
-              <SelectTrigger className="h-8 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PRODUCT_CATEGORIES.map((cat) => (
-                  <SelectItem key={cat} value={cat} className="text-sm">{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-3 gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs">Quantity</Label>
-            <Input
-              type="number"
-              min={1}
-              value={item.quantity}
-              onChange={(e) => onUpdate(item.id, { quantity: e.target.value })}
-              className="h-8 text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Unit Price (₹)</Label>
-            <Input
-              type="number"
-              min={0}
-              step={0.01}
-              value={item.unitPrice}
-              onChange={(e) => onUpdate(item.id, { unitPrice: e.target.value })}
-              className="h-8 text-sm"
-              placeholder="0.00"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">GST %</Label>
-            <Select value={item.gstPercent} onValueChange={(val) => onUpdate(item.id, { gstPercent: val })}>
-              <SelectTrigger className="h-8 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0">0%</SelectItem>
-                <SelectItem value="5">5%</SelectItem>
-                <SelectItem value="12">12%</SelectItem>
-                <SelectItem value="18">18%</SelectItem>
-                <SelectItem value="28">28%</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id={`gst-${item.id}`}
-              checked={item.priceIncludesGst}
-              onCheckedChange={(checked) => onUpdate(item.id, { priceIncludesGst: checked === true })}
-            />
-            <Label htmlFor={`gst-${item.id}`} className="text-xs cursor-pointer">
-              Price includes GST
-            </Label>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            GST: ₹{gstAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-          </div>
-        </div>
+        {/* Product Details - Hide pricing fields if fulfilling from stock */}
+        {!item.fulfillFromStock && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Product Name *</Label>
+                <Input
+                  value={item.productName}
+                  onChange={(e) => onUpdate(item.id, { productName: e.target.value })}
+                  placeholder="Enter product"
+                  className="h-8 text-sm"
+                  disabled={item.linkType === 'order' && !!item.orderId}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Category</Label>
+                <Select 
+                  value={item.productCategory} 
+                  onValueChange={(val) => onUpdate(item.id, { productCategory: val })}
+                  disabled={item.linkType === 'order' && !!item.orderId}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRODUCT_CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat} className="text-sm">{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Quantity</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={item.quantity}
+                  onChange={(e) => onUpdate(item.id, { quantity: e.target.value })}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Unit Price (₹)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={item.unitPrice}
+                  onChange={(e) => onUpdate(item.id, { unitPrice: e.target.value })}
+                  className="h-8 text-sm"
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">GST %</Label>
+                <Select value={item.gstPercent} onValueChange={(val) => onUpdate(item.id, { gstPercent: val })}>
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">0%</SelectItem>
+                    <SelectItem value="5">5%</SelectItem>
+                    <SelectItem value="12">12%</SelectItem>
+                    <SelectItem value="18">18%</SelectItem>
+                    <SelectItem value="28">28%</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id={`gst-${item.id}`}
+                  checked={item.priceIncludesGst}
+                  onCheckedChange={(checked) => onUpdate(item.id, { priceIncludesGst: checked === true })}
+                />
+                <Label htmlFor={`gst-${item.id}`} className="text-xs cursor-pointer">
+                  Price includes GST
+                </Label>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                GST: ₹{gstAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </div>
+            </div>
+          </>
+        )}
         
         {item.linkType === 'inventory' && (
           <div className="flex items-center space-x-2 p-2 bg-muted/50 rounded">
@@ -443,6 +561,7 @@ function ProductItemCard({ item, index, orders, onUpdate, onRemove, canRemove }:
 export function MultiProductProcurementForm({ open, onOpenChange }: MultiProductProcurementFormProps) {
   const { createProcurement } = useInventoryProcurements();
   const { suppliers } = useSuppliers();
+  const { inventory, fulfillFromStock: fulfillFromInventory } = useInventory();
   const { orders } = useOrders();
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
@@ -466,14 +585,20 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
 
   const selectedSupplier = suppliers.find(s => s.id === supplierId);
   
-  // Calculate grand total
+  // Calculate grand total (exclude items being fulfilled from stock)
   const grandTotal = useMemo(() => {
-    return items.reduce((sum, item) => sum + calculateItemTotal(item).totalAmount, 0);
+    return items
+      .filter(item => !item.fulfillFromStock)
+      .reduce((sum, item) => sum + calculateItemTotal(item).totalAmount, 0);
   }, [items]);
   
   const totalGst = useMemo(() => {
-    return items.reduce((sum, item) => sum + calculateItemTotal(item).gstAmount, 0);
+    return items
+      .filter(item => !item.fulfillFromStock)
+      .reduce((sum, item) => sum + calculateItemTotal(item).gstAmount, 0);
   }, [items]);
+  
+  const stockFulfillItems = useMemo(() => items.filter(item => item.fulfillFromStock), [items]);
 
   const handleUpdateItem = (id: string, updates: Partial<ProcurementItem>) => {
     setItems(prev => prev.map(item => 
@@ -558,8 +683,30 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
     setLoading(true);
     
     let successCount = 0;
+    let stockFulfillCount = 0;
     
     for (const item of items) {
+      // Handle fulfill from stock - no procurement record needed
+      if (item.fulfillFromStock && item.selectedInventoryId && item.orderId) {
+        const selectedInv = inventory.find(inv => inv.id === item.selectedInventoryId);
+        if (selectedInv) {
+          const success = await fulfillFromInventory(
+            selectedInv.product_name,
+            selectedInv.product_category,
+            Number(item.quantity),
+            item.orderId,
+            undefined,
+            `Fulfilled from stock for order`
+          );
+          if (success) {
+            stockFulfillCount++;
+            successCount++;
+          }
+        }
+        continue;
+      }
+      
+      // Create procurement record for non-stock-fulfill items
       const { totalAmount } = calculateItemTotal(item);
       
       const result = await createProcurement({
@@ -587,11 +734,14 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
     setLoading(false);
 
     if (successCount === items.length) {
-      toast.success(`${successCount} procurement(s) created successfully`);
+      const message = stockFulfillCount > 0 
+        ? `${stockFulfillCount} fulfilled from stock, ${successCount - stockFulfillCount} procurement(s) created`
+        : `${successCount} procurement(s) created successfully`;
+      toast.success(message);
       resetForm();
       onOpenChange(false);
     } else if (successCount > 0) {
-      toast.warning(`${successCount} of ${items.length} procurements created`);
+      toast.warning(`${successCount} of ${items.length} items processed`);
     }
   };
 
@@ -641,6 +791,7 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
                         item={item}
                         index={index}
                         orders={orders}
+                        inventory={inventory}
                         onUpdate={handleUpdateItem}
                         onRemove={handleRemoveItem}
                         canRemove={items.length > 1}
@@ -916,17 +1067,30 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
                         {items.map((item, index) => {
                           const { totalAmount } = calculateItemTotal(item);
                           const order = orders.find(o => o.id === item.orderId);
+                          const selectedInv = inventory.find(inv => inv.id === item.selectedInventoryId);
                           return (
-                            <div key={item.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                            <div key={item.id} className={cn(
+                              "flex items-center justify-between p-3 rounded-lg",
+                              item.fulfillFromStock ? "bg-green-50 dark:bg-green-950/30" : "bg-muted/50"
+                            )}>
                               <div className="flex items-center gap-3">
-                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
+                                <div className={cn(
+                                  "h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold",
+                                  item.fulfillFromStock ? "bg-green-100 text-green-700" : "bg-primary/10 text-primary"
+                                )}>
                                   {index + 1}
                                 </div>
                                 <div>
                                   <p className="font-medium text-sm">{item.productName}</p>
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                                     <span>Qty: {item.quantity}</span>
-                                    {item.linkType === 'order' && order && (
+                                    {item.fulfillFromStock && selectedInv && (
+                                      <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-300">
+                                        <Package className="h-3 w-3 mr-1" />
+                                        From Stock ({selectedInv.current_stock} avail)
+                                      </Badge>
+                                    )}
+                                    {!item.fulfillFromStock && item.linkType === 'order' && order && (
                                       <Badge variant="outline" className="text-xs">
                                         <ShoppingCart className="h-3 w-3 mr-1" />
                                         {order.order_number}
@@ -941,7 +1105,11 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
                                   </div>
                                 </div>
                               </div>
-                              <span className="font-medium">₹{totalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                              {item.fulfillFromStock ? (
+                                <span className="font-medium text-green-700">From Stock</span>
+                              ) : (
+                                <span className="font-medium">₹{totalAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                              )}
                             </div>
                           );
                         })}
@@ -973,12 +1141,28 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
                     </Card>
                   </div>
 
+                  {stockFulfillItems.length > 0 && (
+                    <Card className="p-4 bg-green-50 dark:bg-green-950/30 border-green-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="font-medium text-green-700 dark:text-green-400">
+                            Fulfill from Stock
+                          </span>
+                          <p className="text-xs text-green-600 dark:text-green-500">
+                            {stockFulfillItems.length} item(s) from existing inventory
+                          </p>
+                        </div>
+                        <Badge className="bg-green-600">No Cost</Badge>
+                      </div>
+                    </Card>
+                  )}
+
                   <Card className="p-4 bg-primary/10 border-primary/20">
                     <div className="flex items-center justify-between">
                       <div>
                         <span className="font-medium">Total Procurement Value</span>
                         <p className="text-xs text-muted-foreground">
-                          GST: ₹{totalGst.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          {grandTotal > 0 ? `GST: ₹${totalGst.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : 'No new procurement cost'}
                         </p>
                       </div>
                       <span className="text-2xl font-bold text-primary flex items-center">
