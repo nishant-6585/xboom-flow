@@ -84,32 +84,27 @@ export const useSlackSettings = () => {
 
   const testWebhook = async (webhookUrl: string) => {
     try {
-      const response = await fetch(webhookUrl, {
+      // Test by sending a direct request to the webhook (server-side would be better, but for test we try direct)
+      // First, save the webhook URL temporarily and use the edge function to test
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/send-slack-notification`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          blocks: [
-            {
-              type: "header",
-              text: {
-                type: "plain_text",
-                text: "🧪 Test Message from XBoom Flow",
-                emoji: true
-              }
-            },
-            {
-              type: "section",
-              text: {
-                type: "mrkdwn",
-                text: "✅ Your Slack integration is working correctly! You will now receive notifications for enabled events."
-              }
-            }
-          ]
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`
+        },
+        body: JSON.stringify({ 
+          type: 'test',
+          data: { webhook_url: webhookUrl }
         })
       });
 
-      if (!response.ok) {
-        throw new Error('Webhook test failed');
+      const result = await response.json();
+      
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Webhook test failed');
       }
 
       toast.success('Test message sent to Slack!');

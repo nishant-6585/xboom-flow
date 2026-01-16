@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface SlackPayload {
-  type: 'new_order' | 'hot_lead' | 'payment_reminder' | 'status_change';
+  type: 'new_order' | 'hot_lead' | 'payment_reminder' | 'status_change' | 'test';
   data: Record<string, unknown>;
 }
 
@@ -176,6 +176,58 @@ serve(async (req) => {
       console.log(`Notification type ${type} is disabled`);
       return new Response(
         JSON.stringify({ success: true, skipped: true, reason: `${type} notifications disabled` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Handle test message type
+    if (type === 'test') {
+      const testWebhookUrl = data.webhook_url as string;
+      if (!testWebhookUrl) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'No webhook URL provided for test' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+
+      const testMessage = {
+        blocks: [
+          {
+            type: "header",
+            text: {
+              type: "plain_text",
+              text: "🧪 Test Message from XBoom Flow",
+              emoji: true
+            }
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: "✅ Your Slack integration is working correctly! You will now receive notifications for enabled events."
+            }
+          }
+        ]
+      };
+
+      const testResponse = await fetch(testWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(testMessage)
+      });
+
+      if (!testResponse.ok) {
+        const errorText = await testResponse.text();
+        console.error('Slack test webhook error:', errorText);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Slack webhook test failed', details: errorText }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
+
+      console.log('Slack test message sent successfully');
+      return new Response(
+        JSON.stringify({ success: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
