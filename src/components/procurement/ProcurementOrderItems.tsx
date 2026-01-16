@@ -534,17 +534,18 @@ export function ProcurementOrderItems({
               {/* Stock Actions */}
               {canManageInventory && (
                 <div className="flex gap-2 pt-2 border-t border-border/50">
-                  {availableStock > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openStockDialog(item, 'fulfill')}
-                      className="text-xs"
-                    >
-                      <ArrowDownCircle className="h-3 w-3 mr-1" />
-                      Fulfill from Stock ({availableStock} available)
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openStockDialog(item, 'fulfill')}
+                    className="text-xs"
+                    disabled={availableStock === 0}
+                  >
+                    <ArrowDownCircle className="h-3 w-3 mr-1" />
+                    {availableStock > 0 
+                      ? `Fulfill from Stock (${availableStock} available)`
+                      : 'Fulfill from Stock (No stock)'}
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
