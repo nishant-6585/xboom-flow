@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useExpenses, EXPENSE_TYPES, EXPENSE_STATUSES, PAYMENT_MODES, Expense } from "@/hooks/useExpenses";
 import { usePettyCash } from "@/hooks/usePettyCash";
 import { useOrders } from "@/hooks/useOrders";
@@ -19,7 +20,7 @@ import { useInventoryProcurements } from "@/hooks/useInventoryProcurements";
 import { useAllExpenseLinks } from "@/hooks/useExpenseLinks";
 import { useAuth } from "@/hooks/useAuth";
 import { format, parseISO } from "date-fns";
-import { Plus, Receipt, Loader2, Check, X, Wallet, TrendingUp, Clock, CheckCircle, CreditCard, Banknote, Users, Package, ShoppingCart, Link2 } from "lucide-react";
+import { Plus, Receipt, Loader2, Check, X, Wallet, TrendingUp, Clock, CheckCircle, CreditCard, Banknote, Users, Package, ShoppingCart, Link2, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -446,77 +447,158 @@ export default function Expenses() {
                     />
                   </div>
 
-                  {/* Link to Orders */}
-                  <div className="space-y-2 p-3 border rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
+                  {/* Link to Orders - Multi-select Dropdown */}
+                  <div className="space-y-2">
+                    <Label className="text-sm flex items-center gap-2">
                       <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-                      <Label className="text-sm font-medium">Link to Orders (Optional)</Label>
-                    </div>
-                    <ScrollArea className="h-32 border rounded-md p-2">
-                      {orders.length === 0 ? (
-                        <p className="text-xs text-muted-foreground text-center py-4">No orders available</p>
-                      ) : (
-                        orders.slice(0, 50).map((order) => (
-                          <div key={order.id} className="flex items-center gap-2 py-1">
-                            <Checkbox
-                              id={`order-${order.id}`}
-                              checked={selectedOrderIds.includes(order.id)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedOrderIds([...selectedOrderIds, order.id]);
-                                } else {
-                                  setSelectedOrderIds(selectedOrderIds.filter(id => id !== order.id));
-                                }
-                              }}
-                            />
-                            <Label htmlFor={`order-${order.id}`} className="text-xs cursor-pointer flex-1 truncate">
-                              <span className="font-medium">{order.order_number || 'No Order#'}</span>
-                              <span className="text-muted-foreground"> - {order.product_name} ({order.customer_company})</span>
-                            </Label>
-                          </div>
-                        ))
-                      )}
-                    </ScrollArea>
+                      Link to Orders (Optional)
+                    </Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between h-auto min-h-10 font-normal"
+                        >
+                          <span className="text-left truncate">
+                            {selectedOrderIds.length === 0 
+                              ? "Select orders..." 
+                              : `${selectedOrderIds.length} order(s) selected`}
+                          </span>
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[350px] p-0 bg-popover z-50" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search orders..." />
+                          <CommandList>
+                            <CommandEmpty>No orders found.</CommandEmpty>
+                            <CommandGroup className="max-h-64 overflow-auto">
+                              {orders.slice(0, 50).map((order) => (
+                                <CommandItem
+                                  key={order.id}
+                                  value={`${order.order_number} ${order.product_name} ${order.customer_company}`}
+                                  onSelect={() => {
+                                    if (selectedOrderIds.includes(order.id)) {
+                                      setSelectedOrderIds(selectedOrderIds.filter(id => id !== order.id));
+                                    } else {
+                                      setSelectedOrderIds([...selectedOrderIds, order.id]);
+                                    }
+                                  }}
+                                >
+                                  <Check
+                                    className={`mr-2 h-4 w-4 ${
+                                      selectedOrderIds.includes(order.id) ? "opacity-100" : "opacity-0"
+                                    }`}
+                                  />
+                                  <span className="truncate text-sm">
+                                    <span className="font-medium">{order.order_number || 'No Order#'}</span>
+                                    <span className="text-muted-foreground"> - {order.product_name}</span>
+                                  </span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     {selectedOrderIds.length > 0 && (
-                      <p className="text-xs text-primary">{selectedOrderIds.length} order(s) selected</p>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedOrderIds.map(id => {
+                          const order = orders.find(o => o.id === id);
+                          return order ? (
+                            <Badge key={id} variant="secondary" className="text-xs">
+                              {order.order_number || 'Order'}
+                              <button
+                                type="button"
+                                className="ml-1 hover:text-destructive"
+                                onClick={() => setSelectedOrderIds(selectedOrderIds.filter(oid => oid !== id))}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          ) : null;
+                        })}
+                      </div>
                     )}
                   </div>
 
-                  {/* Link to Procurements */}
-                  <div className="space-y-2 p-3 border rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
+                  {/* Link to Procurements - Multi-select Dropdown */}
+                  <div className="space-y-2">
+                    <Label className="text-sm flex items-center gap-2">
                       <Package className="h-4 w-4 text-muted-foreground" />
-                      <Label className="text-sm font-medium">Link to Procurements (Optional)</Label>
-                    </div>
-                    <ScrollArea className="h-32 border rounded-md p-2">
-                      {procurements.length === 0 ? (
-                        <p className="text-xs text-muted-foreground text-center py-4">No procurements available</p>
-                      ) : (
-                        procurements.slice(0, 50).map((proc) => (
-                          <div key={proc.id} className="flex items-center gap-2 py-1">
-                            <Checkbox
-                              id={`proc-${proc.id}`}
-                              checked={selectedProcurementIds.includes(proc.id)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedProcurementIds([...selectedProcurementIds, proc.id]);
-                                } else {
-                                  setSelectedProcurementIds(selectedProcurementIds.filter(id => id !== proc.id));
-                                }
-                              }}
-                            />
-                            <Label htmlFor={`proc-${proc.id}`} className="text-xs cursor-pointer flex-1 truncate">
-                              <span className="font-medium">{proc.procurement_number || 'No Proc#'}</span>
-                              <span className="text-muted-foreground"> - {proc.product_name} ({proc.supplier_name || 'Unknown'})</span>
-                            </Label>
-                          </div>
-                        ))
-                      )}
-                    </ScrollArea>
+                      Link to Procurements (Optional)
+                    </Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between h-auto min-h-10 font-normal"
+                        >
+                          <span className="text-left truncate">
+                            {selectedProcurementIds.length === 0 
+                              ? "Select procurements..." 
+                              : `${selectedProcurementIds.length} procurement(s) selected`}
+                          </span>
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[350px] p-0 bg-popover z-50" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search procurements..." />
+                          <CommandList>
+                            <CommandEmpty>No procurements found.</CommandEmpty>
+                            <CommandGroup className="max-h-64 overflow-auto">
+                              {procurements.slice(0, 50).map((proc) => (
+                                <CommandItem
+                                  key={proc.id}
+                                  value={`${proc.procurement_number} ${proc.product_name} ${proc.supplier_name}`}
+                                  onSelect={() => {
+                                    if (selectedProcurementIds.includes(proc.id)) {
+                                      setSelectedProcurementIds(selectedProcurementIds.filter(id => id !== proc.id));
+                                    } else {
+                                      setSelectedProcurementIds([...selectedProcurementIds, proc.id]);
+                                    }
+                                  }}
+                                >
+                                  <Check
+                                    className={`mr-2 h-4 w-4 ${
+                                      selectedProcurementIds.includes(proc.id) ? "opacity-100" : "opacity-0"
+                                    }`}
+                                  />
+                                  <span className="truncate text-sm">
+                                    <span className="font-medium">{proc.procurement_number || 'No Proc#'}</span>
+                                    <span className="text-muted-foreground"> - {proc.product_name}</span>
+                                  </span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     {selectedProcurementIds.length > 0 && (
-                      <p className="text-xs text-primary">{selectedProcurementIds.length} procurement(s) selected</p>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedProcurementIds.map(id => {
+                          const proc = procurements.find(p => p.id === id);
+                          return proc ? (
+                            <Badge key={id} variant="outline" className="text-xs">
+                              {proc.procurement_number || 'Proc'}
+                              <button
+                                type="button"
+                                className="ml-1 hover:text-destructive"
+                                onClick={() => setSelectedProcurementIds(selectedProcurementIds.filter(pid => pid !== id))}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          ) : null;
+                        })}
+                      </div>
                     )}
                   </div>
+
 
                   {/* Use Petty Cash Option */}
                   {myBalance > 0 && amount && (
