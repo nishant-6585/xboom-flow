@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useToast } from "./use-toast";
+import { sendSlackNotification } from "@/hooks/useSlackSettings";
 
 export type QueryStatus = "pending" | "responded" | "on_hold" | "moved_to_pipeline" | "order_won" | "order_lost";
 export type UrgencyLevel = "low" | "medium" | "high" | "critical";
@@ -216,6 +217,21 @@ export function useEnquiries() {
         title: "Enquiry Submitted",
         description: "Your product enquiry has been sent to the supply chain team.",
       });
+
+      // Send Slack notification for new enquiry
+      sendSlackNotification('new_enquiry', {
+        customer_name: formData.customerName,
+        customer_company: formData.customerCompany,
+        product_name: formData.productName,
+        product_code: formData.productCode,
+        product_category: formData.productCategory,
+        quantity: formData.quantity,
+        urgency: formData.urgency,
+        requested_timeline: formData.requestedTimeline,
+        lead_temperature: formData.leadTemperature || 'warm',
+        is_mega_deal: formData.isMegaDeal || false,
+        sales_person_name: profile.name,
+      }).catch(err => console.error('Slack notification failed:', err));
 
       return true;
     } catch (error) {

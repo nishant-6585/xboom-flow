@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { sendSlackNotification } from '@/hooks/useSlackSettings';
 
 export type PipelineStatus = 'pending_confirmation' | 'won' | 'lost' | 'negotiation' | 'follow_up';
 export type LeadTemperature = 'hot' | 'warm' | 'cold';
@@ -128,6 +129,23 @@ export function usePipelineOrders() {
 
       if (error) throw error;
       toast.success('Pipeline order created successfully');
+
+      // Send Slack notification for new pipeline
+      sendSlackNotification('new_pipeline', {
+        customer_name: formData.customer_name,
+        customer_company: formData.customer_company,
+        product_name: formData.product_name,
+        product_category: formData.product_category,
+        quantity: formData.quantity,
+        expected_price: formData.expected_price,
+        expected_closure_date: formData.expected_closure_date,
+        probability: formData.probability,
+        lead_temperature: formData.lead_temperature || 'warm',
+        is_mega_deal: formData.is_mega_deal || false,
+        sales_person_name: formData.sales_person_name,
+        status: formData.status || 'pending_confirmation',
+      }).catch(err => console.error('Slack notification failed:', err));
+
       return true;
     } catch (error: any) {
       console.error('Error creating pipeline order:', error);
