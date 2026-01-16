@@ -48,79 +48,68 @@ export default function Sales() {
         </div>
 
         <Tabs defaultValue="manager" className="space-y-6">
-          <div className="overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-            <TabsList className="bg-card border shadow-sm flex w-max min-w-full lg:w-full gap-1 p-1.5 rounded-xl">
-              {/* Core Actions */}
-              <TabsTrigger value="manager" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-4">
+          <div className="space-y-2">
+            {/* Primary Navigation Row */}
+            <TabsList className="bg-card border shadow-sm flex flex-wrap justify-center gap-1 p-1.5 rounded-xl h-auto">
+              <TabsTrigger value="manager" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <BarChart3 className="w-4 h-4" />
-                <span className="hidden sm:inline">Dashboard</span>
+                Dashboard
               </TabsTrigger>
-              <TabsTrigger value="tasks" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-4">
+              <TabsTrigger value="tasks" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <ListTodo className="w-4 h-4" />
-                <span className="hidden sm:inline">Tasks</span>
+                Tasks
               </TabsTrigger>
-              <TabsTrigger value="leads" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-4">
+              <TabsTrigger value="leads" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <Users className="w-4 h-4" />
-                <span className="hidden sm:inline">Leads</span>
+                Leads
               </TabsTrigger>
-              <TabsTrigger value="pipeline" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-4">
+              <TabsTrigger value="pipeline" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <TrendingUp className="w-4 h-4" />
-                <span className="hidden sm:inline">Pipeline</span>
+                Pipeline
               </TabsTrigger>
-              
-              {/* Divider */}
-              <div className="w-px h-6 bg-border mx-1 hidden lg:block" />
-              
-              {/* Activity & Performance */}
-              <TabsTrigger value="activity" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-4">
+              <TabsTrigger value="activity" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <Rocket className="w-4 h-4" />
-                <span className="hidden sm:inline">Activity</span>
+                Activity
               </TabsTrigger>
-              <TabsTrigger value="funnel" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-4">
+              <TabsTrigger value="funnel" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <GitBranch className="w-4 h-4" />
-                <span className="hidden sm:inline">Funnel</span>
+                Funnel
               </TabsTrigger>
-              <TabsTrigger value="leaderboard" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-4">
+              <TabsTrigger value="leaderboard" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <Trophy className="w-4 h-4" />
-                <span className="hidden sm:inline">Leaderboard</span>
+                Leaderboard
               </TabsTrigger>
-              <TabsTrigger value="outbound" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-4">
+              <TabsTrigger value="outbound" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <Phone className="w-4 h-4" />
-                <span className="hidden sm:inline">Outbound</span>
+                Outbound
               </TabsTrigger>
-              
-              {/* Divider */}
-              <div className="w-px h-6 bg-border mx-1 hidden lg:block" />
-              
-              {/* Resources & Settings */}
-              <TabsTrigger value="testimonials" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-4">
+            </TabsList>
+            
+            {/* Secondary Navigation Row */}
+            <TabsList className="bg-muted/50 border border-dashed flex flex-wrap justify-center gap-1 p-1.5 rounded-xl h-auto">
+              <TabsTrigger value="testimonials" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <Quote className="w-4 h-4" />
-                <span className="hidden sm:inline">Testimonials</span>
+                Testimonials
               </TabsTrigger>
-              <TabsTrigger value="targets" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-4">
+              <TabsTrigger value="targets" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <Target className="w-4 h-4" />
-                <span className="hidden sm:inline">Targets</span>
+                Targets
               </TabsTrigger>
-              <TabsTrigger value="analytics" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-4">
+              <TabsTrigger value="analytics" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <PieChart className="w-4 h-4" />
-                <span className="hidden sm:inline">Analytics</span>
+                Analytics
               </TabsTrigger>
-              
-              {/* Divider */}
-              <div className="w-px h-6 bg-border mx-1 hidden lg:block" />
-              
-              {/* Help & Info */}
-              <TabsTrigger value="faq" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-4">
+              <TabsTrigger value="faq" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <HelpCircle className="w-4 h-4" />
-                <span className="hidden sm:inline">FAQ</span>
+                FAQ
               </TabsTrigger>
-              <TabsTrigger value="rules" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-4">
+              <TabsTrigger value="rules" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <ScrollText className="w-4 h-4" />
-                <span className="hidden sm:inline">Rules</span>
+                Rules
               </TabsTrigger>
-              <TabsTrigger value="suggestions" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-4">
+              <TabsTrigger value="suggestions" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <Lightbulb className="w-4 h-4" />
-                <span className="hidden sm:inline">Ideas</span>
+                Ideas
               </TabsTrigger>
             </TabsList>
           </div>
