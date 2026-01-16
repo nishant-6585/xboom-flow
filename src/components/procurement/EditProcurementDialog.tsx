@@ -307,12 +307,12 @@ export function EditProcurementDialog({ open, onOpenChange, procurement, onSave 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Supplier</Label>
-                <Select value={supplierId} onValueChange={setSupplierId}>
+                <Select value={supplierId || "none"} onValueChange={(val) => setSupplierId(val === "none" ? "" : val)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select supplier" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {suppliers.filter(s => s.is_active).map((supplier) => (
                       <SelectItem key={supplier.id} value={supplier.id}>
                         {supplier.name}
@@ -352,12 +352,12 @@ export function EditProcurementDialog({ open, onOpenChange, procurement, onSave 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Payment Terms</Label>
-                <Select value={paymentTerms} onValueChange={handlePaymentTermsChange}>
+                <Select value={paymentTerms || "none"} onValueChange={(val) => handlePaymentTermsChange(val === "none" ? "" : val)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select terms" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     <SelectItem value="advance">Advance</SelectItem>
                     <SelectItem value="cod">Cash on Delivery</SelectItem>
                     <SelectItem value="net_7">Net 7 Days</SelectItem>
