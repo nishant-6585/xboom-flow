@@ -17,25 +17,41 @@ const formatCurrency = (amount: number | null | undefined): string => {
 };
 
 const getOrderBlocks = (data: Record<string, unknown>) => {
+  const isWebsiteOrder = data.is_website_order === true;
+  const orderType = isWebsiteOrder ? 'Website Order' : 'Sales Order';
+  
   return {
     blocks: [
       {
         type: "header",
         text: {
           type: "plain_text",
-          text: "🛒 New Order Created",
+          text: `🛒 New ${orderType} Received!`,
           emoji: true
         }
       },
       {
         type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `A new order has been placed by *${data.customer_name}* from *${data.customer_company}*.`
+        }
+      },
+      {
+        type: "section",
         fields: [
-          { type: "mrkdwn", text: `*Order Number:*\n${data.order_number || 'N/A'}` },
-          { type: "mrkdwn", text: `*Customer:*\n${data.customer_name} (${data.customer_company})` },
-          { type: "mrkdwn", text: `*Product:*\n${data.product_name}` },
-          { type: "mrkdwn", text: `*Quantity:*\n${data.quantity}` },
-          { type: "mrkdwn", text: `*Amount:*\n${formatCurrency(data.total_sales_amount as number)}` },
-          { type: "mrkdwn", text: `*Sales Person:*\n${data.sales_person_name}` }
+          { type: "mrkdwn", text: `*📋 Order Number:*\n\`${data.order_number || 'Pending'}\`` },
+          { type: "mrkdwn", text: `*👤 Customer:*\n${data.customer_name}` },
+          { type: "mrkdwn", text: `*🏢 Company:*\n${data.customer_company}` },
+          { type: "mrkdwn", text: `*📦 Product:*\n${data.product_name}` },
+          { type: "mrkdwn", text: `*🔢 Quantity:*\n${data.quantity} units` },
+          { type: "mrkdwn", text: `*💰 Order Value:*\n${formatCurrency(data.total_sales_amount as number)}` }
+        ]
+      },
+      {
+        type: "context",
+        elements: [
+          { type: "mrkdwn", text: `🧑‍💼 *Sales:* ${data.sales_person_name || 'Website'} • 📅 ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}` }
         ]
       },
       { type: "divider" }
@@ -46,9 +62,18 @@ const getOrderBlocks = (data: Record<string, unknown>) => {
 const getEnquiryBlocks = (data: Record<string, unknown>) => {
   const isHot = data.lead_temperature === 'hot';
   const isMegaDeal = data.is_mega_deal === true;
-  let emoji = "📩";
-  if (isMegaDeal) emoji = "🌟";
-  else if (isHot) emoji = "🔥";
+  const urgencyEmoji = data.urgency === 'high' ? '🚨' : data.urgency === 'medium' ? '⚡' : '📝';
+  
+  let headerText = "📩 New Enquiry Received";
+  let contextText = "A new product enquiry needs attention.";
+  
+  if (isMegaDeal) {
+    headerText = "🌟 MEGA DEAL Enquiry!";
+    contextText = "🎯 High-value opportunity! This could be a significant deal - prioritize follow-up.";
+  } else if (isHot) {
+    headerText = "🔥 HOT LEAD Enquiry!";
+    contextText = "⚡ High conversion potential! Customer is ready to buy - respond within 2 hours.";
+  }
   
   return {
     blocks: [
@@ -56,19 +81,32 @@ const getEnquiryBlocks = (data: Record<string, unknown>) => {
         type: "header",
         text: {
           type: "plain_text",
-          text: isMegaDeal ? "🌟 New Mega Deal Enquiry!" : isHot ? "🔥 New Hot Lead Enquiry!" : "📩 New Enquiry Received",
+          text: headerText,
           emoji: true
         }
       },
       {
         type: "section",
+        text: {
+          type: "mrkdwn",
+          text: contextText
+        }
+      },
+      {
+        type: "section",
         fields: [
-          { type: "mrkdwn", text: `*Customer:*\n${data.customer_name}` },
-          { type: "mrkdwn", text: `*Company:*\n${data.customer_company}` },
-          { type: "mrkdwn", text: `*Product:*\n${data.product_name}` },
-          { type: "mrkdwn", text: `*Quantity:*\n${data.quantity}` },
-          { type: "mrkdwn", text: `*Urgency:*\n${data.urgency || 'N/A'}` },
-          { type: "mrkdwn", text: `*Sales Person:*\n${data.sales_person_name}` }
+          { type: "mrkdwn", text: `*👤 Customer:*\n${data.customer_name}` },
+          { type: "mrkdwn", text: `*🏢 Company:*\n${data.customer_company}` },
+          { type: "mrkdwn", text: `*📦 Product:*\n${data.product_name}` },
+          { type: "mrkdwn", text: `*🔢 Quantity:*\n${data.quantity} units` },
+          { type: "mrkdwn", text: `*${urgencyEmoji} Urgency:*\n${(data.urgency as string || 'N/A').toUpperCase()}` },
+          { type: "mrkdwn", text: `*📂 Category:*\n${data.product_category || 'N/A'}` }
+        ]
+      },
+      {
+        type: "context",
+        elements: [
+          { type: "mrkdwn", text: `🧑‍💼 *Assigned to:* ${data.sales_person_name} • 📍 *State:* ${data.customer_state || 'N/A'}` }
         ]
       },
       { type: "divider" }
@@ -79,6 +117,18 @@ const getEnquiryBlocks = (data: Record<string, unknown>) => {
 const getPipelineBlocks = (data: Record<string, unknown>) => {
   const isHot = data.lead_temperature === 'hot';
   const isMegaDeal = data.is_mega_deal === true;
+  const probability = data.probability as number || 0;
+  
+  let headerText = "📊 New Lead Added to Pipeline";
+  let statusContext = "";
+  
+  if (isMegaDeal) {
+    headerText = "🌟 MEGA DEAL Added to Pipeline!";
+    statusContext = "💎 Major opportunity identified - management review recommended.";
+  } else if (isHot) {
+    headerText = "🔥 Hot Lead in Pipeline!";
+    statusContext = "🎯 High-priority lead - expected to close soon.";
+  }
   
   return {
     blocks: [
@@ -86,19 +136,32 @@ const getPipelineBlocks = (data: Record<string, unknown>) => {
         type: "header",
         text: {
           type: "plain_text",
-          text: isMegaDeal ? "🌟 New Mega Deal in Pipeline!" : isHot ? "🔥 Hot Lead Added to Pipeline!" : "📊 New Pipeline Lead",
+          text: headerText,
           emoji: true
         }
       },
+      ...(statusContext ? [{
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: statusContext
+        }
+      }] : []),
       {
         type: "section",
         fields: [
-          { type: "mrkdwn", text: `*Customer:*\n${data.customer_name}` },
-          { type: "mrkdwn", text: `*Company:*\n${data.customer_company}` },
-          { type: "mrkdwn", text: `*Product:*\n${data.product_name}` },
-          { type: "mrkdwn", text: `*Quantity:*\n${data.quantity}` },
-          { type: "mrkdwn", text: `*Expected Value:*\n${formatCurrency(data.expected_price as number)}` },
-          { type: "mrkdwn", text: `*Sales Person:*\n${data.sales_person_name}` }
+          { type: "mrkdwn", text: `*👤 Customer:*\n${data.customer_name}` },
+          { type: "mrkdwn", text: `*🏢 Company:*\n${data.customer_company}` },
+          { type: "mrkdwn", text: `*📦 Product:*\n${data.product_name}` },
+          { type: "mrkdwn", text: `*🔢 Quantity:*\n${data.quantity} units` },
+          { type: "mrkdwn", text: `*💰 Expected Value:*\n${formatCurrency(data.expected_price as number)}` },
+          { type: "mrkdwn", text: `*📈 Win Probability:*\n${probability}%` }
+        ]
+      },
+      {
+        type: "context",
+        elements: [
+          { type: "mrkdwn", text: `🧑‍💼 *Sales:* ${data.sales_person_name} • 📅 *Expected Close:* ${data.expected_closure_date || 'TBD'} • 📍 *Status:* ${data.status || 'New'}` }
         ]
       },
       { type: "divider" }
@@ -107,25 +170,41 @@ const getPipelineBlocks = (data: Record<string, unknown>) => {
 };
 
 const getProcurementBlocks = (data: Record<string, unknown>) => {
+  const paymentStatus = data.payment_status as string || 'pending';
+  const paymentEmoji = paymentStatus === 'paid' ? '✅' : paymentStatus === 'partial' ? '🔄' : '⏳';
+  
   return {
     blocks: [
       {
         type: "header",
         text: {
           type: "plain_text",
-          text: "📦 New Procurement Created",
+          text: "📦 New Procurement Order Created",
           emoji: true
         }
       },
       {
         type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `A procurement order has been raised for *${data.product_name}* from *${data.supplier_name || 'TBD'}*.`
+        }
+      },
+      {
+        type: "section",
         fields: [
-          { type: "mrkdwn", text: `*Procurement #:*\n${data.procurement_number || 'N/A'}` },
-          { type: "mrkdwn", text: `*Product:*\n${data.product_name}` },
-          { type: "mrkdwn", text: `*Category:*\n${data.product_category || 'N/A'}` },
-          { type: "mrkdwn", text: `*Quantity:*\n${data.quantity}` },
-          { type: "mrkdwn", text: `*Amount:*\n${formatCurrency(data.total_amount as number)}` },
-          { type: "mrkdwn", text: `*Supplier:*\n${data.supplier_name || 'N/A'}` }
+          { type: "mrkdwn", text: `*📋 Procurement #:*\n\`${data.procurement_number || 'Generating...'}\`` },
+          { type: "mrkdwn", text: `*📦 Product:*\n${data.product_name}` },
+          { type: "mrkdwn", text: `*📂 Category:*\n${data.product_category || 'N/A'}` },
+          { type: "mrkdwn", text: `*🔢 Quantity:*\n${data.quantity} units` },
+          { type: "mrkdwn", text: `*💵 Total Amount:*\n${formatCurrency(data.total_amount as number)}` },
+          { type: "mrkdwn", text: `*${paymentEmoji} Payment:*\n${paymentStatus.toUpperCase()}` }
+        ]
+      },
+      {
+        type: "context",
+        elements: [
+          { type: "mrkdwn", text: `🏭 *Supplier:* ${data.supplier_name || 'Not assigned'} • 📅 *Due:* ${data.payment_due_date || 'N/A'}` }
         ]
       },
       { type: "divider" }
@@ -140,19 +219,32 @@ const getSupplierBlocks = (data: Record<string, unknown>) => {
         type: "header",
         text: {
           type: "plain_text",
-          text: "🏭 New Supplier Added",
+          text: "🏭 New Supplier Registered",
           emoji: true
         }
       },
       {
         type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `A new supplier *${data.name}* has been added to the vendor database.`
+        }
+      },
+      {
+        type: "section",
         fields: [
-          { type: "mrkdwn", text: `*Supplier Name:*\n${data.name}` },
-          { type: "mrkdwn", text: `*Contact Person:*\n${data.contact_person || 'N/A'}` },
-          { type: "mrkdwn", text: `*Email:*\n${data.email || 'N/A'}` },
-          { type: "mrkdwn", text: `*Phone:*\n${data.phone || 'N/A'}` },
-          { type: "mrkdwn", text: `*Category:*\n${data.category || 'N/A'}` },
-          { type: "mrkdwn", text: `*Location:*\n${data.location || 'N/A'}` }
+          { type: "mrkdwn", text: `*🏢 Supplier Name:*\n${data.name}` },
+          { type: "mrkdwn", text: `*👤 Contact Person:*\n${data.contact_person || 'N/A'}` },
+          { type: "mrkdwn", text: `*📧 Email:*\n${data.email || 'N/A'}` },
+          { type: "mrkdwn", text: `*📞 Phone:*\n${data.phone || 'N/A'}` },
+          { type: "mrkdwn", text: `*📂 Category:*\n${data.category || 'General'}` },
+          { type: "mrkdwn", text: `*📍 Location:*\n${data.location || 'N/A'}` }
+        ]
+      },
+      {
+        type: "context",
+        elements: [
+          { type: "mrkdwn", text: `✅ Supplier is now available for procurement orders.` }
         ]
       },
       { type: "divider" }
@@ -162,25 +254,42 @@ const getSupplierBlocks = (data: Record<string, unknown>) => {
 
 const getHotLeadBlocks = (data: Record<string, unknown>) => {
   const isMegaDeal = data.is_mega_deal === true;
+  const source = data.source || 'enquiry';
+  
   return {
     blocks: [
       {
         type: "header",
         text: {
           type: "plain_text",
-          text: isMegaDeal ? "🌟 Mega Deal Alert!" : "🔥 Hot Lead Alert!",
+          text: isMegaDeal ? "🌟 MEGA DEAL ALERT!" : "🔥 HOT LEAD ALERT!",
           emoji: true
         }
       },
       {
         type: "section",
+        text: {
+          type: "mrkdwn",
+          text: isMegaDeal 
+            ? "🎯 *Major opportunity identified!* This deal requires immediate attention and management oversight."
+            : "⚡ *High-priority lead detected!* Customer shows strong buying signals - fast response critical."
+        }
+      },
+      {
+        type: "section",
         fields: [
-          { type: "mrkdwn", text: `*Customer:*\n${data.customer_name}` },
-          { type: "mrkdwn", text: `*Company:*\n${data.customer_company}` },
-          { type: "mrkdwn", text: `*Product:*\n${data.product_name}` },
-          { type: "mrkdwn", text: `*Quantity:*\n${data.quantity}` },
-          { type: "mrkdwn", text: `*Expected Value:*\n${formatCurrency(data.expected_price as number)}` },
-          { type: "mrkdwn", text: `*Sales Person:*\n${data.sales_person_name}` }
+          { type: "mrkdwn", text: `*👤 Customer:*\n${data.customer_name}` },
+          { type: "mrkdwn", text: `*🏢 Company:*\n${data.customer_company}` },
+          { type: "mrkdwn", text: `*📦 Product:*\n${data.product_name}` },
+          { type: "mrkdwn", text: `*🔢 Quantity:*\n${data.quantity} units` },
+          { type: "mrkdwn", text: `*💰 Potential Value:*\n${formatCurrency(data.expected_price as number)}` },
+          { type: "mrkdwn", text: `*📍 Source:*\n${(source as string).charAt(0).toUpperCase() + (source as string).slice(1)}` }
+        ]
+      },
+      {
+        type: "context",
+        elements: [
+          { type: "mrkdwn", text: `🧑‍💼 *Owner:* ${data.sales_person_name} • ⏰ *Action Required:* Respond within 2 hours` }
         ]
       },
       { type: "divider" }
@@ -190,25 +299,54 @@ const getHotLeadBlocks = (data: Record<string, unknown>) => {
 
 const getPaymentReminderBlocks = (data: Record<string, unknown>) => {
   const isOverdue = data.is_overdue === true;
+  const daysOverdue = data.days_overdue as number || 0;
+  const balance = (data.balance as number) || ((data.total_amount as number || 0) - (data.amount_paid as number || 0));
+  
+  let headerText = "💰 Payment Due Soon";
+  let urgencyText = "Payment is due soon. Please follow up with the customer.";
+  
+  if (isOverdue) {
+    if (daysOverdue > 7) {
+      headerText = "🚨 CRITICAL: Payment Severely Overdue!";
+      urgencyText = `⚠️ Payment is *${daysOverdue} days overdue*. Escalation may be required.`;
+    } else {
+      headerText = "⚠️ Payment Overdue!";
+      urgencyText = `Payment is *${daysOverdue} days overdue*. Immediate follow-up required.`;
+    }
+  }
+  
   return {
     blocks: [
       {
         type: "header",
         text: {
           type: "plain_text",
-          text: isOverdue ? "⚠️ Payment Overdue!" : "💰 Payment Reminder",
+          text: headerText,
           emoji: true
         }
       },
       {
         type: "section",
+        text: {
+          type: "mrkdwn",
+          text: urgencyText
+        }
+      },
+      {
+        type: "section",
         fields: [
-          { type: "mrkdwn", text: `*Order:*\n${data.order_number || 'N/A'}` },
-          { type: "mrkdwn", text: `*Customer:*\n${data.customer_name} (${data.customer_company})` },
-          { type: "mrkdwn", text: `*Total Amount:*\n${formatCurrency(data.total_amount as number)}` },
-          { type: "mrkdwn", text: `*Paid:*\n${formatCurrency(data.amount_paid as number)}` },
-          { type: "mrkdwn", text: `*Balance:*\n${formatCurrency(data.balance as number)}` },
-          { type: "mrkdwn", text: `*Due Date:*\n${data.due_date || 'N/A'}` }
+          { type: "mrkdwn", text: `*📋 Order:*\n\`${data.order_number || 'N/A'}\`` },
+          { type: "mrkdwn", text: `*👤 Customer:*\n${data.customer_name}` },
+          { type: "mrkdwn", text: `*🏢 Company:*\n${data.customer_company}` },
+          { type: "mrkdwn", text: `*💵 Total Amount:*\n${formatCurrency(data.total_amount as number)}` },
+          { type: "mrkdwn", text: `*✅ Amount Paid:*\n${formatCurrency(data.amount_paid as number)}` },
+          { type: "mrkdwn", text: `*⚠️ Balance Due:*\n${formatCurrency(balance)}` }
+        ]
+      },
+      {
+        type: "context",
+        elements: [
+          { type: "mrkdwn", text: `📅 *Due Date:* ${data.due_date || 'N/A'} • 📦 *Product:* ${data.product_name || 'N/A'}` }
         ]
       },
       { type: "divider" }
@@ -217,23 +355,59 @@ const getPaymentReminderBlocks = (data: Record<string, unknown>) => {
 };
 
 const getStatusChangeBlocks = (data: Record<string, unknown>) => {
+  const statusEmojis: Record<string, string> = {
+    'po_received': '📄',
+    'in_progress': '🔄',
+    'shipped': '🚚',
+    'delivered': '📬',
+    'delivery_done': '✅',
+    'cancelled': '❌',
+    'rto': '↩️'
+  };
+  
+  const newStatus = data.new_status as string || '';
+  const emoji = statusEmojis[newStatus] || '📦';
+  const formattedStatus = newStatus.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  
+  let contextMessage = "Order status has been updated.";
+  if (newStatus === 'delivered' || newStatus === 'delivery_done') {
+    contextMessage = "🎉 Order has been successfully delivered to the customer!";
+  } else if (newStatus === 'shipped') {
+    contextMessage = "📦 Order has been dispatched and is on its way.";
+  } else if (newStatus === 'cancelled') {
+    contextMessage = "❌ Order has been cancelled.";
+  }
+  
   return {
     blocks: [
       {
         type: "header",
         text: {
           type: "plain_text",
-          text: "📦 Order Status Updated",
+          text: `${emoji} Order Status: ${formattedStatus}`,
           emoji: true
         }
       },
       {
         type: "section",
+        text: {
+          type: "mrkdwn",
+          text: contextMessage
+        }
+      },
+      {
+        type: "section",
         fields: [
-          { type: "mrkdwn", text: `*Order:*\n${data.order_number || 'N/A'}` },
-          { type: "mrkdwn", text: `*Customer:*\n${data.customer_name}` },
-          { type: "mrkdwn", text: `*Old Status:*\n${data.old_status || 'N/A'}` },
-          { type: "mrkdwn", text: `*New Status:*\n${data.new_status}` }
+          { type: "mrkdwn", text: `*📋 Order:*\n\`${data.order_number || 'N/A'}\`` },
+          { type: "mrkdwn", text: `*👤 Customer:*\n${data.customer_name}` },
+          { type: "mrkdwn", text: `*📦 Product:*\n${data.product_name || 'N/A'}` },
+          { type: "mrkdwn", text: `*🔄 Previous Status:*\n${(data.old_status as string || 'N/A').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}` }
+        ]
+      },
+      {
+        type: "context",
+        elements: [
+          { type: "mrkdwn", text: `🧑‍💼 *Sales:* ${data.sales_person_name || 'N/A'} • 📅 *Updated:* ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}` }
         ]
       },
       { type: "divider" }
