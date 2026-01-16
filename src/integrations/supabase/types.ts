@@ -506,6 +506,78 @@ export type Database = {
         }
         Relationships: []
       }
+      expense_order_links: {
+        Row: {
+          created_at: string
+          expense_id: string
+          id: string
+          order_id: string
+        }
+        Insert: {
+          created_at?: string
+          expense_id: string
+          id?: string
+          order_id: string
+        }
+        Update: {
+          created_at?: string
+          expense_id?: string
+          id?: string
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_order_links_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expense_order_links_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_procurement_links: {
+        Row: {
+          created_at: string
+          expense_id: string
+          id: string
+          procurement_id: string
+        }
+        Insert: {
+          created_at?: string
+          expense_id: string
+          id?: string
+          procurement_id: string
+        }
+        Update: {
+          created_at?: string
+          expense_id?: string
+          id?: string
+          procurement_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_procurement_links_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expense_procurement_links_procurement_id_fkey"
+            columns: ["procurement_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_procurements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number
