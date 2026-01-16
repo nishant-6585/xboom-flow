@@ -98,6 +98,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     procurement_currency: 'INR',
     selling_price: undefined,
     total_sales_amount: undefined,
+    discount_amount: undefined,
     amount_paid: undefined,
     delivery_charges: undefined,
     payment_terms: '',
@@ -112,7 +113,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     sales_notes: '',
   });
 
-  // Auto-calculate total sales amount from order items + delivery charges
+  // Auto-calculate total sales amount from order items + delivery charges - discount
   useEffect(() => {
     const itemsTotal = orderItems.reduce((sum, item) => {
       const price = item.unit_price || 0;
@@ -120,13 +121,14 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
       return sum + (price * qty);
     }, 0);
     const delivery = formData.delivery_charges || 0;
-    const total = itemsTotal + delivery;
+    const discount = formData.discount_amount || 0;
+    const total = itemsTotal + delivery - discount;
     
     setFormData(prev => ({
       ...prev,
       total_sales_amount: total > 0 ? total : undefined
     }));
-  }, [orderItems, formData.delivery_charges]);
+  }, [orderItems, formData.delivery_charges, formData.discount_amount]);
 
   const respondedEnquiries = enquiries.filter(e => e.status === 'responded' || e.status === 'moved_to_pipeline');
   const activeSuppliers = suppliers.filter(s => s.is_active);
@@ -802,6 +804,23 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                         className="h-11"
                         placeholder="0"
                       />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Discount (₹)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={formData.discount_amount || ''}
+                        onChange={e => setFormData(prev => ({ ...prev, discount_amount: parseFloat(e.target.value) || undefined }))}
+                        disabled={loading}
+                        className="h-11"
+                        placeholder="0"
+                      />
+                      <p className="text-xs text-muted-foreground">Subtracted from total</p>
                     </div>
                   </div>
 

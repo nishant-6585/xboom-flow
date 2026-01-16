@@ -39,6 +39,7 @@ export interface Order {
   procurement_date: string | null;
   selling_price: number | null;
   total_sales_amount: number | null;
+  discount_amount: number | null;
   amount_paid: number | null;
   payment_terms: string | null;
   payment_status: PaymentStatus;
@@ -108,6 +109,7 @@ export interface OrderFormData {
   procurement_currency?: string;
   selling_price?: number;
   total_sales_amount?: number;
+  discount_amount?: number;
   amount_paid?: number;
   payment_terms?: string;
   payment_status?: PaymentStatus;
@@ -227,6 +229,7 @@ export function useOrders() {
             order_type,
             customer_type,
             total_sales_amount,
+            discount_amount,
             amount_paid,
             payment_terms,
             payment_status,
@@ -284,6 +287,7 @@ export function useOrders() {
           escalated_at: order.escalated_at || null,
           escalated_by: order.escalated_by || null,
           escalation_reason: order.escalation_reason || null,
+          discount_amount: (order as any).discount_amount || null,
           delivery_charges: null,
           order_outcome: 'pending' as OrderOutcome,
           lost_reason: null,
@@ -320,6 +324,7 @@ export function useOrders() {
           lost_reason: (order.lost_reason || null) as LostReason | null,
           lead_source: (order.lead_source || null) as LeadSource | null,
           refund_status: (order.refund_status || null) as RefundStatus | null,
+          discount_amount: order.discount_amount || null,
           is_rto: order.is_rto || false,
           rto_marked_at: order.rto_marked_at || null,
           rto_marked_by: order.rto_marked_by || null,

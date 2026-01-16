@@ -84,6 +84,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [procurementRate, setProcurementRate] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
   const [totalSalesAmount, setTotalSalesAmount] = useState('');
+  const [discountAmount, setDiscountAmount] = useState('');
   const [amountPaid, setAmountPaid] = useState('');
   const [paymentTerms, setPaymentTerms] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
@@ -122,6 +123,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setProcurementRate(order.procurement_rate?.toString() || '');
       setSellingPrice(order.selling_price?.toString() || '');
       setTotalSalesAmount(order.total_sales_amount?.toString() || '');
+      setDiscountAmount(order.discount_amount?.toString() || '');
       setAmountPaid(order.amount_paid?.toString() || '');
       setPaymentTerms(order.payment_terms || '');
       setTrackingNumber(order.tracking_number || '');
@@ -321,6 +323,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       procurement_rate: procurementRate ? parseFloat(procurementRate) : null,
       selling_price: sellingPrice ? parseFloat(sellingPrice) : null,
       total_sales_amount: totalSalesAmount ? parseFloat(totalSalesAmount) : null,
+      discount_amount: discountAmount ? parseFloat(discountAmount) : null,
       amount_paid: amountPaid ? parseFloat(amountPaid) : null,
       payment_terms: paymentTerms || null,
       payment_due_date: paymentDueDate || null,
@@ -370,6 +373,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     }
     if (order.total_sales_amount !== (totalSalesAmount ? parseFloat(totalSalesAmount) : null)) {
       changes.total_sales_amount = { old: order.total_sales_amount, new: totalSalesAmount ? parseFloat(totalSalesAmount) : null };
+    }
+    if (order.discount_amount !== (discountAmount ? parseFloat(discountAmount) : null)) {
+      changes.discount_amount = { old: order.discount_amount, new: discountAmount ? parseFloat(discountAmount) : null };
     }
     if (order.priority !== priority) changes.priority = { old: order.priority, new: priority };
     if (order.order_outcome !== orderOutcome) changes.order_outcome = { old: order.order_outcome, new: orderOutcome };
@@ -773,6 +779,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   <div>
                     <span className="text-muted-foreground">Total Amount:</span>
                     <p className="font-medium">₹{order.total_sales_amount?.toLocaleString('en-IN')}</p>
+                  </div>
+                )}
+                {order.discount_amount && order.discount_amount > 0 && (
+                  <div>
+                    <span className="text-muted-foreground">Discount:</span>
+                    <p className="font-medium text-purple-600">-₹{order.discount_amount?.toLocaleString('en-IN')}</p>
                   </div>
                 )}
                 {order.amount_paid !== null && (
@@ -1209,6 +1221,22 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       disabled={loading}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="discount_amount">Discount (₹)</Label>
+                    <Input
+                      id="discount_amount"
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      value={discountAmount}
+                      onChange={e => setDiscountAmount(e.target.value)}
+                      disabled={loading}
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="amount_paid">Amount Paid (₹)</Label>
                     <Input
