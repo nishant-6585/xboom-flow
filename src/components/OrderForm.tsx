@@ -622,7 +622,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                         setFormData(prev => ({
                           ...prev,
                           is_website_order: isWebsite,
-                          ...(isWebsite ? { sales_person_id: '', sales_person_name: '' } : {}),
+                          ...(isWebsite ? { sales_person_id: '', sales_person_name: 'Website Order' } : { sales_person_name: '' }),
                         }));
                       }}
                       className="grid grid-cols-2 gap-4"
