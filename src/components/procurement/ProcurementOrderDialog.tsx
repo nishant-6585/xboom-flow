@@ -79,9 +79,14 @@ export function ProcurementOrderDialog({
 
   useEffect(() => {
     if (order) {
-      // Find supplier by name
-      const supplier = suppliers.find(s => s.name === order.supplier_name);
-      setSelectedSupplierId(supplier?.id || "");
+      // First check supplier_id, then fallback to finding by name
+      const supplierId = (order as any).supplier_id;
+      if (supplierId) {
+        setSelectedSupplierId(supplierId);
+      } else {
+        const supplier = suppliers.find(s => s.name === order.supplier_name);
+        setSelectedSupplierId(supplier?.id || "");
+      }
       setProcurementRate(order.procurement_rate?.toString() || "");
       setProcurementCurrency(order.procurement_currency || "INR");
       setProcurementDate(order.procurement_date ? parseISO(order.procurement_date) : undefined);
@@ -342,13 +347,13 @@ export function ProcurementOrderDialog({
           <Separator />
 
           {/* Payment to Supplier */}
-          {selectedSupplierId && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="w-4 h-4" />
-                  <h3 className="font-medium">Payments to Supplier</h3>
-                </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4" />
+                <h3 className="font-medium">Payments to Supplier</h3>
+              </div>
+              {selectedSupplierId && (
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -357,7 +362,15 @@ export function ProcurementOrderDialog({
                   <Plus className="w-4 h-4 mr-1" />
                   Add Payment
                 </Button>
+              )}
+            </div>
+
+            {!selectedSupplierId ? (
+              <div className="p-4 bg-muted/50 rounded-lg text-center text-sm text-muted-foreground">
+                Select a supplier in the Order Items section above to manage payments
               </div>
+            ) : (
+              <>
 
               {/* Payment Summary */}
               <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
@@ -568,8 +581,9 @@ export function ProcurementOrderDialog({
                   ))}
                 </div>
               )}
-            </div>
+            </>
           )}
+          </div>
 
           <Separator />
 
