@@ -10,7 +10,7 @@ import { ProcurementDashboard } from "@/components/procurement/ProcurementDashbo
 import { PendingPaymentStatusRequests } from "@/components/procurement/PendingPaymentStatusRequests";
 import { SupplierPaymentAnalytics } from "@/components/procurement/SupplierPaymentAnalytics";
 import { InventoryProcurementsList } from "@/components/procurement/InventoryProcurementsList";
-import { ManualProcurementForm } from "@/components/procurement/ManualProcurementForm";
+import { MultiProductProcurementForm } from "@/components/procurement/MultiProductProcurementForm";
 import { OrderProcurementTracker } from "@/components/procurement/OrderProcurementTracker";
 import { ImportsList } from "@/components/imports/ImportsList";
 import { FileText, BookOpen, LayoutDashboard, CreditCard, IndianRupee, Package, Plus, Link2, Ship } from "lucide-react";
@@ -134,7 +134,7 @@ export default function Procurement() {
         </Tabs>
       </main>
 
-      <ManualProcurementForm
+      <MultiProductProcurementForm
         open={manualProcurementOpen}
         onOpenChange={setManualProcurementOpen}
       />
