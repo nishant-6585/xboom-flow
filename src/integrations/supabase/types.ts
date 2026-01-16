@@ -509,6 +509,7 @@ export type Database = {
       expenses: {
         Row: {
           amount: number
+          amount_paid: number | null
           approved_at: string | null
           approved_by: string | null
           approved_by_name: string | null
@@ -520,7 +521,9 @@ export type Database = {
           expense_type: string
           id: string
           notes: string | null
+          paid_from_petty_cash: number | null
           payment_mode: string | null
+          payment_notes: string | null
           receipt_url: string | null
           status: string
           updated_at: string
@@ -528,6 +531,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          amount_paid?: number | null
           approved_at?: string | null
           approved_by?: string | null
           approved_by_name?: string | null
@@ -539,7 +543,9 @@ export type Database = {
           expense_type: string
           id?: string
           notes?: string | null
+          paid_from_petty_cash?: number | null
           payment_mode?: string | null
+          payment_notes?: string | null
           receipt_url?: string | null
           status?: string
           updated_at?: string
@@ -547,6 +553,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          amount_paid?: number | null
           approved_at?: string | null
           approved_by?: string | null
           approved_by_name?: string | null
@@ -558,7 +565,9 @@ export type Database = {
           expense_type?: string
           id?: string
           notes?: string | null
+          paid_from_petty_cash?: number | null
           payment_mode?: string | null
+          payment_notes?: string | null
           receipt_url?: string | null
           status?: string
           updated_at?: string
@@ -1633,6 +1642,53 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      petty_cash_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          created_by_name: string
+          expense_id: string | null
+          id: string
+          notes: string | null
+          transaction_type: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by: string
+          created_by_name: string
+          expense_id?: string | null
+          id?: string
+          notes?: string | null
+          transaction_type: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          expense_id?: string | null
+          id?: string
+          notes?: string | null
+          transaction_type?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "petty_cash_transactions_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
             referencedColumns: ["id"]
           },
         ]
