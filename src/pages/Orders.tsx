@@ -562,7 +562,7 @@ export default function Orders() {
                 onSubmit={createOrder}
                 enquiries={enquiries}
                 suppliers={suppliers}
-                showProcurementRate={canViewProcurementCosts}
+                showProcurementRate={false}
                 userRole={role || 'sales'}
               />
             </TabsContent>

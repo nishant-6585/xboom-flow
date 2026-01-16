@@ -296,7 +296,7 @@ export function FloatingActionButton() {
             <OrderForm 
               onSubmit={handleOrderSubmit}
               suppliers={suppliers}
-              showProcurementRate={role === "admin" || role === "supply_chain"}
+              showProcurementRate={false}
               userRole={role as "sales" | "supply_chain" | "admin"}
             />
           </ScrollArea>
