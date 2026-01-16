@@ -506,6 +506,66 @@ export type Database = {
         }
         Relationships: []
       }
+      expenses: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          approved_by_name: string | null
+          created_at: string
+          created_by: string
+          created_by_name: string
+          description: string | null
+          expense_date: string
+          expense_type: string
+          id: string
+          notes: string | null
+          payment_mode: string | null
+          receipt_url: string | null
+          status: string
+          updated_at: string
+          vendor_name: string | null
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
+          created_at?: string
+          created_by: string
+          created_by_name: string
+          description?: string | null
+          expense_date?: string
+          expense_type: string
+          id?: string
+          notes?: string | null
+          payment_mode?: string | null
+          receipt_url?: string | null
+          status?: string
+          updated_at?: string
+          vendor_name?: string | null
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          description?: string | null
+          expense_date?: string
+          expense_type?: string
+          id?: string
+          notes?: string | null
+          payment_mode?: string | null
+          receipt_url?: string | null
+          status?: string
+          updated_at?: string
+          vendor_name?: string | null
+        }
+        Relationships: []
+      }
       import_items: {
         Row: {
           created_at: string
