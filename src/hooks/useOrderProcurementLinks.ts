@@ -3,6 +3,34 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from './useAuth';
 
+export interface ProcurementWithOrder {
+  id: string;
+  procurement_number: string | null;
+  product_name: string;
+  product_category: string;
+  quantity: number;
+  unit_price: number | null;
+  total_amount: number | null;
+  supplier_id: string | null;
+  supplier_name: string | null;
+  payment_status: string;
+  procurement_date: string;
+  order_id: string;
+  created_by: string | null;
+  notes: string | null;
+  created_at: string;
+  order?: {
+    id: string;
+    order_number: string | null;
+    product_name: string;
+    customer_company: string;
+    total_sales_amount: number | null;
+    amount_paid: number | null;
+    payment_status: string | null;
+  };
+}
+
+// Keep old interface for backward compatibility
 export interface OrderProcurementLink {
   id: string;
   order_id: string;
@@ -34,12 +62,14 @@ export interface OrderProcurementLinkWithDetails extends OrderProcurementLink {
 }
 
 export function useOrderProcurementLinks() {
+  const [procurementsWithOrders, setProcurementsWithOrders] = useState<ProcurementWithOrder[]>([]);
   const [links, setLinks] = useState<OrderProcurementLinkWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const { user, role } = useAuth();
 
-  const fetchLinks = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     if (!user) {
+      setProcurementsWithOrders([]);
       setLinks([]);
       setLoading(false);
       return;
@@ -48,48 +78,72 @@ export function useOrderProcurementLinks() {
     try {
       setLoading(true);
       
-      // Fetch links with order and procurement details
-      const { data: linksData, error: linksError } = await supabase
-        .from('order_procurement_links')
+      // Fetch procurements that have order_id set (the main data source now)
+      const { data: procurementsData, error: procurementsError } = await supabase
+        .from('inventory_procurements')
         .select('*')
-        .order('linked_at', { ascending: false });
+        .not('order_id', 'is', null)
+        .order('procurement_date', { ascending: false });
 
-      if (linksError) throw linksError;
+      if (procurementsError) throw procurementsError;
 
-      // Fetch related orders and procurements
-      const orderIds = [...new Set((linksData || []).map(l => l.order_id))];
-      const procurementIds = [...new Set((linksData || []).map(l => l.inventory_procurement_id))];
+      // Get unique order IDs
+      const orderIds = [...new Set((procurementsData || []).map(p => p.order_id).filter(Boolean))];
 
-      const [ordersRes, procurementsRes] = await Promise.all([
-        orderIds.length > 0 
-          ? supabase.from('orders').select('id, order_number, product_name, customer_company, total_sales_amount, amount_paid, payment_status').in('id', orderIds)
-          : { data: [], error: null },
-        procurementIds.length > 0 
-          ? supabase.from('inventory_procurements').select('id, procurement_number, product_name, supplier_name, total_amount, payment_status').in('id', procurementIds)
-          : { data: [], error: null },
-      ]);
+      // Fetch related orders
+      const { data: ordersData, error: ordersError } = orderIds.length > 0
+        ? await supabase
+            .from('orders')
+            .select('id, order_number, product_name, customer_company, total_sales_amount, amount_paid, payment_status')
+            .in('id', orderIds)
+        : { data: [], error: null };
 
-      const ordersMap = new Map((ordersRes.data || []).map(o => [o.id, o]));
-      const procurementsMap = new Map((procurementsRes.data || []).map(p => [p.id, p]));
+      if (ordersError) throw ordersError;
 
-      const enrichedLinks: OrderProcurementLinkWithDetails[] = (linksData || []).map(link => ({
-        ...link,
-        order: ordersMap.get(link.order_id),
-        procurement: procurementsMap.get(link.inventory_procurement_id),
+      const ordersMap = new Map((ordersData || []).map(o => [o.id, o]));
+
+      // Enrich procurements with order details
+      const enrichedProcurements: ProcurementWithOrder[] = (procurementsData || []).map(proc => ({
+        ...proc,
+        order: ordersMap.get(proc.order_id),
       }));
 
-      setLinks(enrichedLinks);
+      setProcurementsWithOrders(enrichedProcurements);
+
+      // Also create backward-compatible links format
+      const backwardCompatibleLinks: OrderProcurementLinkWithDetails[] = enrichedProcurements.map(proc => ({
+        id: proc.id,
+        order_id: proc.order_id,
+        order_item_id: null,
+        inventory_procurement_id: proc.id,
+        quantity_used: proc.quantity,
+        linked_at: proc.procurement_date,
+        linked_by: proc.created_by,
+        notes: proc.notes,
+        created_at: proc.created_at,
+        order: proc.order,
+        procurement: {
+          procurement_number: proc.procurement_number,
+          product_name: proc.product_name,
+          supplier_name: proc.supplier_name,
+          total_amount: proc.total_amount,
+          payment_status: proc.payment_status,
+        },
+      }));
+
+      setLinks(backwardCompatibleLinks);
     } catch (error: any) {
-      console.error('Error fetching order procurement links:', error);
+      console.error('Error fetching procurement-order data:', error);
     } finally {
       setLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
-    fetchLinks();
-  }, [fetchLinks]);
+    fetchData();
+  }, [fetchData]);
 
+  // These functions are kept for backward compatibility but may not be used
   const createLink = async (
     orderId: string,
     procurementId: string,
@@ -98,43 +152,39 @@ export function useOrderProcurementLinks() {
     notes?: string
   ): Promise<boolean> => {
     try {
+      // Instead of creating a separate link, update the procurement's order_id
       const { error } = await supabase
-        .from('order_procurement_links')
-        .insert({
-          order_id: orderId,
-          order_item_id: orderItemId || null,
-          inventory_procurement_id: procurementId,
-          quantity_used: quantityUsed,
-          linked_by: user?.id,
-          notes: notes || null,
-        });
+        .from('inventory_procurements')
+        .update({ order_id: orderId })
+        .eq('id', procurementId);
 
       if (error) throw error;
 
       toast.success('Procurement linked to order successfully');
-      fetchLinks();
+      fetchData();
       return true;
     } catch (error: any) {
-      console.error('Error creating link:', error);
+      console.error('Error linking procurement:', error);
       toast.error('Failed to link procurement to order');
       return false;
     }
   };
 
-  const deleteLink = async (linkId: string): Promise<boolean> => {
+  const deleteLink = async (procurementId: string): Promise<boolean> => {
     try {
+      // Remove the order_id from the procurement
       const { error } = await supabase
-        .from('order_procurement_links')
-        .delete()
-        .eq('id', linkId);
+        .from('inventory_procurements')
+        .update({ order_id: null })
+        .eq('id', procurementId);
 
       if (error) throw error;
 
       toast.success('Link removed successfully');
-      fetchLinks();
+      fetchData();
       return true;
     } catch (error: any) {
-      console.error('Error deleting link:', error);
+      console.error('Error unlinking procurement:', error);
       toast.error('Failed to remove link');
       return false;
     }
@@ -150,11 +200,12 @@ export function useOrderProcurementLinks() {
 
   return {
     links,
+    procurementsWithOrders,
     loading,
     createLink,
     deleteLink,
     getLinksForOrder,
     getLinksForProcurement,
-    refetch: fetchLinks,
+    refetch: fetchData,
   };
 }

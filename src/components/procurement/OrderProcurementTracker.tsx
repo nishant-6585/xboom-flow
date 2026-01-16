@@ -243,9 +243,9 @@ export function OrderProcurementTracker() {
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                 <Link2 className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="font-medium text-lg">No Linked Procurements</h3>
+                <h3 className="font-medium text-lg">No Order-Linked Procurements</h3>
                 <p className="text-muted-foreground text-sm mt-1">
-                  Link inventory procurements to orders to track the flow of payments.
+                  No procurements have been linked to orders yet. Link procurements when creating them.
                 </p>
               </CardContent>
             </Card>
