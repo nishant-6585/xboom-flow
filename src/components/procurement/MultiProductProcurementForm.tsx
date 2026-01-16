@@ -390,6 +390,7 @@ function ProductItemCard({ item, index, orders, inventory, onUpdate, onRemove, c
                           fulfillFromStock: true, 
                           selectedInventoryId: matchingInventory[0]?.id || '',
                           unitPrice: '0',
+                          addToInventory: false,
                         });
                       } else {
                         onUpdate(item.id, { 
@@ -445,6 +446,20 @@ function ProductItemCard({ item, index, orders, inventory, onUpdate, onRemove, c
                     )}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Option to also add to inventory when linked to order */}
+            {!item.fulfillFromStock && (
+              <div className="flex items-center space-x-2 p-2 bg-muted/50 rounded mt-2">
+                <Checkbox
+                  id={`also-inv-${item.id}`}
+                  checked={item.addToInventory}
+                  onCheckedChange={(checked) => onUpdate(item.id, { addToInventory: checked === true })}
+                />
+                <Label htmlFor={`also-inv-${item.id}`} className="text-xs cursor-pointer">
+                  Also add to inventory stock after procurement
+                </Label>
               </div>
             )}
           </div>
@@ -726,7 +741,7 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
         notes: notes || null,
         inventory_id: null,
         order_id: item.orderId || null,
-      }, item.addToInventory && item.linkType === 'inventory');
+      }, item.addToInventory);
       
       if (result) successCount++;
     }
@@ -1096,7 +1111,7 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
                                         {order.order_number}
                                       </Badge>
                                     )}
-                                    {item.linkType === 'inventory' && item.addToInventory && (
+                                    {item.addToInventory && !item.fulfillFromStock && (
                                       <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
                                         <Warehouse className="h-3 w-3 mr-1" />
                                         Add to Stock
