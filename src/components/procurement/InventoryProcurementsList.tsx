@@ -144,7 +144,7 @@ export function InventoryProcurementsList() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
-            Inventory Procurements
+            Inventory
           </CardTitle>
         </CardHeader>
         <CardContent>
