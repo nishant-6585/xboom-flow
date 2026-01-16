@@ -47,6 +47,9 @@ export interface Expense {
   approved_by: string | null;
   approved_by_name: string | null;
   approved_at: string | null;
+  paid_from_petty_cash: number | null;
+  amount_paid: number | null;
+  payment_notes: string | null;
   created_at: string;
   updated_at: string;
 }
