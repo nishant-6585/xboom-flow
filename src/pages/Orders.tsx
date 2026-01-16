@@ -175,126 +175,149 @@ export default function Orders() {
     startDate || endDate || searchQuery;
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-background via-background to-muted/20 flex flex-col">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-background via-background to-muted/10 flex flex-col">
       <Header />
-      <main className="container mx-auto py-4 sm:py-6 px-4 flex-1 overflow-x-hidden">
+      <main className="container mx-auto py-4 sm:py-8 px-4 flex-1 overflow-x-hidden">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           {/* Enhanced Header Section */}
-          <div className="mb-6">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
-                    <Package className="h-6 w-6" />
+          <div className="mb-8">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-6">
+              <div className="space-y-2">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25">
+                    <Package className="h-7 w-7" />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Orders</h1>
-                    <p className="text-sm text-muted-foreground">
-                      {role === 'sales' ? 'Track your order status and delivery' : 'Manage orders and procurement'}
+                    <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">Orders</h1>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      {role === 'sales' ? 'Track your order status and delivery' : 'Manage orders and procurement workflows'}
                     </p>
                   </div>
                 </div>
                 {enquiryIdFromUrl && (
                   <Link 
                     to="/" 
-                    className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline mt-2 ml-12"
+                    className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors mt-3 ml-16 font-medium"
                   >
-                    <ArrowLeft className="h-3.5 w-3.5" />
+                    <ArrowLeft className="h-4 w-4" />
                     Back to Enquiries
                   </Link>
                 )}
               </div>
               
               {/* Enhanced Tabs */}
-              <TabsList className="bg-muted/50 p-1 h-auto flex-wrap">
-                <TabsTrigger value="list" className="gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              <TabsList className="bg-muted/60 backdrop-blur-sm p-1.5 h-auto flex-wrap rounded-xl border border-border/50 shadow-sm">
+                <TabsTrigger value="list" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-foreground rounded-lg px-4 py-2 transition-all">
                   <LayoutGrid className="h-4 w-4" />
-                  <span className="hidden sm:inline">Orders</span>
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  <span className="hidden sm:inline font-medium">Orders</span>
+                  <Badge variant="secondary" className="ml-1 h-5 px-2 text-xs bg-primary/10 text-primary font-semibold">
                     {filteredOrders.length}
                   </Badge>
                 </TabsTrigger>
-                <TabsTrigger value="pipeline" className="gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <TabsTrigger value="pipeline" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg px-4 py-2 transition-all">
                   <Target className="h-4 w-4" />
-                  <span className="hidden sm:inline">Pipeline</span>
+                  <span className="hidden sm:inline font-medium">Pipeline</span>
                 </TabsTrigger>
                 {canCreateOrder && (
-                  <TabsTrigger value="new" className="gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                  <TabsTrigger value="new" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg px-4 py-2 transition-all">
                     <Plus className="h-4 w-4" />
-                    <span className="hidden sm:inline">New Order</span>
+                    <span className="hidden sm:inline font-medium">New Order</span>
                   </TabsTrigger>
                 )}
                 {canViewRefunds && (
-                  <TabsTrigger value="refunds" className="gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                  <TabsTrigger value="refunds" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg px-4 py-2 transition-all">
                     <RotateCcw className="h-4 w-4" />
-                    <span className="hidden sm:inline">Refunds</span>
+                    <span className="hidden sm:inline font-medium">Refunds</span>
                     {refundCount > 0 && (
-                      <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-xs">
+                      <Badge variant="destructive" className="ml-1 h-5 px-2 text-xs font-semibold animate-pulse">
                         {refundCount}
                       </Badge>
                     )}
                   </TabsTrigger>
                 )}
                 {isAdmin && (
-                  <TabsTrigger value="analytics" className="gap-1.5 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                  <TabsTrigger value="analytics" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg px-4 py-2 transition-all">
                     <BarChart3 className="h-4 w-4" />
-                    <span className="hidden sm:inline">Analytics</span>
+                    <span className="hidden sm:inline font-medium">Analytics</span>
                   </TabsTrigger>
                 )}
               </TabsList>
             </div>
 
-            {/* Quick Stats Cards */}
+            {/* Quick Stats Cards - Enhanced */}
             {activeTab === 'list' && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 border-blue-200/50 dark:border-blue-800/50 cursor-pointer hover:shadow-md transition-all" onClick={() => { setStatusFilter('all'); clearFilters(); }}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <Card 
+                  className="group relative overflow-hidden bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border-blue-200/30 dark:border-blue-800/30 cursor-pointer hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-0.5 transition-all duration-300" 
+                  onClick={() => { setStatusFilter('all'); clearFilters(); }}
+                >
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between relative">
                       <div>
-                        <p className="text-xs font-medium text-blue-600 dark:text-blue-400">Total Orders</p>
-                        <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.total}</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">Total Orders</p>
+                        <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">{stats.total}</p>
+                        <p className="text-xs text-muted-foreground mt-1">All time</p>
                       </div>
-                      <div className="p-2 rounded-lg bg-blue-500/10">
-                        <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      <div className="p-3 rounded-xl bg-blue-500/15 group-hover:scale-110 transition-transform">
+                        <Package className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20 border-amber-200/50 dark:border-amber-800/50 cursor-pointer hover:shadow-md transition-all" onClick={() => setStatusFilter('po_received')}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
+                
+                <Card 
+                  className="group relative overflow-hidden bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border-amber-200/30 dark:border-amber-800/30 cursor-pointer hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-0.5 transition-all duration-300" 
+                  onClick={() => setStatusFilter('po_received')}
+                >
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-amber-500/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between relative">
                       <div>
-                        <p className="text-xs font-medium text-amber-600 dark:text-amber-400">PO Received</p>
-                        <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{stats.poReceived}</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">PO Received</p>
+                        <p className="text-3xl font-bold text-amber-700 dark:text-amber-300">{stats.poReceived}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Awaiting action</p>
                       </div>
-                      <div className="p-2 rounded-lg bg-amber-500/10">
-                        <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                      <div className="p-3 rounded-xl bg-amber-500/15 group-hover:scale-110 transition-transform">
+                        <Clock className="h-6 w-6 text-amber-600 dark:text-amber-400" />
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-950/30 dark:to-purple-900/20 border-purple-200/50 dark:border-purple-800/50 cursor-pointer hover:shadow-md transition-all" onClick={() => setStatusFilter('in_transit')}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
+                
+                <Card 
+                  className="group relative overflow-hidden bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent border-purple-200/30 dark:border-purple-800/30 cursor-pointer hover:shadow-xl hover:shadow-purple-500/10 hover:-translate-y-0.5 transition-all duration-300" 
+                  onClick={() => setStatusFilter('in_transit')}
+                >
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-500/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between relative">
                       <div>
-                        <p className="text-xs font-medium text-purple-600 dark:text-purple-400">In Progress</p>
-                        <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">{stats.inProgress}</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-purple-600 dark:text-purple-400 mb-1">In Progress</p>
+                        <p className="text-3xl font-bold text-purple-700 dark:text-purple-300">{stats.inProgress}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Processing</p>
                       </div>
-                      <div className="p-2 rounded-lg bg-purple-500/10">
-                        <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                      <div className="p-3 rounded-xl bg-purple-500/15 group-hover:scale-110 transition-transform">
+                        <TrendingUp className="h-6 w-6 text-purple-600 dark:text-purple-400" />
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/20 border-emerald-200/50 dark:border-emerald-800/50 cursor-pointer hover:shadow-md transition-all" onClick={() => setStatusFilter('delivery_done')}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
+                
+                <Card 
+                  className="group relative overflow-hidden bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-200/30 dark:border-emerald-800/30 cursor-pointer hover:shadow-xl hover:shadow-emerald-500/10 hover:-translate-y-0.5 transition-all duration-300" 
+                  onClick={() => setStatusFilter('delivery_done')}
+                >
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-500/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between relative">
                       <div>
-                        <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Delivered</p>
-                        <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{stats.completed}</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">Delivered</p>
+                        <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-300">{stats.completed}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Completed</p>
                       </div>
-                      <div className="p-2 rounded-lg bg-emerald-500/10">
-                        <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                      <div className="p-3 rounded-xl bg-emerald-500/15 group-hover:scale-110 transition-transform">
+                        <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
                       </div>
                     </div>
                   </CardContent>
@@ -303,33 +326,33 @@ export default function Orders() {
             )}
           </div>
 
-          <TabsContent value="list" className="space-y-4 mt-0">
+          <TabsContent value="list" className="space-y-6 mt-0">
             {/* Unlinked Orders Widget for procurement team */}
             {canViewProcurementWidget && (
-              <div className="mb-4">
+              <div className="mb-6">
                 <UnlinkedOrdersWidget maxItems={3} showViewAll={true} />
               </div>
             )}
 
             {/* Enhanced Search & Filters Section */}
-            <Card className="border-dashed">
-              <CardContent className="p-4">
-                <div className="flex flex-col gap-4">
+            <Card className="border border-border/60 shadow-sm bg-gradient-to-br from-card to-muted/10 backdrop-blur-sm">
+              <CardContent className="p-5">
+                <div className="flex flex-col gap-5">
                   {/* Search and Toggle Row */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                    <div className="relative flex-1 max-w-md">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                    <div className="relative flex-1 max-w-lg">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Search order no, product, customer..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9 bg-background"
+                        className="pl-11 pr-10 h-11 bg-background border-muted-foreground/20 focus:border-primary/50 rounded-xl shadow-sm transition-all"
                       />
                       {searchQuery && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 p-0 hover:bg-muted rounded-full"
                           onClick={() => setSearchQuery('')}
                         >
                           <X className="h-3.5 w-3.5" />
@@ -337,35 +360,35 @@ export default function Orders() {
                       )}
                     </div>
                     
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
                         <CollapsibleTrigger asChild>
-                          <Button variant="outline" size="sm" className="gap-2">
+                          <Button variant="outline" size="default" className="gap-2 h-11 px-4 rounded-xl border-muted-foreground/20 hover:bg-muted/50">
                             <Filter className="h-4 w-4" />
-                            Filters
+                            <span className="font-medium">Filters</span>
                             {hasActiveFilters && (
-                              <Badge variant="secondary" className="h-5 px-1.5 text-xs bg-primary/10 text-primary">
+                              <Badge className="h-5 px-2 text-xs bg-primary text-primary-foreground font-semibold">
                                 Active
                               </Badge>
                             )}
-                            <ChevronDown className={`h-4 w-4 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
+                            <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${filtersOpen ? 'rotate-180' : ''}`} />
                           </Button>
                         </CollapsibleTrigger>
                       </Collapsible>
                       
                       {hasActiveFilters && (
-                        <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1.5 text-muted-foreground hover:text-foreground">
+                        <Button variant="ghost" size="default" onClick={clearFilters} className="gap-2 h-11 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-xl">
                           <X className="h-4 w-4" />
-                          Clear
+                          <span className="hidden sm:inline">Clear All</span>
                         </Button>
                       )}
                       
-                      <div className="flex items-center gap-0.5 border rounded-lg p-0.5 bg-muted/50">
+                      <div className="flex items-center gap-1 border border-muted-foreground/20 rounded-xl p-1 bg-muted/30">
                         <Button
                           variant={viewMode === 'cards' ? 'default' : 'ghost'}
                           size="sm"
                           onClick={() => setViewMode('cards')}
-                          className="h-8 w-8 p-0"
+                          className={`h-9 w-9 p-0 rounded-lg ${viewMode === 'cards' ? 'shadow-sm' : 'hover:bg-muted/50'}`}
                         >
                           <LayoutGrid className="h-4 w-4" />
                         </Button>
@@ -373,7 +396,7 @@ export default function Orders() {
                           variant={viewMode === 'table' ? 'default' : 'ghost'}
                           size="sm"
                           onClick={() => setViewMode('table')}
-                          className="h-8 w-8 p-0"
+                          className={`h-9 w-9 p-0 rounded-lg ${viewMode === 'table' ? 'shadow-sm' : 'hover:bg-muted/50'}`}
                         >
                           <Table className="h-4 w-4" />
                         </Button>
@@ -383,13 +406,13 @@ export default function Orders() {
 
                   {/* Collapsible Filters */}
                   <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
-                    <CollapsibleContent>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-3 border-t">
+                    <CollapsibleContent className="animate-in slide-in-from-top-2 duration-200">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 pt-5 border-t border-border/50">
                         <Select value={statusFilter} onValueChange={setStatusFilter}>
-                          <SelectTrigger className="bg-background">
+                          <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
                             <SelectValue placeholder="Status" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-popover">
                             <SelectItem value="all">All Statuses</SelectItem>
                             {ORDER_STATUSES.map(s => (
                               <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
@@ -398,10 +421,10 @@ export default function Orders() {
                         </Select>
 
                         <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
-                          <SelectTrigger className="bg-background">
+                          <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
                             <SelectValue placeholder="Payment" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-popover">
                             <SelectItem value="all">All Payment Status</SelectItem>
                             {PAYMENT_STATUSES.map(s => (
                               <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
@@ -410,10 +433,10 @@ export default function Orders() {
                         </Select>
 
                         <Select value={orderTypeFilter} onValueChange={setOrderTypeFilter}>
-                          <SelectTrigger className="bg-background">
+                          <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
                             <SelectValue placeholder="Type" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-popover">
                             <SelectItem value="all">All Types</SelectItem>
                             {ORDER_TYPES.map(t => (
                               <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
@@ -422,10 +445,10 @@ export default function Orders() {
                         </Select>
 
                         <Select value={outcomeFilter} onValueChange={setOutcomeFilter}>
-                          <SelectTrigger className="bg-background">
+                          <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
                             <SelectValue placeholder="Outcome" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-popover">
                             <SelectItem value="all">All Outcomes</SelectItem>
                             {ORDER_OUTCOMES.map(o => (
                               <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
@@ -434,10 +457,10 @@ export default function Orders() {
                         </Select>
 
                         <Select value={paymentTermsFilter} onValueChange={setPaymentTermsFilter}>
-                          <SelectTrigger className="bg-background">
+                          <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
                             <SelectValue placeholder="Terms" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-popover">
                             <SelectItem value="all">All Terms</SelectItem>
                             {paymentTermsOptions.map(term => (
                               <SelectItem key={term} value={term}>{term}</SelectItem>
@@ -446,10 +469,10 @@ export default function Orders() {
                         </Select>
 
                         <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
-                          <SelectTrigger className="bg-background">
+                          <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
                             <SelectValue placeholder="Sales Person" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-popover">
                             <SelectItem value="all">All Sales Persons</SelectItem>
                             {salesPersonOptions.map(name => (
                               <SelectItem key={name} value={name}>{name}</SelectItem>
@@ -458,7 +481,7 @@ export default function Orders() {
                         </Select>
                       </div>
                       
-                      <div className="mt-3 pt-3 border-t">
+                      <div className="mt-5 pt-5 border-t border-border/50">
                         <DateRangeFilter
                           startDate={startDate}
                           endDate={endDate}
@@ -475,21 +498,22 @@ export default function Orders() {
 
             {/* Results Section */}
             {loading ? (
-              <div className="flex flex-col items-center justify-center py-16">
+              <div className="flex flex-col items-center justify-center py-20">
                 <div className="relative">
                   <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
-                  <Loader2 className="h-10 w-10 animate-spin text-primary relative" />
+                  <div className="absolute inset-2 rounded-full bg-primary/10 animate-pulse" />
+                  <Loader2 className="h-12 w-12 animate-spin text-primary relative" />
                 </div>
-                <p className="mt-4 text-sm text-muted-foreground">Loading orders...</p>
+                <p className="mt-6 text-sm text-muted-foreground font-medium">Loading orders...</p>
               </div>
             ) : filteredOrders.length === 0 ? (
-              <Card className="border-dashed">
-                <CardContent className="flex flex-col items-center justify-center py-16">
-                  <div className="p-4 rounded-full bg-muted mb-4">
-                    <Package className="h-10 w-10 text-muted-foreground" />
+              <Card className="border-dashed border-2 bg-gradient-to-br from-muted/30 to-muted/10">
+                <CardContent className="flex flex-col items-center justify-center py-20">
+                  <div className="p-6 rounded-2xl bg-gradient-to-br from-muted to-muted/50 mb-6 shadow-inner">
+                    <Package className="h-12 w-12 text-muted-foreground" />
                   </div>
-                  <h3 className="text-lg font-semibold mb-1">No orders found</h3>
-                  <p className="text-muted-foreground text-center max-w-sm">
+                  <h3 className="text-xl font-semibold mb-2">No orders found</h3>
+                  <p className="text-muted-foreground text-center max-w-md leading-relaxed">
                     {hasActiveFilters 
                       ? 'Try adjusting your filters to see more orders'
                       : canCreateOrder 
@@ -497,27 +521,32 @@ export default function Orders() {
                         : 'No orders have been assigned to you yet'}
                   </p>
                   {hasActiveFilters && (
-                    <Button variant="outline" size="sm" onClick={clearFilters} className="mt-4 gap-2">
+                    <Button variant="outline" onClick={clearFilters} className="mt-6 gap-2 rounded-xl h-11 px-6">
                       <X className="h-4 w-4" />
-                      Clear Filters
+                      Clear All Filters
                     </Button>
                   )}
                 </CardContent>
               </Card>
             ) : viewMode === 'table' ? (
-              <Card>
+              <Card className="shadow-sm border-border/60 overflow-hidden">
                 <CardContent className="p-0">
                   <OrderTable orders={filteredOrders} onOrderClick={handleOrderClick} onUpdateOutcome={handleUpdateOutcome} />
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {filteredOrders.map(order => (
-                  <OrderCard
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {filteredOrders.map((order, index) => (
+                  <div 
                     key={order.id}
-                    order={order}
-                    onClick={() => handleOrderClick(order)}
-                  />
+                    className="animate-in fade-in slide-in-from-bottom-2"
+                    style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
+                  >
+                    <OrderCard
+                      order={order}
+                      onClick={() => handleOrderClick(order)}
+                    />
+                  </div>
                 ))}
               </div>
             )}
