@@ -2061,35 +2061,65 @@ export type Database = {
       }
       slack_settings: {
         Row: {
+          channel_enquiries: string | null
+          channel_orders: string | null
+          channel_pipeline: string | null
+          channel_procurements: string | null
+          channel_suppliers: string | null
           created_at: string
           id: string
           is_enabled: boolean
           notify_hot_leads: boolean
+          notify_new_enquiries: boolean | null
           notify_new_orders: boolean
+          notify_new_pipeline: boolean | null
+          notify_new_procurements: boolean | null
+          notify_new_suppliers: boolean | null
           notify_payment_reminders: boolean
           notify_status_changes: boolean
+          slack_bot_token: string | null
           updated_at: string
           webhook_url: string | null
         }
         Insert: {
+          channel_enquiries?: string | null
+          channel_orders?: string | null
+          channel_pipeline?: string | null
+          channel_procurements?: string | null
+          channel_suppliers?: string | null
           created_at?: string
           id?: string
           is_enabled?: boolean
           notify_hot_leads?: boolean
+          notify_new_enquiries?: boolean | null
           notify_new_orders?: boolean
+          notify_new_pipeline?: boolean | null
+          notify_new_procurements?: boolean | null
+          notify_new_suppliers?: boolean | null
           notify_payment_reminders?: boolean
           notify_status_changes?: boolean
+          slack_bot_token?: string | null
           updated_at?: string
           webhook_url?: string | null
         }
         Update: {
+          channel_enquiries?: string | null
+          channel_orders?: string | null
+          channel_pipeline?: string | null
+          channel_procurements?: string | null
+          channel_suppliers?: string | null
           created_at?: string
           id?: string
           is_enabled?: boolean
           notify_hot_leads?: boolean
+          notify_new_enquiries?: boolean | null
           notify_new_orders?: boolean
+          notify_new_pipeline?: boolean | null
+          notify_new_procurements?: boolean | null
+          notify_new_suppliers?: boolean | null
           notify_payment_reminders?: boolean
           notify_status_changes?: boolean
+          slack_bot_token?: string | null
           updated_at?: string
           webhook_url?: string | null
         }

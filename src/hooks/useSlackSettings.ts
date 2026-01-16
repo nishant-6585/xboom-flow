@@ -5,11 +5,24 @@ import { toast } from 'sonner';
 export interface SlackSettings {
   id: string;
   webhook_url: string | null;
+  slack_bot_token: string | null;
   is_enabled: boolean;
+  // Legacy single channel notifications
   notify_new_orders: boolean;
   notify_hot_leads: boolean;
   notify_payment_reminders: boolean;
   notify_status_changes: boolean;
+  // New multi-channel notifications
+  notify_new_enquiries: boolean;
+  notify_new_procurements: boolean;
+  notify_new_suppliers: boolean;
+  notify_new_pipeline: boolean;
+  // Channel IDs for each event type
+  channel_orders: string | null;
+  channel_enquiries: string | null;
+  channel_procurements: string | null;
+  channel_suppliers: string | null;
+  channel_pipeline: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -84,8 +97,6 @@ export const useSlackSettings = () => {
 
   const testWebhook = async (webhookUrl: string) => {
     try {
-      // Test by sending a direct request to the webhook (server-side would be better, but for test we try direct)
-      // First, save the webhook URL temporarily and use the edge function to test
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       
@@ -116,18 +127,51 @@ export const useSlackSettings = () => {
     }
   };
 
+  const testChannel = async (channel: string, botToken: string) => {
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/send-slack-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`
+        },
+        body: JSON.stringify({ 
+          type: 'test_channel',
+          data: { channel, bot_token: botToken }
+        })
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Channel test failed');
+      }
+
+      toast.success(`Test message sent to #${channel}!`);
+      return true;
+    } catch (error) {
+      console.error('Channel test failed:', error);
+      toast.error('Failed to send test message. Please check your channel ID and bot token.');
+      return false;
+    }
+  };
+
   return {
     settings,
     loading,
     updateSettings,
     testWebhook,
+    testChannel,
     refetch: fetchSettings
   };
 };
 
 // Helper function to send Slack notifications from other hooks
 export const sendSlackNotification = async (
-  type: 'new_order' | 'hot_lead' | 'payment_reminder' | 'status_change',
+  type: 'new_order' | 'hot_lead' | 'payment_reminder' | 'status_change' | 'new_enquiry' | 'new_procurement' | 'new_supplier' | 'new_pipeline',
   data: Record<string, unknown>
 ) => {
   try {
