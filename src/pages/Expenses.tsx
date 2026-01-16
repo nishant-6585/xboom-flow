@@ -13,16 +13,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Calendar } from "@/components/ui/calendar";
 import { useExpenses, EXPENSE_TYPES, EXPENSE_STATUSES, PAYMENT_MODES, Expense } from "@/hooks/useExpenses";
 import { usePettyCash } from "@/hooks/usePettyCash";
 import { useOrders } from "@/hooks/useOrders";
 import { useInventoryProcurements } from "@/hooks/useInventoryProcurements";
 import { useAllExpenseLinks } from "@/hooks/useExpenseLinks";
 import { useAuth } from "@/hooks/useAuth";
-import { format, parseISO } from "date-fns";
-import { Plus, Receipt, Loader2, Check, X, Wallet, TrendingUp, Clock, CheckCircle, CreditCard, Banknote, Users, Package, ShoppingCart, Link2, ChevronsUpDown } from "lucide-react";
+import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { Plus, Receipt, Loader2, Check, X, Wallet, TrendingUp, Clock, CheckCircle, CreditCard, Banknote, Users, Package, ShoppingCart, Link2, ChevronsUpDown, CalendarIcon, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 export default function Expenses() {
   const { expenses, loading, createExpense, approveExpense, rejectExpense, markReimbursed, deleteExpense, canApprove, canDelete, refetch: refetchExpenses } = useExpenses();
@@ -34,6 +36,8 @@ export default function Expenses() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
   // Form state
   const [expenseType, setExpenseType] = useState("");
@@ -209,11 +213,12 @@ export default function Expenses() {
     setPaymentDialogOpen(true);
   };
 
-  // Filter expenses based on tab and search
+  // Filter expenses based on tab, search, and date range
   const filteredExpenses = expenses.filter(expense => {
     const matchesTab = activeTab === "all" || 
       (activeTab === "pending" && expense.status === "pending") ||
-      (activeTab === "approved" && (expense.status === "approved" || expense.status === "reimbursed")) ||
+      (activeTab === "approved" && expense.status === "approved") ||
+      (activeTab === "paid" && expense.status === "reimbursed") ||
       (activeTab === "mine" && expense.created_by === user?.id) ||
       (activeTab === "petty_cash");
     
@@ -222,13 +227,19 @@ export default function Expenses() {
       expense.vendor_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       EXPENSE_TYPES.find(t => t.value === expense.expense_type)?.label.toLowerCase().includes(searchQuery.toLowerCase());
     
-    return matchesTab && matchesSearch;
+    // Date filter
+    const expenseDate = parseISO(expense.expense_date);
+    const matchesDateRange = (!startDate || expenseDate >= startOfDay(startDate)) && 
+                             (!endDate || expenseDate <= endOfDay(endDate));
+    
+    return matchesTab && matchesSearch && matchesDateRange;
   });
 
   // Calculate stats
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
   const pendingExpenses = expenses.filter(e => e.status === 'pending').reduce((sum, e) => sum + e.amount, 0);
-  const approvedExpenses = expenses.filter(e => e.status === 'approved' || e.status === 'reimbursed').reduce((sum, e) => sum + e.amount, 0);
+  const approvedExpenses = expenses.filter(e => e.status === 'approved').reduce((sum, e) => sum + e.amount, 0);
+  const paidExpenses = expenses.filter(e => e.status === 'reimbursed').reduce((sum, e) => sum + e.amount, 0);
   const myExpenses = expenses.filter(e => e.created_by === user?.id).reduce((sum, e) => sum + e.amount, 0);
 
   const userBalances = getAllUserBalances();
@@ -710,25 +721,95 @@ export default function Expenses() {
         {/* Tabs and Table */}
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <CardTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5" />
-                Expense Records
-              </CardTitle>
-              <Input
-                placeholder="Search expenses..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="max-w-xs"
-              />
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <CardTitle className="flex items-center gap-2">
+                  <Receipt className="h-5 w-5" />
+                  Expense Records
+                </CardTitle>
+                <Input
+                  placeholder="Search expenses..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="max-w-xs"
+                />
+              </div>
+              {/* Date Filter */}
+              <div className="flex flex-wrap items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "justify-start text-left font-normal h-9",
+                        !startDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate ? format(startDate, 'dd MMM yyyy') : 'Start Date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={startDate}
+                      onSelect={setStartDate}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <span className="text-muted-foreground text-sm">to</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "justify-start text-left font-normal h-9",
+                        !endDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, 'dd MMM yyyy') : 'End Date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={endDate}
+                      onSelect={setEndDate}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {(startDate || endDate) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setStartDate(undefined);
+                      setEndDate(undefined);
+                    }}
+                    className="h-9 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Clear
+                  </Button>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="mb-4">
+              <TabsList className="mb-4 flex-wrap h-auto gap-1">
                 <TabsTrigger value="all">All</TabsTrigger>
                 <TabsTrigger value="pending">Pending</TabsTrigger>
                 <TabsTrigger value="approved">Approved</TabsTrigger>
+                <TabsTrigger value="paid">Paid</TabsTrigger>
                 <TabsTrigger value="mine">My Expenses</TabsTrigger>
                 {canManage && <TabsTrigger value="petty_cash">Petty Cash</TabsTrigger>}
               </TabsList>
