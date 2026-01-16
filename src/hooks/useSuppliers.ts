@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { sendSlackNotification } from '@/hooks/useSlackSettings';
 
 export type SupplierPreference = 'low' | 'medium' | 'high';
 
@@ -135,6 +136,19 @@ export function useSuppliers() {
 
       toast.success('Supplier created successfully');
       await fetchSuppliers();
+
+      // Send Slack notification for new supplier
+      sendSlackNotification('new_supplier', {
+        supplier_name: supplierData.name,
+        brand_name: supplierData.brand_name,
+        contact_name: supplierData.contact_name,
+        email: supplierData.email,
+        phone: supplierData.phone || supplierData.mobile,
+        product_category: supplierData.product_category,
+        city: supplierData.city,
+        preference: supplierData.preference,
+      }).catch(err => console.error('Slack notification failed:', err));
+
       return true;
     } catch (error: any) {
       console.error('Error creating supplier:', error);

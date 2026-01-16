@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from './useAuth';
+import { sendSlackNotification } from '@/hooks/useSlackSettings';
 
 export interface InventoryProcurement {
   id: string;
@@ -122,6 +123,19 @@ export function useInventoryProcurements() {
 
       toast.success('Procurement created successfully');
       fetchProcurements();
+
+      // Send Slack notification for new procurement
+      sendSlackNotification('new_procurement', {
+        procurement_number: data.procurement_number,
+        product_name: procurement.product_name,
+        product_category: procurement.product_category,
+        quantity: procurement.quantity,
+        total_amount: procurement.total_amount,
+        supplier_name: procurement.supplier_name,
+        payment_status: procurement.payment_status || 'pending',
+        payment_due_date: procurement.payment_due_date,
+      }).catch(err => console.error('Slack notification failed:', err));
+
       return data;
     } catch (error: any) {
       console.error('Error creating procurement:', error);
