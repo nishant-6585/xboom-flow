@@ -33,6 +33,7 @@ import { useExpectedPayments } from '@/hooks/useExpectedPayments';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useAuth } from '@/hooks/useAuth';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, addMonths } from 'date-fns';
+import { DailyActivityAnalytics } from './DailyActivityAnalytics';
 
 const COLORS = [
   'hsl(var(--primary))',
@@ -551,6 +552,9 @@ export function SalesAnalyticsDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Daily Activity Analytics for Managers */}
+      <DailyActivityAnalytics />
     </div>
   );
 }
