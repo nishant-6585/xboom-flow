@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useFormSubmissions, FormSubmission, FormField } from "@/hooks/useForms";
 import { format } from "date-fns";
-import { Eye, Trash2 } from "lucide-react";
+import { Eye, Trash2, RefreshCw } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface FormSubmissionsTableProps {
@@ -14,8 +14,15 @@ interface FormSubmissionsTableProps {
 }
 
 export function FormSubmissionsTable({ formId, fields }: FormSubmissionsTableProps) {
-  const { submissions, isLoading, deleteSubmission } = useFormSubmissions(formId);
+  const { submissions, isLoading, refetch, deleteSubmission } = useFormSubmissions(formId);
   const [selectedSubmission, setSelectedSubmission] = useState<FormSubmission | null>(null);
+  const [isRefetching, setIsRefetching] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefetching(true);
+    await refetch();
+    setIsRefetching(false);
+  };
 
   if (isLoading) {
     return <div className="text-center py-8 text-muted-foreground">Loading submissions...</div>;
@@ -28,6 +35,10 @@ export function FormSubmissionsTable({ formId, fields }: FormSubmissionsTablePro
         <p className="text-sm text-muted-foreground mt-1">
           Submissions will appear here once users fill out your form
         </p>
+        <Button variant="outline" size="sm" className="mt-4" onClick={handleRefresh} disabled={isRefetching}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
     );
   }
@@ -36,6 +47,13 @@ export function FormSubmissionsTable({ formId, fields }: FormSubmissionsTablePro
 
   return (
     <>
+      <div className="flex justify-between items-center mb-3">
+        <p className="text-sm text-muted-foreground">{submissions.length} submission{submissions.length !== 1 ? 's' : ''}</p>
+        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefetching}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
       <div className="rounded-md border">
         <Table>
           <TableHeader>
