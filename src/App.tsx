@@ -20,6 +20,8 @@ import Tasks from "./pages/Tasks";
 import Meetings from "./pages/Meetings";
 import HR from "./pages/HR";
 import Expenses from "./pages/Expenses";
+import Forms from "./pages/Forms";
+import FormEmbed from "./pages/FormEmbed";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -144,6 +146,15 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/forms"
+              element={
+                <ProtectedRoute>
+                  <Forms />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/form-embed/:formId" element={<FormEmbed />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
