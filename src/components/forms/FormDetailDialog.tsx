@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import { FormBuilder } from "./FormBuilder";
 import { FormPreview } from "./FormPreview";
 import { FormSubmissionsTable } from "./FormSubmissionsTable";
 import { FormEmbedDialog } from "./FormEmbedDialog";
+import { useAuth } from "@/hooks/useAuth";
+import { useFormPermissions } from "@/hooks/useFormPermissions";
 import { Code, Eye, Settings, Inbox, Save } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,11 +24,22 @@ interface FormDetailDialogProps {
 }
 
 export function FormDetailDialog({ form, open, onOpenChange }: FormDetailDialogProps) {
+  const { role } = useAuth();
+  const { data: permissions } = useFormPermissions();
   const { fields } = useFormFields(form?.id || "");
   const { updateForm, isUpdating } = useForms();
   const [embedOpen, setEmbedOpen] = useState(false);
   const [editName, setEditName] = useState(form?.name || "");
   const [editDescription, setEditDescription] = useState(form?.description || "");
+
+  // Calculate permissions
+  const canEdit = useMemo(() => {
+    return role === "admin" || !!permissions?.can_edit_forms;
+  }, [role, permissions]);
+
+  const canViewSubmissions = useMemo(() => {
+    return role === "admin" || !!permissions?.can_view_submissions;
+  }, [role, permissions]);
 
   // Sync state when form changes
   useEffect(() => {
@@ -99,7 +112,7 @@ export function FormDetailDialog({ form, open, onOpenChange }: FormDetailDialogP
             </TabsList>
 
             <TabsContent value="builder" className="mt-6">
-              <FormBuilder formId={form.id} />
+              <FormBuilder formId={form.id} canEdit={canEdit} />
             </TabsContent>
 
             <TabsContent value="preview" className="mt-6">
@@ -111,10 +124,17 @@ export function FormDetailDialog({ form, open, onOpenChange }: FormDetailDialogP
             </TabsContent>
 
             <TabsContent value="submissions" className="mt-6">
-              <FormSubmissionsTable formId={form.id} fields={fields} />
+              {canViewSubmissions ? (
+                <FormSubmissionsTable formId={form.id} fields={fields} />
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  You don't have permission to view submissions
+                </div>
+              )}
             </TabsContent>
 
-            <TabsContent value="settings" className="mt-6 space-y-6">
+            {canEdit && (
+              <TabsContent value="settings" className="mt-6 space-y-6">
               {/* Form Details */}
               <div className="p-4 border rounded-lg space-y-4">
                 <div className="flex items-center justify-between">
@@ -163,6 +183,7 @@ export function FormDetailDialog({ form, open, onOpenChange }: FormDetailDialogP
                 />
               </div>
             </TabsContent>
+            )}
           </Tabs>
         </DialogContent>
       </Dialog>
