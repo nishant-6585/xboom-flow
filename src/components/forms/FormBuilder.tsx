@@ -7,19 +7,37 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useFormFields, FormField } from "@/hooks/useForms";
-import { Plus, Trash2, ChevronUp, ChevronDown, X, Pencil, Check } from "lucide-react";
+import { Plus, Trash2, X, Pencil, Check, GripVertical, Type, Mail, Phone, Hash, AlignLeft, ChevronDown, CheckSquare, Circle, Calendar } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { cn } from "@/lib/utils";
 
 const FIELD_TYPES = [
-  { value: 'text', label: 'Text' },
-  { value: 'email', label: 'Email' },
-  { value: 'phone', label: 'Phone' },
-  { value: 'number', label: 'Number' },
-  { value: 'textarea', label: 'Textarea' },
-  { value: 'dropdown', label: 'Dropdown' },
-  { value: 'checkbox', label: 'Checkbox' },
-  { value: 'radio', label: 'Radio' },
-  { value: 'date', label: 'Date' },
+  { value: 'text', label: 'Text', icon: Type },
+  { value: 'email', label: 'Email', icon: Mail },
+  { value: 'phone', label: 'Phone', icon: Phone },
+  { value: 'number', label: 'Number', icon: Hash },
+  { value: 'textarea', label: 'Textarea', icon: AlignLeft },
+  { value: 'dropdown', label: 'Dropdown', icon: ChevronDown },
+  { value: 'checkbox', label: 'Checkbox', icon: CheckSquare },
+  { value: 'radio', label: 'Radio', icon: Circle },
+  { value: 'date', label: 'Date', icon: Calendar },
 ];
 
 interface FormBuilderProps {
@@ -33,6 +51,104 @@ interface EditFieldState {
   placeholder: string;
   is_required: boolean;
   options: { label: string; value: string }[];
+}
+
+// Sortable Field Item Component
+function SortableFieldItem({ 
+  field, 
+  canEdit, 
+  onEdit, 
+  onDelete 
+}: { 
+  field: FormField; 
+  canEdit: boolean;
+  onEdit: (field: FormField) => void;
+  onDelete: (id: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: field.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const fieldType = FIELD_TYPES.find(t => t.value === field.field_type);
+  const FieldIcon = fieldType?.icon || Type;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "group relative flex items-center gap-3 p-4 bg-card border rounded-xl transition-all",
+        isDragging && "opacity-50 shadow-lg ring-2 ring-primary/20 z-50",
+        !isDragging && "hover:shadow-md hover:border-primary/30"
+      )}
+    >
+      {canEdit && (
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 -ml-1 rounded hover:bg-muted transition-colors"
+        >
+          <GripVertical className="h-5 w-5 text-muted-foreground" />
+        </div>
+      )}
+      
+      <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary/10 text-primary shrink-0">
+        <FieldIcon className="h-5 w-5" />
+      </div>
+      
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-medium truncate">{field.label}</span>
+          {field.is_required && (
+            <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 text-xs font-normal">
+              Required
+            </Badge>
+          )}
+        </div>
+        <span className="text-xs text-muted-foreground capitalize">{field.field_type}</span>
+        {field.options && field.options.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {field.options.map((opt, i) => (
+              <Badge key={i} variant="secondary" className="text-xs font-normal">
+                {opt.label}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+      
+      {canEdit && (
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => onEdit(field)}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={() => onDelete(field.id)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function FormBuilder({ formId, canEdit = true }: FormBuilderProps) {
@@ -51,8 +167,38 @@ export function FormBuilder({ formId, canEdit = true }: FormBuilderProps) {
   const [editFieldState, setEditFieldState] = useState<EditFieldState | null>(null);
   const [editOption, setEditOption] = useState('');
 
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   const needsOptions = ['dropdown', 'checkbox', 'radio'].includes(newField.field_type);
   const editNeedsOptions = editFieldState ? ['dropdown', 'checkbox', 'radio'].includes(editFieldState.field_type) : false;
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      const oldIndex = fields.findIndex((f) => f.id === active.id);
+      const newIndex = fields.findIndex((f) => f.id === over.id);
+      
+      const newFields = arrayMove(fields, oldIndex, newIndex);
+      
+      // Update all affected fields with new order
+      newFields.forEach((field, index) => {
+        if (field.field_order !== index) {
+          updateField({ id: field.id, field_order: index });
+        }
+      });
+    }
+  };
 
   const handleAddField = () => {
     if (!newField.label.trim()) return;
@@ -141,181 +287,158 @@ export function FormBuilder({ formId, canEdit = true }: FormBuilderProps) {
     }) : prev);
   };
 
-  // Reorder handlers
-  const handleMoveUp = (index: number) => {
-    if (index === 0) return;
-    const field = fields[index];
-    const prevField = fields[index - 1];
-    
-    // Swap field_order values
-    updateField({ id: field.id, field_order: prevField.field_order });
-    updateField({ id: prevField.id, field_order: field.field_order });
-  };
-
-  const handleMoveDown = (index: number) => {
-    if (index === fields.length - 1) return;
-    const field = fields[index];
-    const nextField = fields[index + 1];
-    
-    // Swap field_order values
-    updateField({ id: field.id, field_order: nextField.field_order });
-    updateField({ id: nextField.id, field_order: field.field_order });
-  };
+  const selectedFieldType = FIELD_TYPES.find(t => t.value === newField.field_type);
 
   return (
     <div className="space-y-6">
       {/* Existing Fields */}
       <div className="space-y-3">
-        <h3 className="font-medium text-sm text-muted-foreground">Form Fields</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-sm text-foreground">Form Fields</h3>
+          {fields.length > 0 && canEdit && (
+            <span className="text-xs text-muted-foreground">
+              Drag to reorder
+            </span>
+          )}
+        </div>
+        
         {fields.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center border rounded-lg border-dashed">
-            No fields added yet. {canEdit ? "Add your first field below." : ""}
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {fields.map((field, index) => (
-              <Card key={field.id} className="py-3">
-                <CardContent className="flex items-center gap-3 py-0">
-                  {canEdit && (
-                    <div className="flex flex-col gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => handleMoveUp(index)}
-                        disabled={index === 0}
-                      >
-                        <ChevronUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => handleMoveDown(index)}
-                        disabled={index === fields.length - 1}
-                      >
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{field.label}</span>
-                      {field.is_required && (
-                        <Badge variant="secondary" className="text-xs">Required</Badge>
-                      )}
-                    </div>
-                    <span className="text-xs text-muted-foreground capitalize">{field.field_type}</span>
-                    {field.options && field.options.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {field.options.map((opt, i) => (
-                          <Badge key={i} variant="outline" className="text-xs">{opt.label}</Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {canEdit && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleStartEdit(field)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteField(field.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+          <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed rounded-xl bg-muted/30">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
+              <Plus className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm text-muted-foreground text-center">
+              No fields added yet
+            </p>
+            {canEdit && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Add your first field below
+              </p>
+            )}
           </div>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={fields.map(f => f.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {fields.map((field) => (
+                  <SortableFieldItem
+                    key={field.id}
+                    field={field}
+                    canEdit={canEdit}
+                    onEdit={handleStartEdit}
+                    onDelete={deleteField}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
 
-      {/* Add New Field - only show if user can edit */}
+      {/* Add New Field */}
       {canEdit && (
-        <Card>
-          <CardHeader className="py-4">
-            <CardTitle className="text-base">Add New Field</CardTitle>
+        <Card className="border-2 border-dashed border-primary/30 bg-primary/5">
+          <CardHeader className="py-4 pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Add New Field
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-2">
+            {/* Field Type Selection */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-muted-foreground">Field Type</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {FIELD_TYPES.map((type) => {
+                  const Icon = type.icon;
+                  const isSelected = newField.field_type === type.value;
+                  return (
+                    <button
+                      key={type.value}
+                      type="button"
+                      onClick={() => setNewField(prev => ({ ...prev, field_type: type.value as FormField['field_type'], options: [] }))}
+                      className={cn(
+                        "flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all text-center",
+                        isSelected 
+                          ? "border-primary bg-primary/10 text-primary" 
+                          : "border-transparent bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span className="text-xs font-medium">{type.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Label and Placeholder */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Field Type</Label>
-                <Select
-                  value={newField.field_type}
-                  onValueChange={(value: FormField['field_type']) => 
-                    setNewField(prev => ({ ...prev, field_type: value, options: [] }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FIELD_TYPES.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Label *</Label>
+                <Label className="text-xs font-medium text-muted-foreground">Label *</Label>
                 <Input
                   value={newField.label}
                   onChange={(e) => setNewField(prev => ({ ...prev, label: e.target.value }))}
                   placeholder="e.g., Full Name"
+                  className="h-9"
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Placeholder</Label>
+                <Label className="text-xs font-medium text-muted-foreground">Placeholder</Label>
                 <Input
                   value={newField.placeholder}
                   onChange={(e) => setNewField(prev => ({ ...prev, placeholder: e.target.value }))}
                   placeholder="e.g., Enter your name"
+                  className="h-9"
                 />
-              </div>
-              <div className="flex items-center space-x-2 pt-6">
-                <Switch
-                  id="required"
-                  checked={newField.is_required}
-                  onCheckedChange={(checked) => setNewField(prev => ({ ...prev, is_required: checked }))}
-                />
-                <Label htmlFor="required">Required field</Label>
               </div>
             </div>
 
+            {/* Required Toggle */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              <div className="space-y-0.5">
+                <Label htmlFor="required" className="text-sm font-medium cursor-pointer">Required field</Label>
+                <p className="text-xs text-muted-foreground">Users must fill this field</p>
+              </div>
+              <Switch
+                id="required"
+                checked={newField.is_required}
+                onCheckedChange={(checked) => setNewField(prev => ({ ...prev, is_required: checked }))}
+              />
+            </div>
+
+            {/* Options for dropdown/checkbox/radio */}
             {needsOptions && (
               <div className="space-y-2">
-                <Label>Options</Label>
+                <Label className="text-xs font-medium text-muted-foreground">Options</Label>
                 <div className="flex gap-2">
                   <Input
                     value={newOption}
                     onChange={(e) => setNewOption(e.target.value)}
-                    placeholder="Add option"
+                    placeholder="Add option and press Enter"
+                    className="h-9"
                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddOption())}
                   />
-                  <Button type="button" variant="outline" onClick={handleAddOption}>
+                  <Button type="button" variant="outline" size="sm" className="h-9 px-3" onClick={handleAddOption}>
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
                 {newField.options.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-muted/50">
                     {newField.options.map((opt, index) => (
-                      <Badge key={index} variant="secondary" className="gap-1">
+                      <Badge key={index} variant="secondary" className="gap-1.5 pr-1">
                         {opt.label}
-                        <button onClick={() => handleRemoveOption(index)}>
+                        <button 
+                          onClick={() => handleRemoveOption(index)}
+                          className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                        >
                           <X className="h-3 w-3" />
                         </button>
                       </Badge>
@@ -329,9 +452,10 @@ export function FormBuilder({ formId, canEdit = true }: FormBuilderProps) {
               onClick={handleAddField}
               disabled={!newField.label.trim() || isCreating || (needsOptions && newField.options.length === 0)}
               className="w-full"
+              size="lg"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Add Field
+              Add {selectedFieldType?.label} Field
             </Button>
           </CardContent>
         </Card>
@@ -359,7 +483,10 @@ export function FormBuilder({ formId, canEdit = true }: FormBuilderProps) {
                   <SelectContent>
                     {FIELD_TYPES.map((type) => (
                       <SelectItem key={type.value} value={type.value}>
-                        {type.label}
+                        <div className="flex items-center gap-2">
+                          <type.icon className="h-4 w-4" />
+                          {type.label}
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
