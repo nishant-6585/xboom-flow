@@ -39,7 +39,7 @@ export function MobileBottomNav() {
     { path: "/inventory", label: "Inventory", icon: Warehouse, roles: ["sales", "supply_chain", "admin"] },
     { path: "/suppliers", label: "Suppliers", icon: Building2, roles: ["admin", "supply_chain", "finance"] },
     { path: "/finance", label: "Finance", icon: IndianRupee, roles: ["admin", "finance"] },
-    { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["admin"] },
+    { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "supply_chain", "admin", "finance"] },
     { path: "/admin", label: "Admin", icon: Shield, roles: ["admin"] },
   ].filter(item => !item.roles || item.roles.includes(role || ""));
 
