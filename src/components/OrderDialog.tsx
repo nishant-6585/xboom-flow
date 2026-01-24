@@ -65,7 +65,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   // Combined edit permission - supply chain/admin/finance can edit all, sales can edit own orders
   const canEditOrder = canEdit || isOwnOrder;
   const canDelete = isAdmin;
-  const canSeeProcurement = isSupplyChain || isAdmin;
+  const canSeeProcurement = isSupplyChain || isAdmin || isFinance;
   const canEscalate = isSales && onEscalate;
 
   const [loading, setLoading] = useState(false);

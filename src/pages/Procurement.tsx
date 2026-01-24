@@ -38,7 +38,7 @@ export default function Procurement() {
   }
 
   // Finance role has view-only access (no manual procurement creation)
-  const canCreate = role === "admin" || role === "supply_chain";
+  const canCreate = role === "admin" || role === "supply_chain" || role === "finance";
 
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col">

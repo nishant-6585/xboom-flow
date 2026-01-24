@@ -28,7 +28,7 @@ const outcomeConfig: Record<OrderOutcome, { label: string; className: string; ic
 
 export function OrderCard({ order, onClick }: OrderCardProps) {
   const { role } = useAuth();
-  const canSeeProcurement = role === 'supply_chain' || role === 'admin';
+  const canSeeProcurement = role === 'supply_chain' || role === 'admin' || role === 'finance';
 
   // Calculate profit (only visible to admin)
   const profit = order.selling_price && order.procurement_rate 

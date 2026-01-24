@@ -38,8 +38,8 @@ export function InventoryProcurementsList() {
   const isAdmin = role === 'admin';
   const isFinance = role === 'finance';
   const isSupplyChain = role === 'supply_chain';
-  const canEdit = isAdmin || isSupplyChain;
-  const canManagePayments = role === 'admin' || role === 'supply_chain';
+  const canEdit = isAdmin || isSupplyChain || isFinance;
+  const canManagePayments = role === 'admin' || role === 'supply_chain' || role === 'finance';
   const canApprovePayments = role === 'admin' || role === 'finance';
   
   const paymentsByProcurement = getPaymentsByProcurementMap();
