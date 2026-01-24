@@ -40,6 +40,10 @@ const fieldLabels: Record<string, string> = {
   order_outcome: 'Order Outcome',
   order_type: 'Order Type',
   customer_type: 'Customer Type',
+  is_rto: 'RTO Status',
+  cancellation_reason: 'Cancellation Reason',
+  discount_amount: 'Discount Amount',
+  order_date: 'Order Date',
 };
 
 export function EditHistoryPanel({ tableName, recordId }: EditHistoryPanelProps) {
