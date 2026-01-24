@@ -121,6 +121,37 @@ export function usePettyCash() {
     }
   };
 
+  // Record petty cash received (any user can record for themselves)
+  const recordReceivedCash = async (amount: number, notes?: string) => {
+    if (!user || !profile) {
+      toast.error('You must be logged in');
+      return false;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('petty_cash_transactions')
+        .insert({
+          user_id: user.id,
+          user_name: profile.name,
+          transaction_type: 'cash_given',
+          amount,
+          notes: notes || 'Petty cash received',
+          created_by: user.id,
+          created_by_name: profile.name,
+        });
+
+      if (error) throw error;
+      toast.success(`₹${amount.toLocaleString()} petty cash recorded`);
+      fetchTransactions();
+      return true;
+    } catch (error: any) {
+      console.error('Error recording petty cash:', error);
+      toast.error(error.message || 'Failed to record petty cash');
+      return false;
+    }
+  };
+
   // Deduct from petty cash for an expense
   const deductForExpense = async (expenseId: string, amount: number, notes?: string) => {
     if (!user || !profile) {
@@ -191,6 +222,7 @@ export function usePettyCash() {
     getUserBalance,
     getAllUserBalances,
     givePettyCash,
+    recordReceivedCash,
     deductForExpense,
     creditOverpayment,
     refetch: fetchTransactions,
