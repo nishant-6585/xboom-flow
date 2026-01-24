@@ -22,6 +22,7 @@ import HR from "./pages/HR";
 import Expenses from "./pages/Expenses";
 import Forms from "./pages/Forms";
 import FormEmbed from "./pages/FormEmbed";
+import Repairs from "./pages/Repairs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -151,6 +152,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Forms />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/repairs"
+              element={
+                <ProtectedRoute>
+                  <Repairs />
                 </ProtectedRoute>
               }
             />

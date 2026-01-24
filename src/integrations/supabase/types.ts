@@ -2240,6 +2240,90 @@ export type Database = {
         }
         Relationships: []
       }
+      repairs: {
+        Row: {
+          advance_amount: number | null
+          balance_amount: number | null
+          committed_date: string | null
+          components_replaced: Json | null
+          contact_no: string
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          customer_name: string
+          date_completed: string | null
+          date_of_receipt: string
+          days_to_complete: number | null
+          id: string
+          inspection_charges: number | null
+          issue_details: string | null
+          issue_type: Database["public"]["Enums"]["repair_issue_type"]
+          model_name: string
+          notes: string | null
+          payment_status: Database["public"]["Enums"]["repair_payment_status"]
+          profit: number | null
+          repair_cost_charged: number | null
+          repair_number: string | null
+          total_component_cost: number | null
+          total_quote_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          advance_amount?: number | null
+          balance_amount?: number | null
+          committed_date?: string | null
+          components_replaced?: Json | null
+          contact_no: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          customer_name: string
+          date_completed?: string | null
+          date_of_receipt?: string
+          days_to_complete?: number | null
+          id?: string
+          inspection_charges?: number | null
+          issue_details?: string | null
+          issue_type?: Database["public"]["Enums"]["repair_issue_type"]
+          model_name: string
+          notes?: string | null
+          payment_status?: Database["public"]["Enums"]["repair_payment_status"]
+          profit?: number | null
+          repair_cost_charged?: number | null
+          repair_number?: string | null
+          total_component_cost?: number | null
+          total_quote_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          advance_amount?: number | null
+          balance_amount?: number | null
+          committed_date?: string | null
+          components_replaced?: Json | null
+          contact_no?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          customer_name?: string
+          date_completed?: string | null
+          date_of_receipt?: string
+          days_to_complete?: number | null
+          id?: string
+          inspection_charges?: number | null
+          issue_details?: string | null
+          issue_type?: Database["public"]["Enums"]["repair_issue_type"]
+          model_name?: string
+          notes?: string | null
+          payment_status?: Database["public"]["Enums"]["repair_payment_status"]
+          profit?: number | null
+          repair_cost_charged?: number | null
+          repair_number?: string | null
+          total_component_cost?: number | null
+          total_quote_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sales_daily_activities: {
         Row: {
           activity_date: string
@@ -3149,6 +3233,22 @@ export type Database = {
         | "cancelled"
         | "to_ship"
         | "in_transit"
+      repair_issue_type:
+        | "motor_failure"
+        | "gimbal_issue"
+        | "camera_damage"
+        | "battery_problem"
+        | "gps_issue"
+        | "remote_controller"
+        | "propeller_damage"
+        | "frame_damage"
+        | "flight_controller"
+        | "esc_issue"
+        | "software_issue"
+        | "water_damage"
+        | "crash_damage"
+        | "other"
+      repair_payment_status: "pending" | "partial" | "paid"
       supplier_preference: "low" | "medium" | "high"
       task_status: "new" | "in_progress" | "awaiting_approval" | "completed"
       task_type:
@@ -3303,6 +3403,23 @@ export const Constants = {
         "to_ship",
         "in_transit",
       ],
+      repair_issue_type: [
+        "motor_failure",
+        "gimbal_issue",
+        "camera_damage",
+        "battery_problem",
+        "gps_issue",
+        "remote_controller",
+        "propeller_damage",
+        "frame_damage",
+        "flight_controller",
+        "esc_issue",
+        "software_issue",
+        "water_damage",
+        "crash_damage",
+        "other",
+      ],
+      repair_payment_status: ["pending", "partial", "paid"],
       supplier_preference: ["low", "medium", "high"],
       task_status: ["new", "in_progress", "awaiting_approval", "completed"],
       task_type: [
