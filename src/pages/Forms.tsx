@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useForms, Form } from "@/hooks/useForms";
 import { useAuth } from "@/hooks/useAuth";
+import { useFormPermissions } from "@/hooks/useFormPermissions";
 import { FormCreateDialog } from "@/components/forms/FormCreateDialog";
 import { FormDetailDialog } from "@/components/forms/FormDetailDialog";
 import { Plus, FileText, Inbox, Trash2, Code } from "lucide-react";
@@ -16,18 +17,24 @@ import { FormEmbedDialog } from "@/components/forms/FormEmbedDialog";
 export default function Forms() {
   const navigate = useNavigate();
   const { role, loading: authLoading } = useAuth();
+  const { data: permissions, isLoading: permsLoading } = useFormPermissions();
   const { forms, isLoading, deleteForm } = useForms();
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [embedForm, setEmbedForm] = useState<Form | null>(null);
 
-  if (authLoading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
-  }
+  const access = useMemo(() => {
+    const isAdmin = role === "admin";
+    const canView = isAdmin || !!permissions?.can_view_forms;
+    const canCreate = isAdmin || !!permissions?.can_create_forms;
+    const canEdit = isAdmin || !!permissions?.can_edit_forms;
+    const canViewSubmissions = isAdmin || !!permissions?.can_view_submissions;
 
-  if (role !== 'admin') {
-    navigate('/');
-    return null;
+    return { isAdmin, canView, canCreate, canEdit, canViewSubmissions };
+  }, [permissions, role]);
+
+  if (authLoading || permsLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
   return (
@@ -39,13 +46,29 @@ export default function Forms() {
             <h1 className="text-2xl font-bold">Forms</h1>
             <p className="text-muted-foreground">Create and manage embeddable forms</p>
           </div>
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Form
-          </Button>
+          {access.canCreate && (
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Form
+            </Button>
+          )}
         </div>
 
-        {isLoading ? (
+        {!access.canView ? (
+          <Card className="py-10">
+            <CardHeader>
+              <CardTitle>Access required</CardTitle>
+              <CardDescription>
+                You don’t have permission to view Forms. Ask an admin to enable “View Forms” for your user.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex gap-2">
+              <Button variant="outline" onClick={() => navigate(-1)}>
+                Go Back
+              </Button>
+            </CardContent>
+          </Card>
+        ) : isLoading ? (
           <div className="text-center py-12 text-muted-foreground">Loading forms...</div>
         ) : forms.length === 0 ? (
           <Card className="py-12">
@@ -53,10 +76,12 @@ export default function Forms() {
               <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">No forms yet</h3>
               <p className="text-muted-foreground mb-4">Create your first form to start collecting submissions</p>
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Form
-              </Button>
+              {access.canCreate && (
+                <Button onClick={() => setCreateOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Form
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
@@ -84,7 +109,7 @@ export default function Forms() {
                     </div>
                     <div className="flex items-center gap-1">
                       <Inbox className="h-4 w-4" />
-                      submissions
+                      {access.canViewSubmissions ? "submissions" : "submissions (no access)"}
                     </div>
                   </div>
                   <div className="text-xs text-muted-foreground mt-3">
@@ -104,31 +129,33 @@ export default function Forms() {
                     <Code className="h-4 w-4 mr-1" />
                     Embed
                   </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Form?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently delete the form and all its submissions.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => deleteForm(form.id)}>
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  {access.canEdit && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Form?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete the form and all its submissions.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteForm(form.id)}>
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </div>
               </Card>
             ))}
