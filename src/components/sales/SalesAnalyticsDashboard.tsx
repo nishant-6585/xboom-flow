@@ -1,6 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 import {
   BarChart,
   Bar,
@@ -27,13 +30,29 @@ import {
   Target,
   Users,
   Flame,
+  Building2,
+  X,
 } from 'lucide-react';
-import { usePipelineOrders } from '@/hooks/usePipelineOrders';
-import { useExpectedPayments } from '@/hooks/useExpectedPayments';
-import { useEnquiries } from '@/hooks/useEnquiries';
+import { usePipelineOrders, PipelineOrder } from '@/hooks/usePipelineOrders';
+import { useExpectedPayments, ExpectedPayment } from '@/hooks/useExpectedPayments';
+import { useEnquiries, Enquiry } from '@/hooks/useEnquiries';
 import { useAuth } from '@/hooks/useAuth';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, addMonths } from 'date-fns';
 import { DailyActivityAnalytics } from './DailyActivityAnalytics';
+import { LeadTemperatureBadge } from '@/components/LeadTemperatureBadge';
+
+// Detail item type for the dialog
+interface DetailItem {
+  id: string;
+  type: 'pipeline' | 'enquiry' | 'payment';
+  customer_name: string;
+  customer_company: string;
+  product_name: string;
+  value: number;
+  date: string;
+  status: string;
+  temperature?: string;
+}
 
 const COLORS = [
   'hsl(var(--primary))',
@@ -64,6 +83,11 @@ export function SalesAnalyticsDashboard() {
   const { enquiries, loading: enquiriesLoading } = useEnquiries();
   
   const isManager = role === 'admin' || role === 'supply_chain';
+
+  // Dialog state for detail drill-down
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [dialogTitle, setDialogTitle] = useState('');
+  const [dialogItems, setDialogItems] = useState<DetailItem[]>([]);
 
   // Filter data based on role
   const filteredPipeline = useMemo(() => {
@@ -209,6 +233,120 @@ export function SalesAnalyticsDashboard() {
     if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
     if (value >= 1000) return `₹${(value / 1000).toFixed(0)}K`;
     return `₹${value.toFixed(0)}`;
+  };
+
+  // Click handlers for drill-down
+  const handleTemperatureClick = (temperature: string) => {
+    const tempLower = temperature.toLowerCase();
+    const items: DetailItem[] = filteredPipeline
+      .filter(p => p.lead_temperature === tempLower && p.status !== 'won' && p.status !== 'lost')
+      .map(p => ({
+        id: p.id,
+        type: 'pipeline' as const,
+        customer_name: p.customer_name,
+        customer_company: p.customer_company,
+        product_name: p.product_name,
+        value: p.expected_price || 0,
+        date: p.created_at,
+        status: p.status,
+        temperature: p.lead_temperature,
+      }));
+    
+    setDialogTitle(`${temperature} Leads (${items.length})`);
+    setDialogItems(items);
+    setDetailDialogOpen(true);
+  };
+
+  const handleInflowChartClick = (data: any) => {
+    if (!data || !data.activePayload || data.activePayload.length === 0) return;
+    
+    const clickedDate = data.activeLabel;
+    const now = new Date();
+    const endDate = addMonths(now, 1);
+    const days = eachDayOfInterval({ start: now, end: endDate });
+    const targetDay = days.find(d => format(d, 'MMM d') === clickedDate);
+    
+    if (!targetDay) return;
+
+    const dayPayments = payments.filter(p => {
+      if (!p.expected_date || p.status === 'received') return false;
+      const paymentDate = parseISO(p.expected_date);
+      return isSameDay(paymentDate, targetDay);
+    });
+
+    const pipelineClosures = filteredPipeline.filter(p => {
+      if (!p.expected_closure_date || p.status === 'won' || p.status === 'lost') return false;
+      const closureDate = parseISO(p.expected_closure_date);
+      return isSameDay(closureDate, targetDay);
+    });
+
+    const items: DetailItem[] = [
+      ...dayPayments.map(p => ({
+        id: p.id,
+        type: 'payment' as const,
+        customer_name: p.customer_name,
+        customer_company: p.customer_company || '',
+        product_name: p.order_number || 'Payment',
+        value: p.amount,
+        date: p.expected_date,
+        status: p.status,
+      })),
+      ...pipelineClosures.map(p => ({
+        id: p.id,
+        type: 'pipeline' as const,
+        customer_name: p.customer_name,
+        customer_company: p.customer_company,
+        product_name: p.product_name,
+        value: p.expected_price || 0,
+        date: p.expected_closure_date || '',
+        status: p.status,
+        temperature: p.lead_temperature,
+      })),
+    ];
+
+    setDialogTitle(`Expected Inflows - ${clickedDate} (${items.length} items)`);
+    setDialogItems(items);
+    setDetailDialogOpen(true);
+  };
+
+  const handleCategoryClick = (category: string) => {
+    const items: DetailItem[] = filteredPipeline
+      .filter(p => p.product_category === category && p.status !== 'won' && p.status !== 'lost')
+      .map(p => ({
+        id: p.id,
+        type: 'pipeline' as const,
+        customer_name: p.customer_name,
+        customer_company: p.customer_company,
+        product_name: p.product_name,
+        value: p.expected_price || 0,
+        date: p.created_at,
+        status: p.status,
+        temperature: p.lead_temperature,
+      }));
+    
+    setDialogTitle(`${category} Pipeline (${items.length})`);
+    setDialogItems(items);
+    setDetailDialogOpen(true);
+  };
+
+  const handleStateClick = (state: string) => {
+    const items: DetailItem[] = filteredPipeline
+      .filter(p => (p as any).customer_state === state && p.status !== 'won' && p.status !== 'lost')
+      .map(p => ({
+        id: p.id,
+        type: 'pipeline' as const,
+        customer_name: p.customer_name,
+        customer_company: p.customer_company,
+        product_name: p.product_name,
+        value: p.expected_price || 0,
+        date: p.created_at,
+        status: p.status,
+        temperature: p.lead_temperature,
+      }));
+    
+    setDialogTitle(`${state} Pipeline (${items.length})`);
+    setDialogItems(items);
+    setDetailDialogOpen(true);
   };
 
   const loading = pipelineLoading || paymentsLoading || enquiriesLoading;
@@ -394,7 +532,11 @@ export function SalesAnalyticsDashboard() {
             ) : (
               <div className="space-y-4">
                 {pipelineByTemperature.map((temp) => (
-                  <div key={temp.name} className="space-y-1">
+                  <div 
+                    key={temp.name} 
+                    className="space-y-1 cursor-pointer hover:bg-muted/50 p-2 rounded-lg -m-2 transition-colors"
+                    onClick={() => handleTemperatureClick(temp.name)}
+                  >
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2">
                         <div 
@@ -431,7 +573,7 @@ export function SalesAnalyticsDashboard() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={paymentsTimeline}>
+              <AreaChart data={paymentsTimeline} onClick={handleInflowChartClick} style={{ cursor: 'pointer' }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis 
                   dataKey="date" 
@@ -529,7 +671,8 @@ export function SalesAnalyticsDashboard() {
             {pipelineByCategory.slice(0, 8).map((cat, index) => (
               <div 
                 key={cat.category}
-                className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
+                onClick={() => handleCategoryClick(cat.category)}
               >
                 <div className="flex items-center gap-3">
                   <div 
@@ -555,6 +698,66 @@ export function SalesAnalyticsDashboard() {
 
       {/* Daily Activity Analytics for Managers */}
       <DailyActivityAnalytics />
+
+      {/* Detail Drill-Down Dialog */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {dialogTitle}
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] pr-4">
+            {dialogItems.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No items found for this selection
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {dialogItems.map((item) => (
+                  <div 
+                    key={item.id}
+                    className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium truncate">{item.customer_name}</span>
+                        <Badge variant="outline" className="text-xs shrink-0">
+                          {item.type === 'payment' ? 'Payment' : 'Pipeline'}
+                        </Badge>
+                        {item.temperature && (
+                          <LeadTemperatureBadge 
+                            temperature={item.temperature as any} 
+                            showLabel={false}
+                            size="sm"
+                          />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Building2 className="w-3 h-3" />
+                        <span className="truncate">{item.customer_company}</span>
+                        <span>•</span>
+                        <span className="truncate">{item.product_name}</span>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0 ml-3">
+                      <p className="font-semibold text-primary">{formatCurrency(item.value)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.date ? format(new Date(item.date), 'dd MMM yyyy') : '—'}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+          <div className="flex justify-end pt-4 border-t">
+            <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
