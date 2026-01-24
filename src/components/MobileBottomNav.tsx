@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, ListTodo, Zap, MoreHorizontal, Calendar, LogOut, Package, FileSpreadsheet, ShoppingCart, Warehouse, Building2, IndianRupee, Shield, ClipboardList, Wrench } from 'lucide-react';
+import { Home, ListTodo, Zap, MoreHorizontal, Calendar, LogOut, Package, FileSpreadsheet, ShoppingCart, Warehouse, Building2, IndianRupee, Shield, ClipboardList, Wrench, GraduationCap } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Drawer,
@@ -38,6 +38,7 @@ export function MobileBottomNav() {
     { path: "/procurement", label: "Procurement", icon: ShoppingCart, roles: ["admin", "supply_chain", "finance"] },
     { path: "/inventory", label: "Inventory", icon: Warehouse, roles: ["sales", "supply_chain", "admin"] },
     { path: "/repairs", label: "Repairs", icon: Wrench, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/trainings", label: "Training", icon: GraduationCap, roles: ["sales", "supply_chain", "admin", "finance"] },
     { path: "/suppliers", label: "Suppliers", icon: Building2, roles: ["admin", "supply_chain", "finance"] },
     { path: "/finance", label: "Finance", icon: IndianRupee, roles: ["admin", "finance"] },
     { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "supply_chain", "admin", "finance"] },

@@ -3101,6 +3101,72 @@ export type Database = {
           },
         ]
       }
+      trainings: {
+        Row: {
+          amount_paid: number | null
+          amount_quoted: number | null
+          category: Database["public"]["Enums"]["training_category"]
+          city: string
+          client_name: string
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          id: string
+          model_name: string | null
+          no_of_people: number | null
+          notes: string | null
+          payment_status: Database["public"]["Enums"]["training_payment_status"]
+          pictures: string[] | null
+          trainee_names: string[] | null
+          training_date: string | null
+          training_number: string | null
+          type: Database["public"]["Enums"]["training_type"]
+          updated_at: string
+        }
+        Insert: {
+          amount_paid?: number | null
+          amount_quoted?: number | null
+          category?: Database["public"]["Enums"]["training_category"]
+          city: string
+          client_name: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          model_name?: string | null
+          no_of_people?: number | null
+          notes?: string | null
+          payment_status?: Database["public"]["Enums"]["training_payment_status"]
+          pictures?: string[] | null
+          trainee_names?: string[] | null
+          training_date?: string | null
+          training_number?: string | null
+          type?: Database["public"]["Enums"]["training_type"]
+          updated_at?: string
+        }
+        Update: {
+          amount_paid?: number | null
+          amount_quoted?: number | null
+          category?: Database["public"]["Enums"]["training_category"]
+          city?: string
+          client_name?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          model_name?: string | null
+          no_of_people?: number | null
+          notes?: string | null
+          payment_status?: Database["public"]["Enums"]["training_payment_status"]
+          pictures?: string[] | null
+          trainee_names?: string[] | null
+          training_date?: string | null
+          training_number?: string | null
+          type?: Database["public"]["Enums"]["training_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -3263,6 +3329,9 @@ export type Database = {
         | "order_confirmation"
         | "custom"
         | "meeting_reminder"
+      training_category: "drone_ops" | "software_usage" | "both"
+      training_payment_status: "pending" | "partial" | "paid"
+      training_type: "demo" | "training"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3435,6 +3504,9 @@ export const Constants = {
         "custom",
         "meeting_reminder",
       ],
+      training_category: ["drone_ops", "software_usage", "both"],
+      training_payment_status: ["pending", "partial", "paid"],
+      training_type: ["demo", "training"],
     },
   },
 } as const
