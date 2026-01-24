@@ -879,21 +879,43 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                               if (originalItem) {
                                 const updates: any = {};
                                 if (edits.product_name !== originalItem.product_name) updates.product_name = edits.product_name;
-                                if (edits.quantity !== originalItem.quantity) updates.quantity = parseInt(edits.quantity) || 1;
-                                if (edits.unit_price !== (originalItem.unit_price || '')) updates.unit_price = parseFloat(edits.unit_price) || null;
+                                if (edits.quantity !== originalItem.quantity) {
+                                  const nextQty = Number.parseInt(String(edits.quantity), 10);
+                                  updates.quantity = Number.isFinite(nextQty) && nextQty > 0 ? nextQty : 1;
+                                }
+                                if (edits.unit_price !== (originalItem.unit_price || '')) {
+                                  const raw = String(edits.unit_price ?? '').trim();
+                                  if (raw === '') {
+                                    updates.unit_price = null;
+                                  } else {
+                                    const next = Number(raw);
+                                    updates.unit_price = Number.isFinite(next) ? next : null;
+                                  }
+                                }
                                 if (edits.status !== originalItem.status) updates.status = edits.status;
                                 if (edits.notes !== (originalItem.notes || '')) updates.notes = edits.notes || null;
                                 if (canSeeProcurement && edits.procurement_rate !== (originalItem.procurement_rate || '')) {
-                                  updates.procurement_rate = parseFloat(edits.procurement_rate) || null;
+                                  const raw = String(edits.procurement_rate ?? '').trim();
+                                  if (raw === '') {
+                                    updates.procurement_rate = null;
+                                  } else {
+                                    const next = Number(raw);
+                                    updates.procurement_rate = Number.isFinite(next) ? next : null;
+                                  }
                                 }
                                 
                                 if (Object.keys(updates).length > 0) {
-                                  const { error } = await supabase
+                                  const { data, error } = await supabase
                                     .from('order_items')
                                     .update(updates)
-                                    .eq('id', itemId);
+                                    .eq('id', itemId)
+                                    .select('id')
+                                    .maybeSingle();
                                   
                                   if (error) throw error;
+                                  if (!data) {
+                                    throw new Error('No rows updated (insufficient permission or item not found)');
+                                  }
                                   
                                   // Record changes to edit history
                                   if (user && profile) {
@@ -919,7 +941,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             }
                           } catch (error: any) {
                             console.error('Error updating order items:', error);
-                            toast.error('Failed to update order items');
+                            const msg = String(error?.message || 'Failed to update order items');
+                            if (msg.toLowerCase().includes('row level security') || msg.toLowerCase().includes('insufficient permission')) {
+                              toast.error("You don't have permission to update order items for this order");
+                            } else {
+                              toast.error(msg);
+                            }
                           } finally {
                             setLoading(false);
                             setEditingOrderItems(false);
