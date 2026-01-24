@@ -1092,6 +1092,7 @@ export default function Expenses() {
                           <TableHead>Type</TableHead>
                           <TableHead>Description</TableHead>
                           <TableHead>Vendor</TableHead>
+                          <TableHead>Receipt</TableHead>
                           <TableHead>Linked To</TableHead>
                           <TableHead className="text-right">Amount</TableHead>
                           <TableHead className="text-right">Paid</TableHead>
@@ -1103,7 +1104,7 @@ export default function Expenses() {
                       <TableBody>
                         {filteredExpenses.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={canApprove ? 10 : 9} className="text-center py-8 text-muted-foreground">
+                            <TableCell colSpan={canApprove ? 11 : 10} className="text-center py-8 text-muted-foreground">
                               No expenses found
                             </TableCell>
                           </TableRow>
@@ -1129,6 +1130,21 @@ export default function Expenses() {
                                   {expense.description || '-'}
                                 </TableCell>
                                 <TableCell>{expense.vendor_name || '-'}</TableCell>
+                                <TableCell>
+                                  {expense.receipt_url ? (
+                                    <a
+                                      href={expense.receipt_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-primary hover:underline"
+                                    >
+                                      <FileText className="h-4 w-4" />
+                                      <span className="text-xs">View</span>
+                                    </a>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">-</span>
+                                  )}
+                                </TableCell>
                                 <TableCell>
                                   <div className="space-y-1">
                                     {linkedOrders.length > 0 && (
