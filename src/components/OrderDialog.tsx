@@ -19,7 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO } from 'date-fns';
 import { calculatePaymentDueDate } from '@/lib/paymentTerms';
 import { toast } from 'sonner';
-import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon } from 'lucide-react';
+import { Loader2, Package, User, Building2, Truck, Calendar, ExternalLink, Trash2, TrendingUp, Clock, CreditCard, MapPin, Upload, FileText, X, ShoppingCart, RotateCcw, AlertTriangle, Flag, Trophy, XCircle, Undo2, CalendarIcon, Pencil, Check } from 'lucide-react';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { OrderSupplierPayments } from '@/components/OrderSupplierPayments';
@@ -79,6 +79,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [escalationReason, setEscalationReason] = useState('');
   const [showEscalationForm, setShowEscalationForm] = useState(false);
   const [escalating, setEscalating] = useState(false);
+  
+  // Inline edit states
+  const [editingCustomerInfo, setEditingCustomerInfo] = useState(false);
+  const [editingShipping, setEditingShipping] = useState(false);
+  const [editingPayment, setEditingPayment] = useState(false);
+  const [editingTracking, setEditingTracking] = useState(false);
 
   const [status, setStatus] = useState<OrderStatus>('po_received');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
@@ -681,51 +687,147 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               )}
             </div>
 
-            {/* Order Details */}
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Quantity:</span>
-                <span className="font-medium">{order.quantity}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Customer:</span>
-                <span className="font-medium">{order.customer_name}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Company:</span>
-                <span className="font-medium">{order.customer_company}</span>
-              </div>
-              {canSeeProcurement && (
+            {/* Order Details - Customer Info */}
+            <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Sales:</span>
-                  <span className="font-medium">{order.sales_person_name}</span>
+                  <User className="h-5 w-5" />
+                  <span className="font-medium">Customer Information</span>
                 </div>
-              )}
-              {order.committed_timeline && (
-                <div className="flex items-center gap-2 col-span-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Committed Timeline:</span>
-                  <span className="font-medium">{order.committed_timeline}</span>
+                {canEditOrder && !editingCustomerInfo && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingCustomerInfo(true)}
+                    className="h-8 gap-1"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Edit
+                  </Button>
+                )}
+                {editingCustomerInfo && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingCustomerInfo(false)}
+                    className="h-8 gap-1 text-green-600 hover:text-green-700"
+                  >
+                    <Check className="h-4 w-4" />
+                    Done
+                  </Button>
+                )}
+              </div>
+              
+              {editingCustomerInfo && canEditOrder ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="inline_customer_name">Customer Name</Label>
+                    <Input
+                      id="inline_customer_name"
+                      value={customerName}
+                      onChange={e => setCustomerName(e.target.value)}
+                      disabled={loading}
+                      placeholder="Customer name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="inline_customer_company">Company Name</Label>
+                    <Input
+                      id="inline_customer_company"
+                      value={customerCompany}
+                      onChange={e => setCustomerCompany(e.target.value)}
+                      disabled={loading}
+                      placeholder="Company name"
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="inline_committed_timeline">Committed Timeline</Label>
+                    <Input
+                      id="inline_committed_timeline"
+                      value={committedTimeline}
+                      onChange={e => setCommittedTimeline(e.target.value)}
+                      disabled={loading}
+                      placeholder="e.g., 2-3 weeks"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Quantity:</span>
+                    <span className="font-medium">{order.quantity}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Customer:</span>
+                    <span className="font-medium">{customerName || order.customer_name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Company:</span>
+                    <span className="font-medium">{customerCompany || order.customer_company}</span>
+                  </div>
+                  {canSeeProcurement && (
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Sales:</span>
+                      <span className="font-medium">{order.sales_person_name}</span>
+                    </div>
+                  )}
+                  {(committedTimeline || order.committed_timeline) && (
+                    <div className="flex items-center gap-2 col-span-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Committed Timeline:</span>
+                      <span className="font-medium">{committedTimeline || order.committed_timeline}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
             {/* Shipping Address */}
-            {order.shipping_address && (
-              <div className="p-3 bg-muted/50 rounded-lg">
-                <div className="flex items-start gap-2 text-sm">
-                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <span className="text-muted-foreground">Shipping Address:</span>
-                    <p className="font-medium mt-1">{order.shipping_address}</p>
-                  </div>
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Shipping Address:</span>
                 </div>
+                {canEditOrder && !editingShipping && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingShipping(true)}
+                    className="h-7 gap-1 text-xs"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Edit
+                  </Button>
+                )}
+                {editingShipping && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingShipping(false)}
+                    className="h-7 gap-1 text-xs text-green-600 hover:text-green-700"
+                  >
+                    <Check className="h-3 w-3" />
+                    Done
+                  </Button>
+                )}
               </div>
-            )}
+              {editingShipping && canEditOrder ? (
+                <Textarea
+                  value={shippingAddress}
+                  onChange={e => setShippingAddress(e.target.value)}
+                  disabled={loading}
+                  rows={2}
+                  placeholder="Enter shipping address..."
+                />
+              ) : (
+                <p className="font-medium text-sm">{shippingAddress || order.shipping_address || 'No address provided'}</p>
+              )}
+            </div>
 
             {/* Order Items */}
             {orderItems.length > 0 && (
@@ -785,7 +887,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
             {/* Payment Info */}
             <div className="p-4 bg-muted/50 rounded-lg space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <CreditCard className="h-5 w-5" />
                   <span className="font-medium">Payment Information</span>
@@ -793,47 +895,143 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     {paymentConfig.label}
                   </Badge>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPaymentUploadOpen(true)}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Payment
-                </Button>
+                <div className="flex items-center gap-2">
+                  {canEditOrder && !editingPayment && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditingPayment(true)}
+                      className="h-8 gap-1"
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Edit
+                    </Button>
+                  )}
+                  {editingPayment && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditingPayment(false)}
+                      className="h-8 gap-1 text-green-600 hover:text-green-700"
+                    >
+                      <Check className="h-4 w-4" />
+                      Done
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPaymentUploadOpen(true)}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Payment
+                  </Button>
+                </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                {order.total_sales_amount !== null && (
+              
+              {editingPayment && canEditOrder ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="inline_total_sales">Total Sales Amount (₹)</Label>
+                    <Input
+                      id="inline_total_sales"
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      value={totalSalesAmount}
+                      onChange={e => setTotalSalesAmount(e.target.value)}
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="inline_discount">Discount (₹)</Label>
+                    <Input
+                      id="inline_discount"
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      value={discountAmount}
+                      onChange={e => setDiscountAmount(e.target.value)}
+                      disabled={loading}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="inline_amount_paid">Amount Paid (₹)</Label>
+                    <Input
+                      id="inline_amount_paid"
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      value={amountPaid}
+                      onChange={e => setAmountPaid(e.target.value)}
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="inline_payment_status">Payment Status</Label>
+                    <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as PaymentStatus)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAYMENT_STATUSES.map(s => (
+                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="inline_payment_terms">Payment Terms</Label>
+                    <Input
+                      id="inline_payment_terms"
+                      value={paymentTerms}
+                      onChange={e => setPaymentTerms(e.target.value)}
+                      disabled={loading}
+                      placeholder="e.g., 50% advance, 50% on delivery"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="inline_payment_due">Payment Due Date</Label>
+                    <Input
+                      id="inline_payment_due"
+                      type="date"
+                      value={paymentDueDate}
+                      onChange={e => setPaymentDueDate(e.target.value)}
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Total Amount:</span>
-                    <p className="font-medium">₹{order.total_sales_amount?.toLocaleString('en-IN')}</p>
+                    <p className="font-medium">₹{(parseFloat(totalSalesAmount) || order.total_sales_amount || 0).toLocaleString('en-IN')}</p>
                   </div>
-                )}
-                {order.discount_amount && order.discount_amount > 0 && (
-                  <div>
-                    <span className="text-muted-foreground">Discount:</span>
-                    <p className="font-medium text-purple-600">-₹{order.discount_amount?.toLocaleString('en-IN')}</p>
-                  </div>
-                )}
-                {order.amount_paid !== null && (
+                  {(parseFloat(discountAmount) > 0 || (order.discount_amount && order.discount_amount > 0)) && (
+                    <div>
+                      <span className="text-muted-foreground">Discount:</span>
+                      <p className="font-medium text-purple-600">-₹{(parseFloat(discountAmount) || order.discount_amount || 0).toLocaleString('en-IN')}</p>
+                    </div>
+                  )}
                   <div>
                     <span className="text-muted-foreground">Paid:</span>
-                    <p className="font-medium text-green-600">₹{order.amount_paid?.toLocaleString('en-IN')}</p>
+                    <p className="font-medium text-green-600">₹{(parseFloat(amountPaid) || order.amount_paid || 0).toLocaleString('en-IN')}</p>
                   </div>
-                )}
-                {balanceAmount !== null && balanceAmount > 0 && (
-                  <div>
-                    <span className="text-muted-foreground">Balance:</span>
-                    <p className="font-medium text-orange-600">₹{balanceAmount?.toLocaleString('en-IN')}</p>
-                  </div>
-                )}
-                {order.payment_terms && (
-                  <div className="col-span-2 md:col-span-4">
-                    <span className="text-muted-foreground">Terms:</span>
-                    <p className="font-medium">{order.payment_terms}</p>
-                  </div>
-                )}
-              </div>
+                  {balanceAmount !== null && balanceAmount > 0 && (
+                    <div>
+                      <span className="text-muted-foreground">Balance:</span>
+                      <p className="font-medium text-orange-600">₹{balanceAmount?.toLocaleString('en-IN')}</p>
+                    </div>
+                  )}
+                  {(paymentTerms || order.payment_terms) && (
+                    <div className="col-span-2 md:col-span-4">
+                      <span className="text-muted-foreground">Terms:</span>
+                      <p className="font-medium">{paymentTerms || order.payment_terms}</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Payment Records */}
               <div className="pt-3 border-t border-border">
@@ -880,46 +1078,120 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             )}
 
             {/* Tracking Info */}
-            {(order.tracking_number || order.estimated_delivery) && (
-              <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+            <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
                 <h4 className="font-medium flex items-center gap-2">
                   <Truck className="h-4 w-4" />
                   Tracking Information
                 </h4>
-                {order.tracking_number && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-muted-foreground">Tracking Number:</span>
-                    {order.tracking_url ? (
-                      <a
-                        href={order.tracking_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline flex items-center gap-1"
-                      >
-                        {order.tracking_number}
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    ) : (
-                      <span>{order.tracking_number}</span>
-                    )}
-                  </div>
+                {canEditOrder && !editingTracking && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingTracking(true)}
+                    className="h-8 gap-1"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Edit
+                  </Button>
                 )}
-                {order.estimated_delivery && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Est. Delivery:</span>
-                    <span>{format(new Date(order.estimated_delivery), 'dd MMM yyyy')}</span>
-                  </div>
-                )}
-                {order.actual_delivery && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Delivered:</span>
-                    <span>{format(new Date(order.actual_delivery), 'dd MMM yyyy')}</span>
-                  </div>
+                {editingTracking && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingTracking(false)}
+                    className="h-8 gap-1 text-green-600 hover:text-green-700"
+                  >
+                    <Check className="h-4 w-4" />
+                    Done
+                  </Button>
                 )}
               </div>
-            )}
+              
+              {editingTracking && canEditOrder ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="inline_tracking_number">Tracking Number</Label>
+                    <Input
+                      id="inline_tracking_number"
+                      value={trackingNumber}
+                      onChange={e => setTrackingNumber(e.target.value)}
+                      disabled={loading}
+                      placeholder="Enter tracking number"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="inline_tracking_url">Tracking URL</Label>
+                    <Input
+                      id="inline_tracking_url"
+                      type="url"
+                      value={trackingUrl}
+                      onChange={e => setTrackingUrl(e.target.value)}
+                      disabled={loading}
+                      placeholder="https://..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="inline_estimated_delivery">Estimated Delivery</Label>
+                    <Input
+                      id="inline_estimated_delivery"
+                      type="date"
+                      value={estimatedDelivery}
+                      onChange={e => setEstimatedDelivery(e.target.value)}
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="inline_actual_delivery">Actual Delivery</Label>
+                    <Input
+                      id="inline_actual_delivery"
+                      type="date"
+                      value={actualDelivery}
+                      onChange={e => setActualDelivery(e.target.value)}
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {(trackingNumber || order.tracking_number) && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-muted-foreground">Tracking Number:</span>
+                      {(trackingUrl || order.tracking_url) ? (
+                        <a
+                          href={trackingUrl || order.tracking_url || ''}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline flex items-center gap-1"
+                        >
+                          {trackingNumber || order.tracking_number}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        <span>{trackingNumber || order.tracking_number}</span>
+                      )}
+                    </div>
+                  )}
+                  {(estimatedDelivery || order.estimated_delivery) && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Est. Delivery:</span>
+                      <span>{format(new Date(estimatedDelivery || order.estimated_delivery!), 'dd MMM yyyy')}</span>
+                    </div>
+                  )}
+                  {(actualDelivery || order.actual_delivery) && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Delivered:</span>
+                      <span>{format(new Date(actualDelivery || order.actual_delivery!), 'dd MMM yyyy')}</span>
+                    </div>
+                  )}
+                  {!trackingNumber && !order.tracking_number && !estimatedDelivery && !order.estimated_delivery && (
+                    <p className="text-sm text-muted-foreground">No tracking information yet</p>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Invoice Section */}
             <div className="p-4 bg-muted/50 rounded-lg space-y-3">
