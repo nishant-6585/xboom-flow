@@ -691,6 +691,42 @@ export type Database = {
           },
         ]
       }
+      form_permissions: {
+        Row: {
+          can_create_forms: boolean
+          can_delete_submissions: boolean
+          can_edit_forms: boolean
+          can_view_forms: boolean
+          can_view_submissions: boolean
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          can_create_forms?: boolean
+          can_delete_submissions?: boolean
+          can_edit_forms?: boolean
+          can_view_forms?: boolean
+          can_view_submissions?: boolean
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          can_create_forms?: boolean
+          can_delete_submissions?: boolean
+          can_edit_forms?: boolean
+          can_view_forms?: boolean
+          can_view_submissions?: boolean
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       form_submissions: {
         Row: {
           form_id: string
@@ -3049,6 +3085,10 @@ export type Database = {
           overdue_tasks: number
           total_tasks: number
         }[]
+      }
+      has_form_permission: {
+        Args: { _permission: string; _user_id: string }
+        Returns: boolean
       }
       has_role: {
         Args: {
