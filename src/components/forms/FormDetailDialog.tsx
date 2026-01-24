@@ -1,16 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Form, useFormFields, useForms } from "@/hooks/useForms";
 import { FormBuilder } from "./FormBuilder";
 import { FormPreview } from "./FormPreview";
 import { FormSubmissionsTable } from "./FormSubmissionsTable";
 import { FormEmbedDialog } from "./FormEmbedDialog";
-import { Code, Eye, Settings, Inbox } from "lucide-react";
+import { Code, Eye, Settings, Inbox, Save } from "lucide-react";
+import { toast } from "sonner";
 
 interface FormDetailDialogProps {
   form: Form | null;
@@ -20,10 +23,36 @@ interface FormDetailDialogProps {
 
 export function FormDetailDialog({ form, open, onOpenChange }: FormDetailDialogProps) {
   const { fields } = useFormFields(form?.id || "");
-  const { updateForm } = useForms();
+  const { updateForm, isUpdating } = useForms();
   const [embedOpen, setEmbedOpen] = useState(false);
+  const [editName, setEditName] = useState(form?.name || "");
+  const [editDescription, setEditDescription] = useState(form?.description || "");
+
+  // Sync state when form changes
+  useEffect(() => {
+    if (form) {
+      setEditName(form.name);
+      setEditDescription(form.description || "");
+    }
+  }, [form?.id, form?.name, form?.description]);
 
   if (!form) return null;
+
+  const handleSaveDetails = () => {
+    if (!editName.trim()) {
+      toast.error("Form name is required");
+      return;
+    }
+    updateForm({
+      id: form.id,
+      name: editName.trim(),
+      description: editDescription.trim() || null,
+    }, {
+      onSuccess: () => toast.success("Form details updated"),
+    });
+  };
+
+  const hasChanges = editName !== form.name || editDescription !== (form.description || "");
 
   return (
     <>
@@ -86,6 +115,41 @@ export function FormDetailDialog({ form, open, onOpenChange }: FormDetailDialogP
             </TabsContent>
 
             <TabsContent value="settings" className="mt-6 space-y-6">
+              {/* Form Details */}
+              <div className="p-4 border rounded-lg space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-medium">Form Details</Label>
+                  {hasChanges && (
+                    <Button size="sm" onClick={handleSaveDetails} disabled={isUpdating}>
+                      <Save className="h-4 w-4 mr-2" />
+                      {isUpdating ? "Saving..." : "Save Changes"}
+                    </Button>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-name">Form Name *</Label>
+                    <Input
+                      id="edit-name"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="Form name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-description">Description</Label>
+                    <Textarea
+                      id="edit-description"
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      placeholder="Brief description of this form"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Status */}
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div>
                   <Label className="text-base">Form Status</Label>
