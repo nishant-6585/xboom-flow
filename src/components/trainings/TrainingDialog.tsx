@@ -9,7 +9,9 @@ import { Training, TrainingFormData, TRAINING_TYPES, TRAINING_CATEGORIES, TRAINI
 import { TrainingForm } from "./TrainingForm";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
-import { Edit2, Trash2, MapPin, Calendar, Users, IndianRupee, Upload, X } from "lucide-react";
+import { Edit2, Trash2, MapPin, Calendar, Users, IndianRupee, Upload, X, Award, Download, FileDown } from "lucide-react";
+import { generateCertificate, generateAllCertificates } from "@/lib/certificateGenerator";
+import { toast } from "sonner";
 
 interface TrainingDialogProps {
   training: Training | null;
@@ -66,6 +68,37 @@ export function TrainingDialog({ training, open, onOpenChange, onUpdate, onDelet
     } finally {
       setIsUploadingPictures(false);
     }
+  };
+
+  const handleGenerateCertificate = (traineeName: string) => {
+    generateCertificate({
+      traineeName,
+      clientName: training.client_name,
+      trainingType: training.type,
+      category: training.category,
+      modelName: training.model_name,
+      trainingDate: training.training_date,
+      trainingNumber: training.training_number,
+      city: training.city,
+    });
+    toast.success(`Certificate generated for ${traineeName}`);
+  };
+
+  const handleGenerateAllCertificates = () => {
+    if (!training.trainee_names || training.trainee_names.length === 0) {
+      toast.error("No trainees to generate certificates for");
+      return;
+    }
+    generateAllCertificates(training.trainee_names, {
+      clientName: training.client_name,
+      trainingType: training.type,
+      category: training.category,
+      modelName: training.model_name,
+      trainingDate: training.training_date,
+      trainingNumber: training.training_number,
+      city: training.city,
+    });
+    toast.success(`Generating ${training.trainee_names.length} certificates...`);
   };
 
   if (isEditing) {
@@ -186,15 +219,48 @@ export function TrainingDialog({ training, open, onOpenChange, onUpdate, onDelet
                 </div>
               </div>
 
-              {/* Trainee Names */}
+              {/* Trainee Names & Certificates */}
               {training.trainee_names && training.trainee_names.length > 0 && (
                 <>
                   <Separator />
                   <div>
-                    <h3 className="font-semibold text-lg mb-3">Trainee Names</h3>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-lg flex items-center gap-2">
+                        <Award className="h-5 w-5 text-primary" />
+                        Trainee Names & Certificates
+                      </h3>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGenerateAllCertificates}
+                        className="gap-1"
+                      >
+                        <FileDown className="h-4 w-4" />
+                        Download All ({training.trainee_names.length})
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
                       {training.trainee_names.map((name, index) => (
-                        <Badge key={index} variant="secondary">{name}</Badge>
+                        <div 
+                          key={index} 
+                          className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="font-medium">
+                              {index + 1}
+                            </Badge>
+                            <span className="font-medium">{name}</span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleGenerateCertificate(name)}
+                            className="gap-1 text-primary hover:text-primary"
+                          >
+                            <Download className="h-4 w-4" />
+                            Certificate
+                          </Button>
+                        </div>
                       ))}
                     </div>
                   </div>
