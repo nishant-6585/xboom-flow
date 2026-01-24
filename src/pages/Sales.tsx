@@ -25,7 +25,7 @@ import { EnquiriesPanel } from "@/components/sales/EnquiriesPanel";
 
 export default function Sales() {
   const { role } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const isManager = role === 'admin' || role === 'supply_chain';
   const [assistantOpen, setAssistantOpen] = useState(false);
   
@@ -40,17 +40,6 @@ export default function Sales() {
       setActiveTab(urlTab);
     }
   }, [urlTab]);
-
-  // Clear URL params after processing
-  useEffect(() => {
-    if (urlTab || urlLeadId) {
-      // Keep params until pipeline component processes leadId
-      const timer = setTimeout(() => {
-        setSearchParams({});
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [urlTab, urlLeadId, setSearchParams]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">

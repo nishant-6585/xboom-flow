@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -63,6 +63,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
   const [salesTeam, setSalesTeam] = useState<SalesTeamMember[]>([]);
   const [editOrder, setEditOrder] = useState<PipelineOrder | null>(null);
   const [editClosureDate, setEditClosureDate] = useState<Date | undefined>(undefined);
+  const lastAutoOpenedId = useRef<string | null>(null);
 
   // Use external filter if provided, otherwise use internal
   const statusFilter = externalStatusFilter ?? internalStatusFilter;
@@ -78,14 +79,18 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
     fetchSalesTeam();
   }, []);
 
-  // Auto-open lead dialog when selectedLeadId is provided
+  // Auto-open lead dialog when selectedLeadId is provided (once per id)
   useEffect(() => {
-    if (selectedLeadId && orders.length > 0) {
-      const targetOrder = orders.find(o => o.id === selectedLeadId);
-      if (targetOrder) {
-        handleEditClick(targetOrder);
-      }
-    }
+    if (!selectedLeadId) return;
+    if (lastAutoOpenedId.current === selectedLeadId) return;
+    if (orders.length === 0) return;
+
+    const targetOrder = orders.find((o) => o.id === selectedLeadId);
+    if (!targetOrder) return;
+
+    lastAutoOpenedId.current = selectedLeadId;
+    setEditOrder(targetOrder);
+    setEditClosureDate(targetOrder.expected_closure_date ? new Date(targetOrder.expected_closure_date) : undefined);
   }, [selectedLeadId, orders]);
 
   const filteredOrders = orders.filter(order => {
