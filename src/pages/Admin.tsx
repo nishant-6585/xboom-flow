@@ -12,7 +12,7 @@ import { useOrders } from "@/hooks/useOrders";
 import { EnquiryAnalytics, ValueFilterType } from "@/components/EnquiryAnalytics";
 import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
 import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
-import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare } from "lucide-react";
+import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Navigate, useNavigate } from "react-router-dom";
 import { SlackSettingsPanel } from "@/components/admin/SlackSettingsPanel";
+import { FormPermissionsPanel } from "@/components/admin/FormPermissionsPanel";
 
 interface PendingUser {
   id: string;
@@ -399,6 +400,10 @@ const Admin = () => {
               <MessageSquare className="w-4 h-4" />
               Integrations
             </TabsTrigger>
+            <TabsTrigger value="form-access" className="flex items-center gap-2">
+              <ClipboardList className="w-4 h-4" />
+              Form Access
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="analytics">
@@ -689,6 +694,10 @@ const Admin = () => {
 
           <TabsContent value="integrations">
             <SlackSettingsPanel />
+          </TabsContent>
+
+          <TabsContent value="form-access">
+            <FormPermissionsPanel />
           </TabsContent>
         </Tabs>
       </main>
