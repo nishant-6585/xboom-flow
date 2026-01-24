@@ -85,6 +85,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [editingShipping, setEditingShipping] = useState(false);
   const [editingPayment, setEditingPayment] = useState(false);
   const [editingTracking, setEditingTracking] = useState(false);
+  const [editingOrderItems, setEditingOrderItems] = useState(false);
+  const [editedOrderItems, setEditedOrderItems] = useState<Record<string, any>>({});
 
   const [status, setStatus] = useState<OrderStatus>('po_received');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
@@ -832,9 +834,118 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             {/* Order Items */}
             {orderItems.length > 0 && (
               <div className="p-4 bg-muted/50 rounded-lg space-y-3">
-                <div className="flex items-center gap-2">
-                  <ShoppingCart className="h-5 w-5" />
-                  <span className="font-medium">Order Items ({orderItems.length})</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShoppingCart className="h-5 w-5" />
+                    <span className="font-medium">Order Items ({orderItems.length})</span>
+                  </div>
+                  {canEditOrder && !editingOrderItems && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditingOrderItems(true);
+                        // Initialize edited items with current values
+                        const initialEdits: Record<string, any> = {};
+                        orderItems.forEach(item => {
+                          initialEdits[item.id] = {
+                            product_name: item.product_name,
+                            quantity: item.quantity,
+                            unit_price: item.unit_price || '',
+                            status: item.status,
+                            notes: item.notes || '',
+                            procurement_rate: item.procurement_rate || '',
+                          };
+                        });
+                        setEditedOrderItems(initialEdits);
+                      }}
+                      className="h-8 gap-1"
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Edit
+                    </Button>
+                  )}
+                  {editingOrderItems && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          // Save all edited order items
+                          setLoading(true);
+                          try {
+                            for (const [itemId, edits] of Object.entries(editedOrderItems)) {
+                              const originalItem = orderItems.find(i => i.id === itemId);
+                              if (originalItem) {
+                                const updates: any = {};
+                                if (edits.product_name !== originalItem.product_name) updates.product_name = edits.product_name;
+                                if (edits.quantity !== originalItem.quantity) updates.quantity = parseInt(edits.quantity) || 1;
+                                if (edits.unit_price !== (originalItem.unit_price || '')) updates.unit_price = parseFloat(edits.unit_price) || null;
+                                if (edits.status !== originalItem.status) updates.status = edits.status;
+                                if (edits.notes !== (originalItem.notes || '')) updates.notes = edits.notes || null;
+                                if (canSeeProcurement && edits.procurement_rate !== (originalItem.procurement_rate || '')) {
+                                  updates.procurement_rate = parseFloat(edits.procurement_rate) || null;
+                                }
+                                
+                                if (Object.keys(updates).length > 0) {
+                                  const { error } = await supabase
+                                    .from('order_items')
+                                    .update(updates)
+                                    .eq('id', itemId);
+                                  
+                                  if (error) throw error;
+                                  
+                                  // Record changes to edit history
+                                  if (user && profile) {
+                                    const changesRecord: Record<string, { old: any; new: any }> = {};
+                                    Object.entries(updates).forEach(([field, newValue]) => {
+                                      changesRecord[`order_item.${field}`] = {
+                                        old: originalItem[field],
+                                        new: newValue
+                                      };
+                                    });
+                                    if (Object.keys(changesRecord).length > 0) {
+                                      await recordChanges('order_items', itemId, changesRecord, profile.name || 'Unknown');
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                            toast.success('Order items updated');
+                            // Refresh order items
+                            if (order) {
+                              const refreshedItems = await fetchOrderItems(order.id);
+                              setOrderItems(refreshedItems);
+                            }
+                          } catch (error: any) {
+                            console.error('Error updating order items:', error);
+                            toast.error('Failed to update order items');
+                          } finally {
+                            setLoading(false);
+                            setEditingOrderItems(false);
+                            setEditedOrderItems({});
+                          }
+                        }}
+                        className="h-8 gap-1 text-green-600 hover:text-green-700"
+                        disabled={loading}
+                      >
+                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                        Save
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingOrderItems(false);
+                          setEditedOrderItems({});
+                        }}
+                        className="h-8 gap-1"
+                      >
+                        <X className="h-4 w-4" />
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 <Table>
                   <TableHeader>
@@ -851,32 +962,127 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     {orderItems.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell>
-                          <div>
-                            <span className="font-medium">{item.product_name}</span>
-                            {item.product_code && (
-                              <span className="text-xs text-muted-foreground ml-2">({item.product_code})</span>
-                            )}
-                          </div>
-                          {item.notes && (
-                            <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>
+                          {editingOrderItems ? (
+                            <div className="space-y-1">
+                              <Input
+                                value={editedOrderItems[item.id]?.product_name || ''}
+                                onChange={(e) => setEditedOrderItems(prev => ({
+                                  ...prev,
+                                  [item.id]: { ...prev[item.id], product_name: e.target.value }
+                                }))}
+                                className="h-8 text-sm"
+                                placeholder="Product name"
+                              />
+                              <Input
+                                value={editedOrderItems[item.id]?.notes || ''}
+                                onChange={(e) => setEditedOrderItems(prev => ({
+                                  ...prev,
+                                  [item.id]: { ...prev[item.id], notes: e.target.value }
+                                }))}
+                                className="h-7 text-xs"
+                                placeholder="Notes (optional)"
+                              />
+                            </div>
+                          ) : (
+                            <div>
+                              <span className="font-medium">{item.product_name}</span>
+                              {item.product_code && (
+                                <span className="text-xs text-muted-foreground ml-2">({item.product_code})</span>
+                              )}
+                              {item.notes && (
+                                <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>
+                              )}
+                            </div>
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            {ORDER_ITEM_STATUSES.find(s => s.value === item.status)?.label || item.status}
-                          </Badge>
+                          {editingOrderItems ? (
+                            <Select
+                              value={editedOrderItems[item.id]?.status || item.status}
+                              onValueChange={(v) => setEditedOrderItems(prev => ({
+                                ...prev,
+                                [item.id]: { ...prev[item.id], status: v }
+                              }))}
+                            >
+                              <SelectTrigger className="h-8 w-[130px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {ORDER_ITEM_STATUSES.map(s => (
+                                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              {ORDER_ITEM_STATUSES.find(s => s.value === item.status)?.label || item.status}
+                            </Badge>
+                          )}
                         </TableCell>
-                        <TableCell className="text-right">{item.quantity}</TableCell>
                         <TableCell className="text-right">
-                          {item.unit_price ? `₹${item.unit_price.toLocaleString('en-IN')}` : '-'}
+                          {editingOrderItems ? (
+                            <Input
+                              type="number"
+                              min={1}
+                              value={editedOrderItems[item.id]?.quantity || ''}
+                              onChange={(e) => setEditedOrderItems(prev => ({
+                                ...prev,
+                                [item.id]: { ...prev[item.id], quantity: e.target.value }
+                              }))}
+                              className="h-8 w-20 text-right text-sm"
+                            />
+                          ) : (
+                            item.quantity
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {editingOrderItems ? (
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={editedOrderItems[item.id]?.unit_price || ''}
+                              onChange={(e) => setEditedOrderItems(prev => ({
+                                ...prev,
+                                [item.id]: { ...prev[item.id], unit_price: e.target.value }
+                              }))}
+                              className="h-8 w-24 text-right text-sm"
+                              placeholder="₹0"
+                            />
+                          ) : (
+                            item.unit_price ? `₹${item.unit_price.toLocaleString('en-IN')}` : '-'
+                          )}
                         </TableCell>
                         {canSeeProcurement && (
                           <TableCell className="text-right">
-                            {item.procurement_rate ? `₹${item.procurement_rate.toLocaleString('en-IN')}` : '-'}
+                            {editingOrderItems ? (
+                              <Input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                value={editedOrderItems[item.id]?.procurement_rate || ''}
+                                onChange={(e) => setEditedOrderItems(prev => ({
+                                  ...prev,
+                                  [item.id]: { ...prev[item.id], procurement_rate: e.target.value }
+                                }))}
+                                className="h-8 w-24 text-right text-sm"
+                                placeholder="₹0"
+                              />
+                            ) : (
+                              item.procurement_rate ? `₹${item.procurement_rate.toLocaleString('en-IN')}` : '-'
+                            )}
                           </TableCell>
                         )}
                         <TableCell className="text-right font-medium">
-                          {item.unit_price ? `₹${(item.unit_price * item.quantity).toLocaleString('en-IN')}` : '-'}
+                          {editingOrderItems ? (
+                            <span className="text-sm">
+                              {editedOrderItems[item.id]?.unit_price && editedOrderItems[item.id]?.quantity
+                                ? `₹${(parseFloat(editedOrderItems[item.id].unit_price) * parseInt(editedOrderItems[item.id].quantity)).toLocaleString('en-IN')}`
+                                : '-'}
+                            </span>
+                          ) : (
+                            item.unit_price ? `₹${(item.unit_price * item.quantity).toLocaleString('en-IN')}` : '-'
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
