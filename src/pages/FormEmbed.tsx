@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle, AlertCircle, Send, Sparkles } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Send, Shield } from "lucide-react";
 import { FormField } from "@/hooks/useForms";
 
 interface FormData {
@@ -72,7 +72,6 @@ export default function FormEmbed() {
     e.preventDefault();
     if (!form) return;
 
-    // Validate required fields
     for (const field of fields) {
       if (field.is_required) {
         const value = formValues[field.id];
@@ -115,15 +114,16 @@ export default function FormEmbed() {
 
   const renderField = (field: FormField, index: number) => {
     const value = formValues[field.id];
-    const label = (
-      <Label className="text-sm font-medium text-foreground/90 flex items-center gap-1">
+    const animationDelay = { animationDelay: `${index * 60}ms` };
+
+    const labelElement = (
+      <Label className="text-sm font-medium text-foreground flex items-center gap-1.5 mb-2">
         {field.label}
-        {field.is_required && <span className="text-destructive">*</span>}
+        {field.is_required && <span className="text-destructive text-xs">*</span>}
       </Label>
     );
 
-    const baseInputClass = "transition-all duration-200 border-border/50 bg-background/50 backdrop-blur-sm focus:border-primary focus:ring-2 focus:ring-primary/20 hover:border-border";
-    const animationDelay = { animationDelay: `${index * 50}ms` };
+    const inputBaseClass = "h-11 bg-background border-border/60 rounded-lg transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20 hover:border-border placeholder:text-muted-foreground/50";
 
     switch (field.field_type) {
       case "text":
@@ -131,18 +131,18 @@ export default function FormEmbed() {
       case "phone":
         return (
           <div 
-            className="space-y-2 animate-fade-in opacity-0" 
+            className="animate-fade-in opacity-0" 
             key={field.id}
             style={animationDelay}
           >
-            {label}
+            {labelElement}
             <Input
               type={field.field_type === "email" ? "email" : field.field_type === "phone" ? "tel" : "text"}
               placeholder={field.placeholder}
               value={(value as string) || ""}
               onChange={(e) => updateValue(field.id, e.target.value)}
               required={field.is_required}
-              className={baseInputClass}
+              className={inputBaseClass}
             />
           </div>
         );
@@ -150,18 +150,18 @@ export default function FormEmbed() {
       case "number":
         return (
           <div 
-            className="space-y-2 animate-fade-in opacity-0" 
+            className="animate-fade-in opacity-0" 
             key={field.id}
             style={animationDelay}
           >
-            {label}
+            {labelElement}
             <Input
               type="number"
               placeholder={field.placeholder}
               value={(value as string) || ""}
               onChange={(e) => updateValue(field.id, e.target.value)}
               required={field.is_required}
-              className={baseInputClass}
+              className={inputBaseClass}
             />
           </div>
         );
@@ -169,17 +169,17 @@ export default function FormEmbed() {
       case "textarea":
         return (
           <div 
-            className="space-y-2 animate-fade-in opacity-0" 
+            className="animate-fade-in opacity-0" 
             key={field.id}
             style={animationDelay}
           >
-            {label}
+            {labelElement}
             <Textarea
               placeholder={field.placeholder}
               value={(value as string) || ""}
               onChange={(e) => updateValue(field.id, e.target.value)}
               required={field.is_required}
-              className={`${baseInputClass} min-h-[100px] resize-none`}
+              className={`${inputBaseClass} min-h-[120px] resize-none py-3`}
             />
           </div>
         );
@@ -187,17 +187,17 @@ export default function FormEmbed() {
       case "date":
         return (
           <div 
-            className="space-y-2 animate-fade-in opacity-0" 
+            className="animate-fade-in opacity-0" 
             key={field.id}
             style={animationDelay}
           >
-            {label}
+            {labelElement}
             <Input
               type="date"
               value={(value as string) || ""}
               onChange={(e) => updateValue(field.id, e.target.value)}
               required={field.is_required}
-              className={baseInputClass}
+              className={inputBaseClass}
             />
           </div>
         );
@@ -205,24 +205,24 @@ export default function FormEmbed() {
       case "dropdown":
         return (
           <div 
-            className="space-y-2 animate-fade-in opacity-0" 
+            className="animate-fade-in opacity-0" 
             key={field.id}
             style={animationDelay}
           >
-            {label}
+            {labelElement}
             <Select
               value={(value as string) || ""}
               onValueChange={(v) => updateValue(field.id, v)}
             >
-              <SelectTrigger className={baseInputClass}>
+              <SelectTrigger className={inputBaseClass}>
                 <SelectValue placeholder={field.placeholder || "Select an option"} />
               </SelectTrigger>
-              <SelectContent className="bg-background/95 backdrop-blur-md border-border/50">
+              <SelectContent className="bg-background border-border rounded-lg shadow-lg">
                 {(field.options || []).map((opt) => (
                   <SelectItem 
                     key={opt.value} 
                     value={opt.value}
-                    className="cursor-pointer hover:bg-primary/10 focus:bg-primary/10"
+                    className="cursor-pointer rounded-md hover:bg-muted focus:bg-muted"
                   >
                     {opt.label}
                   </SelectItem>
@@ -235,24 +235,16 @@ export default function FormEmbed() {
       case "checkbox":
         return (
           <div 
-            className="space-y-3 animate-fade-in opacity-0" 
+            className="animate-fade-in opacity-0" 
             key={field.id}
             style={animationDelay}
           >
-            {label}
-            <div className="space-y-2 pl-1">
+            {labelElement}
+            <div className="space-y-2 mt-1">
               {(field.options || []).map((opt) => (
-                <div 
-                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group" 
+                <label 
+                  className="flex items-center gap-3 p-3 rounded-lg border border-border/60 bg-background hover:border-primary/40 hover:bg-muted/30 transition-all cursor-pointer group" 
                   key={opt.value}
-                  onClick={() => {
-                    const current = (value as string[]) || [];
-                    if (current.includes(opt.value)) {
-                      updateValue(field.id, current.filter((v) => v !== opt.value));
-                    } else {
-                      updateValue(field.id, [...current, opt.value]);
-                    }
-                  }}
                 >
                   <Checkbox
                     id={`${field.id}-${opt.value}`}
@@ -265,15 +257,12 @@ export default function FormEmbed() {
                         updateValue(field.id, current.filter((v) => v !== opt.value));
                       }
                     }}
-                    className="border-border/60 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                    className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                   />
-                  <Label 
-                    htmlFor={`${field.id}-${opt.value}`} 
-                    className="font-normal cursor-pointer group-hover:text-foreground transition-colors"
-                  >
+                  <span className="text-sm text-foreground/90 group-hover:text-foreground transition-colors">
                     {opt.label}
-                  </Label>
-                </div>
+                  </span>
+                </label>
               ))}
             </div>
           </div>
@@ -282,34 +271,30 @@ export default function FormEmbed() {
       case "radio":
         return (
           <div 
-            className="space-y-3 animate-fade-in opacity-0" 
+            className="animate-fade-in opacity-0" 
             key={field.id}
             style={animationDelay}
           >
-            {label}
+            {labelElement}
             <RadioGroup
               value={(value as string) || ""}
               onValueChange={(v) => updateValue(field.id, v)}
-              className="pl-1"
+              className="space-y-2 mt-1"
             >
               {(field.options || []).map((opt) => (
-                <div 
-                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group" 
+                <label 
+                  className="flex items-center gap-3 p-3 rounded-lg border border-border/60 bg-background hover:border-primary/40 hover:bg-muted/30 transition-all cursor-pointer group" 
                   key={opt.value}
-                  onClick={() => updateValue(field.id, opt.value)}
                 >
                   <RadioGroupItem 
                     value={opt.value} 
                     id={`${field.id}-${opt.value}`}
-                    className="border-border/60 text-primary"
+                    className="border-border text-primary"
                   />
-                  <Label 
-                    htmlFor={`${field.id}-${opt.value}`} 
-                    className="font-normal cursor-pointer group-hover:text-foreground transition-colors"
-                  >
+                  <span className="text-sm text-foreground/90 group-hover:text-foreground transition-colors">
                     {opt.label}
-                  </Label>
-                </div>
+                  </span>
+                </label>
               ))}
             </RadioGroup>
           </div>
@@ -323,13 +308,12 @@ export default function FormEmbed() {
   // Loading State
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30">
-        <div className="flex flex-col items-center gap-4 animate-pulse">
-          <div className="relative">
-            <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse" />
-            <Loader2 className="h-10 w-10 animate-spin text-primary relative z-10" />
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
-          <p className="text-sm text-muted-foreground">Loading form...</p>
+          <p className="text-sm text-muted-foreground font-medium">Loading form...</p>
         </div>
       </div>
     );
@@ -338,14 +322,16 @@ export default function FormEmbed() {
   // Error State
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
         <div className="max-w-md w-full animate-fade-in">
-          <div className="bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl shadow-xl p-8 text-center space-y-4">
-            <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
-              <AlertCircle className="h-8 w-8 text-destructive" />
+          <div className="bg-card border border-border rounded-xl shadow-sm p-8 text-center space-y-4">
+            <div className="mx-auto w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center">
+              <AlertCircle className="h-7 w-7 text-destructive" />
             </div>
-            <h2 className="text-xl font-semibold text-foreground">Form Unavailable</h2>
-            <p className="text-muted-foreground">{error}</p>
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold text-foreground">Form Unavailable</h2>
+              <p className="text-sm text-muted-foreground">{error}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -355,22 +341,15 @@ export default function FormEmbed() {
   // Success State
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
         <div className="max-w-md w-full animate-fade-in">
-          <div className="bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl shadow-xl p-8 text-center space-y-6">
-            <div className="relative mx-auto w-20 h-20">
-              <div className="absolute inset-0 bg-green-500/20 rounded-full blur-xl animate-pulse" />
-              <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-lg">
-                <CheckCircle className="h-10 w-10 text-white" />
-              </div>
+          <div className="bg-card border border-border rounded-xl shadow-sm p-8 text-center space-y-6">
+            <div className="mx-auto w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center">
+              <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-foreground">Thank You!</h2>
+              <h2 className="text-xl font-semibold text-foreground">Thank You!</h2>
               <p className="text-muted-foreground">Your response has been submitted successfully.</p>
-            </div>
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground/60">
-              <Sparkles className="h-4 w-4" />
-              <span>We appreciate your time</span>
             </div>
           </div>
         </div>
@@ -380,17 +359,17 @@ export default function FormEmbed() {
 
   // Form State
   return (
-    <div className="min-h-screen py-8 px-4 bg-gradient-to-br from-background via-background to-muted/30">
-      <div className="max-w-lg mx-auto animate-fade-in">
+    <div className="min-h-screen py-8 px-4 bg-muted/30">
+      <div className="max-w-xl mx-auto animate-fade-in">
         {/* Form Card */}
-        <div className="bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b border-border/30 p-6 space-y-2">
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">
+          <div className="border-b border-border bg-muted/30 px-6 py-5">
+            <h1 className="text-xl font-semibold text-foreground">
               {form?.name}
             </h1>
             {form?.description && (
-              <p className="text-muted-foreground text-sm leading-relaxed">
+              <p className="text-muted-foreground text-sm mt-1.5 leading-relaxed">
                 {form.description}
               </p>
             )}
@@ -402,10 +381,13 @@ export default function FormEmbed() {
               {fields.map((field, index) => renderField(field, index))}
               
               {/* Submit Button */}
-              <div className="pt-4 animate-fade-in opacity-0" style={{ animationDelay: `${fields.length * 50 + 100}ms` }}>
+              <div 
+                className="pt-4 animate-fade-in opacity-0" 
+                style={{ animationDelay: `${fields.length * 60 + 100}ms` }}
+              >
                 <Button 
                   type="submit" 
-                  className="w-full h-12 text-base font-medium bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl hover:shadow-primary/20 transition-all duration-300 group"
+                  className="w-full h-12 text-base font-medium shadow-sm hover:shadow transition-all duration-200"
                   disabled={submitting}
                 >
                   {submitting ? (
@@ -415,8 +397,8 @@ export default function FormEmbed() {
                     </>
                   ) : (
                     <>
-                      <Send className="h-5 w-5 mr-2 transition-transform group-hover:translate-x-0.5" />
-                      Submit Response
+                      <Send className="h-5 w-5 mr-2" />
+                      Submit
                     </>
                   )}
                 </Button>
@@ -425,10 +407,11 @@ export default function FormEmbed() {
           </div>
 
           {/* Footer */}
-          <div className="border-t border-border/30 px-6 py-4 bg-muted/20">
-            <p className="text-xs text-muted-foreground/60 text-center">
-              Your information is secure and encrypted
-            </p>
+          <div className="border-t border-border px-6 py-4 bg-muted/20">
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <Shield className="h-3.5 w-3.5" />
+              <span>Your information is secure and encrypted</span>
+            </div>
           </div>
         </div>
       </div>
