@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { QRCodeSVG } from "qrcode.react";
-import { Download, Copy, ExternalLink, Palette } from "lucide-react";
+import { Download, Copy, ExternalLink, Check } from "lucide-react";
 import { toast } from "sonner";
 import xboomLogo from "@/assets/xboom-logo-icon.jpeg";
 import { cn } from "@/lib/utils";
@@ -17,8 +18,8 @@ interface FormQRCodeDialogProps {
 
 const COLOR_PRESETS = [
   { name: "Classic", fg: "#000000", bg: "#ffffff" },
-  { name: "Xboom Orange", fg: "#ea580c", bg: "#ffffff" },
-  { name: "Dark Orange", fg: "#ea580c", bg: "#18181b" },
+  { name: "Xboom", fg: "#ea580c", bg: "#ffffff" },
+  { name: "Dark", fg: "#ea580c", bg: "#18181b" },
   { name: "Navy", fg: "#1e3a5f", bg: "#ffffff" },
   { name: "Emerald", fg: "#047857", bg: "#ffffff" },
   { name: "Purple", fg: "#7c3aed", bg: "#ffffff" },
@@ -29,25 +30,26 @@ export function FormQRCodeDialog({ open, onOpenChange, formId, formName }: FormQ
   const [fgColor, setFgColor] = useState("#ea580c");
   const [bgColor, setBgColor] = useState("#ffffff");
   const [showLogo, setShowLogo] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   const handleCopyUrl = () => {
     navigator.clipboard.writeText(formUrl);
+    setCopied(true);
     toast.success("URL copied to clipboard!");
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownloadQR = () => {
     const container = document.getElementById("qr-container");
     if (!container) return;
 
-    // Create a canvas to combine QR and logo
     const canvas = document.createElement("canvas");
-    const size = 250;
+    const size = 300;
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Get the SVG
     const svg = container.querySelector("svg");
     if (!svg) return;
 
@@ -68,13 +70,11 @@ export function FormQRCodeDialog({ open, onOpenChange, formId, formName }: FormQ
           const logoX = (size - logoSize) / 2;
           const logoY = (size - logoSize) / 2;
           
-          // Draw white circle background
           ctx.beginPath();
-          ctx.arc(size / 2, size / 2, logoSize / 2 + 4, 0, Math.PI * 2);
+          ctx.arc(size / 2, size / 2, logoSize / 2 + 6, 0, Math.PI * 2);
           ctx.fillStyle = bgColor;
           ctx.fill();
           
-          // Draw logo
           ctx.save();
           ctx.beginPath();
           ctx.arc(size / 2, size / 2, logoSize / 2, 0, Math.PI * 2);
@@ -110,139 +110,157 @@ export function FormQRCodeDialog({ open, onOpenChange, formId, formName }: FormQ
     setBgColor(preset.bg);
   };
 
+  const isPresetSelected = (preset: typeof COLOR_PRESETS[0]) => 
+    fgColor === preset.fg && bgColor === preset.bg;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-center">QR Code for {formName}</DialogTitle>
-        </DialogHeader>
-        
-        <div className="flex flex-col items-center gap-5 py-4">
-          {/* QR Code with Logo */}
-          <div 
-            id="qr-container"
-            className="relative p-4 rounded-xl shadow-sm border"
-            style={{ backgroundColor: bgColor }}
-          >
-            <QRCodeSVG
-              value={formUrl}
-              size={200}
-              level="H"
-              includeMargin={true}
-              bgColor={bgColor}
-              fgColor={fgColor}
-            />
-            {showLogo && (
+      <DialogContent className="max-w-lg p-0 overflow-hidden">
+        <div className="bg-gradient-to-br from-primary/5 via-background to-primary/10">
+          <DialogHeader className="p-6 pb-4">
+            <DialogTitle className="text-lg font-semibold">{formName}</DialogTitle>
+            <p className="text-sm text-muted-foreground">Customize and download your QR code</p>
+          </DialogHeader>
+          
+          <div className="px-6 pb-6 space-y-6">
+            {/* QR Code Preview */}
+            <div className="flex justify-center">
               <div 
-                className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                id="qr-container"
+                className="relative p-5 rounded-2xl shadow-lg border-2"
+                style={{ backgroundColor: bgColor, borderColor: bgColor === "#ffffff" ? "#e5e7eb" : bgColor }}
               >
-                <div 
-                  className="rounded-full p-1 shadow-sm"
-                  style={{ backgroundColor: bgColor }}
-                >
-                  <img 
-                    src={xboomLogo} 
-                    alt="Xboom Logo" 
-                    className="h-11 w-11 rounded-full object-cover"
-                  />
-                </div>
+                <QRCodeSVG
+                  value={formUrl}
+                  size={180}
+                  level="H"
+                  includeMargin={true}
+                  bgColor={bgColor}
+                  fgColor={fgColor}
+                />
+                {showLogo && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div 
+                      className="rounded-full p-1.5 shadow-md"
+                      style={{ backgroundColor: bgColor }}
+                    >
+                      <img 
+                        src={xboomLogo} 
+                        alt="Xboom Logo" 
+                        className="h-10 w-10 rounded-full object-cover"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-
-          {/* Color Customization */}
-          <div className="w-full space-y-3">
-            <div className="flex items-center gap-2">
-              <Palette className="h-4 w-4 text-muted-foreground" />
-              <Label className="text-sm font-medium">Color Theme</Label>
             </div>
-            
-            {/* Presets */}
-            <div className="grid grid-cols-3 gap-2">
-              {COLOR_PRESETS.map((preset) => (
-                <button
-                  key={preset.name}
-                  onClick={() => applyPreset(preset)}
-                  className={cn(
-                    "flex items-center gap-2 p-2 rounded-lg border-2 transition-all text-left",
-                    fgColor === preset.fg && bgColor === preset.bg
-                      ? "border-primary bg-primary/5"
-                      : "border-transparent bg-muted/50 hover:bg-muted"
-                  )}
-                >
-                  <div 
-                    className="h-5 w-5 rounded-full border shrink-0"
-                    style={{ 
-                      background: `linear-gradient(135deg, ${preset.fg} 50%, ${preset.bg} 50%)`,
-                      borderColor: preset.bg === "#ffffff" ? "#e5e7eb" : preset.bg
-                    }}
-                  />
-                  <span className="text-xs font-medium truncate">{preset.name}</span>
-                </button>
-              ))}
+
+            {/* Color Presets */}
+            <div className="space-y-3">
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Color Theme
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {COLOR_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    onClick={() => applyPreset(preset)}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-full border-2 transition-all text-sm font-medium",
+                      isPresetSelected(preset)
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-card hover:bg-muted text-foreground"
+                    )}
+                  >
+                    <div 
+                      className="h-4 w-4 rounded-full border shadow-sm"
+                      style={{ 
+                        background: preset.bg === "#ffffff" 
+                          ? `radial-gradient(circle at 30% 30%, ${preset.fg}, ${preset.fg})` 
+                          : `linear-gradient(135deg, ${preset.fg} 50%, ${preset.bg} 50%)`,
+                        borderColor: preset.bg === "#ffffff" ? "#e5e7eb" : preset.bg
+                      }}
+                    />
+                    {preset.name}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Custom Colors */}
-            <div className="flex gap-3">
-              <div className="flex-1 space-y-1.5">
-                <Label className="text-xs text-muted-foreground">QR Color</Label>
-                <div className="flex items-center gap-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground">QR Color</Label>
+                <div className="flex items-center gap-2 p-2 bg-card rounded-lg border">
                   <input
                     type="color"
                     value={fgColor}
                     onChange={(e) => setFgColor(e.target.value)}
-                    className="h-8 w-10 rounded border cursor-pointer"
+                    className="h-8 w-8 rounded-lg border-0 cursor-pointer"
                   />
-                  <code className="text-xs bg-muted px-2 py-1 rounded flex-1">{fgColor}</code>
+                  <code className="text-xs font-mono flex-1 text-muted-foreground">{fgColor}</code>
                 </div>
               </div>
-              <div className="flex-1 space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Background</Label>
-                <div className="flex items-center gap-2">
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground">Background</Label>
+                <div className="flex items-center gap-2 p-2 bg-card rounded-lg border">
                   <input
                     type="color"
                     value={bgColor}
                     onChange={(e) => setBgColor(e.target.value)}
-                    className="h-8 w-10 rounded border cursor-pointer"
+                    className="h-8 w-8 rounded-lg border-0 cursor-pointer"
                   />
-                  <code className="text-xs bg-muted px-2 py-1 rounded flex-1">{bgColor}</code>
+                  <code className="text-xs font-mono flex-1 text-muted-foreground">{bgColor}</code>
                 </div>
               </div>
             </div>
 
             {/* Logo Toggle */}
-            <label className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer">
-              <span className="text-sm font-medium">Show Xboom Logo</span>
-              <input
-                type="checkbox"
+            <div className="flex items-center justify-between p-3 bg-card rounded-xl border">
+              <div className="flex items-center gap-3">
+                <img src={xboomLogo} alt="" className="h-8 w-8 rounded-full" />
+                <div>
+                  <p className="text-sm font-medium">Xboom Logo</p>
+                  <p className="text-xs text-muted-foreground">Show in center</p>
+                </div>
+              </div>
+              <Switch
                 checked={showLogo}
-                onChange={(e) => setShowLogo(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                onCheckedChange={setShowLogo}
               />
-            </label>
-          </div>
+            </div>
 
-          {/* URL Display */}
-          <div className="w-full">
-            <p className="text-xs text-muted-foreground text-center mb-2">Form URL</p>
-            <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
-              <code className="text-xs flex-1 truncate">{formUrl}</code>
-              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleCopyUrl}>
-                <Copy className="h-3.5 w-3.5" />
+            {/* URL Display */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-muted-foreground">Form URL</Label>
+              <div className="flex items-center gap-2 p-3 bg-card rounded-xl border">
+                <code className="text-xs font-mono flex-1 truncate text-muted-foreground">{formUrl}</code>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 px-3 shrink-0" 
+                  onClick={handleCopyUrl}
+                >
+                  {copied ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <Button onClick={handleDownloadQR} className="h-11">
+                <Download className="h-4 w-4 mr-2" />
+                Download PNG
+              </Button>
+              <Button variant="outline" onClick={handleOpenForm} className="h-11">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Preview Form
               </Button>
             </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-2 w-full">
-            <Button variant="outline" className="flex-1" onClick={handleDownloadQR}>
-              <Download className="h-4 w-4 mr-2" />
-              Download
-            </Button>
-            <Button variant="outline" className="flex-1" onClick={handleOpenForm}>
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Open Form
-            </Button>
           </div>
         </div>
       </DialogContent>
