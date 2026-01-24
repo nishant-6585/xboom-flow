@@ -1,0 +1,155 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Header } from "@/components/Header";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useForms, Form } from "@/hooks/useForms";
+import { useAuth } from "@/hooks/useAuth";
+import { FormCreateDialog } from "@/components/forms/FormCreateDialog";
+import { FormDetailDialog } from "@/components/forms/FormDetailDialog";
+import { Plus, FileText, Inbox, Trash2, Code } from "lucide-react";
+import { format } from "date-fns";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { FormEmbedDialog } from "@/components/forms/FormEmbedDialog";
+
+export default function Forms() {
+  const navigate = useNavigate();
+  const { role, loading: authLoading } = useAuth();
+  const { forms, isLoading, deleteForm } = useForms();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [selectedForm, setSelectedForm] = useState<Form | null>(null);
+  const [embedForm, setEmbedForm] = useState<Form | null>(null);
+
+  if (authLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
+
+  if (role !== 'admin') {
+    navigate('/');
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+      <main className="container mx-auto py-6 px-4">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Forms</h1>
+            <p className="text-muted-foreground">Create and manage embeddable forms</p>
+          </div>
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Form
+          </Button>
+        </div>
+
+        {isLoading ? (
+          <div className="text-center py-12 text-muted-foreground">Loading forms...</div>
+        ) : forms.length === 0 ? (
+          <Card className="py-12">
+            <CardContent className="text-center">
+              <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">No forms yet</h3>
+              <p className="text-muted-foreground mb-4">Create your first form to start collecting submissions</p>
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Form
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {forms.map((form) => (
+              <Card key={form.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1" onClick={() => setSelectedForm(form)}>
+                      <CardTitle className="text-lg">{form.name}</CardTitle>
+                      {form.description && (
+                        <CardDescription className="mt-1">{form.description}</CardDescription>
+                      )}
+                    </div>
+                    <Badge variant={form.is_active ? "default" : "secondary"}>
+                      {form.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent onClick={() => setSelectedForm(form)}>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <FileText className="h-4 w-4" />
+                      {form.form_fields?.length || 0} fields
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Inbox className="h-4 w-4" />
+                      submissions
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-3">
+                    Created {format(new Date(form.created_at), "MMM d, yyyy")}
+                  </div>
+                </CardContent>
+                <div className="px-6 pb-4 flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEmbedForm(form);
+                    }}
+                  >
+                    <Code className="h-4 w-4 mr-1" />
+                    Embed
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Form?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete the form and all its submissions.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => deleteForm(form.id)}>
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </main>
+
+      <FormCreateDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <FormDetailDialog
+        form={selectedForm}
+        open={!!selectedForm}
+        onOpenChange={() => setSelectedForm(null)}
+      />
+      {embedForm && (
+        <FormEmbedDialog
+          open={!!embedForm}
+          onOpenChange={() => setEmbedForm(null)}
+          formId={embedForm.id}
+          formName={embedForm.name}
+        />
+      )}
+    </div>
+  );
+}

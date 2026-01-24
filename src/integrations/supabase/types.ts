@@ -647,6 +647,118 @@ export type Database = {
         }
         Relationships: []
       }
+      form_fields: {
+        Row: {
+          created_at: string
+          field_order: number
+          field_type: string
+          form_id: string
+          id: string
+          is_required: boolean
+          label: string
+          options: Json | null
+          placeholder: string | null
+        }
+        Insert: {
+          created_at?: string
+          field_order?: number
+          field_type: string
+          form_id: string
+          id?: string
+          is_required?: boolean
+          label: string
+          options?: Json | null
+          placeholder?: string | null
+        }
+        Update: {
+          created_at?: string
+          field_order?: number
+          field_type?: string
+          form_id?: string
+          id?: string
+          is_required?: boolean
+          label?: string
+          options?: Json | null
+          placeholder?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_fields_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_submissions: {
+        Row: {
+          form_id: string
+          id: string
+          ip_address: string | null
+          submission_data: Json
+          submitted_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          form_id: string
+          id?: string
+          ip_address?: string | null
+          submission_data: Json
+          submitted_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          form_id?: string
+          id?: string
+          ip_address?: string | null
+          submission_data?: Json
+          submitted_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_submissions_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      forms: {
+        Row: {
+          created_at: string
+          created_by: string
+          created_by_name: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          created_by_name: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       import_items: {
         Row: {
           created_at: string
