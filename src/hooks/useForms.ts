@@ -210,7 +210,7 @@ export function useFormSubmissions(formId?: string) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: submissions = [], isLoading } = useQuery({
+  const { data: submissions = [], isLoading, refetch } = useQuery({
     queryKey: ["form_submissions", formId],
     queryFn: async () => {
       let query = supabase
@@ -226,6 +226,7 @@ export function useFormSubmissions(formId?: string) {
       if (error) throw error;
       return data as FormSubmission[];
     },
+    refetchOnWindowFocus: true,
   });
 
   const deleteSubmission = useMutation({
@@ -249,6 +250,7 @@ export function useFormSubmissions(formId?: string) {
   return {
     submissions,
     isLoading,
+    refetch,
     deleteSubmission: deleteSubmission.mutate,
     isDeleting: deleteSubmission.isPending,
   };
