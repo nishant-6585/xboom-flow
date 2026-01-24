@@ -58,6 +58,12 @@ export default function FormEmbed() {
 
         setForm(formData);
         setFields(fieldsData as FormField[]);
+
+        // Track page view
+        await supabase.from("form_views").insert({
+          form_id: formId,
+          user_agent: navigator.userAgent,
+        });
       } catch (err) {
         setError("Failed to load form");
       } finally {
