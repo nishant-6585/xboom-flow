@@ -24,6 +24,7 @@ const FIELD_TYPES = [
 
 interface FormBuilderProps {
   formId: string;
+  canEdit?: boolean;
 }
 
 interface EditFieldState {
@@ -34,7 +35,7 @@ interface EditFieldState {
   options: { label: string; value: string }[];
 }
 
-export function FormBuilder({ formId }: FormBuilderProps) {
+export function FormBuilder({ formId, canEdit = true }: FormBuilderProps) {
   const { fields, createField, updateField, deleteField, isCreating } = useFormFields(formId);
   const [newField, setNewField] = useState({
     field_type: 'text' as FormField['field_type'],
@@ -168,33 +169,35 @@ export function FormBuilder({ formId }: FormBuilderProps) {
         <h3 className="font-medium text-sm text-muted-foreground">Form Fields</h3>
         {fields.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center border rounded-lg border-dashed">
-            No fields added yet. Add your first field below.
+            No fields added yet. {canEdit ? "Add your first field below." : ""}
           </p>
         ) : (
           <div className="space-y-2">
             {fields.map((field, index) => (
               <Card key={field.id} className="py-3">
                 <CardContent className="flex items-center gap-3 py-0">
-                  <div className="flex flex-col gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => handleMoveUp(index)}
-                      disabled={index === 0}
-                    >
-                      <ChevronUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => handleMoveDown(index)}
-                      disabled={index === fields.length - 1}
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {canEdit && (
+                    <div className="flex flex-col gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => handleMoveUp(index)}
+                        disabled={index === 0}
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => handleMoveDown(index)}
+                        disabled={index === fields.length - 1}
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{field.label}</span>
@@ -211,20 +214,24 @@ export function FormBuilder({ formId }: FormBuilderProps) {
                       </div>
                     )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleStartEdit(field)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => deleteField(field.id)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  {canEdit && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleStartEdit(field)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteField(field.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -232,101 +239,103 @@ export function FormBuilder({ formId }: FormBuilderProps) {
         )}
       </div>
 
-      {/* Add New Field */}
-      <Card>
-        <CardHeader className="py-4">
-          <CardTitle className="text-base">Add New Field</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Field Type</Label>
-              <Select
-                value={newField.field_type}
-                onValueChange={(value: FormField['field_type']) => 
-                  setNewField(prev => ({ ...prev, field_type: value, options: [] }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FIELD_TYPES.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Label *</Label>
-              <Input
-                value={newField.label}
-                onChange={(e) => setNewField(prev => ({ ...prev, label: e.target.value }))}
-                placeholder="e.g., Full Name"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Placeholder</Label>
-              <Input
-                value={newField.placeholder}
-                onChange={(e) => setNewField(prev => ({ ...prev, placeholder: e.target.value }))}
-                placeholder="e.g., Enter your name"
-              />
-            </div>
-            <div className="flex items-center space-x-2 pt-6">
-              <Switch
-                id="required"
-                checked={newField.is_required}
-                onCheckedChange={(checked) => setNewField(prev => ({ ...prev, is_required: checked }))}
-              />
-              <Label htmlFor="required">Required field</Label>
-            </div>
-          </div>
-
-          {needsOptions && (
-            <div className="space-y-2">
-              <Label>Options</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={newOption}
-                  onChange={(e) => setNewOption(e.target.value)}
-                  placeholder="Add option"
-                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddOption())}
-                />
-                <Button type="button" variant="outline" onClick={handleAddOption}>
-                  <Plus className="h-4 w-4" />
-                </Button>
+      {/* Add New Field - only show if user can edit */}
+      {canEdit && (
+        <Card>
+          <CardHeader className="py-4">
+            <CardTitle className="text-base">Add New Field</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Field Type</Label>
+                <Select
+                  value={newField.field_type}
+                  onValueChange={(value: FormField['field_type']) => 
+                    setNewField(prev => ({ ...prev, field_type: value, options: [] }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FIELD_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              {newField.options.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {newField.options.map((opt, index) => (
-                    <Badge key={index} variant="secondary" className="gap-1">
-                      {opt.label}
-                      <button onClick={() => handleRemoveOption(index)}>
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label>Label *</Label>
+                <Input
+                  value={newField.label}
+                  onChange={(e) => setNewField(prev => ({ ...prev, label: e.target.value }))}
+                  placeholder="e.g., Full Name"
+                />
+              </div>
             </div>
-          )}
 
-          <Button
-            onClick={handleAddField}
-            disabled={!newField.label.trim() || isCreating || (needsOptions && newField.options.length === 0)}
-            className="w-full"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Field
-          </Button>
-        </CardContent>
-      </Card>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Placeholder</Label>
+                <Input
+                  value={newField.placeholder}
+                  onChange={(e) => setNewField(prev => ({ ...prev, placeholder: e.target.value }))}
+                  placeholder="e.g., Enter your name"
+                />
+              </div>
+              <div className="flex items-center space-x-2 pt-6">
+                <Switch
+                  id="required"
+                  checked={newField.is_required}
+                  onCheckedChange={(checked) => setNewField(prev => ({ ...prev, is_required: checked }))}
+                />
+                <Label htmlFor="required">Required field</Label>
+              </div>
+            </div>
+
+            {needsOptions && (
+              <div className="space-y-2">
+                <Label>Options</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={newOption}
+                    onChange={(e) => setNewOption(e.target.value)}
+                    placeholder="Add option"
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddOption())}
+                  />
+                  <Button type="button" variant="outline" onClick={handleAddOption}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                {newField.options.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {newField.options.map((opt, index) => (
+                      <Badge key={index} variant="secondary" className="gap-1">
+                        {opt.label}
+                        <button onClick={() => handleRemoveOption(index)}>
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <Button
+              onClick={handleAddField}
+              disabled={!newField.label.trim() || isCreating || (needsOptions && newField.options.length === 0)}
+              className="w-full"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Field
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Edit Field Dialog */}
       <Dialog open={!!editingField} onOpenChange={(open) => !open && handleCancelEdit()}>
