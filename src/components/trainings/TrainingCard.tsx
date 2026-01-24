@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Training, TRAINING_TYPES, TRAINING_CATEGORIES } from "@/hooks/useTrainings";
+import { Training, TRAINING_TYPES, TRAINING_CATEGORIES, TRAINING_STATUSES } from "@/hooks/useTrainings";
 import { format } from "date-fns";
 import { MapPin, Calendar, Users, IndianRupee, Image as ImageIcon } from "lucide-react";
 
@@ -20,10 +20,17 @@ const typeConfig: Record<string, { label: string; className: string }> = {
   training: { label: "Training", className: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200" },
 };
 
+const statusConfig: Record<string, { label: string; className: string }> = {
+  requested: { label: "Requested", className: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200" },
+  pending: { label: "Pending", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" },
+  done: { label: "Done", className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
+};
+
 export function TrainingCard({ training, onClick }: TrainingCardProps) {
   const categoryLabel = TRAINING_CATEGORIES.find(c => c.value === training.category)?.label || training.category;
   const paymentConfig = paymentStatusConfig[training.payment_status] || paymentStatusConfig.pending;
   const tConfig = typeConfig[training.type] || typeConfig.training;
+  const sConfig = statusConfig[training.status] || statusConfig.requested;
   const balanceAmount = (training.amount_quoted || 0) - (training.amount_paid || 0);
 
   return (
@@ -43,6 +50,7 @@ export function TrainingCard({ training, onClick }: TrainingCardProps) {
                   </Badge>
                 )}
                 <Badge className={tConfig.className}>{tConfig.label}</Badge>
+                <Badge className={sConfig.className}>{sConfig.label}</Badge>
                 <Badge className={paymentConfig.className}>{paymentConfig.label}</Badge>
               </div>
               <h3 className="font-semibold text-lg mt-2">{training.client_name}</h3>
