@@ -76,7 +76,7 @@ export function Header() {
     { path: "/hr", label: "HR", icon: Users, roles: ["sales", "supply_chain", "admin", "finance"] },
     { path: "/meetings", label: "Meetings", icon: CalendarDays, roles: ["sales", "supply_chain", "admin", "finance"] },
     { path: "/expenses", label: "Expenses", icon: Receipt, roles: ["sales", "supply_chain", "admin", "finance"] },
-    { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["admin"] },
+    { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "supply_chain", "admin", "finance"] },
   ];
 
   const filteredMainNavItems = mainNavItems.filter((item) => 
