@@ -44,6 +44,8 @@ const fieldLabels: Record<string, string> = {
   cancellation_reason: 'Cancellation Reason',
   discount_amount: 'Discount Amount',
   order_date: 'Order Date',
+  customer_name: 'Customer Name',
+  customer_company: 'Customer Company',
 };
 
 export function EditHistoryPanel({ tableName, recordId }: EditHistoryPanelProps) {
