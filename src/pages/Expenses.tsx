@@ -589,11 +589,11 @@ export default function Expenses() {
                     />
                   </div>
 
-                  {/* GST Bill Upload */}
+                  {/* Screenshot / Receipt Upload */}
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      GST Bill / Receipt {isGstBillRequired && <span className="text-destructive">*</span>}
+                      <Upload className="h-4 w-4 text-muted-foreground" />
+                      Screenshot / Bill {isGstBillRequired && <span className="text-destructive">* (GST Bill Required)</span>}
                     </Label>
                     
                     {isGstBillMissing && (
@@ -636,7 +636,7 @@ export default function Expenses() {
                     )}
                     {!isGstBillRequired && (
                       <p className="text-xs text-muted-foreground">
-                        Optional for expenses ₹2,000 or below
+                        Upload payment screenshot, invoice, or receipt (optional)
                       </p>
                     )}
                   </div>
