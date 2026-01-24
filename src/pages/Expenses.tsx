@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
 
 export default function Expenses() {
   const { expenses, loading, createExpense, approveExpense, rejectExpense, markReimbursed, deleteExpense, canApprove, canDelete, refetch: refetchExpenses } = useExpenses();
-  const { myBalance, getUserBalance, getAllUserBalances, givePettyCash, deductForExpense, creditOverpayment, canManage, transactions, refetch: refetchPettyCash } = usePettyCash();
+  const { myBalance, getUserBalance, getAllUserBalances, givePettyCash, recordReceivedCash, deductForExpense, creditOverpayment, canManage, transactions, refetch: refetchPettyCash } = usePettyCash();
   const { orders, loading: ordersLoading } = useOrders();
   const { procurements, loading: procurementsLoading } = useInventoryProcurements();
   const { linkOrdersToExpense, linkProcurementsToExpense, getLinkedOrdersForExpense, getLinkedProcurementsForExpense, refetch: refetchLinks } = useAllExpenseLinks();
@@ -60,6 +60,12 @@ export default function Expenses() {
   const [giveCashAmount, setGiveCashAmount] = useState("");
   const [giveCashNotes, setGiveCashNotes] = useState("");
   const [givingCash, setGivingCash] = useState(false);
+
+  // Record received petty cash dialog
+  const [recordCashDialogOpen, setRecordCashDialogOpen] = useState(false);
+  const [receivedCashAmount, setReceivedCashAmount] = useState("");
+  const [receivedCashNotes, setReceivedCashNotes] = useState("");
+  const [recordingReceivedCash, setRecordingReceivedCash] = useState(false);
 
   // Record payment dialog
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -149,6 +155,23 @@ export default function Expenses() {
       setTargetUserName("");
       setGiveCashAmount("");
       setGiveCashNotes("");
+    }
+  };
+
+  const handleRecordReceivedCash = async () => {
+    if (!receivedCashAmount) {
+      toast.error("Please enter amount");
+      return;
+    }
+
+    setRecordingReceivedCash(true);
+    const success = await recordReceivedCash(parseFloat(receivedCashAmount), receivedCashNotes);
+    setRecordingReceivedCash(false);
+
+    if (success) {
+      setRecordCashDialogOpen(false);
+      setReceivedCashAmount("");
+      setReceivedCashNotes("");
     }
   };
 
@@ -349,6 +372,62 @@ export default function Expenses() {
                 </DialogContent>
               </Dialog>
             )}
+            {/* Record Received Cash - Available to all users */}
+            <Dialog open={recordCashDialogOpen} onOpenChange={setRecordCashDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Wallet className="w-4 h-4 mr-2" />
+                  Record Received Cash
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Wallet className="w-5 h-5" />
+                    Record Petty Cash Received
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="p-3 bg-muted/50 border rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      Record petty cash you have received. This will be added to your balance.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Amount (₹) *</Label>
+                    <Input
+                      type="number"
+                      value={receivedCashAmount}
+                      onChange={(e) => setReceivedCashAmount(e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Notes</Label>
+                    <Textarea
+                      value={receivedCashNotes}
+                      onChange={(e) => setReceivedCashNotes(e.target.value)}
+                      placeholder="Purpose or source of petty cash..."
+                      rows={2}
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleRecordReceivedCash} 
+                    className="w-full" 
+                    disabled={recordingReceivedCash}
+                  >
+                    {recordingReceivedCash ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Recording...
+                      </>
+                    ) : (
+                      'Record Cash'
+                    )}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
