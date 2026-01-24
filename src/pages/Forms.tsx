@@ -9,10 +9,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useFormPermissions } from "@/hooks/useFormPermissions";
 import { FormCreateDialog } from "@/components/forms/FormCreateDialog";
 import { FormDetailDialog } from "@/components/forms/FormDetailDialog";
-import { Plus, FileText, Inbox, Trash2, Code, Eye, Link2 } from "lucide-react";
+import { FormEmbedDialog } from "@/components/forms/FormEmbedDialog";
+import { FormQRCodeDialog } from "@/components/forms/FormQRCodeDialog";
+import { Plus, FileText, Inbox, Trash2, Code, Eye, Link2, QrCode } from "lucide-react";
 import { format } from "date-fns";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { FormEmbedDialog } from "@/components/forms/FormEmbedDialog";
 import { toast } from "sonner";
 
 export default function Forms() {
@@ -23,6 +24,7 @@ export default function Forms() {
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [embedForm, setEmbedForm] = useState<Form | null>(null);
+  const [qrForm, setQrForm] = useState<Form | null>(null);
 
   const access = useMemo(() => {
     const isAdmin = role === "admin";
@@ -125,7 +127,6 @@ export default function Forms() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1"
                     onClick={(e) => {
                       e.stopPropagation();
                       const formUrl = `${window.location.origin}/form-embed/${form.id}`;
@@ -133,8 +134,17 @@ export default function Forms() {
                       toast.success("Form URL copied to clipboard!");
                     }}
                   >
-                    <Link2 className="h-4 w-4 mr-1" />
-                    Copy Link
+                    <Link2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setQrForm(form);
+                    }}
+                  >
+                    <QrCode className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="outline"
@@ -194,6 +204,14 @@ export default function Forms() {
           onOpenChange={() => setEmbedForm(null)}
           formId={embedForm.id}
           formName={embedForm.name}
+        />
+      )}
+      {qrForm && (
+        <FormQRCodeDialog
+          open={!!qrForm}
+          onOpenChange={() => setQrForm(null)}
+          formId={qrForm.id}
+          formName={qrForm.name}
         />
       )}
     </div>
