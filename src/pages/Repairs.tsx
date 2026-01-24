@@ -12,15 +12,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRepairs, Repair, RepairFormData, ISSUE_TYPES, PAYMENT_STATUSES } from "@/hooks/useRepairs";
 import { RepairCard } from "@/components/repairs/RepairCard";
 import { RepairForm } from "@/components/repairs/RepairForm";
+import { RepairImportDialog } from "@/components/repairs/RepairImportDialog";
 import { RepairDialog } from "@/components/repairs/RepairDialog";
-import { Plus, Search, Wrench, IndianRupee, Clock, CheckCircle } from "lucide-react";
+import { Plus, Search, Wrench, IndianRupee, Clock, CheckCircle, Upload } from "lucide-react";
 import { Loader2 } from "lucide-react";
 
 export default function Repairs() {
   const { user, profile } = useAuth();
-  const { repairs, loading, createRepair, updateRepair, deleteRepair } = useRepairs();
+  const { repairs, loading, createRepair, updateRepair, deleteRepair, refetch } = useRepairs();
   
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const [selectedRepair, setSelectedRepair] = useState<Repair | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -76,10 +78,16 @@ export default function Repairs() {
             <h1 className="text-2xl font-bold">Repair Management</h1>
             <p className="text-muted-foreground">Track and manage drone repair jobs</p>
           </div>
-          <Button onClick={() => setShowCreateDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Repair Job
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Import Excel
+            </Button>
+            <Button onClick={() => setShowCreateDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Repair Job
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -239,6 +247,16 @@ export default function Repairs() {
         onOpenChange={(open) => !open && setSelectedRepair(null)}
         onUpdate={handleUpdate}
         onDelete={handleDelete}
+      />
+
+      {/* Import Dialog */}
+      <RepairImportDialog
+        open={showImportDialog}
+        onOpenChange={setShowImportDialog}
+        onSuccess={() => {
+          refetch();
+          setShowImportDialog(false);
+        }}
       />
 
       <MobileBottomNav />
