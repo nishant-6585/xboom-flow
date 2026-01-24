@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -18,9 +18,12 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { useSuppliers } from "@/hooks/useSuppliers";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { Import, ImportItem, IMPORT_STATUSES, PAYMENT_STATUSES, SHIPPING_METHODS } from "@/hooks/useImports";
-import { Package, Building2, Ship, FileText, CreditCard, CheckCircle2, Plus, Trash2, X } from "lucide-react";
+import { Package, Building2, Ship, FileText, CreditCard, CheckCircle2, Plus, Trash2, X, Upload, Loader2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface ImportFormDialogProps {
   open: boolean;
@@ -57,9 +60,18 @@ export function ImportFormDialog({
   editingImport,
 }: ImportFormDialogProps) {
   const { suppliers } = useSuppliers();
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
   const [items, setItems] = useState<ImportItem[]>([{ ...emptyItem }]);
+  
+  // File input refs
+  const poFileRef = useRef<HTMLInputElement>(null);
+  const commercialInvoiceFileRef = useRef<HTMLInputElement>(null);
+  const packingListFileRef = useRef<HTMLInputElement>(null);
+  const billOfEntryFileRef = useRef<HTMLInputElement>(null);
+  const courierDocFileRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     import_number: '',
     supplier_id: '',
@@ -226,6 +238,44 @@ export function ImportFormDialog({
 
   const getTotalQuantity = () => {
     return items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  };
+
+  const handleFileUpload = async (
+    file: File, 
+    fieldName: 'po_document_url' | 'commercial_invoice_url' | 'packing_list_url' | 'bill_of_entry_url' | 'courier_document_url'
+  ) => {
+    if (!user) {
+      toast.error('Please log in to upload files');
+      return;
+    }
+
+    setUploadingField(fieldName);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${user.id}/${fieldName}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('import-documents')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get signed URL for private bucket
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from('import-documents')
+        .createSignedUrl(filePath, 60 * 60 * 24 * 365); // 1 year expiry
+
+      if (signedError) throw signedError;
+
+      setFormData(prev => ({ ...prev, [fieldName]: signedData.signedUrl }));
+      toast.success('File uploaded successfully');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast.error(error.message || 'Failed to upload file');
+    } finally {
+      setUploadingField(null);
+    }
   };
 
   const handleSubmit = async () => {
@@ -609,58 +659,193 @@ export function ImportFormDialog({
                 Documents
               </h3>
               <p className="text-sm text-muted-foreground">
-                Enter document URLs or upload files after creating the import.
+                Upload files or enter document URLs.
               </p>
               
               <div className="grid grid-cols-1 gap-4">
-                <div>
+                {/* Purchase Order */}
+                <div className="space-y-2">
                   <Label htmlFor="po_document_url">Purchase Order (PO)</Label>
-                  <Input
-                    id="po_document_url"
-                    value={formData.po_document_url}
-                    onChange={(e) => setFormData(prev => ({ ...prev, po_document_url: e.target.value }))}
-                    placeholder="URL to PO document"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="po_document_url"
+                      value={formData.po_document_url}
+                      onChange={(e) => setFormData(prev => ({ ...prev, po_document_url: e.target.value }))}
+                      placeholder="URL to PO document"
+                      className="flex-1"
+                    />
+                    <input
+                      type="file"
+                      ref={poFileRef}
+                      className="hidden"
+                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                      onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'po_document_url')}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => poFileRef.current?.click()}
+                      disabled={uploadingField === 'po_document_url'}
+                    >
+                      {uploadingField === 'po_document_url' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                    </Button>
+                    {formData.po_document_url && (
+                      <Button type="button" variant="ghost" size="icon" asChild>
+                        <a href={formData.po_document_url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 
-                <div>
+                {/* Commercial Invoice */}
+                <div className="space-y-2">
                   <Label htmlFor="commercial_invoice_url">Commercial Invoice</Label>
-                  <Input
-                    id="commercial_invoice_url"
-                    value={formData.commercial_invoice_url}
-                    onChange={(e) => setFormData(prev => ({ ...prev, commercial_invoice_url: e.target.value }))}
-                    placeholder="URL to commercial invoice"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="commercial_invoice_url"
+                      value={formData.commercial_invoice_url}
+                      onChange={(e) => setFormData(prev => ({ ...prev, commercial_invoice_url: e.target.value }))}
+                      placeholder="URL to commercial invoice"
+                      className="flex-1"
+                    />
+                    <input
+                      type="file"
+                      ref={commercialInvoiceFileRef}
+                      className="hidden"
+                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                      onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'commercial_invoice_url')}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => commercialInvoiceFileRef.current?.click()}
+                      disabled={uploadingField === 'commercial_invoice_url'}
+                    >
+                      {uploadingField === 'commercial_invoice_url' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                    </Button>
+                    {formData.commercial_invoice_url && (
+                      <Button type="button" variant="ghost" size="icon" asChild>
+                        <a href={formData.commercial_invoice_url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 
-                <div>
+                {/* Packing List */}
+                <div className="space-y-2">
                   <Label htmlFor="packing_list_url">Packing List</Label>
-                  <Input
-                    id="packing_list_url"
-                    value={formData.packing_list_url}
-                    onChange={(e) => setFormData(prev => ({ ...prev, packing_list_url: e.target.value }))}
-                    placeholder="URL to packing list"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="packing_list_url"
+                      value={formData.packing_list_url}
+                      onChange={(e) => setFormData(prev => ({ ...prev, packing_list_url: e.target.value }))}
+                      placeholder="URL to packing list"
+                      className="flex-1"
+                    />
+                    <input
+                      type="file"
+                      ref={packingListFileRef}
+                      className="hidden"
+                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xls,.xlsx"
+                      onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'packing_list_url')}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => packingListFileRef.current?.click()}
+                      disabled={uploadingField === 'packing_list_url'}
+                    >
+                      {uploadingField === 'packing_list_url' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                    </Button>
+                    {formData.packing_list_url && (
+                      <Button type="button" variant="ghost" size="icon" asChild>
+                        <a href={formData.packing_list_url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 
-                <div>
+                {/* Bill of Entry */}
+                <div className="space-y-2">
                   <Label htmlFor="bill_of_entry_url">Bill of Entry</Label>
-                  <Input
-                    id="bill_of_entry_url"
-                    value={formData.bill_of_entry_url}
-                    onChange={(e) => setFormData(prev => ({ ...prev, bill_of_entry_url: e.target.value }))}
-                    placeholder="URL to bill of entry"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="bill_of_entry_url"
+                      value={formData.bill_of_entry_url}
+                      onChange={(e) => setFormData(prev => ({ ...prev, bill_of_entry_url: e.target.value }))}
+                      placeholder="URL to bill of entry"
+                      className="flex-1"
+                    />
+                    <input
+                      type="file"
+                      ref={billOfEntryFileRef}
+                      className="hidden"
+                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                      onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'bill_of_entry_url')}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => billOfEntryFileRef.current?.click()}
+                      disabled={uploadingField === 'bill_of_entry_url'}
+                    >
+                      {uploadingField === 'bill_of_entry_url' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                    </Button>
+                    {formData.bill_of_entry_url && (
+                      <Button type="button" variant="ghost" size="icon" asChild>
+                        <a href={formData.bill_of_entry_url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 
-                <div>
+                {/* Courier/Shipping Documents */}
+                <div className="space-y-2">
                   <Label htmlFor="courier_document_url">Courier/Shipping Documents</Label>
-                  <Input
-                    id="courier_document_url"
-                    value={formData.courier_document_url}
-                    onChange={(e) => setFormData(prev => ({ ...prev, courier_document_url: e.target.value }))}
-                    placeholder="URL to courier documents"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="courier_document_url"
+                      value={formData.courier_document_url}
+                      onChange={(e) => setFormData(prev => ({ ...prev, courier_document_url: e.target.value }))}
+                      placeholder="URL to courier documents"
+                      className="flex-1"
+                    />
+                    <input
+                      type="file"
+                      ref={courierDocFileRef}
+                      className="hidden"
+                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                      onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'courier_document_url')}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => courierDocFileRef.current?.click()}
+                      disabled={uploadingField === 'courier_document_url'}
+                    >
+                      {uploadingField === 'courier_document_url' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                    </Button>
+                    {formData.courier_document_url && (
+                      <Button type="button" variant="ghost" size="icon" asChild>
+                        <a href={formData.courier_document_url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
