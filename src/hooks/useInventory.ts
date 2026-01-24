@@ -41,7 +41,7 @@ export function useInventory() {
   const [loading, setLoading] = useState(true);
   const { user, role } = useAuth();
 
-  const canManage = role === 'supply_chain' || role === 'admin';
+  const canManage = role === 'supply_chain' || role === 'admin' || role === 'finance';
 
   const fetchInventory = useCallback(async () => {
     if (!user) {

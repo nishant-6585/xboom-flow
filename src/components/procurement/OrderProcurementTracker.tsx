@@ -28,7 +28,7 @@ export function OrderProcurementTracker() {
   const [activeTab, setActiveTab] = useState('overview');
   const [autoMatchOpen, setAutoMatchOpen] = useState(false);
 
-  const canManage = role === 'admin' || role === 'supply_chain';
+  const canManage = role === 'admin' || role === 'supply_chain' || role === 'finance';
 
   // Filter links by search
   const filteredLinks = useMemo(() => {

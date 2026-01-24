@@ -59,7 +59,7 @@ export function ProcurementOrderDialog({
   const [saving, setSaving] = useState(false);
   const [showPlanningDialog, setShowPlanningDialog] = useState(false);
 
-  const canEdit = role === 'supply_chain' || role === 'admin';
+  const canEdit = role === 'supply_chain' || role === 'admin' || role === 'finance';
 
   // Payment to supplier form
   const [showAddPayment, setShowAddPayment] = useState(false);

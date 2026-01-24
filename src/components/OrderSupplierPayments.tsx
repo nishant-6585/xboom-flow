@@ -28,7 +28,7 @@ export function OrderSupplierPayments({
   procurementValue,
 }: OrderSupplierPaymentsProps) {
   const { role } = useAuth();
-  const canManagePayments = role === 'admin' || role === 'supply_chain';
+  const canManagePayments = role === 'admin' || role === 'supply_chain' || role === 'finance';
   
   const { payments, createPayment, deletePayment, loading } = useSupplierPayments(supplierId || undefined);
   

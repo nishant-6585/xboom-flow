@@ -34,7 +34,7 @@ const outcomeConfig: Record<OrderOutcome, { label: string; className: string; ic
 
 export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTableProps) {
   const { role } = useAuth();
-  const canSeeProcurement = role === 'supply_chain' || role === 'admin';
+  const canSeeProcurement = role === 'supply_chain' || role === 'admin' || role === 'finance';
   const canUpdateOutcome = role === 'sales' || role === 'admin';
 
   const [lostDialogOpen, setLostDialogOpen] = useState(false);
