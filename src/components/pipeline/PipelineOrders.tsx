@@ -10,9 +10,10 @@ import { Link } from 'react-router-dom';
 
 interface PipelineOrdersProps {
   enquiryIdFilter?: string | null;
+  selectedLeadId?: string | null;
 }
 
-export function PipelineOrders({ enquiryIdFilter }: PipelineOrdersProps) {
+export function PipelineOrders({ enquiryIdFilter, selectedLeadId }: PipelineOrdersProps) {
   const { role } = useAuth();
   const { pipelineOrders, loading, createPipelineOrder, updatePipelineOrder, deletePipelineOrder } = usePipelineOrders();
   const [activeTab, setActiveTab] = useState('list');
@@ -91,6 +92,7 @@ export function PipelineOrders({ enquiryIdFilter }: PipelineOrdersProps) {
             onDelete={deletePipelineOrder}
             statusFilter={statusFilter}
             onStatusFilterChange={setStatusFilter}
+            selectedLeadId={selectedLeadId}
           />
         </TabsContent>
 

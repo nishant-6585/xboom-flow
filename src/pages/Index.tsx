@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { QueryForm } from "@/components/QueryForm";
@@ -35,6 +36,7 @@ const Index = () => {
   const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry, escalateEnquiry, updateStatus, submitAdminResponse, updateLeadTemperature, toggleMegaDeal } = useEnquiries();
   const { pipelineOrders } = usePipelineOrders();
   const { role, user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
@@ -333,6 +335,9 @@ const Index = () => {
                     if (lead.type === "enquiry") {
                       const enquiry = enquiries.find(e => e.id === lead.id);
                       if (enquiry) handleEnquiryClick(enquiry);
+                    } else if (lead.type === "pipeline") {
+                      // Navigate to Sales page with Pipeline tab and the specific lead ID
+                      navigate(`/sales?tab=pipeline&leadId=${lead.id}`);
                     }
                   }}
                   onViewAll={() => setActiveTab("enquiries")}

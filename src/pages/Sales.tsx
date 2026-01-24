@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,8 +25,32 @@ import { EnquiriesPanel } from "@/components/sales/EnquiriesPanel";
 
 export default function Sales() {
   const { role } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isManager = role === 'admin' || role === 'supply_chain';
   const [assistantOpen, setAssistantOpen] = useState(false);
+  
+  // Read tab and leadId from URL params
+  const urlTab = searchParams.get("tab");
+  const urlLeadId = searchParams.get("leadId");
+  const [activeTab, setActiveTab] = useState(urlTab || "manager");
+
+  // Handle URL params for tab navigation
+  useEffect(() => {
+    if (urlTab) {
+      setActiveTab(urlTab);
+    }
+  }, [urlTab]);
+
+  // Clear URL params after processing
+  useEffect(() => {
+    if (urlTab || urlLeadId) {
+      // Keep params until pipeline component processes leadId
+      const timer = setTimeout(() => {
+        setSearchParams({});
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [urlTab, urlLeadId, setSearchParams]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -48,7 +73,7 @@ export default function Sales() {
           </div>
         </div>
 
-        <Tabs defaultValue="manager" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="space-y-2">
             {/* Primary Navigation Row */}
             <TabsList className="bg-card border shadow-sm flex flex-wrap justify-center gap-1 p-1.5 rounded-xl h-auto">
@@ -152,7 +177,7 @@ export default function Sales() {
           </TabsContent>
 
           <TabsContent value="pipeline" className="space-y-6">
-            <PipelineOrders />
+            <PipelineOrders selectedLeadId={urlLeadId} />
           </TabsContent>
 
           <TabsContent value="leaderboard" className="space-y-6">

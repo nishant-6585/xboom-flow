@@ -27,6 +27,7 @@ interface PipelineTableProps {
   onDelete: (id: string) => Promise<boolean>;
   statusFilter?: PipelineStatus | 'all';
   onStatusFilterChange?: (status: PipelineStatus | 'all') => void;
+  selectedLeadId?: string | null;
 }
 
 interface SalesTeamMember {
@@ -52,7 +53,7 @@ const getPriorityBadge = (priority: number | null) => {
   }
 };
 
-export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: externalStatusFilter, onStatusFilterChange }: PipelineTableProps) {
+export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: externalStatusFilter, onStatusFilterChange, selectedLeadId }: PipelineTableProps) {
   const { role } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [internalStatusFilter, setInternalStatusFilter] = useState<PipelineStatus | 'all'>('all');
@@ -76,6 +77,16 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
     };
     fetchSalesTeam();
   }, []);
+
+  // Auto-open lead dialog when selectedLeadId is provided
+  useEffect(() => {
+    if (selectedLeadId && orders.length > 0) {
+      const targetOrder = orders.find(o => o.id === selectedLeadId);
+      if (targetOrder) {
+        handleEditClick(targetOrder);
+      }
+    }
+  }, [selectedLeadId, orders]);
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
