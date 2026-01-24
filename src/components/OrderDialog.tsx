@@ -56,10 +56,15 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const { recordChanges } = useEditHistory();
   const isAdmin = role === 'admin';
   const isSales = role === 'sales';
-  const canEdit = role === 'supply_chain' || role === 'admin';
+  const isSupplyChain = role === 'supply_chain';
+  const canEdit = isSupplyChain || isAdmin;
+  // Sales can edit their own orders (limited fields)
+  const isOwnOrder = isSales && order?.sales_person_id === user?.id;
   const canEditSalesFields = isSales || canEdit;
-  const canDelete = role === 'admin';
-  const canSeeProcurement = role === 'supply_chain' || role === 'admin';
+  // Combined edit permission - supply chain/admin can edit all, sales can edit own orders
+  const canEditOrder = canEdit || isOwnOrder;
+  const canDelete = isAdmin;
+  const canSeeProcurement = isSupplyChain || isAdmin;
   const canEscalate = isSales && onEscalate;
 
   const [loading, setLoading] = useState(false);
@@ -293,7 +298,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const canDeletePo = isAdmin || (isSales && order?.sales_person_id === user?.id);
 
   const handleUpdate = async () => {
-    if (!canEdit && !canEditSalesFields) return;
+    if (!canEditOrder && !canEditSalesFields) return;
     
     // Validate cancellation reason when status is cancelled
     if (status === 'cancelled' && !cancellationReason.trim()) {
@@ -384,6 +389,20 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     if (order.customer_notes !== (customerNotes || null)) changes.customer_notes = { old: order.customer_notes, new: customerNotes || null };
     if (order.is_rto !== isRto) changes.is_rto = { old: order.is_rto, new: isRto };
     if (order.cancellation_reason !== (cancellationReason || null)) changes.cancellation_reason = { old: order.cancellation_reason, new: cancellationReason || null };
+    // Additional field tracking
+    if (order.shipping_address !== (shippingAddress || null)) changes.shipping_address = { old: order.shipping_address, new: shippingAddress || null };
+    if (order.tracking_number !== (trackingNumber || null)) changes.tracking_number = { old: order.tracking_number, new: trackingNumber || null };
+    if (order.tracking_url !== (trackingUrl || null)) changes.tracking_url = { old: order.tracking_url, new: trackingUrl || null };
+    if (order.committed_timeline !== (committedTimeline || null)) changes.committed_timeline = { old: order.committed_timeline, new: committedTimeline || null };
+    if (order.estimated_delivery !== (estimatedDelivery || null)) changes.estimated_delivery = { old: order.estimated_delivery, new: estimatedDelivery || null };
+    if (order.actual_delivery !== (actualDelivery || null)) changes.actual_delivery = { old: order.actual_delivery, new: actualDelivery || null };
+    if (order.payment_terms !== (paymentTerms || null)) changes.payment_terms = { old: order.payment_terms, new: paymentTerms || null };
+    if (order.payment_due_date !== (paymentDueDate || null)) changes.payment_due_date = { old: order.payment_due_date, new: paymentDueDate || null };
+    if (order.amount_paid !== (amountPaid ? parseFloat(amountPaid) : null)) {
+      changes.amount_paid = { old: order.amount_paid, new: amountPaid ? parseFloat(amountPaid) : null };
+    }
+    if (order.order_type !== orderType) changes.order_type = { old: order.order_type, new: orderType };
+    if (order.customer_type !== customerType) changes.customer_type = { old: order.customer_type, new: customerType };
 
     const success = await onUpdate(order.id, updates);
     
@@ -1074,8 +1093,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               )}
             </div>
 
-            {/* Notes */}
-            {(order.sales_notes || order.customer_notes) && (
+            {/* Notes (Read-only display when not in edit mode) */}
+            {!canEditOrder && (order.sales_notes || order.customer_notes) && (
               <div className="space-y-3">
                 {order.sales_notes && (
                   <div className="space-y-1">
@@ -1092,100 +1111,108 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               </div>
             )}
 
-            {/* Edit Form (Supply Chain / Admin only) */}
-            {canEdit && (
+            {/* Edit Form (Supply Chain / Admin / Sales for own orders) */}
+            {canEditOrder && (
               <div className="space-y-4 border-t pt-4">
-                <h4 className="font-medium">Update Order</h4>
+                <h4 className="font-medium">
+                  {isOwnOrder && !canEdit ? 'Update Your Order' : 'Update Order'}
+                </h4>
 
-                {/* Priority Selection */}
-                <div className="space-y-2">
-                  <Label htmlFor="priority" className="flex items-center gap-2">
-                    <Flag className="h-4 w-4" />
-                    Priority
-                  </Label>
-                  <Select value={priority.toString()} onValueChange={(v) => setPriority(parseInt(v))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ORDER_PRIORITIES.map(p => (
-                        <SelectItem key={p.value} value={p.value.toString()}>{p.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="payment_status">Payment Status</Label>
-                  <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as PaymentStatus)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PAYMENT_STATUSES.map(s => (
-                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* RTO Marking - for procured orders */}
-                {(order.status === 'procurement_done' || order.status === 'delivery_done') && (
-                  <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800 space-y-3">
-                    <h5 className="font-medium text-orange-800 dark:text-orange-300 flex items-center gap-2">
-                      <Undo2 className="h-4 w-4" />
-                      Return to Origin (RTO)
-                    </h5>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="is_rto"
-                        checked={isRto}
-                        onChange={(e) => setIsRto(e.target.checked)}
-                        disabled={loading}
-                        className="h-4 w-4"
-                      />
-                      <Label htmlFor="is_rto" className="cursor-pointer">
-                        Mark this order as RTO (Return to Origin)
+                {/* Supply Chain / Admin only fields */}
+                {canEdit && (
+                  <>
+                    {/* Priority Selection */}
+                    <div className="space-y-2">
+                      <Label htmlFor="priority" className="flex items-center gap-2">
+                        <Flag className="h-4 w-4" />
+                        Priority
                       </Label>
+                      <Select value={priority.toString()} onValueChange={(v) => setPriority(parseInt(v))}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ORDER_PRIORITIES.map(p => (
+                            <SelectItem key={p.value} value={p.value.toString()}>{p.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    {isRto && (
-                      <p className="text-xs text-orange-600 dark:text-orange-400">
-                        Order marked as RTO. The item has been returned to origin.
-                      </p>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="payment_status">Payment Status</Label>
+                      <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as PaymentStatus)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PAYMENT_STATUSES.map(s => (
+                            <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* RTO Marking - for procured orders */}
+                    {(order.status === 'procurement_done' || order.status === 'delivery_done') && (
+                      <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800 space-y-3">
+                        <h5 className="font-medium text-orange-800 dark:text-orange-300 flex items-center gap-2">
+                          <Undo2 className="h-4 w-4" />
+                          Return to Origin (RTO)
+                        </h5>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            id="is_rto"
+                            checked={isRto}
+                            onChange={(e) => setIsRto(e.target.checked)}
+                            disabled={loading}
+                            className="h-4 w-4"
+                          />
+                          <Label htmlFor="is_rto" className="cursor-pointer">
+                            Mark this order as RTO (Return to Origin)
+                          </Label>
+                        </div>
+                        {isRto && (
+                          <p className="text-xs text-orange-600 dark:text-orange-400">
+                            Order marked as RTO. The item has been returned to origin.
+                          </p>
+                        )}
+                      </div>
                     )}
-                  </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="order_type">Order Type</Label>
+                        <Select value={orderType} onValueChange={(v) => setOrderType(v as OrderType)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ORDER_TYPES.map(t => (
+                              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="customer_type">Customer Type</Label>
+                        <Select value={customerType} onValueChange={(v) => setCustomerType(v as CustomerType)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CUSTOMER_TYPES.map(t => (
+                              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="order_type">Order Type</Label>
-                    <Select value={orderType} onValueChange={(v) => setOrderType(v as OrderType)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ORDER_TYPES.map(t => (
-                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="customer_type">Customer Type</Label>
-                    <Select value={customerType} onValueChange={(v) => setCustomerType(v as CustomerType)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CUSTOMER_TYPES.map(t => (
-                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
+                {/* Fields editable by both Sales (own orders) and Supply Chain */}
                 <div className="space-y-2">
                   <Label htmlFor="shipping_address">Shipping Address</Label>
                   <Textarea
@@ -1208,71 +1235,76 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="total_sales_amount">Total Sales Amount (₹)</Label>
-                    <Input
-                      id="total_sales_amount"
-                      type="number"
-                      min={0}
-                      step={0.01}
-                      value={totalSalesAmount}
-                      onChange={e => setTotalSalesAmount(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="discount_amount">Discount (₹)</Label>
-                    <Input
-                      id="discount_amount"
-                      type="number"
-                      min={0}
-                      step={0.01}
-                      value={discountAmount}
-                      onChange={e => setDiscountAmount(e.target.value)}
-                      disabled={loading}
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
+                {/* Financial fields - Supply Chain / Admin only */}
+                {canEdit && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="total_sales_amount">Total Sales Amount (₹)</Label>
+                        <Input
+                          id="total_sales_amount"
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={totalSalesAmount}
+                          onChange={e => setTotalSalesAmount(e.target.value)}
+                          disabled={loading}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="discount_amount">Discount (₹)</Label>
+                        <Input
+                          id="discount_amount"
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={discountAmount}
+                          onChange={e => setDiscountAmount(e.target.value)}
+                          disabled={loading}
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="amount_paid">Amount Paid (₹)</Label>
-                    <Input
-                      id="amount_paid"
-                      type="number"
-                      min={0}
-                      step={0.01}
-                      value={amountPaid}
-                      onChange={e => setAmountPaid(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="amount_paid">Amount Paid (₹)</Label>
+                        <Input
+                          id="amount_paid"
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={amountPaid}
+                          onChange={e => setAmountPaid(e.target.value)}
+                          disabled={loading}
+                        />
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="payment_terms">Payment Terms</Label>
-                    <Input
-                      id="payment_terms"
-                      value={paymentTerms}
-                      onChange={e => setPaymentTerms(e.target.value)}
-                      disabled={loading}
-                      placeholder="e.g., 50% advance, 50% on delivery"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="payment_due_date">Payment Due Date</Label>
-                    <Input
-                      id="payment_due_date"
-                      type="date"
-                      value={paymentDueDate}
-                      onChange={e => setPaymentDueDate(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="payment_terms">Payment Terms</Label>
+                        <Input
+                          id="payment_terms"
+                          value={paymentTerms}
+                          onChange={e => setPaymentTerms(e.target.value)}
+                          disabled={loading}
+                          placeholder="e.g., 50% advance, 50% on delivery"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="payment_due_date">Payment Due Date</Label>
+                        <Input
+                          id="payment_due_date"
+                          type="date"
+                          value={paymentDueDate}
+                          onChange={e => setPaymentDueDate(e.target.value)}
+                          disabled={loading}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
 
 
                 <div className="grid grid-cols-2 gap-4">
@@ -1356,55 +1388,57 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   />
                 </div>
 
-                {/* Refund Section */}
-                <div className="space-y-4 border-t pt-4">
-                  <h4 className="font-medium flex items-center gap-2">
-                    <RotateCcw className="h-4 w-4" />
-                    Refund Request
-                  </h4>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="is_refund_requested"
-                      checked={isRefundRequested}
-                      onChange={(e) => setIsRefundRequested(e.target.checked)}
-                      disabled={loading}
-                      className="h-4 w-4"
-                    />
-                    <Label htmlFor="is_refund_requested" className="cursor-pointer">
-                      Mark as Refund Request
-                    </Label>
-                  </div>
+                {/* Refund Section - Supply Chain / Admin only */}
+                {canEdit && (
+                  <div className="space-y-4 border-t pt-4">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <RotateCcw className="h-4 w-4" />
+                      Refund Request
+                    </h4>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="is_refund_requested"
+                        checked={isRefundRequested}
+                        onChange={(e) => setIsRefundRequested(e.target.checked)}
+                        disabled={loading}
+                        className="h-4 w-4"
+                      />
+                      <Label htmlFor="is_refund_requested" className="cursor-pointer">
+                        Mark as Refund Request
+                      </Label>
+                    </div>
 
-                  {isRefundRequested && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="refund_reason">Refund Reason</Label>
-                        <Textarea
-                          id="refund_reason"
-                          value={refundReason}
-                          onChange={e => setRefundReason(e.target.value)}
-                          disabled={loading}
-                          rows={2}
-                          placeholder="Describe the reason for refund..."
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="refund_status">Refund Status</Label>
-                        <Select value={refundStatus} onValueChange={(v) => setRefundStatus(v as RefundStatus)}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {REFUND_STATUSES.map(s => (
-                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </>
-                  )}
-                </div>
+                    {isRefundRequested && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="refund_reason">Refund Reason</Label>
+                          <Textarea
+                            id="refund_reason"
+                            value={refundReason}
+                            onChange={e => setRefundReason(e.target.value)}
+                            disabled={loading}
+                            rows={2}
+                            placeholder="Describe the reason for refund..."
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="refund_status">Refund Status</Label>
+                          <Select value={refundStatus} onValueChange={(v) => setRefundStatus(v as RefundStatus)}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {REFUND_STATUSES.map(s => (
+                                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1427,9 +1461,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-                {(canEdit || canEditSalesFields) ? 'Cancel' : 'Close'}
+                {canEditOrder ? 'Cancel' : 'Close'}
               </Button>
-              {(canEdit || canEditSalesFields) && (
+              {canEditOrder && (
                 <Button onClick={handleUpdate} disabled={loading}>
                   {loading ? (
                     <>
