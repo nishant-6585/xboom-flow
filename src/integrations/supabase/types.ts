@@ -3117,6 +3117,7 @@ export type Database = {
           notes: string | null
           payment_status: Database["public"]["Enums"]["training_payment_status"]
           pictures: string[] | null
+          status: Database["public"]["Enums"]["training_status"]
           trainee_names: string[] | null
           training_date: string | null
           training_number: string | null
@@ -3138,6 +3139,7 @@ export type Database = {
           notes?: string | null
           payment_status?: Database["public"]["Enums"]["training_payment_status"]
           pictures?: string[] | null
+          status?: Database["public"]["Enums"]["training_status"]
           trainee_names?: string[] | null
           training_date?: string | null
           training_number?: string | null
@@ -3159,6 +3161,7 @@ export type Database = {
           notes?: string | null
           payment_status?: Database["public"]["Enums"]["training_payment_status"]
           pictures?: string[] | null
+          status?: Database["public"]["Enums"]["training_status"]
           trainee_names?: string[] | null
           training_date?: string | null
           training_number?: string | null
@@ -3331,6 +3334,7 @@ export type Database = {
         | "meeting_reminder"
       training_category: "drone_ops" | "software_usage" | "both"
       training_payment_status: "pending" | "partial" | "paid"
+      training_status: "requested" | "pending" | "done"
       training_type: "demo" | "training"
     }
     CompositeTypes: {
@@ -3506,6 +3510,7 @@ export const Constants = {
       ],
       training_category: ["drone_ops", "software_usage", "both"],
       training_payment_status: ["pending", "partial", "paid"],
+      training_status: ["requested", "pending", "done"],
       training_type: ["demo", "training"],
     },
   },

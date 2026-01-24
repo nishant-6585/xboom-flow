@@ -12,9 +12,11 @@ import {
   TRAINING_TYPES, 
   TRAINING_CATEGORIES,
   TRAINING_PAYMENT_STATUSES,
+  TRAINING_STATUSES,
   TrainingType,
   TrainingCategory,
-  TrainingPaymentStatus 
+  TrainingPaymentStatus,
+  TrainingStatus
 } from "@/hooks/useTrainings";
 import { format } from "date-fns";
 
@@ -39,6 +41,7 @@ export function TrainingForm({ onSubmit, onCancel, initialData, isEditing }: Tra
     amount_quoted: initialData?.amount_quoted || 0,
     amount_paid: initialData?.amount_paid || 0,
     payment_status: initialData?.payment_status || "pending",
+    status: initialData?.status || "requested",
     training_date: initialData?.training_date || format(new Date(), "yyyy-MM-dd"),
     notes: initialData?.notes || "",
   });
@@ -150,7 +153,7 @@ export function TrainingForm({ onSubmit, onCancel, initialData, isEditing }: Tra
         <CardHeader>
           <CardTitle className="text-base">Training Details</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="space-y-2">
             <Label htmlFor="type">Type</Label>
             <Select
@@ -182,6 +185,24 @@ export function TrainingForm({ onSubmit, onCancel, initialData, isEditing }: Tra
                 {TRAINING_CATEGORIES.map((cat) => (
                   <SelectItem key={cat.value} value={cat.value}>
                     {cat.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="status">Status</Label>
+            <Select
+              value={formData.status}
+              onValueChange={(value) => setFormData({ ...formData, status: value as TrainingStatus })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                {TRAINING_STATUSES.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
                   </SelectItem>
                 ))}
               </SelectContent>

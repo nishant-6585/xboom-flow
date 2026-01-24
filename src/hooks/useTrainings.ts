@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 export type TrainingType = 'demo' | 'training';
 export type TrainingCategory = 'drone_ops' | 'software_usage' | 'both';
 export type TrainingPaymentStatus = 'pending' | 'partial' | 'paid';
+export type TrainingStatus = 'requested' | 'pending' | 'done';
 
 export interface Training {
   id: string;
@@ -18,6 +19,7 @@ export interface Training {
   trainee_names: string[];
   amount_quoted: number;
   amount_paid: number;
+  status: TrainingStatus;
   payment_status: TrainingPaymentStatus;
   training_date: string | null;
   pictures: string[];
@@ -39,6 +41,7 @@ export interface TrainingFormData {
   amount_quoted: number;
   amount_paid: number;
   payment_status: TrainingPaymentStatus;
+  status: TrainingStatus;
   training_date?: string | null;
   notes?: string;
 }
@@ -58,6 +61,12 @@ export const TRAINING_PAYMENT_STATUSES: { value: TrainingPaymentStatus; label: s
   { value: 'pending', label: 'Pending' },
   { value: 'partial', label: 'Partial' },
   { value: 'paid', label: 'Paid' },
+];
+
+export const TRAINING_STATUSES: { value: TrainingStatus; label: string }[] = [
+  { value: 'requested', label: 'Requested' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'done', label: 'Done' },
 ];
 
 export function useTrainings() {
@@ -157,6 +166,7 @@ export function useTrainings() {
         amount_quoted: formData.amount_quoted,
         amount_paid: formData.amount_paid,
         payment_status: formData.payment_status,
+        status: formData.status,
         training_date: formData.training_date || null,
         notes: formData.notes || null,
         pictures: [] as string[],
