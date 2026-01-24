@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileText, Building2, CreditCard, Loader2, Plus, Trash2, Package, Image, X, CalendarIcon, ClipboardList } from "lucide-react";
+import { Upload, FileText, Building2, CreditCard, Loader2, Plus, Trash2, Package, Image, X, CalendarIcon, ClipboardList, Pencil, Check } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -58,6 +58,9 @@ export function ProcurementOrderDialog({
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showPlanningDialog, setShowPlanningDialog] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState(false);
+  const [customerName, setCustomerName] = useState<string>("");
+  const [customerCompany, setCustomerCompany] = useState<string>("");
 
   const canEdit = role === 'supply_chain' || role === 'admin' || role === 'finance';
 
@@ -91,6 +94,9 @@ export function ProcurementOrderDialog({
       setProcurementCurrency(order.procurement_currency || "INR");
       setProcurementDate(order.procurement_date ? parseISO(order.procurement_date) : undefined);
       setInternalNotes(order.internal_notes || "");
+      setCustomerName(order.customer_name || "");
+      setCustomerCompany(order.customer_company || "");
+      setEditingCustomer(false);
     }
   }, [order, suppliers]);
 
@@ -102,6 +108,48 @@ export function ProcurementOrderDialog({
     }
   };
 
+  const handleSaveCustomer = async () => {
+    if (!order || !canEdit) return;
+
+    try {
+      setSaving(true);
+      
+      const updates = {
+        customer_name: customerName.trim() || null,
+        customer_company: customerCompany.trim() || null,
+      };
+
+      const { error } = await supabase
+        .from('orders')
+        .update(updates)
+        .eq('id', order.id);
+
+      if (error) throw error;
+
+      // Track changes
+      const changes: Record<string, { old: any; new: any }> = {};
+      if (order.customer_name !== updates.customer_name) {
+        changes.customer_name = { old: order.customer_name, new: updates.customer_name };
+      }
+      if (order.customer_company !== updates.customer_company) {
+        changes.customer_company = { old: order.customer_company, new: updates.customer_company };
+      }
+
+      if (Object.keys(changes).length > 0) {
+        await recordChanges('orders', order.id, changes, profile?.name || 'Unknown');
+      }
+
+      toast.success('Customer details updated');
+      setEditingCustomer(false);
+      // Trigger refresh
+      onUpdate(order.id, updates as Partial<Order>);
+    } catch (error: any) {
+      console.error('Error updating customer:', error);
+      toast.error(error.message || 'Failed to update customer');
+    } finally {
+      setSaving(false);
+    }
+  };
   const handleUploadPO = async () => {
     if (!poFile || !order || !user) return;
 
@@ -272,9 +320,63 @@ export function ProcurementOrderDialog({
             </CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
-                <p className="text-muted-foreground">Customer</p>
-                <p className="font-medium">{order.customer_name}</p>
-                <p className="text-xs text-muted-foreground">{order.customer_company}</p>
+                <div className="flex items-center gap-1 mb-1">
+                  <p className="text-muted-foreground">Customer</p>
+                  {canEdit && !editingCustomer && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-5 w-5"
+                      onClick={() => setEditingCustomer(true)}
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+                {editingCustomer ? (
+                  <div className="space-y-2">
+                    <Input
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="Customer name"
+                      className="h-7 text-sm"
+                    />
+                    <Input
+                      value={customerCompany}
+                      onChange={(e) => setCustomerCompany(e.target.value)}
+                      placeholder="Company name"
+                      className="h-7 text-sm"
+                    />
+                    <div className="flex gap-1">
+                      <Button 
+                        size="sm" 
+                        className="h-6 text-xs"
+                        onClick={handleSaveCustomer}
+                        disabled={saving}
+                      >
+                        {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
+                        Save
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 text-xs"
+                        onClick={() => {
+                          setEditingCustomer(false);
+                          setCustomerName(order.customer_name || '');
+                          setCustomerCompany(order.customer_company || '');
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="font-medium">{order.customer_name}</p>
+                    <p className="text-xs text-muted-foreground">{order.customer_company}</p>
+                  </>
+                )}
               </div>
               <div>
                 <p className="text-muted-foreground">Product</p>
