@@ -115,6 +115,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [isRto, setIsRto] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
   const [orderDate, setOrderDate] = useState<Date | undefined>(undefined);
+  const [customerName, setCustomerName] = useState('');
+  const [customerCompany, setCustomerCompany] = useState('');
 
   useEffect(() => {
     if (order) {
@@ -154,6 +156,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setIsRto(order.is_rto || false);
       setCancellationReason(order.cancellation_reason || '');
       setOrderDate(order.order_date ? new Date(order.order_date) : new Date(order.created_at));
+      setCustomerName(order.customer_name || '');
+      setCustomerCompany(order.customer_company || '');
       setEscalationReason('');
       setShowEscalationForm(false);
       
@@ -322,6 +326,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       payment_status: paymentStatus,
       order_type: orderType,
       customer_type: customerType,
+      customer_name: customerName || null,
+      customer_company: customerCompany || null,
       shipping_address: shippingAddress || null,
       supplier_name: supplierName || null,
       supplier_contact: supplierContact || null,
@@ -403,6 +409,8 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     }
     if (order.order_type !== orderType) changes.order_type = { old: order.order_type, new: orderType };
     if (order.customer_type !== customerType) changes.customer_type = { old: order.customer_type, new: customerType };
+    if (order.customer_name !== (customerName || null)) changes.customer_name = { old: order.customer_name, new: customerName || null };
+    if (order.customer_company !== (customerCompany || null)) changes.customer_company = { old: order.customer_company, new: customerCompany || null };
 
     const success = await onUpdate(order.id, updates);
     
@@ -1213,6 +1221,29 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 )}
 
                 {/* Fields editable by both Sales (own orders) and Supply Chain */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="customer_name">Customer Name</Label>
+                    <Input
+                      id="customer_name"
+                      value={customerName}
+                      onChange={e => setCustomerName(e.target.value)}
+                      disabled={loading}
+                      placeholder="Customer name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="customer_company">Company Name</Label>
+                    <Input
+                      id="customer_company"
+                      value={customerCompany}
+                      onChange={e => setCustomerCompany(e.target.value)}
+                      disabled={loading}
+                      placeholder="Company name"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="shipping_address">Shipping Address</Label>
                   <Textarea
