@@ -57,11 +57,12 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const isAdmin = role === 'admin';
   const isSales = role === 'sales';
   const isSupplyChain = role === 'supply_chain';
-  const canEdit = isSupplyChain || isAdmin;
+  const isFinance = role === 'finance';
+  const canEdit = isSupplyChain || isAdmin || isFinance;
   // Sales can edit their own orders (limited fields)
   const isOwnOrder = isSales && order?.sales_person_id === user?.id;
   const canEditSalesFields = isSales || canEdit;
-  // Combined edit permission - supply chain/admin can edit all, sales can edit own orders
+  // Combined edit permission - supply chain/admin/finance can edit all, sales can edit own orders
   const canEditOrder = canEdit || isOwnOrder;
   const canDelete = isAdmin;
   const canSeeProcurement = isSupplyChain || isAdmin;
