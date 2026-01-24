@@ -21,7 +21,8 @@ import { useInventoryProcurements } from "@/hooks/useInventoryProcurements";
 import { useAllExpenseLinks } from "@/hooks/useExpenseLinks";
 import { useAuth } from "@/hooks/useAuth";
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
-import { Plus, Receipt, Loader2, Check, X, Wallet, TrendingUp, Clock, CheckCircle, CreditCard, Banknote, Users, Package, ShoppingCart, Link2, ChevronsUpDown, CalendarIcon, Filter } from "lucide-react";
+import { Plus, Receipt, Loader2, Check, X, Wallet, TrendingUp, Clock, CheckCircle, CreditCard, Banknote, Users, Package, ShoppingCart, Link2, ChevronsUpDown, CalendarIcon, Filter, Upload, AlertTriangle, FileText } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -51,6 +52,8 @@ export default function Expenses() {
   const [useFromPettyCash, setUseFromPettyCash] = useState(false);
   const [pettyCashAmount, setPettyCashAmount] = useState("");
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [selectedProcurementIds, setSelectedProcurementIds] = useState<string[]>([]);
 
   // Give petty cash dialog
@@ -90,6 +93,35 @@ export default function Expenses() {
     setPettyCashAmount("");
     setSelectedOrderIds([]);
     setSelectedProcurementIds([]);
+    setReceiptFile(null);
+  };
+
+  // Check if GST bill is required (amount > 2000)
+  const expenseAmount = parseFloat(amount) || 0;
+  const isGstBillRequired = expenseAmount > 2000;
+  const isGstBillMissing = isGstBillRequired && !receiptFile;
+
+  const uploadReceipt = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('payment-screenshots')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('payment-screenshots')
+        .getPublicUrl(fileName);
+
+      return urlData.publicUrl;
+    } catch (error: any) {
+      console.error('Error uploading receipt:', error);
+      toast.error('Failed to upload receipt');
+      return null;
+    }
   };
 
   const handleSubmit = async () => {
@@ -98,19 +130,39 @@ export default function Expenses() {
       return;
     }
 
-    const expenseAmount = parseFloat(amount);
-    const pettyCashToUse = useFromPettyCash ? Math.min(parseFloat(pettyCashAmount) || 0, myBalance, expenseAmount) : 0;
+    const submitExpenseAmount = parseFloat(amount);
+    
+    // Validate GST bill requirement
+    if (submitExpenseAmount > 2000 && !receiptFile) {
+      toast.error("GST Bill is mandatory for expenses over ₹2,000");
+      return;
+    }
 
     setSubmitting(true);
+
+    // Upload receipt if provided
+    let receiptUrl: string | null = null;
+    if (receiptFile) {
+      setUploadingReceipt(true);
+      receiptUrl = await uploadReceipt(receiptFile);
+      setUploadingReceipt(false);
+      if (!receiptUrl && submitExpenseAmount > 2000) {
+        toast.error("Failed to upload GST bill. Please try again.");
+        setSubmitting(false);
+        return;
+      }
+    }
+    const pettyCashToUse = useFromPettyCash ? Math.min(parseFloat(pettyCashAmount) || 0, myBalance, submitExpenseAmount) : 0;
+
     const result = await createExpense({
       expense_type: expenseType,
-      amount: expenseAmount,
+      amount: submitExpenseAmount,
       expense_date: expenseDate,
       description: description || null,
       vendor_name: vendorName || null,
       payment_mode: paymentMode || null,
       notes: notes || null,
-      receipt_url: null,
+      receipt_url: receiptUrl,
       paid_from_petty_cash: pettyCashToUse,
       amount_paid: pettyCashToUse, // Initially, petty cash used = paid
       payment_notes: pettyCashToUse > 0 ? `₹${pettyCashToUse} paid from petty cash` : null,
@@ -537,6 +589,58 @@ export default function Expenses() {
                     />
                   </div>
 
+                  {/* GST Bill Upload */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      GST Bill / Receipt {isGstBillRequired && <span className="text-destructive">*</span>}
+                    </Label>
+                    
+                    {isGstBillMissing && (
+                      <Alert variant="destructive" className="py-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription className="text-sm">
+                          GST Bill is mandatory for expenses over ₹2,000. Please upload the bill to proceed.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="file"
+                        accept="image/*,.pdf"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setReceiptFile(file);
+                          }
+                        }}
+                        className="flex-1"
+                      />
+                      {receiptFile && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setReceiptFile(null)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    {receiptFile && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Check className="h-3 w-3 text-green-600" />
+                        {receiptFile.name}
+                      </p>
+                    )}
+                    {!isGstBillRequired && (
+                      <p className="text-xs text-muted-foreground">
+                        Optional for expenses ₹2,000 or below
+                      </p>
+                    )}
+                  </div>
+
                   {/* Link to Orders - Multi-select Dropdown */}
                   <div className="space-y-2">
                     <Label className="text-sm flex items-center gap-2">
@@ -731,12 +835,17 @@ export default function Expenses() {
                   <Button 
                     onClick={handleSubmit} 
                     className="w-full" 
-                    disabled={submitting}
+                    disabled={submitting || isGstBillMissing}
                   >
                     {submitting ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Adding...
+                        {uploadingReceipt ? 'Uploading Receipt...' : 'Adding...'}
+                      </>
+                    ) : isGstBillMissing ? (
+                      <>
+                        <AlertTriangle className="w-4 h-4 mr-2" />
+                        Upload GST Bill to Continue
                       </>
                     ) : (
                       'Add Expense'
