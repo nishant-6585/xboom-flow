@@ -32,8 +32,12 @@ export function InventoryProcurementsList() {
   const [markDonePayment, setMarkDonePayment] = useState<SupplierPayment | null>(null);
   const [editProcurement, setEditProcurement] = useState<InventoryProcurement | null>(null);
 
-  // Create a map of order IDs to order numbers
-  const orderNumberMap = new Map(orders.map(o => [o.id, o.order_number || o.id.slice(0, 8)]));
+  // Create a map of order IDs to order details (number and sales amount)
+  const orderDetailsMap = new Map(orders.map(o => [o.id, {
+    order_number: o.order_number || o.id.slice(0, 8),
+    total_sales_amount: o.total_sales_amount || 0,
+    amount_paid: o.amount_paid || 0,
+  }]));
 
   const isAdmin = role === 'admin';
   const isFinance = role === 'finance';
@@ -156,7 +160,9 @@ export function InventoryProcurementsList() {
                 <TableHead>Product</TableHead>
                 <TableHead>Supplier</TableHead>
                 <TableHead className="text-right">Qty</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-right">Proc. Cost</TableHead>
+                <TableHead className="text-right">Order Value</TableHead>
+                <TableHead className="text-right">Profit</TableHead>
                 <TableHead className="text-right">Paid</TableHead>
                 <TableHead className="text-right">Balance</TableHead>
                 <TableHead>Status</TableHead>
@@ -170,6 +176,11 @@ export function InventoryProcurementsList() {
                 const totalAmount = procurement.total_amount || 0;
                 const remainingBalance = totalAmount - paymentData.totalPaid;
                 const paymentCount = paymentData.payments.length;
+                
+                // Get order details for profit calculation
+                const orderDetails = procurement.order_id ? orderDetailsMap.get(procurement.order_id) : null;
+                const orderValue = orderDetails?.total_sales_amount || 0;
+                const profit = orderDetails ? orderValue - totalAmount : null;
                 
                 // Get pending payment requests for this procurement
                 const procurementPayments = allPayments.filter(p => p.inventory_procurement_id === procurement.id);
@@ -188,7 +199,7 @@ export function InventoryProcurementsList() {
                       {procurement.order_id ? (
                         <Badge variant="secondary" className="gap-1 text-xs">
                           <FileText className="h-3 w-3" />
-                          {orderNumberMap.get(procurement.order_id) || procurement.order_id.slice(0, 8)}
+                          {orderDetails?.order_number || procurement.order_id.slice(0, 8)}
                         </Badge>
                       ) : (
                         <span className="text-muted-foreground text-xs">Inventory</span>
@@ -209,6 +220,22 @@ export function InventoryProcurementsList() {
                     <TableCell className="text-right">
                       {totalAmount ? (
                         `₹${totalAmount.toLocaleString()}`
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {orderDetails ? (
+                        `₹${orderValue.toLocaleString()}`
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {profit !== null ? (
+                        <span className={profit >= 0 ? 'text-green-600 dark:text-green-400 font-medium' : 'text-red-600 dark:text-red-400 font-medium'}>
+                          {profit >= 0 ? '+' : ''}₹{profit.toLocaleString()}
+                        </span>
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
