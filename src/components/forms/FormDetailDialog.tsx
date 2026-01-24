@@ -12,9 +12,10 @@ import { FormBuilder } from "./FormBuilder";
 import { FormPreview } from "./FormPreview";
 import { FormSubmissionsTable } from "./FormSubmissionsTable";
 import { FormEmbedDialog } from "./FormEmbedDialog";
+import { FormAnalyticsChart } from "./FormAnalyticsChart";
 import { useAuth } from "@/hooks/useAuth";
 import { useFormPermissions } from "@/hooks/useFormPermissions";
-import { Code, Eye, Settings, Inbox, Save } from "lucide-react";
+import { Code, Eye, Settings, Inbox, Save, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 
 interface FormDetailDialogProps {
@@ -92,7 +93,7 @@ export function FormDetailDialog({ form, open, onOpenChange }: FormDetailDialogP
           </DialogHeader>
 
           <Tabs defaultValue="builder" className="mt-4">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="builder" className="gap-2">
                 <Settings className="h-4 w-4" />
                 Builder
@@ -104,6 +105,10 @@ export function FormDetailDialog({ form, open, onOpenChange }: FormDetailDialogP
               <TabsTrigger value="submissions" className="gap-2">
                 <Inbox className="h-4 w-4" />
                 Submissions
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Analytics
               </TabsTrigger>
               <TabsTrigger value="settings" className="gap-2">
                 <Settings className="h-4 w-4" />
@@ -131,6 +136,10 @@ export function FormDetailDialog({ form, open, onOpenChange }: FormDetailDialogP
                   You don't have permission to view submissions
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="analytics" className="mt-6">
+              <FormAnalyticsChart formId={form.id} />
             </TabsContent>
 
             {canEdit && (
