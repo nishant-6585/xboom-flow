@@ -24,6 +24,8 @@ export interface Form {
   created_at: string;
   updated_at: string;
   form_fields?: FormField[];
+  submission_count?: number;
+  view_count?: number;
 }
 
 export interface FormSubmission {
@@ -42,13 +44,46 @@ export function useForms() {
   const { data: forms = [], isLoading } = useQuery({
     queryKey: ["forms"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Get forms with fields
+      const { data: formsData, error: formsError } = await supabase
         .from("forms")
         .select("*, form_fields(*)")
         .order("created_at", { ascending: false });
       
-      if (error) throw error;
-      return data as Form[];
+      if (formsError) throw formsError;
+
+      // Get submission counts for all forms
+      const { data: submissionCounts, error: subError } = await supabase
+        .from("form_submissions")
+        .select("form_id");
+      
+      // Get view counts for all forms
+      const { data: viewCounts, error: viewError } = await supabase
+        .from("form_views")
+        .select("form_id");
+
+      // Count submissions per form
+      const subCountMap = new Map<string, number>();
+      if (submissionCounts) {
+        submissionCounts.forEach((s: { form_id: string }) => {
+          subCountMap.set(s.form_id, (subCountMap.get(s.form_id) || 0) + 1);
+        });
+      }
+
+      // Count views per form
+      const viewCountMap = new Map<string, number>();
+      if (viewCounts) {
+        viewCounts.forEach((v: { form_id: string }) => {
+          viewCountMap.set(v.form_id, (viewCountMap.get(v.form_id) || 0) + 1);
+        });
+      }
+
+      // Merge counts into forms
+      return (formsData || []).map((form) => ({
+        ...form,
+        submission_count: subCountMap.get(form.id) || 0,
+        view_count: viewCountMap.get(form.id) || 0,
+      })) as Form[];
     },
   });
 

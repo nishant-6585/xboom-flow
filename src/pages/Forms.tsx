@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useFormPermissions } from "@/hooks/useFormPermissions";
 import { FormCreateDialog } from "@/components/forms/FormCreateDialog";
 import { FormDetailDialog } from "@/components/forms/FormDetailDialog";
-import { Plus, FileText, Inbox, Trash2, Code } from "lucide-react";
+import { Plus, FileText, Inbox, Trash2, Code, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { FormEmbedDialog } from "@/components/forms/FormEmbedDialog";
@@ -109,7 +109,11 @@ export default function Forms() {
                     </div>
                     <div className="flex items-center gap-1">
                       <Inbox className="h-4 w-4" />
-                      {access.canViewSubmissions ? "submissions" : "submissions (no access)"}
+                      {form.submission_count || 0} submissions
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Eye className="h-4 w-4" />
+                      {form.view_count || 0} views
                     </div>
                   </div>
                   <div className="text-xs text-muted-foreground mt-3">

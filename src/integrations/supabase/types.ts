@@ -762,6 +762,38 @@ export type Database = {
           },
         ]
       }
+      form_views: {
+        Row: {
+          form_id: string
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          viewed_at: string
+        }
+        Insert: {
+          form_id: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          viewed_at?: string
+        }
+        Update: {
+          form_id?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_views_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       forms: {
         Row: {
           created_at: string
