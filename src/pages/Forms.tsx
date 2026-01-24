@@ -9,10 +9,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useFormPermissions } from "@/hooks/useFormPermissions";
 import { FormCreateDialog } from "@/components/forms/FormCreateDialog";
 import { FormDetailDialog } from "@/components/forms/FormDetailDialog";
-import { Plus, FileText, Inbox, Trash2, Code, Eye } from "lucide-react";
+import { Plus, FileText, Inbox, Trash2, Code, Eye, Link2 } from "lucide-react";
 import { format } from "date-fns";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { FormEmbedDialog } from "@/components/forms/FormEmbedDialog";
+import { toast } from "sonner";
 
 export default function Forms() {
   const navigate = useNavigate();
@@ -121,6 +122,20 @@ export default function Forms() {
                   </div>
                 </CardContent>
                 <div className="px-6 pb-4 flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const formUrl = `${window.location.origin}/form-embed/${form.id}`;
+                      navigator.clipboard.writeText(formUrl);
+                      toast.success("Form URL copied to clipboard!");
+                    }}
+                  >
+                    <Link2 className="h-4 w-4 mr-1" />
+                    Copy Link
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
