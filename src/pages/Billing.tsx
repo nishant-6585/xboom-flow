@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,10 +18,12 @@ import { QuotesTable } from '@/components/billing/QuotesTable';
 import { QuoteConversionStats } from '@/components/billing/QuoteConversionStats';
 import { Plus, Search, FileText, Receipt, Loader2, Filter, LayoutGrid, List } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 export default function Billing() {
+  const navigate = useNavigate();
   const { role } = useAuth();
-  const { quotes, loading, createQuote } = useQuotes();
+  const { quotes, loading, createQuote, updateQuoteStatus, fetchQuoteWithItems } = useQuotes();
   
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
@@ -40,6 +43,52 @@ export default function Billing() {
   const handleViewQuote = (quote: Quote) => {
     setSelectedQuote(quote);
     setDetailDialogOpen(true);
+  };
+
+  const handleConvertToOrder = async (quote: Quote) => {
+    try {
+      // Fetch full quote with items
+      const fullQuote = await fetchQuoteWithItems(quote.id);
+      if (!fullQuote) {
+        toast.error('Failed to load quote details');
+        return;
+      }
+
+      // Store quote data in session storage for the orders page to pick up
+      const orderData = {
+        customer_name: fullQuote.customer_name,
+        customer_company: fullQuote.customer_company || '',
+        customer_email: fullQuote.customer_email || '',
+        shipping_address: fullQuote.customer_address || '',
+        items: fullQuote.items?.map(item => ({
+          product_name: item.product_name,
+          product_code: item.product_code || '',
+          product_category: 'Consumer Drones',
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          sales_gst_percent: item.gst_percent,
+          sales_gst_amount: item.gst_amount,
+        })) || [],
+        quote_id: quote.id,
+        quote_number: quote.quote_number,
+      };
+      
+      sessionStorage.setItem('quoteToOrder', JSON.stringify(orderData));
+      
+      // Update quote status to converted
+      await updateQuoteStatus(quote.id, 'converted');
+      
+      toast.success('Redirecting to create order from quote...');
+      navigate('/orders?from=quote');
+    } catch (error) {
+      console.error('Error converting quote to order:', error);
+      toast.error('Failed to convert quote to order');
+    }
+  };
+
+  const handleConvertToInvoice = async (quote: Quote) => {
+    // For now, show a message that invoices are coming soon
+    toast.info('Invoice generation feature is coming soon!');
   };
 
   const filteredQuotes = quotes.filter(quote => {
@@ -171,7 +220,12 @@ export default function Billing() {
                 ))}
               </div>
             ) : (
-              <QuotesTable quotes={filteredQuotes} onView={handleViewQuote} />
+              <QuotesTable 
+                quotes={filteredQuotes} 
+                onView={handleViewQuote}
+                onConvertToOrder={handleConvertToOrder}
+                onConvertToInvoice={handleConvertToInvoice}
+              />
             )}
           </TabsContent>
 

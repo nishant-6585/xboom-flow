@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Quote, QuoteStatus, QUOTE_STATUSES, useQuotes } from '@/hooks/useQuotes';
 import { downloadQuotePdf } from '@/lib/quotePdfGenerator';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 import { 
   MoreVertical, 
   Download, 
@@ -19,7 +21,8 @@ import {
   Send,
   CheckCircle2,
   XCircle,
-  RefreshCw
+  ShoppingCart,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -29,12 +32,16 @@ interface QuoteCardProps {
 }
 
 export function QuoteCard({ quote, onView }: QuoteCardProps) {
+  const navigate = useNavigate();
   const { role } = useAuth();
   const { fetchQuoteWithItems, updateQuoteStatus, deleteQuote } = useQuotes();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const statusConfig = QUOTE_STATUSES.find(s => s.value === quote.status);
+  const isConverted = quote.status === 'converted';
+  const isLost = quote.status === 'rejected' || quote.status === 'expired';
+  const canConvert = !isConverted && !isLost;
 
   const handleDownloadPdf = async () => {
     setLoading(true);
@@ -50,6 +57,53 @@ export function QuoteCard({ quote, onView }: QuoteCardProps) {
 
   const handleStatusChange = async (newStatus: QuoteStatus) => {
     await updateQuoteStatus(quote.id, newStatus);
+  };
+
+  const handleConvertToOrder = async () => {
+    setLoading(true);
+    try {
+      const fullQuote = await fetchQuoteWithItems(quote.id);
+      if (!fullQuote) {
+        toast.error('Failed to load quote details');
+        return;
+      }
+
+      // Store quote data in session storage for the orders page to pick up
+      const orderData = {
+        customer_name: fullQuote.customer_name,
+        customer_company: fullQuote.customer_company || '',
+        customer_email: fullQuote.customer_email || '',
+        shipping_address: fullQuote.customer_address || '',
+        items: fullQuote.items?.map(item => ({
+          product_name: item.product_name,
+          product_code: item.product_code || '',
+          product_category: 'Consumer Drones',
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          sales_gst_percent: item.gst_percent,
+          sales_gst_amount: item.gst_amount,
+        })) || [],
+        quote_id: quote.id,
+        quote_number: quote.quote_number,
+      };
+      
+      sessionStorage.setItem('quoteToOrder', JSON.stringify(orderData));
+      
+      // Update quote status to converted
+      await updateQuoteStatus(quote.id, 'converted');
+      
+      toast.success('Redirecting to create order from quote...');
+      navigate('/orders?from=quote');
+    } catch (error) {
+      console.error('Error converting quote to order:', error);
+      toast.error('Failed to convert quote to order');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConvertToInvoice = () => {
+    toast.info('Invoice generation feature is coming soon!');
   };
 
   const handleDelete = async () => {
@@ -100,10 +154,26 @@ export function QuoteCard({ quote, onView }: QuoteCardProps) {
                     <XCircle className="h-4 w-4 mr-2" />
                     Mark as Rejected
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleStatusChange('converted')}>
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Convert to Order
-                  </DropdownMenuItem>
+                  {canConvert && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        onClick={handleConvertToOrder} 
+                        disabled={loading}
+                        className="text-primary"
+                      >
+                        <ShoppingCart className="h-4 w-4 mr-2" />
+                        Convert to Order
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={handleConvertToInvoice}
+                        className="text-primary"
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Convert to Invoice
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   {role === 'admin' && (
                     <>
                       <DropdownMenuSeparator />
