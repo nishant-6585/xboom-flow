@@ -9,17 +9,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Eye, CheckCircle2, XCircle, MoreHorizontal, ShoppingCart, FileText } from 'lucide-react';
+import { Eye, CheckCircle2, XCircle, MoreHorizontal, ShoppingCart, FileText, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface QuotesTableProps {
   quotes: Quote[];
   onView: (quote: Quote) => void;
+  onEdit?: (quote: Quote) => void;
   onConvertToOrder?: (quote: Quote) => void;
   onConvertToInvoice?: (quote: Quote) => void;
 }
 
-export function QuotesTable({ quotes, onView, onConvertToOrder, onConvertToInvoice }: QuotesTableProps) {
+export function QuotesTable({ quotes, onView, onEdit, onConvertToOrder, onConvertToInvoice }: QuotesTableProps) {
   const getStatusConfig = (status: string) => {
     return QUOTE_STATUSES.find(s => s.value === status) || QUOTE_STATUSES[0];
   };
@@ -91,6 +92,12 @@ export function QuotesTable({ quotes, onView, onConvertToOrder, onConvertToInvoi
                         <Eye className="h-4 w-4 mr-2" />
                         View Details
                       </DropdownMenuItem>
+                      {!isConverted && onEdit && (
+                        <DropdownMenuItem onClick={() => onEdit(quote)}>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit Quote
+                        </DropdownMenuItem>
+                      )}
                       {canConvert && (
                         <>
                           <DropdownMenuSeparator />

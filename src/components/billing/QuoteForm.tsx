@@ -36,32 +36,32 @@ const DEFAULT_TERMS = `1. This quotation is valid for the period mentioned above
 
 export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
   const [submitting, setSubmitting] = useState(false);
-  const [sourceType, setSourceType] = useState<string>('manual');
-  const [sourceId, setSourceId] = useState<string>('');
-  const [shipToSameAsBillTo, setShipToSameAsBillTo] = useState(true);
+  const [sourceType, setSourceType] = useState<string>(initialData?.source_type || 'manual');
+  const [sourceId, setSourceId] = useState<string>(initialData?.source_id || '');
+  const [shipToSameAsBillTo, setShipToSameAsBillTo] = useState(!initialData?.shipping_address);
   
   const { enquiries } = useEnquiries();
   const { pipelineOrders } = usePipelineOrders();
 
   const [formData, setFormData] = useState<QuoteFormData>({
-    customer_name: '',
-    customer_company: '',
-    customer_email: '',
-    customer_phone: '',
-    customer_address: '',
-    customer_gst: '',
-    customer_state: '',
-    shipping_name: '',
-    shipping_company: '',
-    shipping_address: '',
-    shipping_state: '',
-    shipping_phone: '',
-    discount_amount: 0,
-    discount_percent: 0,
-    valid_until: '',
-    notes: '',
-    terms_and_conditions: DEFAULT_TERMS,
-    items: [{
+    customer_name: initialData?.customer_name || '',
+    customer_company: initialData?.customer_company || '',
+    customer_email: initialData?.customer_email || '',
+    customer_phone: initialData?.customer_phone || '',
+    customer_address: initialData?.customer_address || '',
+    customer_gst: initialData?.customer_gst || '',
+    customer_state: initialData?.customer_state || '',
+    shipping_name: initialData?.shipping_name || '',
+    shipping_company: initialData?.shipping_company || '',
+    shipping_address: initialData?.shipping_address || '',
+    shipping_state: initialData?.shipping_state || '',
+    shipping_phone: initialData?.shipping_phone || '',
+    discount_amount: initialData?.discount_amount || 0,
+    discount_percent: initialData?.discount_percent || 0,
+    valid_until: initialData?.valid_until || '',
+    notes: initialData?.notes || '',
+    terms_and_conditions: initialData?.terms_and_conditions || DEFAULT_TERMS,
+    items: initialData?.items?.length ? initialData.items : [{
       product_name: '',
       product_code: '',
       product_category: 'Consumer Drones',
