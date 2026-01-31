@@ -24,6 +24,7 @@ import Forms from "./pages/Forms";
 import FormEmbed from "./pages/FormEmbed";
 import Repairs from "./pages/Repairs";
 import Trainings from "./pages/Trainings";
+import Billing from "./pages/Billing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -173,6 +174,14 @@ const App = () => (
               }
             />
             <Route path="/form-embed/:formId" element={<FormEmbed />} />
+            <Route
+              path="/billing"
+              element={
+                <ProtectedRoute>
+                  <Billing />
+                </ProtectedRoute>
+              }
+            />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
