@@ -174,6 +174,89 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_assets: {
+        Row: {
+          asset_name: string
+          asset_type: Database["public"]["Enums"]["asset_type"]
+          assigned_by: string | null
+          assigned_by_name: string | null
+          assigned_date: string
+          brand: string | null
+          condition_on_assign: string | null
+          condition_on_return: string | null
+          created_at: string
+          employee_id: string | null
+          id: string
+          imei_number: string | null
+          model: string | null
+          notes: string | null
+          phone_number: string | null
+          purchase_date: string | null
+          purchase_price: number | null
+          return_date: string | null
+          serial_number: string | null
+          sim_number: string | null
+          status: Database["public"]["Enums"]["asset_status"]
+          updated_at: string
+        }
+        Insert: {
+          asset_name: string
+          asset_type: Database["public"]["Enums"]["asset_type"]
+          assigned_by?: string | null
+          assigned_by_name?: string | null
+          assigned_date?: string
+          brand?: string | null
+          condition_on_assign?: string | null
+          condition_on_return?: string | null
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          imei_number?: string | null
+          model?: string | null
+          notes?: string | null
+          phone_number?: string | null
+          purchase_date?: string | null
+          purchase_price?: number | null
+          return_date?: string | null
+          serial_number?: string | null
+          sim_number?: string | null
+          status?: Database["public"]["Enums"]["asset_status"]
+          updated_at?: string
+        }
+        Update: {
+          asset_name?: string
+          asset_type?: Database["public"]["Enums"]["asset_type"]
+          assigned_by?: string | null
+          assigned_by_name?: string | null
+          assigned_date?: string
+          brand?: string | null
+          condition_on_assign?: string | null
+          condition_on_return?: string | null
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          imei_number?: string | null
+          model?: string | null
+          notes?: string | null
+          phone_number?: string | null
+          purchase_date?: string | null
+          purchase_price?: number | null
+          return_date?: string | null
+          serial_number?: string | null
+          sim_number?: string | null
+          status?: Database["public"]["Enums"]["asset_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_assets_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           created_at: string
@@ -3467,6 +3550,23 @@ export type Database = {
     }
     Enums: {
       app_role: "sales" | "supply_chain" | "admin" | "finance"
+      asset_status:
+        | "assigned"
+        | "returned"
+        | "lost"
+        | "damaged"
+        | "under_repair"
+      asset_type:
+        | "mobile_phone"
+        | "sim_card"
+        | "laptop"
+        | "camera"
+        | "tablet"
+        | "headset"
+        | "monitor"
+        | "keyboard"
+        | "mouse"
+        | "other"
       order_status:
         | "po_received"
         | "payment_received"
@@ -3647,6 +3747,19 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["sales", "supply_chain", "admin", "finance"],
+      asset_status: ["assigned", "returned", "lost", "damaged", "under_repair"],
+      asset_type: [
+        "mobile_phone",
+        "sim_card",
+        "laptop",
+        "camera",
+        "tablet",
+        "headset",
+        "monitor",
+        "keyboard",
+        "mouse",
+        "other",
+      ],
       order_status: [
         "po_received",
         "payment_received",
