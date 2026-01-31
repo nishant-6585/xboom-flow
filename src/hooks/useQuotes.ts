@@ -227,6 +227,88 @@ export function useQuotes() {
     }
   };
 
+  const updateQuote = async (quoteId: string, data: QuoteFormData): Promise<boolean> => {
+    if (!user || !profile) {
+      toast.error('You must be logged in to update a quote');
+      return false;
+    }
+
+    try {
+      // Calculate totals
+      const subtotal = data.items.reduce((sum, item) => {
+        const basePrice = item.price_includes_gst 
+          ? item.unit_price / (1 + item.gst_percent / 100)
+          : item.unit_price;
+        return sum + (basePrice * item.quantity);
+      }, 0);
+
+      const totalGst = data.items.reduce((sum, item) => sum + item.gst_amount, 0);
+      const discountAmount = data.discount_amount || (data.discount_percent ? subtotal * (data.discount_percent / 100) : 0);
+      const totalAmount = subtotal + totalGst - discountAmount;
+
+      // Update quote
+      const { error: quoteError } = await supabase
+        .from('quotes')
+        .update({
+          customer_name: data.customer_name,
+          customer_company: data.customer_company,
+          customer_email: data.customer_email,
+          customer_phone: data.customer_phone,
+          customer_address: data.customer_address,
+          customer_gst: data.customer_gst,
+          customer_state: data.customer_state,
+          subtotal,
+          total_gst: totalGst,
+          discount_amount: discountAmount,
+          discount_percent: data.discount_percent || 0,
+          total_amount: totalAmount,
+          valid_until: data.valid_until,
+          notes: data.notes,
+          terms_and_conditions: data.terms_and_conditions,
+        })
+        .eq('id', quoteId);
+
+      if (quoteError) throw quoteError;
+
+      // Delete existing items
+      const { error: deleteError } = await supabase
+        .from('quote_items')
+        .delete()
+        .eq('quote_id', quoteId);
+
+      if (deleteError) throw deleteError;
+
+      // Insert updated items
+      const itemsToInsert = data.items.map(item => ({
+        quote_id: quoteId,
+        product_name: item.product_name,
+        product_code: item.product_code,
+        product_category: item.product_category,
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        gst_percent: item.gst_percent,
+        gst_amount: item.gst_amount,
+        price_includes_gst: item.price_includes_gst,
+        total_amount: item.total_amount,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('quote_items')
+        .insert(itemsToInsert);
+
+      if (itemsError) throw itemsError;
+
+      toast.success('Quote updated successfully');
+      fetchQuotes();
+      return true;
+    } catch (error: any) {
+      console.error('Error updating quote:', error);
+      toast.error(error.message || 'Failed to update quote');
+      return false;
+    }
+  };
+
   const deleteQuote = async (quoteId: string): Promise<boolean> => {
     try {
       const { error } = await supabase
@@ -258,6 +340,7 @@ export function useQuotes() {
     fetchQuotes,
     fetchQuoteWithItems,
     createQuote,
+    updateQuote,
     updateQuoteStatus,
     deleteQuote,
   };

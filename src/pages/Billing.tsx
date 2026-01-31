@@ -23,10 +23,12 @@ import { toast } from 'sonner';
 export default function Billing() {
   const navigate = useNavigate();
   const { role } = useAuth();
-  const { quotes, loading, createQuote, updateQuoteStatus, fetchQuoteWithItems } = useQuotes();
+  const { quotes, loading, createQuote, updateQuote, updateQuoteStatus, fetchQuoteWithItems } = useQuotes();
   
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+  const [editQuoteData, setEditQuoteData] = useState<Quote | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -43,6 +45,24 @@ export default function Billing() {
   const handleViewQuote = (quote: Quote) => {
     setSelectedQuote(quote);
     setDetailDialogOpen(true);
+  };
+
+  const handleEditQuote = async (quote: Quote) => {
+    const fullQuote = await fetchQuoteWithItems(quote.id);
+    if (fullQuote) {
+      setEditQuoteData(fullQuote);
+      setEditDialogOpen(true);
+    }
+  };
+
+  const handleUpdateQuote = async (data: Parameters<typeof createQuote>[0]) => {
+    if (!editQuoteData) return false;
+    const success = await updateQuote(editQuoteData.id, data);
+    if (success) {
+      setEditDialogOpen(false);
+      setEditQuoteData(null);
+    }
+    return success;
   };
 
   const handleConvertToOrder = async (quote: Quote) => {
@@ -223,6 +243,7 @@ export default function Billing() {
               <QuotesTable 
                 quotes={filteredQuotes} 
                 onView={handleViewQuote}
+                onEdit={handleEditQuote}
                 onConvertToOrder={handleConvertToOrder}
                 onConvertToInvoice={handleConvertToInvoice}
               />
@@ -269,7 +290,46 @@ export default function Billing() {
         quote={selectedQuote}
         open={detailDialogOpen}
         onOpenChange={setDetailDialogOpen}
+        onEdit={handleEditQuote}
       />
+
+      {/* Edit Quote Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={(open) => { setEditDialogOpen(open); if (!open) setEditQuoteData(null); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Edit Quote - {editQuoteData?.quote_number}
+            </DialogTitle>
+            <DialogDescription>
+              Update the quotation details and pricing
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[75vh] pr-4">
+            {editQuoteData && (
+              <QuoteForm 
+                onSubmit={handleUpdateQuote}
+                onCancel={() => { setEditDialogOpen(false); setEditQuoteData(null); }}
+                initialData={{
+                  customer_name: editQuoteData.customer_name,
+                  customer_company: editQuoteData.customer_company || '',
+                  customer_email: editQuoteData.customer_email || '',
+                  customer_phone: editQuoteData.customer_phone || '',
+                  customer_address: editQuoteData.customer_address || '',
+                  customer_gst: editQuoteData.customer_gst || '',
+                  customer_state: editQuoteData.customer_state || '',
+                  discount_amount: editQuoteData.discount_amount,
+                  discount_percent: editQuoteData.discount_percent,
+                  valid_until: editQuoteData.valid_until || '',
+                  notes: editQuoteData.notes || '',
+                  terms_and_conditions: editQuoteData.terms_and_conditions || '',
+                  items: editQuoteData.items || [],
+                }}
+              />
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
 
       <MobileBottomNav />
     </div>

@@ -8,15 +8,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Quote, QuoteItem, QUOTE_STATUSES, useQuotes } from '@/hooks/useQuotes';
 import { downloadQuotePdf } from '@/lib/quotePdfGenerator';
 import { format } from 'date-fns';
-import { Download, User, Building2, Mail, Phone, MapPin, Calendar, Loader2 } from 'lucide-react';
+import { Download, User, Building2, Mail, Phone, MapPin, Calendar, Loader2, Pencil } from 'lucide-react';
 
 interface QuoteDetailDialogProps {
   quote: Quote | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEdit?: (quote: Quote) => void;
 }
 
-export function QuoteDetailDialog({ quote, open, onOpenChange }: QuoteDetailDialogProps) {
+export function QuoteDetailDialog({ quote, open, onOpenChange, onEdit }: QuoteDetailDialogProps) {
   const { fetchQuoteWithItems } = useQuotes();
   const [fullQuote, setFullQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(false);
@@ -40,6 +41,7 @@ export function QuoteDetailDialog({ quote, open, onOpenChange }: QuoteDetailDial
   if (!quote) return null;
 
   const statusConfig = QUOTE_STATUSES.find(s => s.value === quote.status);
+  const canEdit = quote.status !== 'converted';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -56,6 +58,12 @@ export function QuoteDetailDialog({ quote, open, onOpenChange }: QuoteDetailDial
               <Badge className={`${statusConfig?.color} text-white`}>
                 {statusConfig?.label}
               </Badge>
+              {canEdit && onEdit && (
+                <Button variant="outline" onClick={() => { onOpenChange(false); onEdit(quote); }}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+              )}
               <Button onClick={handleDownload} disabled={loading || !fullQuote?.items}>
                 <Download className="h-4 w-4 mr-2" />
                 Download PDF
