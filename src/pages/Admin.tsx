@@ -13,7 +13,8 @@ import { EnquiryAnalytics, ValueFilterType } from "@/components/EnquiryAnalytics
 import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
 import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
 import { InviteUserDialog } from "@/components/admin/InviteUserDialog";
-import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail } from "lucide-react";
+import { NoticesPanel } from "@/components/notices/NoticesPanel";
+import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -463,6 +464,10 @@ const Admin = () => {
               <ClipboardList className="w-4 h-4" />
               Form Access
             </TabsTrigger>
+            <TabsTrigger value="notices" className="flex items-center gap-2">
+              <Bell className="w-4 h-4" />
+              Notices
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="analytics">
@@ -829,6 +834,10 @@ const Admin = () => {
 
           <TabsContent value="form-access">
             <FormPermissionsPanel />
+          </TabsContent>
+
+          <TabsContent value="notices">
+            <NoticesPanel />
           </TabsContent>
         </Tabs>
       </main>

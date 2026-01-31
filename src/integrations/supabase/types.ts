@@ -1466,6 +1466,77 @@ export type Database = {
           },
         ]
       }
+      notice_reads: {
+        Row: {
+          id: string
+          notice_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          notice_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          notice_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notice_reads_notice_id_fkey"
+            columns: ["notice_id"]
+            isOneToOne: false
+            referencedRelation: "notices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notices: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string
+          created_by_name: string
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          priority: string | null
+          title: string
+          updated_at: string
+          visibility: Database["public"]["Enums"]["notice_visibility"][]
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by: string
+          created_by_name: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          priority?: string | null
+          title: string
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["notice_visibility"][]
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          priority?: string | null
+          title?: string
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["notice_visibility"][]
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -3456,6 +3527,13 @@ export type Database = {
     }
     Functions: {
       can_create_admin: { Args: never; Returns: boolean }
+      can_view_notice: {
+        Args: {
+          _user_id: string
+          _visibility: Database["public"]["Enums"]["notice_visibility"][]
+        }
+        Returns: boolean
+      }
       count_admins: { Args: never; Returns: number }
       generate_payment_reminders: { Args: never; Returns: undefined }
       get_direct_reports: { Args: { _manager_id: string }; Returns: string[] }
@@ -3567,6 +3645,7 @@ export type Database = {
         | "keyboard"
         | "mouse"
         | "other"
+      notice_visibility: "all" | "sales" | "supply_chain" | "finance" | "admin"
       order_status:
         | "po_received"
         | "payment_received"
@@ -3760,6 +3839,7 @@ export const Constants = {
         "mouse",
         "other",
       ],
+      notice_visibility: ["all", "sales", "supply_chain", "finance", "admin"],
       order_status: [
         "po_received",
         "payment_received",
