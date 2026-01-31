@@ -450,15 +450,40 @@ export async function generateQuotePdf(quote: Quote, items: QuoteItem[], company
   let finalY = (doc as any).lastAutoTable.finalY || yPos + 50;
   yPos = finalY + 8;
   
+  // Determine if inter-state or intra-state based on customer state
+  const companyState = 'Karnataka';
+  const customerState = quote.customer_state?.toLowerCase().trim() || '';
+  const isInterState = customerState !== '' && 
+    !customerState.includes('karnataka') && 
+    customerState !== 'ka';
+  
+  // Calculate GST breakdown per rate
+  const gstBreakdown: { rate: number; cgst: number; sgst: number; igst: number }[] = [];
+  const gstByRate = new Map<number, number>();
+  
+  items.forEach(item => {
+    const existing = gstByRate.get(item.gst_percent) || 0;
+    gstByRate.set(item.gst_percent, existing + item.gst_amount);
+  });
+  
+  gstByRate.forEach((amount, rate) => {
+    if (isInterState) {
+      gstBreakdown.push({ rate, cgst: 0, sgst: 0, igst: amount });
+    } else {
+      gstBreakdown.push({ rate, cgst: amount / 2, sgst: amount / 2, igst: 0 });
+    }
+  });
+  
   // Summary Box (right side)
-  const summaryBoxWidth = 85;
+  const summaryBoxWidth = 90;
   const summaryBoxX = pageWidth - marginRight - summaryBoxWidth;
   const summaryBoxY = yPos - 2;
   
-  // Calculate summary box height
+  // Calculate summary box height based on GST rows
   const hasDiscount = quote.discount_amount > 0;
-  const summaryRows = hasDiscount ? 4 : 3;
-  const summaryBoxHeight = summaryRows * 10 + 16;
+  const gstRowCount = isInterState ? gstBreakdown.length : gstBreakdown.length * 2; // CGST + SGST rows
+  const summaryRows = 1 + gstRowCount + (hasDiscount ? 1 : 0); // Subtotal + GST rows + Discount
+  const summaryBoxHeight = summaryRows * 9 + 24;
   
   doc.setFillColor(250, 250, 250);
   doc.roundedRect(summaryBoxX, summaryBoxY, summaryBoxWidth, summaryBoxHeight, 3, 3, 'F');
@@ -467,6 +492,7 @@ export async function generateQuotePdf(quote: Quote, items: QuoteItem[], company
   const summaryLabelX = summaryBoxX + 5;
   const summaryValueX = summaryBoxX + summaryBoxWidth - 5;
   
+  // Sub Total
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...GRAY_TEXT);
@@ -475,16 +501,39 @@ export async function generateQuotePdf(quote: Quote, items: QuoteItem[], company
   doc.setTextColor(...DARK_TEXT);
   doc.text(formatCurrency(quote.subtotal), summaryValueX, summaryY, { align: 'right' });
   
-  summaryY += 10;
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...GRAY_TEXT);
-  doc.text(`IGST (${items[0]?.gst_percent || 18}%)`, summaryLabelX, summaryY);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...DARK_TEXT);
-  doc.text(formatCurrency(quote.total_gst), summaryValueX, summaryY, { align: 'right' });
+  // GST Breakdown
+  gstBreakdown.forEach(({ rate, cgst, sgst, igst }) => {
+    if (isInterState) {
+      // Inter-state: Show IGST
+      summaryY += 9;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...GRAY_TEXT);
+      doc.text(`IGST @ ${rate}%`, summaryLabelX, summaryY);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...DARK_TEXT);
+      doc.text(formatCurrency(igst), summaryValueX, summaryY, { align: 'right' });
+    } else {
+      // Intra-state: Show CGST + SGST
+      summaryY += 9;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...GRAY_TEXT);
+      doc.text(`CGST @ ${rate / 2}%`, summaryLabelX, summaryY);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...DARK_TEXT);
+      doc.text(formatCurrency(cgst), summaryValueX, summaryY, { align: 'right' });
+      
+      summaryY += 9;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...GRAY_TEXT);
+      doc.text(`SGST @ ${rate / 2}%`, summaryLabelX, summaryY);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...DARK_TEXT);
+      doc.text(formatCurrency(sgst), summaryValueX, summaryY, { align: 'right' });
+    }
+  });
   
   if (hasDiscount) {
-    summaryY += 10;
+    summaryY += 9;
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...GRAY_TEXT);
     doc.text('Discount', summaryLabelX, summaryY);
@@ -494,7 +543,7 @@ export async function generateQuotePdf(quote: Quote, items: QuoteItem[], company
   }
   
   // Total row with accent background
-  summaryY += 8;
+  summaryY += 10;
   doc.setFillColor(...ORANGE_ACCENT);
   doc.roundedRect(summaryBoxX, summaryY, summaryBoxWidth, 16, 0, 0, 'F');
   
