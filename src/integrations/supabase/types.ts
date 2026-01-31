@@ -2240,6 +2240,143 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          gst_amount: number | null
+          gst_percent: number | null
+          id: string
+          price_includes_gst: boolean | null
+          product_category: string | null
+          product_code: string | null
+          product_name: string
+          quantity: number
+          quote_id: string
+          total_amount: number | null
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          gst_amount?: number | null
+          gst_percent?: number | null
+          id?: string
+          price_includes_gst?: boolean | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name: string
+          quantity?: number
+          quote_id: string
+          total_amount?: number | null
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          gst_amount?: number | null
+          gst_percent?: number | null
+          id?: string
+          price_includes_gst?: boolean | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name?: string
+          quantity?: number
+          quote_id?: string
+          total_amount?: number | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_items_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotes: {
+        Row: {
+          created_at: string
+          created_by: string
+          created_by_name: string
+          customer_address: string | null
+          customer_company: string | null
+          customer_email: string | null
+          customer_gst: string | null
+          customer_name: string
+          customer_phone: string | null
+          customer_state: string | null
+          discount_amount: number | null
+          discount_percent: number | null
+          id: string
+          notes: string | null
+          quote_number: string | null
+          source_id: string | null
+          source_type: string | null
+          status: Database["public"]["Enums"]["quote_status"]
+          subtotal: number | null
+          terms_and_conditions: string | null
+          total_amount: number | null
+          total_gst: number | null
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          created_by_name: string
+          customer_address?: string | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_gst?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          customer_state?: string | null
+          discount_amount?: number | null
+          discount_percent?: number | null
+          id?: string
+          notes?: string | null
+          quote_number?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          status?: Database["public"]["Enums"]["quote_status"]
+          subtotal?: number | null
+          terms_and_conditions?: string | null
+          total_amount?: number | null
+          total_gst?: number | null
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          customer_address?: string | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_gst?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          customer_state?: string | null
+          discount_amount?: number | null
+          discount_percent?: number | null
+          id?: string
+          notes?: string | null
+          quote_number?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          status?: Database["public"]["Enums"]["quote_status"]
+          subtotal?: number | null
+          terms_and_conditions?: string | null
+          total_amount?: number | null
+          total_gst?: number | null
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
       repairs: {
         Row: {
           advance_amount: number | null
@@ -3302,6 +3439,13 @@ export type Database = {
         | "cancelled"
         | "to_ship"
         | "in_transit"
+      quote_status:
+        | "draft"
+        | "sent"
+        | "accepted"
+        | "rejected"
+        | "expired"
+        | "converted"
       repair_issue_type:
         | "motor_failure"
         | "gimbal_issue"
@@ -3475,6 +3619,14 @@ export const Constants = {
         "cancelled",
         "to_ship",
         "in_transit",
+      ],
+      quote_status: [
+        "draft",
+        "sent",
+        "accepted",
+        "rejected",
+        "expired",
+        "converted",
       ],
       repair_issue_type: [
         "motor_failure",

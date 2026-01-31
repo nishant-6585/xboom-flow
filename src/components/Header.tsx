@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart, Warehouse, FileSpreadsheet, Zap, IndianRupee, ListTodo, Users, CalendarDays, Receipt, ClipboardList, Wrench, GraduationCap } from "lucide-react";
+import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart, Warehouse, FileSpreadsheet, Zap, IndianRupee, ListTodo, Users, CalendarDays, Receipt, ClipboardList, Wrench, GraduationCap, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "react-router-dom";
@@ -79,6 +79,7 @@ export function Header() {
     { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "supply_chain", "admin", "finance"] },
     { path: "/repairs", label: "Repairs", icon: Wrench, roles: ["sales", "supply_chain", "admin", "finance"] },
     { path: "/trainings", label: "Training", icon: GraduationCap, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/billing", label: "Billing", icon: FileText, roles: ["sales", "supply_chain", "admin", "finance"] },
   ];
 
   const filteredMainNavItems = mainNavItems.filter((item) => 
