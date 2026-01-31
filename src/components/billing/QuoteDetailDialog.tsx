@@ -31,9 +31,9 @@ export function QuoteDetailDialog({ quote, open, onOpenChange }: QuoteDetailDial
     }
   }, [quote, open]);
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (fullQuote && fullQuote.items) {
-      downloadQuotePdf(fullQuote, fullQuote.items);
+      await downloadQuotePdf(fullQuote, fullQuote.items);
     }
   };
 
