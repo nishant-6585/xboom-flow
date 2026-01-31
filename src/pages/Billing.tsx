@@ -236,6 +236,7 @@ export default function Billing() {
                     key={quote.id} 
                     quote={quote} 
                     onView={handleViewQuote}
+                    onEdit={handleEditQuote}
                   />
                 ))}
               </div>

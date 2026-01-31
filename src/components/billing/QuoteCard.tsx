@@ -22,16 +22,18 @@ import {
   CheckCircle2,
   XCircle,
   ShoppingCart,
-  FileText
+  FileText,
+  Pencil
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 interface QuoteCardProps {
   quote: Quote;
   onView: (quote: Quote) => void;
+  onEdit?: (quote: Quote) => void;
 }
 
-export function QuoteCard({ quote, onView }: QuoteCardProps) {
+export function QuoteCard({ quote, onView, onEdit }: QuoteCardProps) {
   const navigate = useNavigate();
   const { role } = useAuth();
   const { fetchQuoteWithItems, updateQuoteStatus, deleteQuote } = useQuotes();
@@ -126,6 +128,17 @@ export function QuoteCard({ quote, onView }: QuoteCardProps) {
               <Badge className={`${statusConfig?.color} text-white`}>
                 {statusConfig?.label}
               </Badge>
+              {!isConverted && onEdit && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8"
+                  onClick={() => onEdit(quote)}
+                  title="Edit Quote"
+                >
+                  <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                </Button>
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-8 w-8">
