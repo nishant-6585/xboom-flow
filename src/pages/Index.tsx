@@ -14,6 +14,8 @@ import { EnquiryDialog } from "@/components/EnquiryDialog";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { HotLeadsWidget } from "@/components/HotLeadsWidget";
 import { LeadTemperatureAnalytics } from "@/components/LeadTemperatureAnalytics";
+import { DashboardNoticesWidget } from "@/components/notices/DashboardNoticesWidget";
+import { NoticePopup } from "@/components/notices/NoticePopup";
 import { useEnquiries, Enquiry, PRODUCT_CATEGORIES, QueryStatus, ENQUIRY_STATUSES, LostReason } from "@/hooks/useEnquiries";
 import { usePipelineOrders } from "@/hooks/usePipelineOrders";
 import { getSlaStatus, UrgencyLevel } from "@/lib/sla";
@@ -305,8 +307,15 @@ const Index = () => {
               </div>
             ) : (
               <>
-                <QuickActions />
-                <HotLeadsWidget 
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2">
+                    <QuickActions />
+                  </div>
+                  <div>
+                    <DashboardNoticesWidget />
+                  </div>
+                </div>
+                <HotLeadsWidget
                   enquiries={enquiries.map(e => ({
                     id: e.id,
                     customer_name: e.customer_name,
@@ -707,6 +716,9 @@ const Index = () => {
         onEscalate={escalateEnquiry}
         onSubmitAdminResponse={submitAdminResponse}
       />
+
+      {/* Notice popup on login */}
+      <NoticePopup />
     </div>
   );
 };
