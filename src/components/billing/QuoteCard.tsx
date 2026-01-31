@@ -23,9 +23,13 @@ import {
   XCircle,
   ShoppingCart,
   FileText,
-  Pencil
+  Pencil,
+  CreditCard,
+  StickyNote,
+  UserCheck
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { PAYMENT_TERMS_OPTIONS } from '@/hooks/useQuotes';
 
 interface QuoteCardProps {
   quote: Quote;
@@ -36,7 +40,7 @@ interface QuoteCardProps {
 export function QuoteCard({ quote, onView, onEdit }: QuoteCardProps) {
   const navigate = useNavigate();
   const { role } = useAuth();
-  const { fetchQuoteWithItems, updateQuoteStatus, deleteQuote } = useQuotes();
+  const { fetchQuoteWithItems, updateQuoteStatus, deleteQuote, approveQuote } = useQuotes();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -44,6 +48,7 @@ export function QuoteCard({ quote, onView, onEdit }: QuoteCardProps) {
   const isConverted = quote.status === 'converted';
   const isLost = quote.status === 'rejected' || quote.status === 'expired';
   const canConvert = !isConverted && !isLost;
+  const canApprove = !quote.approved_by && (role === 'admin' || role === 'supply_chain');
 
   const handleDownloadPdf = async () => {
     setLoading(true);
@@ -167,6 +172,12 @@ export function QuoteCard({ quote, onView, onEdit }: QuoteCardProps) {
                     <XCircle className="h-4 w-4 mr-2" />
                     Mark as Rejected
                   </DropdownMenuItem>
+                  {canApprove && (
+                    <DropdownMenuItem onClick={() => approveQuote(quote.id)} className="text-green-600">
+                      <UserCheck className="h-4 w-4 mr-2" />
+                      Approve Quote
+                    </DropdownMenuItem>
+                  )}
                   {canConvert && (
                     <>
                       <DropdownMenuSeparator />
@@ -222,6 +233,34 @@ export function QuoteCard({ quote, onView, onEdit }: QuoteCardProps) {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Calendar className="h-4 w-4" />
               <span>Valid until: {format(new Date(quote.valid_until), 'dd MMM yyyy')}</span>
+            </div>
+          )}
+
+          {/* Payment Terms */}
+          {quote.payment_terms && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CreditCard className="h-4 w-4" />
+              <span>
+                {quote.payment_terms === 'custom' 
+                  ? quote.payment_terms_custom 
+                  : PAYMENT_TERMS_OPTIONS.find(p => p.value === quote.payment_terms)?.label}
+              </span>
+            </div>
+          )}
+
+          {/* Internal Notes */}
+          {quote.internal_notes && (
+            <div className="flex items-start gap-2 text-sm bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded">
+              <StickyNote className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+              <span className="text-yellow-800 dark:text-yellow-200 text-xs line-clamp-2">{quote.internal_notes}</span>
+            </div>
+          )}
+
+          {/* Approved By */}
+          {quote.approved_by_name && (
+            <div className="flex items-center gap-2 text-sm text-green-600">
+              <UserCheck className="h-4 w-4" />
+              <span>Approved by: {quote.approved_by_name}</span>
             </div>
           )}
 

@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
-import { User, Building2, FileText, IndianRupee, Calendar, Loader2, Truck, Copy } from 'lucide-react';
-import { QuoteFormData, QuoteItem } from '@/hooks/useQuotes';
+import { User, Building2, FileText, IndianRupee, Calendar, Loader2, Truck, Copy, CreditCard, StickyNote } from 'lucide-react';
+import { QuoteFormData, QuoteItem, PAYMENT_TERMS_OPTIONS } from '@/hooks/useQuotes';
 import { QuoteItemsInput } from './QuoteItemsInput';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { usePipelineOrders } from '@/hooks/usePipelineOrders';
@@ -61,6 +61,9 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
     valid_until: initialData?.valid_until || '',
     notes: initialData?.notes || '',
     terms_and_conditions: initialData?.terms_and_conditions || DEFAULT_TERMS,
+    payment_terms: initialData?.payment_terms || '',
+    payment_terms_custom: initialData?.payment_terms_custom || '',
+    internal_notes: initialData?.internal_notes || '',
     items: initialData?.items?.length ? initialData.items : [{
       product_name: '',
       product_code: '',
@@ -419,6 +422,37 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
           </CardHeader>
           <CardContent className="pb-4 space-y-4">
             <div>
+              <Label className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                Payment Terms
+              </Label>
+              <Select
+                value={formData.payment_terms || ''}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, payment_terms: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment terms" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_TERMS_OPTIONS.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {formData.payment_terms === 'custom' && (
+              <div>
+                <Label>Custom Payment Terms</Label>
+                <Input
+                  value={formData.payment_terms_custom}
+                  onChange={(e) => setFormData(prev => ({ ...prev, payment_terms_custom: e.target.value }))}
+                  placeholder="e.g., 30% advance, 40% on delivery, 30% after 15 days"
+                />
+              </div>
+            )}
+            <div>
               <Label>Valid Until</Label>
               <Input
                 type="date"
@@ -455,12 +489,25 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
               </div>
             </div>
             <div>
-              <Label>Notes</Label>
+              <Label>Notes (for Customer)</Label>
               <Textarea
                 value={formData.notes}
                 onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                placeholder="Additional notes for customer..."
+                placeholder="Additional notes visible to customer..."
                 rows={2}
+              />
+            </div>
+            <div>
+              <Label className="flex items-center gap-2">
+                <StickyNote className="h-4 w-4" />
+                Internal Notes (not visible to customer)
+              </Label>
+              <Textarea
+                value={formData.internal_notes}
+                onChange={(e) => setFormData(prev => ({ ...prev, internal_notes: e.target.value }))}
+                placeholder="Internal notes for team reference..."
+                rows={2}
+                className="bg-yellow-50 dark:bg-yellow-900/20"
               />
             </div>
             <div>

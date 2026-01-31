@@ -30,6 +30,13 @@ export interface QuoteItem {
   total_amount: number;
 }
 
+export const PAYMENT_TERMS_OPTIONS = [
+  { value: 'advance_100', label: 'Advance 100%' },
+  { value: '60_40', label: '60-40%' },
+  { value: '50_50', label: '50-50%' },
+  { value: 'custom', label: 'Custom' },
+];
+
 export interface Quote {
   id: string;
   quote_number: string;
@@ -49,6 +56,12 @@ export interface Quote {
   valid_until?: string;
   notes?: string;
   terms_and_conditions?: string;
+  payment_terms?: string;
+  payment_terms_custom?: string;
+  approved_by?: string;
+  approved_by_name?: string;
+  approved_at?: string;
+  internal_notes?: string;
   source_type?: string;
   source_id?: string;
   created_by: string;
@@ -76,6 +89,9 @@ export interface QuoteFormData {
   valid_until?: string;
   notes?: string;
   terms_and_conditions?: string;
+  payment_terms?: string;
+  payment_terms_custom?: string;
+  internal_notes?: string;
   source_type?: string;
   source_id?: string;
   items: QuoteItem[];
@@ -169,6 +185,9 @@ export function useQuotes() {
           valid_until: data.valid_until,
           notes: data.notes,
           terms_and_conditions: data.terms_and_conditions,
+          payment_terms: data.payment_terms,
+          payment_terms_custom: data.payment_terms_custom,
+          internal_notes: data.internal_notes,
           source_type: data.source_type,
           source_id: data.source_id,
           created_by: user.id,
@@ -321,6 +340,9 @@ export function useQuotes() {
           valid_until: data.valid_until,
           notes: data.notes,
           terms_and_conditions: data.terms_and_conditions,
+          payment_terms: data.payment_terms,
+          payment_terms_custom: data.payment_terms_custom,
+          internal_notes: data.internal_notes,
         })
         .eq('id', quoteId);
 
@@ -384,6 +406,34 @@ export function useQuotes() {
     }
   };
 
+  const approveQuote = async (quoteId: string): Promise<boolean> => {
+    if (!user || !profile) {
+      toast.error('You must be logged in to approve a quote');
+      return false;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('quotes')
+        .update({
+          approved_by: user.id,
+          approved_by_name: profile.name,
+          approved_at: new Date().toISOString(),
+        })
+        .eq('id', quoteId);
+
+      if (error) throw error;
+
+      toast.success('Quote approved');
+      fetchQuotes();
+      return true;
+    } catch (error: any) {
+      console.error('Error approving quote:', error);
+      toast.error('Failed to approve quote');
+      return false;
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchQuotes();
@@ -399,5 +449,6 @@ export function useQuotes() {
     updateQuote,
     updateQuoteStatus,
     deleteQuote,
+    approveQuote,
   };
 }

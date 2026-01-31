@@ -2690,6 +2690,9 @@ export type Database = {
       }
       quotes: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
+          approved_by_name: string | null
           created_at: string
           created_by: string
           created_by_name: string
@@ -2703,7 +2706,10 @@ export type Database = {
           discount_amount: number | null
           discount_percent: number | null
           id: string
+          internal_notes: string | null
           notes: string | null
+          payment_terms: string | null
+          payment_terms_custom: string | null
           quote_number: string | null
           source_id: string | null
           source_type: string | null
@@ -2716,6 +2722,9 @@ export type Database = {
           valid_until: string | null
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
           created_at?: string
           created_by: string
           created_by_name: string
@@ -2729,7 +2738,10 @@ export type Database = {
           discount_amount?: number | null
           discount_percent?: number | null
           id?: string
+          internal_notes?: string | null
           notes?: string | null
+          payment_terms?: string | null
+          payment_terms_custom?: string | null
           quote_number?: string | null
           source_id?: string | null
           source_type?: string | null
@@ -2742,6 +2754,9 @@ export type Database = {
           valid_until?: string | null
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
           created_at?: string
           created_by?: string
           created_by_name?: string
@@ -2755,7 +2770,10 @@ export type Database = {
           discount_amount?: number | null
           discount_percent?: number | null
           id?: string
+          internal_notes?: string | null
           notes?: string | null
+          payment_terms?: string | null
+          payment_terms_custom?: string | null
           quote_number?: string | null
           source_id?: string | null
           source_type?: string | null
