@@ -2,15 +2,24 @@ import { Quote, QUOTE_STATUSES } from '@/hooks/useQuotes';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Eye, CheckCircle2, XCircle } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Eye, CheckCircle2, XCircle, MoreHorizontal, ShoppingCart, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface QuotesTableProps {
   quotes: Quote[];
   onView: (quote: Quote) => void;
+  onConvertToOrder?: (quote: Quote) => void;
+  onConvertToInvoice?: (quote: Quote) => void;
 }
 
-export function QuotesTable({ quotes, onView }: QuotesTableProps) {
+export function QuotesTable({ quotes, onView, onConvertToOrder, onConvertToInvoice }: QuotesTableProps) {
   const getStatusConfig = (status: string) => {
     return QUOTE_STATUSES.find(s => s.value === status) || QUOTE_STATUSES[0];
   };
@@ -35,6 +44,7 @@ export function QuotesTable({ quotes, onView }: QuotesTableProps) {
             const statusConfig = getStatusConfig(quote.status);
             const isConverted = quote.status === 'converted';
             const isLost = quote.status === 'rejected' || quote.status === 'expired';
+            const canConvert = !isConverted && !isLost;
             
             return (
               <TableRow key={quote.id}>
@@ -70,13 +80,38 @@ export function QuotesTable({ quotes, onView }: QuotesTableProps) {
                   {format(new Date(quote.created_at), 'dd MMM yyyy')}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onView(quote)}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onView(quote)}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Details
+                      </DropdownMenuItem>
+                      {canConvert && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => onConvertToOrder?.(quote)}
+                            className="text-primary"
+                          >
+                            <ShoppingCart className="h-4 w-4 mr-2" />
+                            Convert to Order
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => onConvertToInvoice?.(quote)}
+                            className="text-primary"
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Convert to Invoice
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             );
