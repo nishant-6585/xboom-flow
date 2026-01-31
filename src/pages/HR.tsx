@@ -12,7 +12,8 @@ import { LeaveApplyDialog } from "@/components/hr/LeaveApplyDialog";
 import { LeaveApprovalCard } from "@/components/hr/LeaveApprovalCard";
 import { KPICard } from "@/components/hr/KPICard";
 import { TeamAttendanceOverview } from "@/components/hr/TeamAttendanceOverview";
-import { Plus, Calendar, Clock, FileText, Users, LayoutList } from "lucide-react";
+import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
+import { Plus, Calendar, Clock, FileText, Users, LayoutList, Package } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function HR() {
@@ -113,7 +114,7 @@ export default function HR() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className={`w-full grid ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'} mb-6`}>
+          <TabsList className={`w-full grid ${isAdmin ? 'grid-cols-6' : 'grid-cols-4'} mb-6`}>
             <TabsTrigger value="home" className="gap-1">
               <Clock className="h-4 w-4" />
               <span className="hidden sm:inline">Home</span>
@@ -136,6 +137,12 @@ export default function HR() {
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">KPI</span>
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="assets" className="gap-1">
+                <Package className="h-4 w-4" />
+                <span className="hidden sm:inline">Assets</span>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="home" className="space-y-4">
@@ -281,6 +288,12 @@ export default function HR() {
               </div>
             </div>
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="assets" className="space-y-4">
+              <AssetManagementPanel />
+            </TabsContent>
+          )}
         </Tabs>
       </main>
 
