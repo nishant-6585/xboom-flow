@@ -1,0 +1,191 @@
+import { useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2, UserPlus } from "lucide-react";
+
+interface InviteUserDialogProps {
+  onUserInvited: () => void;
+}
+
+export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    role: "sales" as string,
+  });
+  const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.name.trim() || !formData.email.trim()) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Check if user already exists
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", formData.email.toLowerCase())
+        .maybeSingle();
+
+      if (existingProfile) {
+        toast({
+          title: "User Already Exists",
+          description: "A user with this email already exists in the system",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Create a pending invitation record
+      const { data: invitation, error: inviteError } = await supabase
+        .from("user_invitations")
+        .insert({
+          name: formData.name.trim(),
+          email: formData.email.toLowerCase().trim(),
+          role: formData.role,
+        })
+        .select()
+        .single();
+
+      if (inviteError) throw inviteError;
+
+      toast({
+        title: "Invitation Sent",
+        description: `Joining request created for ${formData.name}. They can now sign up with ${formData.email}.`,
+      });
+
+      setFormData({ name: "", email: "", role: "sales" });
+      setOpen(false);
+      onUserInvited();
+    } catch (error: any) {
+      console.error("Error creating invitation:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create invitation",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case "sales":
+        return "Sales Team";
+      case "supply_chain":
+        return "Supply Chain";
+      case "finance":
+        return "Finance";
+      case "admin":
+        return "Admin";
+      default:
+        return role;
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="gap-2">
+          <UserPlus className="w-4 h-4" />
+          Invite User
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Invite New User</DialogTitle>
+          <DialogDescription>
+            Create a joining request for a new team member. They will be able to sign up with the provided email address.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Full Name *</Label>
+              <Input
+                id="name"
+                placeholder="Enter full name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                disabled={loading}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email Address *</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter email address"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                disabled={loading}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="role">Role *</Label>
+              <Select
+                value={formData.role}
+                onValueChange={(value) => setFormData({ ...formData, role: value })}
+                disabled={loading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sales">Sales Team</SelectItem>
+                  <SelectItem value="supply_chain">Supply Chain</SelectItem>
+                  <SelectItem value="finance">Finance</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Sending...
+                </>
+              ) : (
+                "Send Invitation"
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

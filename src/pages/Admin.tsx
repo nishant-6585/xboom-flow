@@ -12,7 +12,8 @@ import { useOrders } from "@/hooks/useOrders";
 import { EnquiryAnalytics, ValueFilterType } from "@/components/EnquiryAnalytics";
 import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
 import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
-import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList } from "lucide-react";
+import { InviteUserDialog } from "@/components/admin/InviteUserDialog";
+import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -56,6 +57,15 @@ interface ApprovedUser {
   reporting_manager_name?: string;
 }
 
+interface UserInvitation {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  invited_at: string;
+}
+
 const Admin = () => {
   const { role, isApproved } = useAuth();
   const { toast } = useToast();
@@ -64,8 +74,10 @@ const Admin = () => {
   const navigate = useNavigate();
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [approvedUsers, setApprovedUsers] = useState<ApprovedUser[]>([]);
+  const [invitations, setInvitations] = useState<UserInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(true);
+  const [invitationsLoading, setInvitationsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [resetLoading, setResetLoading] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
@@ -91,6 +103,7 @@ const Admin = () => {
   useEffect(() => {
     fetchPendingUsers();
     fetchApprovedUsers();
+    fetchInvitations();
   }, []);
 
   const fetchPendingUsers = async () => {
@@ -109,6 +122,52 @@ const Admin = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInvitations = async () => {
+    try {
+      setInvitationsLoading(true);
+      const { data, error } = await supabase
+        .from("user_invitations")
+        .select("*")
+        .eq("status", "pending")
+        .order("invited_at", { ascending: false });
+
+      if (error) throw error;
+      setInvitations(data || []);
+    } catch (error) {
+      console.error("Error fetching invitations:", error);
+    } finally {
+      setInvitationsLoading(false);
+    }
+  };
+
+  const handleCancelInvitation = async (invitationId: string, email: string) => {
+    setActionLoading(invitationId);
+    try {
+      const { error } = await supabase
+        .from("user_invitations")
+        .update({ status: "cancelled" })
+        .eq("id", invitationId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Invitation Cancelled",
+        description: `Invitation for ${email} has been cancelled`,
+      });
+
+      fetchInvitations();
+    } catch (error) {
+      console.error("Error cancelling invitation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel invitation",
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -463,6 +522,78 @@ const Admin = () => {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Invite User + Pending Invitations */}
+            <Card className="glass mb-6">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mail className="w-5 h-5" />
+                    Pending Invitations
+                  </CardTitle>
+                  <CardDescription>
+                    Invitations sent to users awaiting sign-up
+                  </CardDescription>
+                </div>
+                <InviteUserDialog onUserInvited={fetchInvitations} />
+              </CardHeader>
+              <CardContent>
+                {invitationsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : invitations.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Mail className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No pending invitations</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Click "Invite User" to send a joining request
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {invitations.map((invitation) => (
+                      <div
+                        key={invitation.id}
+                        className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 border border-border"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{invitation.name}</p>
+                            <Badge variant={getRoleBadgeVariant(invitation.role) as any}>
+                              {getRoleLabel(invitation.role)}
+                            </Badge>
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                              Invited
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{invitation.email}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Invited: {new Date(invitation.invited_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleCancelInvitation(invitation.id, invitation.email)}
+                            disabled={actionLoading === invitation.id}
+                          >
+                            {actionLoading === invitation.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <X className="w-4 h-4" />
+                            )}
+                            <span className="ml-1 hidden sm:inline">Cancel</span>
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Pending Registrations */}
             <Card className="glass">
