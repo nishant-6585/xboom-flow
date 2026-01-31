@@ -6,10 +6,24 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Checkbox } from '@/components/ui/checkbox';
-import { User, Building2, FileText, IndianRupee, Calendar, Loader2, Truck, Copy, CreditCard, StickyNote } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { 
+  User, 
+  Building2, 
+  FileText, 
+  IndianRupee, 
+  Calendar, 
+  Loader2, 
+  Truck, 
+  Copy, 
+  CreditCard, 
+  StickyNote 
+} from 'lucide-react';
 import { QuoteFormData, QuoteItem, PAYMENT_TERMS_OPTIONS } from '@/hooks/useQuotes';
-import { QuoteItemsInput } from './QuoteItemsInput';
+import { BillingItemsInput, BillingItem } from './BillingItemsInput';
+import { BankDetailsSection } from './BankDetailsSection';
+import { SignatureSection } from './SignatureSection';
+import { AttachmentsSection } from './AttachmentsSection';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { usePipelineOrders } from '@/hooks/usePipelineOrders';
 
@@ -31,8 +45,8 @@ const INDIAN_STATES = [
 const DEFAULT_TERMS = `1. This quotation is valid for the period mentioned above.
 2. Prices are exclusive of applicable taxes unless otherwise stated.
 3. Delivery timelines will be confirmed upon order confirmation.
-4. Payment terms: 50% advance, 50% before delivery.
-5. All disputes are subject to Mumbai jurisdiction.`;
+4. Payment terms as mentioned in the quotation.
+5. All disputes are subject to Bengaluru jurisdiction.`;
 
 export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
   const [submitting, setSubmitting] = useState(false);
@@ -64,10 +78,13 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
     payment_terms: initialData?.payment_terms || '',
     payment_terms_custom: initialData?.payment_terms_custom || '',
     internal_notes: initialData?.internal_notes || '',
+    include_bank_details: initialData?.include_bank_details || false,
+    authorized_signatory: initialData?.authorized_signatory || '',
+    attachment_urls: initialData?.attachment_urls || [],
     items: initialData?.items?.length ? initialData.items : [{
       product_name: '',
       product_code: '',
-      product_category: 'Consumer Drones',
+      product_category: '',
       quantity: 1,
       unit_price: 0,
       gst_percent: 18,
@@ -131,7 +148,7 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
           items: [{
             product_name: lead.product_name,
             product_code: lead.product_code || '',
-            product_category: lead.product_category || 'Consumer Drones',
+            product_category: lead.product_category || '',
             quantity: lead.quantity,
             unit_price: lead.expected_price || 0,
             gst_percent: 18,
@@ -152,11 +169,12 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
       return sum + (basePrice * item.quantity);
     }, 0);
 
+    const totalItemDiscounts = formData.items.reduce((sum, item) => sum + ((item as any).discount_amount || 0), 0);
     const totalGst = formData.items.reduce((sum, item) => sum + (item.gst_amount || 0), 0);
-    const discountAmount = formData.discount_amount || (formData.discount_percent ? subtotal * (formData.discount_percent / 100) : 0);
-    const grandTotal = subtotal + totalGst - discountAmount;
+    const discountAmount = formData.discount_amount || (formData.discount_percent ? (subtotal - totalItemDiscounts) * (formData.discount_percent / 100) : 0);
+    const grandTotal = subtotal - totalItemDiscounts + totalGst - discountAmount;
 
-    return { subtotal, totalGst, discountAmount, grandTotal };
+    return { subtotal, totalItemDiscounts, totalGst, discountAmount, grandTotal };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -182,7 +200,11 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
     }
   };
 
-  const { subtotal, totalGst, discountAmount, grandTotal } = calculateTotals();
+  const { subtotal, totalItemDiscounts, totalGst, discountAmount, grandTotal } = calculateTotals();
+
+  const handleItemsChange = (items: BillingItem[]) => {
+    setFormData(prev => ({ ...prev, items: items as QuoteItem[] }));
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -195,7 +217,7 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="pb-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label>Source Type</Label>
               <Select value={sourceType} onValueChange={(value) => { setSourceType(value); setSourceId(''); }}>
@@ -246,7 +268,7 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="pb-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label>Customer Name *</Label>
               <Input
@@ -306,7 +328,7 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
                 placeholder="22AAAAA0000A1Z5"
               />
             </div>
-            <div className="md:col-span-2">
+            <div className="sm:col-span-2">
               <Label>Billing Address</Label>
               <Textarea
                 value={formData.customer_address}
@@ -328,10 +350,10 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
               Ship To
             </CardTitle>
             <div className="flex items-center gap-2">
-              <Checkbox
+              <Switch
                 id="sameAsBillTo"
                 checked={shipToSameAsBillTo}
-                onCheckedChange={(checked) => setShipToSameAsBillTo(checked === true)}
+                onCheckedChange={setShipToSameAsBillTo}
               />
               <Label htmlFor="sameAsBillTo" className="text-sm font-normal cursor-pointer flex items-center gap-1">
                 <Copy className="h-3 w-3" />
@@ -340,222 +362,266 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="pb-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>Recipient Name</Label>
-              <Input
-                value={formData.shipping_name}
-                onChange={(e) => setFormData(prev => ({ ...prev, shipping_name: e.target.value }))}
-                placeholder="Enter recipient name"
-                disabled={shipToSameAsBillTo}
-              />
+        {!shipToSameAsBillTo && (
+          <CardContent className="pb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Recipient Name</Label>
+                <Input
+                  value={formData.shipping_name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, shipping_name: e.target.value }))}
+                  placeholder="Enter recipient name"
+                />
+              </div>
+              <div>
+                <Label>Company Name</Label>
+                <Input
+                  value={formData.shipping_company}
+                  onChange={(e) => setFormData(prev => ({ ...prev, shipping_company: e.target.value }))}
+                  placeholder="Enter company name"
+                />
+              </div>
+              <div>
+                <Label>Phone</Label>
+                <Input
+                  value={formData.shipping_phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, shipping_phone: e.target.value }))}
+                  placeholder="+91 XXXXXXXXXX"
+                />
+              </div>
+              <div>
+                <Label>State</Label>
+                <Select
+                  value={formData.shipping_state || 'none'}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, shipping_state: value === 'none' ? '' : value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select state" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Select state</SelectItem>
+                    {INDIAN_STATES.map(state => (
+                      <SelectItem key={state} value={state}>{state}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Shipping Address</Label>
+                <Textarea
+                  value={formData.shipping_address}
+                  onChange={(e) => setFormData(prev => ({ ...prev, shipping_address: e.target.value }))}
+                  placeholder="Enter shipping address"
+                  rows={2}
+                />
+              </div>
             </div>
-            <div>
-              <Label>Company Name</Label>
-              <Input
-                value={formData.shipping_company}
-                onChange={(e) => setFormData(prev => ({ ...prev, shipping_company: e.target.value }))}
-                placeholder="Enter company name"
-                disabled={shipToSameAsBillTo}
-              />
-            </div>
-            <div>
-              <Label>Phone</Label>
-              <Input
-                value={formData.shipping_phone}
-                onChange={(e) => setFormData(prev => ({ ...prev, shipping_phone: e.target.value }))}
-                placeholder="+91 XXXXXXXXXX"
-                disabled={shipToSameAsBillTo}
-              />
-            </div>
-            <div>
-              <Label>State</Label>
-              <Select
-                value={formData.shipping_state || 'none'}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, shipping_state: value === 'none' ? '' : value }))}
-                disabled={shipToSameAsBillTo}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select state" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Select state</SelectItem>
-                  {INDIAN_STATES.map(state => (
-                    <SelectItem key={state} value={state}>{state}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="md:col-span-2">
-              <Label>Shipping Address</Label>
-              <Textarea
-                value={formData.shipping_address}
-                onChange={(e) => setFormData(prev => ({ ...prev, shipping_address: e.target.value }))}
-                placeholder="Enter shipping address"
-                rows={2}
-                disabled={shipToSameAsBillTo}
-              />
-            </div>
-          </div>
-        </CardContent>
+          </CardContent>
+        )}
       </Card>
 
       {/* Products */}
       <Card>
         <CardContent className="pt-4">
-          <QuoteItemsInput
-            items={formData.items}
-            onChange={(items) => setFormData(prev => ({ ...prev, items }))}
+          <BillingItemsInput
+            items={formData.items as BillingItem[]}
+            onChange={handleItemsChange}
+            showPerItemDiscount={true}
           />
         </CardContent>
       </Card>
 
       {/* Pricing Summary & Additional Details */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="py-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Additional Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pb-4 space-y-4">
-            <div>
-              <Label className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4" />
-                Payment Terms
-              </Label>
-              <Select
-                value={formData.payment_terms || ''}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, payment_terms: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select payment terms" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PAYMENT_TERMS_OPTIONS.map(option => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {formData.payment_terms === 'custom' && (
-              <div>
-                <Label>Custom Payment Terms</Label>
-                <Input
-                  value={formData.payment_terms_custom}
-                  onChange={(e) => setFormData(prev => ({ ...prev, payment_terms_custom: e.target.value }))}
-                  placeholder="e.g., 30% advance, 40% on delivery, 30% after 15 days"
-                />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          {/* Quote Details */}
+          <Card>
+            <CardHeader className="py-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Quote Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pb-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Payment Terms
+                  </Label>
+                  <Select
+                    value={formData.payment_terms || 'none'}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, payment_terms: value === 'none' ? '' : value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select payment terms" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Select terms</SelectItem>
+                      {PAYMENT_TERMS_OPTIONS.map(option => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Valid Until</Label>
+                  <Input
+                    type="date"
+                    value={formData.valid_until}
+                    onChange={(e) => setFormData(prev => ({ ...prev, valid_until: e.target.value }))}
+                  />
+                </div>
               </div>
-            )}
-            <div>
-              <Label>Valid Until</Label>
-              <Input
-                type="date"
-                value={formData.valid_until}
-                onChange={(e) => setFormData(prev => ({ ...prev, valid_until: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label>Discount</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  min="0"
-                  placeholder="Amount (₹)"
-                  value={formData.discount_amount || ''}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    discount_amount: parseFloat(e.target.value) || 0,
-                    discount_percent: 0 
-                  }))}
-                />
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  placeholder="% off"
-                  value={formData.discount_percent || ''}
-                  onChange={(e) => setFormData(prev => ({ 
-                    ...prev, 
-                    discount_percent: parseFloat(e.target.value) || 0,
-                    discount_amount: 0 
-                  }))}
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Notes (for Customer)</Label>
-              <Textarea
-                value={formData.notes}
-                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                placeholder="Additional notes visible to customer..."
-                rows={2}
-              />
-            </div>
-            <div>
-              <Label className="flex items-center gap-2">
-                <StickyNote className="h-4 w-4" />
-                Internal Notes (not visible to customer)
-              </Label>
-              <Textarea
-                value={formData.internal_notes}
-                onChange={(e) => setFormData(prev => ({ ...prev, internal_notes: e.target.value }))}
-                placeholder="Internal notes for team reference..."
-                rows={2}
-                className="bg-yellow-50 dark:bg-yellow-900/20"
-              />
-            </div>
-            <div>
-              <Label>Terms & Conditions</Label>
-              <Textarea
-                value={formData.terms_and_conditions}
-                onChange={(e) => setFormData(prev => ({ ...prev, terms_and_conditions: e.target.value }))}
-                rows={4}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-muted/30">
-          <CardHeader className="py-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <IndianRupee className="h-4 w-4" />
-              Quote Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pb-4">
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total GST</span>
-                <span>₹{totalGst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-              </div>
-              {discountAmount > 0 && (
-                <div className="flex justify-between text-sm text-green-600">
-                  <span>Discount</span>
-                  <span>-₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              {formData.payment_terms === 'custom' && (
+                <div>
+                  <Label>Custom Payment Terms</Label>
+                  <Input
+                    value={formData.payment_terms_custom}
+                    onChange={(e) => setFormData(prev => ({ ...prev, payment_terms_custom: e.target.value }))}
+                    placeholder="e.g., 30% advance, 40% on delivery, 30% after 15 days"
+                  />
                 </div>
               )}
-              <Separator />
-              <div className="flex justify-between text-lg font-bold">
-                <span>Grand Total</span>
-                <span className="text-primary">₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              <div>
+                <Label>Overall Discount</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="Amount (₹)"
+                    value={formData.discount_amount || ''}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      discount_amount: parseFloat(e.target.value) || 0,
+                      discount_percent: 0 
+                    }))}
+                  />
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="% off"
+                    value={formData.discount_percent || ''}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      discount_percent: parseFloat(e.target.value) || 0,
+                      discount_amount: 0 
+                    }))}
+                  />
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          {/* Bank Details */}
+          <BankDetailsSection
+            includeBankDetails={formData.include_bank_details || false}
+            onIncludeBankDetailsChange={(include) => setFormData(prev => ({ ...prev, include_bank_details: include }))}
+          />
+
+          {/* Signature */}
+          <SignatureSection
+            authorizedSignatory={formData.authorized_signatory || ''}
+            onAuthorizedSignatoryChange={(name) => setFormData(prev => ({ ...prev, authorized_signatory: name }))}
+          />
+
+          {/* Attachments */}
+          <AttachmentsSection
+            attachmentUrls={formData.attachment_urls || []}
+            onAttachmentsChange={(urls) => setFormData(prev => ({ ...prev, attachment_urls: urls }))}
+            bucketPath={`quotes/${Date.now()}`}
+          />
+        </div>
+
+        <div className="space-y-4">
+          {/* Summary */}
+          <Card className="bg-muted/30">
+            <CardHeader className="py-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <IndianRupee className="h-4 w-4" />
+                Quote Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pb-4">
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span>₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                {totalItemDiscounts > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Item Discounts</span>
+                    <span>-₹{totalItemDiscounts.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Total GST</span>
+                  <span>₹{totalGst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Overall Discount</span>
+                    <span>-₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+                <Separator />
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Grand Total</span>
+                  <span className="text-primary">₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Notes */}
+          <Card>
+            <CardHeader className="py-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Notes & Terms
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pb-4 space-y-4">
+              <div>
+                <Label>Notes (for Customer)</Label>
+                <Textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Additional notes visible to customer..."
+                  rows={2}
+                />
+              </div>
+              <div>
+                <Label className="flex items-center gap-2">
+                  <StickyNote className="h-4 w-4" />
+                  Internal Notes
+                </Label>
+                <Textarea
+                  value={formData.internal_notes}
+                  onChange={(e) => setFormData(prev => ({ ...prev, internal_notes: e.target.value }))}
+                  placeholder="Internal notes for team reference..."
+                  rows={2}
+                  className="bg-yellow-50 dark:bg-yellow-900/20"
+                />
+              </div>
+              <div>
+                <Label>Terms & Conditions</Label>
+                <Textarea
+                  value={formData.terms_and_conditions}
+                  onChange={(e) => setFormData(prev => ({ ...prev, terms_and_conditions: e.target.value }))}
+                  rows={4}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Actions */}
-      <div className="flex justify-end gap-3">
+      <div className="flex justify-end gap-3 sticky bottom-0 bg-background py-4 border-t -mx-6 px-6">
         {onCancel && (
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
@@ -563,7 +629,7 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
         )}
         <Button type="submit" disabled={submitting}>
           {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          Create Quote
+          {initialData ? 'Update Quote' : 'Create Quote'}
         </Button>
       </div>
     </form>

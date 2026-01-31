@@ -5,9 +5,25 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { QuoteItemsInput } from './QuoteItemsInput';
-import { InvoiceFormData, InvoiceItem } from '@/hooks/useInvoices';
-import { Loader2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { BillingItemsInput, BillingItem } from './BillingItemsInput';
+import { BankDetailsSection } from './BankDetailsSection';
+import { SignatureSection } from './SignatureSection';
+import { AttachmentsSection } from './AttachmentsSection';
+import { InvoiceFormData, InvoiceItem, PAYMENT_TERMS_OPTIONS } from '@/hooks/useInvoices';
+import { 
+  Loader2, 
+  User, 
+  Building2, 
+  Truck, 
+  Copy, 
+  FileText, 
+  IndianRupee, 
+  Calendar,
+  CreditCard,
+  StickyNote
+} from 'lucide-react';
 
 interface InvoiceFormProps {
   onSubmit: (data: InvoiceFormData) => Promise<boolean>;
@@ -15,9 +31,24 @@ interface InvoiceFormProps {
   initialData?: Partial<InvoiceFormData>;
 }
 
+const INDIAN_STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+  'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  'Delhi', 'Jammu and Kashmir', 'Ladakh'
+];
+
+const DEFAULT_TERMS = `1. Payment is due within the specified due date.
+2. All disputes are subject to Bengaluru jurisdiction.
+3. Goods once sold will not be taken back.
+4. Interest @ 18% p.a. will be charged on delayed payments.
+5. Subject to Bengaluru jurisdiction only.`;
+
 export function InvoiceForm({ onSubmit, onCancel, initialData }: InvoiceFormProps) {
   const [loading, setLoading] = useState(false);
-  const [sameAsBilling, setSameAsBilling] = useState(true);
+  const [sameAsBilling, setSameAsBilling] = useState(!initialData?.shipping_address);
   
   // Customer details
   const [customerName, setCustomerName] = useState(initialData?.customer_name || '');
@@ -39,16 +70,28 @@ export function InvoiceForm({ onSubmit, onCancel, initialData }: InvoiceFormProp
   const [invoiceDate, setInvoiceDate] = useState(initialData?.invoice_date || new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState(initialData?.due_date || '');
   const [paymentTerms, setPaymentTerms] = useState(initialData?.payment_terms || '');
+  const [paymentTermsCustom, setPaymentTermsCustom] = useState('');
   const [notes, setNotes] = useState(initialData?.notes || '');
-  const [termsAndConditions, setTermsAndConditions] = useState(initialData?.terms_and_conditions || '');
+  const [internalNotes, setInternalNotes] = useState('');
+  const [termsAndConditions, setTermsAndConditions] = useState(initialData?.terms_and_conditions || DEFAULT_TERMS);
   
+  // New fields
+  const [includeBankDetails, setIncludeBankDetails] = useState(false);
+  const [authorizedSignatory, setAuthorizedSignatory] = useState('');
+  const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
+
   // Items
-  const [items, setItems] = useState<InvoiceItem[]>(initialData?.items || [
-    { product_name: '', quantity: 1, unit_price: 0, gst_percent: 18, gst_amount: 0, price_includes_gst: false, total_amount: 0 }
+  const [items, setItems] = useState<BillingItem[]>(initialData?.items?.map(item => ({
+    ...item,
+    discount_percent: 0,
+    discount_amount: 0,
+  })) || [
+    { product_name: '', quantity: 1, unit_price: 0, gst_percent: 18, gst_amount: 0, price_includes_gst: false, total_amount: 0, discount_percent: 0, discount_amount: 0 }
   ]);
 
   // Discount
   const [discountPercent, setDiscountPercent] = useState(initialData?.discount_percent || 0);
+  const [discountAmount, setDiscountAmount] = useState(0);
 
   // Sync shipping with billing when toggle is on
   useEffect(() => {
@@ -89,10 +132,15 @@ export function InvoiceForm({ onSubmit, onCancel, initialData }: InvoiceFormProp
         shipping_phone: sameAsBilling ? customerPhone : shippingPhone,
         invoice_date: invoiceDate,
         due_date: dueDate || undefined,
-        payment_terms: paymentTerms,
+        payment_terms: paymentTerms === 'custom' ? paymentTermsCustom : paymentTerms,
         notes,
         terms_and_conditions: termsAndConditions,
         discount_percent: discountPercent,
+        discount_amount: discountAmount,
+        include_bank_details: includeBankDetails,
+        authorized_signatory: authorizedSignatory,
+        internal_notes: internalNotes,
+        attachment_urls: attachmentUrls,
         items: items as InvoiceItem[],
       });
 
@@ -104,7 +152,7 @@ export function InvoiceForm({ onSubmit, onCancel, initialData }: InvoiceFormProp
     }
   };
 
-  // Calculate totals
+  // Calculate totals including per-item discounts
   const subtotal = items.reduce((sum, item) => {
     const basePrice = item.price_includes_gst 
       ? item.unit_price / (1 + item.gst_percent / 100)
@@ -112,259 +160,394 @@ export function InvoiceForm({ onSubmit, onCancel, initialData }: InvoiceFormProp
     return sum + (basePrice * item.quantity);
   }, 0);
 
+  const totalItemDiscounts = items.reduce((sum, item) => sum + (item.discount_amount || 0), 0);
   const totalGst = items.reduce((sum, item) => sum + item.gst_amount, 0);
-  const discountAmount = discountPercent > 0 ? subtotal * (discountPercent / 100) : 0;
-  const grandTotal = subtotal + totalGst - discountAmount;
+  const overallDiscount = discountPercent > 0 ? (subtotal - totalItemDiscounts) * (discountPercent / 100) : discountAmount;
+  const grandTotal = subtotal - totalItemDiscounts + totalGst - overallDiscount;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Customer Details */}
-      <div>
-        <h3 className="font-semibold mb-4">Bill To</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="customerName">Customer Name *</Label>
-            <Input
-              id="customerName"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Enter customer name"
-              required
-            />
+      {/* Bill To Details */}
+      <Card>
+        <CardHeader className="py-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Bill To
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label>Customer Name *</Label>
+              <Input
+                required
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Enter customer name"
+              />
+            </div>
+            <div>
+              <Label>Company</Label>
+              <Input
+                value={customerCompany}
+                onChange={(e) => setCustomerCompany(e.target.value)}
+                placeholder="Enter company name"
+              />
+            </div>
+            <div>
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+                placeholder="customer@example.com"
+              />
+            </div>
+            <div>
+              <Label>Phone</Label>
+              <Input
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                placeholder="+91 XXXXXXXXXX"
+              />
+            </div>
+            <div>
+              <Label>State</Label>
+              <Select
+                value={customerState || 'none'}
+                onValueChange={(value) => setCustomerState(value === 'none' ? '' : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Select state</SelectItem>
+                  {INDIAN_STATES.map(state => (
+                    <SelectItem key={state} value={state}>{state}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>GST Number</Label>
+              <Input
+                value={customerGst}
+                onChange={(e) => setCustomerGst(e.target.value.toUpperCase())}
+                placeholder="22AAAAA0000A1Z5"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <Label>Billing Address</Label>
+              <Textarea
+                value={customerAddress}
+                onChange={(e) => setCustomerAddress(e.target.value)}
+                placeholder="Enter billing address"
+                rows={2}
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="customerCompany">Company</Label>
-            <Input
-              id="customerCompany"
-              value={customerCompany}
-              onChange={(e) => setCustomerCompany(e.target.value)}
-              placeholder="Enter company name"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="customerEmail">Email</Label>
-            <Input
-              id="customerEmail"
-              type="email"
-              value={customerEmail}
-              onChange={(e) => setCustomerEmail(e.target.value)}
-              placeholder="Enter email"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="customerPhone">Phone</Label>
-            <Input
-              id="customerPhone"
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-              placeholder="Enter phone number"
-            />
-          </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="customerAddress">Address</Label>
-            <Textarea
-              id="customerAddress"
-              value={customerAddress}
-              onChange={(e) => setCustomerAddress(e.target.value)}
-              placeholder="Enter address"
-              rows={2}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="customerState">State</Label>
-            <Input
-              id="customerState"
-              value={customerState}
-              onChange={(e) => setCustomerState(e.target.value)}
-              placeholder="Enter state"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="customerGst">GST Number</Label>
-            <Input
-              id="customerGst"
-              value={customerGst}
-              onChange={(e) => setCustomerGst(e.target.value)}
-              placeholder="Enter GST number"
-            />
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <Separator />
-
-      {/* Shipping Toggle */}
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Ship To</h3>
-        <div className="flex items-center gap-2">
-          <Switch
-            id="sameAsBilling"
-            checked={sameAsBilling}
-            onCheckedChange={setSameAsBilling}
-          />
-          <Label htmlFor="sameAsBilling" className="text-sm">Same as Bill To</Label>
-        </div>
-      </div>
-
-      {!sameAsBilling && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>Name</Label>
-            <Input
-              value={shippingName}
-              onChange={(e) => setShippingName(e.target.value)}
-              placeholder="Enter name"
-            />
+      {/* Ship To Details */}
+      <Card>
+        <CardHeader className="py-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Truck className="h-4 w-4" />
+              Ship To
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="sameAsBilling"
+                checked={sameAsBilling}
+                onCheckedChange={setSameAsBilling}
+              />
+              <Label htmlFor="sameAsBilling" className="text-sm font-normal cursor-pointer flex items-center gap-1">
+                <Copy className="h-3 w-3" />
+                Same as Bill To
+              </Label>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label>Company</Label>
-            <Input
-              value={shippingCompany}
-              onChange={(e) => setShippingCompany(e.target.value)}
-              placeholder="Enter company"
-            />
-          </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label>Address</Label>
-            <Textarea
-              value={shippingAddress}
-              onChange={(e) => setShippingAddress(e.target.value)}
-              placeholder="Enter address"
-              rows={2}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>State</Label>
-            <Input
-              value={shippingState}
-              onChange={(e) => setShippingState(e.target.value)}
-              placeholder="Enter state"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Phone</Label>
-            <Input
-              value={shippingPhone}
-              onChange={(e) => setShippingPhone(e.target.value)}
-              placeholder="Enter phone"
-            />
-          </div>
-        </div>
-      )}
-
-      <Separator />
+        </CardHeader>
+        {!sameAsBilling && (
+          <CardContent className="pb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Name</Label>
+                <Input
+                  value={shippingName}
+                  onChange={(e) => setShippingName(e.target.value)}
+                  placeholder="Enter name"
+                />
+              </div>
+              <div>
+                <Label>Company</Label>
+                <Input
+                  value={shippingCompany}
+                  onChange={(e) => setShippingCompany(e.target.value)}
+                  placeholder="Enter company"
+                />
+              </div>
+              <div>
+                <Label>Phone</Label>
+                <Input
+                  value={shippingPhone}
+                  onChange={(e) => setShippingPhone(e.target.value)}
+                  placeholder="+91 XXXXXXXXXX"
+                />
+              </div>
+              <div>
+                <Label>State</Label>
+                <Select
+                  value={shippingState || 'none'}
+                  onValueChange={(value) => setShippingState(value === 'none' ? '' : value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select state" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Select state</SelectItem>
+                    {INDIAN_STATES.map(state => (
+                      <SelectItem key={state} value={state}>{state}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Shipping Address</Label>
+                <Textarea
+                  value={shippingAddress}
+                  onChange={(e) => setShippingAddress(e.target.value)}
+                  placeholder="Enter shipping address"
+                  rows={2}
+                />
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
 
       {/* Invoice Details */}
-      <div>
-        <h3 className="font-semibold mb-4">Invoice Details</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="invoiceDate">Invoice Date *</Label>
-            <Input
-              id="invoiceDate"
-              type="date"
-              value={invoiceDate}
-              onChange={(e) => setInvoiceDate(e.target.value)}
-              required
-            />
+      <Card>
+        <CardHeader className="py-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Invoice Details
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <Label>Invoice Date *</Label>
+              <Input
+                type="date"
+                value={invoiceDate}
+                onChange={(e) => setInvoiceDate(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label>Due Date</Label>
+              <Input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                Payment Terms
+              </Label>
+              <Select
+                value={paymentTerms || 'none'}
+                onValueChange={(value) => setPaymentTerms(value === 'none' ? '' : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select terms" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Select terms</SelectItem>
+                  {PAYMENT_TERMS_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {paymentTerms === 'custom' && (
+              <div className="sm:col-span-2 lg:col-span-3">
+                <Label>Custom Payment Terms</Label>
+                <Input
+                  value={paymentTermsCustom}
+                  onChange={(e) => setPaymentTermsCustom(e.target.value)}
+                  placeholder="e.g., 30% advance, 70% on delivery"
+                />
+              </div>
+            )}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="dueDate">Due Date</Label>
-            <Input
-              id="dueDate"
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="paymentTerms">Payment Terms</Label>
-            <Input
-              id="paymentTerms"
-              value={paymentTerms}
-              onChange={(e) => setPaymentTerms(e.target.value)}
-              placeholder="e.g., Net 30"
-            />
-          </div>
-        </div>
-      </div>
-
-      <Separator />
+        </CardContent>
+      </Card>
 
       {/* Items */}
-      <div>
-        <h3 className="font-semibold mb-4">Invoice Items</h3>
-        <QuoteItemsInput items={items} onChange={setItems} />
-      </div>
+      <Card>
+        <CardContent className="pt-4">
+          <BillingItemsInput 
+            items={items} 
+            onChange={setItems}
+            showPerItemDiscount={true}
+          />
+        </CardContent>
+      </Card>
 
-      <Separator />
+      {/* Pricing Summary & Additional Details */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          {/* Discount */}
+          <Card>
+            <CardHeader className="py-3">
+              <CardTitle className="text-sm font-medium">Overall Discount</CardTitle>
+            </CardHeader>
+            <CardContent className="pb-4">
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <Label className="text-xs">Discount %</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={discountPercent || ''}
+                    onChange={(e) => {
+                      setDiscountPercent(parseFloat(e.target.value) || 0);
+                      setDiscountAmount(0);
+                    }}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="flex-1">
+                  <Label className="text-xs">Or Amount (₹)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={discountAmount || ''}
+                    onChange={(e) => {
+                      setDiscountAmount(parseFloat(e.target.value) || 0);
+                      setDiscountPercent(0);
+                    }}
+                    placeholder="0"
+                    disabled={discountPercent > 0}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Discount & Summary */}
-      <div className="flex flex-col md:flex-row gap-6">
-        <div className="flex-1 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="discountPercent">Discount (%)</Label>
-            <Input
-              id="discountPercent"
-              type="number"
-              min="0"
-              max="100"
-              value={discountPercent}
-              onChange={(e) => setDiscountPercent(Number(e.target.value))}
-            />
-          </div>
-        </div>
-        <div className="w-full md:w-72 space-y-2 bg-muted/50 p-4 rounded-lg">
-          <div className="flex justify-between text-sm">
-            <span>Subtotal</span>
-            <span>₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span>GST</span>
-            <span>₹{totalGst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-          </div>
-          {discountAmount > 0 && (
-            <div className="flex justify-between text-sm text-green-600">
-              <span>Discount ({discountPercent}%)</span>
-              <span>-₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-            </div>
-          )}
-          <Separator />
-          <div className="flex justify-between text-lg font-bold">
-            <span>Grand Total</span>
-            <span className="text-primary">₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-          </div>
-        </div>
-      </div>
+          {/* Bank Details */}
+          <BankDetailsSection
+            includeBankDetails={includeBankDetails}
+            onIncludeBankDetailsChange={setIncludeBankDetails}
+          />
 
-      <Separator />
+          {/* Signature */}
+          <SignatureSection
+            authorizedSignatory={authorizedSignatory}
+            onAuthorizedSignatoryChange={setAuthorizedSignatory}
+          />
 
-      {/* Notes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="notes">Notes</Label>
-          <Textarea
-            id="notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Additional notes..."
-            rows={3}
+          {/* Attachments */}
+          <AttachmentsSection
+            attachmentUrls={attachmentUrls}
+            onAttachmentsChange={setAttachmentUrls}
+            bucketPath={`invoices/${Date.now()}`}
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="terms">Terms & Conditions</Label>
-          <Textarea
-            id="terms"
-            value={termsAndConditions}
-            onChange={(e) => setTermsAndConditions(e.target.value)}
-            placeholder="Payment terms, warranty info, etc."
-            rows={3}
-          />
+
+        {/* Summary */}
+        <div className="space-y-4">
+          <Card className="bg-muted/30">
+            <CardHeader className="py-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <IndianRupee className="h-4 w-4" />
+                Invoice Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pb-4">
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span>₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                {totalItemDiscounts > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Item Discounts</span>
+                    <span>-₹{totalItemDiscounts.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Total GST</span>
+                  <span>₹{totalGst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                {overallDiscount > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Overall Discount</span>
+                    <span>-₹{overallDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+                <Separator />
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Grand Total</span>
+                  <span className="text-primary">₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Notes */}
+          <Card>
+            <CardHeader className="py-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Notes & Terms
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pb-4 space-y-4">
+              <div>
+                <Label>Notes (for Customer)</Label>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Additional notes visible to customer..."
+                  rows={2}
+                />
+              </div>
+              <div>
+                <Label className="flex items-center gap-2">
+                  <StickyNote className="h-4 w-4" />
+                  Internal Notes
+                </Label>
+                <Textarea
+                  value={internalNotes}
+                  onChange={(e) => setInternalNotes(e.target.value)}
+                  placeholder="Internal notes (not visible to customer)..."
+                  rows={2}
+                  className="bg-yellow-50 dark:bg-yellow-900/20"
+                />
+              </div>
+              <div>
+                <Label>Terms & Conditions</Label>
+                <Textarea
+                  value={termsAndConditions}
+                  onChange={(e) => setTermsAndConditions(e.target.value)}
+                  rows={4}
+                />
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
       {/* Actions */}
-      <div className="flex justify-end gap-3 pt-4">
+      <div className="flex justify-end gap-3 pt-4 sticky bottom-0 bg-background py-4 border-t -mx-6 px-6">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>

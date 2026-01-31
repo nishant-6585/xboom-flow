@@ -15,6 +15,15 @@ export const INVOICE_STATUSES: { value: InvoiceStatus; label: string; color: str
   { value: 'cancelled', label: 'Cancelled', color: 'bg-gray-400' },
 ];
 
+export const PAYMENT_TERMS_OPTIONS = [
+  { value: 'advance_100', label: 'Advance 100%' },
+  { value: '60_40', label: '60-40%' },
+  { value: '50_50', label: '50-50%' },
+  { value: 'net_15', label: 'Net 15 Days' },
+  { value: 'net_30', label: 'Net 30 Days' },
+  { value: 'custom', label: 'Custom' },
+];
+
 export interface InvoiceItem {
   id?: string;
   invoice_id?: string;
@@ -25,6 +34,8 @@ export interface InvoiceItem {
   description?: string;
   quantity: number;
   unit_price: number;
+  discount_percent?: number;
+  discount_amount?: number;
   gst_percent: number;
   gst_amount: number;
   price_includes_gst: boolean;
@@ -105,6 +116,10 @@ export interface InvoiceFormData {
   notes?: string;
   terms_and_conditions?: string;
   payment_terms?: string;
+  include_bank_details?: boolean;
+  authorized_signatory?: string;
+  internal_notes?: string;
+  attachment_urls?: string[];
   quote_id?: string;
   order_id?: string;
   items: InvoiceItem[];

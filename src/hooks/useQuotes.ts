@@ -47,6 +47,11 @@ export interface Quote {
   customer_address?: string;
   customer_gst?: string;
   customer_state?: string;
+  shipping_name?: string;
+  shipping_company?: string;
+  shipping_address?: string;
+  shipping_state?: string;
+  shipping_phone?: string;
   subtotal: number;
   total_gst: number;
   discount_amount: number;
@@ -62,6 +67,9 @@ export interface Quote {
   approved_by_name?: string;
   approved_at?: string;
   internal_notes?: string;
+  include_bank_details?: boolean;
+  authorized_signatory?: string;
+  attachment_urls?: string[];
   source_type?: string;
   source_id?: string;
   created_by: string;
@@ -92,6 +100,9 @@ export interface QuoteFormData {
   payment_terms?: string;
   payment_terms_custom?: string;
   internal_notes?: string;
+  include_bank_details?: boolean;
+  authorized_signatory?: string;
+  attachment_urls?: string[];
   source_type?: string;
   source_id?: string;
   items: QuoteItem[];
@@ -188,6 +199,9 @@ export function useQuotes() {
           payment_terms: data.payment_terms,
           payment_terms_custom: data.payment_terms_custom,
           internal_notes: data.internal_notes,
+          include_bank_details: data.include_bank_details,
+          authorized_signatory: data.authorized_signatory,
+          attachment_urls: data.attachment_urls,
           source_type: data.source_type,
           source_id: data.source_id,
           created_by: user.id,
@@ -343,6 +357,9 @@ export function useQuotes() {
           payment_terms: data.payment_terms,
           payment_terms_custom: data.payment_terms_custom,
           internal_notes: data.internal_notes,
+          include_bank_details: data.include_bank_details,
+          authorized_signatory: data.authorized_signatory,
+          attachment_urls: data.attachment_urls,
         })
         .eq('id', quoteId);
 
