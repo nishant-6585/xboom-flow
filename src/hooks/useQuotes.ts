@@ -65,6 +65,11 @@ export interface QuoteFormData {
   customer_address?: string;
   customer_gst?: string;
   customer_state?: string;
+  shipping_name?: string;
+  shipping_company?: string;
+  shipping_address?: string;
+  shipping_state?: string;
+  shipping_phone?: string;
   discount_amount?: number;
   discount_percent?: number;
   valid_until?: string;
