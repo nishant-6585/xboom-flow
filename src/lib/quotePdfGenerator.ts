@@ -192,7 +192,7 @@ export async function generateQuotePdf(quote: Quote, items: QuoteItem[], company
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...GRAY_TEXT);
   
-  doc.text('#', margin, yPos);
+  doc.text('Quote No', margin, yPos);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...DARK_TEXT);
   doc.text(`: ${quote.quote_number}`, margin + 20, yPos);
@@ -278,7 +278,7 @@ export async function generateQuotePdf(quote: Quote, items: QuoteItem[], company
     startY: yPos,
     head: [
       [
-        { content: '#', styles: { halign: 'center' } },
+        { content: 'Sr No', styles: { halign: 'center' } },
         { content: 'Item & Description', styles: { halign: 'left' } },
         { content: 'HSN/SAC', styles: { halign: 'center' } },
         { content: 'Qty', styles: { halign: 'center' } },
@@ -424,15 +424,6 @@ export async function generateQuotePdf(quote: Quote, items: QuoteItem[], company
   
   doc.text(termsLines, margin, yPos);
   
-  // ============ PAGE NUMBER ============
-  const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(...GRAY_TEXT);
-    doc.text(i.toString(), pageWidth - margin, pageHeight - 10, { align: 'right' });
-  }
-
   return doc;
 }
 
