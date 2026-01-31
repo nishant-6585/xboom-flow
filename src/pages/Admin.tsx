@@ -36,6 +36,7 @@ import {
 import { Navigate, useNavigate } from "react-router-dom";
 import { SlackSettingsPanel } from "@/components/admin/SlackSettingsPanel";
 import { FormPermissionsPanel } from "@/components/admin/FormPermissionsPanel";
+import { AdminSignatureSettings } from "@/components/admin/AdminSignatureSettings";
 
 interface PendingUser {
   id: string;
@@ -468,6 +469,10 @@ const Admin = () => {
               <Bell className="w-4 h-4" />
               Notices
             </TabsTrigger>
+            <TabsTrigger value="signature" className="flex items-center gap-2">
+              <KeyRound className="w-4 h-4" />
+              Signature
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="analytics">
@@ -838,6 +843,10 @@ const Admin = () => {
 
           <TabsContent value="notices">
             <NoticesPanel />
+          </TabsContent>
+
+          <TabsContent value="signature">
+            <AdminSignatureSettings />
           </TabsContent>
         </Tabs>
       </main>

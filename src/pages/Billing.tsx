@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useQuotes, Quote, QUOTE_STATUSES } from '@/hooks/useQuotes';
 import { useInvoices, Invoice, INVOICE_STATUSES } from '@/hooks/useInvoices';
+import { useAdminSignature } from '@/hooks/useAdminSignature';
 import { QuoteForm } from '@/components/billing/QuoteForm';
 import { QuoteCard } from '@/components/billing/QuoteCard';
 import { QuoteDetailDialog } from '@/components/billing/QuoteDetailDialog';
@@ -21,6 +22,7 @@ import { InvoiceForm } from '@/components/billing/InvoiceForm';
 import { InvoiceCard } from '@/components/billing/InvoiceCard';
 import { InvoicesTable } from '@/components/billing/InvoicesTable';
 import { InvoiceStats } from '@/components/billing/InvoiceStats';
+import { InvoiceSignatureDialog } from '@/components/billing/InvoiceSignatureDialog';
 import { Plus, Search, FileText, Receipt, Loader2, Filter, LayoutGrid, List } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -29,7 +31,8 @@ export default function Billing() {
   const navigate = useNavigate();
   const { role } = useAuth();
   const { quotes, loading: quotesLoading, createQuote, updateQuote, updateQuoteStatus, fetchQuoteWithItems } = useQuotes();
-  const { invoices, loading: invoicesLoading, createInvoice, fetchInvoiceWithItems } = useInvoices();
+  const { invoices, loading: invoicesLoading, createInvoice, fetchInvoiceWithItems, submitForSignature, signInvoice } = useInvoices();
+  const { signature, hasSignature } = useAdminSignature();
   
   // Quote state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -47,6 +50,10 @@ export default function Billing() {
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('all');
   const [invoiceViewMode, setInvoiceViewMode] = useState<'grid' | 'list'>('grid');
   const [activeTab, setActiveTab] = useState('quotes');
+  
+  // Signature dialog
+  const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
+  const [invoiceToSign, setInvoiceToSign] = useState<Invoice | null>(null);
 
   const handleCreateQuote = async (data: Parameters<typeof createQuote>[0]) => {
     const success = await createQuote(data);
@@ -153,6 +160,31 @@ export default function Billing() {
       setCreateInvoiceDialogOpen(false);
     }
     return success;
+  };
+
+  const handleSubmitForSignature = async (invoice: Invoice) => {
+    await submitForSignature(invoice.id);
+  };
+
+  const handleOpenSignDialog = (invoice: Invoice) => {
+    if (role !== 'admin') {
+      toast.error('Only admins can sign invoices');
+      return;
+    }
+    if (!hasSignature) {
+      toast.error('Please upload your signature in Admin Settings first');
+      return;
+    }
+    setInvoiceToSign(invoice);
+    setSignatureDialogOpen(true);
+  };
+
+  const handleSignInvoice = async (invoiceId: string): Promise<boolean> => {
+    if (!signature?.signature_url) {
+      toast.error('No signature found');
+      return false;
+    }
+    return await signInvoice(invoiceId, signature.signature_url);
   };
 
   const canCreate = role === 'admin' || role === 'sales' || role === 'supply_chain';
@@ -366,6 +398,8 @@ export default function Billing() {
                     key={invoice.id} 
                     invoice={invoice} 
                     onView={(inv) => toast.info('Invoice detail view coming soon')}
+                    onSubmitForSignature={handleSubmitForSignature}
+                    onSign={handleOpenSignDialog}
                   />
                 ))}
               </div>
@@ -373,11 +407,21 @@ export default function Billing() {
               <InvoicesTable 
                 invoices={filteredInvoices} 
                 onView={(inv) => toast.info('Invoice detail view coming soon')}
+                onSubmitForSignature={handleSubmitForSignature}
+                onSign={handleOpenSignDialog}
               />
             )}
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Invoice Signature Dialog */}
+      <InvoiceSignatureDialog
+        invoice={invoiceToSign}
+        open={signatureDialogOpen}
+        onOpenChange={setSignatureDialogOpen}
+        onSign={handleSignInvoice}
+      />
 
       {/* Create Quote Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>

@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Invoice, InvoiceStatus, INVOICE_STATUSES, useInvoices } from '@/hooks/useInvoices';
+import { Invoice, InvoiceStatus, useInvoices } from '@/hooks/useInvoices';
+import { InvoiceStatusBadge } from './InvoiceStatusBadge';
 import { format } from 'date-fns';
 import { 
   MoreVertical, 
@@ -16,29 +16,47 @@ import {
   Calendar,
   IndianRupee,
   Send,
-  CheckCircle2,
   XCircle,
   Pencil,
-  CreditCard
+  CreditCard,
+  PenTool,
+  FileSignature,
+  Archive,
+  Lock,
+  CheckCircle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 interface InvoiceCardProps {
   invoice: Invoice;
   onView: (invoice: Invoice) => void;
   onEdit?: (invoice: Invoice) => void;
   onRecordPayment?: (invoice: Invoice) => void;
+  onSubmitForSignature?: (invoice: Invoice) => void;
+  onSign?: (invoice: Invoice) => void;
 }
 
-export function InvoiceCard({ invoice, onView, onEdit, onRecordPayment }: InvoiceCardProps) {
+export function InvoiceCard({ 
+  invoice, 
+  onView, 
+  onEdit, 
+  onRecordPayment,
+  onSubmitForSignature,
+  onSign,
+}: InvoiceCardProps) {
   const { role } = useAuth();
-  const { updateInvoiceStatus, deleteInvoice } = useInvoices();
+  const { updateInvoiceStatus, deleteInvoice, archiveInvoice, canEditInvoice, canDownloadInvoice } = useInvoices();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const statusConfig = INVOICE_STATUSES.find(s => s.value === invoice.status);
+  const isDraft = invoice.status === 'draft';
+  const isPendingSignature = invoice.status === 'pending_signature';
+  const isSigned = invoice.status === 'signed';
   const isPaid = invoice.status === 'paid';
   const isCancelled = invoice.status === 'cancelled';
-  const canEdit = !isPaid && !isCancelled;
+  const canEdit = canEditInvoice(invoice);
+  const canDownload = canDownloadInvoice(invoice);
+  const isAdmin = role === 'admin';
 
   const handleStatusChange = async (newStatus: InvoiceStatus) => {
     await updateInvoiceStatus(invoice.id, newStatus);
@@ -49,21 +67,35 @@ export function InvoiceCard({ invoice, onView, onEdit, onRecordPayment }: Invoic
     setDeleteDialogOpen(false);
   };
 
+  const handleArchive = async () => {
+    await archiveInvoice(invoice.id);
+  };
+
+  const handleDownload = () => {
+    if (!canDownload) {
+      toast.error('Invoice must be signed before downloading');
+      return;
+    }
+    // TODO: Implement PDF download
+    toast.info('PDF download coming soon');
+  };
+
   return (
     <>
-      <Card className="hover:shadow-md transition-shadow">
+      <Card className={`hover:shadow-md transition-shadow ${isSigned ? 'border-green-200' : ''}`}>
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between">
             <div>
-              <CardTitle className="text-base font-semibold">{invoice.invoice_number}</CardTitle>
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                {invoice.invoice_number}
+                {isSigned && <Lock className="h-3 w-3 text-green-600" />}
+              </CardTitle>
               <p className="text-sm text-muted-foreground">
                 {format(new Date(invoice.invoice_date), 'dd MMM yyyy')}
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Badge className={`${statusConfig?.color} text-white`}>
-                {statusConfig?.label}
-              </Badge>
+              <InvoiceStatusBadge status={invoice.status} size="sm" />
               {canEdit && onEdit && (
                 <Button 
                   variant="ghost" 
@@ -86,11 +118,46 @@ export function InvoiceCard({ invoice, onView, onEdit, onRecordPayment }: Invoic
                     <Eye className="h-4 w-4 mr-2" />
                     View Details
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download PDF
-                  </DropdownMenuItem>
-                  {!isPaid && !isCancelled && (
+                  
+                  {/* Download - only for signed invoices */}
+                  {canDownload ? (
+                    <DropdownMenuItem onClick={handleDownload}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Download PDF
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem disabled className="text-muted-foreground">
+                      <Download className="h-4 w-4 mr-2" />
+                      <span className="text-xs">Sign to Download</span>
+                    </DropdownMenuItem>
+                  )}
+
+                  {/* Draft actions */}
+                  {isDraft && (
+                    <>
+                      <DropdownMenuSeparator />
+                      {onSubmitForSignature && (
+                        <DropdownMenuItem onClick={() => onSubmitForSignature(invoice)} className="text-orange-600">
+                          <FileSignature className="h-4 w-4 mr-2" />
+                          Submit for Signature
+                        </DropdownMenuItem>
+                      )}
+                    </>
+                  )}
+
+                  {/* Pending Signature - Admin only can sign */}
+                  {isPendingSignature && isAdmin && onSign && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => onSign(invoice)} className="text-green-600 font-medium">
+                        <PenTool className="h-4 w-4 mr-2" />
+                        Finalize & Sign
+                      </DropdownMenuItem>
+                    </>
+                  )}
+
+                  {/* Signed invoice actions */}
+                  {isSigned && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => handleStatusChange('sent')}>
@@ -103,22 +170,38 @@ export function InvoiceCard({ invoice, onView, onEdit, onRecordPayment }: Invoic
                           Record Payment
                         </DropdownMenuItem>
                       )}
+                    </>
+                  )}
+
+                  {/* Cancel - only for non-signed invoices */}
+                  {!isSigned && !isPaid && !isCancelled && (
+                    <>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => handleStatusChange('cancelled')}>
                         <XCircle className="h-4 w-4 mr-2" />
                         Cancel Invoice
                       </DropdownMenuItem>
                     </>
                   )}
-                  {role === 'admin' && (
+
+                  {/* Admin actions */}
+                  {isAdmin && (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        onClick={() => setDeleteDialogOpen(true)}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
+                      {isSigned ? (
+                        <DropdownMenuItem onClick={handleArchive}>
+                          <Archive className="h-4 w-4 mr-2" />
+                          Archive
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem 
+                          onClick={() => setDeleteDialogOpen(true)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      )}
                     </>
                   )}
                 </DropdownMenuContent>
@@ -136,6 +219,14 @@ export function InvoiceCard({ invoice, onView, onEdit, onRecordPayment }: Invoic
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Building2 className="h-4 w-4" />
               <span>{invoice.customer_company}</span>
+            </div>
+          )}
+
+          {/* Signed By */}
+          {invoice.signed_by_name && (
+            <div className="flex items-center gap-2 text-sm text-green-600">
+              <CheckCircle className="h-4 w-4" />
+              <span>Signed by {invoice.signed_by_name}</span>
             </div>
           )}
 
