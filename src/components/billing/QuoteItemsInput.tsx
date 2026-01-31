@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
@@ -148,13 +149,25 @@ export function QuoteItemsInput({ items, onChange }: QuoteItemsInputProps) {
                     />
                   </div>
                   <div className="md:col-span-3">
-                    <Label className="text-xs">Category</Label>
+                    <Label className="text-xs">HSN/SAC Code</Label>
                     <Input
                       value={item.product_category || ''}
                       onChange={(e) => updateItem(index, 'product_category', e.target.value)}
-                      placeholder="Category"
+                      placeholder="HSN/SAC"
                     />
                   </div>
+                </div>
+
+                {/* Row 1.5: Description */}
+                <div>
+                  <Label className="text-xs">Product Description (optional)</Label>
+                  <Textarea
+                    value={item.description || ''}
+                    onChange={(e) => updateItem(index, 'description', e.target.value)}
+                    placeholder="Enter detailed product description, specifications, or notes..."
+                    rows={2}
+                    className="resize-none text-sm"
+                  />
                 </div>
 
                 {/* Row 2: Pricing */}

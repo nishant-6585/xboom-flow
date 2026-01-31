@@ -153,9 +153,14 @@ async function loadImageAsBase64(url: string): Promise<string> {
   });
 }
 
-// Helper to format currency
+// Helper to format currency - clean right-aligned numbers
 function formatCurrency(amount: number): string {
-  return '₹ ' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Helper to format currency with symbol
+function formatCurrencyWithSymbol(amount: number): string {
+  return 'Rs. ' + formatCurrency(amount);
 }
 
 // Helper to draw a rounded rectangle
@@ -371,7 +376,7 @@ export async function generateQuotePdf(quote: Quote, items: QuoteItem[], company
       item.product_code || '-',
       item.quantity.toString(),
       formatCurrency(basePrice),
-      `${item.gst_percent}%`,
+      item.gst_percent.toString(),
       formatCurrency(item.gst_amount),
       formatCurrency(item.total_amount),
     ];
@@ -380,14 +385,14 @@ export async function generateQuotePdf(quote: Quote, items: QuoteItem[], company
   autoTable(doc, {
     startY: yPos,
     head: [[
-      { content: 'Sr.', styles: { halign: 'center' } },
-      { content: 'Description', styles: { halign: 'left' } },
+      { content: 'Sr. No', styles: { halign: 'center' } },
+      { content: 'Product Description', styles: { halign: 'left' } },
       { content: 'HSN/SAC', styles: { halign: 'center' } },
       { content: 'Qty', styles: { halign: 'center' } },
-      { content: 'Unit Price', styles: { halign: 'right' } },
-      { content: 'GST', styles: { halign: 'center' } },
-      { content: 'GST Amt', styles: { halign: 'right' } },
-      { content: 'Total', styles: { halign: 'right' } },
+      { content: 'Rate', styles: { halign: 'right' } },
+      { content: '%', styles: { halign: 'center' } },
+      { content: 'Amt', styles: { halign: 'right' } },
+      { content: 'Amount', styles: { halign: 'right' } },
     ]],
     body: tableData,
     theme: 'plain',
@@ -395,43 +400,48 @@ export async function generateQuotePdf(quote: Quote, items: QuoteItem[], company
       fillColor: TABLE_HEADER_BG,
       textColor: WHITE,
       fontStyle: 'bold',
-      fontSize: 8,
-      cellPadding: { top: 4, bottom: 4, left: 3, right: 3 },
+      fontSize: 9,
+      cellPadding: { top: 5, bottom: 5, left: 4, right: 4 },
+      font: 'helvetica',
     },
     bodyStyles: {
-      fontSize: 8,
-      cellPadding: { top: 5, bottom: 5, left: 3, right: 3 },
+      fontSize: 9,
+      cellPadding: { top: 6, bottom: 6, left: 4, right: 4 },
       textColor: DARK_TEXT,
       lineColor: LIGHT_BORDER,
-      lineWidth: 0.1,
+      lineWidth: 0.2,
+      font: 'helvetica',
     },
     alternateRowStyles: {
       fillColor: TABLE_ALTERNATE_BG,
     },
     columnStyles: {
-      0: { cellWidth: 12, halign: 'center' },
-      1: { cellWidth: 52 },
-      2: { cellWidth: 20, halign: 'center' },
-      3: { cellWidth: 14, halign: 'center' },
-      4: { cellWidth: 24, halign: 'right' },
-      5: { cellWidth: 14, halign: 'center' },
+      0: { cellWidth: 14, halign: 'center', fontStyle: 'normal' },
+      1: { cellWidth: 54, halign: 'left' },
+      2: { cellWidth: 18, halign: 'center' },
+      3: { cellWidth: 14, halign: 'center', fontStyle: 'bold' },
+      4: { cellWidth: 24, halign: 'right', fontStyle: 'normal' },
+      5: { cellWidth: 12, halign: 'center' },
       6: { cellWidth: 22, halign: 'right' },
-      7: { cellWidth: 26, halign: 'right' },
+      7: { cellWidth: 26, halign: 'right', fontStyle: 'bold' },
     },
     margin: { left: marginLeft, right: marginRight },
     tableLineColor: LIGHT_BORDER,
     tableLineWidth: 0.3,
     didDrawCell: (data) => {
-      // Draw bottom border for each row
-      if (data.section === 'body') {
+      // Draw clean borders for table
+      if (data.section === 'body' || data.section === 'head') {
         doc.setDrawColor(...LIGHT_BORDER);
-        doc.setLineWidth(0.1);
-        doc.line(
-          data.cell.x,
-          data.cell.y + data.cell.height,
-          data.cell.x + data.cell.width,
-          data.cell.y + data.cell.height
-        );
+        doc.setLineWidth(0.2);
+        // Draw right border for each cell except last
+        if (data.column.index < 7) {
+          doc.line(
+            data.cell.x + data.cell.width,
+            data.cell.y,
+            data.cell.x + data.cell.width,
+            data.cell.y + data.cell.height
+          );
+        }
       }
     },
   });
@@ -460,34 +470,39 @@ export async function generateQuotePdf(quote: Quote, items: QuoteItem[], company
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...GRAY_TEXT);
-  doc.text('Sub Total:', summaryLabelX, summaryY);
+  doc.text('Sub Total', summaryLabelX, summaryY);
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(...DARK_TEXT);
   doc.text(formatCurrency(quote.subtotal), summaryValueX, summaryY, { align: 'right' });
   
   summaryY += 10;
+  doc.setFont('helvetica', 'normal');
   doc.setTextColor(...GRAY_TEXT);
-  doc.text(`GST (${items[0]?.gst_percent || 18}%):`, summaryLabelX, summaryY);
+  doc.text(`IGST (${items[0]?.gst_percent || 18}%)`, summaryLabelX, summaryY);
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(...DARK_TEXT);
   doc.text(formatCurrency(quote.total_gst), summaryValueX, summaryY, { align: 'right' });
   
   if (hasDiscount) {
     summaryY += 10;
+    doc.setFont('helvetica', 'normal');
     doc.setTextColor(...GRAY_TEXT);
-    doc.text('Discount:', summaryLabelX, summaryY);
+    doc.text('Discount', summaryLabelX, summaryY);
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(220, 38, 38); // Red for discount
-    doc.text(`- ${formatCurrency(quote.discount_amount)}`, summaryValueX, summaryY, { align: 'right' });
+    doc.text('-' + formatCurrency(quote.discount_amount), summaryValueX, summaryY, { align: 'right' });
   }
   
   // Total row with accent background
-  summaryY += 6;
+  summaryY += 8;
   doc.setFillColor(...ORANGE_ACCENT);
-  doc.roundedRect(summaryBoxX, summaryY, summaryBoxWidth, 14, 0, 0, 'F');
+  doc.roundedRect(summaryBoxX, summaryY, summaryBoxWidth, 16, 0, 0, 'F');
   
-  doc.setFontSize(10);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...WHITE);
-  doc.text('TOTAL:', summaryLabelX, summaryY + 10);
-  doc.text(formatCurrency(quote.total_amount), summaryValueX, summaryY + 10, { align: 'right' });
+  doc.text('Total', summaryLabelX, summaryY + 11);
+  doc.text(formatCurrency(quote.total_amount), summaryValueX, summaryY + 11, { align: 'right' });
   
   // Amount in Words (left side)
   const wordsY = yPos + 5;
