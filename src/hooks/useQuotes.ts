@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useEditHistory } from '@/hooks/useEditHistory';
 import { toast } from 'sonner';
 
 export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'converted';
@@ -84,6 +85,7 @@ export function useQuotes() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const { user, profile } = useAuth();
+  const { recordChanges } = useEditHistory();
 
   const fetchQuotes = async () => {
     try {
@@ -227,7 +229,7 @@ export function useQuotes() {
     }
   };
 
-  const updateQuote = async (quoteId: string, data: QuoteFormData): Promise<boolean> => {
+  const updateQuote = async (quoteId: string, data: QuoteFormData, originalQuote?: Quote): Promise<boolean> => {
     if (!user || !profile) {
       toast.error('You must be logged in to update a quote');
       return false;
@@ -245,6 +247,60 @@ export function useQuotes() {
       const totalGst = data.items.reduce((sum, item) => sum + item.gst_amount, 0);
       const discountAmount = data.discount_amount || (data.discount_percent ? subtotal * (data.discount_percent / 100) : 0);
       const totalAmount = subtotal + totalGst - discountAmount;
+
+      // Track changes if original quote provided
+      if (originalQuote) {
+        const changes: Record<string, { old: any; new: any }> = {};
+        
+        if (originalQuote.customer_name !== data.customer_name) {
+          changes['customer_name'] = { old: originalQuote.customer_name, new: data.customer_name };
+        }
+        if (originalQuote.customer_company !== data.customer_company) {
+          changes['customer_company'] = { old: originalQuote.customer_company, new: data.customer_company };
+        }
+        if (originalQuote.customer_email !== data.customer_email) {
+          changes['customer_email'] = { old: originalQuote.customer_email, new: data.customer_email };
+        }
+        if (originalQuote.customer_phone !== data.customer_phone) {
+          changes['customer_phone'] = { old: originalQuote.customer_phone, new: data.customer_phone };
+        }
+        if (originalQuote.customer_address !== data.customer_address) {
+          changes['customer_address'] = { old: originalQuote.customer_address, new: data.customer_address };
+        }
+        if (originalQuote.customer_gst !== data.customer_gst) {
+          changes['customer_gst'] = { old: originalQuote.customer_gst, new: data.customer_gst };
+        }
+        if (originalQuote.customer_state !== data.customer_state) {
+          changes['customer_state'] = { old: originalQuote.customer_state, new: data.customer_state };
+        }
+        if (originalQuote.discount_amount !== discountAmount) {
+          changes['discount_amount'] = { old: originalQuote.discount_amount, new: discountAmount };
+        }
+        if (originalQuote.total_amount !== totalAmount) {
+          changes['total_amount'] = { old: originalQuote.total_amount, new: totalAmount };
+        }
+        if (originalQuote.valid_until !== data.valid_until) {
+          changes['valid_until'] = { old: originalQuote.valid_until, new: data.valid_until };
+        }
+        if (originalQuote.notes !== data.notes) {
+          changes['notes'] = { old: originalQuote.notes, new: data.notes };
+        }
+        if (originalQuote.terms_and_conditions !== data.terms_and_conditions) {
+          changes['terms_and_conditions'] = { old: originalQuote.terms_and_conditions, new: data.terms_and_conditions };
+        }
+
+        // Track item changes
+        const oldItemCount = originalQuote.items?.length || 0;
+        const newItemCount = data.items.length;
+        if (oldItemCount !== newItemCount) {
+          changes['items_count'] = { old: oldItemCount, new: newItemCount };
+        }
+
+        // Record changes to edit history
+        if (Object.keys(changes).length > 0) {
+          await recordChanges('quotes', quoteId, changes, profile.name);
+        }
+      }
 
       // Update quote
       const { error: quoteError } = await supabase

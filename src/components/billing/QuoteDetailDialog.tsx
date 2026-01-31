@@ -5,10 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Quote, QuoteItem, QUOTE_STATUSES, useQuotes } from '@/hooks/useQuotes';
+import { useEditHistory, EditHistoryRecord } from '@/hooks/useEditHistory';
 import { downloadQuotePdf } from '@/lib/quotePdfGenerator';
 import { format } from 'date-fns';
-import { Download, User, Building2, Mail, Phone, MapPin, Calendar, Loader2, Pencil } from 'lucide-react';
+import { Download, User, Building2, Mail, Phone, MapPin, Calendar, Loader2, Pencil, History, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface QuoteDetailDialogProps {
   quote: Quote | null;
@@ -19,14 +21,21 @@ interface QuoteDetailDialogProps {
 
 export function QuoteDetailDialog({ quote, open, onOpenChange, onEdit }: QuoteDetailDialogProps) {
   const { fetchQuoteWithItems } = useQuotes();
+  const { fetchHistory } = useEditHistory();
   const [fullQuote, setFullQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(false);
+  const [editHistory, setEditHistory] = useState<EditHistoryRecord[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
     if (quote && open) {
       setLoading(true);
-      fetchQuoteWithItems(quote.id).then(data => {
-        setFullQuote(data);
+      Promise.all([
+        fetchQuoteWithItems(quote.id),
+        fetchHistory('quotes', quote.id)
+      ]).then(([quoteData, historyData]) => {
+        setFullQuote(quoteData);
+        setEditHistory(historyData);
         setLoading(false);
       });
     }
@@ -218,12 +227,50 @@ export function QuoteDetailDialog({ quote, open, onOpenChange, onEdit }: QuoteDe
                       </div>
                     )}
                   </div>
-                </>
-              )}
-            </div>
-          )}
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
-  );
-}
+                  </>
+                )}
+
+                {/* Edit History */}
+                {editHistory.length > 0 && (
+                  <>
+                    <Separator />
+                    <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" className="w-full justify-between p-0 h-auto">
+                          <div className="flex items-center gap-2">
+                            <History className="h-4 w-4" />
+                            <span className="font-semibold">Edit History ({editHistory.length})</span>
+                          </div>
+                          {historyOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="mt-3">
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {editHistory.map((record) => (
+                            <div key={record.id} className="text-xs p-2 bg-muted rounded">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium">{record.field_name}</span>
+                                <span className="text-muted-foreground">
+                                  {format(new Date(record.edited_at), 'dd MMM yyyy, hh:mm a')}
+                                </span>
+                              </div>
+                              <div className="mt-1 text-muted-foreground">
+                                <span className="line-through text-red-500">{record.old_value || '(empty)'}</span>
+                                {' → '}
+                                <span className="text-green-600">{record.new_value || '(empty)'}</span>
+                              </div>
+                              <div className="mt-1 text-muted-foreground">by {record.edited_by_name}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </>
+                )}
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+    );
+  }
