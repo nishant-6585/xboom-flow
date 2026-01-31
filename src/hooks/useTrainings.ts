@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export type TrainingType = 'demo' | 'training';
-export type TrainingCategory = 'drone_ops' | 'software_usage' | 'both';
+export type TrainingCategory = 'drone_ops' | 'software_usage' | 'both' | 'das' | 'ras';
 export type TrainingPaymentStatus = 'pending' | 'partial' | 'paid';
 export type TrainingStatus = 'requested' | 'pending' | 'done';
 
@@ -55,6 +55,8 @@ export const TRAINING_CATEGORIES: { value: TrainingCategory; label: string }[] =
   { value: 'drone_ops', label: 'Drone Operations' },
   { value: 'software_usage', label: 'Software Usage' },
   { value: 'both', label: 'Both' },
+  { value: 'das', label: 'DAS (Drone as a Service)' },
+  { value: 'ras', label: 'RAS (Robot as a Service)' },
 ];
 
 export const TRAINING_PAYMENT_STATUSES: { value: TrainingPaymentStatus; label: string }[] = [

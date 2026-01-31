@@ -5,7 +5,7 @@ export interface CertificateData {
   traineeName: string;
   clientName: string;
   trainingType: 'training' | 'demo';
-  category: 'drone_ops' | 'software_usage' | 'both';
+  category: 'drone_ops' | 'software_usage' | 'both' | 'das' | 'ras';
   modelName?: string | null;
   trainingDate?: string | null;
   trainingNumber?: string | null;
@@ -20,6 +20,10 @@ const getCategoryLabel = (category: string): string => {
       return 'Software Usage';
     case 'both':
       return 'Drone Operations & Software Usage';
+    case 'das':
+      return 'Drone as a Service (DAS)';
+    case 'ras':
+      return 'Robot as a Service (RAS)';
     default:
       return category;
   }
