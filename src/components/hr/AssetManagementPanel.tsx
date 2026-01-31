@@ -25,9 +25,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Package } from "lucide-react";
+import { Plus, Search, Package, Download, Upload, MoreVertical } from "lucide-react";
+import * as XLSX from "xlsx";
 import useEmployeeAssets, {
   EmployeeAsset,
   ASSET_TYPES,
@@ -36,7 +43,10 @@ import useEmployeeAssets, {
 } from "@/hooks/useEmployeeAssets";
 import { AssetFormDialog } from "./AssetFormDialog";
 import { AssetCard } from "./AssetCard";
+import { AssetImportDialog } from "./AssetImportDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Employee {
   id: string;
@@ -44,7 +54,7 @@ interface Employee {
 }
 
 export function AssetManagementPanel() {
-  const { assets, loading, createAsset, updateAsset, deleteAsset } = useEmployeeAssets();
+  const { assets, loading, createAsset, updateAsset, deleteAsset, refetch } = useEmployeeAssets();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<EmployeeAsset | null>(null);
@@ -54,12 +64,16 @@ export function AssetManagementPanel() {
     return_date: new Date().toISOString().split("T")[0],
     condition_on_return: "",
   });
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
+
+  const { toast } = useToast();
+  const { user, profile } = useAuth();
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -105,6 +119,85 @@ export function AssetManagementPanel() {
         condition_on_return: "",
       });
     }
+  };
+
+  // Export assets to Excel
+  const handleExport = () => {
+    const exportData = filteredAssets.map((asset) => ({
+      "Employee Name": asset.employees?.name || "",
+      "Asset Type": ASSET_TYPES.find(t => t.value === asset.asset_type)?.label || asset.asset_type,
+      "Asset Name": asset.asset_name,
+      "Brand": asset.brand || "",
+      "Model": asset.model || "",
+      "Serial Number": asset.serial_number || "",
+      "IMEI Number": asset.imei_number || "",
+      "SIM Number": asset.sim_number || "",
+      "Phone Number": asset.phone_number || "",
+      "Purchase Date": asset.purchase_date || "",
+      "Purchase Price": asset.purchase_price || "",
+      "Assigned Date": asset.assigned_date,
+      "Return Date": asset.return_date || "",
+      "Status": ASSET_STATUSES.find(s => s.value === asset.status)?.label || asset.status,
+      "Condition on Assign": asset.condition_on_assign || "",
+      "Condition on Return": asset.condition_on_return || "",
+      "Notes": asset.notes || "",
+      "Assigned By": asset.assigned_by_name || "",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Assets");
+    XLSX.writeFile(wb, `assets_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+    toast({
+      title: "Export Complete",
+      description: `Exported ${exportData.length} assets to Excel`,
+    });
+  };
+
+  // Handle bulk import
+  const handleImport = async (parsedAssets: any[]) => {
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const asset of parsedAssets) {
+      try {
+        const { error } = await supabase.from("employee_assets").insert({
+          employee_id: asset.employee_id,
+          asset_type: asset.asset_type,
+          asset_name: asset.asset_name,
+          brand: asset.brand || null,
+          model: asset.model || null,
+          serial_number: asset.serial_number || null,
+          imei_number: asset.imei_number || null,
+          sim_number: asset.sim_number || null,
+          phone_number: asset.phone_number || null,
+          purchase_date: asset.purchase_date || null,
+          purchase_price: asset.purchase_price || null,
+          assigned_date: asset.assigned_date,
+          status: asset.status,
+          condition_on_assign: asset.condition_on_assign || null,
+          notes: asset.notes || null,
+          assigned_by: user?.id,
+          assigned_by_name: profile?.name || 'Unknown',
+        });
+
+        if (error) throw error;
+        successCount++;
+      } catch (error) {
+        console.error("Error importing asset:", error);
+        errorCount++;
+      }
+    }
+
+    toast({
+      title: "Import Complete",
+      description: `Successfully imported ${successCount} assets${errorCount > 0 ? `, ${errorCount} failed` : ""}`,
+      variant: errorCount > 0 ? "destructive" : "default",
+    });
+
+    // Refresh the assets list
+    refetch();
   };
 
   const filteredAssets = assets.filter((asset) => {
@@ -224,6 +317,24 @@ export function AssetManagementPanel() {
           </SelectContent>
         </Select>
 
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setImportDialogOpen(true)}>
+              <Upload className="mr-2 h-4 w-4" />
+              Import Assets
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExport} disabled={assets.length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Export Assets
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <Button
           onClick={() => {
             setEditingAsset(null);
@@ -327,6 +438,14 @@ export function AssetManagementPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Import Dialog */}
+      <AssetImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImport={handleImport}
+        employees={employees}
+      />
     </div>
   );
 }
