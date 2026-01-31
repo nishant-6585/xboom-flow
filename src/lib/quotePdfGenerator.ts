@@ -6,24 +6,97 @@ import { format } from 'date-fns';
 interface CompanyInfo {
   name: string;
   address: string;
-  phone: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
+  gstin: string;
   email: string;
-  gst?: string;
+  website: string;
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  ifscCode: string;
 }
 
 const defaultCompanyInfo: CompanyInfo = {
-  name: 'XBoom Utilities Pvt Ltd',
-  address: 'Mumbai, Maharashtra, India',
-  phone: '+91 9876543210',
-  email: 'sales@xboom.in',
-  gst: '27XXXXX1234X1ZX',
+  name: 'Xboom Utilities',
+  address: 'Bangalore',
+  city: 'Bangalore',
+  state: 'Karnataka',
+  pincode: '560102',
+  country: 'India',
+  gstin: '29CTKPS7090H1ZW',
+  email: 'Contact@xboom.in',
+  website: 'www.xboom.in',
+  bankName: 'ICICI bank account',
+  accountNumber: '035705004246',
+  accountName: 'XBoom Utilities',
+  ifscCode: 'ICIC0000357',
 };
 
-// Brand colors
-const BRAND_BLUE: [number, number, number] = [59, 130, 163]; // Steel blue like in the reference
+// Brand colors - Orange accent based on XBoom branding
+const ORANGE_ACCENT: [number, number, number] = [255, 102, 0];
 const DARK_TEXT: [number, number, number] = [33, 37, 41];
 const GRAY_TEXT: [number, number, number] = [108, 117, 125];
-const LIGHT_GRAY_BG: [number, number, number] = [248, 249, 250];
+const LIGHT_BORDER: [number, number, number] = [200, 200, 200];
+const TABLE_HEADER_BG: [number, number, number] = [245, 245, 245];
+
+// Default Terms & Conditions
+const DEFAULT_TERMS = `1. Validity
+This quotation is valid for 7 calendar days from the date of issue, unless otherwise stated. Prices, availability, and terms are subject to change without prior notice after this period.
+
+2. Delivery Terms
+Estimated delivery timeline is 7–10 working days from the date of payment confirmation. Shipping charges are additional and will be calculated based on the final delivery address.
+
+3. Taxes & Duties
+All prices quoted are exclusive of GST and any applicable government taxes or import duties. These will be charged additionally as applicable at the time of invoicing.
+
+4. Payment Terms
+100% advance payment is required at the time of order confirmation. Order processing and dispatch will commence only after receipt of full payment.
+
+5. Warranty
+Products carry only the manufacturer's warranty, wherever applicable, and as specified. No additional warranty is provided by the seller unless expressly mentioned in writing.
+
+6. Cancellation Policy
+Orders once confirmed against the quotation cannot be cancelled or modified without prior written consent from the seller.
+
+7. Governing Law & Jurisdiction
+All transactions shall be governed by the laws of India, and any disputes shall be subject to the exclusive jurisdiction of the courts in Bangalore, Karnataka.`;
+
+function numberToWords(num: number): string {
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 
+    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  
+  if (num === 0) return 'Zero';
+  
+  const convertLessThanThousand = (n: number): string => {
+    if (n === 0) return '';
+    if (n < 20) return ones[n];
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '');
+    return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' ' + convertLessThanThousand(n % 100) : '');
+  };
+  
+  const numInt = Math.floor(num);
+  
+  if (numInt >= 10000000) {
+    const crore = Math.floor(numInt / 10000000);
+    const remainder = numInt % 10000000;
+    return convertLessThanThousand(crore) + ' Crore' + (remainder > 0 ? ' ' + numberToWords(remainder) : '');
+  }
+  if (numInt >= 100000) {
+    const lakh = Math.floor(numInt / 100000);
+    const remainder = numInt % 100000;
+    return convertLessThanThousand(lakh) + ' Lakh' + (remainder > 0 ? ' ' + numberToWords(remainder) : '');
+  }
+  if (numInt >= 1000) {
+    const thousand = Math.floor(numInt / 1000);
+    const remainder = numInt % 1000;
+    return convertLessThanThousand(thousand) + ' Thousand' + (remainder > 0 ? ' ' + numberToWords(remainder) : '');
+  }
+  return convertLessThanThousand(numInt);
+}
 
 export function generateQuotePdf(quote: Quote, items: QuoteItem[], companyInfo: CompanyInfo = defaultCompanyInfo) {
   const doc = new jsPDF();
@@ -31,216 +104,302 @@ export function generateQuotePdf(quote: Quote, items: QuoteItem[], companyInfo: 
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 15;
   
-  // ============ HEADER SECTION ============
-  // Blue header background
-  doc.setFillColor(...BRAND_BLUE);
-  doc.rect(0, 0, pageWidth, 45, 'F');
+  // ============ HEADER BORDER (Orange line at top) ============
+  doc.setDrawColor(...ORANGE_ACCENT);
+  doc.setLineWidth(3);
+  doc.line(0, 3, pageWidth, 3);
   
-  // QUOTATION title (left side)
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(28);
+  // ============ LOGO PLACEHOLDER & COMPANY INFO ============
+  let yPos = 15;
+  
+  // Logo placeholder (left side) - We'll add text representation
+  doc.setFontSize(22);
   doc.setFont('helvetica', 'bold');
-  doc.text('QUOTATION', margin, 25);
+  doc.setTextColor(...ORANGE_ACCENT);
+  doc.text('XBOOM', margin, yPos + 5);
   
-  // Quote number below title
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  doc.text(quote.quote_number, margin, 37);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(...GRAY_TEXT);
+  doc.text('Gadgets Reloaded!', margin, yPos + 11);
   
-  // Company info (right side of header)
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  const rightX = pageWidth - margin;
-  doc.text(companyInfo.name, rightX, 15, { align: 'right' });
-  doc.text(companyInfo.address, rightX, 22, { align: 'right' });
-  doc.text(companyInfo.phone, rightX, 29, { align: 'right' });
-  doc.text(companyInfo.email, rightX, 36, { align: 'right' });
-  
-  // ============ INFO BOX SECTION ============
-  let yPos = 60;
-  
-  // Light gray background box
-  doc.setFillColor(...LIGHT_GRAY_BG);
-  doc.setDrawColor(220, 220, 220);
-  doc.roundedRect(margin, yPos, pageWidth - (margin * 2), 45, 2, 2, 'FD');
-  
-  // Left side - Quote details
-  const leftColX = margin + 10;
-  const leftValX = margin + 55;
-  
+  // Company info (center-left)
+  const companyX = 55;
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(...DARK_TEXT);
-  doc.setFontSize(10);
+  doc.text(companyInfo.name, companyX, yPos);
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...GRAY_TEXT);
+  doc.text(`${companyInfo.city} ${companyInfo.state} ${companyInfo.pincode}`, companyX, yPos + 6);
+  doc.text(companyInfo.country, companyX, yPos + 11);
+  doc.text(`GSTIN ${companyInfo.gstin}`, companyX, yPos + 16);
+  doc.text(companyInfo.email, companyX, yPos + 21);
+  doc.text(companyInfo.website, companyX, yPos + 26);
+  
+  // "Quote" title (right side)
+  doc.setFontSize(32);
   doc.setFont('helvetica', 'bold');
-  doc.text('Quote Date:', leftColX, yPos + 15);
-  doc.text('Valid Until:', leftColX, yPos + 27);
-  doc.text('Status:', leftColX, yPos + 39);
+  doc.setTextColor(...ORANGE_ACCENT);
+  doc.text('Quote', pageWidth - margin, yPos + 10, { align: 'right' });
+  
+  // ============ QUOTE INFO ROW ============
+  yPos = 50;
+  
+  // Draw separator line
+  doc.setDrawColor(...LIGHT_BORDER);
+  doc.setLineWidth(0.5);
+  doc.line(margin, yPos, pageWidth - margin, yPos);
+  
+  yPos += 8;
+  
+  // Quote details in a row
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...GRAY_TEXT);
+  
+  doc.text('#', margin, yPos);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...DARK_TEXT);
+  doc.text(`: ${quote.quote_number}`, margin + 20, yPos);
   
   doc.setFont('helvetica', 'normal');
-  doc.text(format(new Date(quote.created_at), 'dd MMM yyyy'), leftValX, yPos + 15);
-  doc.text(quote.valid_until ? format(new Date(quote.valid_until), 'dd MMM yyyy') : 'N/A', leftValX, yPos + 27);
-  doc.text(quote.status.charAt(0).toUpperCase() + quote.status.slice(1), leftValX, yPos + 39);
-  
-  // Right side - Bill To
-  const rightColX = pageWidth / 2 + 10;
-  
+  doc.setTextColor(...GRAY_TEXT);
+  doc.text('Quote Date', margin, yPos + 8);
   doc.setFont('helvetica', 'bold');
-  doc.text('Bill To:', rightColX, yPos + 15);
-  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...DARK_TEXT);
+  doc.text(`: ${format(new Date(quote.created_at), 'dd/MM/yyyy')}`, margin + 20, yPos + 8);
   
-  let billToY = yPos + 27;
-  doc.text(quote.customer_name, rightColX, billToY);
+  // Place of Supply (right side)
+  const rightInfoX = pageWidth / 2;
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...GRAY_TEXT);
+  doc.text('Place Of Supply', rightInfoX, yPos);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...ORANGE_ACCENT);
+  doc.text(`: ${quote.customer_state || 'India'}`, rightInfoX + 35, yPos);
+  
+  // ============ BILL TO SECTION ============
+  yPos += 20;
+  
+  doc.setDrawColor(...LIGHT_BORDER);
+  doc.line(margin, yPos, pageWidth - margin, yPos);
+  
+  yPos += 8;
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...GRAY_TEXT);
+  doc.text('Bill To', margin, yPos);
+  
+  yPos += 8;
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...DARK_TEXT);
+  doc.text(quote.customer_name, margin, yPos);
   
   if (quote.customer_company) {
-    billToY += 8;
-    doc.setTextColor(...GRAY_TEXT);
-    doc.text(quote.customer_company, rightColX, billToY);
+    yPos += 6;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(quote.customer_company, margin, yPos);
   }
   
-  if (quote.customer_phone) {
-    billToY += 8;
-    doc.setTextColor(...GRAY_TEXT);
-    doc.text(quote.customer_phone, rightColX, billToY);
+  if (quote.customer_address) {
+    yPos += 5;
+    doc.setFontSize(9);
+    doc.text(quote.customer_address, margin, yPos);
+  }
+  
+  if (quote.customer_state) {
+    yPos += 5;
+    doc.text(quote.customer_state, margin, yPos);
   }
   
   // ============ ITEMS TABLE ============
-  yPos += 60;
+  yPos += 12;
   
-  const tableData = items.map((item, index) => [
-    (index + 1).toString(),
-    item.product_name + (item.product_code ? `\n(${item.product_code})` : ''),
-    item.quantity.toString(),
-    `₹${item.unit_price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
-    `${item.gst_percent}%`,
-    `₹${item.gst_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
-    `₹${item.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
-  ]);
+  const tableData = items.map((item, index) => {
+    let description = item.product_name;
+    if (item.description) {
+      description += '\n' + item.description;
+    }
+    if (item.product_code) {
+      description += `\n(${item.product_code})`;
+    }
+    
+    return [
+      (index + 1).toString(),
+      description,
+      item.product_code || '-',
+      item.quantity.toFixed(2),
+      item.unit_price.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+      `${item.gst_percent}%`,
+      item.gst_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+      item.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+    ];
+  });
 
   autoTable(doc, {
     startY: yPos,
-    head: [['#', 'Product', 'Qty', 'Unit Price', 'GST %', 'GST Amt', 'Total']],
+    head: [
+      [
+        { content: '#', styles: { halign: 'center' } },
+        { content: 'Item & Description', styles: { halign: 'left' } },
+        { content: 'HSN/SAC', styles: { halign: 'center' } },
+        { content: 'Qty', styles: { halign: 'center' } },
+        { content: 'Rate', styles: { halign: 'right' } },
+        { content: '%', colSpan: 1, styles: { halign: 'center' } },
+        { content: 'Amt', styles: { halign: 'right' } },
+        { content: 'Amount', styles: { halign: 'right' } },
+      ]
+    ],
     body: tableData,
     theme: 'plain',
     headStyles: {
-      fillColor: BRAND_BLUE,
-      textColor: [255, 255, 255],
+      fillColor: TABLE_HEADER_BG,
+      textColor: DARK_TEXT,
       fontStyle: 'bold',
-      fontSize: 10,
-      cellPadding: 6,
+      fontSize: 9,
+      cellPadding: 4,
+      lineColor: LIGHT_BORDER,
+      lineWidth: 0.5,
     },
     bodyStyles: {
-      fontSize: 10,
-      cellPadding: 6,
+      fontSize: 9,
+      cellPadding: 4,
       textColor: DARK_TEXT,
-    },
-    alternateRowStyles: {
-      fillColor: [255, 255, 255],
+      lineColor: LIGHT_BORDER,
+      lineWidth: 0.1,
     },
     columnStyles: {
-      0: { cellWidth: 12, halign: 'center' },
+      0: { cellWidth: 10, halign: 'center' },
       1: { cellWidth: 55 },
-      2: { cellWidth: 18, halign: 'center' },
-      3: { cellWidth: 28, halign: 'right' },
-      4: { cellWidth: 20, halign: 'center' },
-      5: { cellWidth: 25, halign: 'right' },
-      6: { cellWidth: 28, halign: 'right' },
+      2: { cellWidth: 20, halign: 'center' },
+      3: { cellWidth: 15, halign: 'center' },
+      4: { cellWidth: 25, halign: 'right' },
+      5: { cellWidth: 12, halign: 'center' },
+      6: { cellWidth: 22, halign: 'right' },
+      7: { cellWidth: 25, halign: 'right' },
     },
     margin: { left: margin, right: margin },
-    tableLineColor: [220, 220, 220],
-    tableLineWidth: 0.1,
+    tableLineColor: LIGHT_BORDER,
+    tableLineWidth: 0.5,
+    didDrawPage: (data) => {
+      // Draw IGST header spanning % and Amt columns
+    },
   });
 
-  // ============ SUMMARY SECTION ============
-  const finalY = (doc as any).lastAutoTable.finalY || yPos + 50;
-  yPos = finalY + 20;
+  // ============ TOTALS SECTION ============
+  let finalY = (doc as any).lastAutoTable.finalY || yPos + 50;
+  yPos = finalY + 5;
   
-  // Right-aligned summary
-  const summaryLabelX = pageWidth - 100;
-  const summaryValueX = pageWidth - margin;
+  // Total in Words (left side)
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...GRAY_TEXT);
+  doc.text('Total In Words', margin, yPos);
   
-  doc.setFontSize(10);
+  yPos += 6;
+  doc.setFont('helvetica', 'bolditalic');
+  doc.setTextColor(...DARK_TEXT);
+  const amountInWords = `Indian Rupee ${numberToWords(quote.total_amount)} Only`;
+  const wrappedWords = doc.splitTextToSize(amountInWords, 100);
+  doc.text(wrappedWords, margin, yPos);
+  
+  // Summary (right side)
+  const summaryX = pageWidth - 85;
+  const summaryValX = pageWidth - margin;
+  let summaryY = finalY + 5;
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
   doc.setTextColor(...DARK_TEXT);
   
-  // Subtotal
-  doc.setFont('helvetica', 'normal');
-  doc.text('Subtotal:', summaryLabelX, yPos);
-  doc.text(`₹${quote.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, summaryValueX, yPos, { align: 'right' });
+  doc.text('Sub Total', summaryX, summaryY);
+  doc.text(quote.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }), summaryValX, summaryY, { align: 'right' });
   
-  // Total GST
-  yPos += 12;
-  doc.text('Total GST:', summaryLabelX, yPos);
-  doc.text(`₹${quote.total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, summaryValueX, yPos, { align: 'right' });
+  summaryY += 8;
+  doc.text(`IGST (${items[0]?.gst_percent || 18}%)`, summaryX, summaryY);
+  doc.text(quote.total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2 }), summaryValX, summaryY, { align: 'right' });
   
-  // Discount (if applicable)
   if (quote.discount_amount > 0) {
-    yPos += 12;
-    doc.text('Discount:', summaryLabelX, yPos);
-    doc.text(`-₹${quote.discount_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, summaryValueX, yPos, { align: 'right' });
+    summaryY += 8;
+    doc.text('Discount', summaryX, summaryY);
+    doc.text(`-${quote.discount_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, summaryValX, summaryY, { align: 'right' });
   }
   
-  // Separator line
-  yPos += 8;
-  doc.setDrawColor(...BRAND_BLUE);
-  doc.setLineWidth(0.5);
-  doc.line(summaryLabelX, yPos, summaryValueX, yPos);
-  
-  // Total
-  yPos += 12;
+  // Total with box
+  summaryY += 10;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text('Total:', summaryLabelX, yPos);
-  doc.text(`₹${quote.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, summaryValueX, yPos, { align: 'right' });
+  doc.text('Total', summaryX, summaryY);
+  doc.setFontSize(10);
+  doc.text(`₹${quote.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, summaryValX, summaryY, { align: 'right' });
+  
+  // ============ BANK DETAILS & SIGNATURE ============
+  yPos = Math.max(yPos + 15, summaryY + 15);
+  
+  // Bank details (left)
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...DARK_TEXT);
+  doc.text(companyInfo.bankName, margin, yPos);
+  
+  doc.setFont('helvetica', 'normal');
+  yPos += 6;
+  doc.text(`Account Number: ${companyInfo.accountNumber}`, margin, yPos);
+  yPos += 5;
+  doc.text(`Account Name: ${companyInfo.accountName}`, margin, yPos);
+  yPos += 5;
+  doc.text(`IFSC Code: ${companyInfo.ifscCode}`, margin, yPos);
+  
+  // Authorized Signature (right)
+  doc.setDrawColor(...DARK_TEXT);
+  doc.setLineWidth(0.3);
+  const sigLineX = pageWidth - 70;
+  doc.line(sigLineX, yPos, pageWidth - margin, yPos);
+  doc.setFontSize(9);
+  doc.text('Authorized Signature', sigLineX + 10, yPos + 5);
   
   // ============ TERMS & CONDITIONS ============
-  yPos += 30;
+  yPos += 20;
   
-  // Default terms if none provided
-  const defaultTerms = `1. This quotation is valid for the period mentioned above.
-2. Prices are exclusive of applicable taxes unless otherwise stated.
-3. Delivery timelines will be confirmed upon order confirmation.
-4. Payment terms: 50% advance, 50% before delivery.
-5. All disputes are subject to Mumbai jurisdiction.`;
-  
-  const termsText = quote.terms_and_conditions || defaultTerms;
-  
-  doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(...DARK_TEXT);
-  doc.text('Terms & Conditions:', margin, yPos);
+  doc.text('Terms & Conditions', margin, yPos);
   
   yPos += 8;
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
   doc.setTextColor(...GRAY_TEXT);
   
+  const termsText = quote.terms_and_conditions || DEFAULT_TERMS;
   const termsLines = doc.splitTextToSize(termsText, pageWidth - (margin * 2));
-  doc.text(termsLines, margin, yPos);
   
-  // ============ NOTES (if any) ============
-  if (quote.notes) {
-    yPos += (termsLines.length * 5) + 15;
+  // Check if we need a new page for terms
+  if (yPos + (termsLines.length * 4) > pageHeight - 20) {
+    doc.addPage();
+    yPos = 20;
     
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(...DARK_TEXT);
-    doc.text('Notes:', margin, yPos);
-    
-    yPos += 8;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(...GRAY_TEXT);
-    
-    const notesLines = doc.splitTextToSize(quote.notes, pageWidth - (margin * 2));
-    doc.text(notesLines, margin, yPos);
+    // Add orange top border on new page
+    doc.setDrawColor(...ORANGE_ACCENT);
+    doc.setLineWidth(3);
+    doc.line(0, 3, pageWidth, 3);
   }
   
-  // ============ FOOTER ============
-  doc.setFillColor(...BRAND_BLUE);
-  doc.rect(0, pageHeight - 20, pageWidth, 20, 'F');
+  doc.text(termsLines, margin, yPos);
   
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Thank you for your business!', pageWidth / 2, pageHeight - 8, { align: 'center' });
+  // ============ PAGE NUMBER ============
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(...GRAY_TEXT);
+    doc.text(i.toString(), pageWidth - margin, pageHeight - 10, { align: 'right' });
+  }
 
   return doc;
 }
