@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_signatures: {
+        Row: {
+          admin_id: string
+          id: string
+          signature_url: string
+          updated_at: string
+          uploaded_at: string
+        }
+        Insert: {
+          admin_id: string
+          id?: string
+          signature_url: string
+          updated_at?: string
+          uploaded_at?: string
+        }
+        Update: {
+          admin_id?: string
+          id?: string
+          signature_url?: string
+          updated_at?: string
+          uploaded_at?: string
+        }
+        Relationships: []
+      }
       attendance_logs: {
         Row: {
           approved_by: string | null
@@ -1283,6 +1307,59 @@ export type Database = {
           },
         ]
       }
+      invoice_audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          invoice_hash: string | null
+          invoice_id: string
+          invoice_number: string
+          invoice_version: number
+          metadata: Json | null
+          pdf_url: string | null
+          signed_at: string | null
+          signed_by: string | null
+          signed_by_name: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          invoice_hash?: string | null
+          invoice_id: string
+          invoice_number: string
+          invoice_version?: number
+          metadata?: Json | null
+          pdf_url?: string | null
+          signed_at?: string | null
+          signed_by?: string | null
+          signed_by_name?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          invoice_hash?: string | null
+          invoice_id?: string
+          invoice_number?: string
+          invoice_version?: number
+          metadata?: Json | null
+          pdf_url?: string | null
+          signed_at?: string | null
+          signed_by?: string | null
+          signed_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_audit_logs_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           created_at: string
@@ -1418,25 +1495,36 @@ export type Database = {
           include_bank_details: boolean | null
           internal_notes: string | null
           invoice_date: string
+          invoice_hash: string | null
           invoice_number: string
+          is_archived: boolean | null
           notes: string | null
           order_id: string | null
           paid_date: string | null
           payment_terms: string | null
+          pdf_url: string | null
           quote_id: string | null
           shipping_address: string | null
           shipping_company: string | null
           shipping_name: string | null
           shipping_phone: string | null
           shipping_state: string | null
+          signature_url: string | null
+          signed_at: string | null
+          signed_by: string | null
+          signed_by_name: string | null
           source_id: string | null
           source_type: string | null
           status: Database["public"]["Enums"]["invoice_status"]
+          submitted_by: string | null
+          submitted_by_name: string | null
+          submitted_for_signature_at: string | null
           subtotal: number
           terms_and_conditions: string | null
           total_amount: number
           total_gst: number
           updated_at: string
+          version: number
         }
         Insert: {
           amount_paid?: number
@@ -1460,25 +1548,36 @@ export type Database = {
           include_bank_details?: boolean | null
           internal_notes?: string | null
           invoice_date?: string
+          invoice_hash?: string | null
           invoice_number: string
+          is_archived?: boolean | null
           notes?: string | null
           order_id?: string | null
           paid_date?: string | null
           payment_terms?: string | null
+          pdf_url?: string | null
           quote_id?: string | null
           shipping_address?: string | null
           shipping_company?: string | null
           shipping_name?: string | null
           shipping_phone?: string | null
           shipping_state?: string | null
+          signature_url?: string | null
+          signed_at?: string | null
+          signed_by?: string | null
+          signed_by_name?: string | null
           source_id?: string | null
           source_type?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
+          submitted_by?: string | null
+          submitted_by_name?: string | null
+          submitted_for_signature_at?: string | null
           subtotal?: number
           terms_and_conditions?: string | null
           total_amount?: number
           total_gst?: number
           updated_at?: string
+          version?: number
         }
         Update: {
           amount_paid?: number
@@ -1502,25 +1601,36 @@ export type Database = {
           include_bank_details?: boolean | null
           internal_notes?: string | null
           invoice_date?: string
+          invoice_hash?: string | null
           invoice_number?: string
+          is_archived?: boolean | null
           notes?: string | null
           order_id?: string | null
           paid_date?: string | null
           payment_terms?: string | null
+          pdf_url?: string | null
           quote_id?: string | null
           shipping_address?: string | null
           shipping_company?: string | null
           shipping_name?: string | null
           shipping_phone?: string | null
           shipping_state?: string | null
+          signature_url?: string | null
+          signed_at?: string | null
+          signed_by?: string | null
+          signed_by_name?: string | null
           source_id?: string | null
           source_type?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
+          submitted_by?: string | null
+          submitted_by_name?: string | null
+          submitted_for_signature_at?: string | null
           subtotal?: number
           terms_and_conditions?: string | null
           total_amount?: number
           total_gst?: number
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {
@@ -3941,6 +4051,8 @@ export type Database = {
         | "partial"
         | "overdue"
         | "cancelled"
+        | "pending_signature"
+        | "signed"
       notice_visibility: "all" | "sales" | "supply_chain" | "finance" | "admin"
       order_status:
         | "po_received"
@@ -4142,6 +4254,8 @@ export const Constants = {
         "partial",
         "overdue",
         "cancelled",
+        "pending_signature",
+        "signed",
       ],
       notice_visibility: ["all", "sales", "supply_chain", "finance", "admin"],
       order_status: [

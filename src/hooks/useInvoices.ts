@@ -4,10 +4,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEditHistory } from '@/hooks/useEditHistory';
 import { toast } from 'sonner';
 
-export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'partial' | 'overdue' | 'cancelled';
+export type InvoiceStatus = 'draft' | 'pending_signature' | 'signed' | 'sent' | 'paid' | 'partial' | 'overdue' | 'cancelled';
 
 export const INVOICE_STATUSES: { value: InvoiceStatus; label: string; color: string }[] = [
   { value: 'draft', label: 'Draft', color: 'bg-gray-500' },
+  { value: 'pending_signature', label: 'Pending Signature', color: 'bg-orange-500' },
+  { value: 'signed', label: 'Signed', color: 'bg-green-600' },
   { value: 'sent', label: 'Sent', color: 'bg-blue-500' },
   { value: 'paid', label: 'Paid', color: 'bg-green-500' },
   { value: 'partial', label: 'Partial', color: 'bg-yellow-500' },
@@ -92,6 +94,18 @@ export interface Invoice {
   created_by_name: string;
   created_at: string;
   updated_at: string;
+  // Signature fields
+  signed_by?: string;
+  signed_by_name?: string;
+  signed_at?: string;
+  signature_url?: string;
+  pdf_url?: string;
+  invoice_hash?: string;
+  version?: number;
+  submitted_for_signature_at?: string;
+  submitted_by?: string;
+  submitted_by_name?: string;
+  is_archived?: boolean;
   items?: InvoiceItem[];
   payments?: InvoicePayment[];
 }
@@ -363,6 +377,18 @@ export function useInvoices() {
 
   const deleteInvoice = async (invoiceId: string): Promise<boolean> => {
     try {
+      // Check if invoice is signed - cannot delete
+      const { data: invoice } = await supabase
+        .from('invoices')
+        .select('status')
+        .eq('id', invoiceId)
+        .single();
+
+      if (invoice?.status === 'signed') {
+        toast.error('Cannot delete a signed invoice. Use archive instead.');
+        return false;
+      }
+
       const { error } = await supabase
         .from('invoices')
         .delete()
@@ -375,9 +401,118 @@ export function useInvoices() {
       return true;
     } catch (error: any) {
       console.error('Error deleting invoice:', error);
-      toast.error('Failed to delete invoice');
+      toast.error(error.message || 'Failed to delete invoice');
       return false;
     }
+  };
+
+  // Submit invoice for signature (moves to pending_signature status)
+  const submitForSignature = async (invoiceId: string): Promise<boolean> => {
+    if (!user || !profile) {
+      toast.error('You must be logged in');
+      return false;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .update({
+          status: 'pending_signature',
+          submitted_for_signature_at: new Date().toISOString(),
+          submitted_by: user.id,
+          submitted_by_name: profile.name,
+        })
+        .eq('id', invoiceId);
+
+      if (error) throw error;
+
+      toast.success('Invoice submitted for signature');
+      fetchInvoices();
+      return true;
+    } catch (error: any) {
+      console.error('Error submitting for signature:', error);
+      toast.error(error.message || 'Failed to submit for signature');
+      return false;
+    }
+  };
+
+  // Sign invoice (admin only)
+  const signInvoice = async (invoiceId: string, signatureUrl: string): Promise<boolean> => {
+    if (!user || !profile) {
+      toast.error('You must be logged in');
+      return false;
+    }
+
+    try {
+      // Generate a simple hash of the invoice data
+      const { data: invoice } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('id', invoiceId)
+        .single();
+
+      if (!invoice) throw new Error('Invoice not found');
+
+      const invoiceHash = btoa(JSON.stringify({
+        id: invoice.id,
+        invoice_number: invoice.invoice_number,
+        total_amount: invoice.total_amount,
+        customer_name: invoice.customer_name,
+        signed_at: new Date().toISOString(),
+      }));
+
+      const { error } = await supabase
+        .from('invoices')
+        .update({
+          status: 'signed',
+          signed_by: user.id,
+          signed_by_name: profile.name,
+          signed_at: new Date().toISOString(),
+          signature_url: signatureUrl,
+          invoice_hash: invoiceHash,
+        })
+        .eq('id', invoiceId);
+
+      if (error) throw error;
+
+      toast.success('Invoice signed successfully');
+      fetchInvoices();
+      return true;
+    } catch (error: any) {
+      console.error('Error signing invoice:', error);
+      toast.error(error.message || 'Failed to sign invoice');
+      return false;
+    }
+  };
+
+  // Archive a signed invoice
+  const archiveInvoice = async (invoiceId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .update({ is_archived: true })
+        .eq('id', invoiceId);
+
+      if (error) throw error;
+
+      toast.success('Invoice archived');
+      fetchInvoices();
+      return true;
+    } catch (error: any) {
+      console.error('Error archiving invoice:', error);
+      toast.error('Failed to archive invoice');
+      return false;
+    }
+  };
+
+  // Check if invoice can be edited
+  const canEditInvoice = (invoice: Invoice): boolean => {
+    return invoice.status === 'draft';
+  };
+
+  // Check if invoice can be downloaded
+  const canDownloadInvoice = (invoice: Invoice): boolean => {
+    return invoice.status === 'signed';
   };
 
   useEffect(() => {
@@ -395,5 +530,10 @@ export function useInvoices() {
     updateInvoiceStatus,
     recordPayment,
     deleteInvoice,
+    submitForSignature,
+    signInvoice,
+    archiveInvoice,
+    canEditInvoice,
+    canDownloadInvoice,
   };
 }
