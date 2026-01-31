@@ -1287,6 +1287,8 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          discount_amount: number | null
+          discount_percent: number | null
           gst_amount: number
           gst_percent: number
           hsn_sac_code: string | null
@@ -1303,6 +1305,8 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          discount_amount?: number | null
+          discount_percent?: number | null
           gst_amount?: number
           gst_percent?: number
           hsn_sac_code?: string | null
@@ -1319,6 +1323,8 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          discount_amount?: number | null
+          discount_percent?: number | null
           gst_amount?: number
           gst_percent?: number
           hsn_sac_code?: string | null
@@ -1392,6 +1398,8 @@ export type Database = {
       invoices: {
         Row: {
           amount_paid: number
+          attachment_urls: string[] | null
+          authorized_signatory: string | null
           balance_due: number
           created_at: string
           created_by: string
@@ -1407,6 +1415,8 @@ export type Database = {
           discount_percent: number
           due_date: string | null
           id: string
+          include_bank_details: boolean | null
+          internal_notes: string | null
           invoice_date: string
           invoice_number: string
           notes: string | null
@@ -1430,6 +1440,8 @@ export type Database = {
         }
         Insert: {
           amount_paid?: number
+          attachment_urls?: string[] | null
+          authorized_signatory?: string | null
           balance_due?: number
           created_at?: string
           created_by: string
@@ -1445,6 +1457,8 @@ export type Database = {
           discount_percent?: number
           due_date?: string | null
           id?: string
+          include_bank_details?: boolean | null
+          internal_notes?: string | null
           invoice_date?: string
           invoice_number: string
           notes?: string | null
@@ -1468,6 +1482,8 @@ export type Database = {
         }
         Update: {
           amount_paid?: number
+          attachment_urls?: string[] | null
+          authorized_signatory?: string | null
           balance_due?: number
           created_at?: string
           created_by?: string
@@ -1483,6 +1499,8 @@ export type Database = {
           discount_percent?: number
           due_date?: string | null
           id?: string
+          include_bank_details?: boolean | null
+          internal_notes?: string | null
           invoice_date?: string
           invoice_number?: string
           notes?: string | null
@@ -2636,6 +2654,8 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          discount_amount: number | null
+          discount_percent: number | null
           gst_amount: number | null
           gst_percent: number | null
           id: string
@@ -2651,6 +2671,8 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          discount_amount?: number | null
+          discount_percent?: number | null
           gst_amount?: number | null
           gst_percent?: number | null
           id?: string
@@ -2666,6 +2688,8 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          discount_amount?: number | null
+          discount_percent?: number | null
           gst_amount?: number | null
           gst_percent?: number | null
           id?: string
@@ -2693,6 +2717,8 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           approved_by_name: string | null
+          attachment_urls: string[] | null
+          authorized_signatory: string | null
           created_at: string
           created_by: string
           created_by_name: string
@@ -2706,6 +2732,7 @@ export type Database = {
           discount_amount: number | null
           discount_percent: number | null
           id: string
+          include_bank_details: boolean | null
           internal_notes: string | null
           notes: string | null
           payment_terms: string | null
@@ -2725,6 +2752,8 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           approved_by_name?: string | null
+          attachment_urls?: string[] | null
+          authorized_signatory?: string | null
           created_at?: string
           created_by: string
           created_by_name: string
@@ -2738,6 +2767,7 @@ export type Database = {
           discount_amount?: number | null
           discount_percent?: number | null
           id?: string
+          include_bank_details?: boolean | null
           internal_notes?: string | null
           notes?: string | null
           payment_terms?: string | null
@@ -2757,6 +2787,8 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           approved_by_name?: string | null
+          attachment_urls?: string[] | null
+          authorized_signatory?: string | null
           created_at?: string
           created_by?: string
           created_by_name?: string
@@ -2770,6 +2802,7 @@ export type Database = {
           discount_amount?: number | null
           discount_percent?: number | null
           id?: string
+          include_bank_details?: boolean | null
           internal_notes?: string | null
           notes?: string | null
           payment_terms?: string | null
