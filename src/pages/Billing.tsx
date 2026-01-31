@@ -8,11 +8,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useQuotes, Quote, QUOTE_STATUSES } from '@/hooks/useQuotes';
 import { QuoteForm } from '@/components/billing/QuoteForm';
 import { QuoteCard } from '@/components/billing/QuoteCard';
 import { QuoteDetailDialog } from '@/components/billing/QuoteDetailDialog';
-import { Plus, Search, FileText, Receipt, Loader2, Filter } from 'lucide-react';
+import { QuotesTable } from '@/components/billing/QuotesTable';
+import { QuoteConversionStats } from '@/components/billing/QuoteConversionStats';
+import { Plus, Search, FileText, Receipt, Loader2, Filter, LayoutGrid, List } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function Billing() {
@@ -24,6 +27,7 @@ export default function Billing() {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const handleCreateQuote = async (data: Parameters<typeof createQuote>[0]) => {
     const success = await createQuote(data);
@@ -82,6 +86,11 @@ export default function Billing() {
           </TabsList>
 
           <TabsContent value="quotes" className="space-y-4">
+            {/* Conversion Stats */}
+            {!loading && quotes.length > 0 && (
+              <QuoteConversionStats quotes={quotes} />
+            )}
+
             {/* Filters */}
             <Card>
               <CardContent className="py-4">
@@ -110,12 +119,25 @@ export default function Billing() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <ToggleGroup 
+                      type="single" 
+                      value={viewMode} 
+                      onValueChange={(value) => value && setViewMode(value as 'grid' | 'list')}
+                      className="border rounded-md"
+                    >
+                      <ToggleGroupItem value="grid" aria-label="Grid view" className="px-3">
+                        <LayoutGrid className="h-4 w-4" />
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="list" aria-label="List view" className="px-3">
+                        <List className="h-4 w-4" />
+                      </ToggleGroupItem>
+                    </ToggleGroup>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Quotes Grid */}
+            {/* Quotes Display */}
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -138,7 +160,7 @@ export default function Billing() {
                   )}
                 </CardContent>
               </Card>
-            ) : (
+            ) : viewMode === 'grid' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredQuotes.map(quote => (
                   <QuoteCard 
@@ -148,6 +170,8 @@ export default function Billing() {
                   />
                 ))}
               </div>
+            ) : (
+              <QuotesTable quotes={filteredQuotes} onView={handleViewQuote} />
             )}
           </TabsContent>
 
