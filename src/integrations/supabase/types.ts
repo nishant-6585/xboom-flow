@@ -3476,7 +3476,7 @@ export type Database = {
         | "order_confirmation"
         | "custom"
         | "meeting_reminder"
-      training_category: "drone_ops" | "software_usage" | "both"
+      training_category: "drone_ops" | "software_usage" | "both" | "das" | "ras"
       training_payment_status: "pending" | "partial" | "paid"
       training_status: "requested" | "pending" | "done"
       training_type: "demo" | "training"
@@ -3660,7 +3660,7 @@ export const Constants = {
         "custom",
         "meeting_reminder",
       ],
-      training_category: ["drone_ops", "software_usage", "both"],
+      training_category: ["drone_ops", "software_usage", "both", "das", "ras"],
       training_payment_status: ["pending", "partial", "paid"],
       training_status: ["requested", "pending", "done"],
       training_type: ["demo", "training"],
