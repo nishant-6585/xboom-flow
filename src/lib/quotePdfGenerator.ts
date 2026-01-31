@@ -50,7 +50,7 @@ const DEFAULT_TERMS = `1. Validity
 This quotation is valid for 7 calendar days from the date of issue, unless otherwise stated. Prices, availability, and terms are subject to change without prior notice after this period.
 
 2. Delivery Terms
-Estimated delivery timeline is 7–10 working days from the date of payment confirmation. Shipping charges are additional and will be calculated based on the final delivery address.
+Estimated delivery timeline is 7–10 working days from the date of payment confirmation. Shipping charges are additional and will be calculated based on the final delivery address. Any specific delivery requirements (e.g., urgent or express delivery) must be communicated in advance and may attract additional charges.
 
 3. Taxes & Duties
 All prices quoted are exclusive of GST and any applicable government taxes or import duties. These will be charged additionally as applicable at the time of invoicing.
@@ -62,9 +62,18 @@ All prices quoted are exclusive of GST and any applicable government taxes or im
 Products carry only the manufacturer's warranty, wherever applicable, and as specified. No additional warranty is provided by the seller unless expressly mentioned in writing.
 
 6. Cancellation Policy
-Orders once confirmed against the quotation cannot be cancelled or modified without prior written consent from the seller.
+Orders once confirmed against the quotation cannot be cancelled or modified without prior written consent from the seller. Cancellation, if permitted, may attract charges depending on the product or service involved.
 
-7. Governing Law & Jurisdiction
+7. Product Availability
+All quoted products are subject to availability at the time of order confirmation. In case of stock unavailability, a revised quotation or updated lead time will be shared.
+
+8. Freight & Insurance (If Applicable)
+Freight charges are additional. Transit insurance will be charged extra if required by the customer and must be requested at the time of order confirmation.
+
+9. Force Majeure
+The seller shall not be liable for delays or failure in delivery due to circumstances beyond reasonable control, including but not limited to natural disasters, strikes, transportation disruptions, or regulatory actions.
+
+10. Governing Law & Jurisdiction
 All transactions shall be governed by the laws of India, and any disputes shall be subject to the exclusive jurisdiction of the courts in Bangalore, Karnataka.`;
 
 function numberToWords(num: number): string {
