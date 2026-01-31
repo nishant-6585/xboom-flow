@@ -19,70 +19,92 @@ const defaultCompanyInfo: CompanyInfo = {
   gst: '27XXXXX1234X1ZX',
 };
 
+// Brand colors
+const BRAND_BLUE: [number, number, number] = [59, 130, 163]; // Steel blue like in the reference
+const DARK_TEXT: [number, number, number] = [33, 37, 41];
+const GRAY_TEXT: [number, number, number] = [108, 117, 125];
+const LIGHT_GRAY_BG: [number, number, number] = [248, 249, 250];
+
 export function generateQuotePdf(quote: Quote, items: QuoteItem[], companyInfo: CompanyInfo = defaultCompanyInfo) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 15;
   
-  // Colors
-  const primaryColor: [number, number, number] = [41, 128, 185];
-  const darkColor: [number, number, number] = [44, 62, 80];
-  const grayColor: [number, number, number] = [127, 140, 141];
+  // ============ HEADER SECTION ============
+  // Blue header background
+  doc.setFillColor(...BRAND_BLUE);
+  doc.rect(0, 0, pageWidth, 45, 'F');
   
-  let yPos = 20;
-
-  // Header
-  doc.setFillColor(...primaryColor);
-  doc.rect(0, 0, pageWidth, 40, 'F');
-  
+  // QUOTATION title (left side)
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(24);
+  doc.setFontSize(28);
   doc.setFont('helvetica', 'bold');
-  doc.text('QUOTATION', 15, 25);
+  doc.text('QUOTATION', margin, 25);
   
+  // Quote number below title
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  doc.text(quote.quote_number, 15, 34);
+  doc.text(quote.quote_number, margin, 37);
   
   // Company info (right side of header)
   doc.setFontSize(10);
-  doc.text(companyInfo.name, pageWidth - 15, 15, { align: 'right' });
-  doc.text(companyInfo.address, pageWidth - 15, 22, { align: 'right' });
-  doc.text(companyInfo.phone, pageWidth - 15, 29, { align: 'right' });
-  doc.text(companyInfo.email, pageWidth - 15, 36, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  const rightX = pageWidth - margin;
+  doc.text(companyInfo.name, rightX, 15, { align: 'right' });
+  doc.text(companyInfo.address, rightX, 22, { align: 'right' });
+  doc.text(companyInfo.phone, rightX, 29, { align: 'right' });
+  doc.text(companyInfo.email, rightX, 36, { align: 'right' });
   
-  yPos = 55;
-
-  // Quote details box
-  doc.setFillColor(245, 245, 245);
-  doc.rect(15, yPos - 5, pageWidth - 30, 35, 'F');
+  // ============ INFO BOX SECTION ============
+  let yPos = 60;
   
-  doc.setTextColor(...darkColor);
+  // Light gray background box
+  doc.setFillColor(...LIGHT_GRAY_BG);
+  doc.setDrawColor(220, 220, 220);
+  doc.roundedRect(margin, yPos, pageWidth - (margin * 2), 45, 2, 2, 'FD');
+  
+  // Left side - Quote details
+  const leftColX = margin + 10;
+  const leftValX = margin + 55;
+  
+  doc.setTextColor(...DARK_TEXT);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text('Quote Date:', 20, yPos + 5);
-  doc.text('Valid Until:', 20, yPos + 15);
-  doc.text('Status:', 20, yPos + 25);
+  doc.text('Quote Date:', leftColX, yPos + 15);
+  doc.text('Valid Until:', leftColX, yPos + 27);
+  doc.text('Status:', leftColX, yPos + 39);
   
   doc.setFont('helvetica', 'normal');
-  doc.text(format(new Date(quote.created_at), 'dd MMM yyyy'), 55, yPos + 5);
-  doc.text(quote.valid_until ? format(new Date(quote.valid_until), 'dd MMM yyyy') : 'N/A', 55, yPos + 15);
-  doc.text(quote.status.charAt(0).toUpperCase() + quote.status.slice(1), 55, yPos + 25);
+  doc.text(format(new Date(quote.created_at), 'dd MMM yyyy'), leftValX, yPos + 15);
+  doc.text(quote.valid_until ? format(new Date(quote.valid_until), 'dd MMM yyyy') : 'N/A', leftValX, yPos + 27);
+  doc.text(quote.status.charAt(0).toUpperCase() + quote.status.slice(1), leftValX, yPos + 39);
   
-  // Customer info (right side)
+  // Right side - Bill To
+  const rightColX = pageWidth / 2 + 10;
+  
   doc.setFont('helvetica', 'bold');
-  doc.text('Bill To:', pageWidth / 2 + 10, yPos + 5);
+  doc.text('Bill To:', rightColX, yPos + 15);
   doc.setFont('helvetica', 'normal');
-  doc.text(quote.customer_name, pageWidth / 2 + 10, yPos + 12);
+  
+  let billToY = yPos + 27;
+  doc.text(quote.customer_name, rightColX, billToY);
+  
   if (quote.customer_company) {
-    doc.text(quote.customer_company, pageWidth / 2 + 10, yPos + 19);
-  }
-  if (quote.customer_phone) {
-    doc.text(quote.customer_phone, pageWidth / 2 + 10, yPos + 26);
+    billToY += 8;
+    doc.setTextColor(...GRAY_TEXT);
+    doc.text(quote.customer_company, rightColX, billToY);
   }
   
-  yPos += 45;
-
-  // Items table
+  if (quote.customer_phone) {
+    billToY += 8;
+    doc.setTextColor(...GRAY_TEXT);
+    doc.text(quote.customer_phone, rightColX, billToY);
+  }
+  
+  // ============ ITEMS TABLE ============
+  yPos += 60;
+  
   const tableData = items.map((item, index) => [
     (index + 1).toString(),
     item.product_name + (item.product_code ? `\n(${item.product_code})` : ''),
@@ -97,96 +119,128 @@ export function generateQuotePdf(quote: Quote, items: QuoteItem[], companyInfo: 
     startY: yPos,
     head: [['#', 'Product', 'Qty', 'Unit Price', 'GST %', 'GST Amt', 'Total']],
     body: tableData,
+    theme: 'plain',
     headStyles: {
-      fillColor: primaryColor,
+      fillColor: BRAND_BLUE,
       textColor: [255, 255, 255],
       fontStyle: 'bold',
+      fontSize: 10,
+      cellPadding: 6,
+    },
+    bodyStyles: {
+      fontSize: 10,
+      cellPadding: 6,
+      textColor: DARK_TEXT,
     },
     alternateRowStyles: {
-      fillColor: [245, 245, 245],
+      fillColor: [255, 255, 255],
     },
     columnStyles: {
-      0: { cellWidth: 10, halign: 'center' },
+      0: { cellWidth: 12, halign: 'center' },
       1: { cellWidth: 55 },
-      2: { cellWidth: 15, halign: 'center' },
+      2: { cellWidth: 18, halign: 'center' },
       3: { cellWidth: 28, halign: 'right' },
-      4: { cellWidth: 18, halign: 'center' },
+      4: { cellWidth: 20, halign: 'center' },
       5: { cellWidth: 25, halign: 'right' },
       6: { cellWidth: 28, halign: 'right' },
     },
-    margin: { left: 15, right: 15 },
+    margin: { left: margin, right: margin },
+    tableLineColor: [220, 220, 220],
+    tableLineWidth: 0.1,
   });
 
-  // Get the final Y position after the table
+  // ============ SUMMARY SECTION ============
   const finalY = (doc as any).lastAutoTable.finalY || yPos + 50;
-  yPos = finalY + 15;
-
-  // Summary section
-  const summaryX = pageWidth - 80;
-  const labelX = summaryX;
-  const valueX = pageWidth - 20;
+  yPos = finalY + 20;
+  
+  // Right-aligned summary
+  const summaryLabelX = pageWidth - 100;
+  const summaryValueX = pageWidth - margin;
   
   doc.setFontSize(10);
-  doc.setTextColor(...darkColor);
+  doc.setTextColor(...DARK_TEXT);
   
-  doc.text('Subtotal:', labelX, yPos);
-  doc.text(`₹${quote.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valueX, yPos, { align: 'right' });
+  // Subtotal
+  doc.setFont('helvetica', 'normal');
+  doc.text('Subtotal:', summaryLabelX, yPos);
+  doc.text(`₹${quote.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, summaryValueX, yPos, { align: 'right' });
   
-  yPos += 8;
-  doc.text('Total GST:', labelX, yPos);
-  doc.text(`₹${quote.total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valueX, yPos, { align: 'right' });
+  // Total GST
+  yPos += 12;
+  doc.text('Total GST:', summaryLabelX, yPos);
+  doc.text(`₹${quote.total_gst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, summaryValueX, yPos, { align: 'right' });
   
+  // Discount (if applicable)
   if (quote.discount_amount > 0) {
-    yPos += 8;
-    doc.text('Discount:', labelX, yPos);
-    doc.text(`-₹${quote.discount_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valueX, yPos, { align: 'right' });
+    yPos += 12;
+    doc.text('Discount:', summaryLabelX, yPos);
+    doc.text(`-₹${quote.discount_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, summaryValueX, yPos, { align: 'right' });
   }
   
-  yPos += 10;
-  doc.setDrawColor(...primaryColor);
-  doc.line(labelX, yPos - 3, valueX, yPos - 3);
+  // Separator line
+  yPos += 8;
+  doc.setDrawColor(...BRAND_BLUE);
+  doc.setLineWidth(0.5);
+  doc.line(summaryLabelX, yPos, summaryValueX, yPos);
   
+  // Total
+  yPos += 12;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  doc.text('Total:', labelX, yPos + 5);
-  doc.text(`₹${quote.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, valueX, yPos + 5, { align: 'right' });
+  doc.text('Total:', summaryLabelX, yPos);
+  doc.text(`₹${quote.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, summaryValueX, yPos, { align: 'right' });
   
-  yPos += 20;
-
-  // Notes section
+  // ============ TERMS & CONDITIONS ============
+  yPos += 30;
+  
+  // Default terms if none provided
+  const defaultTerms = `1. This quotation is valid for the period mentioned above.
+2. Prices are exclusive of applicable taxes unless otherwise stated.
+3. Delivery timelines will be confirmed upon order confirmation.
+4. Payment terms: 50% advance, 50% before delivery.
+5. All disputes are subject to Mumbai jurisdiction.`;
+  
+  const termsText = quote.terms_and_conditions || defaultTerms;
+  
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...DARK_TEXT);
+  doc.text('Terms & Conditions:', margin, yPos);
+  
+  yPos += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...GRAY_TEXT);
+  
+  const termsLines = doc.splitTextToSize(termsText, pageWidth - (margin * 2));
+  doc.text(termsLines, margin, yPos);
+  
+  // ============ NOTES (if any) ============
   if (quote.notes) {
+    yPos += (termsLines.length * 5) + 15;
+    
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
-    doc.text('Notes:', 15, yPos);
+    doc.setTextColor(...DARK_TEXT);
+    doc.text('Notes:', margin, yPos);
+    
+    yPos += 8;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.setTextColor(...grayColor);
-    const notesLines = doc.splitTextToSize(quote.notes, pageWidth - 30);
-    doc.text(notesLines, 15, yPos + 7);
-    yPos += 7 + (notesLines.length * 5);
+    doc.setTextColor(...GRAY_TEXT);
+    
+    const notesLines = doc.splitTextToSize(quote.notes, pageWidth - (margin * 2));
+    doc.text(notesLines, margin, yPos);
   }
-
-  // Terms and conditions
-  if (quote.terms_and_conditions) {
-    yPos += 10;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(...darkColor);
-    doc.text('Terms & Conditions:', 15, yPos);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(...grayColor);
-    const termsLines = doc.splitTextToSize(quote.terms_and_conditions, pageWidth - 30);
-    doc.text(termsLines, 15, yPos + 7);
-  }
-
-  // Footer
-  const pageHeight = doc.internal.pageSize.getHeight();
-  doc.setFillColor(...primaryColor);
-  doc.rect(0, pageHeight - 15, pageWidth, 15, 'F');
+  
+  // ============ FOOTER ============
+  doc.setFillColor(...BRAND_BLUE);
+  doc.rect(0, pageHeight - 20, pageWidth, 20, 'F');
+  
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(8);
-  doc.text('Thank you for your business!', pageWidth / 2, pageHeight - 6, { align: 'center' });
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Thank you for your business!', pageWidth / 2, pageHeight - 8, { align: 'center' });
 
   return doc;
 }
