@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { User, Building2, FileText, IndianRupee, Calendar, Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { User, Building2, FileText, IndianRupee, Calendar, Loader2, Truck, Copy } from 'lucide-react';
 import { QuoteFormData, QuoteItem } from '@/hooks/useQuotes';
 import { QuoteItemsInput } from './QuoteItemsInput';
 import { useEnquiries } from '@/hooks/useEnquiries';
@@ -37,6 +38,7 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [sourceType, setSourceType] = useState<string>('manual');
   const [sourceId, setSourceId] = useState<string>('');
+  const [shipToSameAsBillTo, setShipToSameAsBillTo] = useState(true);
   
   const { enquiries } = useEnquiries();
   const { pipelineOrders } = usePipelineOrders();
@@ -49,6 +51,11 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
     customer_address: '',
     customer_gst: '',
     customer_state: '',
+    shipping_name: '',
+    shipping_company: '',
+    shipping_address: '',
+    shipping_state: '',
+    shipping_phone: '',
     discount_amount: 0,
     discount_percent: 0,
     valid_until: '',
@@ -66,6 +73,20 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
       total_amount: 0,
     }],
   });
+
+  // Copy billing to shipping when checkbox is checked
+  useEffect(() => {
+    if (shipToSameAsBillTo) {
+      setFormData(prev => ({
+        ...prev,
+        shipping_name: prev.customer_name,
+        shipping_company: prev.customer_company,
+        shipping_address: prev.customer_address,
+        shipping_state: prev.customer_state,
+        shipping_phone: prev.customer_phone,
+      }));
+    }
+  }, [shipToSameAsBillTo, formData.customer_name, formData.customer_company, formData.customer_address, formData.customer_state, formData.customer_phone]);
 
   // Load data from source (enquiry or lead)
   useEffect(() => {
@@ -213,12 +234,12 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
         </CardContent>
       </Card>
 
-      {/* Customer Details */}
+      {/* Bill To Details */}
       <Card>
         <CardHeader className="py-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <User className="h-4 w-4" />
-            Customer Details
+            Bill To
           </CardTitle>
         </CardHeader>
         <CardContent className="pb-4">
@@ -283,12 +304,94 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
               />
             </div>
             <div className="md:col-span-2">
-              <Label>Address</Label>
+              <Label>Billing Address</Label>
               <Textarea
                 value={formData.customer_address}
                 onChange={(e) => setFormData(prev => ({ ...prev, customer_address: e.target.value }))}
                 placeholder="Enter billing address"
                 rows={2}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Ship To Details */}
+      <Card>
+        <CardHeader className="py-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Truck className="h-4 w-4" />
+              Ship To
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="sameAsBillTo"
+                checked={shipToSameAsBillTo}
+                onCheckedChange={(checked) => setShipToSameAsBillTo(checked === true)}
+              />
+              <Label htmlFor="sameAsBillTo" className="text-sm font-normal cursor-pointer flex items-center gap-1">
+                <Copy className="h-3 w-3" />
+                Same as Bill To
+              </Label>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Recipient Name</Label>
+              <Input
+                value={formData.shipping_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, shipping_name: e.target.value }))}
+                placeholder="Enter recipient name"
+                disabled={shipToSameAsBillTo}
+              />
+            </div>
+            <div>
+              <Label>Company Name</Label>
+              <Input
+                value={formData.shipping_company}
+                onChange={(e) => setFormData(prev => ({ ...prev, shipping_company: e.target.value }))}
+                placeholder="Enter company name"
+                disabled={shipToSameAsBillTo}
+              />
+            </div>
+            <div>
+              <Label>Phone</Label>
+              <Input
+                value={formData.shipping_phone}
+                onChange={(e) => setFormData(prev => ({ ...prev, shipping_phone: e.target.value }))}
+                placeholder="+91 XXXXXXXXXX"
+                disabled={shipToSameAsBillTo}
+              />
+            </div>
+            <div>
+              <Label>State</Label>
+              <Select
+                value={formData.shipping_state || 'none'}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, shipping_state: value === 'none' ? '' : value }))}
+                disabled={shipToSameAsBillTo}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Select state</SelectItem>
+                  {INDIAN_STATES.map(state => (
+                    <SelectItem key={state} value={state}>{state}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="md:col-span-2">
+              <Label>Shipping Address</Label>
+              <Textarea
+                value={formData.shipping_address}
+                onChange={(e) => setFormData(prev => ({ ...prev, shipping_address: e.target.value }))}
+                placeholder="Enter shipping address"
+                rows={2}
+                disabled={shipToSameAsBillTo}
               />
             </div>
           </div>
