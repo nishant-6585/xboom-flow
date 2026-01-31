@@ -1283,6 +1283,244 @@ export type Database = {
           },
         ]
       }
+      invoice_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          gst_amount: number
+          gst_percent: number
+          hsn_sac_code: string | null
+          id: string
+          invoice_id: string
+          price_includes_gst: boolean
+          product_category: string | null
+          product_code: string | null
+          product_name: string
+          quantity: number
+          total_amount: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          gst_amount?: number
+          gst_percent?: number
+          hsn_sac_code?: string | null
+          id?: string
+          invoice_id: string
+          price_includes_gst?: boolean
+          product_category?: string | null
+          product_code?: string | null
+          product_name: string
+          quantity?: number
+          total_amount?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          gst_amount?: number
+          gst_percent?: number
+          hsn_sac_code?: string | null
+          id?: string
+          invoice_id?: string
+          price_includes_gst?: boolean
+          product_category?: string | null
+          product_code?: string | null
+          product_name?: string
+          quantity?: number
+          total_amount?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          invoice_id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string | null
+          recorded_by: string
+          recorded_by_name: string
+          reference_number: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          invoice_id: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          recorded_by: string
+          recorded_by_name: string
+          reference_number?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          recorded_by?: string
+          recorded_by_name?: string
+          reference_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          amount_paid: number
+          balance_due: number
+          created_at: string
+          created_by: string
+          created_by_name: string
+          customer_address: string | null
+          customer_company: string | null
+          customer_email: string | null
+          customer_gst: string | null
+          customer_name: string
+          customer_phone: string | null
+          customer_state: string | null
+          discount_amount: number
+          discount_percent: number
+          due_date: string | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          notes: string | null
+          order_id: string | null
+          paid_date: string | null
+          payment_terms: string | null
+          quote_id: string | null
+          shipping_address: string | null
+          shipping_company: string | null
+          shipping_name: string | null
+          shipping_phone: string | null
+          shipping_state: string | null
+          source_id: string | null
+          source_type: string | null
+          status: Database["public"]["Enums"]["invoice_status"]
+          subtotal: number
+          terms_and_conditions: string | null
+          total_amount: number
+          total_gst: number
+          updated_at: string
+        }
+        Insert: {
+          amount_paid?: number
+          balance_due?: number
+          created_at?: string
+          created_by: string
+          created_by_name: string
+          customer_address?: string | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_gst?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          customer_state?: string | null
+          discount_amount?: number
+          discount_percent?: number
+          due_date?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number: string
+          notes?: string | null
+          order_id?: string | null
+          paid_date?: string | null
+          payment_terms?: string | null
+          quote_id?: string | null
+          shipping_address?: string | null
+          shipping_company?: string | null
+          shipping_name?: string | null
+          shipping_phone?: string | null
+          shipping_state?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          subtotal?: number
+          terms_and_conditions?: string | null
+          total_amount?: number
+          total_gst?: number
+          updated_at?: string
+        }
+        Update: {
+          amount_paid?: number
+          balance_due?: number
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          customer_address?: string | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_gst?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          customer_state?: string | null
+          discount_amount?: number
+          discount_percent?: number
+          due_date?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          notes?: string | null
+          order_id?: string | null
+          paid_date?: string | null
+          payment_terms?: string | null
+          quote_id?: string | null
+          shipping_address?: string | null
+          shipping_company?: string | null
+          shipping_name?: string | null
+          shipping_phone?: string | null
+          shipping_state?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          subtotal?: number
+          terms_and_conditions?: string | null
+          total_amount?: number
+          total_gst?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_tags: {
         Row: {
           color: string | null
@@ -3645,6 +3883,13 @@ export type Database = {
         | "keyboard"
         | "mouse"
         | "other"
+      invoice_status:
+        | "draft"
+        | "sent"
+        | "paid"
+        | "partial"
+        | "overdue"
+        | "cancelled"
       notice_visibility: "all" | "sales" | "supply_chain" | "finance" | "admin"
       order_status:
         | "po_received"
@@ -3838,6 +4083,14 @@ export const Constants = {
         "keyboard",
         "mouse",
         "other",
+      ],
+      invoice_status: [
+        "draft",
+        "sent",
+        "paid",
+        "partial",
+        "overdue",
+        "cancelled",
       ],
       notice_visibility: ["all", "sales", "supply_chain", "finance", "admin"],
       order_status: [

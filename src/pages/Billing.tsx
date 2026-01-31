@@ -11,11 +11,16 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useQuotes, Quote, QUOTE_STATUSES } from '@/hooks/useQuotes';
+import { useInvoices, Invoice, INVOICE_STATUSES } from '@/hooks/useInvoices';
 import { QuoteForm } from '@/components/billing/QuoteForm';
 import { QuoteCard } from '@/components/billing/QuoteCard';
 import { QuoteDetailDialog } from '@/components/billing/QuoteDetailDialog';
 import { QuotesTable } from '@/components/billing/QuotesTable';
 import { QuoteConversionStats } from '@/components/billing/QuoteConversionStats';
+import { InvoiceForm } from '@/components/billing/InvoiceForm';
+import { InvoiceCard } from '@/components/billing/InvoiceCard';
+import { InvoicesTable } from '@/components/billing/InvoicesTable';
+import { InvoiceStats } from '@/components/billing/InvoiceStats';
 import { Plus, Search, FileText, Receipt, Loader2, Filter, LayoutGrid, List } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -23,8 +28,10 @@ import { toast } from 'sonner';
 export default function Billing() {
   const navigate = useNavigate();
   const { role } = useAuth();
-  const { quotes, loading, createQuote, updateQuote, updateQuoteStatus, fetchQuoteWithItems } = useQuotes();
+  const { quotes, loading: quotesLoading, createQuote, updateQuote, updateQuoteStatus, fetchQuoteWithItems } = useQuotes();
+  const { invoices, loading: invoicesLoading, createInvoice, fetchInvoiceWithItems } = useInvoices();
   
+  // Quote state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
@@ -33,6 +40,13 @@ export default function Billing() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  
+  // Invoice state
+  const [createInvoiceDialogOpen, setCreateInvoiceDialogOpen] = useState(false);
+  const [invoiceSearchQuery, setInvoiceSearchQuery] = useState('');
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('all');
+  const [invoiceViewMode, setInvoiceViewMode] = useState<'grid' | 'list'>('grid');
+  const [activeTab, setActiveTab] = useState('quotes');
 
   const handleCreateQuote = async (data: Parameters<typeof createQuote>[0]) => {
     const success = await createQuote(data);
@@ -57,7 +71,7 @@ export default function Billing() {
 
   const handleUpdateQuote = async (data: Parameters<typeof createQuote>[0]) => {
     if (!editQuoteData) return false;
-    const success = await updateQuote(editQuoteData.id, data);
+    const success = await updateQuote(editQuoteData.id, data, editQuoteData);
     if (success) {
       setEditDialogOpen(false);
       setEditQuoteData(null);
@@ -122,6 +136,25 @@ export default function Billing() {
     return matchesSearch && matchesStatus;
   });
 
+  const filteredInvoices = invoices.filter(invoice => {
+    const matchesSearch = 
+      invoice.invoice_number.toLowerCase().includes(invoiceSearchQuery.toLowerCase()) ||
+      invoice.customer_name.toLowerCase().includes(invoiceSearchQuery.toLowerCase()) ||
+      (invoice.customer_company?.toLowerCase().includes(invoiceSearchQuery.toLowerCase()));
+    
+    const matchesStatus = invoiceStatusFilter === 'all' || invoice.status === invoiceStatusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleCreateInvoice = async (data: Parameters<typeof createInvoice>[0]) => {
+    const success = await createInvoice(data);
+    if (success) {
+      setCreateInvoiceDialogOpen(false);
+    }
+    return success;
+  };
+
   const canCreate = role === 'admin' || role === 'sales' || role === 'supply_chain';
 
   return (
@@ -135,28 +168,28 @@ export default function Billing() {
             <p className="text-muted-foreground">Create and manage quotes & invoices</p>
           </div>
           {canCreate && (
-            <Button onClick={() => setCreateDialogOpen(true)}>
+            <Button onClick={() => activeTab === 'quotes' ? setCreateDialogOpen(true) : setCreateInvoiceDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Create Quote
+              {activeTab === 'quotes' ? 'Create Quote' : 'Create Invoice'}
             </Button>
           )}
         </div>
 
-        <Tabs defaultValue="quotes" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList>
             <TabsTrigger value="quotes" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Quotes
             </TabsTrigger>
-            <TabsTrigger value="invoices" className="flex items-center gap-2" disabled>
+            <TabsTrigger value="invoices" className="flex items-center gap-2">
               <Receipt className="h-4 w-4" />
-              Invoices (Coming Soon)
+              Invoices
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="quotes" className="space-y-4">
             {/* Conversion Stats */}
-            {!loading && quotes.length > 0 && (
+            {!quotesLoading && quotes.length > 0 && (
               <QuoteConversionStats quotes={quotes} />
             )}
 
@@ -207,7 +240,7 @@ export default function Billing() {
             </Card>
 
             {/* Quotes Display */}
-            {loading ? (
+            {quotesLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
@@ -251,16 +284,97 @@ export default function Billing() {
             )}
           </TabsContent>
 
-          <TabsContent value="invoices">
+          <TabsContent value="invoices" className="space-y-4">
+            {/* Invoice Stats */}
+            {!invoicesLoading && invoices.length > 0 && (
+              <InvoiceStats invoices={invoices} />
+            )}
+
+            {/* Invoice Filters */}
             <Card>
-              <CardContent className="py-12 text-center">
-                <Receipt className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Invoices Coming Soon</h3>
-                <p className="text-muted-foreground">
-                  Invoice generation feature is under development.
-                </p>
+              <CardContent className="py-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search invoices..."
+                      value={invoiceSearchQuery}
+                      onChange={(e) => setInvoiceSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Select value={invoiceStatusFilter} onValueChange={setInvoiceStatusFilter}>
+                      <SelectTrigger className="w-[160px]">
+                        <Filter className="h-4 w-4 mr-2" />
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        {INVOICE_STATUSES.map(status => (
+                          <SelectItem key={status.value} value={status.value}>
+                            {status.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <ToggleGroup 
+                      type="single" 
+                      value={invoiceViewMode} 
+                      onValueChange={(value) => value && setInvoiceViewMode(value as 'grid' | 'list')}
+                      className="border rounded-md"
+                    >
+                      <ToggleGroupItem value="grid" aria-label="Grid view" className="px-3">
+                        <LayoutGrid className="h-4 w-4" />
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="list" aria-label="List view" className="px-3">
+                        <List className="h-4 w-4" />
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  </div>
+                </div>
               </CardContent>
             </Card>
+
+            {/* Invoices Display */}
+            {invoicesLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : filteredInvoices.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Receipt className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No invoices found</h3>
+                  <p className="text-muted-foreground mb-4">
+                    {invoiceSearchQuery || invoiceStatusFilter !== 'all' 
+                      ? 'Try adjusting your filters'
+                      : 'Create your first invoice to get started'}
+                  </p>
+                  {canCreate && !invoiceSearchQuery && invoiceStatusFilter === 'all' && (
+                    <Button onClick={() => setCreateInvoiceDialogOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Invoice
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ) : invoiceViewMode === 'grid' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredInvoices.map(invoice => (
+                  <InvoiceCard 
+                    key={invoice.id} 
+                    invoice={invoice} 
+                    onView={(inv) => toast.info('Invoice detail view coming soon')}
+                  />
+                ))}
+              </div>
+            ) : (
+              <InvoicesTable 
+                invoices={filteredInvoices} 
+                onView={(inv) => toast.info('Invoice detail view coming soon')}
+              />
+            )}
           </TabsContent>
         </Tabs>
       </main>
@@ -328,6 +442,27 @@ export default function Billing() {
                 }}
               />
             )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Invoice Dialog */}
+      <Dialog open={createInvoiceDialogOpen} onOpenChange={setCreateInvoiceDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" />
+              Create New Invoice
+            </DialogTitle>
+            <DialogDescription>
+              Create an invoice for your customer with product details and pricing
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[75vh] pr-4">
+            <InvoiceForm 
+              onSubmit={handleCreateInvoice}
+              onCancel={() => setCreateInvoiceDialogOpen(false)}
+            />
           </ScrollArea>
         </DialogContent>
       </Dialog>
