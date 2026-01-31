@@ -42,6 +42,9 @@ const GRAY_TEXT: [number, number, number] = [108, 117, 125];
 const LIGHT_BORDER: [number, number, number] = [200, 200, 200];
 const TABLE_HEADER_BG: [number, number, number] = [245, 245, 245];
 
+// Logo path
+const LOGO_PATH = '/images/xboom-logo.png';
+
 // Default Terms & Conditions
 const DEFAULT_TERMS = `1. Validity
 This quotation is valid for 7 calendar days from the date of issue, unless otherwise stated. Prices, availability, and terms are subject to change without prior notice after this period.
@@ -98,7 +101,29 @@ function numberToWords(num: number): string {
   return convertLessThanThousand(numInt);
 }
 
-export function generateQuotePdf(quote: Quote, items: QuoteItem[], companyInfo: CompanyInfo = defaultCompanyInfo) {
+// Helper function to load image as base64
+async function loadImageAsBase64(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      } else {
+        reject(new Error('Could not get canvas context'));
+      }
+    };
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = url;
+  });
+}
+
+export async function generateQuotePdf(quote: Quote, items: QuoteItem[], companyInfo: CompanyInfo = defaultCompanyInfo) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -109,19 +134,26 @@ export function generateQuotePdf(quote: Quote, items: QuoteItem[], companyInfo: 
   doc.setLineWidth(3);
   doc.line(0, 3, pageWidth, 3);
   
-  // ============ LOGO PLACEHOLDER & COMPANY INFO ============
+  // ============ LOGO & COMPANY INFO ============
   let yPos = 15;
   
-  // Logo placeholder (left side) - We'll add text representation
-  doc.setFontSize(22);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...ORANGE_ACCENT);
-  doc.text('XBOOM', margin, yPos + 5);
-  
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'italic');
-  doc.setTextColor(...GRAY_TEXT);
-  doc.text('Gadgets Reloaded!', margin, yPos + 11);
+  // Try to load and add the logo
+  try {
+    const logoBase64 = await loadImageAsBase64(LOGO_PATH);
+    // Add logo - aspect ratio approximately 4:1 for the XBoom logo
+    doc.addImage(logoBase64, 'PNG', margin, yPos - 5, 40, 15);
+  } catch (error) {
+    // Fallback to text if logo fails to load
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...ORANGE_ACCENT);
+    doc.text('XBOOM', margin, yPos + 5);
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(...GRAY_TEXT);
+    doc.text('Gadgets Reloaded!', margin, yPos + 11);
+  }
   
   // Company info (center-left)
   const companyX = 55;
@@ -404,7 +436,7 @@ export function generateQuotePdf(quote: Quote, items: QuoteItem[], companyInfo: 
   return doc;
 }
 
-export function downloadQuotePdf(quote: Quote, items: QuoteItem[]) {
-  const doc = generateQuotePdf(quote, items);
+export async function downloadQuotePdf(quote: Quote, items: QuoteItem[]) {
+  const doc = await generateQuotePdf(quote, items);
   doc.save(`${quote.quote_number}.pdf`);
 }
