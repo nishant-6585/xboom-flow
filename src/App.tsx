@@ -25,6 +25,7 @@ import FormEmbed from "./pages/FormEmbed";
 import Repairs from "./pages/Repairs";
 import Trainings from "./pages/Trainings";
 import Billing from "./pages/Billing";
+import Tickets from "./pages/Tickets";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -179,6 +180,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Billing />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tickets"
+              element={
+                <ProtectedRoute>
+                  <Tickets />
                 </ProtectedRoute>
               }
             />
