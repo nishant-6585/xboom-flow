@@ -206,14 +206,14 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
           <div className="space-y-2">
             <Label>Link to Order (Optional)</Label>
             <Select
-              value={formData.order_id}
-              onValueChange={(value) => setFormData({ ...formData, order_id: value })}
+              value={formData.order_id || "none"}
+              onValueChange={(value) => setFormData({ ...formData, order_id: value === "none" ? "" : value })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select an order..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {orders.map((order) => (
                   <SelectItem key={order.id} value={order.id}>
                     {order.order_number} - {order.customer_name}
@@ -226,14 +226,14 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
           <div className="space-y-2">
             <Label>Link to Enquiry (Optional)</Label>
             <Select
-              value={formData.enquiry_id}
-              onValueChange={(value) => setFormData({ ...formData, enquiry_id: value })}
+              value={formData.enquiry_id || "none"}
+              onValueChange={(value) => setFormData({ ...formData, enquiry_id: value === "none" ? "" : value })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select an enquiry..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {enquiries.map((enq) => (
                   <SelectItem key={enq.id} value={enq.id}>
                     {enq.customer_name} - {enq.product_name}
