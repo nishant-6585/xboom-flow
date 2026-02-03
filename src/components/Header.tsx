@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart, Warehouse, FileSpreadsheet, Zap, IndianRupee, ListTodo, Users, CalendarDays, Receipt, ClipboardList, Wrench, GraduationCap, FileText } from "lucide-react";
+import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart, Warehouse, FileSpreadsheet, Zap, IndianRupee, ListTodo, Users, CalendarDays, Receipt, ClipboardList, Wrench, GraduationCap, FileText, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "react-router-dom";
@@ -70,9 +70,10 @@ export function Header() {
     { path: "/admin", label: "Admin", icon: Shield, roles: ["admin"] },
   ];
 
-  // Secondary navigation items (Tasks, HR, Expenses, Forms, Repairs, Trainings)
+  // Secondary navigation items (Tasks, HR, Expenses, Forms, Repairs, Trainings, Tickets)
   const secondaryNavItems = [
     { path: "/tasks", label: "Tasks", icon: ListTodo, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/tickets", label: "Tickets", icon: Ticket, roles: ["sales", "supply_chain", "admin", "finance"] },
     { path: "/hr", label: "HR", icon: Users, roles: ["sales", "supply_chain", "admin", "finance"] },
     { path: "/meetings", label: "Meetings", icon: CalendarDays, roles: ["sales", "supply_chain", "admin", "finance"] },
     { path: "/expenses", label: "Expenses", icon: Receipt, roles: ["sales", "supply_chain", "admin", "finance"] },

@@ -3791,6 +3791,149 @@ export type Database = {
           },
         ]
       }
+      ticket_comments: {
+        Row: {
+          attachment_urls: string[] | null
+          comment: string
+          commented_by: string
+          commented_by_name: string
+          created_at: string
+          id: string
+          is_internal: boolean | null
+          ticket_id: string
+        }
+        Insert: {
+          attachment_urls?: string[] | null
+          comment: string
+          commented_by: string
+          commented_by_name: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean | null
+          ticket_id: string
+        }
+        Update: {
+          attachment_urls?: string[] | null
+          comment?: string
+          commented_by?: string
+          commented_by_name?: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean | null
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_comments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tickets: {
+        Row: {
+          assigned_at: string | null
+          assigned_department: Database["public"]["Enums"]["app_role"]
+          assigned_to: string | null
+          assigned_to_name: string | null
+          attachment_urls: string[] | null
+          category: Database["public"]["Enums"]["ticket_category"]
+          created_at: string
+          description: string
+          enquiry_id: string | null
+          id: string
+          order_id: string | null
+          priority: Database["public"]["Enums"]["ticket_priority"]
+          raised_by: string
+          raised_by_department: Database["public"]["Enums"]["app_role"]
+          raised_by_name: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          resolved_by_name: string | null
+          sla_due_at: string | null
+          sla_response_at: string | null
+          sla_status: string | null
+          status: Database["public"]["Enums"]["ticket_status"]
+          subject: string
+          ticket_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_department: Database["public"]["Enums"]["app_role"]
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          attachment_urls?: string[] | null
+          category?: Database["public"]["Enums"]["ticket_category"]
+          created_at?: string
+          description: string
+          enquiry_id?: string | null
+          id?: string
+          order_id?: string | null
+          priority?: Database["public"]["Enums"]["ticket_priority"]
+          raised_by: string
+          raised_by_department: Database["public"]["Enums"]["app_role"]
+          raised_by_name: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_by_name?: string | null
+          sla_due_at?: string | null
+          sla_response_at?: string | null
+          sla_status?: string | null
+          status?: Database["public"]["Enums"]["ticket_status"]
+          subject: string
+          ticket_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_department?: Database["public"]["Enums"]["app_role"]
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          attachment_urls?: string[] | null
+          category?: Database["public"]["Enums"]["ticket_category"]
+          created_at?: string
+          description?: string
+          enquiry_id?: string | null
+          id?: string
+          order_id?: string | null
+          priority?: Database["public"]["Enums"]["ticket_priority"]
+          raised_by?: string
+          raised_by_department?: Database["public"]["Enums"]["app_role"]
+          raised_by_name?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_by_name?: string | null
+          sla_due_at?: string | null
+          sla_response_at?: string | null
+          sla_status?: string | null
+          status?: Database["public"]["Enums"]["ticket_status"]
+          subject?: string
+          ticket_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tickets_enquiry_id_fkey"
+            columns: ["enquiry_id"]
+            isOneToOne: false
+            referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trainings: {
         Row: {
           amount_paid: number | null
@@ -4102,6 +4245,25 @@ export type Database = {
         | "order_confirmation"
         | "custom"
         | "meeting_reminder"
+      ticket_category:
+        | "general_inquiry"
+        | "order_issue"
+        | "payment_issue"
+        | "delivery_issue"
+        | "supplier_issue"
+        | "procurement_request"
+        | "refund_request"
+        | "technical_support"
+        | "documentation"
+        | "other"
+      ticket_priority: "low" | "medium" | "high" | "critical"
+      ticket_status:
+        | "open"
+        | "assigned"
+        | "in_progress"
+        | "pending"
+        | "resolved"
+        | "closed"
       training_category: "drone_ops" | "software_usage" | "both" | "das" | "ras"
       training_payment_status: "pending" | "partial" | "paid"
       training_status: "requested" | "pending" | "done"
@@ -4309,6 +4471,27 @@ export const Constants = {
         "order_confirmation",
         "custom",
         "meeting_reminder",
+      ],
+      ticket_category: [
+        "general_inquiry",
+        "order_issue",
+        "payment_issue",
+        "delivery_issue",
+        "supplier_issue",
+        "procurement_request",
+        "refund_request",
+        "technical_support",
+        "documentation",
+        "other",
+      ],
+      ticket_priority: ["low", "medium", "high", "critical"],
+      ticket_status: [
+        "open",
+        "assigned",
+        "in_progress",
+        "pending",
+        "resolved",
+        "closed",
       ],
       training_category: ["drone_ops", "software_usage", "both", "das", "ras"],
       training_payment_status: ["pending", "partial", "paid"],
