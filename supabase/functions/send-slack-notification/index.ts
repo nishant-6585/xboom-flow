@@ -582,14 +582,42 @@ serve(async (req) => {
   }
 
   try {
+    // Verify JWT authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Create client with user's auth token to verify JWT
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    // Verify the JWT by getting the user - this validates the token server-side
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    
+    if (userError || !user) {
+      console.error('JWT verification failed:', userError);
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Use service role client for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const payload: SlackPayload = await req.json();
     const { type, data } = payload;
 
-    console.log('Received Slack notification request:', { type, data });
+    console.log('Received Slack notification request:', { type, userId: user.id, data });
 
     // Handle test_channel - direct test without checking settings
     if (type === 'test_channel') {
