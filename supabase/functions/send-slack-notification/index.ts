@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface SlackPayload {
-  type: 'new_order' | 'hot_lead' | 'payment_reminder' | 'status_change' | 'new_enquiry' | 'new_procurement' | 'new_supplier' | 'new_pipeline' | 'test' | 'test_channel';
+  type: 'new_order' | 'hot_lead' | 'payment_reminder' | 'status_change' | 'new_enquiry' | 'new_procurement' | 'new_supplier' | 'new_pipeline' | 'test' | 'test_channel' | 'ticket_assigned' | 'ticket_status_change';
   data: Record<string, unknown>;
 }
 
@@ -415,6 +415,131 @@ const getStatusChangeBlocks = (data: Record<string, unknown>) => {
   };
 };
 
+const getTicketAssignedBlocks = (data: Record<string, unknown>) => {
+  const priorityEmojis: Record<string, string> = {
+    'critical': '🚨',
+    'high': '🔴',
+    'medium': '🟡',
+    'low': '🟢'
+  };
+  const priority = data.priority as string || 'medium';
+  const priorityEmoji = priorityEmojis[priority] || '🟡';
+  
+  return {
+    blocks: [
+      {
+        type: "header",
+        text: {
+          type: "plain_text",
+          text: "🎫 New Ticket Assigned to You",
+          emoji: true
+        }
+      },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `You have been assigned a new ticket that requires your attention.`
+        }
+      },
+      {
+        type: "section",
+        fields: [
+          { type: "mrkdwn", text: `*📋 Ticket #:*\n\`${data.ticket_number || 'N/A'}\`` },
+          { type: "mrkdwn", text: `*${priorityEmoji} Priority:*\n${priority.toUpperCase()}` },
+          { type: "mrkdwn", text: `*📝 Subject:*\n${data.subject}` },
+          { type: "mrkdwn", text: `*📂 Category:*\n${data.category || 'General'}` },
+          { type: "mrkdwn", text: `*👤 Raised By:*\n${data.raised_by_name}` },
+          { type: "mrkdwn", text: `*🏢 Department:*\n${data.raised_by_department || 'N/A'}` }
+        ]
+      },
+      ...(data.description ? [{
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*📄 Description:*\n${(data.description as string).substring(0, 200)}${(data.description as string).length > 200 ? '...' : ''}`
+        }
+      }] : []),
+      {
+        type: "context",
+        elements: [
+          { type: "mrkdwn", text: `⏰ *SLA Due:* ${data.sla_due_at ? new Date(data.sla_due_at as string).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'N/A'}` }
+        ]
+      },
+      { type: "divider" }
+    ]
+  };
+};
+
+const getTicketStatusChangeBlocks = (data: Record<string, unknown>) => {
+  const statusEmojis: Record<string, string> = {
+    'open': '📂',
+    'assigned': '👤',
+    'in_progress': '🔄',
+    'pending': '⏳',
+    'resolved': '✅',
+    'closed': '🔒'
+  };
+  const newStatus = data.new_status as string || '';
+  const oldStatus = data.old_status as string || '';
+  const emoji = statusEmojis[newStatus] || '📋';
+  const formattedStatus = newStatus.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  
+  let contextMessage = "Your ticket has been updated.";
+  if (newStatus === 'resolved') {
+    contextMessage = "🎉 Great news! Your ticket has been resolved.";
+  } else if (newStatus === 'in_progress') {
+    contextMessage = "Your ticket is now being worked on.";
+  } else if (newStatus === 'pending') {
+    contextMessage = "Your ticket is pending additional information.";
+  } else if (newStatus === 'closed') {
+    contextMessage = "Your ticket has been closed.";
+  }
+  
+  return {
+    blocks: [
+      {
+        type: "header",
+        text: {
+          type: "plain_text",
+          text: `${emoji} Ticket Status: ${formattedStatus}`,
+          emoji: true
+        }
+      },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: contextMessage
+        }
+      },
+      {
+        type: "section",
+        fields: [
+          { type: "mrkdwn", text: `*📋 Ticket #:*\n\`${data.ticket_number || 'N/A'}\`` },
+          { type: "mrkdwn", text: `*📝 Subject:*\n${data.subject}` },
+          { type: "mrkdwn", text: `*🔄 Previous Status:*\n${oldStatus.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}` },
+          { type: "mrkdwn", text: `*📦 New Status:*\n${formattedStatus}` }
+        ]
+      },
+      ...(data.resolution_notes ? [{
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*📝 Resolution Notes:*\n${data.resolution_notes}`
+        }
+      }] : []),
+      {
+        type: "context",
+        elements: [
+          { type: "mrkdwn", text: `📅 *Updated:* ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} • 👤 *By:* ${data.updated_by_name || 'System'}` }
+        ]
+      },
+      { type: "divider" }
+    ]
+  };
+};
+
 // Send message via Slack Bot API
 async function sendSlackBotMessage(botToken: string, channel: string, blocks: object) {
   const response = await fetch('https://slack.com/api/chat.postMessage', {
@@ -594,6 +719,8 @@ serve(async (req) => {
       'new_procurement': { channelKey: 'channel_procurements', settingKey: 'notify_new_procurements' },
       'new_supplier': { channelKey: 'channel_suppliers', settingKey: 'notify_new_suppliers' },
       'payment_reminder': { channelKey: 'channel_orders', settingKey: 'notify_payment_reminders' },
+      'ticket_assigned': { channelKey: 'channel_tickets', settingKey: 'notify_ticket_assigned' },
+      'ticket_status_change': { channelKey: 'channel_tickets', settingKey: 'notify_ticket_status_change' },
     };
 
     const mapping = channelMap[type];
@@ -640,11 +767,30 @@ serve(async (req) => {
       case 'status_change':
         slackMessage = getStatusChangeBlocks(data);
         break;
+      case 'ticket_assigned':
+        slackMessage = getTicketAssignedBlocks(data);
+        break;
+      case 'ticket_status_change':
+        slackMessage = getTicketStatusChangeBlocks(data);
+        break;
       default:
         return new Response(
           JSON.stringify({ success: false, error: 'Unknown notification type' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
         );
+    }
+
+    // Handle direct message to user via slack_user_id
+    const slackUserId = data.slack_user_id as string;
+    if (slackUserId && settings.slack_bot_token) {
+      try {
+        await sendSlackBotMessage(settings.slack_bot_token, slackUserId, slackMessage);
+        console.log(`Slack DM sent to user ${slackUserId}`);
+        // Continue to also send to channel if configured
+      } catch (error) {
+        console.error('Failed to send Slack DM:', error);
+        // Continue to try channel notification
+      }
     }
 
     // Try multi-channel bot first, fallback to webhook

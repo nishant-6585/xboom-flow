@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
+import { sendSlackNotification } from "@/hooks/useSlackSettings";
 
 type TicketStatus = Database["public"]["Enums"]["ticket_status"];
 type TicketPriority = Database["public"]["Enums"]["ticket_priority"];
@@ -121,9 +122,38 @@ export function useTickets() {
         assigned_at: data.assigned_to ? new Date().toISOString() : null,
       };
 
-      const { error } = await supabase.from("tickets").insert(insertData);
+      const { data: createdTicket, error } = await supabase
+        .from("tickets")
+        .insert(insertData)
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Send Slack notification if ticket is assigned to someone
+      if (data.assigned_to && createdTicket) {
+        // Fetch assigned user's slack_user_id
+        const { data: assignedProfile } = await supabase
+          .from("profiles")
+          .select("slack_user_id")
+          .eq("user_id", data.assigned_to)
+          .single();
+
+        sendSlackNotification("ticket_assigned", {
+          ticket_number: createdTicket.ticket_number,
+          subject: data.subject,
+          description: data.description,
+          category: data.category,
+          priority: data.priority,
+          raised_by_name: profile.name,
+          raised_by_department: role,
+          assigned_to_name: data.assigned_to_name,
+          sla_due_at: createdTicket.sla_due_at,
+          slack_user_id: assignedProfile?.slack_user_id,
+        });
+      }
+
+      return createdTicket;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
@@ -138,10 +168,21 @@ export function useTickets() {
     mutationFn: async (data: UpdateTicketData) => {
       if (!user || !profile) throw new Error("User not authenticated");
 
+      // First fetch the current ticket to get old values
+      const { data: currentTicket } = await supabase
+        .from("tickets")
+        .select("*, raised_by, status, assigned_to")
+        .eq("id", data.id)
+        .single();
+
       const updates: Record<string, unknown> = {};
+      let oldStatus = currentTicket?.status;
+      let isStatusChange = false;
+      let isNewAssignment = false;
 
       if (data.status !== undefined) {
         updates.status = data.status;
+        isStatusChange = oldStatus !== data.status;
         
         if (data.status === "assigned" && data.assigned_to) {
           updates.assigned_at = new Date().toISOString();
@@ -158,9 +199,10 @@ export function useTickets() {
       if (data.assigned_to !== undefined) {
         updates.assigned_to = data.assigned_to;
         updates.assigned_to_name = data.assigned_to_name;
-        if (data.assigned_to) {
+        if (data.assigned_to && currentTicket?.assigned_to !== data.assigned_to) {
           updates.status = "assigned";
           updates.assigned_at = new Date().toISOString();
+          isNewAssignment = true;
         }
       }
 
@@ -172,12 +214,57 @@ export function useTickets() {
         updates.priority = data.priority;
       }
 
-      const { error } = await supabase
+      const { data: updatedTicket, error } = await supabase
         .from("tickets")
         .update(updates)
-        .eq("id", data.id);
+        .eq("id", data.id)
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Send Slack notification to newly assigned user
+      if (isNewAssignment && data.assigned_to && updatedTicket) {
+        const { data: assignedProfile } = await supabase
+          .from("profiles")
+          .select("slack_user_id")
+          .eq("user_id", data.assigned_to)
+          .single();
+
+        sendSlackNotification("ticket_assigned", {
+          ticket_number: updatedTicket.ticket_number,
+          subject: updatedTicket.subject,
+          description: updatedTicket.description,
+          category: updatedTicket.category,
+          priority: updatedTicket.priority,
+          raised_by_name: updatedTicket.raised_by_name,
+          raised_by_department: updatedTicket.raised_by_department,
+          assigned_to_name: data.assigned_to_name,
+          sla_due_at: updatedTicket.sla_due_at,
+          slack_user_id: assignedProfile?.slack_user_id,
+        });
+      }
+
+      // Send status change notification to the user who raised the ticket
+      if (isStatusChange && currentTicket?.raised_by && updatedTicket) {
+        const { data: raiserProfile } = await supabase
+          .from("profiles")
+          .select("slack_user_id")
+          .eq("user_id", currentTicket.raised_by)
+          .single();
+
+        sendSlackNotification("ticket_status_change", {
+          ticket_number: updatedTicket.ticket_number,
+          subject: updatedTicket.subject,
+          old_status: oldStatus,
+          new_status: data.status || updatedTicket.status,
+          resolution_notes: data.resolution_notes || updatedTicket.resolution_notes,
+          updated_by_name: profile.name,
+          slack_user_id: raiserProfile?.slack_user_id,
+        });
+      }
+
+      return updatedTicket;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
