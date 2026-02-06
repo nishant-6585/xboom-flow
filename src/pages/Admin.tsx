@@ -14,7 +14,8 @@ import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
 import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
 import { InviteUserDialog } from "@/components/admin/InviteUserDialog";
 import { NoticesPanel } from "@/components/notices/NoticesPanel";
-import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell } from "lucide-react";
+import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity } from "lucide-react";
+import UserActivityTracker from "@/components/admin/UserActivityTracker";
 import {
   Select,
   SelectContent,
@@ -473,6 +474,10 @@ const Admin = () => {
               <KeyRound className="w-4 h-4" />
               Signature
             </TabsTrigger>
+            <TabsTrigger value="activity" className="flex items-center gap-2">
+              <Activity className="w-4 h-4" />
+              Activity
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="analytics">
@@ -847,6 +852,10 @@ const Admin = () => {
 
           <TabsContent value="signature">
             <AdminSignatureSettings />
+          </TabsContent>
+
+          <TabsContent value="activity">
+            <UserActivityTracker />
           </TabsContent>
         </Tabs>
       </main>
