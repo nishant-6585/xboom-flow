@@ -33,16 +33,16 @@ export function MobileBottomNav() {
 
   // More menu items based on role with icons
   const moreItems = [
-    { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
     { path: "/pricelist", label: "Pricelist", icon: FileSpreadsheet, roles: ["sales", "supply_chain", "admin"] },
     { path: "/procurement", label: "Procurement", icon: ShoppingCart, roles: ["admin", "supply_chain", "finance"] },
     { path: "/inventory", label: "Inventory", icon: Warehouse, roles: ["sales", "supply_chain", "admin"] },
-    { path: "/repairs", label: "Repairs", icon: Wrench, roles: ["sales", "supply_chain", "admin", "finance"] },
-    { path: "/trainings", label: "Training", icon: GraduationCap, roles: ["sales", "supply_chain", "admin", "finance"] },
-    { path: "/billing", label: "Billing", icon: Receipt, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/repairs", label: "Repairs", icon: Wrench, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
+    { path: "/trainings", label: "Training", icon: GraduationCap, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
+    { path: "/billing", label: "Billing", icon: Receipt, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
     { path: "/suppliers", label: "Suppliers", icon: Building2, roles: ["admin", "supply_chain", "finance"] },
     { path: "/finance", label: "Finance", icon: IndianRupee, roles: ["admin", "finance"] },
-    { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
     { path: "/admin", label: "Admin", icon: Shield, roles: ["admin"] },
   ].filter(item => !item.roles || item.roles.includes(role || ""));
 

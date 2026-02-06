@@ -130,6 +130,10 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
         return "Finance";
       case "admin":
         return "Admin";
+      case "it":
+        return "IT Team";
+      case "marketing":
+        return "Marketing Team";
       default:
         return role;
     }
@@ -245,6 +249,8 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
                       <SelectItem value="supply_chain">Supply Chain</SelectItem>
                       <SelectItem value="finance">Finance</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="it">IT Team</SelectItem>
+                      <SelectItem value="marketing">Marketing Team</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

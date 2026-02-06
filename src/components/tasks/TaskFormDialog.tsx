@@ -27,7 +27,7 @@ import { toast } from "sonner";
 interface TeamMember {
   user_id: string;
   name: string;
-  role: 'sales' | 'supply_chain' | 'admin' | 'finance';
+  role: 'sales' | 'supply_chain' | 'admin' | 'finance' | 'it' | 'marketing';
 }
 
 interface TaskFormDialogProps {
@@ -235,6 +235,8 @@ export function TaskFormDialog({
                   <SelectItem value="supply_chain">Supply Chain</SelectItem>
                   <SelectItem value="finance">Finance</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="it">IT</SelectItem>
+                  <SelectItem value="marketing">Marketing</SelectItem>
                 </SelectContent>
               </Select>
             </div>

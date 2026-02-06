@@ -69,6 +69,8 @@ const departments: { value: AppRole; label: string }[] = [
   { value: "supply_chain", label: "Supply Chain" },
   { value: "finance", label: "Finance" },
   { value: "admin", label: "Admin" },
+  { value: "it", label: "IT" },
+  { value: "marketing", label: "Marketing" },
 ];
 
 const steps = [

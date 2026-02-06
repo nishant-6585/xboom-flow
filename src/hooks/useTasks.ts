@@ -29,7 +29,7 @@ export interface Task {
   description: string | null;
   assigned_to: string;
   assigned_to_name: string;
-  assigned_role: 'sales' | 'supply_chain' | 'admin' | 'finance';
+  assigned_role: 'sales' | 'supply_chain' | 'admin' | 'finance' | 'it' | 'marketing';
   assigned_by: string | null;
   assigned_by_name: string | null;
   status: TaskStatus;
@@ -60,7 +60,7 @@ export interface TaskFormData {
   description?: string;
   assigned_to: string;
   assigned_to_name: string;
-  assigned_role: 'sales' | 'supply_chain' | 'admin' | 'finance';
+  assigned_role: 'sales' | 'supply_chain' | 'admin' | 'finance' | 'it' | 'marketing';
   priority?: number;
   due_date?: string;
 }
