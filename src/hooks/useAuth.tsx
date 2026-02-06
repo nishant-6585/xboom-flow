@@ -117,11 +117,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signUp = async (email: string, password: string, name: string, team: AppRole) => {
     const normalizedEmail = email.toLowerCase().trim();
     
-    // Check if trying to register as admin and max reached
-    if (team === "admin") {
-      // Only allow pre-approved emails to register as admin
+    // Check if there's a pending invitation for this email
+    const { data: invitation } = await supabase
+      .from("user_invitations")
+      .select("*")
+      .eq("email", normalizedEmail)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    // Determine if user should be auto-approved
+    const isPreApprovedAdmin = APPROVED_ADMIN_EMAILS.includes(normalizedEmail) && team === "admin";
+    const hasInvitation = !!invitation;
+    const isAutoApproved = isPreApprovedAdmin || hasInvitation;
+    
+    // Use the role from invitation if available, otherwise use the selected team
+    const assignedRole: AppRole = hasInvitation ? (invitation.role as AppRole) : team;
+    
+    // Check if trying to register as admin and max reached (only if not invited)
+    if (assignedRole === "admin" && !hasInvitation) {
+      // Only allow pre-approved emails to register as admin without invitation
       if (!APPROVED_ADMIN_EMAILS.includes(normalizedEmail)) {
-        return { error: new Error("Only authorized personnel can register as admin.") };
+        return { error: new Error("Only authorized personnel can register as admin. Please request an invitation from an existing admin.") };
       }
       
       const { data: adminCount } = await supabase.rpc("count_admins");
@@ -145,13 +161,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (data.user) {
-      // Auto-approve if it's a pre-approved admin email
-      const isAutoApproved = APPROVED_ADMIN_EMAILS.includes(normalizedEmail) && team === "admin";
+      // Use name from invitation if available
+      const userName = hasInvitation ? invitation.name : name;
       
       // Create profile
       const { error: profileError } = await supabase.from("profiles").insert({
         user_id: data.user.id,
-        name,
+        name: userName,
         email: normalizedEmail,
         is_approved: isAutoApproved,
       });
@@ -164,12 +180,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Create user role
       const { error: roleError } = await supabase.from("user_roles").insert({
         user_id: data.user.id,
-        role: team,
+        role: assignedRole,
       });
 
       if (roleError) {
         console.error("Error creating role:", roleError);
         return { error: roleError };
+      }
+
+      // Mark invitation as accepted if it exists
+      if (hasInvitation) {
+        await supabase
+          .from("user_invitations")
+          .update({ 
+            status: "accepted", 
+            accepted_at: new Date().toISOString() 
+          })
+          .eq("id", invitation.id);
       }
     }
 
