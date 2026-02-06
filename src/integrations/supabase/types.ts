@@ -4003,6 +4003,51 @@ export type Database = {
         }
         Relationships: []
       }
+      user_activity_logs: {
+        Row: {
+          actions_performed: number | null
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          ip_address: string | null
+          last_activity_at: string | null
+          pages_visited: number | null
+          session_end: string | null
+          session_start: string
+          user_agent: string | null
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          actions_performed?: number | null
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          ip_address?: string | null
+          last_activity_at?: string | null
+          pages_visited?: number | null
+          session_end?: string | null
+          session_start?: string
+          user_agent?: string | null
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          actions_performed?: number | null
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          ip_address?: string | null
+          last_activity_at?: string | null
+          pages_visited?: number | null
+          session_end?: string | null
+          session_start?: string
+          user_agent?: string | null
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
       user_invitations: {
         Row: {
           accepted_at: string | null
@@ -4134,6 +4179,19 @@ export type Database = {
           on_time_percentage: number
           overall_score: number
           total_ratings: number
+        }[]
+      }
+      get_user_activity_summary: {
+        Args: { p_end_date?: string; p_start_date?: string }
+        Returns: {
+          avg_session_minutes: number
+          last_active: string
+          total_actions: number
+          total_pages_visited: number
+          total_sessions: number
+          total_usage_minutes: number
+          user_id: string
+          user_name: string
         }[]
       }
       get_user_role: {
