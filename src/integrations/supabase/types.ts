@@ -38,6 +38,24 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_whitelist: {
+        Row: {
+          added_at: string | null
+          added_by: string | null
+          email: string
+        }
+        Insert: {
+          added_at?: string | null
+          added_by?: string | null
+          email: string
+        }
+        Update: {
+          added_at?: string | null
+          added_by?: string | null
+          email?: string
+        }
+        Relationships: []
+      }
       attendance_logs: {
         Row: {
           approved_by: string | null
@@ -4126,6 +4144,7 @@ export type Database = {
     }
     Functions: {
       can_create_admin: { Args: never; Returns: boolean }
+      can_register_as_admin: { Args: { p_email: string }; Returns: boolean }
       can_view_notice: {
         Args: {
           _user_id: string
@@ -4237,6 +4256,13 @@ export type Database = {
       }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }
       sync_profiles_to_employees: { Args: never; Returns: number }
+      validate_admin_registration: {
+        Args: { p_email: string }
+        Returns: {
+          allowed: boolean
+          reason: string
+        }[]
+      }
     }
     Enums: {
       app_role:

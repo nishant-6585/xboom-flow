@@ -108,12 +108,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Pre-approved admin emails
-  const APPROVED_ADMIN_EMAILS = [
-    "vishal.saurav@xboom.in",
-    "ram@xboom.in",
-  ];
-
   const signUp = async (email: string, password: string, name: string, team: AppRole) => {
     const normalizedEmail = email.toLowerCase().trim();
     
@@ -125,25 +119,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .eq("status", "pending")
       .maybeSingle();
 
-    // Determine if user should be auto-approved
-    const isPreApprovedAdmin = APPROVED_ADMIN_EMAILS.includes(normalizedEmail) && team === "admin";
     const hasInvitation = !!invitation;
-    const isAutoApproved = isPreApprovedAdmin || hasInvitation;
     
     // Use the role from invitation if available, otherwise use the selected team
     const assignedRole: AppRole = hasInvitation ? (invitation.role as AppRole) : team;
     
-    // Check if trying to register as admin and max reached (only if not invited)
+    // Server-side validation for admin registration (only if not invited)
     if (assignedRole === "admin" && !hasInvitation) {
-      // Only allow pre-approved emails to register as admin without invitation
-      if (!APPROVED_ADMIN_EMAILS.includes(normalizedEmail)) {
-        return { error: new Error("Only authorized personnel can register as admin. Please request an invitation from an existing admin.") };
+      // Use server-side RPC to validate admin registration (checks whitelist + count)
+      const { data: validationResult, error: validationError } = await supabase
+        .rpc("validate_admin_registration", { p_email: normalizedEmail });
+      
+      if (validationError) {
+        console.error("Admin validation error:", validationError);
+        return { error: new Error("Unable to validate admin registration. Please try again.") };
       }
       
-      const { data: adminCount } = await supabase.rpc("count_admins");
-      if (adminCount && adminCount >= 5) {
-        return { error: new Error("Maximum number of admins (5) has been reached.") };
+      // validationResult is an array, get the first result
+      const validation = validationResult?.[0];
+      if (!validation?.allowed) {
+        return { error: new Error(validation?.reason || "Admin registration not allowed.") };
       }
+    }
+    
+    // Determine if user should be auto-approved (whitelisted admins or invited users)
+    let isAutoApproved = hasInvitation;
+    if (assignedRole === "admin" && !hasInvitation) {
+      // Check if email is in the admin whitelist (server-side)
+      const { data: isWhitelisted } = await supabase.rpc("can_register_as_admin", { p_email: normalizedEmail });
+      isAutoApproved = isWhitelisted === true;
     }
 
     const redirectUrl = `${window.location.origin}/`;
