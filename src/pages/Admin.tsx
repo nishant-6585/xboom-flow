@@ -88,6 +88,15 @@ const Admin = () => {
   const [managerChangeLoading, setManagerChangeLoading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("analytics");
 
+  // Move useEffect before any conditional returns to follow React Hooks rules
+  useEffect(() => {
+    if (role === "admin" && isApproved) {
+      fetchPendingUsers();
+      fetchApprovedUsers();
+      fetchInvitations();
+    }
+  }, [role, isApproved]);
+
   const handleValueFilterClick = (filterType: ValueFilterType, specificDate?: Date) => {
     // Navigate to main page with filter params
     const params = new URLSearchParams();
@@ -102,12 +111,6 @@ const Admin = () => {
   if (role !== "admin" || !isApproved) {
     return <Navigate to="/" replace />;
   }
-
-  useEffect(() => {
-    fetchPendingUsers();
-    fetchApprovedUsers();
-    fetchInvitations();
-  }, []);
 
   const fetchPendingUsers = async () => {
     try {
