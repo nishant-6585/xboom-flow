@@ -17,12 +17,16 @@ export interface SlackSettings {
   notify_new_procurements: boolean;
   notify_new_suppliers: boolean;
   notify_new_pipeline: boolean;
+  // Ticket notifications
+  notify_ticket_assigned: boolean;
+  notify_ticket_status_change: boolean;
   // Channel IDs for each event type
   channel_orders: string | null;
   channel_enquiries: string | null;
   channel_procurements: string | null;
   channel_suppliers: string | null;
   channel_pipeline: string | null;
+  channel_tickets: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -171,7 +175,7 @@ export const useSlackSettings = () => {
 
 // Helper function to send Slack notifications from other hooks
 export const sendSlackNotification = async (
-  type: 'new_order' | 'hot_lead' | 'payment_reminder' | 'status_change' | 'new_enquiry' | 'new_procurement' | 'new_supplier' | 'new_pipeline',
+  type: 'new_order' | 'hot_lead' | 'payment_reminder' | 'status_change' | 'new_enquiry' | 'new_procurement' | 'new_supplier' | 'new_pipeline' | 'ticket_assigned' | 'ticket_status_change',
   data: Record<string, unknown>
 ) => {
   try {

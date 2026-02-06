@@ -2735,6 +2735,7 @@ export type Database = {
           is_approved: boolean
           name: string
           reporting_manager_id: string | null
+          slack_user_id: string | null
           updated_at: string
           user_id: string
         }
@@ -2745,6 +2746,7 @@ export type Database = {
           is_approved?: boolean
           name: string
           reporting_manager_id?: string | null
+          slack_user_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -2755,6 +2757,7 @@ export type Database = {
           is_approved?: boolean
           name?: string
           reporting_manager_id?: string | null
+          slack_user_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -3267,6 +3270,7 @@ export type Database = {
           channel_pipeline: string | null
           channel_procurements: string | null
           channel_suppliers: string | null
+          channel_tickets: string | null
           created_at: string
           id: string
           is_enabled: boolean
@@ -3278,6 +3282,8 @@ export type Database = {
           notify_new_suppliers: boolean | null
           notify_payment_reminders: boolean
           notify_status_changes: boolean
+          notify_ticket_assigned: boolean | null
+          notify_ticket_status_change: boolean | null
           slack_bot_token: string | null
           updated_at: string
           webhook_url: string | null
@@ -3288,6 +3294,7 @@ export type Database = {
           channel_pipeline?: string | null
           channel_procurements?: string | null
           channel_suppliers?: string | null
+          channel_tickets?: string | null
           created_at?: string
           id?: string
           is_enabled?: boolean
@@ -3299,6 +3306,8 @@ export type Database = {
           notify_new_suppliers?: boolean | null
           notify_payment_reminders?: boolean
           notify_status_changes?: boolean
+          notify_ticket_assigned?: boolean | null
+          notify_ticket_status_change?: boolean | null
           slack_bot_token?: string | null
           updated_at?: string
           webhook_url?: string | null
@@ -3309,6 +3318,7 @@ export type Database = {
           channel_pipeline?: string | null
           channel_procurements?: string | null
           channel_suppliers?: string | null
+          channel_tickets?: string | null
           created_at?: string
           id?: string
           is_enabled?: boolean
@@ -3320,6 +3330,8 @@ export type Database = {
           notify_new_suppliers?: boolean | null
           notify_payment_reminders?: boolean
           notify_status_changes?: boolean
+          notify_ticket_assigned?: boolean | null
+          notify_ticket_status_change?: boolean | null
           slack_bot_token?: string | null
           updated_at?: string
           webhook_url?: string | null

@@ -28,10 +28,13 @@ export const SlackSettingsPanel = () => {
   const [channelProcurements, setChannelProcurements] = useState('');
   const [channelSuppliers, setChannelSuppliers] = useState('');
   const [channelPipeline, setChannelPipeline] = useState('');
+  const [channelTickets, setChannelTickets] = useState('');
   const [notifyNewEnquiries, setNotifyNewEnquiries] = useState(true);
   const [notifyNewProcurements, setNotifyNewProcurements] = useState(true);
   const [notifyNewSuppliers, setNotifyNewSuppliers] = useState(true);
   const [notifyNewPipeline, setNotifyNewPipeline] = useState(true);
+  const [notifyTicketAssigned, setNotifyTicketAssigned] = useState(true);
+  const [notifyTicketStatusChange, setNotifyTicketStatusChange] = useState(true);
   
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -53,10 +56,13 @@ export const SlackSettingsPanel = () => {
       setChannelProcurements(settings.channel_procurements || '');
       setChannelSuppliers(settings.channel_suppliers || '');
       setChannelPipeline(settings.channel_pipeline || '');
+      setChannelTickets(settings.channel_tickets || '');
       setNotifyNewEnquiries(settings.notify_new_enquiries ?? true);
       setNotifyNewProcurements(settings.notify_new_procurements ?? true);
       setNotifyNewSuppliers(settings.notify_new_suppliers ?? true);
       setNotifyNewPipeline(settings.notify_new_pipeline ?? true);
+      setNotifyTicketAssigned(settings.notify_ticket_assigned ?? true);
+      setNotifyTicketStatusChange(settings.notify_ticket_status_change ?? true);
     }
   }, [settings]);
 
@@ -75,16 +81,20 @@ export const SlackSettingsPanel = () => {
         channelProcurements !== (settings.channel_procurements || '') ||
         channelSuppliers !== (settings.channel_suppliers || '') ||
         channelPipeline !== (settings.channel_pipeline || '') ||
+        channelTickets !== (settings.channel_tickets || '') ||
         notifyNewEnquiries !== (settings.notify_new_enquiries ?? true) ||
         notifyNewProcurements !== (settings.notify_new_procurements ?? true) ||
         notifyNewSuppliers !== (settings.notify_new_suppliers ?? true) ||
-        notifyNewPipeline !== (settings.notify_new_pipeline ?? true);
+        notifyNewPipeline !== (settings.notify_new_pipeline ?? true) ||
+        notifyTicketAssigned !== (settings.notify_ticket_assigned ?? true) ||
+        notifyTicketStatusChange !== (settings.notify_ticket_status_change ?? true);
       setHasChanges(changed);
     }
   }, [
     webhookUrl, isEnabled, notifyNewOrders, notifyHotLeads, notifyPaymentReminders, notifyStatusChanges,
     botToken, channelOrders, channelEnquiries, channelProcurements, channelSuppliers, channelPipeline,
-    notifyNewEnquiries, notifyNewProcurements, notifyNewSuppliers, notifyNewPipeline, settings
+    channelTickets, notifyNewEnquiries, notifyNewProcurements, notifyNewSuppliers, notifyNewPipeline,
+    notifyTicketAssigned, notifyTicketStatusChange, settings
   ]);
 
   const handleSave = async () => {
@@ -106,7 +116,10 @@ export const SlackSettingsPanel = () => {
         channel_enquiries: channelEnquiries || null,
         channel_procurements: channelProcurements || null,
         channel_suppliers: channelSuppliers || null,
-        channel_pipeline: channelPipeline || null
+        channel_pipeline: channelPipeline || null,
+        channel_tickets: channelTickets || null,
+        notify_ticket_assigned: notifyTicketAssigned,
+        notify_ticket_status_change: notifyTicketStatusChange,
       });
       setHasChanges(false);
     } finally {
@@ -405,6 +418,52 @@ export const SlackSettingsPanel = () => {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">New supplier registrations</p>
+                </div>
+
+                {/* Tickets Channel */}
+                <div className="rounded-lg border p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Hash className="h-4 w-4 text-muted-foreground" />
+                      <Label className="font-medium">Tickets Channel</Label>
+                    </div>
+                    <Switch
+                      checked={notifyTicketAssigned}
+                      onCheckedChange={setNotifyTicketAssigned}
+                      disabled={!isEnabled}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="tickets or C04XXXXXX"
+                      value={channelTickets}
+                      onChange={(e) => setChannelTickets(e.target.value)}
+                      disabled={!isEnabled || !notifyTicketAssigned}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleTestChannel('tickets', channelTickets)}
+                      disabled={!channelTickets || !isValidBotToken || testingChannel === 'tickets'}
+                    >
+                      {testingChannel === 'tickets' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-xs text-muted-foreground">Ticket assignments and status updates</p>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs">Status Updates</Label>
+                      <Switch
+                        checked={notifyTicketStatusChange}
+                        onCheckedChange={setNotifyTicketStatusChange}
+                        disabled={!isEnabled}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </TabsContent>
