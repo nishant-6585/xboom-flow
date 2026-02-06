@@ -110,6 +110,10 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
   );
 
   const handleSubmit = async () => {
+    const member = formData.assigned_to 
+      ? teamMembers.find((m) => m.user_id === formData.assigned_to) 
+      : null;
+
     const data: CreateTicketData = {
       subject: formData.subject,
       description: formData.description,
@@ -118,17 +122,11 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
       assigned_department: formData.assigned_department,
       order_id: formData.order_id || null,
       enquiry_id: formData.enquiry_id || null,
+      assigned_to: formData.assigned_to || null,
+      assigned_to_name: member?.name || null,
     };
 
-    const result = await createTicket.mutateAsync(data);
-
-    // If assigned_to is set, update the ticket with assignment
-    if (formData.assigned_to) {
-      const member = teamMembers.find((m) => m.user_id === formData.assigned_to);
-      // We need to get the ticket ID from the result or invalidate and create with assignment
-      // For now, we'll handle assignment via the update flow after creation
-    }
-
+    await createTicket.mutateAsync(data);
     handleClose();
   };
 
