@@ -60,6 +60,8 @@ export interface CreateTicketData {
   order_id?: string | null;
   enquiry_id?: string | null;
   attachment_urls?: string[];
+  assigned_to?: string | null;
+  assigned_to_name?: string | null;
 }
 
 export interface UpdateTicketData {
@@ -101,7 +103,7 @@ export function useTickets() {
     mutationFn: async (data: CreateTicketData) => {
       if (!user || !profile || !role) throw new Error("User not authenticated");
 
-      const { error } = await supabase.from("tickets").insert({
+      const insertData = {
         subject: data.subject,
         description: data.description,
         category: data.category,
@@ -113,7 +115,13 @@ export function useTickets() {
         order_id: data.order_id || null,
         enquiry_id: data.enquiry_id || null,
         attachment_urls: data.attachment_urls || null,
-      });
+        assigned_to: data.assigned_to || null,
+        assigned_to_name: data.assigned_to_name || null,
+        status: data.assigned_to ? "assigned" as const : "open" as const,
+        assigned_at: data.assigned_to ? new Date().toISOString() : null,
+      };
+
+      const { error } = await supabase.from("tickets").insert(insertData);
 
       if (error) throw error;
     },
