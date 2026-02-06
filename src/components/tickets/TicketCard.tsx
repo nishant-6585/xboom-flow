@@ -5,7 +5,8 @@ import { TicketStatusBadge } from "./TicketStatusBadge";
 import { TicketPriorityBadge } from "./TicketPriorityBadge";
 import { Ticket } from "@/hooks/useTickets";
 import { format, formatDistanceToNow, isPast } from "date-fns";
-import { MessageSquare, Clock, User, Building2, Link2, Eye } from "lucide-react";
+import { MessageSquare, Clock, User, Building2, Link2, Eye, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface TicketCardProps {
   ticket: Ticket;
@@ -36,11 +37,20 @@ export function TicketCard({ ticket, onView }: TicketCardProps) {
   const isOverdue = ticket.sla_due_at && isPast(new Date(ticket.sla_due_at)) && ticket.status !== "resolved" && ticket.status !== "closed";
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card 
+      className={cn(
+        "hover:shadow-md transition-shadow cursor-pointer",
+        isOverdue && "border-destructive border-2 bg-destructive/5"
+      )}
+      onClick={() => onView(ticket)}
+    >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-1 flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
+              {isOverdue && (
+                <AlertTriangle className="w-4 h-4 text-destructive" />
+              )}
               <span className="text-xs font-mono text-muted-foreground">
                 {ticket.ticket_number}
               </span>
@@ -99,14 +109,22 @@ export function TicketCard({ ticket, onView }: TicketCardProps) {
         )}
 
         {isOverdue && (
-          <div className="flex items-center gap-1 text-xs text-destructive font-medium">
-            <Clock className="w-3 h-3" />
-            SLA Breached
+          <div className="flex items-center gap-1 text-xs text-destructive font-medium bg-destructive/10 rounded-md px-2 py-1">
+            <AlertTriangle className="w-3 h-3" />
+            SLA Breached - Immediate attention required
           </div>
         )}
 
         <div className="pt-2 border-t">
-          <Button size="sm" variant="outline" className="w-full" onClick={() => onView(ticket)}>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="w-full" 
+            onClick={(e) => {
+              e.stopPropagation();
+              onView(ticket);
+            }}
+          >
             <Eye className="w-4 h-4 mr-2" />
             View Details
           </Button>
