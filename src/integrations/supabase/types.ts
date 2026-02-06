@@ -4227,7 +4227,13 @@ export type Database = {
       sync_profiles_to_employees: { Args: never; Returns: number }
     }
     Enums: {
-      app_role: "sales" | "supply_chain" | "admin" | "finance"
+      app_role:
+        | "sales"
+        | "supply_chain"
+        | "admin"
+        | "finance"
+        | "it"
+        | "marketing"
       asset_status:
         | "assigned"
         | "returned"
@@ -4254,7 +4260,14 @@ export type Database = {
         | "cancelled"
         | "pending_signature"
         | "signed"
-      notice_visibility: "all" | "sales" | "supply_chain" | "finance" | "admin"
+      notice_visibility:
+        | "all"
+        | "sales"
+        | "supply_chain"
+        | "finance"
+        | "admin"
+        | "it"
+        | "marketing"
       order_status:
         | "po_received"
         | "payment_received"
@@ -4453,7 +4466,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["sales", "supply_chain", "admin", "finance"],
+      app_role: [
+        "sales",
+        "supply_chain",
+        "admin",
+        "finance",
+        "it",
+        "marketing",
+      ],
       asset_status: ["assigned", "returned", "lost", "damaged", "under_repair"],
       asset_type: [
         "mobile_phone",
@@ -4477,7 +4497,15 @@ export const Constants = {
         "pending_signature",
         "signed",
       ],
-      notice_visibility: ["all", "sales", "supply_chain", "finance", "admin"],
+      notice_visibility: [
+        "all",
+        "sales",
+        "supply_chain",
+        "finance",
+        "admin",
+        "it",
+        "marketing",
+      ],
       order_status: [
         "po_received",
         "payment_received",

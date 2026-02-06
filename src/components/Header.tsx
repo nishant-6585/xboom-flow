@@ -50,6 +50,10 @@ export function Header() {
         return "Finance";
       case "admin":
         return "Admin";
+      case "it":
+        return "IT";
+      case "marketing":
+        return "Marketing";
       default:
         return "User";
     }
@@ -59,9 +63,9 @@ export function Header() {
 
   // Main navigation items
   const mainNavItems = [
-    { path: "/", label: "Dashboard", icon: Home, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/", label: "Dashboard", icon: Home, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
     { path: "/sales", label: "Sales", icon: Zap, roles: ["sales", "supply_chain", "admin"] },
-    { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
     { path: "/pricelist", label: "Pricelist", icon: FileSpreadsheet, roles: ["sales", "supply_chain", "admin"] },
     { path: "/procurement", label: "Procurement", icon: ShoppingCart, roles: ["admin", "supply_chain", "finance"] },
     { path: "/inventory", label: "Inventory", icon: Warehouse, roles: ["sales", "supply_chain", "admin"] },
@@ -72,15 +76,15 @@ export function Header() {
 
   // Secondary navigation items (Tasks, HR, Expenses, Forms, Repairs, Trainings, Tickets)
   const secondaryNavItems = [
-    { path: "/tasks", label: "Tasks", icon: ListTodo, roles: ["sales", "supply_chain", "admin", "finance"] },
-    { path: "/tickets", label: "Tickets", icon: Ticket, roles: ["sales", "supply_chain", "admin", "finance"] },
-    { path: "/hr", label: "HR", icon: Users, roles: ["sales", "supply_chain", "admin", "finance"] },
-    { path: "/meetings", label: "Meetings", icon: CalendarDays, roles: ["sales", "supply_chain", "admin", "finance"] },
-    { path: "/expenses", label: "Expenses", icon: Receipt, roles: ["sales", "supply_chain", "admin", "finance"] },
-    { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "supply_chain", "admin", "finance"] },
-    { path: "/repairs", label: "Repairs", icon: Wrench, roles: ["sales", "supply_chain", "admin", "finance"] },
-    { path: "/trainings", label: "Training", icon: GraduationCap, roles: ["sales", "supply_chain", "admin", "finance"] },
-    { path: "/billing", label: "Billing", icon: FileText, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/tasks", label: "Tasks", icon: ListTodo, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
+    { path: "/tickets", label: "Tickets", icon: Ticket, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
+    { path: "/hr", label: "HR", icon: Users, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
+    { path: "/meetings", label: "Meetings", icon: CalendarDays, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
+    { path: "/expenses", label: "Expenses", icon: Receipt, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
+    { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
+    { path: "/repairs", label: "Repairs", icon: Wrench, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
+    { path: "/trainings", label: "Training", icon: GraduationCap, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
+    { path: "/billing", label: "Billing", icon: FileText, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
   ];
 
   const filteredMainNavItems = mainNavItems.filter((item) => 
@@ -166,7 +170,7 @@ export function Header() {
 
           {/* Right side - User info */}
           <div className="hidden sm:flex items-center gap-4">
-            {(role === 'admin' || role === 'supply_chain' || role === 'finance') && (
+          {(role === 'admin' || role === 'supply_chain' || role === 'finance' || role === 'it') && (
               <NotificationPanel />
             )}
 
@@ -200,7 +204,7 @@ export function Header() {
 
           {/* Mobile: Only show notification + avatar */}
           <div className="flex sm:hidden items-center gap-2">
-            {(role === 'admin' || role === 'supply_chain' || role === 'finance') && (
+            {(role === 'admin' || role === 'supply_chain' || role === 'finance' || role === 'it') && (
               <NotificationPanel />
             )}
             <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
