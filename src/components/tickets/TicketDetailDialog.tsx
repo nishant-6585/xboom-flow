@@ -18,9 +18,12 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TicketStatusBadge } from "./TicketStatusBadge";
 import { TicketPriorityBadge } from "./TicketPriorityBadge";
+import { TicketEditHistory } from "./TicketEditHistory";
 import { Ticket, useTickets, useTicketComments, useTeamMembers } from "@/hooks/useTickets";
+import { useEditHistory } from "@/hooks/useEditHistory";
 import { useAuth } from "@/hooks/useAuth";
 import { format, formatDistanceToNow, isPast } from "date-fns";
 import {
@@ -33,6 +36,7 @@ import {
   CheckCircle2,
   Link2,
   Loader2,
+  History,
 } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
 
@@ -67,13 +71,15 @@ const categoryLabels: Record<string, string> = {
 };
 
 export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailDialogProps) {
-  const { user, role } = useAuth();
+  const { user, role, profile } = useAuth();
   const { updateTicket } = useTickets();
   const { comments, addComment } = useTicketComments(ticket?.id ?? null);
   const { data: teamMembers = [] } = useTeamMembers();
+  const { recordChanges } = useEditHistory();
 
   const [newComment, setNewComment] = useState("");
   const [resolutionNotes, setResolutionNotes] = useState("");
+  const [activeTab, setActiveTab] = useState("details");
 
   if (!ticket) return null;
 
@@ -86,6 +92,13 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
   );
 
   const handleStatusChange = async (newStatus: TicketStatus) => {
+    // Record the change in history
+    if (profile) {
+      await recordChanges("tickets", ticket.id, {
+        status: { old: ticket.status, new: newStatus }
+      }, profile.name);
+    }
+
     await updateTicket.mutateAsync({
       id: ticket.id,
       status: newStatus,
@@ -95,6 +108,14 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
 
   const handleAssign = async (userId: string) => {
     const member = teamMembers.find((m) => m.user_id === userId);
+    
+    // Record the change in history
+    if (profile) {
+      await recordChanges("tickets", ticket.id, {
+        assigned_to_name: { old: ticket.assigned_to_name, new: member?.name || null }
+      }, profile.name);
+    }
+
     await updateTicket.mutateAsync({
       id: ticket.id,
       assigned_to: userId,
@@ -110,8 +131,8 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col">
-        <DialogHeader className="p-6 pb-4">
+      <DialogContent className="max-w-3xl max-h-[90vh] p-0 flex flex-col">
+        <DialogHeader className="p-6 pb-4 border-b">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
@@ -132,176 +153,187 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
           </div>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 px-6">
-          <div className="space-y-6 pb-6">
-            {/* Description */}
-            <div className="space-y-2">
-              <Label className="text-muted-foreground text-xs uppercase">Description</Label>
-              <p className="text-sm whitespace-pre-wrap">{ticket.description}</p>
-            </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+          <TabsList className="mx-6 w-fit">
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="comments" className="gap-2">
+              Comments
+              {comments.length > 0 && (
+                <Badge variant="secondary" className="h-5 px-1.5">
+                  {comments.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="history" className="gap-2">
+              <History className="w-4 h-4" />
+              History
+            </TabsTrigger>
+          </TabsList>
 
-            {/* Meta Info */}
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="space-y-1">
-                <Label className="text-muted-foreground text-xs uppercase">Category</Label>
-                <p>{categoryLabels[ticket.category] || ticket.category}</p>
+          <ScrollArea className="flex-1 px-6">
+            <TabsContent value="details" className="mt-4 space-y-6 pb-6">
+              {/* Description */}
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-xs uppercase">Description</Label>
+                <p className="text-sm whitespace-pre-wrap">{ticket.description}</p>
               </div>
-              <div className="space-y-1">
-                <Label className="text-muted-foreground text-xs uppercase">Department</Label>
-                <p className="flex items-center gap-1">
-                  <Building2 className="w-4 h-4" />
-                  {departmentLabels[ticket.assigned_department]}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-muted-foreground text-xs uppercase">Raised By</Label>
-                <p className="flex items-center gap-1">
-                  <User className="w-4 h-4" />
-                  {ticket.raised_by_name} ({departmentLabels[ticket.raised_by_department]})
-                </p>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-muted-foreground text-xs uppercase">Created</Label>
-                <p className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  {format(new Date(ticket.created_at), "dd MMM yyyy, HH:mm")}
-                </p>
-              </div>
-              {ticket.sla_due_at && (
+
+              {/* Meta Info */}
+              <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="space-y-1">
-                  <Label className="text-muted-foreground text-xs uppercase">SLA Due</Label>
-                  <p className={isOverdue ? "text-destructive" : ""}>
-                    {format(new Date(ticket.sla_due_at), "dd MMM yyyy, HH:mm")}
+                  <Label className="text-muted-foreground text-xs uppercase">Category</Label>
+                  <p>{categoryLabels[ticket.category] || ticket.category}</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-muted-foreground text-xs uppercase">Department</Label>
+                  <p className="flex items-center gap-1">
+                    <Building2 className="w-4 h-4" />
+                    {departmentLabels[ticket.assigned_department]}
                   </p>
                 </div>
-              )}
-              {ticket.assigned_to_name && (
                 <div className="space-y-1">
-                  <Label className="text-muted-foreground text-xs uppercase">Assigned To</Label>
+                  <Label className="text-muted-foreground text-xs uppercase">Raised By</Label>
                   <p className="flex items-center gap-1">
                     <User className="w-4 h-4" />
-                    {ticket.assigned_to_name}
+                    {ticket.raised_by_name} ({departmentLabels[ticket.raised_by_department]})
                   </p>
                 </div>
-              )}
-            </div>
-
-            {/* Linked Items */}
-            {(ticket.orders || ticket.enquiries) && (
-              <div className="space-y-2">
-                <Label className="text-muted-foreground text-xs uppercase">Linked Items</Label>
-                <div className="flex flex-wrap gap-2">
-                  {ticket.orders && (
-                    <Badge variant="outline" className="text-xs">
-                      <Link2 className="w-3 h-3 mr-1" />
-                      Order: {ticket.orders.order_number} - {ticket.orders.customer_name}
-                    </Badge>
-                  )}
-                  {ticket.enquiries && (
-                    <Badge variant="outline" className="text-xs">
-                      <Link2 className="w-3 h-3 mr-1" />
-                      Enquiry: {ticket.enquiries.customer_name} - {ticket.enquiries.product_name}
-                    </Badge>
-                  )}
+                <div className="space-y-1">
+                  <Label className="text-muted-foreground text-xs uppercase">Created</Label>
+                  <p className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
+                    {format(new Date(ticket.created_at), "dd MMM yyyy, HH:mm")}
+                  </p>
                 </div>
-              </div>
-            )}
-
-            {/* Actions (for department members) */}
-            {canManage && !isResolved && (
-              <>
-                <Separator />
-                <div className="space-y-4">
-                  <h4 className="font-medium text-sm">Actions</h4>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Assign To</Label>
-                      <Select
-                        value={ticket.assigned_to || ""}
-                        onValueChange={handleAssign}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select team member..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {departmentMembers.map((member) => (
-                            <SelectItem key={member.user_id} value={member.user_id}>
-                              {member.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Update Status</Label>
-                      <Select
-                        value={ticket.status}
-                        onValueChange={(value: TicketStatus) => handleStatusChange(value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {statusFlow.map((status) => (
-                            <SelectItem key={status} value={status}>
-                              {status.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                {ticket.sla_due_at && (
+                  <div className="space-y-1">
+                    <Label className="text-muted-foreground text-xs uppercase">SLA Due</Label>
+                    <p className={isOverdue ? "text-destructive" : ""}>
+                      {format(new Date(ticket.sla_due_at), "dd MMM yyyy, HH:mm")}
+                    </p>
                   </div>
-
-                  {ticket.status === "in_progress" && (
-                    <div className="space-y-2">
-                      <Label>Resolution Notes</Label>
-                      <Textarea
-                        value={resolutionNotes}
-                        onChange={(e) => setResolutionNotes(e.target.value)}
-                        placeholder="Add resolution notes before marking as resolved..."
-                        rows={3}
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => handleStatusChange("resolved")}
-                        disabled={updateTicket.isPending}
-                      >
-                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                        Mark as Resolved
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* Resolution Info */}
-            {ticket.resolved_at && (
-              <div className="bg-green-50 dark:bg-green-950/30 p-4 rounded-lg space-y-2">
-                <h4 className="font-medium text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Resolved
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Resolved by {ticket.resolved_by_name} on{" "}
-                  {format(new Date(ticket.resolved_at), "dd MMM yyyy, HH:mm")}
-                </p>
-                {ticket.resolution_notes && (
-                  <p className="text-sm">{ticket.resolution_notes}</p>
+                )}
+                {ticket.assigned_to_name && (
+                  <div className="space-y-1">
+                    <Label className="text-muted-foreground text-xs uppercase">Assigned To</Label>
+                    <p className="flex items-center gap-1">
+                      <User className="w-4 h-4" />
+                      {ticket.assigned_to_name}
+                    </p>
+                  </div>
                 )}
               </div>
-            )}
 
-            {/* Comments */}
-            <Separator />
-            <div className="space-y-4">
-              <h4 className="font-medium text-sm flex items-center gap-2">
-                <MessageSquare className="w-4 h-4" />
-                Comments ({comments.length})
-              </h4>
+              {/* Linked Items */}
+              {(ticket.orders || ticket.enquiries) && (
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground text-xs uppercase">Linked Items</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {ticket.orders && (
+                      <Badge variant="outline" className="text-xs">
+                        <Link2 className="w-3 h-3 mr-1" />
+                        Order: {ticket.orders.order_number} - {ticket.orders.customer_name}
+                      </Badge>
+                    )}
+                    {ticket.enquiries && (
+                      <Badge variant="outline" className="text-xs">
+                        <Link2 className="w-3 h-3 mr-1" />
+                        Enquiry: {ticket.enquiries.customer_name} - {ticket.enquiries.product_name}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
 
+              {/* Actions (for department members) */}
+              {canManage && !isResolved && (
+                <>
+                  <Separator />
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-sm">Actions</h4>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Assign To</Label>
+                        <Select
+                          value={ticket.assigned_to || ""}
+                          onValueChange={handleAssign}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select team member..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {departmentMembers.map((member) => (
+                              <SelectItem key={member.user_id} value={member.user_id}>
+                                {member.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Update Status</Label>
+                        <Select
+                          value={ticket.status}
+                          onValueChange={(value: TicketStatus) => handleStatusChange(value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {statusFlow.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {status.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {ticket.status === "in_progress" && (
+                      <div className="space-y-2">
+                        <Label>Resolution Notes</Label>
+                        <Textarea
+                          value={resolutionNotes}
+                          onChange={(e) => setResolutionNotes(e.target.value)}
+                          placeholder="Add resolution notes before marking as resolved..."
+                          rows={3}
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => handleStatusChange("resolved")}
+                          disabled={updateTicket.isPending}
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                          Mark as Resolved
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Resolution Info */}
+              {ticket.resolved_at && (
+                <div className="bg-green-50 dark:bg-green-950/30 p-4 rounded-lg space-y-2">
+                  <h4 className="font-medium text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Resolved
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    Resolved by {ticket.resolved_by_name} on{" "}
+                    {format(new Date(ticket.resolved_at), "dd MMM yyyy, HH:mm")}
+                  </p>
+                  {ticket.resolution_notes && (
+                    <p className="text-sm">{ticket.resolution_notes}</p>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="comments" className="mt-4 space-y-4 pb-6">
               {comments.length > 0 && (
                 <div className="space-y-3">
                   {comments.map((comment) => (
@@ -327,8 +359,15 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
                 </div>
               )}
 
+              {comments.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No comments yet</p>
+                </div>
+              )}
+
               {!isResolved && (
-                <div className="flex gap-2">
+                <div className="flex gap-2 pt-4 border-t">
                   <Textarea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
@@ -349,9 +388,13 @@ export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailD
                   </Button>
                 </div>
               )}
-            </div>
-          </div>
-        </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="history" className="mt-4 pb-6">
+              <TicketEditHistory ticketId={ticket.id} />
+            </TabsContent>
+          </ScrollArea>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

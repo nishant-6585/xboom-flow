@@ -1,0 +1,166 @@
+import { useEffect, useState } from "react";
+import { useEditHistory, EditHistoryRecord } from "@/hooks/useEditHistory";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { format, formatDistanceToNow } from "date-fns";
+import { History, User, ArrowRight, Loader2 } from "lucide-react";
+
+interface TicketEditHistoryProps {
+  ticketId: string;
+}
+
+const fieldLabels: Record<string, string> = {
+  subject: "Subject",
+  description: "Description",
+  status: "Status",
+  priority: "Priority",
+  category: "Category",
+  assigned_department: "Department",
+  assigned_to: "Assigned To",
+  assigned_to_name: "Assigned To Name",
+  resolution_notes: "Resolution Notes",
+  sla_due_at: "SLA Due",
+};
+
+const statusLabels: Record<string, string> = {
+  open: "Open",
+  assigned: "Assigned",
+  in_progress: "In Progress",
+  pending: "Pending",
+  resolved: "Resolved",
+  closed: "Closed",
+};
+
+const priorityLabels: Record<string, string> = {
+  critical: "Critical",
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+};
+
+const departmentLabels: Record<string, string> = {
+  sales: "Sales",
+  supply_chain: "Supply Chain",
+  finance: "Finance",
+  admin: "Admin",
+};
+
+function formatValue(field: string, value: string | null): string {
+  if (!value) return "—";
+  
+  if (field === "status") {
+    return statusLabels[value] || value;
+  }
+  if (field === "priority") {
+    return priorityLabels[value] || value;
+  }
+  if (field === "assigned_department") {
+    return departmentLabels[value] || value;
+  }
+  if (field.includes("_at") || field.includes("date")) {
+    try {
+      return format(new Date(value), "dd MMM yyyy, HH:mm");
+    } catch {
+      return value;
+    }
+  }
+  
+  return value;
+}
+
+export function TicketEditHistory({ ticketId }: TicketEditHistoryProps) {
+  const { fetchHistory } = useEditHistory();
+  const [history, setHistory] = useState<EditHistoryRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      const records = await fetchHistory("tickets", ticketId);
+      setHistory(records);
+      setLoading(false);
+    };
+    load();
+  }, [ticketId, fetchHistory]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (history.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <History className="w-8 h-8 mx-auto mb-2 opacity-50" />
+        <p className="text-sm">No edit history available</p>
+      </div>
+    );
+  }
+
+  // Group history by date
+  const groupedHistory = history.reduce((acc, record) => {
+    const date = format(new Date(record.edited_at), "yyyy-MM-dd");
+    if (!acc[date]) {
+      acc[date] = [];
+    }
+    acc[date].push(record);
+    return acc;
+  }, {} as Record<string, EditHistoryRecord[]>);
+
+  return (
+    <ScrollArea className="h-[300px]">
+      <div className="space-y-4 pr-4">
+        {Object.entries(groupedHistory).map(([date, records]) => (
+          <div key={date}>
+            <div className="sticky top-0 bg-background py-2">
+              <Badge variant="outline" className="text-xs">
+                {format(new Date(date), "dd MMMM yyyy")}
+              </Badge>
+            </div>
+            <div className="space-y-3 ml-2 border-l-2 border-muted pl-4">
+              {records.map((record) => (
+                <div
+                  key={record.id}
+                  className="relative before:absolute before:-left-[22px] before:top-2 before:w-3 before:h-3 before:rounded-full before:bg-primary/20 before:border-2 before:border-primary"
+                >
+                  <div className="p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <User className="w-3 h-3" />
+                        <span className="font-medium text-foreground">
+                          {record.edited_by_name}
+                        </span>
+                        <span>•</span>
+                        <span>
+                          {formatDistanceToNow(new Date(record.edited_at), { addSuffix: true })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1 text-sm">
+                      <span className="text-muted-foreground text-xs uppercase tracking-wide">
+                        {fieldLabels[record.field_name] || record.field_name}
+                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-muted-foreground line-through">
+                          {formatValue(record.field_name, record.old_value)}
+                        </span>
+                        <ArrowRight className="w-4 h-4 text-primary" />
+                        <span className="font-medium">
+                          {formatValue(record.field_name, record.new_value)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </ScrollArea>
+  );
+}

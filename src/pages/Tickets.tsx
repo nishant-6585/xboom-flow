@@ -1,56 +1,101 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Header } from "@/components/Header";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TicketCard } from "@/components/tickets/TicketCard";
+import { TicketTable } from "@/components/tickets/TicketTable";
 import { TicketFormDialog } from "@/components/tickets/TicketFormDialog";
 import { TicketDetailDialog } from "@/components/tickets/TicketDetailDialog";
+import { TicketFilters, TicketFiltersState } from "@/components/tickets/TicketFilters";
+import { TicketPerformanceDashboard } from "@/components/tickets/TicketPerformanceDashboard";
 import { useTickets, Ticket } from "@/hooks/useTickets";
 import { useAuth } from "@/hooks/useAuth";
+import { isPast } from "date-fns";
 import {
   Plus,
-  Search,
   Ticket as TicketIcon,
   Clock,
   CheckCircle2,
   AlertCircle,
   Loader2,
-  Filter,
+  LayoutGrid,
+  TableIcon,
+  BarChart3,
 } from "lucide-react";
+
+type ViewMode = "cards" | "table";
 
 export default function Tickets() {
   const { role, user } = useAuth();
   const { tickets, isLoading } = useTickets();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-
-  const filteredTickets = tickets.filter((ticket) => {
-    const matchesSearch =
-      ticket.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.ticket_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.raised_by_name.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesDepartment =
-      departmentFilter === "all" || ticket.assigned_department === departmentFilter;
-
-    const matchesStatus = statusFilter === "all" || ticket.status === statusFilter;
-
-    return matchesSearch && matchesDepartment && matchesStatus;
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [filters, setFilters] = useState<TicketFiltersState>({
+    search: "",
+    status: "all",
+    priority: "all",
+    department: "all",
+    assignedTo: "",
+    raisedBy: "",
+    dateFrom: undefined,
+    dateTo: undefined,
+    slaBreached: false,
   });
+
+  const isOverdue = (ticket: Ticket) => {
+    return (
+      ticket.sla_due_at &&
+      isPast(new Date(ticket.sla_due_at)) &&
+      ticket.status !== "resolved" &&
+      ticket.status !== "closed"
+    );
+  };
+
+  const filteredTickets = useMemo(() => {
+    return tickets.filter((ticket) => {
+      const matchesSearch =
+        ticket.subject.toLowerCase().includes(filters.search.toLowerCase()) ||
+        ticket.ticket_number?.toLowerCase().includes(filters.search.toLowerCase()) ||
+        ticket.raised_by_name.toLowerCase().includes(filters.search.toLowerCase());
+
+      const matchesDepartment =
+        filters.department === "all" || ticket.assigned_department === filters.department;
+
+      const matchesStatus = filters.status === "all" || ticket.status === filters.status;
+
+      const matchesPriority = filters.priority === "all" || ticket.priority === filters.priority;
+
+      const matchesAssignedTo = !filters.assignedTo || ticket.assigned_to === filters.assignedTo;
+
+      const matchesRaisedBy = !filters.raisedBy || ticket.raised_by === filters.raisedBy;
+
+      const matchesDateFrom =
+        !filters.dateFrom ||
+        new Date(ticket.created_at) >= new Date(filters.dateFrom);
+
+      const matchesDateTo =
+        !filters.dateTo ||
+        new Date(ticket.created_at) <= new Date(filters.dateTo);
+
+      const matchesSlaBreached = !filters.slaBreached || isOverdue(ticket);
+
+      return (
+        matchesSearch &&
+        matchesDepartment &&
+        matchesStatus &&
+        matchesPriority &&
+        matchesAssignedTo &&
+        matchesRaisedBy &&
+        matchesDateFrom &&
+        matchesDateTo &&
+        matchesSlaBreached
+      );
+    });
+  }, [tickets, filters]);
 
   const myTickets = filteredTickets.filter((t) => t.raised_by === user?.id);
   const assignedToMe = filteredTickets.filter((t) => t.assigned_to === user?.id);
@@ -66,13 +111,34 @@ export default function Tickets() {
   const resolvedCount = tickets.filter(
     (t) => t.status === "resolved" || t.status === "closed"
   ).length;
-  const overdueCount = tickets.filter(
-    (t) =>
-      t.sla_due_at &&
-      new Date(t.sla_due_at) < new Date() &&
-      t.status !== "resolved" &&
-      t.status !== "closed"
-  ).length;
+  const overdueCount = tickets.filter((t) => isOverdue(t)).length;
+
+  const renderTickets = (ticketList: Ticket[], emptyMessage: string) => {
+    if (ticketList.length === 0) {
+      return (
+        <div className="text-center py-12 text-muted-foreground">
+          <TicketIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <p>{emptyMessage}</p>
+        </div>
+      );
+    }
+
+    if (viewMode === "table") {
+      return <TicketTable tickets={ticketList} onView={setSelectedTicket} />;
+    }
+
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {ticketList.map((ticket) => (
+          <TicketCard
+            key={ticket.id}
+            ticket={ticket}
+            onView={setSelectedTicket}
+          />
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-[100dvh] bg-background pb-20 sm:pb-6">
@@ -90,15 +156,36 @@ export default function Tickets() {
               Raise and manage inter-department tickets
             </p>
           </div>
-          <Button onClick={() => setShowCreateDialog(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Raise Ticket
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="flex border rounded-md">
+              <Button
+                variant={viewMode === "cards" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("cards")}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === "table" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("table")}
+              >
+                <TableIcon className="w-4 h-4" />
+              </Button>
+            </div>
+            <Button onClick={() => setShowCreateDialog(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Raise Ticket
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <Card>
+          <Card 
+            className="cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => setFilters({ ...filters, status: "open" })}
+          >
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Open
@@ -106,12 +193,15 @@ export default function Tickets() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <TicketIcon className="w-5 h-5 text-blue-500" />
+                <TicketIcon className="w-5 h-5 text-primary" />
                 <span className="text-2xl font-bold">{openCount}</span>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card 
+            className="cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => setFilters({ ...filters, status: "in_progress" })}
+          >
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 In Progress
@@ -124,7 +214,10 @@ export default function Tickets() {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card 
+            className="cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => setFilters({ ...filters, status: "resolved" })}
+          >
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Resolved
@@ -137,7 +230,10 @@ export default function Tickets() {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card 
+            className={`cursor-pointer hover:shadow-md transition-shadow ${overdueCount > 0 ? "border-destructive" : ""}`}
+            onClick={() => setFilters({ ...filters, slaBreached: true })}
+          >
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 SLA Breached
@@ -145,54 +241,17 @@ export default function Tickets() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-red-500" />
-                <span className="text-2xl font-bold">{overdueCount}</span>
+                <AlertCircle className="w-5 h-5 text-destructive" />
+                <span className={`text-2xl font-bold ${overdueCount > 0 ? "text-destructive" : ""}`}>
+                  {overdueCount}
+                </span>
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search tickets..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <div className="flex gap-2">
-            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-              <SelectTrigger className="w-[140px]">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Department" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Depts</SelectItem>
-                <SelectItem value="sales">Sales</SelectItem>
-                <SelectItem value="supply_chain">Supply Chain</SelectItem>
-                <SelectItem value="finance">Finance</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="open">Open</SelectItem>
-                <SelectItem value="assigned">Assigned</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="resolved">Resolved</SelectItem>
-                <SelectItem value="closed">Closed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        <TicketFilters filters={filters} onFiltersChange={setFilters} />
 
         {/* Tabs */}
         <Tabs defaultValue="my-tickets" className="space-y-4">
@@ -222,12 +281,18 @@ export default function Tickets() {
               )}
             </TabsTrigger>
             {role === "admin" && (
-              <TabsTrigger value="all" className="gap-2">
-                All Tickets
-                <Badge variant="secondary" className="h-5 px-1.5">
-                  {filteredTickets.length}
-                </Badge>
-              </TabsTrigger>
+              <>
+                <TabsTrigger value="all" className="gap-2">
+                  All Tickets
+                  <Badge variant="secondary" className="h-5 px-1.5">
+                    {filteredTickets.length}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="dashboard" className="gap-2">
+                  <BarChart3 className="w-4 h-4 mr-1" />
+                  Performance
+                </TabsTrigger>
+              </>
             )}
           </TabsList>
 
@@ -238,89 +303,26 @@ export default function Tickets() {
           ) : (
             <>
               <TabsContent value="my-tickets">
-                {myTickets.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <TicketIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>You haven't raised any tickets yet</p>
-                    <Button
-                      variant="outline"
-                      className="mt-4"
-                      onClick={() => setShowCreateDialog(true)}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Raise a Ticket
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {myTickets.map((ticket) => (
-                      <TicketCard
-                        key={ticket.id}
-                        ticket={ticket}
-                        onView={setSelectedTicket}
-                      />
-                    ))}
-                  </div>
-                )}
+                {renderTickets(myTickets, "You haven't raised any tickets yet")}
               </TabsContent>
 
               <TabsContent value="assigned">
-                {assignedToMe.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <TicketIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>No tickets assigned to you</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {assignedToMe.map((ticket) => (
-                      <TicketCard
-                        key={ticket.id}
-                        ticket={ticket}
-                        onView={setSelectedTicket}
-                      />
-                    ))}
-                  </div>
-                )}
+                {renderTickets(assignedToMe, "No tickets assigned to you")}
               </TabsContent>
 
               <TabsContent value="department">
-                {departmentTickets.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <TicketIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>No tickets for your department</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {departmentTickets.map((ticket) => (
-                      <TicketCard
-                        key={ticket.id}
-                        ticket={ticket}
-                        onView={setSelectedTicket}
-                      />
-                    ))}
-                  </div>
-                )}
+                {renderTickets(departmentTickets, "No tickets for your department")}
               </TabsContent>
 
               {role === "admin" && (
-                <TabsContent value="all">
-                  {filteredTickets.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <TicketIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>No tickets found</p>
-                    </div>
-                  ) : (
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      {filteredTickets.map((ticket) => (
-                        <TicketCard
-                          key={ticket.id}
-                          ticket={ticket}
-                          onView={setSelectedTicket}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
+                <>
+                  <TabsContent value="all">
+                    {renderTickets(filteredTickets, "No tickets found")}
+                  </TabsContent>
+                  <TabsContent value="dashboard">
+                    <TicketPerformanceDashboard tickets={tickets} />
+                  </TabsContent>
+                </>
               )}
             </>
           )}
