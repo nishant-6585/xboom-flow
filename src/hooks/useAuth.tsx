@@ -161,6 +161,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     if (error) {
+      // Handle "User already registered" - try to sign in and create missing profile
+      if (error.message?.includes("User already registered")) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
+        if (signInError) {
+          return { error: new Error("This email is already registered. Please use the Sign In option instead.") };
+        }
+
+        if (signInData.user) {
+          // Check if profile exists
+          const { data: existingProfile } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("user_id", signInData.user.id)
+            .maybeSingle();
+
+          if (!existingProfile) {
+            const userName = hasInvitation ? invitation.name : name;
+            
+            await supabase.from("profiles").insert({
+              user_id: signInData.user.id,
+              name: userName,
+              email: normalizedEmail,
+              is_approved: isAutoApproved,
+            });
+
+            await supabase.from("user_roles").insert({
+              user_id: signInData.user.id,
+              role: assignedRole,
+            });
+
+            if (hasInvitation) {
+              await supabase
+                .from("user_invitations")
+                .update({ status: "accepted", accepted_at: new Date().toISOString() })
+                .eq("id", invitation.id);
+            }
+          }
+        }
+
+        return { error: null };
+      }
+      
       return { error };
     }
 
