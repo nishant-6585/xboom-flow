@@ -129,6 +129,44 @@ export function OrderProfitAnalytics({ orders, onCardClick }: OrderProfitAnalyti
       .sort((a, b) => b.profit - a.profit)
       .slice(0, 10);
 
+    // Model-wise (product_name) report - uses all valid orders
+    const modelDataMap = new Map<string, { name: string; code: string; category: string; quantity: number; orderValue: number; orders: number; profit: number; revenue: number; cost: number }>();
+
+    allValidOrders.forEach(order => {
+      const model = order.product_name || 'Unknown';
+      const existing = modelDataMap.get(model);
+      const orderValue = order.total_sales_amount || 0;
+      // profit data if available
+      const hasProfit = order.selling_price !== null && order.procurement_rate !== null;
+      const profit = hasProfit ? ((order.selling_price || 0) - (order.procurement_rate || 0)) * order.quantity : 0;
+      const revenue = hasProfit ? (order.selling_price || 0) * order.quantity : 0;
+      const cost = hasProfit ? (order.procurement_rate || 0) * order.quantity : 0;
+
+      if (existing) {
+        existing.quantity += order.quantity;
+        existing.orderValue += orderValue;
+        existing.orders += 1;
+        existing.profit += profit;
+        existing.revenue += revenue;
+        existing.cost += cost;
+      } else {
+        modelDataMap.set(model, {
+          name: model,
+          code: order.product_code || '',
+          category: order.product_category || '',
+          quantity: order.quantity,
+          orderValue,
+          orders: 1,
+          profit,
+          revenue,
+          cost,
+        });
+      }
+    });
+
+    const modelData = Array.from(modelDataMap.values())
+      .sort((a, b) => b.orderValue - a.orderValue);
+
     // Profit margin
     const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
@@ -146,6 +184,7 @@ export function OrderProfitAnalytics({ orders, onCardClick }: OrderProfitAnalyti
       dailyData,
       categoryProfitData,
       profitMargin,
+      modelData,
     };
   }, [orders]);
 
@@ -479,6 +518,61 @@ export function OrderProfitAnalytics({ orders, onCardClick }: OrderProfitAnalyti
                     </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+      {/* Model Wise Report */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Model Wise Report</CardTitle>
+          <CardDescription>Performance breakdown by product model</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-3 px-2 font-medium">#</th>
+                  <th className="text-left py-3 px-2 font-medium">Model</th>
+                  <th className="text-left py-3 px-2 font-medium">Code</th>
+                  <th className="text-left py-3 px-2 font-medium">Category</th>
+                  <th className="text-right py-3 px-2 font-medium">Orders</th>
+                  <th className="text-right py-3 px-2 font-medium">Qty</th>
+                  <th className="text-right py-3 px-2 font-medium">Order Value</th>
+                  <th className="text-right py-3 px-2 font-medium">Revenue</th>
+                  <th className="text-right py-3 px-2 font-medium">Cost</th>
+                  <th className="text-right py-3 px-2 font-medium">Profit</th>
+                  <th className="text-right py-3 px-2 font-medium">Margin</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analytics.modelData.map((model, index) => {
+                  const margin = model.revenue > 0 ? (model.profit / model.revenue) * 100 : 0;
+                  return (
+                    <tr key={model.name} className="border-b last:border-0 hover:bg-muted/50">
+                      <td className="py-3 px-2 text-muted-foreground">{index + 1}</td>
+                      <td className="py-3 px-2 font-medium">{model.name}</td>
+                      <td className="py-3 px-2 text-muted-foreground">{model.code || '—'}</td>
+                      <td className="py-3 px-2 text-muted-foreground">{model.category || '—'}</td>
+                      <td className="text-right py-3 px-2">{model.orders}</td>
+                      <td className="text-right py-3 px-2">{model.quantity}</td>
+                      <td className="text-right py-3 px-2">{formatCurrency(model.orderValue)}</td>
+                      <td className="text-right py-3 px-2">{model.revenue > 0 ? formatCurrency(model.revenue) : '—'}</td>
+                      <td className="text-right py-3 px-2">{model.cost > 0 ? formatCurrency(model.cost) : '—'}</td>
+                      <td className={`text-right py-3 px-2 font-medium ${model.profit > 0 ? 'text-green-600' : model.profit < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+                        {model.revenue > 0 ? formatCurrency(model.profit) : '—'}
+                      </td>
+                      <td className="text-right py-3 px-2">{model.revenue > 0 ? `${margin.toFixed(1)}%` : '—'}</td>
+                    </tr>
+                  );
+                })}
+                {analytics.modelData.length === 0 && (
+                  <tr>
+                    <td colSpan={11} className="text-center py-6 text-muted-foreground">No order data available</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
