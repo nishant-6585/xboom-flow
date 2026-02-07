@@ -140,6 +140,13 @@ export default function Orders() {
     setOutcomeFilter('all');
     setSalesPersonFilter('all');
     setStatusFilter('all');
+
+    // For model filter, set search query to model name
+    if (filter.type === 'model') {
+      setSearchQuery(filter.value);
+    } else {
+      setSearchQuery('');
+    }
   };
 
   const handleUpdateOutcome = async (orderId: string, outcome: OrderOutcome, lostReason?: LostReason, lostReasonNotes?: string): Promise<boolean> => {
