@@ -551,7 +551,11 @@ export function OrderProfitAnalytics({ orders, onCardClick }: OrderProfitAnalyti
                 {analytics.modelData.map((model, index) => {
                   const margin = model.revenue > 0 ? (model.profit / model.revenue) * 100 : 0;
                   return (
-                    <tr key={model.name} className="border-b last:border-0 hover:bg-muted/50">
+                    <tr 
+                      key={model.name} 
+                      className={`border-b last:border-0 hover:bg-muted/50 ${onCardClick ? 'cursor-pointer' : ''}`}
+                      onClick={() => onCardClick?.({ type: 'model', value: model.name })}
+                    >
                       <td className="py-3 px-2 text-muted-foreground">{index + 1}</td>
                       <td className="py-3 px-2 font-medium">{model.name}</td>
                       <td className="py-3 px-2 text-muted-foreground">{model.code || '—'}</td>
