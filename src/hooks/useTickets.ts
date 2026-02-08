@@ -8,6 +8,34 @@ import { sendSlackNotification } from "@/hooks/useSlackSettings";
 type TicketStatus = Database["public"]["Enums"]["ticket_status"];
 type TicketPriority = Database["public"]["Enums"]["ticket_priority"];
 type TicketCategory = Database["public"]["Enums"]["ticket_category"];
+
+// Helper function to send ticket email notifications
+const sendTicketEmail = async (payload: {
+  type: "status_update" | "assignment";
+  ticket_number: string;
+  subject: string;
+  old_status?: string;
+  new_status?: string;
+  priority: string;
+  resolution_notes?: string;
+  assigned_to_name?: string;
+  raised_by_name?: string;
+  updated_by_name?: string;
+  recipient_user_id: string;
+  sla_due_at?: string;
+  category?: string;
+}) => {
+  try {
+    const { error } = await supabase.functions.invoke("send-ticket-email", {
+      body: payload,
+    });
+    if (error) {
+      console.error("Failed to send ticket email:", error);
+    }
+  } catch (err) {
+    console.error("Error invoking ticket email function:", err);
+  }
+};
 type AppRole = Database["public"]["Enums"]["app_role"];
 
 export interface Ticket {
@@ -151,6 +179,19 @@ export function useTickets() {
           sla_due_at: createdTicket.sla_due_at,
           slack_user_id: assignedProfile?.slack_user_id,
         });
+
+        // Send email notification to assigned user
+        sendTicketEmail({
+          type: "assignment",
+          ticket_number: createdTicket.ticket_number || "",
+          subject: data.subject,
+          priority: data.priority,
+          assigned_to_name: data.assigned_to_name || undefined,
+          raised_by_name: profile.name,
+          recipient_user_id: data.assigned_to,
+          sla_due_at: createdTicket.sla_due_at || undefined,
+          category: data.category,
+        });
       }
 
       return createdTicket;
@@ -243,6 +284,19 @@ export function useTickets() {
           sla_due_at: updatedTicket.sla_due_at,
           slack_user_id: assignedProfile?.slack_user_id,
         });
+
+        // Send email notification to assigned user
+        sendTicketEmail({
+          type: "assignment",
+          ticket_number: updatedTicket.ticket_number || "",
+          subject: updatedTicket.subject,
+          priority: updatedTicket.priority,
+          assigned_to_name: data.assigned_to_name || undefined,
+          raised_by_name: updatedTicket.raised_by_name,
+          recipient_user_id: data.assigned_to,
+          sla_due_at: updatedTicket.sla_due_at || undefined,
+          category: updatedTicket.category,
+        });
       }
 
       // Send status change notification to the user who raised the ticket
@@ -261,6 +315,19 @@ export function useTickets() {
           resolution_notes: data.resolution_notes || updatedTicket.resolution_notes,
           updated_by_name: profile.name,
           slack_user_id: raiserProfile?.slack_user_id,
+        });
+
+        // Send email notification to ticket creator about status change
+        sendTicketEmail({
+          type: "status_update",
+          ticket_number: updatedTicket.ticket_number || "",
+          subject: updatedTicket.subject,
+          old_status: oldStatus,
+          new_status: data.status || updatedTicket.status,
+          priority: updatedTicket.priority,
+          resolution_notes: data.resolution_notes || updatedTicket.resolution_notes || undefined,
+          updated_by_name: profile.name,
+          recipient_user_id: currentTicket.raised_by,
         });
       }
 
