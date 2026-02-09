@@ -402,6 +402,11 @@ export function ProcurementOrderDialog({
             orderProcurementRate={order.procurement_rate || undefined}
             procurementCurrency={procurementCurrency}
             suppliers={suppliers}
+            onSupplierChange={(supplierId) => {
+              if (!selectedSupplierId) {
+                setSelectedSupplierId(supplierId);
+              }
+            }}
           />
 
           <Separator />
