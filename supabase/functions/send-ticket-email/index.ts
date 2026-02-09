@@ -232,10 +232,8 @@ const handler = async (req: Request): Promise<Response> => {
       `;
     }
 
-    // Use Resend's test domain until xboom.in is verified
-    // Once verified, change back to: "XBOOM Flow <notifications@xboom.in>"
     const emailResponse = await resend.emails.send({
-      from: "XBOOM Flow <onboarding@resend.dev>",
+      from: "XBOOM Flow <notifications@xboom.in>",
       to: [recipientEmail],
       subject: emailSubject,
       html: emailHtml,
