@@ -94,14 +94,39 @@ export function useSuppliers() {
 
     try {
       setLoading(true);
+
+      // Fetch user role to determine if bank details should be included
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const userRole = roleData?.role as string | undefined;
+      const canSeeBankDetails = userRole === 'admin' || userRole === 'finance';
+
+      // Only select bank columns for admin/finance roles
+      const columns = canSeeBankDetails
+        ? '*'
+        : 'id,name,brand_name,gst_number,contact_name,phone,mobile,email,city,address,product_category,products,preference,status,notes,is_active,created_at,updated_at,created_by';
+
       const { data, error } = await supabase
         .from('suppliers')
-        .select('*')
+        .select(columns)
         .order('name', { ascending: true });
 
       if (error) throw error;
 
-      setSuppliers((data || []) as Supplier[]);
+      // Ensure bank fields are null for non-privileged roles
+      const sanitized = (data || []).map((s: any) => ({
+        ...s,
+        bank_name: canSeeBankDetails ? s.bank_name : null,
+        bank_account_number: canSeeBankDetails ? s.bank_account_number : null,
+        bank_ifsc: canSeeBankDetails ? s.bank_ifsc : null,
+        bank_account_holder: canSeeBankDetails ? s.bank_account_holder : null,
+      })) as Supplier[];
+
+      setSuppliers(sanitized);
     } catch (error: any) {
       console.error('Error fetching suppliers:', error);
       toast.error('Failed to fetch suppliers');

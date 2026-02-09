@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,6 +28,8 @@ const PRODUCT_CATEGORIES = [
 ];
 
 export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: SupplierFormProps) {
+  const { role } = useAuth();
+  const canSeeBankDetails = role === 'admin' || role === 'finance';
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
     brand_name: initialData?.brand_name || '',
@@ -286,7 +289,8 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
         </div>
       </div>
 
-      {/* Bank Details */}
+      {/* Bank Details - Only visible to Admin/Finance */}
+      {canSeeBankDetails && (
       <div className="space-y-4">
         <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Bank Details</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -328,6 +332,7 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
           </div>
         </div>
       </div>
+      )}
 
       {/* Notes */}
       <div className="space-y-2">

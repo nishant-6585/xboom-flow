@@ -66,6 +66,7 @@ export function SupplierLedgerDialog({ supplier, open, onOpenChange }: SupplierL
   const { role } = useAuth();
   const isAdmin = role === 'admin';
   const canManage = role === 'admin' || role === 'supply_chain';
+  const canSeeBankDetails = role === 'admin' || role === 'finance';
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [showAddPayment, setShowAddPayment] = useState(false);
@@ -245,7 +246,7 @@ export function SupplierLedgerDialog({ supplier, open, onOpenChange }: SupplierL
                       </div>
                     )}
                   </div>
-                  {supplier.bank_name && (
+                  {canSeeBankDetails && supplier.bank_name && (
                     <div className="mt-3 pt-3 border-t flex items-center gap-4 text-sm">
                       <Landmark className="h-4 w-4 text-muted-foreground" />
                       <span>{supplier.bank_name}</span>
