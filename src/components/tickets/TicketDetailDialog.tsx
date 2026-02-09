@@ -91,7 +91,9 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
 
   const isOverdue = ticket.sla_due_at && isPast(new Date(ticket.sla_due_at)) && ticket.status !== "resolved" && ticket.status !== "closed";
   const canManage = role === "admin" || role === ticket.assigned_department || ticket.assigned_to === user?.id;
-  const isResolved = ticket.status === "resolved" || ticket.status === "closed";
+  const isClosed = ticket.status === "closed";
+  const isResolved = ticket.status === "resolved";
+  const canCreatorClose = ticket.raised_by === user?.id && isResolved;
 
   const departmentMembers = teamMembers.filter(
     (m) => m.role === ticket.assigned_department
@@ -252,7 +254,7 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
               )}
 
               {/* Actions (for department members) */}
-              {canManage && !isResolved && (
+              {canManage && !isResolved && !isClosed && (
                 <>
                   <Separator />
                   <div className="space-y-4">
@@ -317,6 +319,31 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                         </Button>
                       </div>
                     )}
+                  </div>
+                </>
+              )}
+
+              {/* Close Ticket Action (for ticket creator when resolved) */}
+              {canCreatorClose && (
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-sm">Verify & Close</h4>
+                    <p className="text-sm text-muted-foreground">
+                      This ticket has been marked as resolved. Please verify the resolution and close the ticket if satisfied.
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={() => handleStatusChange("closed")}
+                      disabled={updateTicket.isPending}
+                    >
+                      {updateTicket.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                      )}
+                      Close Ticket
+                    </Button>
                   </div>
                 </>
               )}
