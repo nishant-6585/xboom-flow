@@ -21,6 +21,7 @@ interface ProcurementOrderItemsProps {
   orderProcurementRate?: number;
   procurementCurrency: string;
   suppliers?: Supplier[];
+  onSupplierChange?: (supplierId: string) => void;
 }
 
 interface EditedItem {
@@ -49,6 +50,7 @@ export function ProcurementOrderItems({
   orderProcurementRate,
   procurementCurrency,
   suppliers = [],
+  onSupplierChange,
 }: ProcurementOrderItemsProps) {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +68,17 @@ export function ProcurementOrderItems({
 
   useEffect(() => {
     fetchItems();
-  }, [orderId]);
+  }, [orderId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-notify parent of first supplier found in items
+  useEffect(() => {
+    if (onSupplierChange && items.length > 0) {
+      const firstSupplier = items.find(item => (item as any).supplier_id);
+      if (firstSupplier) {
+        onSupplierChange((firstSupplier as any).supplier_id);
+      }
+    }
+  }, [items]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchItems = async () => {
     try {
@@ -115,6 +127,11 @@ export function ProcurementOrderItems({
         if (rate && percent) {
           newItem.procurement_gst_amount = ((rate * percent) / 100).toFixed(2);
         }
+      }
+
+      // Notify parent when supplier changes
+      if (field === 'supplier_id' && value && value !== 'none' && onSupplierChange) {
+        onSupplierChange(value as string);
       }
       
       return {
