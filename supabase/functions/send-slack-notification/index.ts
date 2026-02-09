@@ -624,14 +624,21 @@ serve(async (req) => {
 
     console.log('Received Slack notification request:', { type, userId, data });
 
-    // Handle test_channel - direct test without checking settings
+    // Handle test_channel - use env secret for bot token
     if (type === 'test_channel') {
       const channel = data.channel as string;
-      const botToken = data.bot_token as string;
+      const botToken = Deno.env.get('SLACK_BOT_TOKEN') || '';
       
-      if (!channel || !botToken) {
+      if (!channel) {
         return new Response(
-          JSON.stringify({ success: false, error: 'Channel and bot token required' }),
+          JSON.stringify({ success: false, error: 'Channel is required' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+      
+      if (!botToken) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'SLACK_BOT_TOKEN secret is not configured' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
         );
       }
@@ -696,12 +703,12 @@ serve(async (req) => {
       );
     }
 
-    // Handle test message type (webhook test)
+    // Handle test message type (webhook test) - use env secret
     if (type === 'test') {
-      const testWebhookUrl = data.webhook_url as string;
+      const testWebhookUrl = Deno.env.get('SLACK_WEBHOOK_URL') || '';
       if (!testWebhookUrl) {
         return new Response(
-          JSON.stringify({ success: false, error: 'No webhook URL provided for test' }),
+          JSON.stringify({ success: false, error: 'SLACK_WEBHOOK_URL secret is not configured' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
         );
       }
@@ -813,11 +820,15 @@ serve(async (req) => {
         );
     }
 
+    // Read credentials from environment secrets (not database)
+    const envBotToken = Deno.env.get('SLACK_BOT_TOKEN') || '';
+    const envWebhookUrl = Deno.env.get('SLACK_WEBHOOK_URL') || '';
+
     // Handle direct message to user via slack_user_id
     const slackUserId = data.slack_user_id as string;
-    if (slackUserId && settings.slack_bot_token) {
+    if (slackUserId && envBotToken) {
       try {
-        await sendSlackBotMessage(settings.slack_bot_token, slackUserId, slackMessage);
+        await sendSlackBotMessage(envBotToken, slackUserId, slackMessage);
         console.log(`Slack DM sent to user ${slackUserId}`);
         // Continue to also send to channel if configured
       } catch (error) {
@@ -827,13 +838,12 @@ serve(async (req) => {
     }
 
     // Try multi-channel bot first, fallback to webhook
-    const botToken = settings.slack_bot_token;
     const channel = settings[mapping.channelKey];
 
-    if (botToken && channel) {
+    if (envBotToken && channel) {
       // Use Slack Bot API for multi-channel
       try {
-        await sendSlackBotMessage(botToken, channel, slackMessage);
+        await sendSlackBotMessage(envBotToken, channel, slackMessage);
         console.log(`Slack notification sent to channel ${channel}`);
         return new Response(
           JSON.stringify({ success: true }),
@@ -846,9 +856,9 @@ serve(async (req) => {
     }
 
     // Fallback to webhook if configured
-    if (settings.webhook_url) {
+    if (envWebhookUrl) {
       try {
-        await sendSlackWebhook(settings.webhook_url, slackMessage);
+        await sendSlackWebhook(envWebhookUrl, slackMessage);
         console.log('Slack notification sent via webhook');
         return new Response(
           JSON.stringify({ success: true }),

@@ -4,8 +4,6 @@ import { toast } from 'sonner';
 
 export interface SlackSettings {
   id: string;
-  webhook_url: string | null;
-  slack_bot_token: string | null;
   is_enabled: boolean;
   // Legacy single channel notifications
   notify_new_orders: boolean;
@@ -45,7 +43,6 @@ export const useSlackSettings = () => {
 
       if (error) {
         if (error.code === 'PGRST116') {
-          // No settings found, will need to create
           console.log('No Slack settings found');
         } else {
           console.error('Error fetching Slack settings:', error);
@@ -68,7 +65,6 @@ export const useSlackSettings = () => {
   const updateSettings = async (updates: Partial<SlackSettings>) => {
     try {
       if (!settings?.id) {
-        // Create new settings row if none exists
         const { data, error } = await supabase
           .from('slack_settings')
           .insert([updates])
@@ -99,7 +95,7 @@ export const useSlackSettings = () => {
     }
   };
 
-  const testWebhook = async (webhookUrl: string) => {
+  const testWebhook = async () => {
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -112,7 +108,7 @@ export const useSlackSettings = () => {
         },
         body: JSON.stringify({ 
           type: 'test',
-          data: { webhook_url: webhookUrl }
+          data: {}
         })
       });
 
@@ -126,12 +122,12 @@ export const useSlackSettings = () => {
       return true;
     } catch (error) {
       console.error('Webhook test failed:', error);
-      toast.error('Failed to send test message. Please check your webhook URL.');
+      toast.error('Failed to send test message. Please check your webhook URL secret.');
       return false;
     }
   };
 
-  const testChannel = async (channel: string, botToken: string) => {
+  const testChannel = async (channel: string) => {
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -144,7 +140,7 @@ export const useSlackSettings = () => {
         },
         body: JSON.stringify({ 
           type: 'test_channel',
-          data: { channel, bot_token: botToken }
+          data: { channel }
         })
       });
 
@@ -158,7 +154,7 @@ export const useSlackSettings = () => {
       return true;
     } catch (error) {
       console.error('Channel test failed:', error);
-      toast.error('Failed to send test message. Please check your channel ID and bot token.');
+      toast.error('Failed to send test message. Please check your channel ID and bot token secret.');
       return false;
     }
   };
