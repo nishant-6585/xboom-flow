@@ -26,6 +26,7 @@ import Repairs from "./pages/Repairs";
 import Trainings from "./pages/Trainings";
 import Billing from "./pages/Billing";
 import Tickets from "./pages/Tickets";
+import Tally from "./pages/Tally";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -188,6 +189,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Tickets />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tally"
+              element={
+                <ProtectedRoute>
+                  <Tally />
                 </ProtectedRoute>
               }
             />
