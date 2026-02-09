@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -70,16 +70,22 @@ const categoryLabels: Record<string, string> = {
   other: "Other",
 };
 
-export function TicketDetailDialog({ ticket, open, onOpenChange }: TicketDetailDialogProps) {
+export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: TicketDetailDialogProps) {
   const { user, role, profile } = useAuth();
-  const { updateTicket } = useTickets();
-  const { comments, addComment } = useTicketComments(ticket?.id ?? null);
+  const { tickets, updateTicket } = useTickets();
+  const { comments, addComment } = useTicketComments(ticketProp?.id ?? null);
   const { data: teamMembers = [] } = useTeamMembers();
   const { recordChanges } = useEditHistory();
 
   const [newComment, setNewComment] = useState("");
   const [resolutionNotes, setResolutionNotes] = useState("");
   const [activeTab, setActiveTab] = useState("details");
+
+  // Use the fresh ticket data from the query cache instead of the stale prop
+  const ticket = useMemo(() => {
+    if (!ticketProp) return null;
+    return tickets.find((t) => t.id === ticketProp.id) || ticketProp;
+  }, [ticketProp, tickets]);
 
   if (!ticket) return null;
 
