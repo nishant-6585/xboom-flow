@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle, AlertCircle, Send, Shield } from "lucide-react";
 import { FormField } from "@/hooks/useForms";
+import { z } from "zod";
 
 interface FormData {
   id: string;
@@ -18,6 +19,107 @@ interface FormData {
   description?: string;
   is_active: boolean;
 }
+
+// Field validation limits
+const FIELD_LIMITS = {
+  text: 500,
+  email: 255,
+  phone: 20,
+  number: 1000000000,
+  textarea: 5000,
+  date: 100,
+  dropdown: 500,
+  checkbox: 500,
+  radio: 500,
+} as const;
+
+// Validate a single field value based on its type
+const validateFieldValue = (field: FormField, value: unknown): { valid: boolean; error?: string } => {
+  if (!value && !field.is_required) return { valid: true };
+  
+  const stringValue = typeof value === 'string' ? value : '';
+  const arrayValue = Array.isArray(value) ? value : [];
+  
+  switch (field.field_type) {
+    case 'text':
+      if (stringValue.length > FIELD_LIMITS.text) {
+        return { valid: false, error: `Maximum ${FIELD_LIMITS.text} characters allowed` };
+      }
+      break;
+    case 'email':
+      if (stringValue.length > FIELD_LIMITS.email) {
+        return { valid: false, error: `Maximum ${FIELD_LIMITS.email} characters allowed` };
+      }
+      const emailSchema = z.string().email();
+      if (stringValue && !emailSchema.safeParse(stringValue).success) {
+        return { valid: false, error: 'Please enter a valid email address' };
+      }
+      break;
+    case 'phone':
+      if (stringValue.length > FIELD_LIMITS.phone) {
+        return { valid: false, error: `Maximum ${FIELD_LIMITS.phone} characters allowed` };
+      }
+      // Allow common phone number formats
+      const phoneRegex = /^[\d\s+\-().]{0,20}$/;
+      if (stringValue && !phoneRegex.test(stringValue)) {
+        return { valid: false, error: 'Please enter a valid phone number' };
+      }
+      break;
+    case 'number':
+      const numValue = Number(value);
+      if (isNaN(numValue) || numValue < 0 || numValue > FIELD_LIMITS.number) {
+        return { valid: false, error: `Please enter a valid number (0 - ${FIELD_LIMITS.number})` };
+      }
+      break;
+    case 'textarea':
+      if (stringValue.length > FIELD_LIMITS.textarea) {
+        return { valid: false, error: `Maximum ${FIELD_LIMITS.textarea} characters allowed` };
+      }
+      break;
+    case 'checkbox':
+      // Validate each selected value
+      for (const item of arrayValue) {
+        if (typeof item !== 'string' || item.length > FIELD_LIMITS.checkbox) {
+          return { valid: false, error: 'Invalid selection' };
+        }
+      }
+      break;
+    case 'dropdown':
+    case 'radio':
+      if (stringValue.length > FIELD_LIMITS.dropdown) {
+        return { valid: false, error: 'Invalid selection' };
+      }
+      break;
+  }
+  
+  return { valid: true };
+};
+
+// Sanitize submission data to prevent oversized payloads
+const sanitizeSubmissionData = (formValues: Record<string, unknown>, fields: FormField[]): Record<string, unknown> => {
+  const sanitized: Record<string, unknown> = {};
+  
+  for (const field of fields) {
+    const value = formValues[field.id];
+    if (value === undefined || value === null) continue;
+    
+    // Only include known field IDs
+    if (typeof value === 'string') {
+      // Truncate strings to prevent oversized data
+      const limit = FIELD_LIMITS[field.field_type as keyof typeof FIELD_LIMITS] || 500;
+      sanitized[field.id] = value.slice(0, limit);
+    } else if (Array.isArray(value)) {
+      // For checkbox arrays, sanitize each item
+      sanitized[field.id] = value.slice(0, 50).map(v => 
+        typeof v === 'string' ? v.slice(0, 500) : String(v).slice(0, 500)
+      );
+    } else {
+      sanitized[field.id] = value;
+    }
+  }
+  
+  return sanitized;
+};
 
 export default function FormEmbed() {
   const { formId } = useParams<{ formId: string }>();
@@ -29,6 +131,7 @@ export default function FormEmbed() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function fetchForm() {
@@ -78,35 +181,68 @@ export default function FormEmbed() {
     e.preventDefault();
     if (!form) return;
 
+    // Clear previous errors
+    setFieldErrors({});
+    const newErrors: Record<string, string> = {};
+
+    // Validate all fields
     for (const field of fields) {
+      const value = formValues[field.id];
+      
+      // Check required fields
       if (field.is_required) {
-        const value = formValues[field.id];
-        if (!value || (Array.isArray(value) && value.length === 0)) {
-          toast({
-            title: "Required field missing",
-            description: `Please fill in "${field.label}"`,
-            variant: "destructive",
-          });
-          return;
+        if (!value || (Array.isArray(value) && value.length === 0) || 
+            (typeof value === 'string' && value.trim() === '')) {
+          newErrors[field.id] = `${field.label} is required`;
+          continue;
+        }
+      }
+      
+      // Validate field value if present
+      if (value) {
+        const validation = validateFieldValue(field, value);
+        if (!validation.valid && validation.error) {
+          newErrors[field.id] = validation.error;
         }
       }
     }
 
+    // If there are validation errors, show them and stop
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(newErrors);
+      toast({
+        title: "Validation errors",
+        description: "Please fix the highlighted fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
+      // Sanitize data before submission
+      const sanitizedData = sanitizeSubmissionData(formValues, fields);
+      
+      // Check total payload size (max 100KB)
+      const payloadSize = JSON.stringify(sanitizedData).length;
+      if (payloadSize > 100000) {
+        throw new Error('Submission data is too large');
+      }
+      
       const { error } = await supabase.from("form_submissions").insert([{
         form_id: form.id,
-        submission_data: JSON.parse(JSON.stringify(formValues)),
-        user_agent: navigator.userAgent,
+        submission_data: sanitizedData as unknown as Record<string, string | number | boolean | string[]>,
+        user_agent: navigator.userAgent?.slice(0, 500) || 'Unknown',
       }]);
 
       if (error) throw error;
 
       setSubmitted(true);
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Please try again later';
       toast({
         title: "Submission failed",
-        description: "Please try again later",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -121,6 +257,7 @@ export default function FormEmbed() {
   const renderField = (field: FormField, index: number) => {
     const value = formValues[field.id];
     const animationDelay = { animationDelay: `${index * 60}ms` };
+    const fieldError = fieldErrors[field.id];
 
     const labelElement = (
       <Label className="text-sm font-medium text-foreground flex items-center gap-1.5 mb-2">
@@ -129,7 +266,11 @@ export default function FormEmbed() {
       </Label>
     );
 
-    const inputBaseClass = "h-11 bg-background border-border/60 rounded-lg transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20 hover:border-border placeholder:text-muted-foreground/50";
+    const errorElement = fieldError ? (
+      <p className="text-xs text-destructive mt-1">{fieldError}</p>
+    ) : null;
+
+    const inputBaseClass = `h-11 bg-background border-border/60 rounded-lg transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20 hover:border-border placeholder:text-muted-foreground/50 ${fieldError ? 'border-destructive' : ''}`;
 
     switch (field.field_type) {
       case "text":
@@ -148,8 +289,10 @@ export default function FormEmbed() {
               value={(value as string) || ""}
               onChange={(e) => updateValue(field.id, e.target.value)}
               required={field.is_required}
+              maxLength={FIELD_LIMITS[field.field_type]}
               className={inputBaseClass}
             />
+            {errorElement}
           </div>
         );
 
@@ -167,8 +310,10 @@ export default function FormEmbed() {
               value={(value as string) || ""}
               onChange={(e) => updateValue(field.id, e.target.value)}
               required={field.is_required}
+              max={FIELD_LIMITS.number}
               className={inputBaseClass}
             />
+            {errorElement}
           </div>
         );
 
@@ -185,8 +330,10 @@ export default function FormEmbed() {
               value={(value as string) || ""}
               onChange={(e) => updateValue(field.id, e.target.value)}
               required={field.is_required}
+              maxLength={FIELD_LIMITS.textarea}
               className={`${inputBaseClass} min-h-[120px] resize-none py-3`}
             />
+            {errorElement}
           </div>
         );
 
@@ -205,6 +352,7 @@ export default function FormEmbed() {
               required={field.is_required}
               className={inputBaseClass}
             />
+            {errorElement}
           </div>
         );
 
@@ -235,6 +383,7 @@ export default function FormEmbed() {
                 ))}
               </SelectContent>
             </Select>
+            {errorElement}
           </div>
         );
 
@@ -271,6 +420,7 @@ export default function FormEmbed() {
                 </label>
               ))}
             </div>
+            {errorElement}
           </div>
         );
 
@@ -303,6 +453,7 @@ export default function FormEmbed() {
                 </label>
               ))}
             </RadioGroup>
+            {errorElement}
           </div>
         );
 
