@@ -3302,9 +3302,7 @@ export type Database = {
           notify_status_changes: boolean
           notify_ticket_assigned: boolean | null
           notify_ticket_status_change: boolean | null
-          slack_bot_token: string | null
           updated_at: string
-          webhook_url: string | null
         }
         Insert: {
           channel_enquiries?: string | null
@@ -3326,9 +3324,7 @@ export type Database = {
           notify_status_changes?: boolean
           notify_ticket_assigned?: boolean | null
           notify_ticket_status_change?: boolean | null
-          slack_bot_token?: string | null
           updated_at?: string
-          webhook_url?: string | null
         }
         Update: {
           channel_enquiries?: string | null
@@ -3350,9 +3346,7 @@ export type Database = {
           notify_status_changes?: boolean
           notify_ticket_assigned?: boolean | null
           notify_ticket_status_change?: boolean | null
-          slack_bot_token?: string | null
           updated_at?: string
-          webhook_url?: string | null
         }
         Relationships: []
       }
