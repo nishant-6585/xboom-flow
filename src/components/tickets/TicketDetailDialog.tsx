@@ -157,8 +157,8 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] p-0 flex flex-col">
-        <DialogHeader className="p-6 pb-4 border-b">
+      <DialogContent className="max-w-3xl max-h-[90vh] p-0 flex flex-col overflow-hidden">
+        <DialogHeader className="p-6 pb-4 border-b flex-shrink-0">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
@@ -179,8 +179,8 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
           </div>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-          <TabsList className="mx-6 w-fit">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <TabsList className="mx-6 w-fit flex-shrink-0">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="comments" className="gap-2">
               Comments
@@ -196,7 +196,7 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
             </TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="flex-1 px-6">
+          <ScrollArea className="flex-1 min-h-0 px-6">
             <TabsContent value="details" className="mt-4 space-y-6 pb-6">
               {/* Description */}
               <div className="space-y-2">
