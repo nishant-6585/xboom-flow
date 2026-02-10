@@ -4197,7 +4197,72 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      pricelist_public: {
+        Row: {
+          availability: string | null
+          brand: string | null
+          created_at: string | null
+          created_by: string | null
+          currency: string | null
+          dealer_price: number | null
+          description: string | null
+          id: string | null
+          lead_time: string | null
+          marketing_collateral_name: string | null
+          marketing_collateral_url: string | null
+          min_order_quantity: number | null
+          notes: string | null
+          product_category: string | null
+          product_name: string | null
+          unit_price: number | null
+          updated_at: string | null
+          updated_by: string | null
+          website_price: number | null
+        }
+        Insert: {
+          availability?: string | null
+          brand?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string | null
+          dealer_price?: number | null
+          description?: string | null
+          id?: string | null
+          lead_time?: string | null
+          marketing_collateral_name?: string | null
+          marketing_collateral_url?: string | null
+          min_order_quantity?: number | null
+          notes?: string | null
+          product_category?: string | null
+          product_name?: string | null
+          unit_price?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          website_price?: number | null
+        }
+        Update: {
+          availability?: string | null
+          brand?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string | null
+          dealer_price?: number | null
+          description?: string | null
+          id?: string | null
+          lead_time?: string | null
+          marketing_collateral_name?: string | null
+          marketing_collateral_url?: string | null
+          min_order_quantity?: number | null
+          notes?: string | null
+          product_category?: string | null
+          product_name?: string | null
+          unit_price?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          website_price?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       can_create_admin: { Args: never; Returns: boolean }
