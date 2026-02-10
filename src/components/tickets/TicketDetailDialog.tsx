@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TicketStatusBadge } from "./TicketStatusBadge";
 import { TicketPriorityBadge } from "./TicketPriorityBadge";
 import { TicketEditHistory } from "./TicketEditHistory";
-import { Ticket, useTickets, useTicketComments, useTeamMembers } from "@/hooks/useTickets";
+import { Ticket, useTickets, useTicketComments, useTeamMembers, UpdateTicketData } from "@/hooks/useTickets";
 import { useEditHistory } from "@/hooks/useEditHistory";
 import { useAuth } from "@/hooks/useAuth";
 import { format, formatDistanceToNow, isPast } from "date-fns";
@@ -41,6 +42,7 @@ import {
 import { Database } from "@/integrations/supabase/types";
 
 type TicketStatus = Database["public"]["Enums"]["ticket_status"];
+type AppRole = Database["public"]["Enums"]["app_role"];
 
 interface TicketDetailDialogProps {
   ticket: Ticket | null;
@@ -55,6 +57,8 @@ const departmentLabels: Record<string, string> = {
   supply_chain: "Supply Chain",
   finance: "Finance",
   admin: "Admin",
+  it: "IT",
+  marketing: "Marketing",
 };
 
 const categoryLabels: Record<string, string> = {
@@ -80,6 +84,7 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
   const [newComment, setNewComment] = useState("");
   const [resolutionNotes, setResolutionNotes] = useState("");
   const [activeTab, setActiveTab] = useState("details");
+  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
 
   // Use the fresh ticket data from the query cache instead of the stale prop
   const ticket = useMemo(() => {
@@ -95,8 +100,9 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
   const isResolved = ticket.status === "resolved";
   const canCreatorClose = ticket.raised_by === user?.id && isResolved;
 
+  const activeDepartment = selectedDepartment || ticket.assigned_department;
   const departmentMembers = teamMembers.filter(
-    (m) => m.role === ticket.assigned_department
+    (m) => m.role === activeDepartment
   );
 
   const handleStatusChange = async (newStatus: TicketStatus) => {
@@ -119,16 +125,28 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
     
     // Record the change in history
     if (profile) {
-      await recordChanges("tickets", ticket.id, {
+      const changes: Record<string, { old: unknown; new: unknown }> = {
         assigned_to_name: { old: ticket.assigned_to_name, new: member?.name || null }
-      }, profile.name);
+      };
+      if (selectedDepartment && selectedDepartment !== ticket.assigned_department) {
+        changes.assigned_department = { old: ticket.assigned_department, new: selectedDepartment };
+      }
+      await recordChanges("tickets", ticket.id, changes, profile.name);
     }
 
-    await updateTicket.mutateAsync({
+    const updateData: UpdateTicketData = {
       id: ticket.id,
       assigned_to: userId,
       assigned_to_name: member?.name || null,
-    });
+    };
+
+    // If admin changed the department, update it too
+    if (selectedDepartment && selectedDepartment !== ticket.assigned_department) {
+      // We need to update assigned_department via a separate call since UpdateTicketData doesn't include it
+      await supabase.from("tickets").update({ assigned_department: selectedDepartment as AppRole }).eq("id", ticket.id);
+    }
+
+    await updateTicket.mutateAsync(updateData);
   };
 
   const handleAddComment = async () => {
@@ -257,10 +275,31 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
               {canManage && !isResolved && !isClosed && (
                 <>
                   <Separator />
-                  <div className="space-y-4">
+                   <div className="space-y-4">
                     <h4 className="font-medium text-sm">Actions</h4>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className={`grid ${role === "admin" ? "grid-cols-3" : "grid-cols-2"} gap-4`}>
+                      {role === "admin" && (
+                        <div className="space-y-2">
+                          <Label>Department</Label>
+                          <Select
+                            value={activeDepartment}
+                            onValueChange={(value) => setSelectedDepartment(value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(departmentLabels).map(([value, label]) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
                       <div className="space-y-2">
                         <Label>Assign To</Label>
                         <Select
