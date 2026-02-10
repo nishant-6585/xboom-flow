@@ -109,6 +109,14 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Only submit on the final step; otherwise advance the wizard
+    if (currentStep < 3) {
+      if (canGoNext()) {
+        setCurrentStep(currentStep + 1);
+      }
+      return;
+    }
+
     if (!formData.productName || !formData.customerName) {
       return;
     }
