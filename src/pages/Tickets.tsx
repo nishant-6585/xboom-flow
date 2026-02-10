@@ -335,6 +335,7 @@ export default function Tickets() {
       />
 
       <TicketDetailDialog
+        key={selectedTicket?.id ?? "none"}
         ticket={selectedTicket}
         open={!!selectedTicket}
         onOpenChange={(open) => !open && setSelectedTicket(null)}
