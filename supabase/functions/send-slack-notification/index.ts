@@ -602,19 +602,15 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    // Try to get claims from the token - for Lovable Cloud we use getClaims
-    // If this fails (e.g., anon key used for internal calls), we still proceed
-    // since this is an internal notification system
-    let userId: string | null = null;
-    try {
-      const { data, error } = await userClient.auth.getClaims(token);
-      if (!error && data?.claims?.sub) {
-        userId = data.claims.sub;
-      }
-    } catch {
-      // Token might be the anon key for internal system calls - this is acceptable
-      console.log('JWT verification skipped - likely internal system call');
+    // Verify JWT - require valid authenticated user
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
+    const userId = claimsData.claims.sub;
 
     // Use service role client for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -623,6 +619,22 @@ serve(async (req) => {
     const { type, data } = payload;
 
     console.log('Received Slack notification request:', { type, userId, data });
+
+    // For test operations, require admin role
+    if (type === 'test' || type === 'test_channel') {
+      const { data: userRoles } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
+
+      const isAdmin = userRoles?.some((r: { role: string }) => r.role === 'admin');
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: 'Forbidden: admin role required' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
     // Handle test_channel - use env secret for bot token
     if (type === 'test_channel') {
