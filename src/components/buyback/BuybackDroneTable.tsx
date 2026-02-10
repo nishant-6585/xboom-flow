@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search } from "lucide-react";
 import { BuybackDrone } from "@/hooks/useBuybackDrones";
 import { format } from "date-fns";
+import { BuybackDroneDetailDialog } from "./BuybackDroneDetailDialog";
 
 interface Props {
   drones: BuybackDrone[];
@@ -18,6 +19,7 @@ export function BuybackDroneTable({ drones }: Props) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [selectedDrone, setSelectedDrone] = useState<BuybackDrone | null>(null);
 
   const filtered = drones.filter((d) => {
     const matchesSearch =
@@ -74,7 +76,7 @@ export function BuybackDroneTable({ drones }: Props) {
               </TableRow>
             ) : (
               filtered.map((d) => (
-                <TableRow key={d.id}>
+                <TableRow key={d.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedDrone(d)}>
                   <TableCell>
                     <Badge variant="outline">{d.drone_category}</Badge>
                   </TableCell>
@@ -104,6 +106,7 @@ export function BuybackDroneTable({ drones }: Props) {
         </Table>
       </div>
       <p className="text-xs text-muted-foreground">Showing {filtered.length} of {drones.length} drones</p>
+      <BuybackDroneDetailDialog drone={selectedDrone} open={!!selectedDrone} onOpenChange={(open) => !open && setSelectedDrone(null)} />
     </div>
   );
 }
