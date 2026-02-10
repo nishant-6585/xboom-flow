@@ -124,6 +124,69 @@ export type Database = {
           },
         ]
       }
+      buyback_drones: {
+        Row: {
+          buyback_date: string
+          buyback_price: number
+          buyer_contact: string | null
+          buyer_name: string | null
+          condition: string
+          created_at: string
+          created_by: string | null
+          drone_category: string
+          drone_model: string
+          id: string
+          profit_loss: number | null
+          seller_contact: string
+          seller_name: string
+          selling_date: string | null
+          selling_price: number | null
+          serial_number: string
+          stock_status: string
+          updated_at: string
+        }
+        Insert: {
+          buyback_date?: string
+          buyback_price: number
+          buyer_contact?: string | null
+          buyer_name?: string | null
+          condition: string
+          created_at?: string
+          created_by?: string | null
+          drone_category: string
+          drone_model: string
+          id?: string
+          profit_loss?: number | null
+          seller_contact: string
+          seller_name: string
+          selling_date?: string | null
+          selling_price?: number | null
+          serial_number: string
+          stock_status?: string
+          updated_at?: string
+        }
+        Update: {
+          buyback_date?: string
+          buyback_price?: number
+          buyer_contact?: string | null
+          buyer_name?: string | null
+          condition?: string
+          created_at?: string
+          created_by?: string | null
+          drone_category?: string
+          drone_model?: string
+          id?: string
+          profit_loss?: number | null
+          seller_contact?: string
+          seller_name?: string
+          selling_date?: string | null
+          selling_price?: number | null
+          serial_number?: string
+          stock_status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customer_testimonials: {
         Row: {
           approved_at: string | null
