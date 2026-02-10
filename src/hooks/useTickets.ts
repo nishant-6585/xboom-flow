@@ -452,15 +452,22 @@ export function useTeamMembers() {
       if (profilesResult.error) throw profilesResult.error;
       if (rolesResult.error) throw rolesResult.error;
 
-      const roleMap = new Map<string, string>();
+      // Build a map of user_id -> roles[] to support multiple roles per user
+      const roleMap = new Map<string, string[]>();
       rolesResult.data.forEach((r) => {
-        roleMap.set(r.user_id, r.role);
+        const existing = roleMap.get(r.user_id) || [];
+        existing.push(r.role);
+        roleMap.set(r.user_id, existing);
       });
 
-      return profilesResult.data.map((p) => ({
-        ...p,
-        role: roleMap.get(p.user_id) || null,
-      }));
+      // Flatten: one entry per user per role, so department filtering picks them up
+      return profilesResult.data.flatMap((p) => {
+        const roles = roleMap.get(p.user_id) || [null];
+        return roles.map((role) => ({
+          ...p,
+          role,
+        }));
+      });
     },
     enabled: !!user,
   });
