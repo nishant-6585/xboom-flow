@@ -97,14 +97,18 @@ export const useSlackSettings = () => {
 
   const testWebhook = async () => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('You must be logged in to test the webhook');
+        return false;
+      }
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       
       const response = await fetch(`${supabaseUrl}/functions/v1/send-slack-notification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseKey}`
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({ 
           type: 'test',
@@ -129,14 +133,18 @@ export const useSlackSettings = () => {
 
   const testChannel = async (channel: string) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('You must be logged in to test the channel');
+        return false;
+      }
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       
       const response = await fetch(`${supabaseUrl}/functions/v1/send-slack-notification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseKey}`
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({ 
           type: 'test_channel',
@@ -175,14 +183,18 @@ export const sendSlackNotification = async (
   data: Record<string, unknown>
 ) => {
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      console.error('No active session for Slack notification');
+      return;
+    }
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
     
     const response = await fetch(`${supabaseUrl}/functions/v1/send-slack-notification`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseKey}`
+        'Authorization': `Bearer ${session.access_token}`
       },
       body: JSON.stringify({ type, data })
     });
