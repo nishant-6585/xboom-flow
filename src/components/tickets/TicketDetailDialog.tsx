@@ -196,7 +196,7 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
             </TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="flex-1 min-h-0 px-6">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6">
             <TabsContent value="details" className="mt-4 space-y-6 pb-6">
               {/* Description */}
               <div className="space-y-2">
@@ -465,7 +465,7 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
             <TabsContent value="history" className="mt-4 pb-6">
               <TicketEditHistory ticketId={ticket.id} />
             </TabsContent>
-          </ScrollArea>
+          </div>
         </Tabs>
       </DialogContent>
     </Dialog>
