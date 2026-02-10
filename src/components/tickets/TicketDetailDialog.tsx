@@ -101,9 +101,11 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
   const canCreatorClose = ticket.raised_by === user?.id && isResolved;
 
   const activeDepartment = selectedDepartment || ticket.assigned_department;
-  const departmentMembers = teamMembers.filter(
+  const filteredByDept = teamMembers.filter(
     (m) => m.role === activeDepartment
   );
+  // If no members found for the department, show all team members so assignment is always possible
+  const departmentMembers = filteredByDept.length > 0 ? filteredByDept : teamMembers;
 
   const handleStatusChange = async (newStatus: TicketStatus) => {
     // Record the change in history
