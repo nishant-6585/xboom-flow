@@ -45,7 +45,9 @@ export interface PricelistFormData {
 export function usePricelist() {
   const [items, setItems] = useState<PricelistItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+
+  const canViewCostPrice = role === 'admin' || role === 'supply_chain';
 
   const fetchItems = useCallback(async () => {
     if (!user) {
@@ -57,6 +59,9 @@ export function usePricelist() {
     try {
       setLoading(true);
       
+      // Use the full table for admin/supply_chain (includes cost_price)
+      // Use the public view for other roles (excludes cost_price)
+      
       // Fetch all items by paginating through results (Supabase default limit is 1000)
       let allItems: PricelistItem[] = [];
       let from = 0;
@@ -64,16 +69,14 @@ export function usePricelist() {
       let hasMore = true;
 
       while (hasMore) {
-        const { data, error } = await supabase
-          .from('pricelist')
-          .select('*')
-          .order('product_name', { ascending: true })
-          .range(from, from + batchSize - 1);
-
-        if (error) throw error;
+        const query = canViewCostPrice
+          ? supabase.from('pricelist').select('*').order('product_name', { ascending: true }).range(from, from + batchSize - 1)
+          : supabase.from('pricelist_public').select('*').order('product_name', { ascending: true }).range(from, from + batchSize - 1);
+        
+        const { data, error } = await query;
         
         if (data && data.length > 0) {
-          allItems = [...allItems, ...data];
+          allItems = [...allItems, ...(data as unknown as PricelistItem[])];
           from += batchSize;
           hasMore = data.length === batchSize;
         } else {
@@ -88,7 +91,7 @@ export function usePricelist() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, canViewCostPrice]);
 
   useEffect(() => {
     fetchItems();
