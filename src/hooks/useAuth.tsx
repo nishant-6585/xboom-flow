@@ -4,6 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketing";
 
+// Priority order for determining primary role (highest privilege first)
+const ROLE_PRIORITY: AppRole[] = ["admin", "finance", "supply_chain", "it", "marketing", "sales"];
+
 interface Profile {
   id: string;
   user_id: string;
@@ -17,6 +20,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   role: AppRole | null;
+  roles: AppRole[];
   loading: boolean;
   isApproved: boolean;
   signUp: (email: string, password: string, name: string, team: AppRole) => Promise<{ error: Error | null }>;
@@ -32,6 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchUserData = async (userId: string) => {
@@ -47,15 +52,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setProfile(profileData as Profile);
       }
 
-      // Fetch role
-      const { data: roleData } = await supabase
+      // Fetch all roles (user may have multiple)
+      const { data: rolesData } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", userId)
-        .maybeSingle();
+        .eq("user_id", userId);
 
-      if (roleData) {
-        setRole(roleData.role as AppRole);
+      if (rolesData && rolesData.length > 0) {
+        const userRoles = rolesData.map((r) => r.role as AppRole);
+        setRoles(userRoles);
+        // Set primary role by priority (admin first)
+        const primaryRole = ROLE_PRIORITY.find((r) => userRoles.includes(r)) || userRoles[0];
+        setRole(primaryRole);
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
@@ -83,6 +91,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           setProfile(null);
           setRole(null);
+          setRoles([]);
         }
 
         if (event === "SIGNED_OUT") {
@@ -266,6 +275,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await supabase.auth.signOut();
     setProfile(null);
     setRole(null);
+    setRoles([]);
   };
 
   return (
@@ -275,6 +285,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         session,
         profile,
         role,
+        roles,
         loading,
         isApproved: profile?.is_approved ?? false,
         signUp,
