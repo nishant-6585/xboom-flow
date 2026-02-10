@@ -106,14 +106,10 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
     purposeOfPurchase: "",
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+    e?.preventDefault();
     
-    // Only submit on the final step; otherwise advance the wizard
     if (currentStep < 3) {
-      if (canGoNext()) {
-        setCurrentStep(currentStep + 1);
-      }
       return;
     }
 
@@ -193,7 +189,7 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
       <CardContent className="pt-6">
         <StepIndicator currentStep={currentStep} steps={STEPS} />
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-6">
           {/* Step 1: Product Details */}
           {currentStep === 1 && (
             <div className="space-y-4 animate-fade-in">
@@ -455,7 +451,7 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             ) : (
-              <Button type="submit" disabled={loading} className="flex-1 sm:flex-none">
+              <Button type="button" onClick={handleSubmit} disabled={loading} className="flex-1 sm:flex-none">
                 {loading ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
@@ -465,7 +461,7 @@ export function QueryForm({ onSubmit }: QueryFormProps) {
               </Button>
             )}
           </div>
-        </form>
+        </div>
       </CardContent>
     </Card>
   );
