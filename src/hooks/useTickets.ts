@@ -100,6 +100,9 @@ export interface UpdateTicketData {
   assigned_to_name?: string | null;
   resolution_notes?: string;
   priority?: TicketPriority;
+  subject?: string;
+  description?: string;
+  category?: TicketCategory;
 }
 
 export function useTickets() {
@@ -253,6 +256,18 @@ export function useTickets() {
 
       if (data.priority !== undefined) {
         updates.priority = data.priority;
+      }
+
+      if (data.subject !== undefined) {
+        updates.subject = data.subject;
+      }
+
+      if (data.description !== undefined) {
+        updates.description = data.description;
+      }
+
+      if (data.category !== undefined) {
+        updates.category = data.category;
       }
 
       const { data: updatedTicket, error } = await supabase
