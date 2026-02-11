@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -38,10 +39,13 @@ import {
   Link2,
   Loader2,
   History,
+  Pencil,
+  X,
 } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
 
 type TicketStatus = Database["public"]["Enums"]["ticket_status"];
+type TicketCategory = Database["public"]["Enums"]["ticket_category"];
 type AppRole = Database["public"]["Enums"]["app_role"];
 
 interface TicketDetailDialogProps {
@@ -74,6 +78,19 @@ const categoryLabels: Record<string, string> = {
   other: "Other",
 };
 
+const categoryOptions: { value: TicketCategory; label: string }[] = [
+  { value: "general_inquiry", label: "General Inquiry" },
+  { value: "order_issue", label: "Order Issue" },
+  { value: "payment_issue", label: "Payment Issue" },
+  { value: "delivery_issue", label: "Delivery Issue" },
+  { value: "supplier_issue", label: "Supplier Issue" },
+  { value: "procurement_request", label: "Procurement Request" },
+  { value: "refund_request", label: "Refund Request" },
+  { value: "technical_support", label: "Technical Support" },
+  { value: "documentation", label: "Documentation" },
+  { value: "other", label: "Other" },
+];
+
 export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: TicketDetailDialogProps) {
   const { user, role, profile } = useAuth();
   const { tickets, updateTicket } = useTickets();
@@ -85,6 +102,8 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
   const [resolutionNotes, setResolutionNotes] = useState("");
   const [activeTab, setActiveTab] = useState("details");
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({ subject: "", description: "", category: "" as TicketCategory, priority: "" as string });
 
   // Use the fresh ticket data from the query cache instead of the stale prop
   const ticket = useMemo(() => {
@@ -99,6 +118,46 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
   const isClosed = ticket.status === "closed";
   const isResolved = ticket.status === "resolved";
   const canCreatorClose = ticket.raised_by === user?.id && isResolved;
+  const canCreatorEdit = ticket.raised_by === user?.id && !isClosed && !isResolved;
+
+  const handleStartEdit = () => {
+    setEditData({
+      subject: ticket.subject,
+      description: ticket.description,
+      category: ticket.category,
+      priority: ticket.priority,
+    });
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editData.subject.trim() || !editData.description.trim()) return;
+    
+    const changes: Record<string, { old: unknown; new: unknown }> = {};
+    if (editData.subject !== ticket.subject) changes.subject = { old: ticket.subject, new: editData.subject };
+    if (editData.description !== ticket.description) changes.description = { old: ticket.description, new: editData.description };
+    if (editData.category !== ticket.category) changes.category = { old: ticket.category, new: editData.category };
+    if (editData.priority !== ticket.priority) changes.priority = { old: ticket.priority, new: editData.priority };
+
+    if (Object.keys(changes).length === 0) {
+      setIsEditing(false);
+      return;
+    }
+
+    if (profile) {
+      await recordChanges("tickets", ticket.id, changes, profile.name);
+    }
+
+    await updateTicket.mutateAsync({
+      id: ticket.id,
+      ...(editData.subject !== ticket.subject && { subject: editData.subject }),
+      ...(editData.description !== ticket.description && { description: editData.description }),
+      ...(editData.category !== ticket.category && { category: editData.category as TicketCategory }),
+      ...(editData.priority !== ticket.priority && { priority: editData.priority as any }),
+    });
+
+    setIsEditing(false);
+  };
 
   const activeDepartment = selectedDepartment || ticket.assigned_department;
   const filteredByDept = teamMembers.filter(
@@ -178,6 +237,12 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
               </div>
               <DialogTitle className="text-lg">{ticket.subject}</DialogTitle>
             </div>
+            {canCreatorEdit && !isEditing && (
+              <Button variant="outline" size="sm" onClick={handleStartEdit}>
+                <Pencil className="w-4 h-4 mr-1" />
+                Edit
+              </Button>
+            )}
           </div>
         </DialogHeader>
 
@@ -200,11 +265,72 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
 
           <div className="flex-1 min-h-0 overflow-y-auto px-6">
             <TabsContent value="details" className="mt-4 space-y-6 pb-6">
-              {/* Description */}
-              <div className="space-y-2">
-                <Label className="text-muted-foreground text-xs uppercase">Description</Label>
-                <p className="text-sm whitespace-pre-wrap">{ticket.description}</p>
-              </div>
+              {/* Edit Mode */}
+              {isEditing ? (
+                <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm">Edit Ticket</h4>
+                    <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Subject</Label>
+                    <Input
+                      value={editData.subject}
+                      onChange={(e) => setEditData({ ...editData, subject: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Textarea
+                      value={editData.description}
+                      onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                      rows={4}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Category</Label>
+                      <Select value={editData.category} onValueChange={(v) => setEditData({ ...editData, category: v as TicketCategory })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {categoryOptions.map((c) => (
+                            <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Priority</Label>
+                      <Select value={editData.priority} onValueChange={(v) => setEditData({ ...editData, priority: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="critical">Critical</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>Cancel</Button>
+                    <Button size="sm" onClick={handleSaveEdit} disabled={updateTicket.isPending || !editData.subject.trim() || !editData.description.trim()}>
+                      {updateTicket.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                      Save Changes
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Description */}
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground text-xs uppercase">Description</Label>
+                    <p className="text-sm whitespace-pre-wrap">{ticket.description}</p>
+                  </div>
+                </>
+              )}
 
               {/* Meta Info */}
               <div className="grid grid-cols-2 gap-4 text-sm">
