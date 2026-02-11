@@ -115,14 +115,14 @@ export function Header() {
                   <Menu className="w-5 h-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-64">
-                <SheetHeader className="mb-6">
+              <SheetContent side="left" className="w-64 flex flex-col">
+                <SheetHeader className="mb-4 flex-shrink-0">
                   <SheetTitle className="flex items-center gap-2">
                     <img src={logoFull} alt="Xboom Logo" className="h-8 w-auto" />
                     <span className="font-semibold text-lg">Xboom Flow</span>
                   </SheetTitle>
                 </SheetHeader>
-                <nav className="flex flex-col gap-2">
+                <nav className="flex-1 overflow-y-auto -mx-2 px-2 flex flex-col gap-1.5 pb-4">
                   {allNavItems.map((item) => (
                     <Link
                       key={item.path}
@@ -139,7 +139,7 @@ export function Header() {
                     </Link>
                   ))}
                 </nav>
-                <div className="absolute bottom-6 left-4 right-4">
+                <div className="flex-shrink-0 border-t border-border pt-3">
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                     <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
                       {profile?.name ? getInitials(profile.name) : "U"}
