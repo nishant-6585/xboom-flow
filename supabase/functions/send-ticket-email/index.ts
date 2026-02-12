@@ -26,6 +26,22 @@ interface TicketEmailRequest {
   category?: string;
 }
 
+// Input sanitization: escape HTML to prevent injection in email templates
+const escapeHtml = (str: string): string => {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
+// Validate and sanitize string input with length limit
+const sanitizeInput = (value: unknown, maxLength = 500): string => {
+  if (typeof value !== "string") return "";
+  return escapeHtml(value.slice(0, maxLength));
+};
+
 const getPriorityColor = (priority: string): string => {
   switch (priority?.toLowerCase()) {
     case "critical": return "#dc2626";
@@ -56,31 +72,72 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Verify JWT authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!supabaseUrl || !supabaseServiceKey) {
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
       throw new Error("Missing Supabase configuration");
+    }
+
+    // Create client with user's auth token to verify JWT
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    // Verify the JWT by getting the user - this validates the token server-side
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+
+    if (userError || !user) {
+      console.error("JWT verification failed:", userError);
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const payload: TicketEmailRequest = await req.json();
-    const {
-      type,
-      ticket_number,
-      subject,
-      old_status,
-      new_status,
-      priority,
-      resolution_notes,
-      assigned_to_name,
-      raised_by_name,
-      updated_by_name,
-      recipient_user_id,
-      sla_due_at,
-      category,
-    } = payload;
+
+    // Validate required fields
+    if (!payload.type || !payload.ticket_number || !payload.subject || !payload.recipient_user_id) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Validate type is one of expected values
+    if (!["status_update", "assignment"].includes(payload.type)) {
+      return new Response(JSON.stringify({ error: "Invalid email type" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Sanitize all user-provided string inputs before inserting into HTML
+    const ticket_number = sanitizeInput(payload.ticket_number, 50);
+    const subject = sanitizeInput(payload.subject, 200);
+    const old_status = sanitizeInput(payload.old_status, 50);
+    const new_status = sanitizeInput(payload.new_status, 50);
+    const priority = sanitizeInput(payload.priority, 20);
+    const resolution_notes = sanitizeInput(payload.resolution_notes, 2000);
+    const assigned_to_name = sanitizeInput(payload.assigned_to_name, 100);
+    const raised_by_name = sanitizeInput(payload.raised_by_name, 100);
+    const updated_by_name = sanitizeInput(payload.updated_by_name, 100);
+    const recipient_user_id = payload.recipient_user_id;
+    const sla_due_at = payload.sla_due_at;
+    const category = sanitizeInput(payload.category, 100);
 
     // Fetch recipient's email from profiles
     const { data: recipientProfile, error: profileError } = await supabase
@@ -98,14 +155,14 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const recipientEmail = recipientProfile.email;
-    const recipientName = recipientProfile.name || "Team Member";
+    const recipientName = escapeHtml(recipientProfile.name || "Team Member");
     const priorityColor = getPriorityColor(priority);
     const priorityEmoji = getPriorityEmoji(priority);
 
     let emailSubject: string;
     let emailHtml: string;
 
-    if (type === "assignment") {
+    if (payload.type === "assignment") {
       emailSubject = `🎫 Ticket Assigned: ${ticket_number} - ${subject}`;
       emailHtml = `
         <!DOCTYPE html>
@@ -248,7 +305,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error sending ticket email:", error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: "Failed to send notification" }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }

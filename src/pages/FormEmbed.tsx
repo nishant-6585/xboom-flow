@@ -138,12 +138,12 @@ export default function FormEmbed() {
       if (!formId) return;
 
       try {
+        // Use the public view that excludes sensitive columns (created_by, created_by_name)
         const { data: formData, error: formError } = await supabase
-          .from("forms")
-          .select("*")
+          .from("forms_public" as any)
+          .select("id, name, description, is_active")
           .eq("id", formId)
-          .eq("is_active", true)
-          .single();
+          .single() as { data: FormData | null; error: any };
 
         if (formError || !formData) {
           setError("Form not found or is no longer active");
