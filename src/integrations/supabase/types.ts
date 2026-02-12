@@ -1015,6 +1015,51 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_document_shares: {
+        Row: {
+          created_at: string
+          created_by: string
+          department: string | null
+          document_id: string
+          employee_id: string | null
+          id: string
+          share_type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          department?: string | null
+          document_id: string
+          employee_id?: string | null
+          id?: string
+          share_type: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          department?: string | null
+          document_id?: string
+          employee_id?: string | null
+          id?: string
+          share_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_document_shares_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "hr_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_document_shares_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_documents: {
         Row: {
           created_at: string
@@ -1028,6 +1073,7 @@ export type Database = {
           updated_at: string
           uploaded_by: string
           uploaded_by_name: string
+          visibility: string
         }
         Insert: {
           created_at?: string
@@ -1041,6 +1087,7 @@ export type Database = {
           updated_at?: string
           uploaded_by: string
           uploaded_by_name: string
+          visibility?: string
         }
         Update: {
           created_at?: string
@@ -1054,10 +1101,56 @@ export type Database = {
           updated_at?: string
           uploaded_by?: string
           uploaded_by_name?: string
+          visibility?: string
         }
         Relationships: [
           {
             foreignKeyName: "hr_documents_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "hr_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_folder_shares: {
+        Row: {
+          created_at: string
+          created_by: string
+          department: string | null
+          employee_id: string | null
+          folder_id: string
+          id: string
+          share_type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          department?: string | null
+          employee_id?: string | null
+          folder_id: string
+          id?: string
+          share_type: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          department?: string | null
+          employee_id?: string | null
+          folder_id?: string
+          id?: string
+          share_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_folder_shares_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_folder_shares_folder_id_fkey"
             columns: ["folder_id"]
             isOneToOne: false
             referencedRelation: "hr_folders"
@@ -1076,6 +1169,7 @@ export type Database = {
           name: string
           parent_id: string | null
           updated_at: string
+          visibility: string
         }
         Insert: {
           created_at?: string
@@ -1087,6 +1181,7 @@ export type Database = {
           name: string
           parent_id?: string | null
           updated_at?: string
+          visibility?: string
         }
         Update: {
           created_at?: string
@@ -1098,6 +1193,7 @@ export type Database = {
           name?: string
           parent_id?: string | null
           updated_at?: string
+          visibility?: string
         }
         Relationships: [
           {
@@ -4368,6 +4464,14 @@ export type Database = {
     Functions: {
       can_create_admin: { Args: never; Returns: boolean }
       can_register_as_admin: { Args: { p_email: string }; Returns: boolean }
+      can_view_hr_document: {
+        Args: { _document_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_view_hr_folder: {
+        Args: { _folder_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_view_notice: {
         Args: {
           _user_id: string
