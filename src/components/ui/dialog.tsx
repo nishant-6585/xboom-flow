@@ -16,16 +16,7 @@ if (typeof document !== "undefined") {
     } else {
       tabSwitchCleanupTimer = setTimeout(() => {
         isTabSwitching = false;
-      }, 1000);
-    }
-  });
-
-  // focusout fires BEFORE blur - catches the earliest possible moment
-  document.addEventListener("focusout", (e) => {
-    // If no related target, focus is leaving the document entirely (tab switch)
-    if (!e.relatedTarget) {
-      isTabSwitching = true;
-      if (tabSwitchCleanupTimer) clearTimeout(tabSwitchCleanupTimer);
+      }, 500);
     }
   });
 
@@ -37,7 +28,7 @@ if (typeof document !== "undefined") {
   window.addEventListener("focus", () => {
     tabSwitchCleanupTimer = setTimeout(() => {
       isTabSwitching = false;
-    }, 1000);
+    }, 500);
   });
 }
 

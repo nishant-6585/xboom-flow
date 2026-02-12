@@ -18,14 +18,7 @@ if (typeof document !== "undefined") {
     } else {
       sheetTabSwitchTimer = setTimeout(() => {
         isSheetTabSwitching = false;
-      }, 1000);
-    }
-  });
-
-  document.addEventListener("focusout", (e) => {
-    if (!e.relatedTarget) {
-      isSheetTabSwitching = true;
-      if (sheetTabSwitchTimer) clearTimeout(sheetTabSwitchTimer);
+      }, 500);
     }
   });
 
@@ -37,7 +30,7 @@ if (typeof document !== "undefined") {
   window.addEventListener("focus", () => {
     sheetTabSwitchTimer = setTimeout(() => {
       isSheetTabSwitching = false;
-    }, 1000);
+    }, 500);
   });
 }
 

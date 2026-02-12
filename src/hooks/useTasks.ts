@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -113,11 +113,15 @@ export function useTasks() {
   const [loading, setLoading] = useState(true);
   const [taskCounts, setTaskCounts] = useState<TaskCounts | null>(null);
 
+  const initialLoadDoneRef = useRef(false);
+
   const fetchTasks = useCallback(async () => {
     if (!user) return;
 
     try {
-      setLoading(true);
+      if (!initialLoadDoneRef.current) {
+        setLoading(true);
+      }
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
@@ -132,6 +136,7 @@ export function useTasks() {
       toast.error('Failed to fetch tasks');
     } finally {
       setLoading(false);
+      initialLoadDoneRef.current = true;
     }
   }, [user]);
 

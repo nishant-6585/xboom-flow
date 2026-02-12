@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -85,6 +85,8 @@ export function useSuppliers() {
     return true;
   }, []);
 
+  const initialLoadDoneRef = useRef(false);
+
   const fetchSuppliers = useCallback(async () => {
     if (!user) {
       setSuppliers([]);
@@ -93,7 +95,9 @@ export function useSuppliers() {
     }
 
     try {
-      setLoading(true);
+      if (!initialLoadDoneRef.current) {
+        setLoading(true);
+      }
 
       // Fetch user role to determine if bank details should be included
       const { data: roleData } = await supabase
@@ -132,6 +136,7 @@ export function useSuppliers() {
       toast.error('Failed to fetch suppliers');
     } finally {
       setLoading(false);
+      initialLoadDoneRef.current = true;
     }
   }, [user]);
 

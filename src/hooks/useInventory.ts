@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -43,6 +43,8 @@ export function useInventory() {
 
   const canManage = role === 'supply_chain' || role === 'admin' || role === 'finance';
 
+  const initialLoadDoneRef = useRef(false);
+
   const fetchInventory = useCallback(async () => {
     if (!user) {
       setInventory([]);
@@ -51,7 +53,9 @@ export function useInventory() {
     }
 
     try {
-      setLoading(true);
+      if (!initialLoadDoneRef.current) {
+        setLoading(true);
+      }
       const { data, error } = await supabase
         .from('inventory')
         .select('*')
@@ -64,6 +68,7 @@ export function useInventory() {
       toast.error('Failed to fetch inventory');
     } finally {
       setLoading(false);
+      initialLoadDoneRef.current = true;
     }
   }, [user]);
 

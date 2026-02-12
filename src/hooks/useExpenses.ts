@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
@@ -62,9 +62,13 @@ export function useExpenses() {
   const canApprove = role === 'admin' || role === 'finance';
   const canDelete = role === 'admin';
 
+  const initialLoadDoneRef = useRef(false);
+
   const fetchExpenses = useCallback(async () => {
     try {
-      setLoading(true);
+      if (!initialLoadDoneRef.current) {
+        setLoading(true);
+      }
       const { data, error } = await supabase
         .from('expenses')
         .select('*')
@@ -77,6 +81,7 @@ export function useExpenses() {
       toast.error('Failed to load expenses');
     } finally {
       setLoading(false);
+      initialLoadDoneRef.current = true;
     }
   }, []);
 
