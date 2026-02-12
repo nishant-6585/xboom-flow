@@ -48,29 +48,12 @@ export function DocumentViewer({ open, onOpenChange, url, name }: DocumentViewer
         </DialogHeader>
         <div className="flex-1 overflow-hidden px-2 pb-2">
           {isPDF ? (
-            <object
-              data={url + "#toolbar=1&navpanes=0"}
-              type="application/pdf"
+            <iframe
+              src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
               className="w-full h-full rounded-md border"
-            >
-              <div className="w-full h-full flex flex-col items-center justify-center bg-muted/30 rounded-md">
-                <p className="text-muted-foreground text-center mb-4">
-                  PDF preview not supported in this browser.
-                </p>
-                <div className="flex gap-2">
-                  <Button onClick={() => window.open(url, "_blank")}>
-                    <ExternalLink className="h-4 w-4 mr-1" />
-                    Open in New Tab
-                  </Button>
-                  <a href={url} download={name}>
-                    <Button variant="outline">
-                      <Download className="h-4 w-4 mr-1" />
-                      Download
-                    </Button>
-                  </a>
-                </div>
-              </div>
-            </object>
+              title={name}
+              sandbox="allow-scripts allow-same-origin allow-popups"
+            />
           ) : isImage ? (
             <div className="w-full h-full flex items-center justify-center bg-muted/30 rounded-md overflow-auto">
               <img
