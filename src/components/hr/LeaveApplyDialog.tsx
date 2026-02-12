@@ -34,7 +34,9 @@ const LEAVE_TYPES: { value: LeaveType; label: string }[] = [
   { value: 'sick', label: 'Sick Leave' },
   { value: 'paid', label: 'Paid Leave' },
   { value: 'unpaid', label: 'Unpaid Leave' },
-  { value: 'half_day', label: 'Half Day' },
+  { value: 'half_day_casual', label: 'Half Day Casual Leave' },
+  { value: 'half_day_sick', label: 'Half Day Sick Leave' },
+  { value: 'wfh', label: 'Work from Home' },
 ];
 
 export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps>(({ open, onOpenChange, onSubmit }, ref) => {
