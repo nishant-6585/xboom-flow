@@ -13,7 +13,8 @@ import { LeaveApprovalCard } from "@/components/hr/LeaveApprovalCard";
 import { KPICard } from "@/components/hr/KPICard";
 import { TeamAttendanceOverview } from "@/components/hr/TeamAttendanceOverview";
 import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
-import { Plus, Calendar, Clock, FileText, Users, LayoutList, Package } from "lucide-react";
+import { HRDocumentsPanel } from "@/components/hr/HRDocumentsPanel";
+import { Plus, Calendar, Clock, FileText, Users, LayoutList, Package, FolderOpen } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function HR() {
@@ -46,6 +47,7 @@ export default function HR() {
   const [kpiLoading, setKpiLoading] = useState(false);
 
   const isAdmin = role === 'admin';
+  const isHROrAdmin = role === 'admin' || role === 'hr';
   const myLeaves = leaveRequests.filter((lr) => lr.employee_id === myEmployee?.id);
 
   useEffect(() => {
@@ -114,12 +116,12 @@ export default function HR() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className={`w-full grid ${isAdmin ? 'grid-cols-6' : 'grid-cols-4'} mb-6`}>
+          <TabsList className={`w-full grid ${isHROrAdmin ? 'grid-cols-7' : 'grid-cols-5'} mb-6`}>
             <TabsTrigger value="home" className="gap-1">
               <Clock className="h-4 w-4" />
               <span className="hidden sm:inline">Home</span>
             </TabsTrigger>
-            {isAdmin && (
+            {isHROrAdmin && (
               <TabsTrigger value="team" className="gap-1">
                 <LayoutList className="h-4 w-4" />
                 <span className="hidden sm:inline">Team</span>
@@ -137,7 +139,11 @@ export default function HR() {
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">KPI</span>
             </TabsTrigger>
-            {isAdmin && (
+            <TabsTrigger value="documents" className="gap-1">
+              <FolderOpen className="h-4 w-4" />
+              <span className="hidden sm:inline">HR Policies</span>
+            </TabsTrigger>
+            {isHROrAdmin && (
               <TabsTrigger value="assets" className="gap-1">
                 <Package className="h-4 w-4" />
                 <span className="hidden sm:inline">Assets</span>
@@ -156,7 +162,7 @@ export default function HR() {
               loading={loading}
             />
 
-            {isAdmin && pendingLeaves.length > 0 && (
+            {isHROrAdmin && pendingLeaves.length > 0 && (
               <div className="space-y-3">
                 <h3 className="font-semibold flex items-center gap-2">
                   <FileText className="h-4 w-4" />
@@ -175,7 +181,7 @@ export default function HR() {
             <KPICard kpi={myKPI} loading={kpiLoading} />
           </TabsContent>
 
-          {isAdmin && (
+          {isHROrAdmin && (
             <TabsContent value="team" className="space-y-4">
               <TeamAttendanceOverview
                 teamStatus={teamAttendanceStatus}
@@ -244,7 +250,7 @@ export default function HR() {
               )}
             </div>
 
-            {isAdmin && pendingLeaves.length > 0 && (
+            {isHROrAdmin && pendingLeaves.length > 0 && (
               <div className="space-y-3 pt-4 border-t">
                 <h3 className="font-semibold">Team Leave Requests</h3>
                 {pendingLeaves.map((leave) => (
@@ -289,7 +295,11 @@ export default function HR() {
             </div>
           </TabsContent>
 
-          {isAdmin && (
+          <TabsContent value="documents" className="space-y-4">
+            <HRDocumentsPanel />
+          </TabsContent>
+
+          {isHROrAdmin && (
             <TabsContent value="assets" className="space-y-4">
               <AssetManagementPanel />
             </TabsContent>
