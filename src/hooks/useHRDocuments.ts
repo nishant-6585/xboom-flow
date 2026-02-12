@@ -68,8 +68,11 @@ export function useHRDocuments() {
       if (error) throw error;
       const emps = (data || []) as EmployeeOption[];
       setEmployees(emps);
-      const depts = [...new Set(emps.map(e => e.department).filter(Boolean))].sort();
-      setDepartments(depts);
+      // Use all system roles as departments plus any unique employee departments
+      const systemDepts = ['Admin', 'Sales', 'Supply Chain', 'Finance', 'IT', 'Marketing', 'HR', 'General'];
+      const empDepts = emps.map(e => e.department).filter(Boolean);
+      const allDepts = [...new Set([...systemDepts, ...empDepts])].sort();
+      setDepartments(allDepts);
     } catch (error: any) {
       console.error('Error fetching employees:', error);
     }
