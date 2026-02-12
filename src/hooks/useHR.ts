@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -266,11 +266,16 @@ export function useHR() {
     }
   }, [user]);
 
+  const initialLoadDoneRef = useRef(false);
+
   const fetchAll = useCallback(async () => {
-    setLoading(true);
+    if (!initialLoadDoneRef.current) {
+      setLoading(true);
+    }
     await fetchEmployees();
     await fetchTeamAttendanceStatus();
     setLoading(false);
+    initialLoadDoneRef.current = true;
   }, [fetchEmployees, fetchTeamAttendanceStatus]);
 
   useEffect(() => {
