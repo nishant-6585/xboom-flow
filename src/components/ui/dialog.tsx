@@ -4,44 +4,41 @@ import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-// Track tab visibility to prevent dialog dismissal on tab switch
-function useTabSwitchGuard() {
-  const isTabSwitchingRef = React.useRef(false);
+// Global tab switch state shared across all dialog instances
+let isTabSwitching = false;
+let tabSwitchCleanupTimer: ReturnType<typeof setTimeout> | null = null;
 
-  React.useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        isTabSwitchingRef.current = true;
-      } else {
-        // Keep the guard up for a short window after returning
-        setTimeout(() => {
-          isTabSwitchingRef.current = false;
-        }, 500);
-      }
-    };
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      isTabSwitching = true;
+      if (tabSwitchCleanupTimer) clearTimeout(tabSwitchCleanupTimer);
+    } else {
+      tabSwitchCleanupTimer = setTimeout(() => {
+        isTabSwitching = false;
+      }, 1000);
+    }
+  });
 
-    const handleBlur = () => {
-      isTabSwitchingRef.current = true;
-    };
+  // focusout fires BEFORE blur - catches the earliest possible moment
+  document.addEventListener("focusout", (e) => {
+    // If no related target, focus is leaving the document entirely (tab switch)
+    if (!e.relatedTarget) {
+      isTabSwitching = true;
+      if (tabSwitchCleanupTimer) clearTimeout(tabSwitchCleanupTimer);
+    }
+  });
 
-    const handleFocus = () => {
-      setTimeout(() => {
-        isTabSwitchingRef.current = false;
-      }, 500);
-    };
+  window.addEventListener("blur", () => {
+    isTabSwitching = true;
+    if (tabSwitchCleanupTimer) clearTimeout(tabSwitchCleanupTimer);
+  });
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("blur", handleBlur);
-    window.addEventListener("focus", handleFocus);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("blur", handleBlur);
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, []);
-
-  return isTabSwitchingRef;
+  window.addEventListener("focus", () => {
+    tabSwitchCleanupTimer = setTimeout(() => {
+      isTabSwitching = false;
+    }, 1000);
+  });
 }
 
 // Custom Dialog that prevents dismissal on tab switch
@@ -49,17 +46,15 @@ const Dialog = ({
   onOpenChange,
   ...props
 }: DialogPrimitive.DialogProps) => {
-  const isTabSwitchingRef = useTabSwitchGuard();
-
   const handleOpenChange = React.useCallback(
     (open: boolean) => {
-      // If the dialog is trying to close and we're in a tab switch, block it
-      if (!open && isTabSwitchingRef.current) {
+      // Block close events during tab switch
+      if (!open && isTabSwitching) {
         return;
       }
       onOpenChange?.(open);
     },
-    [onOpenChange, isTabSwitchingRef]
+    [onOpenChange]
   );
 
   return <DialogPrimitive.Root onOpenChange={handleOpenChange} {...props} />;

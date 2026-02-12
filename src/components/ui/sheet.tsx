@@ -5,59 +5,54 @@ import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-// Track tab visibility to prevent sheet dismissal on tab switch
-function useSheetTabSwitchGuard() {
-  const isTabSwitchingRef = React.useRef(false);
+// Import the global tab switch state from dialog module
+// We reuse the same global variable pattern
+let isSheetTabSwitching = false;
+let sheetTabSwitchTimer: ReturnType<typeof setTimeout> | null = null;
 
-  React.useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        isTabSwitchingRef.current = true;
-      } else {
-        setTimeout(() => {
-          isTabSwitchingRef.current = false;
-        }, 500);
-      }
-    };
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      isSheetTabSwitching = true;
+      if (sheetTabSwitchTimer) clearTimeout(sheetTabSwitchTimer);
+    } else {
+      sheetTabSwitchTimer = setTimeout(() => {
+        isSheetTabSwitching = false;
+      }, 1000);
+    }
+  });
 
-    const handleBlur = () => {
-      isTabSwitchingRef.current = true;
-    };
+  document.addEventListener("focusout", (e) => {
+    if (!e.relatedTarget) {
+      isSheetTabSwitching = true;
+      if (sheetTabSwitchTimer) clearTimeout(sheetTabSwitchTimer);
+    }
+  });
 
-    const handleFocus = () => {
-      setTimeout(() => {
-        isTabSwitchingRef.current = false;
-      }, 500);
-    };
+  window.addEventListener("blur", () => {
+    isSheetTabSwitching = true;
+    if (sheetTabSwitchTimer) clearTimeout(sheetTabSwitchTimer);
+  });
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("blur", handleBlur);
-    window.addEventListener("focus", handleFocus);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("blur", handleBlur);
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, []);
-
-  return isTabSwitchingRef;
+  window.addEventListener("focus", () => {
+    sheetTabSwitchTimer = setTimeout(() => {
+      isSheetTabSwitching = false;
+    }, 1000);
+  });
 }
 
 const Sheet = ({
   onOpenChange,
   ...props
 }: SheetPrimitive.DialogProps) => {
-  const isTabSwitchingRef = useSheetTabSwitchGuard();
-
   const handleOpenChange = React.useCallback(
     (open: boolean) => {
-      if (!open && isTabSwitchingRef.current) {
+      if (!open && isSheetTabSwitching) {
         return;
       }
       onOpenChange?.(open);
     },
-    [onOpenChange, isTabSwitchingRef]
+    [onOpenChange]
   );
 
   return <SheetPrimitive.Root onOpenChange={handleOpenChange} {...props} />;
