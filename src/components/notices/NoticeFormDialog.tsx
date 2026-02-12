@@ -32,6 +32,9 @@ const VISIBILITY_OPTIONS: { value: NoticeVisibility; label: string }[] = [
   { value: "supply_chain", label: "Supply Chain Team" },
   { value: "finance", label: "Finance Team" },
   { value: "admin", label: "Admins Only" },
+  { value: "it", label: "IT Team" },
+  { value: "marketing", label: "Marketing Team" },
+  { value: "hr", label: "HR Team" },
 ];
 
 const PRIORITY_OPTIONS: { value: NoticePriority; label: string }[] = [

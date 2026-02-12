@@ -2,10 +2,10 @@ import { useState, useEffect, createContext, useContext, ReactNode } from "react
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketing";
+type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketing" | "hr";
 
 // Priority order for determining primary role (highest privilege first)
-const ROLE_PRIORITY: AppRole[] = ["admin", "finance", "supply_chain", "it", "marketing", "sales"];
+const ROLE_PRIORITY: AppRole[] = ["admin", "hr", "finance", "supply_chain", "it", "marketing", "sales"];
 
 interface Profile {
   id: string;

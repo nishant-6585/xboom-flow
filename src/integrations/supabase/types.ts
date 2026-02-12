@@ -4394,6 +4394,7 @@ export type Database = {
         | "finance"
         | "it"
         | "marketing"
+        | "hr"
       asset_status:
         | "assigned"
         | "returned"
@@ -4428,6 +4429,7 @@ export type Database = {
         | "admin"
         | "it"
         | "marketing"
+        | "hr"
       order_status:
         | "po_received"
         | "payment_received"
@@ -4633,6 +4635,7 @@ export const Constants = {
         "finance",
         "it",
         "marketing",
+        "hr",
       ],
       asset_status: ["assigned", "returned", "lost", "damaged", "under_repair"],
       asset_type: [
@@ -4665,6 +4668,7 @@ export const Constants = {
         "admin",
         "it",
         "marketing",
+        "hr",
       ],
       order_status: [
         "po_received",

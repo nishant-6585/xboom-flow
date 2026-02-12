@@ -63,6 +63,7 @@ const departmentLabels: Record<string, string> = {
   admin: "Admin",
   it: "IT",
   marketing: "Marketing",
+  hr: "HR",
 };
 
 const categoryLabels: Record<string, string> = {

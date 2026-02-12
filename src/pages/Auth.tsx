@@ -12,7 +12,7 @@ import { z } from "zod";
 import logoIcon from "@/assets/logo-icon.jpeg";
 import { supabase } from "@/integrations/supabase/client";
 
-type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketing";
+type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketing" | "hr";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
@@ -481,6 +481,15 @@ const Auth = () => {
                       <span className="font-medium">Marketing Team</span>
                       <p className="text-sm text-muted-foreground">
                         Campaigns and content management
+                      </p>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-secondary/50 border border-border hover:border-primary/50 transition-colors">
+                    <RadioGroupItem value="hr" id="hr" />
+                    <Label htmlFor="hr" className="cursor-pointer flex-1">
+                      <span className="font-medium">HR Team</span>
+                      <p className="text-sm text-muted-foreground">
+                        Human resources and employee management
                       </p>
                     </Label>
                   </div>

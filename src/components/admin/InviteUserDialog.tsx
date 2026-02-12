@@ -251,6 +251,7 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
                       <SelectItem value="admin">Admin</SelectItem>
                       <SelectItem value="it">IT Team</SelectItem>
                       <SelectItem value="marketing">Marketing Team</SelectItem>
+                      <SelectItem value="hr">HR Team</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
