@@ -77,7 +77,9 @@ export function SharingPanel({
       department: dept,
       employee_id: null,
     }));
-    onChange([...shares, ...newShares]);
+    // Remove "All Employees" if it was selected
+    const filteredShares = shares.filter((s) => s.share_type !== "all");
+    onChange([...filteredShares, ...newShares]);
     setSelectedDepts([]);
     setAddMode(null);
     setDeptSearch("");
@@ -89,7 +91,9 @@ export function SharingPanel({
       department: null,
       employee_id: empId,
     }));
-    onChange([...shares, ...newShares]);
+    // Remove "All Employees" if it was selected
+    const filteredShares = shares.filter((s) => s.share_type !== "all");
+    onChange([...filteredShares, ...newShares]);
     setSelectedEmps([]);
     setAddMode(null);
     setEmpSearch("");
