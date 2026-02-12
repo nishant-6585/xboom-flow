@@ -1015,6 +1015,107 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_documents: {
+        Row: {
+          created_at: string
+          description: string | null
+          file_size: number | null
+          file_type: string | null
+          file_url: string
+          folder_id: string
+          id: string
+          name: string
+          updated_at: string
+          uploaded_by: string
+          uploaded_by_name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          file_url: string
+          folder_id: string
+          id?: string
+          name: string
+          updated_at?: string
+          uploaded_by: string
+          uploaded_by_name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string
+          folder_id?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          uploaded_by?: string
+          uploaded_by_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_documents_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "hr_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_folders: {
+        Row: {
+          created_at: string
+          created_by: string
+          created_by_name: string
+          employee_id: string | null
+          folder_type: string
+          id: string
+          name: string
+          parent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          created_by_name: string
+          employee_id?: string | null
+          folder_type?: string
+          id?: string
+          name: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          employee_id?: string | null
+          folder_type?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_folders_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "hr_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_items: {
         Row: {
           created_at: string
@@ -4372,6 +4473,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_hr_or_admin: { Args: { _user_id: string }; Returns: boolean }
       is_reporting_manager: {
         Args: { _employee_id: string; _manager_id: string }
         Returns: boolean
