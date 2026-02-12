@@ -199,12 +199,12 @@ const Admin = () => {
       const nameMap = new Map<string, string>();
       (profiles || []).forEach((p) => nameMap.set(p.user_id, p.name));
 
-      // Combine profiles with roles and manager names
+      // Combine profiles with roles (collect ALL roles) and manager names
       const usersWithRoles = (profiles || []).map((profile) => {
-        const userRole = roles?.find((r) => r.user_id === profile.user_id);
+        const userRoles = roles?.filter((r) => r.user_id === profile.user_id) || [];
         return {
           ...profile,
-          role: userRole?.role || "unknown",
+          role: userRoles.length > 0 ? userRoles.map(r => r.role).join(", ") : "unknown",
           reporting_manager_name: profile.reporting_manager_id 
             ? nameMap.get(profile.reporting_manager_id) || null 
             : null,
@@ -401,6 +401,10 @@ const Admin = () => {
   };
 
   const getRoleLabel = (role: string) => {
+    // Handle multi-role strings like "hr, admin"
+    if (role.includes(",")) {
+      return role.split(",").map(r => getRoleLabel(r.trim())).join(", ");
+    }
     switch (role) {
       case "sales":
         return "Sales Team";
@@ -414,6 +418,8 @@ const Admin = () => {
         return "IT Team";
       case "marketing":
         return "Marketing Team";
+      case "hr":
+        return "HR Team";
       default:
         return role;
     }
