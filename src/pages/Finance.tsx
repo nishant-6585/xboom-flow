@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -72,6 +72,7 @@ export default function Finance() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [procurements, setProcurements] = useState<InventoryProcurement[]>([]);
   const [loading, setLoading] = useState(true);
+  const initialLoadDoneRef = useRef(false);
   const [formOpen, setFormOpen] = useState(false);
 
   // Check role access
@@ -81,7 +82,9 @@ export default function Finance() {
     if (!user || !canAccess) return;
 
     const fetchData = async () => {
-      setLoading(true);
+      if (!initialLoadDoneRef.current) {
+        setLoading(true);
+      }
       try {
         // Fetch payment records (credits)
         const { data: payments } = await supabase
@@ -128,6 +131,7 @@ export default function Finance() {
         console.error('Error fetching finance data:', error);
       } finally {
         setLoading(false);
+        initialLoadDoneRef.current = true;
       }
     };
 
