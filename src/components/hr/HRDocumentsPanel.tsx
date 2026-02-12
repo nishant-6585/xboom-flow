@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
-import { useHRDocuments, HRFolder, HRDocument } from "@/hooks/useHRDocuments";
+import { useState, useMemo, useEffect } from "react";
+import { useHRDocuments, HRFolder, HRDocument, ShareRule } from "@/hooks/useHRDocuments";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -41,8 +43,12 @@ import {
   ShieldCheck,
   Users,
   Building,
+  Share2,
+  Lock,
+  Globe,
 } from "lucide-react";
 import { DocumentViewer } from "./DocumentViewer";
+import { SharingPanel, getVisibilityLabel } from "./SharingPanel";
 import { format } from "date-fns";
 
 const FOLDER_TYPES = [
@@ -52,12 +58,16 @@ const FOLDER_TYPES = [
   { value: "employee_personal", label: "Employee Folder", icon: Folder },
 ];
 
+type ShareTarget = { type: "folder" | "document"; id: string; name: string };
+
 export function HRDocumentsPanel() {
   const {
     folders,
     documents,
     loading,
     isHROrAdmin,
+    employees,
+    departments,
     createFolder,
     renameFolder,
     deleteFolder,
@@ -67,6 +77,10 @@ export function HRDocumentsPanel() {
     moveDocument,
     getSignedUrl,
     fetchDocuments,
+    fetchFolderShares,
+    fetchDocumentShares,
+    updateFolderShares,
+    updateDocumentShares,
   } = useHRDocuments();
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -76,10 +90,12 @@ export function HRDocumentsPanel() {
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderType, setNewFolderType] = useState("hr_policies");
+  const [newFolderShares, setNewFolderShares] = useState<Omit<ShareRule, "id" | "created_by" | "created_at">[]>([]);
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadDescription, setUploadDescription] = useState("");
+  const [uploadShares, setUploadShares] = useState<Omit<ShareRule, "id" | "created_by" | "created_at">[]>([]);
 
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<{ id: string; name: string; type: "folder" | "document" } | null>(null);
@@ -92,6 +108,44 @@ export function HRDocumentsPanel() {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [viewerName, setViewerName] = useState("");
+
+  // Sharing dialog
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareTarget, setShareTarget] = useState<ShareTarget | null>(null);
+  const [shareRules, setShareRules] = useState<Omit<ShareRule, "id" | "created_by" | "created_at">[]>([]);
+  const [shareLoading, setShareLoading] = useState(false);
+
+  // Folder share cache for display
+  const [folderSharesCache, setFolderSharesCache] = useState<Record<string, Omit<ShareRule, "id" | "created_by" | "created_at">[]>>({});
+  const [docSharesCache, setDocSharesCache] = useState<Record<string, Omit<ShareRule, "id" | "created_by" | "created_at">[]>>({});
+
+  // Load shares for visible folders/docs
+  useEffect(() => {
+    if (!isHROrAdmin) return;
+    const loadFolderShares = async () => {
+      const cache: typeof folderSharesCache = {};
+      for (const folder of folders) {
+        const shares = await fetchFolderShares(folder.id);
+        cache[folder.id] = shares;
+      }
+      setFolderSharesCache(cache);
+    };
+    if (folders.length > 0) loadFolderShares();
+  }, [folders, isHROrAdmin]);
+
+  useEffect(() => {
+    if (!isHROrAdmin || !currentFolderId) return;
+    const loadDocShares = async () => {
+      const docsInFolder = documents.filter(d => d.folder_id === currentFolderId);
+      const cache: typeof docSharesCache = {};
+      for (const doc of docsInFolder) {
+        const shares = await fetchDocumentShares(doc.id);
+        cache[doc.id] = shares;
+      }
+      setDocSharesCache(prev => ({ ...prev, ...cache }));
+    };
+    loadDocShares();
+  }, [documents, currentFolderId, isHROrAdmin]);
 
   // Navigation
   const currentFolders = useMemo(() => {
@@ -132,8 +186,11 @@ export function HRDocumentsPanel() {
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
     await createFolder(newFolderName.trim(), currentFolderId, newFolderType);
+    // If shares were set, apply them after folder creation
+    // We need the folder ID which we don't have yet, so we apply after refresh
     setNewFolderName("");
     setNewFolderType("hr_policies");
+    setNewFolderShares([]);
     setCreateFolderOpen(false);
   };
 
@@ -142,6 +199,7 @@ export function HRDocumentsPanel() {
     await uploadDocument(currentFolderId, uploadFile, uploadDescription);
     setUploadFile(null);
     setUploadDescription("");
+    setUploadShares([]);
     setUploadOpen(false);
   };
 
@@ -174,6 +232,40 @@ export function HRDocumentsPanel() {
     }
   };
 
+  const openShareDialog = async (target: ShareTarget) => {
+    setShareTarget(target);
+    setShareLoading(true);
+    setShareOpen(true);
+    try {
+      const shares = target.type === "folder"
+        ? await fetchFolderShares(target.id)
+        : await fetchDocumentShares(target.id);
+      setShareRules(shares.map(({ share_type, department, employee_id }) => ({
+        share_type, department, employee_id,
+      })));
+    } catch {
+      setShareRules([]);
+    }
+    setShareLoading(false);
+  };
+
+  const handleSaveSharing = async () => {
+    if (!shareTarget) return;
+    setShareLoading(true);
+    if (shareTarget.type === "folder") {
+      await updateFolderShares(shareTarget.id, shareRules);
+      // Refresh cache
+      const shares = await fetchFolderShares(shareTarget.id);
+      setFolderSharesCache(prev => ({ ...prev, [shareTarget.id]: shares }));
+    } else {
+      await updateDocumentShares(shareTarget.id, shareRules);
+      const shares = await fetchDocumentShares(shareTarget.id);
+      setDocSharesCache(prev => ({ ...prev, [shareTarget.id]: shares }));
+    }
+    setShareLoading(false);
+    setShareOpen(false);
+  };
+
   const getFolderTypeIcon = (type: string) => {
     const ft = FOLDER_TYPES.find((t) => t.value === type);
     return ft ? ft.icon : Folder;
@@ -189,6 +281,22 @@ export function HRDocumentsPanel() {
     if (bytes < 1024) return bytes + " B";
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const renderVisibilityBadge = (id: string, type: "folder" | "document", visibility: string) => {
+    if (!isHROrAdmin) return null;
+    const shares = type === "folder" ? folderSharesCache[id] : docSharesCache[id];
+    const label = getVisibilityLabel(shares || [], visibility);
+    const isPrivate = visibility === "private" || !shares || shares.length === 0;
+    return (
+      <Badge
+        variant="outline"
+        className={`text-[10px] gap-0.5 ${isPrivate ? "text-muted-foreground" : "text-emerald-700 border-emerald-300 bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:bg-emerald-950"}`}
+      >
+        {isPrivate ? <Lock className="h-2.5 w-2.5" /> : <Globe className="h-2.5 w-2.5" />}
+        {label}
+      </Badge>
+    );
   };
 
   if (loading) {
@@ -295,9 +403,12 @@ export function HRDocumentsPanel() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{folder.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {getFolderTypeLabel(folder.folder_type)}
-                      </p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-xs text-muted-foreground">
+                          {getFolderTypeLabel(folder.folder_type)}
+                        </p>
+                        {renderVisibilityBadge(folder.id, "folder", folder.visibility)}
+                      </div>
                     </div>
                     {isHROrAdmin && (
                       <DropdownMenu>
@@ -307,6 +418,12 @@ export function HRDocumentsPanel() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuItem
+                            onClick={() => openShareDialog({ type: "folder", id: folder.id, name: folder.name })}
+                          >
+                            <Share2 className="h-4 w-4 mr-2" /> Sharing
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={() => {
                               setRenameTarget({ id: folder.id, name: folder.name, type: "folder" });
@@ -368,9 +485,12 @@ export function HRDocumentsPanel() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate text-sm">{doc.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatFileSize(doc.file_size)} · {doc.uploaded_by_name} · {format(new Date(doc.created_at), "dd MMM yyyy")}
-                      </p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-xs text-muted-foreground">
+                          {formatFileSize(doc.file_size)} · {doc.uploaded_by_name} · {format(new Date(doc.created_at), "dd MMM yyyy")}
+                        </p>
+                        {renderVisibilityBadge(doc.id, "document", doc.visibility)}
+                      </div>
                       {doc.description && (
                         <p className="text-xs text-muted-foreground mt-0.5 truncate">{doc.description}</p>
                       )}
@@ -392,6 +512,12 @@ export function HRDocumentsPanel() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => openShareDialog({ type: "document", id: doc.id, name: doc.name })}
+                            >
+                              <Share2 className="h-4 w-4 mr-2" /> Sharing
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() => {
                                 setRenameTarget({ id: doc.id, name: doc.name, type: "document" });
@@ -447,7 +573,7 @@ export function HRDocumentsPanel() {
 
       {/* Create Folder Dialog */}
       <Dialog open={createFolderOpen} onOpenChange={setCreateFolderOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Create Folder</DialogTitle>
           </DialogHeader>
@@ -475,12 +601,40 @@ export function HRDocumentsPanel() {
                 </SelectContent>
               </Select>
             </div>
+            <SharingPanel
+              shares={newFolderShares}
+              onChange={setNewFolderShares}
+              employees={employees}
+              departments={departments}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateFolderOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateFolder} disabled={!newFolderName.trim()}>
+            <Button onClick={async () => {
+              if (!newFolderName.trim()) return;
+              await createFolder(newFolderName.trim(), currentFolderId, newFolderType);
+              // Apply shares to newly created folder (latest folder with that name)
+              if (newFolderShares.length > 0) {
+                // Small delay then refresh to get the new folder
+                setTimeout(async () => {
+                  const { data } = await (await import('@/integrations/supabase/client')).supabase
+                    .from('hr_folders')
+                    .select('id')
+                    .eq('name', newFolderName.trim())
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                  if (data?.[0]) {
+                    await updateFolderShares(data[0].id, newFolderShares);
+                  }
+                }, 500);
+              }
+              setNewFolderName("");
+              setNewFolderType("hr_policies");
+              setNewFolderShares([]);
+              setCreateFolderOpen(false);
+            }} disabled={!newFolderName.trim()}>
               Create
             </Button>
           </DialogFooter>
@@ -489,7 +643,7 @@ export function HRDocumentsPanel() {
 
       {/* Upload Dialog */}
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Upload Document</DialogTitle>
           </DialogHeader>
@@ -511,13 +665,71 @@ export function HRDocumentsPanel() {
                 rows={2}
               />
             </div>
+            <SharingPanel
+              shares={uploadShares}
+              onChange={setUploadShares}
+              employees={employees}
+              departments={departments}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setUploadOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleUpload} disabled={!uploadFile}>
+            <Button onClick={async () => {
+              if (!uploadFile || !currentFolderId) return;
+              await uploadDocument(currentFolderId, uploadFile, uploadDescription);
+              // Apply shares to newly uploaded document
+              if (uploadShares.length > 0) {
+                setTimeout(async () => {
+                  const { data } = await (await import('@/integrations/supabase/client')).supabase
+                    .from('hr_documents')
+                    .select('id')
+                    .eq('folder_id', currentFolderId)
+                    .eq('name', uploadFile.name)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                  if (data?.[0]) {
+                    await updateDocumentShares(data[0].id, uploadShares);
+                  }
+                }, 500);
+              }
+              setUploadFile(null);
+              setUploadDescription("");
+              setUploadShares([]);
+              setUploadOpen(false);
+            }} disabled={!uploadFile}>
               Upload
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sharing Dialog */}
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="h-5 w-5" />
+              Sharing: {shareTarget?.name}
+            </DialogTitle>
+          </DialogHeader>
+          {shareLoading ? (
+            <div className="py-8 text-center text-muted-foreground">Loading...</div>
+          ) : (
+            <SharingPanel
+              shares={shareRules}
+              onChange={setShareRules}
+              employees={employees}
+              departments={departments}
+            />
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShareOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveSharing} disabled={shareLoading}>
+              Save Sharing
             </Button>
           </DialogFooter>
         </DialogContent>

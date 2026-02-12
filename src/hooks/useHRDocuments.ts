@@ -13,6 +13,7 @@ export interface HRFolder {
   created_by_name: string;
   created_at: string;
   updated_at: string;
+  visibility: string;
 }
 
 export interface HRDocument {
@@ -27,6 +28,23 @@ export interface HRDocument {
   uploaded_by_name: string;
   created_at: string;
   updated_at: string;
+  visibility: string;
+}
+
+export interface ShareRule {
+  id: string;
+  share_type: 'all' | 'department' | 'individual';
+  department: string | null;
+  employee_id: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export interface EmployeeOption {
+  id: string;
+  name: string;
+  department: string;
+  user_id: string | null;
 }
 
 export function useHRDocuments() {
@@ -34,8 +52,28 @@ export function useHRDocuments() {
   const [folders, setFolders] = useState<HRFolder[]>([]);
   const [documents, setDocuments] = useState<HRDocument[]>([]);
   const [loading, setLoading] = useState(true);
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
 
   const isHROrAdmin = roles.includes('hr') || roles.includes('admin');
+
+  const fetchEmployees = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id, name, department, user_id')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      const emps = (data || []) as EmployeeOption[];
+      setEmployees(emps);
+      const depts = [...new Set(emps.map(e => e.department).filter(Boolean))].sort();
+      setDepartments(depts);
+    } catch (error: any) {
+      console.error('Error fetching employees:', error);
+    }
+  }, [user]);
 
   const fetchFolders = useCallback(async () => {
     if (!user) return;
@@ -71,13 +109,104 @@ export function useHRDocuments() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    await Promise.all([fetchFolders(), fetchDocuments()]);
+    await Promise.all([fetchFolders(), fetchDocuments(), fetchEmployees()]);
     setLoading(false);
-  }, [fetchFolders, fetchDocuments]);
+  }, [fetchFolders, fetchDocuments, fetchEmployees]);
 
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
+
+  // Sharing functions
+  const fetchFolderShares = async (folderId: string): Promise<ShareRule[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('hr_folder_shares')
+        .select('*')
+        .eq('folder_id', folderId);
+      if (error) throw error;
+      return (data || []) as unknown as ShareRule[];
+    } catch (error: any) {
+      console.error('Error fetching folder shares:', error);
+      return [];
+    }
+  };
+
+  const fetchDocumentShares = async (documentId: string): Promise<ShareRule[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('hr_document_shares')
+        .select('*')
+        .eq('document_id', documentId);
+      if (error) throw error;
+      return (data || []) as unknown as ShareRule[];
+    } catch (error: any) {
+      console.error('Error fetching document shares:', error);
+      return [];
+    }
+  };
+
+  const updateFolderShares = async (folderId: string, shares: Omit<ShareRule, 'id' | 'created_by' | 'created_at'>[]) => {
+    if (!user) return;
+    try {
+      // Delete existing shares
+      await supabase.from('hr_folder_shares').delete().eq('folder_id', folderId);
+      
+      // Determine visibility
+      const visibility = shares.length === 0 ? 'private' : 'shared';
+      
+      // Insert new shares
+      if (shares.length > 0) {
+        const rows = shares.map(s => ({
+          folder_id: folderId,
+          share_type: s.share_type,
+          department: s.department,
+          employee_id: s.employee_id,
+          created_by: user.id,
+        }));
+        const { error } = await supabase.from('hr_folder_shares').insert(rows);
+        if (error) throw error;
+      }
+      
+      // Update visibility on folder
+      await supabase.from('hr_folders').update({ visibility }).eq('id', folderId);
+      
+      toast.success('Folder sharing updated');
+      await fetchFolders();
+    } catch (error: any) {
+      console.error('Error updating folder shares:', error);
+      toast.error(error.message || 'Failed to update sharing');
+    }
+  };
+
+  const updateDocumentShares = async (documentId: string, shares: Omit<ShareRule, 'id' | 'created_by' | 'created_at'>[]) => {
+    if (!user) return;
+    try {
+      await supabase.from('hr_document_shares').delete().eq('document_id', documentId);
+      
+      const visibility = shares.length === 0 ? 'private' : 'shared';
+      
+      if (shares.length > 0) {
+        const rows = shares.map(s => ({
+          document_id: documentId,
+          share_type: s.share_type,
+          department: s.department,
+          employee_id: s.employee_id,
+          created_by: user.id,
+        }));
+        const { error } = await supabase.from('hr_document_shares').insert(rows);
+        if (error) throw error;
+      }
+      
+      await supabase.from('hr_documents').update({ visibility }).eq('id', documentId);
+      
+      toast.success('Document sharing updated');
+      await fetchDocuments();
+    } catch (error: any) {
+      console.error('Error updating document shares:', error);
+      toast.error(error.message || 'Failed to update sharing');
+    }
+  };
 
   const createFolder = async (name: string, parentId: string | null, folderType: string, employeeId?: string | null) => {
     if (!user || !profile) return;
@@ -89,6 +218,7 @@ export function useHRDocuments() {
         employee_id: employeeId || null,
         created_by: user.id,
         created_by_name: profile.name,
+        visibility: 'private',
       });
       if (error) throw error;
       toast.success('Folder created');
@@ -138,11 +268,6 @@ export function useHRDocuments() {
         .upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from('hr-documents')
-        .getPublicUrl(filePath);
-
-      // Since bucket is private, we'll use signed URLs later for viewing
       const { error: dbError } = await supabase.from('hr_documents').insert({
         folder_id: folderId,
         name: file.name,
@@ -152,6 +277,7 @@ export function useHRDocuments() {
         file_size: file.size,
         uploaded_by: user.id,
         uploaded_by_name: profile.name,
+        visibility: 'private',
       });
       if (dbError) throw dbError;
 
@@ -165,9 +291,7 @@ export function useHRDocuments() {
 
   const deleteDocument = async (docId: string, filePath: string) => {
     try {
-      // Delete from storage
       await supabase.storage.from('hr-documents').remove([filePath]);
-      // Delete from DB
       const { error } = await supabase
         .from('hr_documents')
         .delete()
@@ -212,7 +336,7 @@ export function useHRDocuments() {
     try {
       const { data, error } = await supabase.storage
         .from('hr-documents')
-        .createSignedUrl(filePath, 3600); // 1 hour
+        .createSignedUrl(filePath, 3600);
       if (error) throw error;
       return data.signedUrl;
     } catch (error: any) {
@@ -227,6 +351,8 @@ export function useHRDocuments() {
     documents,
     loading,
     isHROrAdmin,
+    employees,
+    departments,
     createFolder,
     renameFolder,
     deleteFolder,
@@ -237,5 +363,9 @@ export function useHRDocuments() {
     getSignedUrl,
     fetchDocuments,
     fetchAll,
+    fetchFolderShares,
+    fetchDocumentShares,
+    updateFolderShares,
+    updateDocumentShares,
   };
 }
