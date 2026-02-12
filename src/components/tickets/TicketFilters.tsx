@@ -85,6 +85,7 @@ const departments: { value: string; label: string }[] = [
   { value: "admin", label: "Admin" },
   { value: "it", label: "IT" },
   { value: "marketing", label: "Marketing" },
+  { value: "hr", label: "HR" },
 ];
 
 export function TicketFilters({ filters, onFiltersChange }: TicketFiltersProps) {

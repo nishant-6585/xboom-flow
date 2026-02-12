@@ -24,7 +24,7 @@ import { format, isPast, formatDistanceToNow } from "date-fns";
 interface TeamMember {
   user_id: string;
   name: string;
-  role: 'sales' | 'supply_chain' | 'admin' | 'finance' | 'it' | 'marketing';
+  role: 'sales' | 'supply_chain' | 'admin' | 'finance' | 'it' | 'marketing' | 'hr';
 }
 
 interface TaskTableViewProps {

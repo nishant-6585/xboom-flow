@@ -83,7 +83,7 @@ type ViewMode = 'list' | 'table' | 'kanban';
 interface TeamMember {
   user_id: string;
   name: string;
-  role: 'sales' | 'supply_chain' | 'admin' | 'finance' | 'it' | 'marketing';
+  role: 'sales' | 'supply_chain' | 'admin' | 'finance' | 'it' | 'marketing' | 'hr';
 }
 
 export function TasksPanel() {

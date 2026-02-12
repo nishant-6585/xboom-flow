@@ -63,9 +63,9 @@ export function Header() {
 
   // Main navigation items
   const mainNavItems = [
-    { path: "/", label: "Dashboard", icon: Home, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
+    { path: "/", label: "Dashboard", icon: Home, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/sales", label: "Sales", icon: Zap, roles: ["sales", "supply_chain", "admin"] },
-    { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
+    { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/pricelist", label: "Pricelist", icon: FileSpreadsheet, roles: ["sales", "supply_chain", "admin"] },
     { path: "/procurement", label: "Procurement", icon: ShoppingCart, roles: ["admin", "supply_chain", "finance"] },
     { path: "/inventory", label: "Inventory", icon: Warehouse, roles: ["sales", "supply_chain", "admin"] },
@@ -77,15 +77,15 @@ export function Header() {
 
   // Secondary navigation items (Tasks, HR, Expenses, Forms, Repairs, Trainings, Tickets)
   const secondaryNavItems = [
-    { path: "/tasks", label: "Tasks", icon: ListTodo, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
-    { path: "/tickets", label: "Tickets", icon: Ticket, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
-    { path: "/hr", label: "HR", icon: Users, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
-    { path: "/meetings", label: "Meetings", icon: CalendarDays, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
-    { path: "/expenses", label: "Expenses", icon: Receipt, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
-    { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
-    { path: "/repairs", label: "Repairs", icon: Wrench, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
-    { path: "/trainings", label: "Training", icon: GraduationCap, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
-    { path: "/billing", label: "Billing", icon: FileText, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing"] },
+    { path: "/tasks", label: "Tasks", icon: ListTodo, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/tickets", label: "Tickets", icon: Ticket, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/hr", label: "HR", icon: Users, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/meetings", label: "Meetings", icon: CalendarDays, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/expenses", label: "Expenses", icon: Receipt, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/repairs", label: "Repairs", icon: Wrench, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/trainings", label: "Training", icon: GraduationCap, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/billing", label: "Billing", icon: FileText, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/buyback", label: "Buyback", icon: RotateCcw, roles: ["sales", "supply_chain", "admin", "finance"] },
   ];
 

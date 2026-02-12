@@ -35,6 +35,9 @@ const visibilityLabels: Record<NoticeVisibility, string> = {
   supply_chain: "Supply Chain",
   finance: "Finance",
   admin: "Admin",
+  it: "IT",
+  marketing: "Marketing",
+  hr: "HR",
 };
 
 export function NoticeCard({

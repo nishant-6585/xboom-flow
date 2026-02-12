@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
-export type NoticeVisibility = "all" | "sales" | "supply_chain" | "finance" | "admin";
+export type NoticeVisibility = "all" | "sales" | "supply_chain" | "finance" | "admin" | "it" | "marketing" | "hr";
 export type NoticePriority = "low" | "normal" | "high" | "urgent";
 
 export interface Notice {
