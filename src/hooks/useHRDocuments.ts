@@ -339,7 +339,7 @@ export function useHRDocuments() {
     try {
       const { data, error } = await supabase.storage
         .from('hr-documents')
-        .createSignedUrl(filePath, 3600);
+        .createSignedUrl(filePath, 3600, { download: false });
       if (error) throw error;
       return data.signedUrl;
     } catch (error: any) {
