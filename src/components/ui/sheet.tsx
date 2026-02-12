@@ -1,11 +1,67 @@
+import * as React from "react";
 import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { cva, type VariantProps } from "class-variance-authority";
 import { X } from "lucide-react";
-import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const Sheet = SheetPrimitive.Root;
+// Track tab visibility to prevent sheet dismissal on tab switch
+function useSheetTabSwitchGuard() {
+  const isTabSwitchingRef = React.useRef(false);
+
+  React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        isTabSwitchingRef.current = true;
+      } else {
+        setTimeout(() => {
+          isTabSwitchingRef.current = false;
+        }, 500);
+      }
+    };
+
+    const handleBlur = () => {
+      isTabSwitchingRef.current = true;
+    };
+
+    const handleFocus = () => {
+      setTimeout(() => {
+        isTabSwitchingRef.current = false;
+      }, 500);
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", handleBlur);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
+
+  return isTabSwitchingRef;
+}
+
+const Sheet = ({
+  onOpenChange,
+  ...props
+}: SheetPrimitive.DialogProps) => {
+  const isTabSwitchingRef = useSheetTabSwitchGuard();
+
+  const handleOpenChange = React.useCallback(
+    (open: boolean) => {
+      if (!open && isTabSwitchingRef.current) {
+        return;
+      }
+      onOpenChange?.(open);
+    },
+    [onOpenChange, isTabSwitchingRef]
+  );
+
+  return <SheetPrimitive.Root onOpenChange={handleOpenChange} {...props} />;
+};
 
 const SheetTrigger = SheetPrimitive.Trigger;
 

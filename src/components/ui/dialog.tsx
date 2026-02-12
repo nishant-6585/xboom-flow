@@ -4,7 +4,66 @@ import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-const Dialog = DialogPrimitive.Root;
+// Track tab visibility to prevent dialog dismissal on tab switch
+function useTabSwitchGuard() {
+  const isTabSwitchingRef = React.useRef(false);
+
+  React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        isTabSwitchingRef.current = true;
+      } else {
+        // Keep the guard up for a short window after returning
+        setTimeout(() => {
+          isTabSwitchingRef.current = false;
+        }, 500);
+      }
+    };
+
+    const handleBlur = () => {
+      isTabSwitchingRef.current = true;
+    };
+
+    const handleFocus = () => {
+      setTimeout(() => {
+        isTabSwitchingRef.current = false;
+      }, 500);
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", handleBlur);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
+
+  return isTabSwitchingRef;
+}
+
+// Custom Dialog that prevents dismissal on tab switch
+const Dialog = ({
+  onOpenChange,
+  ...props
+}: DialogPrimitive.DialogProps) => {
+  const isTabSwitchingRef = useTabSwitchGuard();
+
+  const handleOpenChange = React.useCallback(
+    (open: boolean) => {
+      // If the dialog is trying to close and we're in a tab switch, block it
+      if (!open && isTabSwitchingRef.current) {
+        return;
+      }
+      onOpenChange?.(open);
+    },
+    [onOpenChange, isTabSwitchingRef]
+  );
+
+  return <DialogPrimitive.Root onOpenChange={handleOpenChange} {...props} />;
+};
 
 const DialogTrigger = DialogPrimitive.Trigger;
 
