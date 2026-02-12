@@ -18,6 +18,9 @@ const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
   paid: 'Paid',
   unpaid: 'Unpaid',
   half_day: 'Half Day',
+  half_day_casual: 'Half Day Casual',
+  half_day_sick: 'Half Day Sick',
+  wfh: 'Work from Home',
 };
 
 export function LeaveApprovalCard({ leave, onApprove }: LeaveApprovalCardProps) {
