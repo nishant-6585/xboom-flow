@@ -24,6 +24,22 @@ interface OrderNotificationRequest {
   notes?: string;
 }
 
+// Input sanitization: escape HTML to prevent injection in email templates
+const escapeHtml = (str: string): string => {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
+// Validate and sanitize string input with length limit
+const sanitizeInput = (value: unknown, maxLength = 500): string => {
+  if (typeof value !== "string") return "";
+  return escapeHtml(value.slice(0, maxLength));
+};
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -63,12 +79,38 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const orderData: OrderNotificationRequest = await req.json();
+    const rawData: OrderNotificationRequest = await req.json();
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
     if (!RESEND_API_KEY) {
       throw new Error("RESEND_API_KEY is not configured");
     }
+
+    // Validate required fields
+    if (!rawData.orderNumber || !rawData.customerName || !rawData.productName) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Sanitize all user-provided string inputs before inserting into HTML
+    const orderData = {
+      orderNumber: sanitizeInput(rawData.orderNumber, 50),
+      customerName: sanitizeInput(rawData.customerName, 200),
+      customerCompany: sanitizeInput(rawData.customerCompany, 200),
+      customerEmail: sanitizeInput(rawData.customerEmail, 255),
+      productName: sanitizeInput(rawData.productName, 200),
+      productCode: sanitizeInput(rawData.productCode, 100),
+      quantity: typeof rawData.quantity === "number" ? rawData.quantity : 0,
+      sellingPrice: typeof rawData.sellingPrice === "number" ? rawData.sellingPrice : undefined,
+      totalAmount: typeof rawData.totalAmount === "number" ? rawData.totalAmount : undefined,
+      salesPersonName: sanitizeInput(rawData.salesPersonName, 200),
+      estimatedDelivery: sanitizeInput(rawData.estimatedDelivery, 100),
+      shippingAddress: sanitizeInput(rawData.shippingAddress, 500),
+      paymentTerms: sanitizeInput(rawData.paymentTerms, 200),
+      notes: sanitizeInput(rawData.notes, 1000),
+    };
 
     const formatCurrency = (amount?: number) => {
       if (!amount) return "N/A";
@@ -199,7 +241,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!emailResponse.ok) {
       console.error("Resend API error:", result);
-      throw new Error(result.message || "Failed to send email");
+      throw new Error("Failed to send email");
     }
 
     console.log("Order notification email sent successfully:", result);
@@ -214,7 +256,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error sending order notification email:", error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: "Failed to send notification" }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },

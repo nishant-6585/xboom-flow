@@ -877,6 +877,13 @@ export type Database = {
             referencedRelation: "forms"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "form_fields_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       form_permissions: {
@@ -948,6 +955,13 @@ export type Database = {
             referencedRelation: "forms"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "form_submissions_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       form_views: {
@@ -978,6 +992,13 @@ export type Database = {
             columns: ["form_id"]
             isOneToOne: false
             referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_views_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms_public"
             referencedColumns: ["id"]
           },
         ]
@@ -4394,6 +4415,27 @@ export type Database = {
       }
     }
     Views: {
+      forms_public: {
+        Row: {
+          description: string | null
+          id: string | null
+          is_active: boolean | null
+          name: string | null
+        }
+        Insert: {
+          description?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          name?: string | null
+        }
+        Update: {
+          description?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          name?: string | null
+        }
+        Relationships: []
+      }
       pricelist_public: {
         Row: {
           availability: string | null
