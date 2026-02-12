@@ -186,7 +186,13 @@ export function SharingPanel({
             variant="outline"
             size="sm"
             className="gap-1 text-xs"
-            onClick={() => setAddMode("department")}
+            onClick={() => {
+              setAddMode("department");
+              // Uncheck "All Employees" if selected
+              if (isSharedWithAll) {
+                onChange(shares.filter((s) => s.share_type !== "all"));
+              }
+            }}
           >
             <Building2 className="h-3.5 w-3.5" />
             Add Departments
@@ -195,7 +201,13 @@ export function SharingPanel({
             variant="outline"
             size="sm"
             className="gap-1 text-xs"
-            onClick={() => setAddMode("individual")}
+            onClick={() => {
+              setAddMode("individual");
+              // Uncheck "All Employees" if selected
+              if (isSharedWithAll) {
+                onChange(shares.filter((s) => s.share_type !== "all"));
+              }
+            }}
           >
             <User className="h-3.5 w-3.5" />
             Add Employees
