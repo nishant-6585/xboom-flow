@@ -56,6 +56,7 @@ interface ApprovedUser {
   email: string;
   created_at: string;
   role: string;
+  department: string;
   reporting_manager_id: string | null;
   reporting_manager_name?: string;
 }
@@ -195,9 +196,21 @@ const Admin = () => {
 
       if (rolesError) throw rolesError;
 
+      // Fetch departments from employees table
+      const { data: employees } = await supabase
+        .from("employees")
+        .select("user_id, department")
+        .eq("is_active", true);
+
       // Create a name lookup map
       const nameMap = new Map<string, string>();
       (profiles || []).forEach((p) => nameMap.set(p.user_id, p.name));
+
+      // Create department lookup map
+      const deptMap = new Map<string, string>();
+      (employees || []).forEach((e: any) => {
+        if (e.user_id) deptMap.set(e.user_id, e.department || "General");
+      });
 
       // Combine profiles with roles (collect ALL roles) and manager names
       const usersWithRoles = (profiles || []).map((profile) => {
@@ -205,6 +218,7 @@ const Admin = () => {
         return {
           ...profile,
           role: userRoles.length > 0 ? userRoles.map(r => r.role).join(", ") : "unknown",
+          department: deptMap.get(profile.user_id) || "General",
           reporting_manager_name: profile.reporting_manager_id 
             ? nameMap.get(profile.reporting_manager_id) || null 
             : null,
@@ -718,6 +732,16 @@ const Admin = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
+                    {/* Column headings */}
+                    <div className="hidden lg:flex items-center justify-between px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      <div className="min-w-0 flex-1">User</div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-[130px] text-center">Department</span>
+                        <span className="w-[130px] text-center">Role</span>
+                        <span className="w-[150px] text-center">Manager</span>
+                        <span className="w-[200px]"></span>
+                      </div>
+                    </div>
                     {approvedUsers.map((user) => (
                       <div
                         key={user.id}
@@ -742,6 +766,11 @@ const Admin = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
+                          {/* Department Display */}
+                          <span className="inline-flex items-center justify-center w-[130px] h-8 px-3 text-sm rounded-md bg-muted text-muted-foreground border border-border">
+                            {user.department || "General"}
+                          </span>
+
                           {/* Role Change Dropdown */}
                           <Select
                             value={user.role}
