@@ -183,66 +183,82 @@ export default function Tickets() {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <Card 
-            className="cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setFilters({ ...filters, status: "open" })}
+            className={`cursor-pointer transition-all hover:shadow-md ${
+              filters.status === "open" ? "bg-primary/10 border-primary border-2" : ""
+            }`}
+            onClick={() => setFilters({ ...filters, status: filters.status === "open" ? "all" : "open", slaBreached: false })}
           >
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className={`text-sm font-medium ${
+                filters.status === "open" ? "text-primary" : "text-muted-foreground"
+              }`}>
                 Open
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <TicketIcon className="w-5 h-5 text-primary" />
-                <span className="text-2xl font-bold">{openCount}</span>
+                <TicketIcon className={`w-5 h-5 ${filters.status === "open" ? "text-primary" : "text-primary"}`} />
+                <span className={`text-2xl font-bold ${filters.status === "open" ? "text-primary" : ""}`}>{openCount}</span>
               </div>
             </CardContent>
           </Card>
           <Card 
-            className="cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setFilters({ ...filters, status: "in_progress" })}
+            className={`cursor-pointer transition-all hover:shadow-md ${
+              filters.status === "in_progress" ? "bg-primary/10 border-primary border-2" : ""
+            }`}
+            onClick={() => setFilters({ ...filters, status: filters.status === "in_progress" ? "all" : "in_progress", slaBreached: false })}
           >
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className={`text-sm font-medium ${
+                filters.status === "in_progress" ? "text-primary" : "text-muted-foreground"
+              }`}>
                 In Progress
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-yellow-500" />
-                <span className="text-2xl font-bold">{inProgressCount}</span>
+                <Clock className={`w-5 h-5 ${filters.status === "in_progress" ? "text-primary" : "text-yellow-500"}`} />
+                <span className={`text-2xl font-bold ${filters.status === "in_progress" ? "text-primary" : ""}`}>{inProgressCount}</span>
               </div>
             </CardContent>
           </Card>
           <Card 
-            className="cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setFilters({ ...filters, status: "resolved" })}
+            className={`cursor-pointer transition-all hover:shadow-md ${
+              filters.status === "resolved" ? "bg-primary/10 border-primary border-2" : ""
+            }`}
+            onClick={() => setFilters({ ...filters, status: filters.status === "resolved" ? "all" : "resolved", slaBreached: false })}
           >
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className={`text-sm font-medium ${
+                filters.status === "resolved" ? "text-primary" : "text-muted-foreground"
+              }`}>
                 Resolved
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-green-500" />
-                <span className="text-2xl font-bold">{resolvedCount}</span>
+                <CheckCircle2 className={`w-5 h-5 ${filters.status === "resolved" ? "text-primary" : "text-green-500"}`} />
+                <span className={`text-2xl font-bold ${filters.status === "resolved" ? "text-primary" : ""}`}>{resolvedCount}</span>
               </div>
             </CardContent>
           </Card>
           <Card 
-            className={`cursor-pointer hover:shadow-md transition-shadow ${overdueCount > 0 ? "border-destructive" : ""}`}
-            onClick={() => setFilters({ ...filters, slaBreached: true })}
+            className={`cursor-pointer transition-all hover:shadow-md ${
+              filters.slaBreached ? "bg-primary/10 border-primary border-2" : overdueCount > 0 ? "border-destructive" : ""
+            }`}
+            onClick={() => setFilters({ ...filters, slaBreached: !filters.slaBreached, status: "all" })}
           >
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className={`text-sm font-medium ${
+                filters.slaBreached ? "text-primary" : "text-muted-foreground"
+              }`}>
                 SLA Breached
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-destructive" />
-                <span className={`text-2xl font-bold ${overdueCount > 0 ? "text-destructive" : ""}`}>
+                <AlertCircle className={`w-5 h-5 ${filters.slaBreached ? "text-primary" : "text-destructive"}`} />
+                <span className={`text-2xl font-bold ${filters.slaBreached ? "text-primary" : overdueCount > 0 ? "text-destructive" : ""}`}>
                   {overdueCount}
                 </span>
               </div>

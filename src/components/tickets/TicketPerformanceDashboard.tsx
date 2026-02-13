@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -51,9 +51,8 @@ interface UserPerformance {
 }
 
 export function TicketPerformanceDashboard({ tickets }: TicketPerformanceDashboardProps) {
-   const { orders } = useOrders();
-   const { enquiries } = useEnquiries();
-   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+  const { orders } = useOrders();
+  const { enquiries } = useEnquiries();
 
   const userPerformance = useMemo(() => {
     const performanceMap = new Map<string, UserPerformance>();
@@ -206,96 +205,52 @@ export function TicketPerformanceDashboard({ tickets }: TicketPerformanceDashboa
   return (
     <div className="space-y-6">
       {/* Summary Stats */}
-       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-         <Card
-           className={`cursor-pointer transition-all ${
-             selectedStatus === "open"
-               ? "bg-primary/10 border-primary border-2"
-               : "border"
-           }`}
-           onClick={() => setSelectedStatus(selectedStatus === "open" ? null : "open")}
-         >
-           <CardHeader className="pb-2">
-             <CardTitle className={`text-sm font-medium flex items-center gap-2 ${
-               selectedStatus === "open" ? "text-primary" : "text-muted-foreground"
-             }`}>
-               <CheckCircle2 className="w-4 h-4" />
-               Open
-             </CardTitle>
-           </CardHeader>
-           <CardContent>
-             <div className={`text-2xl font-bold ${
-               selectedStatus === "open" ? "text-primary" : ""
-             }`}>{ticketStats.open}</div>
-           </CardContent>
-         </Card>
-         <Card
-           className={`cursor-pointer transition-all ${
-             selectedStatus === "in_progress"
-               ? "bg-primary/10 border-primary border-2"
-               : "border"
-           }`}
-           onClick={() => setSelectedStatus(selectedStatus === "in_progress" ? null : "in_progress")}
-         >
-           <CardHeader className="pb-2">
-             <CardTitle className={`text-sm font-medium flex items-center gap-2 ${
-               selectedStatus === "in_progress" ? "text-primary" : "text-muted-foreground"
-             }`}>
-               <Clock className="w-4 h-4" />
-               In Progress
-             </CardTitle>
-           </CardHeader>
-           <CardContent>
-             <div className={`text-2xl font-bold ${
-               selectedStatus === "in_progress" ? "text-primary" : ""
-             }`}>{ticketStats.inProgress}</div>
-           </CardContent>
-         </Card>
-         <Card
-           className={`cursor-pointer transition-all ${
-             selectedStatus === "resolved"
-               ? "bg-primary/10 border-primary border-2"
-               : "border"
-           }`}
-           onClick={() => setSelectedStatus(selectedStatus === "resolved" ? null : "resolved")}
-         >
-           <CardHeader className="pb-2">
-             <CardTitle className={`text-sm font-medium flex items-center gap-2 ${
-               selectedStatus === "resolved" ? "text-primary" : "text-muted-foreground"
-             }`}>
-               <Target className="w-4 h-4" />
-               Resolved
-             </CardTitle>
-           </CardHeader>
-           <CardContent>
-             <div className={`text-2xl font-bold ${
-               selectedStatus === "resolved" ? "text-primary" : ""
-             }`}>{ticketStats.resolved}</div>
-           </CardContent>
-         </Card>
-         <Card
-           className={`cursor-pointer transition-all ${
-             selectedStatus === "breached"
-               ? "bg-primary/10 border-primary border-2"
-               : "border"
-           }`}
-           onClick={() => setSelectedStatus(selectedStatus === "breached" ? null : "breached")}
-         >
-           <CardHeader className="pb-2">
-             <CardTitle className={`text-sm font-medium flex items-center gap-2 ${
-               selectedStatus === "breached" ? "text-primary" : "text-muted-foreground"
-             }`}>
-               <AlertCircle className="w-4 h-4" />
-               SLA Breached
-             </CardTitle>
-           </CardHeader>
-           <CardContent>
-             <div className={`text-2xl font-bold ${
-               selectedStatus === "breached" ? "text-primary" : ""
-             }`}>{ticketStats.breached}</div>
-           </CardContent>
-         </Card>
-       </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-500" />
+              Resolved
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{ticketStats.resolved}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Clock className="w-4 h-4 text-yellow-500" />
+              In Progress
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{ticketStats.inProgress}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Target className="w-4 h-4 text-primary" />
+              SLA Compliance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{overallSlaCompliance}%</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-destructive" />
+              SLA Breached
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-destructive">{ticketStats.breached}</div>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Performers */}
