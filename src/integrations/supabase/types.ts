@@ -362,6 +362,171 @@ export type Database = {
           },
         ]
       }
+      employee_kpi_progress: {
+        Row: {
+          achieved_value: number
+          attachment_url: string | null
+          created_at: string
+          id: string
+          kpi_id: string
+          progress_notes: string | null
+          updated_by: string
+          updated_by_name: string
+        }
+        Insert: {
+          achieved_value: number
+          attachment_url?: string | null
+          created_at?: string
+          id?: string
+          kpi_id: string
+          progress_notes?: string | null
+          updated_by: string
+          updated_by_name: string
+        }
+        Update: {
+          achieved_value?: number
+          attachment_url?: string | null
+          created_at?: string
+          id?: string
+          kpi_id?: string
+          progress_notes?: string | null
+          updated_by?: string
+          updated_by_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_kpi_progress_kpi_id_fkey"
+            columns: ["kpi_id"]
+            isOneToOne: false
+            referencedRelation: "employee_kpis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_kpis: {
+        Row: {
+          achieved_value: number | null
+          achievement_percentage: number | null
+          amber_threshold: number
+          created_at: string
+          created_by: string
+          created_by_name: string
+          department: string | null
+          description: string | null
+          due_date: string
+          employee_id: string
+          green_threshold: number
+          id: string
+          measurement_unit: Database["public"]["Enums"]["kpi_measurement_unit"]
+          month: number
+          priority: Database["public"]["Enums"]["kpi_priority"]
+          status: Database["public"]["Enums"]["kpi_rag_status"]
+          target_value: number
+          title: string
+          updated_at: string
+          weightage: number
+          year: number
+        }
+        Insert: {
+          achieved_value?: number | null
+          achievement_percentage?: number | null
+          amber_threshold?: number
+          created_at?: string
+          created_by: string
+          created_by_name: string
+          department?: string | null
+          description?: string | null
+          due_date: string
+          employee_id: string
+          green_threshold?: number
+          id?: string
+          measurement_unit?: Database["public"]["Enums"]["kpi_measurement_unit"]
+          month: number
+          priority?: Database["public"]["Enums"]["kpi_priority"]
+          status?: Database["public"]["Enums"]["kpi_rag_status"]
+          target_value: number
+          title: string
+          updated_at?: string
+          weightage?: number
+          year: number
+        }
+        Update: {
+          achieved_value?: number | null
+          achievement_percentage?: number | null
+          amber_threshold?: number
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          department?: string | null
+          description?: string | null
+          due_date?: string
+          employee_id?: string
+          green_threshold?: number
+          id?: string
+          measurement_unit?: Database["public"]["Enums"]["kpi_measurement_unit"]
+          month?: number
+          priority?: Database["public"]["Enums"]["kpi_priority"]
+          status?: Database["public"]["Enums"]["kpi_rag_status"]
+          target_value?: number
+          title?: string
+          updated_at?: string
+          weightage?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_kpis_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_roles_responsibilities: {
+        Row: {
+          created_at: string
+          created_by: string
+          created_by_name: string
+          effective_date: string
+          employee_id: string
+          id: string
+          responsibilities: string
+          role_title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          created_by_name: string
+          effective_date?: string
+          employee_id: string
+          id?: string
+          responsibilities: string
+          role_title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          effective_date?: string
+          employee_id?: string
+          id?: string
+          responsibilities?: string
+          role_title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_roles_responsibilities_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           created_at: string
@@ -4669,6 +4834,15 @@ export type Database = {
         | "cancelled"
         | "pending_signature"
         | "signed"
+      kpi_measurement_unit:
+        | "percentage"
+        | "numeric"
+        | "currency"
+        | "count"
+        | "rating"
+        | "boolean"
+      kpi_priority: "low" | "medium" | "high"
+      kpi_rag_status: "green" | "amber" | "red" | "not_started"
       notice_visibility:
         | "all"
         | "sales"
@@ -4908,6 +5082,16 @@ export const Constants = {
         "pending_signature",
         "signed",
       ],
+      kpi_measurement_unit: [
+        "percentage",
+        "numeric",
+        "currency",
+        "count",
+        "rating",
+        "boolean",
+      ],
+      kpi_priority: ["low", "medium", "high"],
+      kpi_rag_status: ["green", "amber", "red", "not_started"],
       notice_visibility: [
         "all",
         "sales",
