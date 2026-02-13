@@ -401,7 +401,8 @@ const getStatusChangeBlocks = (data: Record<string, unknown>) => {
           { type: "mrkdwn", text: `*📋 Order:*\n\`${data.order_number || 'N/A'}\`` },
           { type: "mrkdwn", text: `*👤 Customer:*\n${data.customer_name}` },
           { type: "mrkdwn", text: `*📦 Product:*\n${data.product_name || 'N/A'}` },
-          { type: "mrkdwn", text: `*🔄 Previous Status:*\n${(data.old_status as string || 'N/A').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}` }
+          { type: "mrkdwn", text: `*🔄 Previous Status:*\n${(data.old_status as string || 'N/A').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}` },
+          { type: "mrkdwn", text: `*${emoji} Current Status:*\n${formattedStatus}` }
         ]
       },
       {
