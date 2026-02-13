@@ -3,14 +3,13 @@ import { Header } from "@/components/Header";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { useHR, EmployeeKPI } from "@/hooks/useHR";
+import { useHR } from "@/hooks/useHR";
 import { useAuth } from "@/hooks/useAuth";
 import { AttendanceCard } from "@/components/hr/AttendanceCard";
 import { AttendanceCalendar } from "@/components/hr/AttendanceCalendar";
 import { LeaveRequestCard } from "@/components/hr/LeaveRequestCard";
 import { LeaveApplyDialog } from "@/components/hr/LeaveApplyDialog";
 import { LeaveApprovalCard } from "@/components/hr/LeaveApprovalCard";
-import { KPICard } from "@/components/hr/KPICard";
 import { TeamAttendanceOverview } from "@/components/hr/TeamAttendanceOverview";
 import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
 import { HRDocumentsPanel } from "@/components/hr/HRDocumentsPanel";
@@ -36,7 +35,6 @@ export default function HR() {
     endBreak,
     applyLeave,
     approveLeave,
-    getEmployeeKPI,
     fetchAttendanceLogs,
     fetchTeamAttendanceStatus,
   } = useHR();
@@ -44,8 +42,6 @@ export default function HR() {
   const [activeTab, setActiveTab] = useState("home");
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
-  const [myKPI, setMyKPI] = useState<EmployeeKPI | null>(null);
-  const [kpiLoading, setKpiLoading] = useState(false);
 
   const isAdmin = role === 'admin';
   const isHROrAdmin = role === 'admin' || role === 'hr';
@@ -53,21 +49,10 @@ export default function HR() {
 
   useEffect(() => {
     if (myEmployee) {
-      setKpiLoading(true);
-      getEmployeeKPI(myEmployee.id).then((kpi) => {
-        setMyKPI(kpi);
-        setKpiLoading(false);
-      });
-    }
-  }, [myEmployee, getEmployeeKPI]);
-
-  useEffect(() => {
-    if (myEmployee) {
       fetchAttendanceLogs(myEmployee.id, calendarMonth);
     }
   }, [myEmployee, calendarMonth, fetchAttendanceLogs]);
 
-  // Show loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -117,7 +102,7 @@ export default function HR() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className={`w-full grid ${isHROrAdmin ? 'grid-cols-8' : 'grid-cols-6'} mb-6`}>
+          <TabsList className={`w-full grid ${isHROrAdmin ? 'grid-cols-7' : 'grid-cols-5'} mb-6`}>
             <TabsTrigger value="home" className="gap-1">
               <Clock className="h-4 w-4" />
               <span className="hidden sm:inline">Home</span>
@@ -135,10 +120,6 @@ export default function HR() {
             <TabsTrigger value="leave" className="gap-1">
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">Leave</span>
-            </TabsTrigger>
-            <TabsTrigger value="kpi" className="gap-1">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">KPI</span>
             </TabsTrigger>
             <TabsTrigger value="kpi_management" className="gap-1">
               <Target className="h-4 w-4" />
@@ -182,8 +163,6 @@ export default function HR() {
                 ))}
               </div>
             )}
-
-            <KPICard kpi={myKPI} loading={kpiLoading} />
           </TabsContent>
 
           {isHROrAdmin && (
@@ -267,37 +246,6 @@ export default function HR() {
                 ))}
               </div>
             )}
-          </TabsContent>
-
-          <TabsContent value="kpi" className="space-y-4">
-            <KPICard kpi={myKPI} loading={kpiLoading} />
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="p-4 bg-muted/50 rounded-lg text-center">
-                <p className="text-2xl font-bold text-green-600">
-                  {myKPI?.present_days || 0}
-                </p>
-                <p className="text-sm text-muted-foreground">Days Present</p>
-              </div>
-              <div className="p-4 bg-muted/50 rounded-lg text-center">
-                <p className="text-2xl font-bold text-purple-600">
-                  {myKPI?.leave_days || 0}
-                </p>
-                <p className="text-sm text-muted-foreground">Leave Days</p>
-              </div>
-              <div className="p-4 bg-muted/50 rounded-lg text-center">
-                <p className="text-2xl font-bold text-blue-600">
-                  {myKPI?.total_working_hours?.toFixed(1) || 0}h
-                </p>
-                <p className="text-sm text-muted-foreground">Total Hours</p>
-              </div>
-              <div className="p-4 bg-muted/50 rounded-lg text-center">
-                <p className="text-2xl font-bold text-primary">
-                  {myKPI?.attendance_percentage || 0}%
-                </p>
-                <p className="text-sm text-muted-foreground">Attendance Rate</p>
-              </div>
-            </div>
           </TabsContent>
 
           <TabsContent value="kpi_management" className="space-y-4">
