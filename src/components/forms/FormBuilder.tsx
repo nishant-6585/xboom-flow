@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useFormFields, FormField } from "@/hooks/useForms";
-import { Plus, Trash2, X, Pencil, Check, GripVertical, Type, Mail, Phone, Hash, AlignLeft, ChevronDown, CheckSquare, Circle, Calendar } from "lucide-react";
+import { Plus, Trash2, X, Pencil, Check, GripVertical, Type, Mail, Phone, Hash, AlignLeft, ChevronDown, CheckSquare, Circle, Calendar, Paperclip } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DndContext,
@@ -38,6 +38,7 @@ const FIELD_TYPES = [
   { value: 'checkbox', label: 'Checkbox', icon: CheckSquare },
   { value: 'radio', label: 'Radio', icon: Circle },
   { value: 'date', label: 'Date', icon: Calendar },
+  { value: 'attachment', label: 'Attachment', icon: Paperclip },
 ];
 
 interface FormBuilderProps {
@@ -51,6 +52,7 @@ interface EditFieldState {
   placeholder: string;
   is_required: boolean;
   options: { label: string; value: string }[];
+  maxSizeMb: number;
 }
 
 // Sortable Field Item Component
@@ -115,8 +117,13 @@ function SortableFieldItem({
             </Badge>
           )}
         </div>
-        <span className="text-xs text-muted-foreground capitalize">{field.field_type}</span>
-        {field.options && field.options.length > 0 && (
+        <span className="text-xs text-muted-foreground capitalize">
+          {field.field_type}
+          {field.field_type === 'attachment' && field.options?.[0] && (
+            <span className="ml-1">· Max {field.options[0].value}MB</span>
+          )}
+        </span>
+        {field.options && field.options.length > 0 && field.field_type !== 'attachment' && (
           <div className="flex flex-wrap gap-1.5 mt-2">
             {field.options.map((opt, i) => (
               <Badge key={i} variant="secondary" className="text-xs font-normal">
@@ -159,6 +166,7 @@ export function FormBuilder({ formId, canEdit = true }: FormBuilderProps) {
     placeholder: '',
     is_required: false,
     options: [] as { label: string; value: string }[],
+    maxSizeMb: 5,
   });
   const [newOption, setNewOption] = useState('');
   
@@ -180,7 +188,9 @@ export function FormBuilder({ formId, canEdit = true }: FormBuilderProps) {
   );
 
   const needsOptions = ['dropdown', 'checkbox', 'radio'].includes(newField.field_type);
+  const isAttachment = newField.field_type === 'attachment';
   const editNeedsOptions = editFieldState ? ['dropdown', 'checkbox', 'radio'].includes(editFieldState.field_type) : false;
+  const editIsAttachment = editFieldState?.field_type === 'attachment';
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -203,13 +213,19 @@ export function FormBuilder({ formId, canEdit = true }: FormBuilderProps) {
   const handleAddField = () => {
     if (!newField.label.trim()) return;
     
+    const fieldOptions = needsOptions 
+      ? newField.options 
+      : isAttachment 
+        ? [{ label: 'max_size_mb', value: String(newField.maxSizeMb || 5) }] 
+        : undefined;
+
     createField({
       form_id: formId,
       field_type: newField.field_type,
       label: newField.label,
       placeholder: newField.placeholder || undefined,
       is_required: newField.is_required,
-      options: needsOptions ? newField.options : undefined,
+      options: fieldOptions,
       field_order: fields.length,
     });
 
@@ -219,6 +235,7 @@ export function FormBuilder({ formId, canEdit = true }: FormBuilderProps) {
       placeholder: '',
       is_required: false,
       options: [],
+      maxSizeMb: 5,
     });
   };
 
@@ -247,6 +264,7 @@ export function FormBuilder({ formId, canEdit = true }: FormBuilderProps) {
       placeholder: field.placeholder || '',
       is_required: field.is_required,
       options: field.options || [],
+      maxSizeMb: field.field_type === 'attachment' ? Number(field.options?.[0]?.value || 5) : 5,
     });
   };
 
@@ -259,13 +277,19 @@ export function FormBuilder({ formId, canEdit = true }: FormBuilderProps) {
   const handleSaveEdit = () => {
     if (!editingField || !editFieldState || !editFieldState.label.trim()) return;
     
+    const editOptions = editNeedsOptions 
+      ? editFieldState.options 
+      : editIsAttachment 
+        ? [{ label: 'max_size_mb', value: String(editFieldState.maxSizeMb || 5) }] 
+        : undefined;
+
     updateField({
       id: editingField.id,
       field_type: editFieldState.field_type,
       label: editFieldState.label,
       placeholder: editFieldState.placeholder || undefined,
       is_required: editFieldState.is_required,
-      options: editNeedsOptions ? editFieldState.options : undefined,
+      options: editOptions,
     });
     
     handleCancelEdit();
@@ -448,6 +472,27 @@ export function FormBuilder({ formId, canEdit = true }: FormBuilderProps) {
               </div>
             )}
 
+            {/* Max file size for attachment */}
+            {isAttachment && (
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground">Max File Size (MB)</Label>
+                <Select
+                  value={String(newField.maxSizeMb)}
+                  onValueChange={(v) => setNewField(prev => ({ ...prev, maxSizeMb: Number(v) }))}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 5, 10, 15, 20].map((size) => (
+                      <SelectItem key={size} value={String(size)}>{size} MB</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Accepted: PDF, Word, Images (JPG, PNG, WebP)</p>
+              </div>
+            )}
+
             <Button
               onClick={handleAddField}
               disabled={!newField.label.trim() || isCreating || (needsOptions && newField.options.length === 0)}
@@ -546,6 +591,26 @@ export function FormBuilder({ formId, canEdit = true }: FormBuilderProps) {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {editIsAttachment && (
+                <div className="space-y-2">
+                  <Label>Max File Size (MB)</Label>
+                  <Select
+                    value={String(editFieldState.maxSizeMb)}
+                    onValueChange={(v) => setEditFieldState(prev => prev ? ({ ...prev, maxSizeMb: Number(v) }) : prev)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 5, 10, 15, 20].map((size) => (
+                        <SelectItem key={size} value={String(size)}>{size} MB</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Accepted: PDF, Word, Images (JPG, PNG, WebP)</p>
                 </div>
               )}
 

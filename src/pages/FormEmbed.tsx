@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle, AlertCircle, Send, Shield } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Send, Shield, Paperclip, X, Upload } from "lucide-react";
 import { FormField } from "@/hooks/useForms";
 import { z } from "zod";
 
@@ -31,7 +31,19 @@ const FIELD_LIMITS = {
   dropdown: 500,
   checkbox: 500,
   radio: 500,
+  attachment: 500,
 } as const;
+
+const ACCEPTED_FILE_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+];
+
+const ACCEPTED_EXTENSIONS = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp';
 
 // Validate a single field value based on its type
 const validateFieldValue = (field: FormField, value: unknown): { valid: boolean; error?: string } => {
@@ -132,6 +144,7 @@ export default function FormEmbed() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [uploadingFields, setUploadingFields] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function fetchForm() {
@@ -252,6 +265,30 @@ export default function FormEmbed() {
 
   const updateValue = (fieldId: string, value: unknown) => {
     setFormValues((prev) => ({ ...prev, [fieldId]: value }));
+  };
+
+  const handleFileUpload = async (fieldId: string, file: File, maxSizeMb: number) => {
+    if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
+      setFieldErrors(prev => ({ ...prev, [fieldId]: 'Invalid file type. Accepted: PDF, Word, JPG, PNG, WebP' }));
+      return;
+    }
+    if (file.size > maxSizeMb * 1024 * 1024) {
+      setFieldErrors(prev => ({ ...prev, [fieldId]: `File size exceeds ${maxSizeMb}MB limit` }));
+      return;
+    }
+    setFieldErrors(prev => { const n = { ...prev }; delete n[fieldId]; return n; });
+    setUploadingFields(prev => new Set(prev).add(fieldId));
+    try {
+      const fileName = `${formId}/${fieldId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const { data, error } = await supabase.storage.from('form-attachments').upload(fileName, file);
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from('form-attachments').getPublicUrl(data.path);
+      updateValue(fieldId, urlData.publicUrl);
+    } catch (err) {
+      setFieldErrors(prev => ({ ...prev, [fieldId]: 'Upload failed. Please try again.' }));
+    } finally {
+      setUploadingFields(prev => { const n = new Set(prev); n.delete(fieldId); return n; });
+    }
   };
 
   const renderField = (field: FormField, index: number) => {
@@ -456,6 +493,62 @@ export default function FormEmbed() {
             {errorElement}
           </div>
         );
+
+      case "attachment": {
+        const maxSizeMb = Number(field.options?.[0]?.value || 5);
+        const fileUrl = value as string;
+        const isUploading = uploadingFields.has(field.id);
+        return (
+          <div
+            className="animate-fade-in opacity-0"
+            key={field.id}
+            style={animationDelay}
+          >
+            {labelElement}
+            {fileUrl ? (
+              <div className="flex items-center gap-2 p-3 rounded-lg border border-border/60 bg-background">
+                <Paperclip className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-sm text-foreground truncate flex-1">File uploaded</span>
+                <button
+                  type="button"
+                  onClick={() => updateValue(field.id, '')}
+                  className="text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <label className={`flex flex-col items-center gap-2 p-6 border-2 border-dashed rounded-lg cursor-pointer transition-all hover:border-primary/40 hover:bg-muted/30 ${fieldError ? 'border-destructive' : 'border-border/60'}`}>
+                {isUploading ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                ) : (
+                  <Upload className="h-6 w-6 text-muted-foreground" />
+                )}
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">
+                    {isUploading ? 'Uploading...' : 'Click to upload'}
+                  </p>
+                  <p className="text-xs text-muted-foreground/70 mt-0.5">
+                    PDF, Word, JPG, PNG, WebP · Max {maxSizeMb}MB
+                  </p>
+                </div>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept={ACCEPTED_EXTENSIONS}
+                  disabled={isUploading}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(field.id, file, maxSizeMb);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            )}
+            {errorElement}
+          </div>
+        );
+      }
 
       default:
         return null;
