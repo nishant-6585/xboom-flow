@@ -249,7 +249,7 @@ export function Header() {
                   to={item.path}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                     isActive(item.path)
-                      ? "bg-secondary text-secondary-foreground"
+                      ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   }`}
                 >
