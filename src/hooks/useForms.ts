@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 export interface FormField {
   id: string;
   form_id: string;
-  field_type: 'text' | 'email' | 'phone' | 'number' | 'textarea' | 'dropdown' | 'checkbox' | 'radio' | 'date';
+  field_type: 'text' | 'email' | 'phone' | 'number' | 'textarea' | 'dropdown' | 'checkbox' | 'radio' | 'date' | 'attachment';
   label: string;
   placeholder?: string;
   is_required: boolean;

@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Paperclip } from "lucide-react";
 
 interface FormPreviewProps {
   formName: string;
@@ -115,6 +116,22 @@ export function FormPreview({ formName, formDescription, fields, isPreview = tru
             </RadioGroup>
           </div>
         );
+      
+      case 'attachment': {
+        const maxSize = field.options?.[0]?.value || '5';
+        return (
+          <div className="space-y-2" key={field.id}>
+            {label}
+            <div className="flex items-center gap-2 p-4 border-2 border-dashed rounded-lg bg-muted/30">
+              <Paperclip className="h-5 w-5 text-muted-foreground" />
+              <div className="text-sm text-muted-foreground">
+                <p>Upload file (Max {maxSize}MB)</p>
+                <p className="text-xs">PDF, Word, JPG, PNG, WebP</p>
+              </div>
+            </div>
+          </div>
+        );
+      }
       
       default:
         return null;
