@@ -237,28 +237,7 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="role">Role *</Label>
-                  <Select
-                    value={formData.role}
-                    onValueChange={(value) => setFormData({ ...formData, role: value })}
-                    disabled={loading}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sales">Sales Team</SelectItem>
-                      <SelectItem value="supply_chain">Supply Chain</SelectItem>
-                      <SelectItem value="finance">Finance</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="it">IT Team</SelectItem>
-                      <SelectItem value="marketing">Marketing Team</SelectItem>
-                      <SelectItem value="hr">HR Team</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="department">Department</Label>
+                  <Label htmlFor="department">Department *</Label>
                   <Select
                     value={formData.department}
                     onValueChange={(value) => setFormData({ ...formData, department: value })}
@@ -276,6 +255,27 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
                       <SelectItem value="Marketing">Marketing</SelectItem>
                       <SelectItem value="Supply Chain">Supply Chain</SelectItem>
                       <SelectItem value="Operations">Operations</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="role">Role *</Label>
+                  <Select
+                    value={formData.role}
+                    onValueChange={(value) => setFormData({ ...formData, role: value })}
+                    disabled={loading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sales">Sales Team</SelectItem>
+                      <SelectItem value="supply_chain">Supply Chain</SelectItem>
+                      <SelectItem value="finance">Finance</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="it">IT Team</SelectItem>
+                      <SelectItem value="marketing">Marketing Team</SelectItem>
+                      <SelectItem value="hr">HR Team</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
