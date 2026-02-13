@@ -146,7 +146,7 @@ export function KPIFormDialog({ open, onOpenChange, employees, onSubmit, editing
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-2">
-              <Label>Month *</Label>
+              <Label>Month</Label>
               <Select value={String(form.month)} onValueChange={v => setForm(p => ({ ...p, month: parseInt(v) }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -155,11 +155,11 @@ export function KPIFormDialog({ open, onOpenChange, employees, onSubmit, editing
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Year *</Label>
+              <Label>Year</Label>
               <Input type="number" value={form.year} onChange={e => setForm(p => ({ ...p, year: parseInt(e.target.value) }))} />
             </div>
             <div className="space-y-2">
-              <Label>Target Value *</Label>
+              <Label>Target Value</Label>
               <Input type="number" value={form.target_value} onChange={e => setForm(p => ({ ...p, target_value: parseFloat(e.target.value) }))} />
             </div>
             <div className="space-y-2">
