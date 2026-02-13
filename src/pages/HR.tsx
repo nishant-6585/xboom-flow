@@ -14,7 +14,8 @@ import { KPICard } from "@/components/hr/KPICard";
 import { TeamAttendanceOverview } from "@/components/hr/TeamAttendanceOverview";
 import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
 import { HRDocumentsPanel } from "@/components/hr/HRDocumentsPanel";
-import { Plus, Calendar, Clock, FileText, Users, LayoutList, Package, FolderOpen } from "lucide-react";
+import { KPIManagementPanel } from "@/components/kpi/KPIManagementPanel";
+import { Plus, Calendar, Clock, FileText, Users, LayoutList, Package, FolderOpen, Target } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function HR() {
@@ -116,7 +117,7 @@ export default function HR() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className={`w-full grid ${isHROrAdmin ? 'grid-cols-7' : 'grid-cols-5'} mb-6`}>
+          <TabsList className={`w-full grid ${isHROrAdmin ? 'grid-cols-8' : 'grid-cols-6'} mb-6`}>
             <TabsTrigger value="home" className="gap-1">
               <Clock className="h-4 w-4" />
               <span className="hidden sm:inline">Home</span>
@@ -138,6 +139,10 @@ export default function HR() {
             <TabsTrigger value="kpi" className="gap-1">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">KPI</span>
+            </TabsTrigger>
+            <TabsTrigger value="kpi_management" className="gap-1">
+              <Target className="h-4 w-4" />
+              <span className="hidden sm:inline">KPI Mgmt</span>
             </TabsTrigger>
             <TabsTrigger value="documents" className="gap-1">
               <FolderOpen className="h-4 w-4" />
@@ -293,6 +298,10 @@ export default function HR() {
                 <p className="text-sm text-muted-foreground">Attendance Rate</p>
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="kpi_management" className="space-y-4">
+            <KPIManagementPanel />
           </TabsContent>
 
           <TabsContent value="documents" className="space-y-4">
