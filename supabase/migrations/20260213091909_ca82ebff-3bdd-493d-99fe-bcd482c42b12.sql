@@ -1,0 +1,1 @@
+ALTER TABLE public.user_invitations ADD COLUMN department text DEFAULT 'General';
