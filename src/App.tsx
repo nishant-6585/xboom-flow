@@ -28,6 +28,7 @@ import Billing from "./pages/Billing";
 import Tickets from "./pages/Tickets";
 import Tally from "./pages/Tally";
 import Buyback from "./pages/Buyback";
+import PublicDroneRepairEnquiry from "./pages/PublicDroneRepairEnquiry";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -177,6 +178,7 @@ const App = () => (
               }
             />
             <Route path="/form-embed/:formId" element={<FormEmbed />} />
+            <Route path="/public/drone-repair-enquiry" element={<PublicDroneRepairEnquiry />} />
             <Route
               path="/billing"
               element={
