@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
@@ -56,6 +58,7 @@ interface ApprovedUser {
   email: string;
   created_at: string;
   role: string;
+  roles: string[];
   department: string;
   reporting_manager_id: string | null;
   reporting_manager_name?: string;
@@ -216,9 +219,11 @@ const Admin = () => {
       // Combine profiles with roles (collect ALL roles) and manager names
       const usersWithRoles = (profiles || []).map((profile) => {
         const userRoles = roles?.filter((r) => r.user_id === profile.user_id) || [];
+        const roleStrings = userRoles.map(r => r.role as string);
         return {
           ...profile,
-          role: userRoles.length > 0 ? userRoles.map(r => r.role).join(", ") : "unknown",
+          role: roleStrings.length > 0 ? roleStrings.join(", ") : "unknown",
+          roles: roleStrings.length > 0 ? roleStrings : ["unknown"],
           department: deptMap.get(profile.user_id) || "General",
           reporting_manager_name: profile.reporting_manager_id 
             ? nameMap.get(profile.reporting_manager_id) || null 
@@ -353,20 +358,44 @@ const Admin = () => {
     }
   };
 
-  const handleChangeRole = async (userId: string, newRole: string, userName: string) => {
+  const handleToggleRole = async (userId: string, role: string, currentRoles: string[], userName: string) => {
     setRoleChangeLoading(userId);
     try {
-      const { error } = await supabase
-        .from("user_roles")
-        .update({ role: newRole as any })
-        .eq("user_id", userId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Role Updated",
-        description: `${userName}'s role has been changed to ${getRoleLabel(newRole)}`,
-      });
+      const hasRole = currentRoles.includes(role);
+      
+      if (hasRole) {
+        // Don't allow removing the last role
+        if (currentRoles.length <= 1) {
+          toast({
+            title: "Cannot Remove",
+            description: "User must have at least one role.",
+            variant: "destructive",
+          });
+          setRoleChangeLoading(null);
+          return;
+        }
+        // Remove role
+        const { error } = await supabase
+          .from("user_roles")
+          .delete()
+          .eq("user_id", userId)
+          .eq("role", role as any);
+        if (error) throw error;
+        toast({
+          title: "Role Removed",
+          description: `Removed ${getRoleLabel(role)} from ${userName}`,
+        });
+      } else {
+        // Add role
+        const { error } = await supabase
+          .from("user_roles")
+          .insert({ user_id: userId, role: role as any });
+        if (error) throw error;
+        toast({
+          title: "Role Added",
+          description: `Added ${getRoleLabel(role)} to ${userName}`,
+        });
+      }
 
       fetchApprovedUsers();
     } catch (error) {
@@ -777,11 +806,13 @@ const Admin = () => {
                         className="flex flex-col lg:flex-row lg:items-center justify-between p-4 rounded-lg bg-secondary/50 border border-border gap-4"
                       >
                         <div className="space-y-1 min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <p className="font-medium">{user.name}</p>
-                            <Badge variant={getRoleBadgeVariant(user.role) as any}>
-                              {getRoleLabel(user.role)}
-                            </Badge>
+                            {user.roles.map((r) => (
+                              <Badge key={r} variant={getRoleBadgeVariant(r) as any} className="text-xs">
+                                {getRoleLabel(r)}
+                              </Badge>
+                            ))}
                           </div>
                           <p className="text-sm text-muted-foreground">{user.email}</p>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -820,31 +851,42 @@ const Admin = () => {
                             </SelectContent>
                           </Select>
 
-                          {/* Role Change Dropdown */}
-                          <Select
-                            value={user.role}
-                            onValueChange={(value) => handleChangeRole(user.user_id, value, user.name)}
-                            disabled={roleChangeLoading === user.user_id}
-                          >
-                            <SelectTrigger className="w-[130px] h-8">
-                              {roleChangeLoading === user.user_id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <SelectValue />
-                              )}
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="sales">Sales Team</SelectItem>
-                              <SelectItem value="supply_chain">Supply Chain</SelectItem>
-                              <SelectItem value="finance">Finance</SelectItem>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="it">IT Team</SelectItem>
-                              <SelectItem value="marketing">Marketing Team</SelectItem>
-                              <SelectItem value="hr">HR Team</SelectItem>
-                            </SelectContent>
-                          </Select>
-
-                          {/* Reporting Manager Dropdown */}
+                          {/* Multi-Role Assignment */}
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" size="sm" className="w-[130px] h-8 justify-between text-xs" disabled={roleChangeLoading === user.user_id}>
+                                {roleChangeLoading === user.user_id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <>{user.roles.length} role{user.roles.length > 1 ? 's' : ''}</>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-48 p-2 bg-popover border border-border z-50" align="start">
+                              <div className="space-y-1">
+                                {[
+                                  { value: "sales", label: "Sales Team" },
+                                  { value: "supply_chain", label: "Supply Chain" },
+                                  { value: "finance", label: "Finance" },
+                                  { value: "admin", label: "Admin" },
+                                  { value: "it", label: "IT Team" },
+                                  { value: "marketing", label: "Marketing" },
+                                  { value: "hr", label: "HR Team" },
+                                ].map((roleOption) => (
+                                  <label
+                                    key={roleOption.value}
+                                    className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer text-sm"
+                                  >
+                                    <Checkbox
+                                      checked={user.roles.includes(roleOption.value)}
+                                      onCheckedChange={() => handleToggleRole(user.user_id, roleOption.value, user.roles, user.name)}
+                                    />
+                                    {roleOption.label}
+                                  </label>
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                           <Select
                             value={user.reporting_manager_id || "none"}
                             onValueChange={(value) => handleChangeManager(
