@@ -87,6 +87,7 @@ const Admin = () => {
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [roleChangeLoading, setRoleChangeLoading] = useState<string | null>(null);
   const [managerChangeLoading, setManagerChangeLoading] = useState<string | null>(null);
+  const [deptChangeLoading, setDeptChangeLoading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("analytics");
 
   // Move useEffect before any conditional returns to follow React Hooks rules
@@ -377,6 +378,34 @@ const Admin = () => {
       });
     } finally {
       setRoleChangeLoading(null);
+    }
+  };
+
+  const handleChangeDepartment = async (userId: string, newDept: string, userName: string) => {
+    setDeptChangeLoading(userId);
+    try {
+      const { error } = await supabase
+        .from("employees")
+        .update({ department: newDept })
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Department Updated",
+        description: `${userName}'s department has been changed to ${newDept}`,
+      });
+
+      fetchApprovedUsers();
+    } catch (error) {
+      console.error("Error changing department:", error);
+      toast({
+        title: "Error",
+        description: "Failed to change department",
+        variant: "destructive",
+      });
+    } finally {
+      setDeptChangeLoading(null);
     }
   };
 
@@ -733,13 +762,13 @@ const Admin = () => {
                 ) : (
                   <div className="space-y-4">
                     {/* Column headings */}
-                    <div className="hidden lg:flex items-center justify-between px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <div className="hidden lg:flex items-center px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       <div className="min-w-0 flex-1">User</div>
-                      <div className="flex items-center gap-2">
-                        <span className="w-[130px] text-center">Department</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="w-[140px] text-center">Department</span>
                         <span className="w-[130px] text-center">Role</span>
                         <span className="w-[150px] text-center">Manager</span>
-                        <span className="w-[200px]"></span>
+                        <span className="w-[170px]"></span>
                       </div>
                     </div>
                     {approvedUsers.map((user) => (
@@ -747,7 +776,7 @@ const Admin = () => {
                         key={user.id}
                         className="flex flex-col lg:flex-row lg:items-center justify-between p-4 rounded-lg bg-secondary/50 border border-border gap-4"
                       >
-                        <div className="space-y-1 min-w-0">
+                        <div className="space-y-1 min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-medium">{user.name}</p>
                             <Badge variant={getRoleBadgeVariant(user.role) as any}>
@@ -765,11 +794,31 @@ const Admin = () => {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {/* Department Display */}
-                          <span className="inline-flex items-center justify-center w-[130px] h-8 px-3 text-sm rounded-md bg-muted text-muted-foreground border border-border">
-                            {user.department || "General"}
-                          </span>
+                        <div className="flex items-center gap-2 flex-wrap shrink-0">
+                          {/* Department Change Dropdown */}
+                          <Select
+                            value={user.department || "General"}
+                            onValueChange={(value) => handleChangeDepartment(user.user_id, value, user.name)}
+                            disabled={deptChangeLoading === user.user_id}
+                          >
+                            <SelectTrigger className="w-[140px] h-8">
+                              {deptChangeLoading === user.user_id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <SelectValue />
+                              )}
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="General">General</SelectItem>
+                              <SelectItem value="Sales">Sales</SelectItem>
+                              <SelectItem value="HR">HR</SelectItem>
+                              <SelectItem value="Finance">Finance</SelectItem>
+                              <SelectItem value="IT">IT</SelectItem>
+                              <SelectItem value="Marketing">Marketing</SelectItem>
+                              <SelectItem value="Supply Chain">Supply Chain</SelectItem>
+                              <SelectItem value="Operations">Operations</SelectItem>
+                            </SelectContent>
+                          </Select>
 
                           {/* Role Change Dropdown */}
                           <Select
