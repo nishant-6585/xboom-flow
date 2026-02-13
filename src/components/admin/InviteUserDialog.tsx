@@ -21,6 +21,7 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
     name: "",
     email: "",
     role: "sales" as string,
+    department: "General" as string,
   });
   const { toast } = useToast();
 
@@ -48,7 +49,7 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
     setOpen(false);
     setInviteSent(false);
     setCopied(false);
-    setFormData({ name: "", email: "", role: "sales" });
+    setFormData({ name: "", email: "", role: "sales", department: "General" });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -100,6 +101,7 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
           name: formData.name.trim(),
           email: formData.email.toLowerCase().trim(),
           role: formData.role,
+          department: formData.department,
         })
         .select()
         .single();
@@ -252,6 +254,28 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
                       <SelectItem value="it">IT Team</SelectItem>
                       <SelectItem value="marketing">Marketing Team</SelectItem>
                       <SelectItem value="hr">HR Team</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="department">Department</Label>
+                  <Select
+                    value={formData.department}
+                    onValueChange={(value) => setFormData({ ...formData, department: value })}
+                    disabled={loading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="General">General</SelectItem>
+                      <SelectItem value="Sales">Sales</SelectItem>
+                      <SelectItem value="HR">HR</SelectItem>
+                      <SelectItem value="Finance">Finance</SelectItem>
+                      <SelectItem value="IT">IT</SelectItem>
+                      <SelectItem value="Marketing">Marketing</SelectItem>
+                      <SelectItem value="Supply Chain">Supply Chain</SelectItem>
+                      <SelectItem value="Operations">Operations</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
