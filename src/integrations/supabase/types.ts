@@ -243,6 +243,72 @@ export type Database = {
           },
         ]
       }
+      drone_repair_enquiries: {
+        Row: {
+          admin_notes: string | null
+          assigned_to: string | null
+          assigned_to_name: string | null
+          city: string | null
+          created_at: string
+          customer_name: string
+          drone_category: string
+          drone_model: string
+          email: string | null
+          id: string
+          is_under_warranty: boolean | null
+          issue_description: string
+          issue_type: string
+          phone: string
+          preferred_date: string | null
+          purchase_date: string | null
+          serial_number: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          city?: string | null
+          created_at?: string
+          customer_name: string
+          drone_category?: string
+          drone_model: string
+          email?: string | null
+          id?: string
+          is_under_warranty?: boolean | null
+          issue_description: string
+          issue_type?: string
+          phone: string
+          preferred_date?: string | null
+          purchase_date?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          city?: string | null
+          created_at?: string
+          customer_name?: string
+          drone_category?: string
+          drone_model?: string
+          email?: string | null
+          id?: string
+          is_under_warranty?: boolean | null
+          issue_description?: string
+          issue_type?: string
+          phone?: string
+          preferred_date?: string | null
+          purchase_date?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       edit_history: {
         Row: {
           edited_at: string
