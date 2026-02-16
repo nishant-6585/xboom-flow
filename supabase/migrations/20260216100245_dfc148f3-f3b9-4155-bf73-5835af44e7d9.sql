@@ -1,0 +1,2 @@
+ALTER TABLE public.user_invitations DROP CONSTRAINT valid_role;
+ALTER TABLE public.user_invitations ADD CONSTRAINT valid_role CHECK (role = ANY (ARRAY['sales'::text, 'supply_chain'::text, 'finance'::text, 'admin'::text, 'it'::text, 'marketing'::text, 'hr'::text]));
