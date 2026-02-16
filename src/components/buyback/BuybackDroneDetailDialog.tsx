@@ -16,7 +16,7 @@ interface Props {
 }
 
 const categories = ["Mini", "Air", "Mavic", "FPV", "Enterprise", "Other"];
-const conditions = ["New", "Like New", "Good", "Fair", "Poor"];
+const conditions = ["New", "Used", "Repaired"];
 
 export function BuybackDroneDetailDialog({ drone, open, onOpenChange }: Props) {
   const { updateDrone } = useBuybackDrones();
