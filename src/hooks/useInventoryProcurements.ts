@@ -149,15 +149,22 @@ export function useInventoryProcurements() {
     updates: Partial<InventoryProcurement>
   ): Promise<boolean> => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('inventory_procurements')
         .update(updates)
-        .eq('id', id);
+        .eq('id', id)
+        .select('id')
+        .single();
 
       if (error) throw error;
 
+      if (!data) {
+        toast.error('Procurement not found or update failed');
+        return false;
+      }
+
       toast.success('Procurement updated successfully');
-      fetchProcurements();
+      await fetchProcurements();
       return true;
     } catch (error: any) {
       console.error('Error updating procurement:', error);

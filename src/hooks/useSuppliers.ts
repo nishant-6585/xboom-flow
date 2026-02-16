@@ -225,13 +225,24 @@ export function useSuppliers() {
   ): Promise<boolean> => {
     if (!user) return false;
 
+    if (!(await requireValidSession())) {
+      return false;
+    }
+
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('suppliers')
         .update(updates)
-        .eq('id', id);
+        .eq('id', id)
+        .select('id')
+        .single();
 
       if (error) throw error;
+
+      if (!data) {
+        toast.error('Supplier not found or update failed');
+        return false;
+      }
 
       toast.success('Supplier updated successfully');
       await fetchSuppliers();
