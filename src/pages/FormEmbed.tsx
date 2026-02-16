@@ -279,11 +279,18 @@ export default function FormEmbed() {
     setFieldErrors(prev => { const n = { ...prev }; delete n[fieldId]; return n; });
     setUploadingFields(prev => new Set(prev).add(fieldId));
     try {
-      const fileName = `${formId}/${fieldId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-      const { data, error } = await supabase.storage.from('form-attachments').upload(fileName, file);
-      if (error) throw error;
-      const { data: urlData } = supabase.storage.from('form-attachments').getPublicUrl(data.path);
-      updateValue(fieldId, urlData.publicUrl);
+      const uploadData = new FormData();
+      uploadData.append('file', file);
+      uploadData.append('formId', formId || '');
+      uploadData.append('fieldId', fieldId);
+
+      const { data, error } = await supabase.functions.invoke('upload-form-attachment', {
+        body: uploadData,
+      });
+
+      if (error || data?.error) throw new Error(data?.error || error?.message || 'Upload failed');
+      // Store the storage path (not a public URL) - will be resolved via signed URL when viewing
+      updateValue(fieldId, `storage:form-attachments:${data.path}`);
     } catch (err) {
       setFieldErrors(prev => ({ ...prev, [fieldId]: 'Upload failed. Please try again.' }));
     } finally {
