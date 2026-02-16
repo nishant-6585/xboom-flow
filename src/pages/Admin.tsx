@@ -154,6 +154,37 @@ const Admin = () => {
     }
   };
 
+  const handleApproveInvitation = async (invitationId: string, name: string, email: string) => {
+    setActionLoading(invitationId);
+    try {
+      const { data, error } = await supabase.functions.invoke("approve-invitation", {
+        body: { invitation_id: invitationId },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: "Invitation Approved",
+        description: data?.is_existing_user
+          ? `${name} (${email}) has been approved`
+          : `${name} (${email}) has been created and approved. They can use "Forgot Password" to set their password.`,
+      });
+
+      fetchInvitations();
+      fetchApprovedUsers();
+    } catch (error: any) {
+      console.error("Error approving invitation:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve invitation",
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleCancelInvitation = async (invitationId: string, email: string) => {
     setActionLoading(invitationId);
     try {
@@ -673,6 +704,18 @@ const Admin = () => {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleApproveInvitation(invitation.id, invitation.name, invitation.email)}
+                            disabled={actionLoading === invitation.id}
+                          >
+                            {actionLoading === invitation.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Check className="w-4 h-4" />
+                            )}
+                            <span className="ml-1 hidden sm:inline">Approve</span>
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"
