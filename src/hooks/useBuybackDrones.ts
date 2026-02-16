@@ -88,6 +88,38 @@ export function useBuybackDrones() {
     },
   });
 
+  const updateDrone = useMutation({
+    mutationFn: async (data: {
+      id: string;
+      drone_category?: string;
+      drone_model?: string;
+      serial_number?: string;
+      condition?: string;
+      buyback_price?: number;
+      seller_name?: string;
+      seller_contact?: string;
+      buyback_date?: string;
+      selling_price?: number | null;
+      buyer_name?: string | null;
+      buyer_contact?: string | null;
+      selling_date?: string | null;
+    }) => {
+      const { id, ...rest } = data;
+      const { error } = await supabase
+        .from("buyback_drones")
+        .update(rest)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["buyback_drones"] });
+      toast.success("Drone details updated");
+    },
+    onError: (error: any) => {
+      toast.error("Failed to update: " + error.message);
+    },
+  });
+
   const deleteDrone = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -105,5 +137,5 @@ export function useBuybackDrones() {
     },
   });
 
-  return { dronesQuery, addDrone, sellDrone, deleteDrone };
+  return { dronesQuery, addDrone, sellDrone, updateDrone, deleteDrone };
 }
