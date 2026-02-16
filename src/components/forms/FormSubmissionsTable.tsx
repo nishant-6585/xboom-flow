@@ -1,17 +1,56 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useFormSubmissions, FormSubmission, FormField } from "@/hooks/useForms";
+import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { Eye, Trash2, RefreshCw } from "lucide-react";
+import { Eye, Trash2, RefreshCw, ExternalLink } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface FormSubmissionsTableProps {
   formId: string;
   fields: FormField[];
 }
+
+function AttachmentLink({ storagePath }: { storagePath: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleClick = useCallback(async () => {
+    if (url) {
+      window.open(url, '_blank');
+      return;
+    }
+    setLoading(true);
+    try {
+      // Parse "storage:bucket:path" format
+      const parts = storagePath.split(':');
+      const bucket = parts[1];
+      const path = parts.slice(2).join(':');
+      const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 3600);
+      if (error) throw error;
+      setUrl(data.signedUrl);
+      window.open(data.signedUrl, '_blank');
+    } catch {
+      // Fallback for legacy public URLs
+      if (storagePath.startsWith('http')) {
+        window.open(storagePath, '_blank');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [storagePath, url]);
+
+  return (
+    <Button variant="link" size="sm" className="h-auto p-0 text-primary" onClick={handleClick} disabled={loading}>
+      <ExternalLink className="h-3 w-3 mr-1" />
+      {loading ? 'Loading...' : 'View Attachment'}
+    </Button>
+  );
+}
+
 
 export function FormSubmissionsTable({ formId, fields }: FormSubmissionsTableProps) {
   const { submissions, isLoading, refetch, deleteSubmission } = useFormSubmissions(formId);
@@ -74,9 +113,12 @@ export function FormSubmissionsTable({ formId, fields }: FormSubmissionsTablePro
                 </TableCell>
                 {displayFields.map((field) => {
                   const value = submission.submission_data[field.id];
+                  const isStoragePath = typeof value === 'string' && value.startsWith('storage:');
                   return (
                     <TableCell key={field.id} className="max-w-[200px] truncate">
-                      {Array.isArray(value) ? (
+                      {isStoragePath ? (
+                        <Badge variant="secondary" className="text-xs">📎 Attachment</Badge>
+                      ) : Array.isArray(value) ? (
                         <div className="flex gap-1 flex-wrap">
                           {value.map((v, i) => (
                             <Badge key={i} variant="secondary" className="text-xs">{v}</Badge>
@@ -144,11 +186,14 @@ export function FormSubmissionsTable({ formId, fields }: FormSubmissionsTablePro
               <div className="space-y-3">
                 {fields.map((field) => {
                   const value = selectedSubmission.submission_data[field.id];
+                  const isStoragePath = typeof value === 'string' && value.startsWith('storage:');
                   return (
                     <div key={field.id} className="space-y-1">
                       <label className="text-sm font-medium">{field.label}</label>
                       <div className="text-sm bg-muted p-2 rounded">
-                        {Array.isArray(value) ? value.join(", ") : String(value || "-")}
+                        {isStoragePath ? (
+                          <AttachmentLink storagePath={value as string} />
+                        ) : Array.isArray(value) ? value.join(", ") : String(value || "-")}
                       </div>
                     </div>
                   );
