@@ -62,36 +62,37 @@ export function BuybackDroneDetailDialog({ drone, open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2">
-              {drone.drone_model}
-              <Badge
-                variant="outline"
-                className={
-                  isSold
-                    ? "bg-orange-500/10 text-orange-600 border-orange-500/20"
-                    : "bg-green-500/10 text-green-600 border-green-500/20"
-                }
-              >
-                {drone.stock_status}
-              </Badge>
-            </DialogTitle>
-            {!isEditing ? (
-              <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-                <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
-              </Button>
-            ) : (
-              <div className="flex gap-1">
-                <Button variant="outline" size="sm" onClick={() => { setIsEditing(false); setForm({ drone_category: drone.drone_category, drone_model: drone.drone_model, serial_number: drone.serial_number, condition: drone.condition, buyback_price: drone.buyback_price, seller_name: drone.seller_name, seller_contact: drone.seller_contact, buyback_date: drone.buyback_date, selling_price: drone.selling_price, buyer_name: drone.buyer_name, buyer_contact: drone.buyer_contact, selling_date: drone.selling_date }); }}>
-                  <X className="w-3.5 h-3.5 mr-1" /> Cancel
-                </Button>
-                <Button size="sm" onClick={handleSave} disabled={updateDrone.isPending}>
-                  <Save className="w-3.5 h-3.5 mr-1" /> Save
-                </Button>
-              </div>
-            )}
-          </div>
+          <DialogTitle className="flex items-center gap-2">
+            {drone.drone_model}
+            <Badge
+              variant="outline"
+              className={
+                isSold
+                  ? "bg-orange-500/10 text-orange-600 border-orange-500/20"
+                  : "bg-green-500/10 text-green-600 border-green-500/20"
+              }
+            >
+              {drone.stock_status}
+            </Badge>
+          </DialogTitle>
         </DialogHeader>
+
+        <div className="flex justify-end -mt-2">
+          {!isEditing ? (
+            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+              <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
+            </Button>
+          ) : (
+            <div className="flex gap-1">
+              <Button variant="outline" size="sm" onClick={() => { setIsEditing(false); setForm({ drone_category: drone.drone_category, drone_model: drone.drone_model, serial_number: drone.serial_number, condition: drone.condition, buyback_price: drone.buyback_price, seller_name: drone.seller_name, seller_contact: drone.seller_contact, buyback_date: drone.buyback_date, selling_price: drone.selling_price, buyer_name: drone.buyer_name, buyer_contact: drone.buyer_contact, selling_date: drone.selling_date }); }}>
+                <X className="w-3.5 h-3.5 mr-1" /> Cancel
+              </Button>
+              <Button size="sm" onClick={handleSave} disabled={updateDrone.isPending}>
+                <Save className="w-3.5 h-3.5 mr-1" /> Save
+              </Button>
+            </div>
+          )}
+        </div>
 
         <div className="space-y-4 text-sm">
           {/* Drone Info */}
