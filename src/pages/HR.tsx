@@ -127,7 +127,7 @@ export default function HR() {
             </TabsTrigger>
             <TabsTrigger value="documents" className="gap-1">
               <FolderOpen className="h-4 w-4" />
-              <span className="hidden sm:inline">HR Policies</span>
+              <span className="hidden sm:inline">HR Documents</span>
             </TabsTrigger>
             {isHROrAdmin && (
               <TabsTrigger value="assets" className="gap-1">
