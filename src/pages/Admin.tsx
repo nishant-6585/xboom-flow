@@ -16,7 +16,7 @@ import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
 import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
 import { InviteUserDialog } from "@/components/admin/InviteUserDialog";
 import { NoticesPanel } from "@/components/notices/NoticesPanel";
-import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity } from "lucide-react";
+import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity, Building2 } from "lucide-react";
 import UserActivityTracker from "@/components/admin/UserActivityTracker";
 import {
   Select,
@@ -40,6 +40,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { SlackSettingsPanel } from "@/components/admin/SlackSettingsPanel";
 import { FormPermissionsPanel } from "@/components/admin/FormPermissionsPanel";
 import { AdminSignatureSettings } from "@/components/admin/AdminSignatureSettings";
+import OrgSettingsPanel from "@/components/admin/OrgSettingsPanel";
 
 interface PendingUser {
   id: string;
@@ -594,6 +595,10 @@ const Admin = () => {
               <Activity className="w-4 h-4" />
               Activity
             </TabsTrigger>
+            <TabsTrigger value="organization" className="flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              Organization
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="analytics">
@@ -1035,6 +1040,10 @@ const Admin = () => {
 
           <TabsContent value="activity">
             <UserActivityTracker />
+          </TabsContent>
+
+          <TabsContent value="organization">
+            <OrgSettingsPanel />
           </TabsContent>
         </Tabs>
       </main>
