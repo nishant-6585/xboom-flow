@@ -174,6 +174,7 @@ async function registerShopifyWebhooks(req: Request): Promise<Response> {
 
   const webhooks = [
     { topic: "orders/create", address: webhookUrl, format: "json" },
+    { topic: "orders/updated", address: webhookUrl, format: "json" },
   ];
 
   const results = [];
@@ -293,8 +294,8 @@ serve(async (req) => {
     `Shopify webhook received: topic=${topic}, shop=${shopDomain}, order_id=${orderId}, email=${email}, total=${totalPrice}`
   );
 
-  // Only process orders/create topic
-  if (topic !== "orders/create") {
+  // Only process orders/create and orders/updated topics
+  if (topic !== "orders/create" && topic !== "orders/updated") {
     console.log(`Ignoring unsupported topic: ${topic}`);
     return new Response(
       JSON.stringify({ status: "ignored", reason: `Unsupported topic: ${topic}` }),
@@ -317,10 +318,11 @@ serve(async (req) => {
         payload: payload,
         processing_status: "pending",
         retry_count: 0,
+        webhook_topic: topic,
       },
       {
         onConflict: "shop_domain,order_id",
-        ignoreDuplicates: true,
+        ignoreDuplicates: false,
       }
     );
 
