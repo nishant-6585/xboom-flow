@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 const MAX_RETRIES = 5;
-const BATCH_SIZE = 10;
+const BATCH_SIZE = 100;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -101,12 +101,13 @@ function mapShopifyToOrder(
 function mapPaymentStatus(financialStatus: string | undefined): string {
   switch (financialStatus) {
     case "paid":
-      return "paid";
+      return "full";
     case "partially_paid":
       return "partial";
     case "refunded":
     case "partially_refunded":
-      return "refunded";
+    case "voided":
+      return "full"; // treat completed financial states as full
     case "pending":
     case "authorized":
     default:
