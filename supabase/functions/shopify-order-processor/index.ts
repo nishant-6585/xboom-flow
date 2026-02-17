@@ -181,7 +181,7 @@ serve(async (req) => {
         }
       }
 
-      // Check for duplicate: already exists in orders table?
+      // Check for existing order (for updates or dedup)
       const { data: existingOrder } = await serviceClient
         .from("orders")
         .select("id")
@@ -189,8 +189,46 @@ serve(async (req) => {
         .ilike("internal_notes", `%Shopify Order #${payload.order_number}%`)
         .limit(1);
 
+      const isUpdate = raw.webhook_topic === "orders/updated";
+
       if (existingOrder && existingOrder.length > 0) {
-        // Already processed (idempotent), mark completed
+        if (isUpdate) {
+          // Update existing order with latest data from Shopify
+          const orderData = mapShopifyToOrder(payload, shopDomain);
+          const { error: updateError } = await serviceClient
+            .from("orders")
+            .update({
+              customer_name: orderData.customer_name,
+              customer_email: orderData.customer_email,
+              shipping_address: orderData.shipping_address,
+              selling_price: orderData.selling_price,
+              total_sales_amount: orderData.total_sales_amount,
+              amount_paid: orderData.amount_paid,
+              payment_status: orderData.payment_status,
+              sales_notes: orderData.sales_notes,
+              internal_notes: orderData.internal_notes,
+            })
+            .eq("id", existingOrder[0].id);
+
+          if (updateError) {
+            throw new Error(updateError.message);
+          }
+
+          // Mark raw as completed
+          await serviceClient
+            .from("shopify_orders_raw")
+            .update({
+              processing_status: "completed",
+              processed_at: new Date().toISOString(),
+              last_error: null,
+            })
+            .eq("id", rawId);
+          successCount++;
+          console.log(`Order ${shopifyOrderId} updated successfully`);
+          continue;
+        }
+
+        // Already processed (idempotent for creates), mark completed
         await serviceClient
           .from("shopify_orders_raw")
           .update({
