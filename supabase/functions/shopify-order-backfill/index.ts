@@ -24,30 +24,35 @@ serve(async (req) => {
       });
     }
 
-    const apiUrl = `https://${storeDomain}/admin/api/2025-01/orders.json?limit=10&status=any`;
-    console.log(`DIAGNOSTIC — URL: ${apiUrl}`);
+    // Try multiple endpoints to diagnose
+    const endpoints = [
+      `https://${storeDomain}/admin/api/2024-10/shop.json`,
+      `https://${storeDomain}/admin/api/2024-10/orders.json?limit=1&status=any`,
+      `https://${storeDomain}/admin/api/2025-01/orders.json?limit=1&status=any`,
+    ];
+    const results: Record<string, any> = {};
+    
+    for (const apiUrl of endpoints) {
+      console.log(`DIAGNOSTIC — Trying: ${apiUrl}`);
+      const resp = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'X-Shopify-Access-Token': adminToken,
+          'Content-Type': 'application/json',
+        },
+      });
+      const body = await resp.text();
+      results[apiUrl] = { status: resp.status, body: body.substring(0, 300) };
+      console.log(`DIAGNOSTIC — ${apiUrl} → ${resp.status}: ${body.substring(0, 200)}`);
+    }
     console.log(`DIAGNOSTIC — Domain: ${storeDomain}`);
     console.log(`DIAGNOSTIC — Token prefix: ${adminToken.substring(0, 8)}****`);
 
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'X-Shopify-Access-Token': adminToken,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const responseBody = await response.text();
-    console.log(`DIAGNOSTIC — Status: ${response.status}`);
-    console.log(`DIAGNOSTIC — Body: ${responseBody.substring(0, 500)}`);
-
     return new Response(JSON.stringify({
       diagnostic: true,
-      urlCalled: apiUrl,
       domainUsed: storeDomain,
       tokenPrefix: adminToken.substring(0, 8) + '****',
-      responseStatus: response.status,
-      responseBody: responseBody.substring(0, 1000),
+      results,
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
