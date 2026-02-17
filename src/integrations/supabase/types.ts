@@ -3864,6 +3864,7 @@ export type Database = {
           processing_status: Database["public"]["Enums"]["shopify_processing_status"]
           retry_count: number
           shop_domain: string
+          updated_at: string
         }
         Insert: {
           created_at?: string
@@ -3875,6 +3876,7 @@ export type Database = {
           processing_status?: Database["public"]["Enums"]["shopify_processing_status"]
           retry_count?: number
           shop_domain: string
+          updated_at?: string
         }
         Update: {
           created_at?: string
@@ -3886,6 +3888,7 @@ export type Database = {
           processing_status?: Database["public"]["Enums"]["shopify_processing_status"]
           retry_count?: number
           shop_domain?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -4852,6 +4855,18 @@ export type Database = {
         Returns: boolean
       }
       count_admins: { Args: never; Returns: number }
+      fetch_pending_shopify_orders: {
+        Args: { batch_size?: number }
+        Returns: {
+          created_at: string
+          id: string
+          order_id: string
+          payload: Json
+          retry_count: number
+          shop_domain: string
+          updated_at: string
+        }[]
+      }
       generate_payment_reminders: { Args: never; Returns: undefined }
       get_direct_reports: { Args: { _manager_id: string }; Returns: string[] }
       get_employee_kpi: {
@@ -4899,6 +4914,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_shopify_processing_stats: { Args: never; Returns: Json }
       get_supplier_score: {
         Args: { p_supplier_id: string }
         Returns: {
