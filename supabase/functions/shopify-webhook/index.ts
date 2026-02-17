@@ -315,7 +315,8 @@ serve(async (req) => {
         shop_domain: shopDomain,
         order_id: orderId,
         payload: payload,
-        processed: false,
+        processing_status: "pending",
+        retry_count: 0,
       },
       {
         onConflict: "shop_domain,order_id",

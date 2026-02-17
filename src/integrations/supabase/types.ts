@@ -3857,25 +3857,34 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          last_error: string | null
           order_id: string
           payload: Json
-          processed: boolean
+          processed_at: string | null
+          processing_status: Database["public"]["Enums"]["shopify_processing_status"]
+          retry_count: number
           shop_domain: string
         }
         Insert: {
           created_at?: string
           id?: string
+          last_error?: string | null
           order_id: string
           payload: Json
-          processed?: boolean
+          processed_at?: string | null
+          processing_status?: Database["public"]["Enums"]["shopify_processing_status"]
+          retry_count?: number
           shop_domain: string
         }
         Update: {
           created_at?: string
           id?: string
+          last_error?: string | null
           order_id?: string
           payload?: Json
-          processed?: boolean
+          processed_at?: string | null
+          processing_status?: Database["public"]["Enums"]["shopify_processing_status"]
+          retry_count?: number
           shop_domain?: string
         }
         Relationships: []
@@ -5042,6 +5051,11 @@ export type Database = {
         | "crash_damage"
         | "other"
       repair_payment_status: "pending" | "partial" | "paid"
+      shopify_processing_status:
+        | "pending"
+        | "processing"
+        | "completed"
+        | "failed"
       supplier_preference: "low" | "medium" | "high"
       task_status: "new" | "in_progress" | "awaiting_approval" | "completed"
       task_type:
@@ -5295,6 +5309,12 @@ export const Constants = {
         "other",
       ],
       repair_payment_status: ["pending", "partial", "paid"],
+      shopify_processing_status: [
+        "pending",
+        "processing",
+        "completed",
+        "failed",
+      ],
       supplier_preference: ["low", "medium", "high"],
       task_status: ["new", "in_progress", "awaiting_approval", "completed"],
       task_type: [
