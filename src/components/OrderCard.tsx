@@ -6,7 +6,7 @@ import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { PaymentStatusTracker } from '@/components/PaymentStatusTracker';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { Package, User, Building2, Truck, ExternalLink, TrendingUp, Clock, CreditCard, Trophy, XCircle, Undo2, IndianRupee, Calendar } from 'lucide-react';
+import { Package, User, Building2, Truck, ExternalLink, TrendingUp, Clock, CreditCard, Trophy, XCircle, Undo2, IndianRupee, Calendar, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface OrderCardProps {
@@ -57,6 +57,12 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
             <div className="flex-1 min-w-0 space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <OrderNumberBadge orderNumber={order.order_number} />
+                {order.lead_source?.startsWith('shopify:') && (
+                  <Badge variant="outline" className="text-xs border-green-400 text-green-700 bg-green-50 dark:bg-green-950/30 dark:text-green-400 h-5 px-1.5 gap-1">
+                    <ShoppingBag className="h-3 w-3" />
+                    Shopify
+                  </Badge>
+                )}
                 {order.order_outcome && order.order_outcome !== 'pending' && (() => {
                   const config = outcomeConfig[order.order_outcome];
                   const IconComponent = config.icon;

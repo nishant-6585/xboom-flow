@@ -12,7 +12,7 @@ import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { OrderNumberBadge } from '@/components/OrderNumberBadge';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { Eye, MoreHorizontal, Trophy, XCircle, RotateCcw, Loader2, Undo2, IndianRupee, TrendingUp, TrendingDown } from 'lucide-react';
+import { Eye, MoreHorizontal, Trophy, XCircle, RotateCcw, Loader2, Undo2, IndianRupee, TrendingUp, TrendingDown, ShoppingBag } from 'lucide-react';
 
 interface OrderTableProps {
   orders: Order[];
@@ -128,6 +128,12 @@ export function OrderTable({ orders, onOrderClick, onUpdateOutcome }: OrderTable
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <OrderNumberBadge orderNumber={order.order_number} />
+                        {order.lead_source?.startsWith('shopify:') && (
+                          <Badge variant="outline" className="text-xs border-green-400 text-green-700 bg-green-50 dark:bg-green-950/30 dark:text-green-400 h-5 px-1.5 gap-1">
+                            <ShoppingBag className="h-3 w-3" />
+                            Shopify
+                          </Badge>
+                        )}
                         {order.is_rto && (
                           <Badge variant="outline" className="text-xs border-orange-400 text-orange-600 bg-orange-50 dark:bg-orange-950/30 h-5 px-1">
                             <Undo2 className="h-3 w-3" />
