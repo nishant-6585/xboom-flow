@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.shopify-order-processor]
 verify_jwt = false
+
+[functions.shopify-order-backfill]
+verify_jwt = false
