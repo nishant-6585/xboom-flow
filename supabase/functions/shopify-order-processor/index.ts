@@ -77,13 +77,23 @@ function mapShopifyToOrder(
     quantity: totalQuantity || 1,
     customer_name: String(
       `${customer.first_name || ""} ${customer.last_name || ""}`.trim() ||
+        // Fallback: try shipping/billing address name
+        (payload.shipping_address as Record<string, unknown>)?.name ||
+        `${(payload.shipping_address as Record<string, unknown>)?.first_name || ""} ${(payload.shipping_address as Record<string, unknown>)?.last_name || ""}`.trim() ||
+        (payload.billing_address as Record<string, unknown>)?.name ||
+        `${(payload.billing_address as Record<string, unknown>)?.first_name || ""} ${(payload.billing_address as Record<string, unknown>)?.last_name || ""}`.trim() ||
+        // Fallback: email or order name
         payload.contact_email ||
-        "Shopify Customer"
+        payload.email ||
+        (customer.email as string) ||
+        `Shopify Order ${payload.order_number}`
     ),
-    customer_company: String(customer.default_address
-      ? (customer.default_address as Record<string, unknown>).company || ""
-      : ""),
-    customer_email: String(payload.contact_email || payload.email || ""),
+    customer_company: String(
+      (customer.default_address as Record<string, unknown>)?.company ||
+        (payload.shipping_address as Record<string, unknown>)?.company ||
+        (payload.billing_address as Record<string, unknown>)?.company ||
+        ""),
+    customer_email: String(payload.contact_email || payload.email || (customer.email as string) || ""),
     customer_type: "b2c" as const,
     shipping_address: shippingAddress,
     selling_price: Number(payload.total_price) || 0,
