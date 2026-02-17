@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useTasks, TaskType, TASK_TYPES, TaskFormData } from "@/hooks/useTasks";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgRoles } from "@/hooks/useOrgRolesAndDepartments";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,7 @@ export function TaskFormDialog({
 }: TaskFormDialogProps) {
   const { profile, user } = useAuth();
   const { createTask } = useTasks();
+  const { roles: orgRoles } = useOrgRoles();
   const [loading, setLoading] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [formData, setFormData] = useState<TaskFormData>({
@@ -231,13 +233,9 @@ export function TaskFormDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sales">Sales</SelectItem>
-                  <SelectItem value="supply_chain">Supply Chain</SelectItem>
-                  <SelectItem value="finance">Finance</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="it">IT</SelectItem>
-                  <SelectItem value="marketing">Marketing</SelectItem>
-                  <SelectItem value="hr">HR</SelectItem>
+                  {orgRoles.map((r) => (
+                    <SelectItem key={r.id} value={r.name}>{r.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

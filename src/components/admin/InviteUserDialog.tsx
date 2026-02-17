@@ -7,12 +7,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, UserPlus, Copy, Check, Link, Mail } from "lucide-react";
+import { useOrgRoles, useOrgDepartments } from "@/hooks/useOrgRolesAndDepartments";
 
 interface InviteUserDialogProps {
   onUserInvited: () => void;
 }
 
 export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
+  const { roles: orgRoles } = useOrgRoles();
+  const { departments: orgDepartments } = useOrgDepartments();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [inviteSent, setInviteSent] = useState(false);
@@ -247,14 +250,9 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="General">General</SelectItem>
-                      <SelectItem value="Sales">Sales</SelectItem>
-                      <SelectItem value="HR">HR</SelectItem>
-                      <SelectItem value="Finance">Finance</SelectItem>
-                      <SelectItem value="IT">IT</SelectItem>
-                      <SelectItem value="Marketing">Marketing</SelectItem>
-                      <SelectItem value="Supply Chain">Supply Chain</SelectItem>
-                      <SelectItem value="Operations">Operations</SelectItem>
+                      {orgDepartments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.name}>{dept.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -269,13 +267,9 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
                       <SelectValue placeholder="Select a role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="sales">Sales Team</SelectItem>
-                      <SelectItem value="supply_chain">Supply Chain</SelectItem>
-                      <SelectItem value="finance">Finance</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="it">IT Team</SelectItem>
-                      <SelectItem value="marketing">Marketing Team</SelectItem>
-                      <SelectItem value="hr">HR Team</SelectItem>
+                      {orgRoles.map((r) => (
+                        <SelectItem key={r.id} value={r.name}>{r.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
