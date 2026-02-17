@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.send-slack-notification]
 verify_jwt = false
+
+[functions.shopify-config]
+verify_jwt = false
