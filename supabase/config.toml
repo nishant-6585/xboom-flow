@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.shopify-webhook]
 verify_jwt = false
+
+[functions.shopify-order-processor]
+verify_jwt = false
