@@ -43,6 +43,7 @@ export default function Orders() {
   const [orderTypeFilter, setOrderTypeFilter] = useState<string>('all');
   const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -90,6 +91,9 @@ export default function Orders() {
     const matchesOrderType = orderTypeFilter === 'all' || o.order_type === orderTypeFilter;
     const matchesOutcome = outcomeFilter === 'all' || o.order_outcome === outcomeFilter;
     const matchesSalesPerson = salesPersonFilter === 'all' || o.sales_person_name === salesPersonFilter;
+    const matchesSource = sourceFilter === 'all' || 
+      (sourceFilter === 'shopify' && o.lead_source?.startsWith('shopify:')) ||
+      (sourceFilter === 'manual' && !o.lead_source?.startsWith('shopify:'));
     
     const orderDate = new Date(o.created_at);
     let matchesDate = true;
@@ -101,7 +105,7 @@ export default function Orders() {
       matchesDate = orderDate <= endOfDay(endDate);
     }
     
-    return matchesSearch && matchesStatus && matchesPaymentTerms && matchesPaymentStatus && matchesOrderType && matchesOutcome && matchesSalesPerson && matchesDate;
+    return matchesSearch && matchesStatus && matchesPaymentTerms && matchesPaymentStatus && matchesOrderType && matchesOutcome && matchesSalesPerson && matchesSource && matchesDate;
   });
 
   const clearFilters = () => {
@@ -112,6 +116,7 @@ export default function Orders() {
     setOrderTypeFilter('all');
     setOutcomeFilter('all');
     setSalesPersonFilter('all');
+    setSourceFilter('all');
     setStatusFilter('all');
     setSearchQuery('');
     // Clear URL params
@@ -179,7 +184,7 @@ export default function Orders() {
   const hasActiveFilters = statusFilter !== 'all' || paymentStatusFilter !== 'all' || 
     orderTypeFilter !== 'all' || outcomeFilter !== 'all' || 
     paymentTermsFilter !== 'all' || salesPersonFilter !== 'all' ||
-    startDate || endDate || searchQuery;
+    sourceFilter !== 'all' || startDate || endDate || searchQuery;
 
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-background via-background to-muted/10 flex flex-col">
@@ -414,7 +419,7 @@ export default function Orders() {
                   {/* Collapsible Filters */}
                   <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
                     <CollapsibleContent className="animate-in slide-in-from-top-2 duration-200">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 pt-5 border-t border-border/50">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4 pt-5 border-t border-border/50">
                         <Select value={statusFilter} onValueChange={setStatusFilter}>
                           <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
                             <SelectValue placeholder="Status" />
@@ -484,6 +489,17 @@ export default function Orders() {
                             {salesPersonOptions.map(name => (
                               <SelectItem key={name} value={name}>{name}</SelectItem>
                             ))}
+                          </SelectContent>
+                        </Select>
+
+                        <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                          <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
+                            <SelectValue placeholder="Source" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover">
+                            <SelectItem value="all">All Sources</SelectItem>
+                            <SelectItem value="shopify">🛒 Shopify</SelectItem>
+                            <SelectItem value="manual">📝 Manual</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
