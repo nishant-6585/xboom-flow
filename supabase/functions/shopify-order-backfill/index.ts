@@ -6,19 +6,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-function extractShippingAddress(payload: Record<string, unknown>): string | null {
-  const addr = payload.shipping_address as Record<string, unknown> | null;
-  if (!addr) return null;
-  const parts = [addr.address1, addr.address2, addr.city, addr.province, addr.zip, addr.country].filter(Boolean);
-  return parts.join(", ") || null;
-}
-
-function mapPaymentStatus(financialStatus: string | undefined): string {
-  switch (financialStatus) {
-    case "paid": return "full";
-    case "partially_paid": return "partial";
-    default: return "pending";
+function extractNextPageUrl(linkHeader: string | null): string | null {
+  if (!linkHeader) return null;
+  const parts = linkHeader.split(',');
+  for (const part of parts) {
+    const match = part.match(/<([^>]+)>;\s*rel="next"/);
+    if (match) return match[1];
   }
+  return null;
 }
 
 serve(async (req) => {
@@ -40,122 +35,96 @@ serve(async (req) => {
 
     const serviceClient = createClient(supabaseUrl, serviceRoleKey);
 
-    // Fetch orders from Shopify (up to 50)
-    const apiUrl = `https://${storeDomain}/admin/api/2025-01/orders.json?limit=50&status=any`;
-    console.log(`Fetching orders from: ${apiUrl}`);
-
-    const response = await fetch(apiUrl, {
-      headers: {
-        'X-Shopify-Access-Token': adminToken,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      return new Response(JSON.stringify({ error: 'Shopify API error', status: response.status, details: errorText }), {
-        status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const data = await response.json();
-    const shopifyOrders = data.orders || [];
-    console.log(`Fetched ${shopifyOrders.length} orders from Shopify`);
-
-    // Get admin user for sales_person_id and created_by
-    const { data: adminUser } = await serviceClient
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "admin")
-      .limit(1);
-
-    if (!adminUser || adminUser.length === 0) {
-      return new Response(JSON.stringify({ error: 'No admin user found to assign orders' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const adminId = adminUser[0].user_id;
-    const { data: adminProfile } = await serviceClient
-      .from("profiles")
-      .select("name")
-      .eq("user_id", adminId)
-      .limit(1);
-    const adminName = adminProfile?.[0]?.name || "System";
-
-    let imported = 0;
-    let skipped = 0;
-    let failed = 0;
+    let totalFetched = 0;
+    let totalInserted = 0;
+    let totalSkipped = 0;
     const errors: string[] = [];
 
-    for (const order of shopifyOrders) {
-      const shopifyOrderNum = order.order_number || order.id;
-      const leadSource = `shopify:${storeDomain}`;
+    // Start with first page
+    let nextUrl: string | null = `https://${storeDomain}/admin/api/2025-01/orders.json?limit=250&status=any`;
 
-      // Check if already imported (dedup by lead_source + internal_notes containing order number)
-      const { data: existing } = await serviceClient
-        .from("orders")
-        .select("id")
-        .eq("lead_source", leadSource)
-        .ilike("internal_notes", `%Shopify Order #${shopifyOrderNum}%`)
-        .limit(1);
+    while (nextUrl) {
+      console.log(`Fetching: ${nextUrl}`);
 
-      if (existing && existing.length > 0) {
-        skipped++;
-        continue;
+      const response = await fetch(nextUrl, {
+        headers: {
+          'X-Shopify-Access-Token': adminToken,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return new Response(JSON.stringify({
+          error: 'Shopify API error',
+          status: response.status,
+          details: errorText,
+          progress: { totalFetched, totalInserted, totalSkipped },
+        }), {
+          status: response.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
-      // Map Shopify order to our orders table
-      const customer = order.customer || {};
-      const lineItems = order.line_items || [];
-      const primaryItem = lineItems[0] || {};
-      const totalQuantity = lineItems.reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0);
-      const lineItemsSummary = lineItems.map((item: any) => `${item.title} x${item.quantity} @ ${item.price}`).join("; ");
+      const data = await response.json();
+      const orders = data.orders || [];
+      totalFetched += orders.length;
+      console.log(`Page returned ${orders.length} orders (total so far: ${totalFetched})`);
 
-      const orderData = {
-        product_name: String(primaryItem.title || "Shopify Order"),
-        product_code: String(primaryItem.sku || primaryItem.product_id || `SHOP-${shopifyOrderNum}`),
-        product_category: "Consumer Drones",
-        quantity: totalQuantity || 1,
-        customer_name: String(`${customer.first_name || ""} ${customer.last_name || ""}`.trim() || order.contact_email || "Shopify Customer"),
-        customer_company: String(customer.default_address?.company || ""),
-        customer_email: String(order.contact_email || order.email || ""),
-        customer_type: "b2c",
-        shipping_address: extractShippingAddress(order),
-        selling_price: Number(order.total_price) || 0,
-        total_sales_amount: Number(order.total_price) || 0,
-        amount_paid: Number(order.total_price) || 0,
-        payment_status: mapPaymentStatus(order.financial_status),
-        order_type: "prepaid",
-        status: "po_received",
-        lead_source: leadSource,
-        internal_notes: `Shopify Order #${shopifyOrderNum}\nItems: ${lineItemsSummary}`,
-        sales_notes: `Fulfillment: ${order.fulfillment_status || "unfulfilled"}`,
-        sales_person_id: adminId,
-        sales_person_name: adminName,
-        created_by: adminId,
-      };
+      // Build raw rows
+      const rows = orders.map((order: Record<string, unknown>) => ({
+        shop_domain: storeDomain,
+        order_id: String(order.id),
+        payload: order,
+        processing_status: 'pending',
+        retry_count: 0,
+        webhook_topic: 'backfill',
+      }));
 
-      const { error: insertError } = await serviceClient.from("orders").insert(orderData);
+      if (rows.length > 0) {
+        // Batch upsert with ON CONFLICT DO NOTHING
+        const { data: upsertData, error: upsertError } = await serviceClient
+          .from('shopify_orders_raw')
+          .upsert(rows, {
+            onConflict: 'shop_domain,order_id',
+            ignoreDuplicates: true,
+          })
+          .select('id');
 
-      if (insertError) {
-        failed++;
-        errors.push(`Order #${shopifyOrderNum}: ${insertError.message}`);
-        console.error(`Failed to import order #${shopifyOrderNum}:`, insertError.message);
+        if (upsertError) {
+          console.error('Upsert error:', upsertError.message);
+          errors.push(upsertError.message);
+          // Count all as skipped on error
+          totalSkipped += rows.length;
+        } else {
+          const inserted = upsertData?.length ?? 0;
+          totalInserted += inserted;
+          totalSkipped += rows.length - inserted;
+        }
+      }
+
+      // Parse Link header for cursor-based pagination
+      const linkHeader = response.headers.get('Link');
+      nextUrl = extractNextPageUrl(linkHeader);
+
+      if (nextUrl) {
+        console.log('Next page cursor found, continuing...');
       } else {
-        imported++;
-        console.log(`Imported Shopify order #${shopifyOrderNum}`);
+        console.log('No more pages.');
       }
     }
 
-    return new Response(JSON.stringify({
+    const summary = {
       success: true,
-      total_fetched: shopifyOrders.length,
-      imported,
-      skipped,
-      failed,
+      total_fetched: totalFetched,
+      total_inserted: totalInserted,
+      total_skipped: totalSkipped,
       errors: errors.length > 0 ? errors : undefined,
-    }), {
+    };
+
+    console.log(`Backfill complete: ${JSON.stringify(summary)}`);
+
+    return new Response(JSON.stringify(summary), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
