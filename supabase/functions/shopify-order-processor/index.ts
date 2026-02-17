@@ -273,7 +273,7 @@ serve(async (req) => {
         .insert({
           ...orderData,
           sales_person_id: adminId,
-          sales_person_name: adminName,
+          sales_person_name: "Shopify",
           created_by: adminId,
         });
 
