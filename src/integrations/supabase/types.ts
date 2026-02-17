@@ -3853,6 +3853,33 @@ export type Database = {
         }
         Relationships: []
       }
+      shopify_orders_raw: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          payload: Json
+          processed: boolean
+          shop_domain: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          payload: Json
+          processed?: boolean
+          shop_domain: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          payload?: Json
+          processed?: boolean
+          shop_domain?: string
+        }
+        Relationships: []
+      }
       slack_settings: {
         Row: {
           channel_enquiries: string | null
