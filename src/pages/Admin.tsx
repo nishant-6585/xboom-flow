@@ -93,6 +93,17 @@ const Admin = () => {
   const [managerChangeLoading, setManagerChangeLoading] = useState<string | null>(null);
   const [deptChangeLoading, setDeptChangeLoading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("analytics");
+  const [orgRoles, setOrgRoles] = useState<{ id: string; name: string; label: string; is_active: boolean }[]>([]);
+  const [orgDepartments, setOrgDepartments] = useState<{ id: string; name: string; is_active: boolean }[]>([]);
+
+  const fetchOrgData = async () => {
+    const [rolesRes, deptsRes] = await Promise.all([
+      supabase.from("org_roles").select("id, name, label, is_active").eq("is_active", true).order("name"),
+      supabase.from("org_departments").select("id, name, is_active").eq("is_active", true).order("name"),
+    ]);
+    if (rolesRes.data) setOrgRoles(rolesRes.data);
+    if (deptsRes.data) setOrgDepartments(deptsRes.data);
+  };
 
   // Move useEffect before any conditional returns to follow React Hooks rules
   useEffect(() => {
@@ -100,6 +111,7 @@ const Admin = () => {
       fetchPendingUsers();
       fetchApprovedUsers();
       fetchInvitations();
+      fetchOrgData();
     }
   }, [role, isApproved]);
 
@@ -888,14 +900,9 @@ const Admin = () => {
                               )}
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="General">General</SelectItem>
-                              <SelectItem value="Sales">Sales</SelectItem>
-                              <SelectItem value="HR">HR</SelectItem>
-                              <SelectItem value="Finance">Finance</SelectItem>
-                              <SelectItem value="IT">IT</SelectItem>
-                              <SelectItem value="Marketing">Marketing</SelectItem>
-                              <SelectItem value="Supply Chain">Supply Chain</SelectItem>
-                              <SelectItem value="Operations">Operations</SelectItem>
+                              {orgDepartments.map((dept) => (
+                                <SelectItem key={dept.id} value={dept.name}>{dept.name}</SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
 
@@ -912,22 +919,14 @@ const Admin = () => {
                             </PopoverTrigger>
                             <PopoverContent className="w-48 p-2 bg-popover border border-border z-50" align="start">
                               <div className="space-y-1">
-                                {[
-                                  { value: "sales", label: "Sales Team" },
-                                  { value: "supply_chain", label: "Supply Chain" },
-                                  { value: "finance", label: "Finance" },
-                                  { value: "admin", label: "Admin" },
-                                  { value: "it", label: "IT Team" },
-                                  { value: "marketing", label: "Marketing" },
-                                  { value: "hr", label: "HR Team" },
-                                ].map((roleOption) => (
+                                {orgRoles.map((roleOption) => (
                                   <label
-                                    key={roleOption.value}
+                                    key={roleOption.name}
                                     className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer text-sm"
                                   >
                                     <Checkbox
-                                      checked={user.roles.includes(roleOption.value)}
-                                      onCheckedChange={() => handleToggleRole(user.user_id, roleOption.value, user.roles, user.name)}
+                                      checked={user.roles.includes(roleOption.name)}
+                                      onCheckedChange={() => handleToggleRole(user.user_id, roleOption.name, user.roles, user.name)}
                                     />
                                     {roleOption.label}
                                   </label>
