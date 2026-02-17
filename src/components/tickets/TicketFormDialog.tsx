@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { useTickets, CreateTicketData, useTeamMembers } from "@/hooks/useTickets";
+import { useOrgRoles } from "@/hooks/useOrgRolesAndDepartments";
 import { useOrders } from "@/hooks/useOrders";
 import { useEnquiries } from "@/hooks/useEnquiries";
 import { Database } from "@/integrations/supabase/types";
@@ -64,15 +65,7 @@ const priorities: { value: TicketPriority; label: string; sla: string }[] = [
   { value: "low", label: "Low", sla: "48h SLA" },
 ];
 
-const departments: { value: AppRole; label: string }[] = [
-  { value: "sales", label: "Sales" },
-  { value: "supply_chain", label: "Supply Chain" },
-  { value: "finance", label: "Finance" },
-  { value: "admin", label: "Admin" },
-  { value: "it", label: "IT" },
-  { value: "marketing", label: "Marketing" },
-  { value: "hr", label: "HR" },
-];
+// departments are now fetched dynamically via useOrgRoles
 
 const steps = [
   { id: 1, title: "Basic Info", description: "Subject & Description" },
@@ -86,6 +79,7 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
   const { orders } = useOrders();
   const { enquiries } = useEnquiries();
   const { data: teamMembers = [] } = useTeamMembers();
+  const { roles: orgRoles } = useOrgRoles();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<{
@@ -311,15 +305,15 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
                   Assign to Department *
                 </Label>
                 <div className="grid grid-cols-2 gap-2">
-                  {departments.map((dept) => (
+                  {orgRoles.map((dept) => (
                     <Button
-                      key={dept.value}
+                      key={dept.name}
                       type="button"
-                      variant={formData.assigned_department === dept.value ? "default" : "outline"}
+                      variant={formData.assigned_department === dept.name ? "default" : "outline"}
                       className="justify-start h-auto py-4 px-4"
                       onClick={() => setFormData({ 
                         ...formData, 
-                        assigned_department: dept.value,
+                        assigned_department: dept.name as AppRole,
                         assigned_to: "" // Reset assigned person when department changes
                       })}
                     >
@@ -452,7 +446,7 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Department:</span>
                     <span className="font-medium">
-                      {departments.find(d => d.value === formData.assigned_department)?.label}
+                      {orgRoles.find(d => d.name === formData.assigned_department)?.label || formData.assigned_department}
                     </span>
                   </div>
                   {formData.assigned_to && (
