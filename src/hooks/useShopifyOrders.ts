@@ -46,7 +46,7 @@ export function useShopifyOrders() {
         .from('shopify_orders')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(5000);
+        .limit(10000);
 
       if (error) throw error;
       setShopifyOrders(data || []);
