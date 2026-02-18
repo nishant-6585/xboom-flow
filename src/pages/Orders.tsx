@@ -21,7 +21,7 @@ import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag } from 'lucide-react';
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth } from 'date-fns';
 import { Link } from 'react-router-dom';
 
@@ -43,13 +43,21 @@ export default function Orders() {
   const [orderTypeFilter, setOrderTypeFilter] = useState<string>('all');
   const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
-  const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+
+  // Shopify tab filters
+  const [shopifyStatusFilter, setShopifyStatusFilter] = useState<string>('all');
+  const [shopifyPaymentStatusFilter, setShopifyPaymentStatusFilter] = useState<string>('all');
+  const [shopifySearchQuery, setShopifySearchQuery] = useState<string>('');
+  const [shopifyViewMode, setShopifyViewMode] = useState<'cards' | 'table'>('cards');
+  const [shopifyStartDate, setShopifyStartDate] = useState<Date | undefined>(undefined);
+  const [shopifyEndDate, setShopifyEndDate] = useState<Date | undefined>(undefined);
+  const [shopifyFiltersOpen, setShopifyFiltersOpen] = useState(false);
 
   // Update active tab when URL changes
   useEffect(() => {
@@ -60,7 +68,7 @@ export default function Orders() {
 
   // Get unique filter options from orders
   const paymentTermsOptions = [...new Set(orders.map(o => o.payment_terms).filter(Boolean))] as string[];
-  const salesPersonOptions = [...new Set(orders.map(o => o.sales_person_name).filter(Boolean))] as string[];
+  const salesPersonOptions = [...new Set(orders.filter(o => !o.lead_source?.startsWith('shopify:')).map(o => o.sales_person_name).filter(Boolean))] as string[];
 
   const canCreateOrder = role === 'sales' || role === 'supply_chain' || role === 'admin';
   const isAdmin = role === 'admin';
@@ -68,9 +76,14 @@ export default function Orders() {
   const canViewProcurementCosts = role === 'supply_chain' || role === 'admin';
   const canViewProcurementWidget = role === 'admin' || role === 'supply_chain' || role === 'finance';
 
-  const refundCount = orders.filter(o => o.is_refund_requested).length;
+  const refundCount = orders.filter(o => o.is_refund_requested && !o.lead_source?.startsWith('shopify:')).length;
 
-  const filteredOrders = orders.filter(o => {
+  // Manual (non-Shopify) orders
+  const manualOrders = orders.filter(o => !o.lead_source?.startsWith('shopify:'));
+  // Shopify orders
+  const shopifyOrders = orders.filter(o => o.lead_source?.startsWith('shopify:'));
+
+  const filteredOrders = manualOrders.filter(o => {
     // If filtering by enquiry_id from URL, only show that order
     if (enquiryIdFromUrl && activeTab === 'list') {
       return o.enquiry_id === enquiryIdFromUrl;
@@ -91,9 +104,6 @@ export default function Orders() {
     const matchesOrderType = orderTypeFilter === 'all' || o.order_type === orderTypeFilter;
     const matchesOutcome = outcomeFilter === 'all' || o.order_outcome === outcomeFilter;
     const matchesSalesPerson = salesPersonFilter === 'all' || o.sales_person_name === salesPersonFilter;
-    const matchesSource = sourceFilter === 'all' || 
-      (sourceFilter === 'shopify' && o.lead_source?.startsWith('shopify:')) ||
-      (sourceFilter === 'manual' && !o.lead_source?.startsWith('shopify:'));
     
     const orderDate = new Date(o.created_at);
     let matchesDate = true;
@@ -105,7 +115,32 @@ export default function Orders() {
       matchesDate = orderDate <= endOfDay(endDate);
     }
     
-    return matchesSearch && matchesStatus && matchesPaymentTerms && matchesPaymentStatus && matchesOrderType && matchesOutcome && matchesSalesPerson && matchesSource && matchesDate;
+    return matchesSearch && matchesStatus && matchesPaymentTerms && matchesPaymentStatus && matchesOrderType && matchesOutcome && matchesSalesPerson && matchesDate;
+  });
+
+  const filteredShopifyOrders = shopifyOrders.filter(o => {
+    const searchLower = shopifySearchQuery.toLowerCase().trim();
+    const matchesSearch = shopifySearchQuery === '' || 
+      (o.order_number?.toLowerCase().includes(searchLower)) ||
+      o.product_name.toLowerCase().includes(searchLower) ||
+      o.customer_name.toLowerCase().includes(searchLower) ||
+      o.customer_company.toLowerCase().includes(searchLower) ||
+      o.product_code?.toLowerCase().includes(searchLower);
+    
+    const matchesStatus = shopifyStatusFilter === 'all' || o.status === shopifyStatusFilter;
+    const matchesPaymentStatus = shopifyPaymentStatusFilter === 'all' || o.payment_status === shopifyPaymentStatusFilter;
+    
+    const orderDate = new Date(o.created_at);
+    let matchesDate = true;
+    if (shopifyStartDate && shopifyEndDate) {
+      matchesDate = isWithinInterval(orderDate, { start: startOfDay(shopifyStartDate), end: endOfDay(shopifyEndDate) });
+    } else if (shopifyStartDate) {
+      matchesDate = orderDate >= startOfDay(shopifyStartDate);
+    } else if (shopifyEndDate) {
+      matchesDate = orderDate <= endOfDay(shopifyEndDate);
+    }
+    
+    return matchesSearch && matchesStatus && matchesPaymentStatus && matchesDate;
   });
 
   const clearFilters = () => {
@@ -116,11 +151,18 @@ export default function Orders() {
     setOrderTypeFilter('all');
     setOutcomeFilter('all');
     setSalesPersonFilter('all');
-    setSourceFilter('all');
     setStatusFilter('all');
     setSearchQuery('');
     // Clear URL params
     setSearchParams({});
+  };
+
+  const clearShopifyFilters = () => {
+    setShopifyStartDate(undefined);
+    setShopifyEndDate(undefined);
+    setShopifyStatusFilter('all');
+    setShopifyPaymentStatusFilter('all');
+    setShopifySearchQuery('');
   };
 
   const handleAnalyticsCardClick = (filter: { type: string; value: string }) => {
@@ -174,17 +216,20 @@ export default function Orders() {
   
   // Calculate quick stats
   const stats = {
-    total: orders.length,
-    poReceived: orders.filter(o => ['po_received', 'payment_received', 'partial_payment_received'].includes(o.status)).length,
-    inProgress: orders.filter(o => ['procurement_to_plan', 'procurement_in_process', 'to_ship', 'in_transit'].includes(o.status)).length,
-    completed: orders.filter(o => ['delivery_done', 'procurement_done'].includes(o.status)).length,
-    paymentPending: orders.filter(o => o.payment_status === 'pending').length,
+    total: manualOrders.length,
+    poReceived: manualOrders.filter(o => ['po_received', 'payment_received', 'partial_payment_received'].includes(o.status)).length,
+    inProgress: manualOrders.filter(o => ['procurement_to_plan', 'procurement_in_process', 'to_ship', 'in_transit'].includes(o.status)).length,
+    completed: manualOrders.filter(o => ['delivery_done', 'procurement_done'].includes(o.status)).length,
+    paymentPending: manualOrders.filter(o => o.payment_status === 'pending').length,
   };
 
   const hasActiveFilters = statusFilter !== 'all' || paymentStatusFilter !== 'all' || 
     orderTypeFilter !== 'all' || outcomeFilter !== 'all' || 
     paymentTermsFilter !== 'all' || salesPersonFilter !== 'all' ||
-    sourceFilter !== 'all' || startDate || endDate || searchQuery;
+    !!startDate || !!endDate || !!searchQuery;
+
+  const hasActiveShopifyFilters = shopifyStatusFilter !== 'all' || shopifyPaymentStatusFilter !== 'all' ||
+    !!shopifyStartDate || !!shopifyEndDate || !!shopifySearchQuery;
 
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-background via-background to-muted/10 flex flex-col">
@@ -224,6 +269,13 @@ export default function Orders() {
                   <span className="hidden sm:inline font-medium">Orders</span>
                   <Badge variant="secondary" className="ml-1 h-5 px-2 text-xs bg-primary/10 text-primary font-semibold">
                     {filteredOrders.length}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="shopify" className="gap-2">
+                  <ShoppingBag className="h-4 w-4" />
+                  <span className="hidden sm:inline font-medium">Shopify</span>
+                  <Badge variant="secondary" className="ml-1 h-5 px-2 text-xs bg-primary/10 text-primary font-semibold">
+                    {filteredShopifyOrders.length}
                   </Badge>
                 </TabsTrigger>
                 <TabsTrigger value="pipeline" className="gap-2">
@@ -492,16 +544,8 @@ export default function Orders() {
                           </SelectContent>
                         </Select>
 
-                        <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                          <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
-                            <SelectValue placeholder="Source" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-popover">
-                            <SelectItem value="all">All Sources</SelectItem>
-                            <SelectItem value="shopify">🛒 Shopify</SelectItem>
-                            <SelectItem value="manual">📝 Manual</SelectItem>
-                          </SelectContent>
-                        </Select>
+
+
                       </div>
                       
                       <div className="mt-5 pt-5 border-t border-border/50">
@@ -561,6 +605,171 @@ export default function Orders() {
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {filteredOrders.map((order, index) => (
                   <div 
+                    key={order.id}
+                    className="animate-in fade-in slide-in-from-bottom-2"
+                    style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
+                  >
+                    <OrderCard
+                      order={order}
+                      onClick={() => handleOrderClick(order)}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="shopify" className="space-y-6 mt-0">
+            {/* Shopify Orders Header */}
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-xl bg-green-500/10">
+                <ShoppingBag className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">Shopify Orders</h2>
+                <p className="text-xs text-muted-foreground">{shopifyOrders.length} orders synced from Shopify</p>
+              </div>
+            </div>
+
+            {/* Shopify Search & Filters */}
+            <Card className="border border-border/60 shadow-sm bg-gradient-to-br from-card to-muted/10 backdrop-blur-sm">
+              <CardContent className="p-5">
+                <div className="flex flex-col gap-5">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                    <div className="relative flex-1 max-w-lg">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search order no, product, customer..."
+                        value={shopifySearchQuery}
+                        onChange={(e) => setShopifySearchQuery(e.target.value)}
+                        className="pl-11 pr-10 h-11 bg-background border-muted-foreground/20 focus:border-primary/50 rounded-xl shadow-sm transition-all"
+                      />
+                      {shopifySearchQuery && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 p-0 hover:bg-muted rounded-full"
+                          onClick={() => setShopifySearchQuery('')}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Collapsible open={shopifyFiltersOpen} onOpenChange={setShopifyFiltersOpen}>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="outline" size="default" className="gap-2 h-11 px-4 rounded-xl border-muted-foreground/20 hover:bg-muted/50">
+                            <Filter className="h-4 w-4" />
+                            <span className="font-medium">Filters</span>
+                            {hasActiveShopifyFilters && (
+                              <Badge className="h-5 px-2 text-xs bg-primary text-primary-foreground font-semibold">Active</Badge>
+                            )}
+                            <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${shopifyFiltersOpen ? 'rotate-180' : ''}`} />
+                          </Button>
+                        </CollapsibleTrigger>
+                      </Collapsible>
+                      {hasActiveShopifyFilters && (
+                        <Button variant="ghost" size="default" onClick={clearShopifyFilters} className="gap-2 h-11 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-xl">
+                          <X className="h-4 w-4" />
+                          <span className="hidden sm:inline">Clear All</span>
+                        </Button>
+                      )}
+                      <div className="flex items-center gap-1 border border-muted-foreground/20 rounded-xl p-1 bg-muted/30">
+                        <Button
+                          variant={shopifyViewMode === 'cards' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setShopifyViewMode('cards')}
+                          className={`h-9 w-9 p-0 rounded-lg ${shopifyViewMode === 'cards' ? 'shadow-sm' : 'hover:bg-muted/50'}`}
+                        >
+                          <LayoutGrid className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant={shopifyViewMode === 'table' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setShopifyViewMode('table')}
+                          className={`h-9 w-9 p-0 rounded-lg ${shopifyViewMode === 'table' ? 'shadow-sm' : 'hover:bg-muted/50'}`}
+                        >
+                          <Table className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Collapsible open={shopifyFiltersOpen} onOpenChange={setShopifyFiltersOpen}>
+                    <CollapsibleContent className="animate-in slide-in-from-top-2 duration-200">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-5 border-t border-border/50">
+                        <Select value={shopifyStatusFilter} onValueChange={setShopifyStatusFilter}>
+                          <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
+                            <SelectValue placeholder="Status" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover">
+                            <SelectItem value="all">All Statuses</SelectItem>
+                            {ORDER_STATUSES.map(s => (
+                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select value={shopifyPaymentStatusFilter} onValueChange={setShopifyPaymentStatusFilter}>
+                          <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
+                            <SelectValue placeholder="Payment" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover">
+                            <SelectItem value="all">All Payment Status</SelectItem>
+                            {PAYMENT_STATUSES.map(s => (
+                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="mt-5 pt-5 border-t border-border/50">
+                        <DateRangeFilter
+                          startDate={shopifyStartDate}
+                          endDate={shopifyEndDate}
+                          onStartDateChange={setShopifyStartDate}
+                          onEndDateChange={setShopifyEndDate}
+                          onClear={clearShopifyFilters}
+                        />
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Shopify Orders Results */}
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="mt-6 text-sm text-muted-foreground font-medium">Loading Shopify orders...</p>
+              </div>
+            ) : filteredShopifyOrders.length === 0 ? (
+              <Card className="border-dashed border-2 bg-gradient-to-br from-muted/30 to-muted/10">
+                <CardContent className="flex flex-col items-center justify-center py-20">
+                  <div className="p-6 rounded-2xl bg-gradient-to-br from-muted to-muted/50 mb-6 shadow-inner">
+                    <ShoppingBag className="h-12 w-12 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">No Shopify orders found</h3>
+                  <p className="text-muted-foreground text-center max-w-md leading-relaxed">
+                    {hasActiveShopifyFilters ? 'Try adjusting your filters' : 'No orders have been synced from Shopify yet'}
+                  </p>
+                  {hasActiveShopifyFilters && (
+                    <Button variant="outline" onClick={clearShopifyFilters} className="mt-6 gap-2 rounded-xl h-11 px-6">
+                      <X className="h-4 w-4" />
+                      Clear Filters
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ) : shopifyViewMode === 'table' ? (
+              <Card className="shadow-sm border-border/60 overflow-hidden">
+                <CardContent className="p-0">
+                  <OrderTable orders={filteredShopifyOrders} onOrderClick={handleOrderClick} onUpdateOutcome={handleUpdateOutcome} />
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {filteredShopifyOrders.map((order, index) => (
+                  <div
                     key={order.id}
                     className="animate-in fade-in slide-in-from-bottom-2"
                     style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
