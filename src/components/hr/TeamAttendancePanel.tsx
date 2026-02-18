@@ -259,19 +259,19 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
   return (
     <Tabs defaultValue="today" className="space-y-4">
       {/* ── Tab Header ── */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <TabsList className="h-9">
-          <TabsTrigger value="today" className="gap-1.5 text-xs">
-            <Activity className="h-3.5 w-3.5" /> Today
+      <div className="flex flex-col gap-2">
+        <TabsList className="h-9 w-full grid grid-cols-4">
+          <TabsTrigger value="today" className="gap-1 text-xs">
+            <Activity className="h-3.5 w-3.5 shrink-0" /> Today
           </TabsTrigger>
-          <TabsTrigger value="calendar" className="gap-1.5 text-xs">
-            <Calendar className="h-3.5 w-3.5" /> Calendar
+          <TabsTrigger value="calendar" className="gap-1 text-xs">
+            <Calendar className="h-3.5 w-3.5 shrink-0" /> <span className="hidden xs:inline">Calendar</span><span className="xs:hidden">Cal</span>
           </TabsTrigger>
-          <TabsTrigger value="monthly" className="gap-1.5 text-xs">
-            <CalendarCheck className="h-3.5 w-3.5" /> Monthly
+          <TabsTrigger value="monthly" className="gap-1 text-xs">
+            <CalendarCheck className="h-3.5 w-3.5 shrink-0" /> <span className="hidden xs:inline">Monthly</span><span className="xs:hidden">Month</span>
           </TabsTrigger>
-          <TabsTrigger value="export" className="gap-1.5 text-xs">
-            <Download className="h-3.5 w-3.5" /> Export
+          <TabsTrigger value="export" className="gap-1 text-xs">
+            <Download className="h-3.5 w-3.5 shrink-0" /> Export
           </TabsTrigger>
         </TabsList>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
