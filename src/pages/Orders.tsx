@@ -19,6 +19,7 @@ import { PipelineOrders } from '@/components/pipeline/PipelineOrders';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
+import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidget';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
@@ -748,6 +749,9 @@ export default function Orders() {
                 <p className="text-xs text-muted-foreground">{shopifyOrders.length.toLocaleString()} orders synced from Shopify (separate database)</p>
               </div>
             </div>
+
+            {/* Pipeline Monitor Widget */}
+            {isAdmin && <ShopifyPipelineWidget />}
 
             {/* Shopify Search & Filters */}
             <Card className="border border-border/60 shadow-sm bg-gradient-to-br from-card to-muted/10 backdrop-blur-sm">
