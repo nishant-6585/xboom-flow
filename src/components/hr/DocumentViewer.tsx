@@ -19,6 +19,7 @@ export function DocumentViewer({ open, onOpenChange, url, name }: DocumentViewer
   if (!url) return null;
 
   const isPDF = name.toLowerCase().endsWith(".pdf");
+  const isDocx = /\.(doc|docx|xls|xlsx|ppt|pptx)$/i.test(name);
   const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(name);
 
   return (
@@ -47,7 +48,7 @@ export function DocumentViewer({ open, onOpenChange, url, name }: DocumentViewer
           </div>
         </DialogHeader>
         <div className="flex-1 overflow-hidden px-2 pb-2">
-          {isPDF ? (
+          {isPDF || isDocx ? (
             <iframe
               src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
               className="w-full h-full rounded-md border"
