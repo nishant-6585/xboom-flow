@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Download, Users, ChevronLeft, ChevronRight, LayoutList } from 'lucide-react';
+import { Calendar, Download, Users, ChevronLeft, ChevronRight, LayoutList, UserCheck, UserX, CalendarCheck, Coffee, LogOut } from 'lucide-react';
 import { Employee, AttendanceLog } from '@/hooks/useHR';
 import { cn } from '@/lib/utils';
 
@@ -149,8 +149,44 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
     URL.revokeObjectURL(url);
   };
 
+  // ── Today's summary stats ──
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const todayLogs = logs.filter(l => l.date === todayStr);
+
+  const todayStats = (() => {
+    let present = 0, absent = 0, onLeave = 0, onBreak = 0, notCheckedOut = 0;
+    for (const emp of employees) {
+      const log = todayLogs.find(l => l.employee_id === emp.id) || null;
+      if (!log) { absent++; continue; }
+      if (log.status === 'on_leave') { onLeave++; continue; }
+      if (log.break_start_time && !log.break_end_time) onBreak++;
+      if (log.check_in_time && !log.check_out_time) notCheckedOut++;
+      if (log.check_in_time) present++;
+    }
+    return { present, absent, onLeave, onBreak, notCheckedOut };
+  })();
+
   return (
     <div className="space-y-4">
+      {/* ── Today Summary Bar ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        {[
+          { label: 'Present', value: todayStats.present, icon: UserCheck, color: 'text-green-600', bg: 'bg-green-500/10' },
+          { label: 'Absent', value: todayStats.absent, icon: UserX, color: 'text-red-600', bg: 'bg-red-500/10' },
+          { label: 'On Leave', value: todayStats.onLeave, icon: CalendarCheck, color: 'text-purple-600', bg: 'bg-purple-500/10' },
+          { label: 'On Break', value: todayStats.onBreak, icon: Coffee, color: 'text-orange-600', bg: 'bg-orange-500/10' },
+          { label: 'Not Checked Out', value: todayStats.notCheckedOut, icon: LogOut, color: 'text-blue-600', bg: 'bg-blue-500/10' },
+        ].map(({ label, value, icon: Icon, color, bg }) => (
+          <div key={label} className={`flex items-center gap-3 rounded-xl px-4 py-3 ${bg}`}>
+            <Icon className={`h-5 w-5 shrink-0 ${color}`} />
+            <div>
+              <p className={`text-xl font-bold leading-none ${color}`}>{value}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* ── Filter Bar ── */}
       <Card>
         <CardContent className="p-4">
