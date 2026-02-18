@@ -165,6 +165,30 @@ export type Database = {
           },
         ]
       }
+      attendance_notifications_log: {
+        Row: {
+          date: string
+          id: string
+          triggered_at: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          date?: string
+          id?: string
+          triggered_at?: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          date?: string
+          id?: string
+          triggered_at?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       attendance_policy_settings: {
         Row: {
           break_severe_minutes: number
@@ -2677,6 +2701,7 @@ export type Database = {
           target_role: string | null
           title: string
           type: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -2687,6 +2712,7 @@ export type Database = {
           target_role?: string | null
           title: string
           type?: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -2697,6 +2723,7 @@ export type Database = {
           target_role?: string | null
           title?: string
           type?: string
+          user_id?: string | null
         }
         Relationships: [
           {
