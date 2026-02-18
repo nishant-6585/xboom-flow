@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday, startOfWeek, endOfWeek } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday } from 'date-fns';
 import { ChevronLeft, ChevronRight, Download, Clock, Coffee, TrendingUp, CalendarCheck } from 'lucide-react';
-import { AttendanceLog, AttendanceStatus } from '@/hooks/useHR';
+import { AttendanceLog } from '@/hooks/useHR';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
@@ -35,45 +35,39 @@ const STATUS_TEXT: Record<string, string> = {
 };
 
 function DayDetailPanel({ log, date, onClose }: { log: AttendanceLog | null; date: Date; onClose: () => void }) {
-  if (!log) return (
-    <div className="p-4 bg-muted/30 rounded-xl mt-3">
-      <div className="flex items-center justify-between mb-2">
-        <p className="font-medium text-sm">{format(date, 'EEEE, dd MMM yyyy')}</p>
-        <button onClick={onClose} className="text-muted-foreground text-xs hover:text-foreground">✕</button>
-      </div>
-      <p className="text-sm text-muted-foreground">No attendance record</p>
-    </div>
-  );
-
   return (
     <div className="p-4 bg-muted/30 rounded-xl mt-3 space-y-3">
       <div className="flex items-center justify-between">
         <p className="font-medium text-sm">{format(date, 'EEEE, dd MMM yyyy')}</p>
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs">{STATUS_TEXT[log.status] || log.status}</Badge>
+          {log && <Badge variant="outline" className="text-xs">{STATUS_TEXT[log.status] || log.status}</Badge>}
           <button onClick={onClose} className="text-muted-foreground text-xs hover:text-foreground">✕</button>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div>
-          <p className="text-muted-foreground text-xs">Check In</p>
-          <p className="font-medium">{log.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground text-xs">Check Out</p>
-          <p className="font-medium">{log.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground text-xs">Work Hours</p>
-          <p className="font-medium text-green-700">{log.working_hours?.toFixed(1) || '0.0'}h</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground text-xs">Break Time</p>
-          <p className="font-medium text-yellow-700">{Math.round(log.total_break_minutes || 0)}m</p>
-        </div>
-      </div>
-      {log.notes && (
-        <p className="text-xs text-muted-foreground">Note: {log.notes}</p>
+      {!log ? (
+        <p className="text-sm text-muted-foreground">No attendance record for this day.</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <p className="text-muted-foreground text-xs">Check In</p>
+              <p className="font-medium">{log.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Check Out</p>
+              <p className="font-medium">{log.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Work Hours</p>
+              <p className="font-medium">{log.working_hours?.toFixed(1) || '0.0'}h</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Break Time</p>
+              <p className="font-medium">{Math.round(log.total_break_minutes || 0)}m</p>
+            </div>
+          </div>
+          {log.notes && <p className="text-xs text-muted-foreground">Note: {log.notes}</p>}
+        </>
       )}
     </div>
   );
