@@ -7,6 +7,7 @@ import { useHR } from "@/hooks/useHR";
 import { useAuth } from "@/hooks/useAuth";
 import { AttendanceCard } from "@/components/hr/AttendanceCard";
 import { AttendanceSection } from "@/components/hr/AttendanceSection";
+import { TeamAttendancePanel } from "@/components/hr/TeamAttendancePanel";
 import { LeaveRequestCard } from "@/components/hr/LeaveRequestCard";
 import { LeaveApplyDialog } from "@/components/hr/LeaveApplyDialog";
 import { LeaveApprovalCard } from "@/components/hr/LeaveApprovalCard";
@@ -14,14 +15,16 @@ import { TeamAttendanceOverview } from "@/components/hr/TeamAttendanceOverview";
 import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
 import { HRDocumentsPanel } from "@/components/hr/HRDocumentsPanel";
 import { KPIManagementPanel } from "@/components/kpi/KPIManagementPanel";
-import { Plus, Calendar, Clock, FileText, Users, LayoutList, Package, FolderOpen, Target, UserSearch } from "lucide-react";
+import { Plus, Calendar, Clock, FileText, Users, LayoutList, Package, FolderOpen, Target, UserSearch, User } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CandidatesPanel } from "@/components/candidates/CandidatesPanel";
+
 
 export default function HR() {
   const isMobile = useIsMobile();
   const { role } = useAuth();
   const {
+    employees,
     myEmployee,
     todayAttendance,
     weeklyHours,
@@ -179,13 +182,36 @@ export default function HR() {
           )}
 
           <TabsContent value="attendance" className="space-y-4">
-            <AttendanceSection
-              todayAttendance={todayAttendance}
-              weeklyHours={weeklyHours}
-              attendanceLogs={attendanceLogs}
-              calendarMonth={calendarMonth}
-              onMonthChange={setCalendarMonth}
-            />
+            <Tabs defaultValue="my">
+              <TabsList className="w-full sm:w-auto">
+                <TabsTrigger value="my" className="flex-1 sm:flex-none gap-1.5">
+                  <User className="h-4 w-4" />
+                  My Attendance
+                </TabsTrigger>
+                {isHROrAdmin && (
+                  <TabsTrigger value="team" className="flex-1 sm:flex-none gap-1.5">
+                    <Users className="h-4 w-4" />
+                    Team Attendance
+                  </TabsTrigger>
+                )}
+              </TabsList>
+
+              <TabsContent value="my" className="mt-4">
+                <AttendanceSection
+                  todayAttendance={todayAttendance}
+                  weeklyHours={weeklyHours}
+                  attendanceLogs={attendanceLogs}
+                  calendarMonth={calendarMonth}
+                  onMonthChange={setCalendarMonth}
+                />
+              </TabsContent>
+
+              {isHROrAdmin && (
+                <TabsContent value="team" className="mt-4">
+                  <TeamAttendancePanel employees={employees} />
+                </TabsContent>
+              )}
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="leave" className="space-y-4">
