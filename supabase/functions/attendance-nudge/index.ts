@@ -6,22 +6,28 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
+// ─── Timezone: IST = UTC+5:30 ──────────────────────────────────────────────
+// All policy times (work_start_time) are in IST.
+// Server runs UTC, so we offset by +5.5 hours for comparison.
+
+const IST_OFFSET_HOURS = 5.5;
+
+function nowHourIST(): number {
+  const now = new Date();
+  const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60;
+  return (utcHours + IST_OFFSET_HOURS) % 24;
+}
+
+function todayISOinIST(): string {
+  // Date in IST — shift UTC date by IST offset
+  const now = new Date();
+  const istMs = now.getTime() + IST_OFFSET_HOURS * 60 * 60 * 1000;
+  return new Date(istMs).toISOString().split("T")[0];
+}
 
 function lateThresholdHour(workStartTime: string, gracePeriodMinutes: number): number {
   const [h, m] = workStartTime.split(":").map(Number);
   return h + m / 60 + gracePeriodMinutes / 60;
-}
-
-function nowHourLocal(): number {
-  // Server time is UTC — for IST add 5.5h; we use UTC here since attendance
-  // timestamps are stored as UTC and compared consistently.
-  const now = new Date();
-  return now.getUTCHours() + now.getUTCMinutes() / 60;
-}
-
-function todayISO(): string {
-  return new Date().toISOString().split("T")[0];
 }
 
 // ─── Main ──────────────────────────────────────────────────────────────────
@@ -33,10 +39,18 @@ serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, serviceKey);
 
-  const today = todayISO();
+  const today = todayISOinIST();
   const log: string[] = [];
+  const runStarted = new Date().toISOString();
+
+  let lateNudgesSent = 0;
+  let breakNudgesSent = 0;
+  let employeesChecked = 0;
+  let errorMessage: string | null = null;
 
   try {
+    log.push(`[run] started at ${runStarted}, IST date: ${today}`);
+
     // 1. Load policy ─────────────────────────────────────────────────────────
     const { data: policyData } = await supabase
       .from("attendance_policy_settings")
@@ -53,126 +67,112 @@ serve(async (req) => {
 
     if (!policy.employee_nudge_enabled) {
       log.push("employee_nudge_enabled is false — skipping");
-      return new Response(JSON.stringify({ ok: true, log }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      await writeHealthLog(supabase, { lateNudgesSent, breakNudgesSent, employeesChecked, log });
+      return jsonResponse({ ok: true, log });
     }
 
-    const currentHour = nowHourLocal();
+    const currentHourIST = nowHourIST();
     const lateAfterHour = lateThresholdHour(policy.work_start_time, policy.grace_period_minutes);
 
+    log.push(`[time] IST hour: ${currentHourIST.toFixed(2)}, late threshold: ${lateAfterHour.toFixed(2)}`);
+
     // ─── A. Late Check-In Nudge ─────────────────────────────────────────────
-    // Only trigger if current time > late threshold
-    if (currentHour > lateAfterHour) {
-      // Get all active approved employees who haven't checked in today
-      const { data: employeesWithoutCheckin } = await supabase
+    // Fix #1: Uses IST now — no more UTC mismatch
+    // Fix #3: If HR manually added check_in_time, query excludes that employee automatically
+    if (currentHourIST > lateAfterHour) {
+      const { data: allActiveEmployees } = await supabase
         .from("employees")
         .select("id, user_id, name")
         .eq("is_active", true)
         .not("user_id", "is", null);
 
-      const employeeUserIds = (employeesWithoutCheckin ?? [])
-        .map((e) => e.user_id)
-        .filter(Boolean);
+      employeesChecked = (allActiveEmployees ?? []).length;
 
-      if (employeeUserIds.length > 0) {
-        // Get employees who DID check in today
-        const { data: checkedInLogs } = await supabase
-          .from("attendance_logs")
-          .select("employee_id")
-          .eq("date", today)
-          .not("check_in_time", "is", null);
+      // Employees who already checked in today
+      const { data: checkedInLogs } = await supabase
+        .from("attendance_logs")
+        .select("employee_id")
+        .eq("date", today)
+        .not("check_in_time", "is", null);
 
-        const checkedInEmployeeIds = new Set(
-          (checkedInLogs ?? []).map((l) => l.employee_id)
-        );
+      const checkedInEmployeeIds = new Set(
+        (checkedInLogs ?? []).map((l) => l.employee_id)
+      );
 
-        // Get employees who already received a late nudge today
-        const { data: existingLateNudges } = await supabase
-          .from("attendance_notifications_log")
-          .select("user_id")
-          .eq("date", today)
-          .eq("type", "late_nudge");
+      // Employees already nudged today for late check-in (reference_id IS NULL for late_nudge)
+      const { data: existingLateNudges } = await supabase
+        .from("attendance_notifications_log")
+        .select("user_id")
+        .eq("date", today)
+        .eq("type", "late_nudge");
 
-        const nudgedUserIds = new Set(
-          (existingLateNudges ?? []).map((n) => n.user_id)
-        );
+      const nudgedUserIds = new Set(
+        (existingLateNudges ?? []).map((n) => n.user_id)
+      );
 
-        const toNudge = (employeesWithoutCheckin ?? []).filter(
-          (e) =>
-            e.user_id &&
-            !checkedInEmployeeIds.has(e.id) &&
-            !nudgedUserIds.has(e.user_id)
-        );
+      const toNudge = (allActiveEmployees ?? []).filter(
+        (e) =>
+          e.user_id &&
+          !checkedInEmployeeIds.has(e.id) &&
+          !nudgedUserIds.has(e.user_id)
+      );
 
-        for (const employee of toNudge) {
-          // Insert targeted notification (private to this user via user_id)
-          const { error: notifErr } = await supabase.from("notifications").insert({
-            type: "attendance_nudge",
-            title: "👋 Haven't checked in yet",
-            message:
-              "You haven't checked in yet. If you're working today, please mark your attendance.",
-            target_role: null,
-            user_id: employee.user_id,
-          });
+      log.push(`[late_nudge] ${toNudge.length} employees to nudge (${checkedInEmployeeIds.size} already checked in, ${nudgedUserIds.size} already nudged)`);
 
-          if (notifErr) {
-            log.push(`[late_nudge] notif error for ${employee.name}: ${notifErr.message}`);
-            continue;
-          }
+      for (const employee of toNudge) {
+        const { error: notifErr } = await supabase.from("notifications").insert({
+          type: "attendance_nudge",
+          title: "👋 Haven't checked in yet",
+          message: "You haven't checked in yet. If you're working today, please mark your attendance.",
+          target_role: null,
+          user_id: employee.user_id,
+        });
 
-          // Log to prevent duplicate nudges today
-          await supabase.from("attendance_notifications_log").insert({
-            user_id: employee.user_id,
-            date: today,
-            type: "late_nudge",
-          });
-
-          log.push(`[late_nudge] sent to ${employee.name} (${employee.user_id})`);
+        if (notifErr) {
+          log.push(`[late_nudge] ❌ notif error for ${employee.name}: ${notifErr.message}`);
+          continue;
         }
+
+        await supabase.from("attendance_notifications_log").insert({
+          user_id: employee.user_id,
+          date: today,
+          type: "late_nudge",
+          reference_id: null, // Late nudge: one per day, no session reference needed
+        });
+
+        lateNudgesSent++;
+        log.push(`[late_nudge] ✅ sent to ${employee.name}`);
       }
     } else {
-      log.push(`[late_nudge] skipped — current hour (${currentHour.toFixed(2)}) not past threshold (${lateAfterHour.toFixed(2)})`);
+      log.push(`[late_nudge] skipped — IST ${currentHourIST.toFixed(2)}h not past threshold ${lateAfterHour.toFixed(2)}h`);
     }
 
     // ─── B. Long Break Nudge ────────────────────────────────────────────────
-    // Get employees currently on break
+    // Fix #2: Dedup is now per BREAK SESSION (reference_id = attendance_log.id),
+    //         NOT once per day. Employee can get nudged once per break instance.
+
     const { data: onBreakLogs } = await supabase
       .from("attendance_logs")
       .select("id, employee_id, break_start_time")
       .eq("date", today)
       .not("break_start_time", "is", null)
-      .is("break_end_time", null)
-      .not("check_out_time", "is", null); // only truly active breaks (no checkout)
+      .is("break_end_time", null);
 
-    // Also catch employees on break without checkout
-    const { data: onBreakLogs2 } = await supabase
-      .from("attendance_logs")
-      .select("id, employee_id, break_start_time")
-      .eq("date", today)
-      .not("break_start_time", "is", null)
-      .is("break_end_time", null)
-      .is("check_out_time", null);
-
-    const allBreakLogs = [...(onBreakLogs ?? []), ...(onBreakLogs2 ?? [])];
-    // Deduplicate by id
-    const uniqueBreakLogs = Array.from(
-      new Map(allBreakLogs.map((l) => [l.id, l])).values()
-    );
+    const uniqueBreakLogs = (onBreakLogs ?? []);
 
     if (uniqueBreakLogs.length > 0) {
-      // Get employees who already received a break nudge today
+      // Get all break nudges sent today with their reference_id (attendance_log.id)
       const { data: existingBreakNudges } = await supabase
         .from("attendance_notifications_log")
-        .select("user_id")
+        .select("user_id, reference_id")
         .eq("date", today)
         .eq("type", "break_nudge");
 
-      const breakNudgedUserIds = new Set(
-        (existingBreakNudges ?? []).map((n) => n.user_id)
+      // Key: "user_id::attendance_log_id" — unique per break session
+      const nudgedSessionKeys = new Set(
+        (existingBreakNudges ?? []).map((n) => `${n.user_id}::${n.reference_id}`)
       );
 
-      // For each employee on break, check if break exceeds warning threshold
       for (const log_entry of uniqueBreakLogs) {
         if (!log_entry.break_start_time) continue;
 
@@ -181,12 +181,11 @@ serve(async (req) => {
 
         if (breakMinutes < policy.break_warning_minutes) {
           log.push(
-            `[break_nudge] employee ${log_entry.employee_id} break at ${breakMinutes.toFixed(0)}m < threshold ${policy.break_warning_minutes}m`
+            `[break_nudge] attendance ${log_entry.id}: ${breakMinutes.toFixed(0)}m < threshold ${policy.break_warning_minutes}m`
           );
           continue;
         }
 
-        // Get the user_id for this employee
         const { data: emp } = await supabase
           .from("employees")
           .select("user_id, name")
@@ -194,23 +193,24 @@ serve(async (req) => {
           .maybeSingle();
 
         if (!emp?.user_id) continue;
-        if (breakNudgedUserIds.has(emp.user_id)) {
-          log.push(`[break_nudge] already nudged ${emp.name} today`);
+
+        // Session key: this specific break session for this employee
+        const sessionKey = `${emp.user_id}::${log_entry.id}`;
+        if (nudgedSessionKeys.has(sessionKey)) {
+          log.push(`[break_nudge] already nudged ${emp.name} for this session (${log_entry.id})`);
           continue;
         }
 
-        // Send nudge
         const { error: notifErr } = await supabase.from("notifications").insert({
           type: "attendance_nudge",
           title: "☕ Break reminder",
-          message:
-            "Your break has exceeded the usual duration. Please resume work when ready.",
+          message: "Your break has exceeded the usual duration. Please resume work when ready.",
           target_role: null,
           user_id: emp.user_id,
         });
 
         if (notifErr) {
-          log.push(`[break_nudge] notif error for ${emp.name}: ${notifErr.message}`);
+          log.push(`[break_nudge] ❌ notif error for ${emp.name}: ${notifErr.message}`);
           continue;
         }
 
@@ -218,21 +218,69 @@ serve(async (req) => {
           user_id: emp.user_id,
           date: today,
           type: "break_nudge",
+          reference_id: log_entry.id, // ← Session-scoped: allows multiple breaks per day
         });
 
-        log.push(`[break_nudge] sent to ${emp.name} (${emp.user_id}) after ${breakMinutes.toFixed(0)}m break`);
+        breakNudgesSent++;
+        log.push(`[break_nudge] ✅ sent to ${emp.name} after ${breakMinutes.toFixed(0)}m (session: ${log_entry.id})`);
       }
+    } else {
+      log.push("[break_nudge] no employees currently on break");
     }
 
-    return new Response(JSON.stringify({ ok: true, log }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // Write health log for monitoring (Issue #4)
+    await writeHealthLog(supabase, { lateNudgesSent, breakNudgesSent, employeesChecked, log });
+
+    return jsonResponse({ ok: true, lateNudgesSent, breakNudgesSent, employeesChecked, log });
+
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[attendance-nudge]", message);
-    return new Response(JSON.stringify({ ok: false, error: message, log }), {
+    errorMessage = err instanceof Error ? err.message : String(err);
+    console.error("[attendance-nudge] fatal:", errorMessage);
+
+    // Still write health log on failure so HR can see something went wrong
+    await writeHealthLog(supabase, {
+      lateNudgesSent,
+      breakNudgesSent,
+      employeesChecked,
+      log,
+      errorMessage,
+    });
+
+    return new Response(JSON.stringify({ ok: false, error: errorMessage, log }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function jsonResponse(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function writeHealthLog(
+  supabase: ReturnType<typeof createClient>,
+  opts: {
+    lateNudgesSent: number;
+    breakNudgesSent: number;
+    employeesChecked: number;
+    log: string[];
+    errorMessage?: string | null;
+  }
+) {
+  try {
+    await supabase.from("nudge_health_log").insert({
+      late_nudges_sent: opts.lateNudgesSent,
+      break_nudges_sent: opts.breakNudgesSent,
+      employees_checked: opts.employeesChecked,
+      error_message: opts.errorMessage ?? null,
+      log_detail: { entries: opts.log },
+    });
+  } catch (e) {
+    // Non-fatal — don't let health logging kill the main function
+    console.error("[attendance-nudge] health log write failed:", e);
+  }
+}

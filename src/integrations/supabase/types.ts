@@ -169,6 +169,7 @@ export type Database = {
         Row: {
           date: string
           id: string
+          reference_id: string | null
           triggered_at: string
           type: string
           user_id: string
@@ -176,6 +177,7 @@ export type Database = {
         Insert: {
           date?: string
           id?: string
+          reference_id?: string | null
           triggered_at?: string
           type: string
           user_id: string
@@ -183,6 +185,7 @@ export type Database = {
         Update: {
           date?: string
           id?: string
+          reference_id?: string | null
           triggered_at?: string
           type?: string
           user_id?: string
@@ -2734,6 +2737,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      nudge_health_log: {
+        Row: {
+          break_nudges_sent: number
+          employees_checked: number
+          error_message: string | null
+          id: string
+          late_nudges_sent: number
+          log_detail: Json | null
+          ran_at: string
+        }
+        Insert: {
+          break_nudges_sent?: number
+          employees_checked?: number
+          error_message?: string | null
+          id?: string
+          late_nudges_sent?: number
+          log_detail?: Json | null
+          ran_at?: string
+        }
+        Update: {
+          break_nudges_sent?: number
+          employees_checked?: number
+          error_message?: string | null
+          id?: string
+          late_nudges_sent?: number
+          log_detail?: Json | null
+          ran_at?: string
+        }
+        Relationships: []
       }
       order_items: {
         Row: {
