@@ -18,6 +18,7 @@ import { RefundRequestsTable } from '@/components/RefundRequestsTable';
 import { PipelineOrders } from '@/components/pipeline/PipelineOrders';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
+import { useShopifyOrders } from '@/hooks/useShopifyOrders';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
@@ -29,6 +30,7 @@ export default function Orders() {
   const { role, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
+  const { shopifyOrders, loading: shopifyLoading } = useShopifyOrders();
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
@@ -66,22 +68,19 @@ export default function Orders() {
     }
   }, [tabFromUrl]);
 
-  // Get unique filter options from orders
+  // Get unique filter options from orders (manual orders only)
   const paymentTermsOptions = [...new Set(orders.map(o => o.payment_terms).filter(Boolean))] as string[];
-  const salesPersonOptions = [...new Set(orders.filter(o => !o.lead_source?.startsWith('shopify:')).map(o => o.sales_person_name).filter(Boolean))] as string[];
+  const salesPersonOptions = [...new Set(orders.map(o => o.sales_person_name).filter(Boolean))] as string[];
 
   const canCreateOrder = role === 'sales' || role === 'supply_chain' || role === 'admin';
   const isAdmin = role === 'admin';
   const canViewRefunds = role === 'supply_chain' || role === 'admin';
-  const canViewProcurementCosts = role === 'supply_chain' || role === 'admin';
   const canViewProcurementWidget = role === 'admin' || role === 'supply_chain' || role === 'finance';
 
-  const refundCount = orders.filter(o => o.is_refund_requested && !o.lead_source?.startsWith('shopify:')).length;
+  const refundCount = orders.filter(o => o.is_refund_requested).length;
 
-  // Manual (non-Shopify) orders
-  const manualOrders = orders.filter(o => !o.lead_source?.startsWith('shopify:'));
-  // Shopify orders
-  const shopifyOrders = orders.filter(o => o.lead_source?.startsWith('shopify:'));
+  // All orders from useOrders are manual/Xboom orders (no shopify mixing)
+  const manualOrders = orders;
 
   const filteredOrders = manualOrders.filter(o => {
     // If filtering by enquiry_id from URL, only show that order
@@ -124,10 +123,10 @@ export default function Orders() {
       (o.order_number?.toLowerCase().includes(searchLower)) ||
       o.product_name.toLowerCase().includes(searchLower) ||
       o.customer_name.toLowerCase().includes(searchLower) ||
-      o.customer_company.toLowerCase().includes(searchLower) ||
-      o.product_code?.toLowerCase().includes(searchLower);
+      (o.customer_company?.toLowerCase().includes(searchLower) ?? false) ||
+      (o.product_code?.toLowerCase().includes(searchLower) ?? false);
     
-    const matchesStatus = shopifyStatusFilter === 'all' || o.status === shopifyStatusFilter;
+    const matchesStatus = shopifyStatusFilter === 'all' || o.order_status === shopifyStatusFilter;
     const matchesPaymentStatus = shopifyPaymentStatusFilter === 'all' || o.payment_status === shopifyPaymentStatusFilter;
     
     const orderDate = new Date(o.created_at);
@@ -627,7 +626,7 @@ export default function Orders() {
               </div>
               <div>
                 <h2 className="text-lg font-semibold">Shopify Orders</h2>
-                <p className="text-xs text-muted-foreground">{shopifyOrders.length} orders synced from Shopify</p>
+                <p className="text-xs text-muted-foreground">{shopifyOrders.length.toLocaleString()} orders synced from Shopify (separate database)</p>
               </div>
             </div>
 
@@ -697,16 +696,16 @@ export default function Orders() {
 
                   <Collapsible open={shopifyFiltersOpen} onOpenChange={setShopifyFiltersOpen}>
                     <CollapsibleContent className="animate-in slide-in-from-top-2 duration-200">
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-5 border-t border-border/50">
+                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-5 border-t border-border/50">
                         <Select value={shopifyStatusFilter} onValueChange={setShopifyStatusFilter}>
                           <SelectTrigger className="bg-background h-10 rounded-lg border-muted-foreground/20">
-                            <SelectValue placeholder="Status" />
+                            <SelectValue placeholder="Order Status" />
                           </SelectTrigger>
                           <SelectContent className="bg-popover">
                             <SelectItem value="all">All Statuses</SelectItem>
-                            {ORDER_STATUSES.map(s => (
-                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                            ))}
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="closed">Closed</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
                           </SelectContent>
                         </Select>
                         <Select value={shopifyPaymentStatusFilter} onValueChange={setShopifyPaymentStatusFilter}>
@@ -715,9 +714,9 @@ export default function Orders() {
                           </SelectTrigger>
                           <SelectContent className="bg-popover">
                             <SelectItem value="all">All Payment Status</SelectItem>
-                            {PAYMENT_STATUSES.map(s => (
-                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                            ))}
+                            <SelectItem value="full">Paid</SelectItem>
+                            <SelectItem value="partial">Partially Paid</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -737,7 +736,7 @@ export default function Orders() {
             </Card>
 
             {/* Shopify Orders Results */}
-            {loading ? (
+            {shopifyLoading ? (
               <div className="flex flex-col items-center justify-center py-20">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
                 <p className="mt-6 text-sm text-muted-foreground font-medium">Loading Shopify orders...</p>
@@ -763,7 +762,50 @@ export default function Orders() {
             ) : shopifyViewMode === 'table' ? (
               <Card className="shadow-sm border-border/60 overflow-hidden">
                 <CardContent className="p-0">
-                  <OrderTable orders={filteredShopifyOrders} onOrderClick={handleOrderClick} onUpdateOutcome={handleUpdateOutcome} />
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50 border-b border-border/60">
+                        <tr>
+                          <th className="text-left p-3 font-semibold text-muted-foreground">Order #</th>
+                          <th className="text-left p-3 font-semibold text-muted-foreground">Customer</th>
+                          <th className="text-left p-3 font-semibold text-muted-foreground">Product</th>
+                          <th className="text-left p-3 font-semibold text-muted-foreground">Qty</th>
+                          <th className="text-left p-3 font-semibold text-muted-foreground">Amount</th>
+                          <th className="text-left p-3 font-semibold text-muted-foreground">Payment</th>
+                          <th className="text-left p-3 font-semibold text-muted-foreground">Fulfillment</th>
+                          <th className="text-left p-3 font-semibold text-muted-foreground">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredShopifyOrders.map((order) => (
+                          <tr key={order.id} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
+                            <td className="p-3 font-mono font-medium text-primary">#{order.order_number || order.shopify_order_id}</td>
+                            <td className="p-3">
+                              <div className="font-medium">{order.customer_name}</div>
+                              {order.customer_company && <div className="text-xs text-muted-foreground">{order.customer_company}</div>}
+                            </td>
+                            <td className="p-3">
+                              <div className="font-medium">{order.product_name}</div>
+                              {order.product_code && <div className="text-xs text-muted-foreground">{order.product_code}</div>}
+                            </td>
+                            <td className="p-3">{order.quantity}</td>
+                            <td className="p-3 font-semibold">₹{(order.total_sales_amount || 0).toLocaleString()}</td>
+                            <td className="p-3">
+                              <Badge variant={order.payment_status === 'full' ? 'default' : 'secondary'} className="capitalize">
+                                {order.payment_status || 'pending'}
+                              </Badge>
+                            </td>
+                            <td className="p-3">
+                              <Badge variant="outline" className="capitalize">
+                                {order.fulfillment_status || 'unfulfilled'}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-muted-foreground text-xs">{new Date(order.created_at).toLocaleDateString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </CardContent>
               </Card>
             ) : (
@@ -774,10 +816,31 @@ export default function Orders() {
                     className="animate-in fade-in slide-in-from-bottom-2"
                     style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
                   >
-                    <OrderCard
-                      order={order}
-                      onClick={() => handleOrderClick(order)}
-                    />
+                    <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer border-border/60 hover:-translate-y-0.5">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="font-mono text-sm font-bold text-primary">#{order.order_number || order.shopify_order_id}</div>
+                          <Badge variant={order.payment_status === 'full' ? 'default' : 'secondary'} className="capitalize text-xs">
+                            {order.payment_status || 'pending'}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm leading-tight">{order.customer_name}</p>
+                          {order.customer_company && <p className="text-xs text-muted-foreground">{order.customer_company}</p>}
+                        </div>
+                        <div className="text-xs text-muted-foreground space-y-1">
+                          <p className="font-medium text-foreground/80 truncate">{order.product_name}</p>
+                          <p>Qty: {order.quantity}</p>
+                        </div>
+                        <div className="flex items-center justify-between pt-1 border-t border-border/40">
+                          <span className="font-bold text-sm">₹{(order.total_sales_amount || 0).toLocaleString()}</span>
+                          <Badge variant="outline" className="capitalize text-xs">
+                            {order.fulfillment_status || 'unfulfilled'}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</p>
+                      </CardContent>
+                    </Card>
                   </div>
                 ))}
               </div>
@@ -808,7 +871,7 @@ export default function Orders() {
 
           {isAdmin && (
             <TabsContent value="analytics">
-              <OrderProfitAnalytics orders={orders} onCardClick={handleAnalyticsCardClick} />
+              <OrderProfitAnalytics orders={manualOrders} onCardClick={handleAnalyticsCardClick} />
             </TabsContent>
           )}
         </Tabs>
