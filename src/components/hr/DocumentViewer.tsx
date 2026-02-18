@@ -13,14 +13,17 @@ interface DocumentViewerProps {
   onOpenChange: (open: boolean) => void;
   url: string | null;
   name: string;
+  fileType?: string | null;
 }
 
-export function DocumentViewer({ open, onOpenChange, url, name }: DocumentViewerProps) {
+export function DocumentViewer({ open, onOpenChange, url, name, fileType }: DocumentViewerProps) {
   if (!url) return null;
 
-  const isPDF = name.toLowerCase().endsWith(".pdf");
-  const isDocx = /\.(doc|docx|xls|xlsx|ppt|pptx)$/i.test(name);
-  const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(name);
+  // Check by explicit fileType (stored extension without dot) OR by name extension
+  const ext = fileType ? fileType.toLowerCase() : name.split(".").pop()?.toLowerCase() ?? "";
+  const isPDF = ext === "pdf";
+  const isDocx = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(ext);
+  const isImage = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"].includes(ext);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
