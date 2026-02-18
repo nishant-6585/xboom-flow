@@ -14,8 +14,9 @@ import { TeamAttendanceOverview } from "@/components/hr/TeamAttendanceOverview";
 import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
 import { HRDocumentsPanel } from "@/components/hr/HRDocumentsPanel";
 import { KPIManagementPanel } from "@/components/kpi/KPIManagementPanel";
-import { Plus, Calendar, Clock, FileText, Users, LayoutList, Package, FolderOpen, Target } from "lucide-react";
+import { Plus, Calendar, Clock, FileText, Users, LayoutList, Package, FolderOpen, Target, UserSearch } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { CandidatesPanel } from "@/components/candidates/CandidatesPanel";
 
 export default function HR() {
   const isMobile = useIsMobile();
@@ -102,7 +103,7 @@ export default function HR() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className={`w-full grid ${isHROrAdmin ? 'grid-cols-7' : 'grid-cols-5'} mb-6`}>
+          <TabsList className={`w-full grid ${isHROrAdmin ? 'grid-cols-8' : 'grid-cols-5'} mb-6`}>
             <TabsTrigger value="home" className="gap-1">
               <Clock className="h-4 w-4" />
               <span className="hidden sm:inline">Home</span>
@@ -133,6 +134,12 @@ export default function HR() {
               <TabsTrigger value="assets" className="gap-1">
                 <Package className="h-4 w-4" />
                 <span className="hidden sm:inline">Assets</span>
+              </TabsTrigger>
+            )}
+            {isHROrAdmin && (
+              <TabsTrigger value="candidates" className="gap-1">
+                <UserSearch className="h-4 w-4" />
+                <span className="hidden sm:inline">Candidates</span>
               </TabsTrigger>
             )}
           </TabsList>
@@ -259,6 +266,12 @@ export default function HR() {
           {isHROrAdmin && (
             <TabsContent value="assets" className="space-y-4">
               <AssetManagementPanel />
+            </TabsContent>
+          )}
+
+          {isHROrAdmin && (
+            <TabsContent value="candidates">
+              <CandidatesPanel />
             </TabsContent>
           )}
         </Tabs>
