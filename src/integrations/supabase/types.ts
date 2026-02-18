@@ -3853,6 +3853,102 @@ export type Database = {
         }
         Relationships: []
       }
+      shopify_orders: {
+        Row: {
+          amount_paid: number | null
+          created_at: string
+          currency: string | null
+          customer_company: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          financial_status: string | null
+          fulfillment_status: string | null
+          id: string
+          internal_notes: string | null
+          line_items: Json | null
+          order_number: string | null
+          order_status: string | null
+          payment_status: string | null
+          product_category: string | null
+          product_code: string | null
+          product_name: string
+          quantity: number
+          sales_notes: string | null
+          selling_price: number | null
+          shipping_address: string | null
+          shop_domain: string
+          shopify_created_at: string | null
+          shopify_order_id: string
+          shopify_updated_at: string | null
+          tags: string | null
+          total_sales_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          amount_paid?: number | null
+          created_at?: string
+          currency?: string | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          financial_status?: string | null
+          fulfillment_status?: string | null
+          id?: string
+          internal_notes?: string | null
+          line_items?: Json | null
+          order_number?: string | null
+          order_status?: string | null
+          payment_status?: string | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name?: string
+          quantity?: number
+          sales_notes?: string | null
+          selling_price?: number | null
+          shipping_address?: string | null
+          shop_domain: string
+          shopify_created_at?: string | null
+          shopify_order_id: string
+          shopify_updated_at?: string | null
+          tags?: string | null
+          total_sales_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          amount_paid?: number | null
+          created_at?: string
+          currency?: string | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          financial_status?: string | null
+          fulfillment_status?: string | null
+          id?: string
+          internal_notes?: string | null
+          line_items?: Json | null
+          order_number?: string | null
+          order_status?: string | null
+          payment_status?: string | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name?: string
+          quantity?: number
+          sales_notes?: string | null
+          selling_price?: number | null
+          shipping_address?: string | null
+          shop_domain?: string
+          shopify_created_at?: string | null
+          shopify_order_id?: string
+          shopify_updated_at?: string | null
+          tags?: string | null
+          total_sales_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shopify_orders_raw: {
         Row: {
           created_at: string
