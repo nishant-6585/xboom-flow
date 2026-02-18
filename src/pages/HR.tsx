@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useHR } from "@/hooks/useHR";
 import { useAuth } from "@/hooks/useAuth";
 import { AttendanceCard } from "@/components/hr/AttendanceCard";
-import { AttendanceCalendar } from "@/components/hr/AttendanceCalendar";
+import { AttendanceSection } from "@/components/hr/AttendanceSection";
 import { LeaveRequestCard } from "@/components/hr/LeaveRequestCard";
 import { LeaveApplyDialog } from "@/components/hr/LeaveApplyDialog";
 import { LeaveApprovalCard } from "@/components/hr/LeaveApprovalCard";
@@ -184,44 +184,13 @@ export default function HR() {
           )}
 
           <TabsContent value="attendance" className="space-y-4">
-            <AttendanceCalendar
-              logs={attendanceLogs}
-              month={calendarMonth}
+            <AttendanceSection
+              todayAttendance={todayAttendance}
+              weeklyHours={weeklyHours}
+              attendanceLogs={attendanceLogs}
+              calendarMonth={calendarMonth}
               onMonthChange={setCalendarMonth}
             />
-
-            <div className="space-y-2">
-              <h3 className="font-semibold">Recent Logs</h3>
-              {attendanceLogs.slice(0, 5).map((log) => (
-                <div
-                  key={log.id}
-                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                >
-                  <div>
-                    <p className="font-medium">{log.date}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {log.check_in_time
-                        ? new Date(log.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        : '--:--'}{' '}
-                      -{' '}
-                      {log.check_out_time
-                        ? new Date(log.check_out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        : '--:--'}
-                    </p>
-                    {log.total_break_minutes && log.total_break_minutes > 0 && (
-                      <p className="text-xs text-orange-600">
-                        Break: {Math.round(log.total_break_minutes)}m
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <span className="font-medium">
-                      {log.working_hours?.toFixed(1) || '0.0'}h
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
           </TabsContent>
 
           <TabsContent value="leave" className="space-y-4">
