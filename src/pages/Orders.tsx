@@ -59,9 +59,13 @@ export default function Orders() {
   const [shopifyViewMode, setShopifyViewMode] = useState<'cards' | 'table'>('cards');
   const [shopifyStartDate, setShopifyStartDate] = useState<Date | undefined>(undefined);
   const [shopifyEndDate, setShopifyEndDate] = useState<Date | undefined>(undefined);
+  const [shopifyPage, setShopifyPage] = useState(1);
+  const SHOPIFY_PAGE_SIZE = 100;
   const [shopifyFiltersOpen, setShopifyFiltersOpen] = useState(false);
 
-  // Update active tab when URL changes
+  // Reset shopify page when filters/search change
+  useEffect(() => { setShopifyPage(1); }, [shopifySearchQuery, shopifyStatusFilter, shopifyPaymentStatusFilter, shopifyStartDate, shopifyEndDate]);
+
   useEffect(() => {
     if (tabFromUrl === 'pipeline') {
       setActiveTab('pipeline');
@@ -162,7 +166,14 @@ export default function Orders() {
     setShopifyStatusFilter('all');
     setShopifyPaymentStatusFilter('all');
     setShopifySearchQuery('');
+    setShopifyPage(1);
   };
+
+  const shopifyTotalPages = Math.ceil(filteredShopifyOrders.length / SHOPIFY_PAGE_SIZE);
+  const paginatedShopifyOrders = filteredShopifyOrders.slice(
+    (shopifyPage - 1) * SHOPIFY_PAGE_SIZE,
+    shopifyPage * SHOPIFY_PAGE_SIZE
+  );
 
   const handleAnalyticsCardClick = (filter: { type: string; value: string }) => {
     // Switch to list tab
@@ -777,7 +788,7 @@ export default function Orders() {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredShopifyOrders.map((order) => (
+                        {paginatedShopifyOrders.map((order) => (
                           <tr key={order.id} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
                             <td className="p-3 font-mono font-medium text-primary">#{order.order_number || order.shopify_order_id}</td>
                             <td className="p-3">
@@ -810,7 +821,7 @@ export default function Orders() {
               </Card>
             ) : (
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {filteredShopifyOrders.map((order, index) => (
+                {paginatedShopifyOrders.map((order, index) => (
                   <div
                     key={order.id}
                     className="animate-in fade-in slide-in-from-bottom-2"
@@ -845,8 +856,80 @@ export default function Orders() {
                 ))}
               </div>
             )}
-          </TabsContent>
 
+            {/* Pagination */}
+            {shopifyTotalPages > 1 && (
+              <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Showing <span className="font-semibold text-foreground">{((shopifyPage - 1) * SHOPIFY_PAGE_SIZE) + 1}–{Math.min(shopifyPage * SHOPIFY_PAGE_SIZE, filteredShopifyOrders.length)}</span> of <span className="font-semibold text-foreground">{filteredShopifyOrders.length}</span> orders
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShopifyPage(1)}
+                    disabled={shopifyPage === 1}
+                    className="h-8 px-3 rounded-lg text-xs"
+                  >
+                    «
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShopifyPage(p => Math.max(1, p - 1))}
+                    disabled={shopifyPage === 1}
+                    className="h-8 px-3 rounded-lg text-xs"
+                  >
+                    ‹ Prev
+                  </Button>
+
+                  {/* Page number buttons */}
+                  {Array.from({ length: Math.min(5, shopifyTotalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (shopifyTotalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (shopifyPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (shopifyPage >= shopifyTotalPages - 2) {
+                      pageNum = shopifyTotalPages - 4 + i;
+                    } else {
+                      pageNum = shopifyPage - 2 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={shopifyPage === pageNum ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setShopifyPage(pageNum)}
+                        className="h-8 w-8 p-0 rounded-lg text-xs"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShopifyPage(p => Math.min(shopifyTotalPages, p + 1))}
+                    disabled={shopifyPage === shopifyTotalPages}
+                    className="h-8 px-3 rounded-lg text-xs"
+                  >
+                    Next ›
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShopifyPage(shopifyTotalPages)}
+                    disabled={shopifyPage === shopifyTotalPages}
+                    className="h-8 px-3 rounded-lg text-xs"
+                  >
+                    »
+                  </Button>
+                </div>
+              </div>
+            )}
+          </TabsContent>
           <TabsContent value="pipeline">
             <PipelineOrders enquiryIdFilter={enquiryIdFromUrl} />
           </TabsContent>
