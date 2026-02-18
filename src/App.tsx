@@ -29,6 +29,7 @@ import Tickets from "./pages/Tickets";
 import Tally from "./pages/Tally";
 import Buyback from "./pages/Buyback";
 import PublicDroneRepairEnquiry from "./pages/PublicDroneRepairEnquiry";
+import Candidates from "./pages/Candidates";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -208,6 +209,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Buyback />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/candidates"
+              element={
+                <ProtectedRoute>
+                  <Candidates />
                 </ProtectedRoute>
               }
             />

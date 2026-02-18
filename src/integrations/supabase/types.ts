@@ -187,6 +187,107 @@ export type Database = {
         }
         Relationships: []
       }
+      candidate_documents: {
+        Row: {
+          candidate_id: string
+          file_name: string
+          file_size: number | null
+          file_url: string
+          id: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          candidate_id: string
+          file_name: string
+          file_size?: number | null
+          file_url: string
+          id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          file_name?: string
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_documents_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          current_company: string | null
+          current_ctc: number | null
+          email: string
+          expected_ctc: number | null
+          full_name: string
+          id: string
+          location: string | null
+          notes: string | null
+          notice_period_days: number | null
+          phone: string | null
+          primary_skills: string[] | null
+          source: string | null
+          status: Database["public"]["Enums"]["candidate_status"]
+          updated_at: string
+          years_of_experience: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          current_company?: string | null
+          current_ctc?: number | null
+          email: string
+          expected_ctc?: number | null
+          full_name: string
+          id?: string
+          location?: string | null
+          notes?: string | null
+          notice_period_days?: number | null
+          phone?: string | null
+          primary_skills?: string[] | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["candidate_status"]
+          updated_at?: string
+          years_of_experience?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          current_company?: string | null
+          current_ctc?: number | null
+          email?: string
+          expected_ctc?: number | null
+          full_name?: string
+          id?: string
+          location?: string | null
+          notes?: string | null
+          notice_period_days?: number | null
+          phone?: string | null
+          primary_skills?: string[] | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["candidate_status"]
+          updated_at?: string
+          years_of_experience?: number | null
+        }
+        Relationships: []
+      }
       customer_testimonials: {
         Row: {
           approved_at: string | null
@@ -1638,6 +1739,56 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_records: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          decision: Database["public"]["Enums"]["interview_decision"]
+          feedback: string | null
+          id: string
+          interview_date: string
+          interviewer_name: string
+          rating: number | null
+          round_type: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          decision?: Database["public"]["Enums"]["interview_decision"]
+          feedback?: string | null
+          id?: string
+          interview_date: string
+          interviewer_name: string
+          rating?: number | null
+          round_type: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          decision?: Database["public"]["Enums"]["interview_decision"]
+          feedback?: string | null
+          id?: string
+          interview_date?: string
+          interviewer_name?: string
+          rating?: number | null
+          round_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_records_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
             referencedColumns: ["id"]
           },
         ]
@@ -5105,6 +5256,13 @@ export type Database = {
         | "keyboard"
         | "mouse"
         | "other"
+      candidate_status:
+        | "applied"
+        | "shortlisted"
+        | "rejected"
+        | "hired"
+        | "blacklisted"
+      interview_decision: "pass" | "reject" | "hold"
       invoice_status:
         | "draft"
         | "sent"
@@ -5357,6 +5515,14 @@ export const Constants = {
         "mouse",
         "other",
       ],
+      candidate_status: [
+        "applied",
+        "shortlisted",
+        "rejected",
+        "hired",
+        "blacklisted",
+      ],
+      interview_decision: ["pass", "reject", "hold"],
       invoice_status: [
         "draft",
         "sent",

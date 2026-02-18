@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, ListTodo, Zap, MoreHorizontal, Calendar, LogOut, Package, FileSpreadsheet, ShoppingCart, Warehouse, Building2, IndianRupee, Shield, ClipboardList, Wrench, GraduationCap, Receipt, BookCheck } from 'lucide-react';
+import { Home, ListTodo, Zap, MoreHorizontal, Calendar, LogOut, Package, FileSpreadsheet, ShoppingCart, Warehouse, Building2, IndianRupee, Shield, ClipboardList, Wrench, GraduationCap, Receipt, BookCheck, UserSearch } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Drawer,
@@ -44,6 +44,7 @@ export function MobileBottomNav() {
     { path: "/finance", label: "Finance", icon: IndianRupee, roles: ["admin", "finance"] },
     { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/tally", label: "Tally", icon: BookCheck, roles: ["admin"] },
+    { path: "/candidates", label: "Candidates", icon: UserSearch, roles: ["admin", "hr"] },
     { path: "/admin", label: "Admin", icon: Shield, roles: ["admin"] },
   ].filter(item => !item.roles || item.roles.includes(role || ""));
 
