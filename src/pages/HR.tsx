@@ -103,46 +103,48 @@ export default function HR() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className={`w-full grid ${isHROrAdmin ? 'grid-cols-8' : 'grid-cols-5'} mb-6`}>
-            <TabsTrigger value="home" className="gap-1">
-              <Clock className="h-4 w-4" />
-              <span className="hidden sm:inline">Home</span>
-            </TabsTrigger>
-            {isHROrAdmin && (
-              <TabsTrigger value="team" className="gap-1">
-                <LayoutList className="h-4 w-4" />
-                <span className="hidden sm:inline">Team</span>
+          <div className="overflow-x-auto mb-6">
+            <TabsList className="inline-flex w-max min-w-full">
+              <TabsTrigger value="home" className="gap-1.5 whitespace-nowrap">
+                <Clock className="h-4 w-4 shrink-0" />
+                <span>Home</span>
               </TabsTrigger>
-            )}
-            <TabsTrigger value="attendance" className="gap-1">
-              <Calendar className="h-4 w-4" />
-              <span className="hidden sm:inline">Attendance</span>
-            </TabsTrigger>
-            <TabsTrigger value="leave" className="gap-1">
-              <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">Leave</span>
-            </TabsTrigger>
-            <TabsTrigger value="kpi_management" className="gap-1">
-              <Target className="h-4 w-4" />
-              <span className="hidden sm:inline">KPI Mgmt</span>
-            </TabsTrigger>
-            <TabsTrigger value="documents" className="gap-1">
-              <FolderOpen className="h-4 w-4" />
-              <span className="hidden sm:inline">HR Documents</span>
-            </TabsTrigger>
-            {isHROrAdmin && (
-              <TabsTrigger value="assets" className="gap-1">
-                <Package className="h-4 w-4" />
-                <span className="hidden sm:inline">Assets</span>
+              {isHROrAdmin && (
+                <TabsTrigger value="team" className="gap-1.5 whitespace-nowrap">
+                  <LayoutList className="h-4 w-4 shrink-0" />
+                  <span>Team</span>
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="attendance" className="gap-1.5 whitespace-nowrap">
+                <Calendar className="h-4 w-4 shrink-0" />
+                <span>Attendance</span>
               </TabsTrigger>
-            )}
-            {isHROrAdmin && (
-              <TabsTrigger value="candidates" className="gap-1">
-                <UserSearch className="h-4 w-4" />
-                <span className="hidden sm:inline">Candidates</span>
+              <TabsTrigger value="leave" className="gap-1.5 whitespace-nowrap">
+                <FileText className="h-4 w-4 shrink-0" />
+                <span>Leave</span>
               </TabsTrigger>
-            )}
-          </TabsList>
+              <TabsTrigger value="kpi_management" className="gap-1.5 whitespace-nowrap">
+                <Target className="h-4 w-4 shrink-0" />
+                <span>KPI</span>
+              </TabsTrigger>
+              <TabsTrigger value="documents" className="gap-1.5 whitespace-nowrap">
+                <FolderOpen className="h-4 w-4 shrink-0" />
+                <span>Documents</span>
+              </TabsTrigger>
+              {isHROrAdmin && (
+                <TabsTrigger value="assets" className="gap-1.5 whitespace-nowrap">
+                  <Package className="h-4 w-4 shrink-0" />
+                  <span>Assets</span>
+                </TabsTrigger>
+              )}
+              {isHROrAdmin && (
+                <TabsTrigger value="candidates" className="gap-1.5 whitespace-nowrap">
+                  <UserSearch className="h-4 w-4 shrink-0" />
+                  <span>Candidates</span>
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </div>
 
           <TabsContent value="home" className="space-y-4">
             <AttendanceCard
