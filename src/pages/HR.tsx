@@ -150,11 +150,6 @@ export default function HR() {
             <AttendanceCard
               todayAttendance={todayAttendance}
               weeklyHours={weeklyHours}
-              onCheckIn={checkIn}
-              onCheckOut={checkOut}
-              onStartBreak={startBreak}
-              onEndBreak={endBreak}
-              loading={loading}
             />
 
             {isHROrAdmin && pendingLeaves.length > 0 && (
