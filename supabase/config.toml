@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.shopify-order-backfill]
 verify_jwt = false
+
+[functions.shopify-monitor]
+verify_jwt = false
