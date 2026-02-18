@@ -586,6 +586,31 @@ export default function Orders() {
               </CardContent>
             </Card>
 
+            {/* Manual Pagination - Top */}
+            {manualTotalPages > 1 && !loading && filteredOrders.length > 0 && (
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Showing <span className="font-semibold text-foreground">{((manualPage - 1) * MANUAL_PAGE_SIZE) + 1}–{Math.min(manualPage * MANUAL_PAGE_SIZE, filteredOrders.length)}</span> of <span className="font-semibold text-foreground">{filteredOrders.length}</span> orders
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <Button variant="outline" size="sm" onClick={() => setManualPage(1)} disabled={manualPage === 1} className="h-8 px-3 rounded-lg text-xs">«</Button>
+                  <Button variant="outline" size="sm" onClick={() => setManualPage(p => Math.max(1, p - 1))} disabled={manualPage === 1} className="h-8 px-3 rounded-lg text-xs">‹ Prev</Button>
+                  {Array.from({ length: Math.min(5, manualTotalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (manualTotalPages <= 5) pageNum = i + 1;
+                    else if (manualPage <= 3) pageNum = i + 1;
+                    else if (manualPage >= manualTotalPages - 2) pageNum = manualTotalPages - 4 + i;
+                    else pageNum = manualPage - 2 + i;
+                    return (
+                      <Button key={pageNum} variant={manualPage === pageNum ? 'default' : 'outline'} size="sm" onClick={() => setManualPage(pageNum)} className="h-8 w-8 p-0 rounded-lg text-xs">{pageNum}</Button>
+                    );
+                  })}
+                  <Button variant="outline" size="sm" onClick={() => setManualPage(p => Math.min(manualTotalPages, p + 1))} disabled={manualPage === manualTotalPages} className="h-8 px-3 rounded-lg text-xs">Next ›</Button>
+                  <Button variant="outline" size="sm" onClick={() => setManualPage(manualTotalPages)} disabled={manualPage === manualTotalPages} className="h-8 px-3 rounded-lg text-xs">»</Button>
+                </div>
+              </div>
+            )}
+
             {/* Results Section */}
             {loading ? (
               <div className="flex flex-col items-center justify-center py-20">
@@ -828,6 +853,31 @@ export default function Orders() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Shopify Pagination - Top */}
+            {shopifyTotalPages > 1 && !shopifyLoading && filteredShopifyOrders.length > 0 && (
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Showing <span className="font-semibold text-foreground">{((shopifyPage - 1) * SHOPIFY_PAGE_SIZE) + 1}–{Math.min(shopifyPage * SHOPIFY_PAGE_SIZE, filteredShopifyOrders.length)}</span> of <span className="font-semibold text-foreground">{filteredShopifyOrders.length}</span> orders
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <Button variant="outline" size="sm" onClick={() => setShopifyPage(1)} disabled={shopifyPage === 1} className="h-8 px-3 rounded-lg text-xs">«</Button>
+                  <Button variant="outline" size="sm" onClick={() => setShopifyPage(p => Math.max(1, p - 1))} disabled={shopifyPage === 1} className="h-8 px-3 rounded-lg text-xs">‹ Prev</Button>
+                  {Array.from({ length: Math.min(5, shopifyTotalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (shopifyTotalPages <= 5) pageNum = i + 1;
+                    else if (shopifyPage <= 3) pageNum = i + 1;
+                    else if (shopifyPage >= shopifyTotalPages - 2) pageNum = shopifyTotalPages - 4 + i;
+                    else pageNum = shopifyPage - 2 + i;
+                    return (
+                      <Button key={pageNum} variant={shopifyPage === pageNum ? 'default' : 'outline'} size="sm" onClick={() => setShopifyPage(pageNum)} className="h-8 w-8 p-0 rounded-lg text-xs">{pageNum}</Button>
+                    );
+                  })}
+                  <Button variant="outline" size="sm" onClick={() => setShopifyPage(p => Math.min(shopifyTotalPages, p + 1))} disabled={shopifyPage === shopifyTotalPages} className="h-8 px-3 rounded-lg text-xs">Next ›</Button>
+                  <Button variant="outline" size="sm" onClick={() => setShopifyPage(shopifyTotalPages)} disabled={shopifyPage === shopifyTotalPages} className="h-8 px-3 rounded-lg text-xs">»</Button>
+                </div>
+              </div>
+            )}
 
             {/* Shopify Orders Results */}
             {shopifyLoading ? (
