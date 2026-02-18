@@ -1,54 +1,85 @@
-import { useState, useEffect, useCallback } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday } from 'date-fns';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  format, startOfMonth, endOfMonth, eachDayOfInterval,
+  getDay, isToday, differenceInMinutes, subDays,
+} from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Download, Users, ChevronLeft, ChevronRight, LayoutList, UserCheck, UserX, CalendarCheck, Coffee, LogOut } from 'lucide-react';
+import {
+  Calendar, Download, Users, ChevronLeft, ChevronRight,
+  UserCheck, UserX, CalendarCheck, Coffee, LogOut,
+  Clock, AlertTriangle, RefreshCw, Activity, Eye,
+  Timer, Zap,
+} from 'lucide-react';
 import { Employee, AttendanceLog } from '@/hooks/useHR';
 import { cn } from '@/lib/utils';
 
-// ─── Types ──────────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────
 
-interface DailyRow {
+interface LiveRow {
   employee: Employee;
   log: AttendanceLog | null;
-  status: string;
+  liveStatus: string;
+  isLate: boolean;
+  breakMinutes: number;
 }
 
-// ─── Status helpers ──────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function deriveStatus(log: AttendanceLog | null, date: Date, leaveMap: Record<string, string>): string {
-  const dateStr = format(date, 'yyyy-MM-dd');
+const LATE_THRESHOLD_HOUR = 9.5; // 9:30 AM
+
+function getLiveStatus(log: AttendanceLog | null): string {
+  if (!log || !log.check_in_time) return 'Not Checked In';
+  if (log.status === 'on_leave') return 'On Leave';
+  if (log.check_out_time) return 'Completed';
+  if (log.break_start_time && !log.break_end_time) return 'On Break';
+  return 'Working';
+}
+
+function isLateCheckIn(log: AttendanceLog | null): boolean {
+  if (!log?.check_in_time) return false;
+  const d = new Date(log.check_in_time);
+  return d.getHours() + d.getMinutes() / 60 > LATE_THRESHOLD_HOUR;
+}
+
+function currentBreakMinutes(log: AttendanceLog | null): number {
+  if (!log?.break_start_time || log.break_end_time) return log?.total_break_minutes || 0;
+  return differenceInMinutes(new Date(), new Date(log.break_start_time));
+}
+
+function deriveHistoricalStatus(log: AttendanceLog | null, date: Date): string {
   const day = getDay(date);
   if (day === 0 || day === 6) return 'Weekend';
-  if (!log) return leaveMap[dateStr] ? 'On Leave' : 'Absent';
+  if (!log) return 'Absent';
   if (log.status === 'on_leave') return 'On Leave';
   const wh = log.working_hours || 0;
-  const checkInHour = log.check_in_time ? new Date(log.check_in_time).getHours() + new Date(log.check_in_time).getMinutes() / 60 : null;
+  const checkInHour = log.check_in_time
+    ? new Date(log.check_in_time).getHours() + new Date(log.check_in_time).getMinutes() / 60
+    : null;
   if (wh > 0 && wh < 5) return 'Half Day';
-  if (checkInHour && checkInHour > 9.5) return 'Late';
+  if (checkInHour && checkInHour > LATE_THRESHOLD_HOUR) return 'Late';
   if (wh >= 5) return 'Present';
   return 'Present';
 }
 
-const STATUS_BADGE: Record<string, string> = {
+const STATUS_STYLE: Record<string, string> = {
+  Working: 'bg-blue-100 text-blue-700 border-blue-200',
+  'On Break': 'bg-orange-100 text-orange-700 border-orange-200',
+  Completed: 'bg-green-100 text-green-700 border-green-200',
+  'On Leave': 'bg-purple-100 text-purple-700 border-purple-200',
+  'Not Checked In': 'bg-red-100 text-red-700 border-red-200',
   Present: 'bg-green-100 text-green-700 border-green-200',
   Absent: 'bg-red-100 text-red-700 border-red-200',
-  'On Leave': 'bg-purple-100 text-purple-700 border-purple-200',
   Late: 'bg-orange-100 text-orange-700 border-orange-200',
   'Half Day': 'bg-yellow-100 text-yellow-700 border-yellow-200',
   Weekend: 'bg-muted text-muted-foreground',
-  'Working': 'bg-blue-100 text-blue-700 border-blue-200',
 };
 
 const CALENDAR_DOT: Record<string, string> = {
@@ -60,77 +91,119 @@ const CALENDAR_DOT: Record<string, string> = {
   Weekend: 'bg-muted-foreground/30',
 };
 
-// ─── Main component ──────────────────────────────────────────────────────────
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 interface TeamAttendancePanelProps {
   employees: Employee[];
 }
 
 export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
-  const [viewMode, setViewMode] = useState<'calendar' | 'table'>('table');
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('all');
+  const [todayLogs, setTodayLogs] = useState<AttendanceLog[]>([]);
+  const [yesterdayLogs, setYesterdayLogs] = useState<AttendanceLog[]>([]);
+  const [monthLogs, setMonthLogs] = useState<AttendanceLog[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
-  const [logs, setLogs] = useState<AttendanceLog[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [loadingToday, setLoadingToday] = useState(false);
+  const [loadingMonth, setLoadingMonth] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState(new Date());
+  const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── Fetch logs for the selected month ──
-  const fetchLogs = useCallback(async () => {
-    setLoading(true);
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+
+  // ── Fetch today's data (lightweight) ──
+  const fetchToday = useCallback(async () => {
+    setLoadingToday(true);
+    const { data } = await supabase
+      .from('attendance_logs')
+      .select('*')
+      .eq('date', todayStr);
+    setTodayLogs((data as AttendanceLog[]) || []);
+
+    const { data: yd } = await supabase
+      .from('attendance_logs')
+      .select('*')
+      .eq('date', yesterdayStr);
+    setYesterdayLogs((yd as AttendanceLog[]) || []);
+
+    setLoadingToday(false);
+    setLastRefresh(new Date());
+  }, [todayStr, yesterdayStr]);
+
+  // ── Fetch month data for Calendar/Monthly tabs ──
+  const fetchMonth = useCallback(async () => {
+    setLoadingMonth(true);
     const start = format(startOfMonth(calendarMonth), 'yyyy-MM-dd');
     const end = format(endOfMonth(calendarMonth), 'yyyy-MM-dd');
-
-    let query = supabase
+    const { data } = await supabase
       .from('attendance_logs')
       .select('*')
       .gte('date', start)
       .lte('date', end)
       .order('date', { ascending: false });
+    setMonthLogs((data as AttendanceLog[]) || []);
+    setLoadingMonth(false);
+  }, [calendarMonth]);
 
-    if (selectedEmployeeId !== 'all') {
-      query = query.eq('employee_id', selectedEmployeeId);
-    }
+  // Initial loads
+  useEffect(() => { fetchToday(); }, [fetchToday]);
+  useEffect(() => { fetchMonth(); }, [fetchMonth]);
 
-    const { data } = await query;
-    setLogs((data as AttendanceLog[]) || []);
-    setLoading(false);
-  }, [calendarMonth, selectedEmployeeId]);
+  // 60s auto-refresh for today data
+  useEffect(() => {
+    refreshTimerRef.current = setInterval(() => { fetchToday(); }, 60_000);
+    return () => { if (refreshTimerRef.current) clearInterval(refreshTimerRef.current); };
+  }, [fetchToday]);
 
-  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  // ── Build live rows ──
+  const liveRows: LiveRow[] = employees.map(emp => {
+    const log = todayLogs.find(l => l.employee_id === emp.id) || null;
+    return {
+      employee: emp,
+      log,
+      liveStatus: getLiveStatus(log),
+      isLate: isLateCheckIn(log),
+      breakMinutes: currentBreakMinutes(log),
+    };
+  });
 
-  // ── Helpers ──
-  const getLog = (empId: string, date: Date) =>
-    logs.find(l => l.employee_id === empId && l.date === format(date, 'yyyy-MM-dd')) || null;
+  // ── Control center metrics ──
+  const metrics = {
+    present: liveRows.filter(r => r.liveStatus === 'Working' || r.liveStatus === 'Completed').length,
+    absent: liveRows.filter(r => r.liveStatus === 'Not Checked In').length,
+    onLeave: liveRows.filter(r => r.liveStatus === 'On Leave').length,
+    working: liveRows.filter(r => r.liveStatus === 'Working').length,
+    onBreak: liveRows.filter(r => r.liveStatus === 'On Break').length,
+    late: liveRows.filter(r => r.isLate).length,
+    noCheckoutYesterday: employees.filter(emp => {
+      const yl = yesterdayLogs.find(l => l.employee_id === emp.id);
+      return yl?.check_in_time && !yl?.check_out_time;
+    }).length,
+  };
 
-  // ── Days in month ──
-  const monthDays = eachDayOfInterval({ start: startOfMonth(calendarMonth), end: endOfMonth(calendarMonth) });
-
-  // ── Build table rows (all employees × selected day OR all days of selected employee) ──
-  // For "table" mode: show all employees for today-like daily view (current selected date or today)
-  const tableDate = selectedDate || new Date();
-
-  const dailyRows: DailyRow[] = (selectedEmployeeId === 'all' ? employees : employees.filter(e => e.id === selectedEmployeeId))
-    .map(emp => {
-      const log = getLog(emp.id, tableDate);
-      return { employee: emp, log, status: deriveStatus(log, tableDate, {}) };
-    });
-
-  // ── For calendar single-employee ──
-  const calEmp = selectedEmployeeId !== 'all' ? employees.find(e => e.id === selectedEmployeeId) : null;
+  // ── Anomalies ──
+  const now = new Date();
+  const noCheckInAfter10 = liveRows.filter(r =>
+    r.liveStatus === 'Not Checked In' && now.getHours() >= 10
+  );
+  const longBreak = liveRows.filter(r =>
+    r.liveStatus === 'On Break' && r.breakMinutes > 60
+  );
+  const missingCheckoutYesterday = employees.filter(emp => {
+    const yl = yesterdayLogs.find(l => l.employee_id === emp.id);
+    return yl?.check_in_time && !yl?.check_out_time;
+  });
 
   // ── CSV Export ──
+  const monthDays = eachDayOfInterval({ start: startOfMonth(calendarMonth), end: endOfMonth(calendarMonth) });
   const exportCSV = () => {
-    const targetEmps = selectedEmployeeId === 'all' ? employees : employees.filter(e => e.id === selectedEmployeeId);
     const rows: string[][] = [['Employee', 'Department', 'Date', 'Check In', 'Check Out', 'Work Hours', 'Break (min)', 'Status']];
-    for (const emp of targetEmps) {
+    for (const emp of employees) {
       for (const day of monthDays) {
-        const log = getLog(emp.id, day);
-        const status = deriveStatus(log, day, {});
+        const log = monthLogs.find(l => l.employee_id === emp.id && l.date === format(day, 'yyyy-MM-dd')) || null;
+        const status = deriveHistoricalStatus(log, day);
         if (status === 'Weekend') continue;
         rows.push([
-          emp.name,
-          emp.department,
-          format(day, 'yyyy-MM-dd'),
+          emp.name, emp.department, format(day, 'yyyy-MM-dd'),
           log?.check_in_time ? format(new Date(log.check_in_time), 'HH:mm') : '',
           log?.check_out_time ? format(new Date(log.check_out_time), 'HH:mm') : '',
           (log?.working_hours || 0).toFixed(2),
@@ -143,63 +216,355 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `team-attendance-${format(calendarMonth, 'yyyy-MM')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    a.href = url; a.download = `team-attendance-${format(calendarMonth, 'yyyy-MM')}.csv`;
+    a.click(); URL.revokeObjectURL(url);
   };
 
-  // ── Today's summary stats ──
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
-  const todayLogs = logs.filter(l => l.date === todayStr);
+  return (
+    <Tabs defaultValue="today" className="space-y-4">
+      {/* ── Tab Header ── */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <TabsList className="h-9">
+          <TabsTrigger value="today" className="gap-1.5 text-xs">
+            <Activity className="h-3.5 w-3.5" /> Today
+          </TabsTrigger>
+          <TabsTrigger value="calendar" className="gap-1.5 text-xs">
+            <Calendar className="h-3.5 w-3.5" /> Calendar
+          </TabsTrigger>
+          <TabsTrigger value="monthly" className="gap-1.5 text-xs">
+            <CalendarCheck className="h-3.5 w-3.5" /> Monthly
+          </TabsTrigger>
+          <TabsTrigger value="export" className="gap-1.5 text-xs">
+            <Download className="h-3.5 w-3.5" /> Export
+          </TabsTrigger>
+        </TabsList>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>Refreshed {format(lastRefresh, 'hh:mm:ss a')}</span>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={fetchToday} disabled={loadingToday}>
+            <RefreshCw className={cn('h-3.5 w-3.5', loadingToday && 'animate-spin')} />
+          </Button>
+        </div>
+      </div>
 
-  const todayStats = (() => {
-    let present = 0, absent = 0, onLeave = 0, onBreak = 0, notCheckedOut = 0;
-    for (const emp of employees) {
-      const log = todayLogs.find(l => l.employee_id === emp.id) || null;
-      if (!log) { absent++; continue; }
-      if (log.status === 'on_leave') { onLeave++; continue; }
-      if (log.break_start_time && !log.break_end_time) onBreak++;
-      if (log.check_in_time && !log.check_out_time) notCheckedOut++;
-      if (log.check_in_time) present++;
-    }
-    return { present, absent, onLeave, onBreak, notCheckedOut };
-  })();
+      {/* ══════════════════════════════════════════ TODAY ══ */}
+      <TabsContent value="today" className="space-y-4 mt-0">
+        {/* Metrics Bar */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+          {[
+            { label: 'Present', value: metrics.present, icon: UserCheck, color: 'text-green-600', bg: 'bg-green-500/10' },
+            { label: 'Absent', value: metrics.absent, icon: UserX, color: 'text-red-600', bg: 'bg-red-500/10' },
+            { label: 'On Leave', value: metrics.onLeave, icon: CalendarCheck, color: 'text-purple-600', bg: 'bg-purple-500/10' },
+            { label: 'Working', value: metrics.working, icon: Activity, color: 'text-blue-600', bg: 'bg-blue-500/10' },
+            { label: 'On Break', value: metrics.onBreak, icon: Coffee, color: 'text-orange-600', bg: 'bg-orange-500/10' },
+            { label: 'Late', value: metrics.late, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-500/10' },
+            { label: 'No Checkout (Yesterday)', value: metrics.noCheckoutYesterday, icon: LogOut, color: 'text-rose-600', bg: 'bg-rose-500/10' },
+          ].map(({ label, value, icon: Icon, color, bg }) => (
+            <div key={label} className={`flex flex-col items-start gap-1 rounded-xl px-3 py-2.5 ${bg}`}>
+              <div className="flex items-center gap-1.5">
+                <Icon className={`h-4 w-4 ${color}`} />
+                <p className={`text-2xl font-bold leading-none ${color}`}>{value}</p>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Anomaly Panel */}
+        {(noCheckInAfter10.length > 0 || longBreak.length > 0 || missingCheckoutYesterday.length > 0) && (
+          <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-800">
+            <CardHeader className="pb-2 pt-3 px-4">
+              <CardTitle className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" /> Anomalies Detected
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-3 space-y-2">
+              {noCheckInAfter10.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">
+                    No check-in after 10 AM ({noCheckInAfter10.length})
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {noCheckInAfter10.map(r => (
+                      <Badge key={r.employee.id} variant="outline" className="text-xs border-amber-300 text-amber-700">
+                        {r.employee.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {longBreak.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-orange-700 dark:text-orange-400 mb-1">
+                    On break &gt; 60 min ({longBreak.length})
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {longBreak.map(r => (
+                      <Badge key={r.employee.id} variant="outline" className="text-xs border-orange-300 text-orange-700">
+                        {r.employee.name} ({r.breakMinutes}m)
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {missingCheckoutYesterday.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-rose-700 dark:text-rose-400 mb-1">
+                    No checkout yesterday ({missingCheckoutYesterday.length})
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {missingCheckoutYesterday.map(emp => (
+                      <Badge key={emp.id} variant="outline" className="text-xs border-rose-300 text-rose-700">
+                        {emp.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Live Status Table */}
+        <LiveStatusTable liveRows={liveRows} loading={loadingToday} />
+      </TabsContent>
+
+      {/* ══════════════════════════════════════════ CALENDAR ══ */}
+      <TabsContent value="calendar" className="space-y-4 mt-0">
+        <CalendarSection
+          employees={employees}
+          calendarMonth={calendarMonth}
+          setCalendarMonth={setCalendarMonth}
+          monthLogs={monthLogs}
+          loading={loadingMonth}
+        />
+      </TabsContent>
+
+      {/* ══════════════════════════════════════════ MONTHLY ══ */}
+      <TabsContent value="monthly" className="space-y-4 mt-0">
+        <MonthlySection
+          employees={employees}
+          calendarMonth={calendarMonth}
+          setCalendarMonth={setCalendarMonth}
+          monthLogs={monthLogs}
+          monthDays={monthDays}
+          loading={loadingMonth}
+        />
+      </TabsContent>
+
+      {/* ══════════════════════════════════════════ EXPORT ══ */}
+      <TabsContent value="export" className="mt-0">
+        <Card>
+          <CardContent className="py-8 flex flex-col items-center gap-4">
+            <Download className="h-10 w-10 text-muted-foreground" />
+            <div className="text-center">
+              <p className="font-medium">Export Attendance Data</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Download {format(calendarMonth, 'MMMM yyyy')} attendance as CSV
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" onClick={() => setCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="font-medium w-32 text-center">{format(calendarMonth, 'MMM yyyy')}</span>
+              <Button variant="ghost" size="icon" onClick={() => setCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button onClick={exportCSV} className="gap-2">
+              <Download className="h-4 w-4" /> Download CSV
+            </Button>
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+// ─── Live Status Table ────────────────────────────────────────────────────────
+
+type QuickFilter = 'all' | 'Working' | 'Not Checked In' | 'Late' | 'On Break' | 'Completed';
+
+function LiveStatusTable({ liveRows, loading }: { liveRows: LiveRow[]; loading: boolean }) {
+  const [filter, setFilter] = useState<QuickFilter>('all');
+  const [empFilter, setEmpFilter] = useState('all');
+
+  const filtered = liveRows.filter(r => {
+    if (empFilter !== 'all' && r.employee.id !== empFilter) return false;
+    if (filter === 'all') return true;
+    if (filter === 'Late') return r.isLate;
+    return r.liveStatus === filter;
+  });
+
+  const quickFilters: { label: string; value: QuickFilter; color: string }[] = [
+    { label: 'All', value: 'all', color: '' },
+    { label: 'Working', value: 'Working', color: 'data-[active=true]:bg-blue-500 data-[active=true]:text-white' },
+    { label: 'Absent', value: 'Not Checked In', color: 'data-[active=true]:bg-red-500 data-[active=true]:text-white' },
+    { label: 'Late', value: 'Late', color: 'data-[active=true]:bg-amber-500 data-[active=true]:text-white' },
+    { label: 'On Break', value: 'On Break', color: 'data-[active=true]:bg-orange-500 data-[active=true]:text-white' },
+    { label: 'Completed', value: 'Completed', color: 'data-[active=true]:bg-green-500 data-[active=true]:text-white' },
+  ];
+
+  return (
+    <Card>
+      <CardHeader className="pb-0 pt-4 px-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Zap className="h-4 w-4 text-primary" />
+            Live Status — {format(new Date(), 'EEEE, dd MMMM yyyy')}
+            <Badge variant="secondary" className="text-xs">{filtered.length} employees</Badge>
+          </CardTitle>
+          <Select value={empFilter} onValueChange={setEmpFilter}>
+            <SelectTrigger className="h-8 w-44 text-xs">
+              <Users className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+              <SelectValue placeholder="All Employees" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Employees</SelectItem>
+              {liveRows.map(r => (
+                <SelectItem key={r.employee.id} value={r.employee.id}>
+                  {r.employee.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {/* Quick filter pills */}
+        <div className="flex flex-wrap gap-1.5 mt-3 mb-1 pb-3 border-b">
+          {quickFilters.map(({ label, value, color }) => (
+            <button
+              key={value}
+              data-active={filter === value}
+              onClick={() => setFilter(value)}
+              className={cn(
+                'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
+                filter === value
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background text-muted-foreground border-border hover:border-foreground/30',
+                color,
+              )}
+            >
+              {label}
+              <span className="ml-1 opacity-70">
+                {value === 'all'
+                  ? liveRows.length
+                  : value === 'Late'
+                  ? liveRows.filter(r => r.isLate).length
+                  : liveRows.filter(r => r.liveStatus === value).length}
+              </span>
+            </button>
+          ))}
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        {loading ? (
+          <div className="p-4 space-y-2">
+            {[1, 2, 3, 4].map(i => <div key={i} className="h-12 bg-muted rounded animate-pulse" />)}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40">
+                  <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Employee</th>
+                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Status</th>
+                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Check In</th>
+                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Break</th>
+                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Work Hrs</th>
+                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Late</th>
+                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(({ employee, log, liveStatus, isLate, breakMinutes }) => (
+                  <tr key={employee.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <p className="font-medium">{employee.name}</p>
+                      <p className="text-xs text-muted-foreground">{employee.department}</p>
+                    </td>
+                    <td className="px-3 py-3">
+                      <Badge variant="outline" className={cn('text-xs font-medium gap-1', STATUS_STYLE[liveStatus] || '')}>
+                        {liveStatus === 'Working' && <Activity className="h-3 w-3" />}
+                        {liveStatus === 'On Break' && <Coffee className="h-3 w-3" />}
+                        {liveStatus === 'Completed' && <UserCheck className="h-3 w-3" />}
+                        {liveStatus === 'Not Checked In' && <UserX className="h-3 w-3" />}
+                        {liveStatus}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-3 text-muted-foreground">
+                      {log?.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}
+                    </td>
+                    <td className="px-3 py-3 text-muted-foreground">
+                      {liveStatus === 'On Break'
+                        ? <span className="text-orange-600 font-medium flex items-center gap-1"><Timer className="h-3 w-3" />{breakMinutes}m</span>
+                        : log?.total_break_minutes ? `${Math.round(log.total_break_minutes)}m` : '—'}
+                    </td>
+                    <td className="px-3 py-3 font-medium">
+                      {log?.working_hours ? `${log.working_hours.toFixed(1)}h` : '—'}
+                    </td>
+                    <td className="px-3 py-3">
+                      {isLate
+                        ? <Badge variant="outline" className="text-xs border-amber-300 bg-amber-50 text-amber-700 dark:bg-amber-950/30">Late</Badge>
+                        : <span className="text-muted-foreground text-xs">—</span>}
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" title="View Details">
+                          <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-muted-foreground">No employees match this filter</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Calendar Section ─────────────────────────────────────────────────────────
+
+function CalendarSection({ employees, calendarMonth, setCalendarMonth, monthLogs, loading }: {
+  employees: Employee[];
+  calendarMonth: Date;
+  setCalendarMonth: React.Dispatch<React.SetStateAction<Date>>;
+  monthLogs: AttendanceLog[];
+  loading: boolean;
+}) {
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(employees[0]?.id || '');
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+
+  const monthDays = eachDayOfInterval({ start: startOfMonth(calendarMonth), end: endOfMonth(calendarMonth) });
+  const startPadding = getDay(startOfMonth(calendarMonth));
+  const paddedDays: (Date | null)[] = [...Array(startPadding).fill(null), ...monthDays];
+
+  const calEmp = employees.find(e => e.id === selectedEmployeeId);
+  const getLog = (empId: string, date: Date) =>
+    monthLogs.find(l => l.employee_id === empId && l.date === format(date, 'yyyy-MM-dd')) || null;
+
+  const selectedLog = selectedDay && calEmp ? getLog(calEmp.id, selectedDay) : null;
+  const selectedStatus = selectedDay ? deriveHistoricalStatus(selectedLog, selectedDay) : null;
 
   return (
     <div className="space-y-4">
-      {/* ── Today Summary Bar ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-        {[
-          { label: 'Present', value: todayStats.present, icon: UserCheck, color: 'text-green-600', bg: 'bg-green-500/10' },
-          { label: 'Absent', value: todayStats.absent, icon: UserX, color: 'text-red-600', bg: 'bg-red-500/10' },
-          { label: 'On Leave', value: todayStats.onLeave, icon: CalendarCheck, color: 'text-purple-600', bg: 'bg-purple-500/10' },
-          { label: 'On Break', value: todayStats.onBreak, icon: Coffee, color: 'text-orange-600', bg: 'bg-orange-500/10' },
-          { label: 'Not Checked Out', value: todayStats.notCheckedOut, icon: LogOut, color: 'text-blue-600', bg: 'bg-blue-500/10' },
-        ].map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className={`flex items-center gap-3 rounded-xl px-4 py-3 ${bg}`}>
-            <Icon className={`h-5 w-5 shrink-0 ${color}`} />
-            <div>
-              <p className={`text-xl font-bold leading-none ${color}`}>{value}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Filter Bar ── */}
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-3 items-center">
-            {/* Employee filter */}
             <div className="flex-1 min-w-[200px]">
               <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
                 <SelectTrigger className="h-9">
                   <Users className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <SelectValue placeholder="All Employees" />
+                  <SelectValue placeholder="Select Employee" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Employees</SelectItem>
                   {employees.map(emp => (
                     <SelectItem key={emp.id} value={emp.id}>
                       {emp.name} — {emp.department}
@@ -208,8 +573,6 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Month navigation */}
             <div className="flex items-center gap-1 border rounded-lg px-2 h-9">
               <Button variant="ghost" size="icon" className="h-7 w-7"
                 onClick={() => setCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}>
@@ -221,81 +584,132 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-
-            {/* View toggle */}
-            <div className="flex items-center gap-1 border rounded-lg p-1 h-9">
-              <button
-                onClick={() => setViewMode('table')}
-                className={cn('px-2 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1',
-                  viewMode === 'table' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}
-              >
-                <LayoutList className="h-3.5 w-3.5" />
-                Table
-              </button>
-              <button
-                onClick={() => setViewMode('calendar')}
-                className={cn('px-2 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1',
-                  viewMode === 'calendar' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}
-              >
-                <Calendar className="h-3.5 w-3.5" />
-                Calendar
-              </button>
-            </div>
-
-            {/* Export */}
-            <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={exportCSV}>
-              <Download className="h-4 w-4" />
-              Export CSV
-            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* ── Content ── */}
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map(i => <div key={i} className="h-12 bg-muted rounded animate-pulse" />)}
-        </div>
-      ) : viewMode === 'table' ? (
-        <TableView employees={selectedEmployeeId === 'all' ? employees : employees.filter(e => e.id === selectedEmployeeId)}
-          monthDays={monthDays} logs={logs} />
+      {!calEmp ? (
+        <Card><CardContent className="py-10 text-center text-muted-foreground text-sm">Select an employee to view calendar.</CardContent></Card>
       ) : (
-        <CalendarView
-          employees={employees}
-          selectedEmployeeId={selectedEmployeeId}
-          calEmp={calEmp || null}
-          calendarMonth={calendarMonth}
-          monthDays={monthDays}
-          logs={logs}
-        />
+        <Card>
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm">{calEmp.name} — {format(calendarMonth, 'MMMM yyyy')}</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="grid grid-cols-7 mb-1">
+              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+                <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-0.5">
+              {paddedDays.map((day, idx) => {
+                if (!day) return <div key={`pad-${idx}`} className="aspect-square" />;
+                const log = getLog(calEmp.id, day);
+                const status = deriveHistoricalStatus(log, day);
+                const isWknd = getDay(day) === 0 || getDay(day) === 6;
+                const isSelected = selectedDay && format(selectedDay, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
+                return (
+                  <button
+                    key={day.toISOString()}
+                    onClick={() => setSelectedDay(isSelected ? null : day)}
+                    className={cn(
+                      'aspect-square flex flex-col items-center justify-center rounded text-xs transition-colors',
+                      isToday(day) && 'ring-1 ring-primary',
+                      isSelected && 'bg-primary/10',
+                      !isWknd && 'hover:bg-muted/60 cursor-pointer',
+                      isWknd && 'cursor-default opacity-40',
+                    )}
+                  >
+                    <span className="font-medium">{format(day, 'd')}</span>
+                    {!isWknd && (
+                      <div className={cn('w-1.5 h-1.5 rounded-full mt-0.5', CALENDAR_DOT[status] || 'bg-muted')} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {selectedDay && (
+              <div className="mt-4 p-3 bg-muted/40 rounded-lg border text-sm space-y-1.5">
+                <p className="font-medium">{format(selectedDay, 'EEEE, dd MMMM yyyy')}</p>
+                <Badge variant="outline" className={cn('text-xs', STATUS_STYLE[selectedStatus || ''] || '')}>
+                  {selectedStatus}
+                </Badge>
+                {selectedLog && (
+                  <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground mt-2">
+                    <span>Check In: {selectedLog.check_in_time ? format(new Date(selectedLog.check_in_time), 'hh:mm a') : '—'}</span>
+                    <span>Check Out: {selectedLog.check_out_time ? format(new Date(selectedLog.check_out_time), 'hh:mm a') : '—'}</span>
+                    <span>Hours: {selectedLog.working_hours?.toFixed(1) || '—'}</span>
+                    <span>Break: {selectedLog.total_break_minutes ? `${Math.round(selectedLog.total_break_minutes)}m` : '—'}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );
 }
 
-// ─── Table View ──────────────────────────────────────────────────────────────
+// ─── Monthly Summary Section ──────────────────────────────────────────────────
 
-function TableView({ employees, monthDays, logs }: {
+function MonthlySection({ employees, calendarMonth, setCalendarMonth, monthLogs, monthDays, loading }: {
   employees: Employee[];
+  calendarMonth: Date;
+  setCalendarMonth: React.Dispatch<React.SetStateAction<Date>>;
+  monthLogs: AttendanceLog[];
   monthDays: Date[];
-  logs: AttendanceLog[];
+  loading: boolean;
 }) {
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('all');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  // Weekday-only
   const workdays = monthDays.filter(d => getDay(d) !== 0 && getDay(d) !== 6);
+  const targetEmps = selectedEmployeeId === 'all' ? employees : employees.filter(e => e.id === selectedEmployeeId);
 
   const getLog = (empId: string, date: Date) =>
-    logs.find(l => l.employee_id === empId && l.date === format(date, 'yyyy-MM-dd')) || null;
+    monthLogs.find(l => l.employee_id === empId && l.date === format(date, 'yyyy-MM-dd')) || null;
 
-  const rows: DailyRow[] = employees.map(emp => {
+  const rows = targetEmps.map(emp => {
     const log = getLog(emp.id, selectedDate);
-    return { employee: emp, log, status: deriveStatus(log, selectedDate, {}) };
+    return { employee: emp, log, status: deriveHistoricalStatus(log, selectedDate) };
   });
 
   return (
     <div className="space-y-4">
-      {/* Date selector strip */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="flex-1 min-w-[200px]">
+              <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                <SelectTrigger className="h-9">
+                  <Users className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="All Employees" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employees</SelectItem>
+                  {employees.map(emp => (
+                    <SelectItem key={emp.id} value={emp.id}>{emp.name} — {emp.department}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-1 border rounded-lg px-2 h-9">
+              <Button variant="ghost" size="icon" className="h-7 w-7"
+                onClick={() => setCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm font-medium px-1">{format(calendarMonth, 'MMM yyyy')}</span>
+              <Button variant="ghost" size="icon" className="h-7 w-7"
+                onClick={() => setCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Date strip */}
       <Card>
         <CardContent className="p-3">
           <ScrollArea className="w-full">
@@ -308,9 +722,7 @@ function TableView({ employees, monthDays, logs }: {
                     'flex flex-col items-center px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors shrink-0',
                     format(selectedDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
                       ? 'bg-primary text-primary-foreground'
-                      : isToday(day)
-                      ? 'border border-primary text-primary'
-                      : 'hover:bg-muted',
+                      : isToday(day) ? 'border border-primary text-primary' : 'hover:bg-muted',
                   )}
                 >
                   <span className="text-[10px] uppercase opacity-70">{format(day, 'EEE')}</span>
@@ -322,7 +734,6 @@ function TableView({ employees, monthDays, logs }: {
         </CardContent>
       </Card>
 
-      {/* Table */}
       <Card>
         <CardHeader className="pb-2 pt-4 px-4">
           <CardTitle className="text-sm">
@@ -331,172 +742,56 @@ function TableView({ employees, monthDays, logs }: {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40">
-                  <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Employee</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Check In</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Check Out</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Break</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Hours</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(({ employee, log, status }) => (
-                  <tr key={employee.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3">
-                      <p className="font-medium">{employee.name}</p>
-                      <p className="text-xs text-muted-foreground">{employee.department}</p>
-                    </td>
-                    <td className="px-3 py-3 text-muted-foreground">
-                      {log?.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}
-                    </td>
-                    <td className="px-3 py-3 text-muted-foreground">
-                      {log?.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}
-                    </td>
-                    <td className="px-3 py-3 text-muted-foreground">
-                      {log?.total_break_minutes ? `${Math.round(log.total_break_minutes)}m` : '—'}
-                    </td>
-                    <td className="px-3 py-3 font-medium">
-                      {log?.working_hours ? `${log.working_hours.toFixed(1)}h` : '—'}
-                    </td>
-                    <td className="px-3 py-3">
-                      <Badge variant="outline" className={cn('text-xs font-medium', STATUS_BADGE[status] || '')}>
-                        {status}
-                      </Badge>
-                    </td>
+          {loading ? (
+            <div className="p-4 space-y-2">{[1,2,3].map(i=><div key={i} className="h-10 bg-muted rounded animate-pulse"/>)}</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40">
+                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Employee</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Check In</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Check Out</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Break</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Hours</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Status</th>
                   </tr>
-                ))}
-                {rows.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="text-center py-8 text-muted-foreground">No employees found</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {rows.map(({ employee, log, status }) => (
+                    <tr key={employee.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="font-medium">{employee.name}</p>
+                        <p className="text-xs text-muted-foreground">{employee.department}</p>
+                      </td>
+                      <td className="px-3 py-3 text-muted-foreground">
+                        {log?.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}
+                      </td>
+                      <td className="px-3 py-3 text-muted-foreground">
+                        {log?.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}
+                      </td>
+                      <td className="px-3 py-3 text-muted-foreground">
+                        {log?.total_break_minutes ? `${Math.round(log.total_break_minutes)}m` : '—'}
+                      </td>
+                      <td className="px-3 py-3 font-medium">
+                        {log?.working_hours ? `${log.working_hours.toFixed(1)}h` : '—'}
+                      </td>
+                      <td className="px-3 py-3">
+                        <Badge variant="outline" className={cn('text-xs font-medium', STATUS_STYLE[status] || '')}>
+                          {status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                  {rows.length === 0 && (
+                    <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">No employees found</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-// ─── Calendar View ────────────────────────────────────────────────────────────
-
-function CalendarView({ employees, selectedEmployeeId, calEmp, calendarMonth, monthDays, logs }: {
-  employees: Employee[];
-  selectedEmployeeId: string;
-  calEmp: Employee | null;
-  calendarMonth: Date;
-  monthDays: Date[];
-  logs: AttendanceLog[];
-}) {
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const startPadding = getDay(startOfMonth(calendarMonth));
-  const paddedDays: (Date | null)[] = [...Array(startPadding).fill(null), ...monthDays];
-
-  const getLog = (empId: string, date: Date) =>
-    logs.find(l => l.employee_id === empId && l.date === format(date, 'yyyy-MM-dd')) || null;
-
-  if (!calEmp) {
-    return (
-      <Card>
-        <CardContent className="py-10 text-center text-muted-foreground text-sm">
-          Select a specific employee to view their calendar.
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const selectedLog = selectedDay ? getLog(calEmp.id, selectedDay) : null;
-  const selectedStatus = selectedDay ? deriveStatus(selectedLog, selectedDay, {}) : null;
-
-  return (
-    <Card>
-      <CardHeader className="pb-2 pt-4 px-4">
-        <CardTitle className="text-sm font-semibold">
-          {calEmp.name} — {format(calendarMonth, 'MMMM yyyy')}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="px-4 pb-4">
-        <div className="grid grid-cols-7 mb-1">
-          {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-            <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-0.5">
-          {paddedDays.map((day, idx) => {
-            if (!day) return <div key={`pad-${idx}`} className="aspect-square" />;
-            const log = getLog(calEmp.id, day);
-            const status = deriveStatus(log, day, {});
-            const isWknd = getDay(day) === 0 || getDay(day) === 6;
-            const isSelected = selectedDay && format(selectedDay, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
-            return (
-              <button
-                key={day.toISOString()}
-                onClick={() => setSelectedDay(isSelected ? null : day)}
-                className={cn(
-                  'aspect-square flex flex-col items-center justify-center rounded text-xs transition-colors',
-                  isToday(day) && 'ring-1 ring-primary',
-                  isSelected && 'bg-primary/10',
-                  !isWknd && 'hover:bg-muted/60 cursor-pointer',
-                  isWknd && 'cursor-default opacity-40',
-                )}
-              >
-                <span className={cn('text-xs', isToday(day) && 'font-bold text-primary')}>
-                  {format(day, 'd')}
-                </span>
-                {!isWknd && (
-                  <div className={cn('w-1.5 h-1.5 rounded-full mt-0.5', CALENDAR_DOT[status] || 'bg-muted-foreground/20')} />
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Legend */}
-        <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t">
-          {[['Present', 'bg-green-500'], ['Absent', 'bg-red-500'], ['On Leave', 'bg-purple-500'], ['Late', 'bg-orange-500'], ['Half Day', 'bg-yellow-500']].map(([label, color]) => (
-            <div key={label} className="flex items-center gap-1 text-xs text-muted-foreground">
-              <div className={cn('w-2 h-2 rounded-full', color)} />
-              <span>{label}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Day detail */}
-        {selectedDay && (
-          <div className="mt-3 p-4 bg-muted/30 rounded-xl space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="font-medium text-sm">{format(selectedDay, 'EEEE, dd MMM yyyy')}</p>
-              <div className="flex items-center gap-2">
-                {selectedStatus && (
-                  <Badge variant="outline" className={cn('text-xs', STATUS_BADGE[selectedStatus] || '')}>
-                    {selectedStatus}
-                  </Badge>
-                )}
-                <button onClick={() => setSelectedDay(null)} className="text-muted-foreground text-xs hover:text-foreground">✕</button>
-              </div>
-            </div>
-            {selectedLog ? (
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><p className="text-xs text-muted-foreground">Check In</p>
-                  <p className="font-medium">{selectedLog.check_in_time ? format(new Date(selectedLog.check_in_time), 'hh:mm a') : '—'}</p></div>
-                <div><p className="text-xs text-muted-foreground">Check Out</p>
-                  <p className="font-medium">{selectedLog.check_out_time ? format(new Date(selectedLog.check_out_time), 'hh:mm a') : '—'}</p></div>
-                <div><p className="text-xs text-muted-foreground">Work Hours</p>
-                  <p className="font-medium">{selectedLog.working_hours?.toFixed(1) || '0.0'}h</p></div>
-                <div><p className="text-xs text-muted-foreground">Break</p>
-                  <p className="font-medium">{Math.round(selectedLog.total_break_minutes || 0)}m</p></div>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No attendance record</p>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
   );
 }
