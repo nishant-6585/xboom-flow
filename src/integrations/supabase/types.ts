@@ -165,6 +165,48 @@ export type Database = {
           },
         ]
       }
+      attendance_policy_settings: {
+        Row: {
+          break_severe_minutes: number
+          break_warning_minutes: number
+          created_at: string
+          employee_nudge_enabled: boolean
+          grace_period_minutes: number
+          hr_severe_alert_enabled: boolean
+          id: string
+          late_alert_enabled: boolean
+          no_checkout_warning_enabled: boolean
+          updated_at: string
+          work_start_time: string
+        }
+        Insert: {
+          break_severe_minutes?: number
+          break_warning_minutes?: number
+          created_at?: string
+          employee_nudge_enabled?: boolean
+          grace_period_minutes?: number
+          hr_severe_alert_enabled?: boolean
+          id?: string
+          late_alert_enabled?: boolean
+          no_checkout_warning_enabled?: boolean
+          updated_at?: string
+          work_start_time?: string
+        }
+        Update: {
+          break_severe_minutes?: number
+          break_warning_minutes?: number
+          created_at?: string
+          employee_nudge_enabled?: boolean
+          grace_period_minutes?: number
+          hr_severe_alert_enabled?: boolean
+          id?: string
+          late_alert_enabled?: boolean
+          no_checkout_warning_enabled?: boolean
+          updated_at?: string
+          work_start_time?: string
+        }
+        Relationships: []
+      }
       buyback_drones: {
         Row: {
           buyback_date: string

@@ -16,7 +16,7 @@ import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
 import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
 import { InviteUserDialog } from "@/components/admin/InviteUserDialog";
 import { NoticesPanel } from "@/components/notices/NoticesPanel";
-import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity, Building2 } from "lucide-react";
+import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity, Building2, CalendarClock } from "lucide-react";
 import UserActivityTracker from "@/components/admin/UserActivityTracker";
 import {
   Select,
@@ -41,6 +41,7 @@ import { SlackSettingsPanel } from "@/components/admin/SlackSettingsPanel";
 import { FormPermissionsPanel } from "@/components/admin/FormPermissionsPanel";
 import { AdminSignatureSettings } from "@/components/admin/AdminSignatureSettings";
 import OrgSettingsPanel from "@/components/admin/OrgSettingsPanel";
+import { AttendancePolicySettings } from "@/components/admin/AttendancePolicySettings";
 
 interface PendingUser {
   id: string;
@@ -611,6 +612,10 @@ const Admin = () => {
               <Building2 className="w-4 h-4" />
               Organization
             </TabsTrigger>
+            <TabsTrigger value="attendance-policy" className="flex items-center gap-2">
+              <CalendarClock className="w-4 h-4" />
+              Attendance Policy
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="analytics">
@@ -1043,6 +1048,17 @@ const Admin = () => {
 
           <TabsContent value="organization">
             <OrgSettingsPanel />
+          </TabsContent>
+
+          <TabsContent value="attendance-policy">
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold">Attendance Policy Settings</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Configure thresholds and alert preferences. All alerts are off by default — enable them
+                only after observing attendance patterns for 2–3 weeks.
+              </p>
+            </div>
+            <AttendancePolicySettings />
           </TabsContent>
         </Tabs>
       </main>

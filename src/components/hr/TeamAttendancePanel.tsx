@@ -31,9 +31,26 @@ interface LiveRow {
   breakMinutes: number;
 }
 
+interface AttendancePolicy {
+  work_start_time: string;        // "HH:MM:SS"
+  grace_period_minutes: number;
+  break_warning_minutes: number;
+  break_severe_minutes: number;
+}
+
+const POLICY_DEFAULTS: AttendancePolicy = {
+  work_start_time: '09:30:00',
+  grace_period_minutes: 15,
+  break_warning_minutes: 60,
+  break_severe_minutes: 90,
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const LATE_THRESHOLD_HOUR = 9.5; // 9:30 AM
+function lateThresholdHour(policy: AttendancePolicy): number {
+  const [h, m] = policy.work_start_time.split(':').map(Number);
+  return h + m / 60 + policy.grace_period_minutes / 60;
+}
 
 function getLiveStatus(log: AttendanceLog | null): string {
   if (!log || !log.check_in_time) return 'Not Checked In';
@@ -43,10 +60,10 @@ function getLiveStatus(log: AttendanceLog | null): string {
   return 'Working';
 }
 
-function isLateCheckIn(log: AttendanceLog | null): boolean {
+function isLateCheckIn(log: AttendanceLog | null, policy: AttendancePolicy): boolean {
   if (!log?.check_in_time) return false;
   const d = new Date(log.check_in_time);
-  return d.getHours() + d.getMinutes() / 60 > LATE_THRESHOLD_HOUR;
+  return d.getHours() + d.getMinutes() / 60 > lateThresholdHour(policy);
 }
 
 function currentBreakMinutes(log: AttendanceLog | null): number {
@@ -54,7 +71,7 @@ function currentBreakMinutes(log: AttendanceLog | null): number {
   return differenceInMinutes(new Date(), new Date(log.break_start_time));
 }
 
-function deriveHistoricalStatus(log: AttendanceLog | null, date: Date): string {
+function deriveHistoricalStatus(log: AttendanceLog | null, date: Date, policy: AttendancePolicy = POLICY_DEFAULTS): string {
   const day = getDay(date);
   if (day === 0 || day === 6) return 'Weekend';
   if (!log) return 'Absent';
@@ -64,7 +81,7 @@ function deriveHistoricalStatus(log: AttendanceLog | null, date: Date): string {
     ? new Date(log.check_in_time).getHours() + new Date(log.check_in_time).getMinutes() / 60
     : null;
   if (wh > 0 && wh < 5) return 'Half Day';
-  if (checkInHour && checkInHour > LATE_THRESHOLD_HOUR) return 'Late';
+  if (checkInHour && checkInHour > lateThresholdHour(policy)) return 'Late';
   if (wh >= 5) return 'Present';
   return 'Present';
 }
@@ -105,7 +122,9 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
   const [loadingToday, setLoadingToday] = useState(false);
   const [loadingMonth, setLoadingMonth] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [policy, setPolicy] = useState<AttendancePolicy>(POLICY_DEFAULTS);
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const policyTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
@@ -144,15 +163,29 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
     setLoadingMonth(false);
   }, [calendarMonth]);
 
-  // Initial loads
+  // Initial loads + policy fetch
+  const fetchPolicy = useCallback(async () => {
+    const { data } = await supabase
+      .from('attendance_policy_settings')
+      .select('work_start_time, grace_period_minutes, break_warning_minutes, break_severe_minutes')
+      .limit(1)
+      .maybeSingle();
+    if (data) setPolicy(data as AttendancePolicy);
+  }, []);
+
   useEffect(() => { fetchToday(); }, [fetchToday]);
   useEffect(() => { fetchMonth(); }, [fetchMonth]);
+  useEffect(() => { fetchPolicy(); }, [fetchPolicy]);
 
-  // 60s auto-refresh for today data
+  // 60s auto-refresh for today data; 5-min cache refresh for policy
   useEffect(() => {
     refreshTimerRef.current = setInterval(() => { fetchToday(); }, 60_000);
     return () => { if (refreshTimerRef.current) clearInterval(refreshTimerRef.current); };
   }, [fetchToday]);
+  useEffect(() => {
+    policyTimerRef.current = setInterval(() => { fetchPolicy(); }, 5 * 60_000);
+    return () => { if (policyTimerRef.current) clearInterval(policyTimerRef.current); };
+  }, [fetchPolicy]);
 
   // ── Build live rows ──
   const liveRows: LiveRow[] = employees.map(emp => {
@@ -161,7 +194,7 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
       employee: emp,
       log,
       liveStatus: getLiveStatus(log),
-      isLate: isLateCheckIn(log),
+      isLate: isLateCheckIn(log, policy),
       breakMinutes: currentBreakMinutes(log),
     };
   });
@@ -180,13 +213,16 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
     }).length,
   };
 
-  // ── Anomalies ──
+  // ── Anomalies — thresholds from policy ──
   const now = new Date();
-  const noCheckInAfter10 = liveRows.filter(r =>
-    r.liveStatus === 'Not Checked In' && now.getHours() >= 10
+  const lateHour = lateThresholdHour(policy);
+  const noCheckInAfterThreshold = liveRows.filter(r =>
+    r.liveStatus === 'Not Checked In' && now.getHours() + now.getMinutes() / 60 > lateHour
   );
+  // keep alias for template usage
+  const noCheckInAfter10 = noCheckInAfterThreshold;
   const longBreak = liveRows.filter(r =>
-    r.liveStatus === 'On Break' && r.breakMinutes > 60
+    r.liveStatus === 'On Break' && r.breakMinutes > policy.break_warning_minutes
   );
   const missingCheckoutYesterday = employees.filter(emp => {
     const yl = yesterdayLogs.find(l => l.employee_id === emp.id);
