@@ -250,7 +250,8 @@ export function useOrders() {
             escalated_by,
             escalation_reason
           `)
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .limit(5000);
 
         if (error) throw error;
         
@@ -310,7 +311,8 @@ export function useOrders() {
         const { data, error } = await supabase
           .from('orders')
           .select('*')
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .limit(5000);
 
         if (error) throw error;
         
