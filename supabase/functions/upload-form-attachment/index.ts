@@ -23,6 +23,34 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // --- Authentication ---
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate JWT using user-scoped client
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
+
+    // --- Parse form data ---
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const formId = formData.get("formId") as string | null;
@@ -47,7 +75,7 @@ Deno.serve(async (req) => {
     if (file.size > MAX_FILE_SIZE) {
       return new Response(
         JSON.stringify({ error: "File size exceeds 10MB limit" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -78,9 +106,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Sanitize filename
+    // Sanitize filename and include user ID for audit trail
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const fileName = `${formId}/${fieldId}/${Date.now()}_${safeName}`;
+    const fileName = `${formId}/${fieldId}/${userId}/${Date.now()}_${safeName}`;
 
     // Upload using service role
     const arrayBuffer = await file.arrayBuffer();
