@@ -63,8 +63,15 @@ export default function Orders() {
   const SHOPIFY_PAGE_SIZE = 100;
   const [shopifyFiltersOpen, setShopifyFiltersOpen] = useState(false);
 
+  // Manual orders pagination
+  const [manualPage, setManualPage] = useState(1);
+  const MANUAL_PAGE_SIZE = 50;
+
   // Reset shopify page when filters/search change
   useEffect(() => { setShopifyPage(1); }, [shopifySearchQuery, shopifyStatusFilter, shopifyPaymentStatusFilter, shopifyStartDate, shopifyEndDate]);
+
+  // Reset manual page when filters/search change
+  useEffect(() => { setManualPage(1); }, [searchQuery, statusFilter, paymentStatusFilter, orderTypeFilter, outcomeFilter, salesPersonFilter, paymentTermsFilter, startDate, endDate]);
 
   useEffect(() => {
     if (tabFromUrl === 'pipeline') {
@@ -168,6 +175,12 @@ export default function Orders() {
     setShopifySearchQuery('');
     setShopifyPage(1);
   };
+
+  const manualTotalPages = Math.ceil(filteredOrders.length / MANUAL_PAGE_SIZE);
+  const paginatedManualOrders = filteredOrders.slice(
+    (manualPage - 1) * MANUAL_PAGE_SIZE,
+    manualPage * MANUAL_PAGE_SIZE
+  );
 
   const shopifyTotalPages = Math.ceil(filteredShopifyOrders.length / SHOPIFY_PAGE_SIZE);
   const paginatedShopifyOrders = filteredShopifyOrders.slice(
@@ -608,12 +621,12 @@ export default function Orders() {
             ) : viewMode === 'table' ? (
               <Card className="shadow-sm border-border/60 overflow-hidden">
                 <CardContent className="p-0">
-                  <OrderTable orders={filteredOrders} onOrderClick={handleOrderClick} onUpdateOutcome={handleUpdateOutcome} />
+                  <OrderTable orders={paginatedManualOrders} onOrderClick={handleOrderClick} onUpdateOutcome={handleUpdateOutcome} />
                 </CardContent>
               </Card>
             ) : (
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {filteredOrders.map((order, index) => (
+                {paginatedManualOrders.map((order, index) => (
                   <div 
                     key={order.id}
                     className="animate-in fade-in slide-in-from-bottom-2"
@@ -625,6 +638,76 @@ export default function Orders() {
                     />
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Manual Orders Pagination */}
+            {manualTotalPages > 1 && (
+              <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Showing <span className="font-semibold text-foreground">{((manualPage - 1) * MANUAL_PAGE_SIZE) + 1}–{Math.min(manualPage * MANUAL_PAGE_SIZE, filteredOrders.length)}</span> of <span className="font-semibold text-foreground">{filteredOrders.length}</span> orders
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setManualPage(1)}
+                    disabled={manualPage === 1}
+                    className="h-8 px-3 rounded-lg text-xs"
+                  >
+                    «
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setManualPage(p => Math.max(1, p - 1))}
+                    disabled={manualPage === 1}
+                    className="h-8 px-3 rounded-lg text-xs"
+                  >
+                    ‹ Prev
+                  </Button>
+                  {Array.from({ length: Math.min(5, manualTotalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (manualTotalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (manualPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (manualPage >= manualTotalPages - 2) {
+                      pageNum = manualTotalPages - 4 + i;
+                    } else {
+                      pageNum = manualPage - 2 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={manualPage === pageNum ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setManualPage(pageNum)}
+                        className="h-8 w-8 p-0 rounded-lg text-xs"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setManualPage(p => Math.min(manualTotalPages, p + 1))}
+                    disabled={manualPage === manualTotalPages}
+                    className="h-8 px-3 rounded-lg text-xs"
+                  >
+                    Next ›
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setManualPage(manualTotalPages)}
+                    disabled={manualPage === manualTotalPages}
+                    className="h-8 px-3 rounded-lg text-xs"
+                  >
+                    »
+                  </Button>
+                </div>
               </div>
             )}
           </TabsContent>
