@@ -108,6 +108,7 @@ export function HRDocumentsPanel() {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [viewerName, setViewerName] = useState("");
+  const [viewerFileType, setViewerFileType] = useState<string | null>(null);
 
   // Sharing dialog
   const [shareOpen, setShareOpen] = useState(false);
@@ -228,6 +229,7 @@ export function HRDocumentsPanel() {
     if (url) {
       setViewerUrl(url);
       setViewerName(doc.name);
+      setViewerFileType(doc.file_type);
       setViewerOpen(true);
     }
   };
@@ -794,6 +796,7 @@ export function HRDocumentsPanel() {
         onOpenChange={setViewerOpen}
         url={viewerUrl}
         name={viewerName}
+        fileType={viewerFileType}
       />
     </div>
   );
