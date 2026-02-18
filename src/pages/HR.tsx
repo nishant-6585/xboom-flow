@@ -183,15 +183,15 @@ export default function HR() {
 
           <TabsContent value="attendance" className="space-y-4">
             <Tabs defaultValue="my">
-              <TabsList className="w-full sm:w-auto">
-                <TabsTrigger value="my" className="flex-1 sm:flex-none gap-1.5">
-                  <User className="h-4 w-4" />
-                  My Attendance
+              <TabsList className="w-full grid grid-cols-2">
+                <TabsTrigger value="my" className="gap-1.5 text-xs sm:text-sm">
+                  <User className="h-4 w-4 shrink-0" />
+                  <span className="truncate">My Attendance</span>
                 </TabsTrigger>
                 {isHROrAdmin && (
-                  <TabsTrigger value="team" className="flex-1 sm:flex-none gap-1.5">
-                    <Users className="h-4 w-4" />
-                    Team Attendance
+                  <TabsTrigger value="team" className="gap-1.5 text-xs sm:text-sm">
+                    <Users className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Team Attendance</span>
                   </TabsTrigger>
                 )}
               </TabsList>
