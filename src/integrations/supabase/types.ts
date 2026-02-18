@@ -56,6 +56,41 @@ export type Database = {
         }
         Relationships: []
       }
+      attendance_breaks: {
+        Row: {
+          attendance_id: string
+          break_duration_minutes: number | null
+          break_end_time: string | null
+          break_start_time: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          attendance_id: string
+          break_duration_minutes?: number | null
+          break_end_time?: string | null
+          break_start_time: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          attendance_id?: string
+          break_duration_minutes?: number | null
+          break_end_time?: string | null
+          break_start_time?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_breaks_attendance_id_fkey"
+            columns: ["attendance_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_logs: {
         Row: {
           approved_by: string | null
@@ -71,6 +106,8 @@ export type Database = {
           id: string
           location: string | null
           notes: string | null
+          reconciliation_status: string
+          source: string
           status: string | null
           total_break_minutes: number | null
           updated_at: string
@@ -90,6 +127,8 @@ export type Database = {
           id?: string
           location?: string | null
           notes?: string | null
+          reconciliation_status?: string
+          source?: string
           status?: string | null
           total_break_minutes?: number | null
           updated_at?: string
@@ -109,6 +148,8 @@ export type Database = {
           id?: string
           location?: string | null
           notes?: string | null
+          reconciliation_status?: string
+          source?: string
           status?: string | null
           total_break_minutes?: number | null
           updated_at?: string

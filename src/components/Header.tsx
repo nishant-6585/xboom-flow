@@ -5,6 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "react-router-dom";
 import logoFull from "@/assets/logo-full.jpeg";
 import { NotificationPanel } from "@/components/NotificationPanel";
+import { AttendanceWidget } from "@/components/attendance/AttendanceWidget";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Tooltip,
   TooltipContent,
@@ -28,6 +30,7 @@ import {
 
 export function Header() {
   const { profile, role, signOut } = useAuth();
+  const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -171,8 +174,9 @@ export function Header() {
           </div>
 
           {/* Right side - User info */}
-          <div className="hidden sm:flex items-center gap-4">
-          {(role === 'admin' || role === 'supply_chain' || role === 'finance' || role === 'it') && (
+          <div className="hidden sm:flex items-center gap-3">
+            <AttendanceWidget />
+            {(role === 'admin' || role === 'supply_chain' || role === 'finance' || role === 'it') && (
               <NotificationPanel />
             )}
 
@@ -204,7 +208,7 @@ export function Header() {
             </DropdownMenu>
           </div>
 
-          {/* Mobile: Only show notification + avatar */}
+          {/* Mobile: notification + avatar (FAB handles attendance) */}
           <div className="flex sm:hidden items-center gap-2">
             {(role === 'admin' || role === 'supply_chain' || role === 'finance' || role === 'it') && (
               <NotificationPanel />
@@ -212,6 +216,7 @@ export function Header() {
             <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
               {profile?.name ? getInitials(profile.name) : "U"}
             </div>
+
           </div>
         </div>
       </header>
