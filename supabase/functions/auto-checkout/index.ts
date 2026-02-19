@@ -42,7 +42,14 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${logs?.length ?? 0} active attendance logs for today.`);
 
-    const AUTO_CHECKOUT_HOURS = 9;
+    // Fetch auto checkout threshold from policy settings
+    const { data: policyData } = await supabase
+      .from('attendance_policy_settings')
+      .select('auto_checkout_hours')
+      .limit(1)
+      .maybeSingle();
+
+    const AUTO_CHECKOUT_HOURS = policyData?.auto_checkout_hours ?? 9;
     const autoCheckedOut: string[] = [];
 
     for (const log of logs ?? []) {
