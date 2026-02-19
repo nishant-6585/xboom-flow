@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.shopify-monitor]
 verify_jwt = false
+
+[functions.auto-checkout]
+verify_jwt = false
