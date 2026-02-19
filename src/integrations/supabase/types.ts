@@ -194,6 +194,7 @@ export type Database = {
       }
       attendance_policy_settings: {
         Row: {
+          auto_checkout_hours: number
           break_severe_minutes: number
           break_warning_minutes: number
           created_at: string
@@ -207,6 +208,7 @@ export type Database = {
           work_start_time: string
         }
         Insert: {
+          auto_checkout_hours?: number
           break_severe_minutes?: number
           break_warning_minutes?: number
           created_at?: string
@@ -220,6 +222,7 @@ export type Database = {
           work_start_time?: string
         }
         Update: {
+          auto_checkout_hours?: number
           break_severe_minutes?: number
           break_warning_minutes?: number
           created_at?: string

@@ -15,6 +15,7 @@ interface AttendancePolicy {
   grace_period_minutes: number;
   break_warning_minutes: number;
   break_severe_minutes: number;
+  auto_checkout_hours: number;
   no_checkout_warning_enabled: boolean;
   late_alert_enabled: boolean;
   employee_nudge_enabled: boolean;
@@ -26,6 +27,7 @@ const DEFAULTS: Omit<AttendancePolicy, "id"> = {
   grace_period_minutes: 15,
   break_warning_minutes: 60,
   break_severe_minutes: 90,
+  auto_checkout_hours: 9,
   no_checkout_warning_enabled: false,
   late_alert_enabled: false,
   employee_nudge_enabled: false,
@@ -63,6 +65,7 @@ export function AttendancePolicySettings() {
         grace_period_minutes: data.grace_period_minutes,
         break_warning_minutes: data.break_warning_minutes,
         break_severe_minutes: data.break_severe_minutes,
+        auto_checkout_hours: (data as any).auto_checkout_hours ?? 9,
         no_checkout_warning_enabled: data.no_checkout_warning_enabled,
         late_alert_enabled: data.late_alert_enabled,
         employee_nudge_enabled: data.employee_nudge_enabled,
@@ -81,6 +84,7 @@ export function AttendancePolicySettings() {
       grace_period_minutes: policy.grace_period_minutes,
       break_warning_minutes: policy.break_warning_minutes,
       break_severe_minutes: policy.break_severe_minutes,
+      auto_checkout_hours: policy.auto_checkout_hours,
       no_checkout_warning_enabled: policy.no_checkout_warning_enabled,
       late_alert_enabled: policy.late_alert_enabled,
       employee_nudge_enabled: policy.employee_nudge_enabled,
@@ -161,6 +165,21 @@ export function AttendancePolicySettings() {
                 E.g. 09:30 + 15 min = late after 09:45.
               </HelperText>
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="auto_checkout_hours">Auto Checkout Threshold (hours)</Label>
+            <Input
+              id="auto_checkout_hours"
+              type="number"
+              min={1}
+              max={24}
+              step={0.5}
+              value={policy.auto_checkout_hours}
+              onChange={e => setPolicy(p => ({ ...p, auto_checkout_hours: Math.max(1, parseFloat(e.target.value) || 9) }))}
+            />
+            <HelperText>
+              Employees will be automatically checked out after this many net working hours (excluding breaks). Default is 9 hours.
+            </HelperText>
           </div>
         </CardContent>
       </Card>
