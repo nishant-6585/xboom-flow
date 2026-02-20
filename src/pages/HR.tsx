@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { format, subDays } from "date-fns";
 import { Header } from "@/components/Header";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,9 +16,12 @@ import { TeamAttendanceOverview } from "@/components/hr/TeamAttendanceOverview";
 import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
 import { HRDocumentsPanel } from "@/components/hr/HRDocumentsPanel";
 import { KPIManagementPanel } from "@/components/kpi/KPIManagementPanel";
+import { ProvisionalCheckoutBanner } from "@/components/attendance/ProvisionalCheckoutBanner";
 import { Plus, Calendar, Clock, FileText, Users, LayoutList, Package, FolderOpen, Target, UserSearch, User } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CandidatesPanel } from "@/components/candidates/CandidatesPanel";
+import { supabase } from "@/integrations/supabase/client";
+import { AttendanceLog } from "@/hooks/useHR";
 
 
 export default function HR() {
@@ -46,6 +50,7 @@ export default function HR() {
   const [activeTab, setActiveTab] = useState("home");
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const [yesterdayLog, setYesterdayLog] = useState<AttendanceLog | null>(null);
 
   const isAdmin = role === 'admin';
   const isHROrAdmin = role === 'admin' || role === 'hr';
@@ -56,6 +61,23 @@ export default function HR() {
       fetchAttendanceLogs(myEmployee.id, calendarMonth);
     }
   }, [myEmployee, calendarMonth, fetchAttendanceLogs]);
+
+  // Fetch yesterday's log to check for provisional checkout
+  const fetchYesterdayLog = useCallback(async () => {
+    if (!myEmployee) return;
+    const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+    const { data } = await supabase
+      .from('attendance_logs')
+      .select('*')
+      .eq('employee_id', myEmployee.id)
+      .eq('date', yesterday)
+      .maybeSingle();
+    setYesterdayLog(data as AttendanceLog | null);
+  }, [myEmployee]);
+
+  useEffect(() => {
+    fetchYesterdayLog();
+  }, [fetchYesterdayLog]);
 
   if (loading) {
     return (
@@ -196,7 +218,14 @@ export default function HR() {
                 )}
               </TabsList>
 
-              <TabsContent value="my" className="mt-4">
+              <TabsContent value="my" className="mt-4 space-y-4">
+                <ProvisionalCheckoutBanner
+                  yesterdayLog={yesterdayLog}
+                  onCorrected={() => {
+                    fetchYesterdayLog();
+                    if (myEmployee) fetchAttendanceLogs(myEmployee.id, calendarMonth);
+                  }}
+                />
                 <AttendanceSection
                   todayAttendance={todayAttendance}
                   weeklyHours={weeklyHours}

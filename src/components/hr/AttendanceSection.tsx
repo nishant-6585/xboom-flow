@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday } from 'date-fns';
-import { ChevronLeft, ChevronRight, Download, Clock, Coffee, TrendingUp, CalendarCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Clock, Coffee, TrendingUp, CalendarCheck, AlertTriangle } from 'lucide-react';
 import { AttendanceLog } from '@/hooks/useHR';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -55,7 +55,15 @@ function DayDetailPanel({ log, date, onClose }: { log: AttendanceLog | null; dat
             </div>
             <div>
               <p className="text-muted-foreground text-xs">Check Out</p>
-              <p className="font-medium">{log.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="font-medium">{log.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}</p>
+                {log.is_provisional_checkout && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-yellow-400 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 gap-1">
+                    <AlertTriangle className="h-2.5 w-2.5" />
+                    Provisional
+                  </Badge>
+                )}
+              </div>
             </div>
             <div>
               <p className="text-muted-foreground text-xs">Work Hours</p>
@@ -66,6 +74,17 @@ function DayDetailPanel({ log, date, onClose }: { log: AttendanceLog | null; dat
               <p className="font-medium">{Math.round(log.total_break_minutes || 0)}m</p>
             </div>
           </div>
+          {log.is_provisional_checkout && (
+            <p className="text-xs text-yellow-700 dark:text-yellow-400 flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3 shrink-0" />
+              Auto-marked checkout. You can correct this from the Attendance tab.
+            </p>
+          )}
+          {log.corrected_at && (
+            <p className="text-xs text-green-600 dark:text-green-400">
+              ✓ Corrected on {format(new Date(log.corrected_at), 'dd MMM, hh:mm a')}
+            </p>
+          )}
           {log.notes && <p className="text-xs text-muted-foreground">Note: {log.notes}</p>}
         </>
       )}
@@ -271,7 +290,15 @@ export function AttendanceSection({
           {attendanceLogs.slice(0, 5).map(log => (
             <div key={log.id} className="flex items-center justify-between py-2 border-b last:border-0">
               <div>
-                <p className="text-sm font-medium">{log.date}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-medium">{log.date}</p>
+                  {log.is_provisional_checkout && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-yellow-400 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 gap-0.5">
+                      <AlertTriangle className="h-2.5 w-2.5" />
+                      Provisional
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {log.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '--:--'}
                   {' → '}

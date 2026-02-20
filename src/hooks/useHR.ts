@@ -45,6 +45,12 @@ export interface AttendanceLog {
   total_break_minutes: number | null;
   created_at: string;
   updated_at: string;
+  // Soft auto-checkout fields
+  auto_checkout_applied?: boolean;
+  auto_checkout_time?: string | null;
+  is_provisional_checkout?: boolean;
+  corrected_by?: string | null;
+  corrected_at?: string | null;
 }
 
 export interface LeaveRequest {

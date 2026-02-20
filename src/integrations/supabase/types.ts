@@ -56,6 +56,63 @@ export type Database = {
         }
         Relationships: []
       }
+      attendance_audit_log: {
+        Row: {
+          attendance_log_id: string
+          employee_id: string
+          event_time: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          new_checkout_time: string | null
+          notes: string | null
+          old_checkout_time: string | null
+          performed_by: string | null
+          performed_by_name: string | null
+        }
+        Insert: {
+          attendance_log_id: string
+          employee_id: string
+          event_time?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          new_checkout_time?: string | null
+          notes?: string | null
+          old_checkout_time?: string | null
+          performed_by?: string | null
+          performed_by_name?: string | null
+        }
+        Update: {
+          attendance_log_id?: string
+          employee_id?: string
+          event_time?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          new_checkout_time?: string | null
+          notes?: string | null
+          old_checkout_time?: string | null
+          performed_by?: string | null
+          performed_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_audit_log_attendance_log_id_fkey"
+            columns: ["attendance_log_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_audit_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_breaks: {
         Row: {
           attendance_id: string
@@ -95,15 +152,20 @@ export type Database = {
         Row: {
           approved_by: string | null
           approved_by_name: string | null
+          auto_checkout_applied: boolean | null
+          auto_checkout_time: string | null
           break_end_time: string | null
           break_start_time: string | null
           check_in_time: string | null
           check_out_time: string | null
           checkout_missing: boolean | null
+          corrected_at: string | null
+          corrected_by: string | null
           created_at: string
           date: string
           employee_id: string
           id: string
+          is_provisional_checkout: boolean | null
           location: string | null
           notes: string | null
           reconciliation_status: string
@@ -116,15 +178,20 @@ export type Database = {
         Insert: {
           approved_by?: string | null
           approved_by_name?: string | null
+          auto_checkout_applied?: boolean | null
+          auto_checkout_time?: string | null
           break_end_time?: string | null
           break_start_time?: string | null
           check_in_time?: string | null
           check_out_time?: string | null
           checkout_missing?: boolean | null
+          corrected_at?: string | null
+          corrected_by?: string | null
           created_at?: string
           date?: string
           employee_id: string
           id?: string
+          is_provisional_checkout?: boolean | null
           location?: string | null
           notes?: string | null
           reconciliation_status?: string
@@ -137,15 +204,20 @@ export type Database = {
         Update: {
           approved_by?: string | null
           approved_by_name?: string | null
+          auto_checkout_applied?: boolean | null
+          auto_checkout_time?: string | null
           break_end_time?: string | null
           break_start_time?: string | null
           check_in_time?: string | null
           check_out_time?: string | null
           checkout_missing?: boolean | null
+          corrected_at?: string | null
+          corrected_by?: string | null
           created_at?: string
           date?: string
           employee_id?: string
           id?: string
+          is_provisional_checkout?: boolean | null
           location?: string | null
           notes?: string | null
           reconciliation_status?: string
