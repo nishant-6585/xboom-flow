@@ -60,7 +60,7 @@ export default function Procurement() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-8 lg:w-[960px]">
+          <TabsList className="flex w-full overflow-x-auto gap-1 h-auto flex-nowrap justify-start">
             <TabsTrigger value="orders" className="gap-2">
               <FileText className="w-4 h-4" />
               <span className="hidden sm:inline">Procurements</span>
