@@ -686,12 +686,13 @@ function LiveStatusTable({ liveRows, loading, onRefresh }: { liveRows: LiveRow[]
         onOpenChange={open => { if (!open) setDetailRow(null); }}
       />
 
-      {/* Provisional Correction Modal (HR can always correct) */}
+      {/* Provisional Correction Modal (HR/Admin override) */}
       {correctionLog && (
         <ProvisionalCorrectionModal
           log={correctionLog}
           open={!!correctionLog}
           onOpenChange={open => { if (!open) setCorrectionLog(null); }}
+          isAdminCorrection={true}
           onCorrected={() => {
             setCorrectionLog(null);
             onRefresh?.();

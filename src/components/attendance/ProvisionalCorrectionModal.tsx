@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { Clock, AlertTriangle } from 'lucide-react';
+import { Clock, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +17,8 @@ interface ProvisionalCorrectionModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCorrected: () => void;
+  /** When true, shows the HR/Admin override UI with mandatory reason note */
+  isAdminCorrection?: boolean;
 }
 
 export function ProvisionalCorrectionModal({
@@ -23,6 +26,7 @@ export function ProvisionalCorrectionModal({
   open,
   onOpenChange,
   onCorrected,
+  isAdminCorrection = false,
 }: ProvisionalCorrectionModalProps) {
   const { user } = useAuth();
   const [newCheckoutTime, setNewCheckoutTime] = useState(() => {
@@ -31,6 +35,7 @@ export function ProvisionalCorrectionModal({
     }
     return '';
   });
+  const [adminNote, setAdminNote] = useState('');
   const [saving, setSaving] = useState(false);
 
   const checkInDisplay = log.check_in_time
@@ -82,6 +87,10 @@ export function ProvisionalCorrectionModal({
 
       if (error) throw error;
 
+      const correctionNote = isAdminCorrection
+        ? `HR/Admin override correction. ${adminNote ? `Reason: ${adminNote}. ` : ''}New working hours: ${newWorkingHours.toFixed(2)}h`
+        : `Provisional checkout corrected. New working hours: ${newWorkingHours.toFixed(2)}h`;
+
       await supabase.from('attendance_audit_log').insert({
         attendance_log_id: log.id,
         employee_id: log.employee_id,
@@ -89,11 +98,12 @@ export function ProvisionalCorrectionModal({
         performed_by: user.id,
         old_checkout_time: oldCheckoutTime,
         new_checkout_time: correctedISO,
-        notes: `Provisional checkout corrected. New working hours: ${newWorkingHours.toFixed(2)}h`,
+        notes: correctionNote,
         metadata: {
           old_working_hours: log.working_hours,
           new_working_hours: newWorkingHours,
-          corrected_by_type: 'self',
+          corrected_by_type: isAdminCorrection ? 'admin' : 'self',
+          ...(isAdminCorrection && adminNote ? { admin_reason: adminNote } : {}),
         },
       });
 
@@ -112,12 +122,24 @@ export function ProvisionalCorrectionModal({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-            Correct Provisional Checkout
+            {isAdminCorrection
+              ? <ShieldCheck className="h-4 w-4 text-blue-500" />
+              : <AlertTriangle className="h-4 w-4 text-amber-500" />}
+            {isAdminCorrection ? 'HR/Admin — Override Checkout' : 'Correct Provisional Checkout'}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* Admin override notice */}
+          {isAdminCorrection && (
+            <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800 px-3 py-2.5">
+              <ShieldCheck className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-blue-700 dark:text-blue-400">
+                You are making an <strong>administrative override</strong>. This action will be fully logged in the audit trail with your identity.
+              </p>
+            </div>
+          )}
+
           {/* Date + badge */}
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-muted-foreground">
@@ -160,6 +182,26 @@ export function ProvisionalCorrectionModal({
               Enter the time you actually finished working.
             </p>
           </div>
+
+          {/* Admin reason note */}
+          {isAdminCorrection && (
+            <div className="space-y-1.5">
+              <Label htmlFor="admin-note" className="text-sm">
+                Reason for Override <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Textarea
+                id="admin-note"
+                placeholder="e.g. Employee reported system issue, verified via CCTV logs..."
+                value={adminNote}
+                onChange={e => setAdminNote(e.target.value)}
+                rows={2}
+                className="resize-none text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                This note will be recorded in the audit log alongside your identity.
+              </p>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2">
@@ -169,9 +211,11 @@ export function ProvisionalCorrectionModal({
           <Button
             onClick={handleSubmit}
             disabled={saving || !newCheckoutTime}
-            className="bg-amber-600 hover:bg-amber-700 text-white"
+            className={isAdminCorrection
+              ? 'bg-blue-600 hover:bg-blue-700 text-white'
+              : 'bg-amber-600 hover:bg-amber-700 text-white'}
           >
-            {saving ? 'Saving…' : 'Submit Correction'}
+            {saving ? 'Saving…' : isAdminCorrection ? 'Apply Override' : 'Submit Correction'}
           </Button>
         </DialogFooter>
       </DialogContent>
