@@ -13,13 +13,17 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Calendar, Download, Users, ChevronLeft, ChevronRight,
   UserCheck, UserX, CalendarCheck, Coffee, LogOut,
   Clock, AlertTriangle, RefreshCw, Activity, Eye,
-  Timer, Zap, ShieldAlert,
+  Timer, Zap, ShieldAlert, Pencil,
 } from 'lucide-react';
 import { Employee, AttendanceLog } from '@/hooks/useHR';
 import { cn } from '@/lib/utils';
+import { ProvisionalCorrectionModal } from '@/components/attendance/ProvisionalCorrectionModal';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -361,7 +365,7 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
         )}
 
         {/* Live Status Table */}
-        <LiveStatusTable liveRows={liveRows} loading={loadingToday} />
+        <LiveStatusTable liveRows={liveRows} loading={loadingToday} onRefresh={fetchToday} />
       </TabsContent>
 
       {/* ══════════════════════════════════════════ CALENDAR ══ */}
@@ -421,9 +425,85 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
 
 type QuickFilter = 'all' | 'Working' | 'Not Checked In' | 'Late' | 'On Break' | 'Completed';
 
-function LiveStatusTable({ liveRows, loading }: { liveRows: LiveRow[]; loading: boolean }) {
+// ─── Employee Detail Dialog ───────────────────────────────────────────────────
+function EmployeeDetailDialog({ row, open, onOpenChange }: {
+  row: LiveRow | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  if (!row) return null;
+  const { employee, log, liveStatus, isLate, breakMinutes } = row;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-primary" />
+            {employee.name}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className={cn('text-xs font-medium gap-1', STATUS_STYLE[liveStatus] || '')}>
+              {liveStatus}
+            </Badge>
+            {isLate && <Badge variant="outline" className="text-xs border-amber-300 bg-amber-50 text-amber-700">Late</Badge>}
+            {log?.is_provisional_checkout && (
+              <Badge variant="outline" className="text-xs border-yellow-400 bg-yellow-50 text-yellow-700 gap-1">
+                <AlertTriangle className="h-3 w-3" /> Provisional Checkout
+              </Badge>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm rounded-lg bg-muted/40 p-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Department</p>
+              <p className="font-medium">{employee.department}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Role</p>
+              <p className="font-medium">{employee.role || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Check In</p>
+              <p className="font-medium">{log?.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Check Out</p>
+              <p className="font-medium">{log?.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Work Hours</p>
+              <p className="font-medium">{log?.working_hours?.toFixed(1) || '—'}h</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Break</p>
+              <p className="font-medium">
+                {liveStatus === 'On Break' ? `${breakMinutes}m (ongoing)` : log?.total_break_minutes ? `${Math.round(log.total_break_minutes)}m` : '—'}
+              </p>
+            </div>
+          </div>
+          {log?.is_provisional_checkout && (
+            <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3 shrink-0" />
+              Auto-checkout was applied. Use the Edit Checkout button to correct the time.
+            </p>
+          )}
+          {log?.corrected_at && (
+            <p className="text-xs text-green-600 dark:text-green-400">
+              ✓ Previously corrected on {format(new Date(log.corrected_at), 'dd MMM, hh:mm a')}
+            </p>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function LiveStatusTable({ liveRows, loading, onRefresh }: { liveRows: LiveRow[]; loading: boolean; onRefresh?: () => void }) {
   const [filter, setFilter] = useState<QuickFilter>('all');
   const [empFilter, setEmpFilter] = useState('all');
+  const [detailRow, setDetailRow] = useState<LiveRow | null>(null);
+  const [correctionLog, setCorrectionLog] = useState<AttendanceLog | null>(null);
 
   const filtered = liveRows.filter(r => {
     if (empFilter !== 'all' && r.employee.id !== empFilter) return false;
@@ -442,135 +522,183 @@ function LiveStatusTable({ liveRows, loading }: { liveRows: LiveRow[]; loading: 
   ];
 
   return (
-    <Card>
-      <CardHeader className="pb-0 pt-4 px-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" />
-            Live Status — {format(new Date(), 'EEEE, dd MMMM yyyy')}
-            <Badge variant="secondary" className="text-xs">{filtered.length} employees</Badge>
-          </CardTitle>
-          <Select value={empFilter} onValueChange={setEmpFilter}>
-            <SelectTrigger className="h-8 w-44 text-xs">
-              <Users className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-              <SelectValue placeholder="All Employees" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Employees</SelectItem>
-              {liveRows.map(r => (
-                <SelectItem key={r.employee.id} value={r.employee.id}>
-                  {r.employee.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {/* Quick filter pills */}
-        <div className="flex flex-wrap gap-1.5 mt-3 mb-1 pb-3 border-b">
-          {quickFilters.map(({ label, value, color }) => (
-            <button
-              key={value}
-              data-active={filter === value}
-              onClick={() => setFilter(value)}
-              className={cn(
-                'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
-                filter === value
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background text-muted-foreground border-border hover:border-foreground/30',
-                color,
-              )}
-            >
-              {label}
-              <span className="ml-1 opacity-70">
-                {value === 'all'
-                  ? liveRows.length
-                  : value === 'Late'
-                  ? liveRows.filter(r => r.isLate).length
-                  : liveRows.filter(r => r.liveStatus === value).length}
-              </span>
-            </button>
-          ))}
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        {loading ? (
-          <div className="p-4 space-y-2">
-            {[1, 2, 3, 4].map(i => <div key={i} className="h-12 bg-muted rounded animate-pulse" />)}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40">
-                  <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Employee</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Status</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Check In</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Break</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Work Hrs</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Late</th>
-                  <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(({ employee, log, liveStatus, isLate, breakMinutes }) => (
-                  <tr key={employee.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3">
-                      <p className="font-medium">{employee.name}</p>
-                      <p className="text-xs text-muted-foreground">{employee.department}</p>
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex flex-col gap-1">
-                        <Badge variant="outline" className={cn('text-xs font-medium gap-1 w-fit', STATUS_STYLE[liveStatus] || '')}>
-                          {liveStatus === 'Working' && <Activity className="h-3 w-3" />}
-                          {liveStatus === 'On Break' && <Coffee className="h-3 w-3" />}
-                          {liveStatus === 'Completed' && <UserCheck className="h-3 w-3" />}
-                          {liveStatus === 'Not Checked In' && <UserX className="h-3 w-3" />}
-                          {liveStatus}
-                        </Badge>
-                        {log?.is_provisional_checkout && (
-                          <Badge variant="outline" className="text-xs w-fit border-yellow-400 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400 gap-1">
-                            <Clock className="h-3 w-3" />
-                            Provisional Checkout
-                          </Badge>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-muted-foreground">
-                      {log?.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}
-                    </td>
-                    <td className="px-3 py-3 text-muted-foreground">
-                      {liveStatus === 'On Break'
-                        ? <span className="text-orange-600 font-medium flex items-center gap-1"><Timer className="h-3 w-3" />{breakMinutes}m</span>
-                        : log?.total_break_minutes ? `${Math.round(log.total_break_minutes)}m` : '—'}
-                    </td>
-                    <td className="px-3 py-3 font-medium">
-                      {log?.working_hours ? `${log.working_hours.toFixed(1)}h` : '—'}
-                    </td>
-                    <td className="px-3 py-3">
-                      {isLate
-                        ? <Badge variant="outline" className="text-xs border-amber-300 bg-amber-50 text-amber-700 dark:bg-amber-950/30">Late</Badge>
-                        : <span className="text-muted-foreground text-xs">—</span>}
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" title="View Details">
-                          <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
+    <>
+      <Card>
+        <CardHeader className="pb-0 pt-4 px-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Zap className="h-4 w-4 text-primary" />
+              Live Status — {format(new Date(), 'EEEE, dd MMMM yyyy')}
+              <Badge variant="secondary" className="text-xs">{filtered.length} employees</Badge>
+            </CardTitle>
+            <Select value={empFilter} onValueChange={setEmpFilter}>
+              <SelectTrigger className="h-8 w-44 text-xs">
+                <Users className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                <SelectValue placeholder="All Employees" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Employees</SelectItem>
+                {liveRows.map(r => (
+                  <SelectItem key={r.employee.id} value={r.employee.id}>
+                    {r.employee.name}
+                  </SelectItem>
                 ))}
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="text-center py-8 text-muted-foreground">No employees match this filter</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+              </SelectContent>
+            </Select>
           </div>
-        )}
-      </CardContent>
-    </Card>
+          {/* Quick filter pills */}
+          <div className="flex flex-wrap gap-1.5 mt-3 mb-1 pb-3 border-b">
+            {quickFilters.map(({ label, value, color }) => (
+              <button
+                key={value}
+                data-active={filter === value}
+                onClick={() => setFilter(value)}
+                className={cn(
+                  'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
+                  filter === value
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background text-muted-foreground border-border hover:border-foreground/30',
+                  color,
+                )}
+              >
+                {label}
+                <span className="ml-1 opacity-70">
+                  {value === 'all'
+                    ? liveRows.length
+                    : value === 'Late'
+                    ? liveRows.filter(r => r.isLate).length
+                    : liveRows.filter(r => r.liveStatus === value).length}
+                </span>
+              </button>
+            ))}
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="p-4 space-y-2">
+              {[1, 2, 3, 4].map(i => <div key={i} className="h-12 bg-muted rounded animate-pulse" />)}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40">
+                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Employee</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Status</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Check In</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Break</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Work Hrs</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Late</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((row) => {
+                    const { employee, log, liveStatus, isLate, breakMinutes } = row;
+                    return (
+                      <tr key={employee.id} className={cn(
+                        'border-b last:border-0 hover:bg-muted/30 transition-colors',
+                        log?.is_provisional_checkout && 'bg-amber-50/30 dark:bg-amber-950/10',
+                      )}>
+                        <td className="px-4 py-3">
+                          <p className="font-medium">{employee.name}</p>
+                          <p className="text-xs text-muted-foreground">{employee.department}</p>
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex flex-col gap-1">
+                            <Badge variant="outline" className={cn('text-xs font-medium gap-1 w-fit', STATUS_STYLE[liveStatus] || '')}>
+                              {liveStatus === 'Working' && <Activity className="h-3 w-3" />}
+                              {liveStatus === 'On Break' && <Coffee className="h-3 w-3" />}
+                              {liveStatus === 'Completed' && <UserCheck className="h-3 w-3" />}
+                              {liveStatus === 'Not Checked In' && <UserX className="h-3 w-3" />}
+                              {liveStatus}
+                            </Badge>
+                            {log?.is_provisional_checkout && (
+                              <Badge variant="outline" className="text-xs w-fit border-yellow-400 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400 gap-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                Provisional
+                              </Badge>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-muted-foreground">
+                          {log?.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}
+                        </td>
+                        <td className="px-3 py-3 text-muted-foreground">
+                          {liveStatus === 'On Break'
+                            ? <span className="text-orange-600 font-medium flex items-center gap-1"><Timer className="h-3 w-3" />{breakMinutes}m</span>
+                            : log?.total_break_minutes ? `${Math.round(log.total_break_minutes)}m` : '—'}
+                        </td>
+                        <td className="px-3 py-3 font-medium">
+                          {log?.working_hours ? `${log.working_hours.toFixed(1)}h` : '—'}
+                        </td>
+                        <td className="px-3 py-3">
+                          {isLate
+                            ? <Badge variant="outline" className="text-xs border-amber-300 bg-amber-50 text-amber-700 dark:bg-amber-950/30">Late</Badge>
+                            : <span className="text-muted-foreground text-xs">—</span>}
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-1">
+                            {/* Eye — View Details */}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title="View Details"
+                              onClick={() => setDetailRow(row)}
+                            >
+                              <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                            </Button>
+                            {/* Edit — only for provisional checkouts (HR/Admin always see this) */}
+                            {log?.is_provisional_checkout && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 px-2 text-xs border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 gap-1"
+                                title="Correct Provisional Checkout"
+                                onClick={() => setCorrectionLog(log)}
+                              >
+                                <Pencil className="h-3 w-3" />
+                                Edit
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filtered.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="text-center py-8 text-muted-foreground">No employees match this filter</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Employee Detail Dialog */}
+      <EmployeeDetailDialog
+        row={detailRow}
+        open={!!detailRow}
+        onOpenChange={open => { if (!open) setDetailRow(null); }}
+      />
+
+      {/* Provisional Correction Modal (HR can always correct) */}
+      {correctionLog && (
+        <ProvisionalCorrectionModal
+          log={correctionLog}
+          open={!!correctionLog}
+          onOpenChange={open => { if (!open) setCorrectionLog(null); }}
+          onCorrected={() => {
+            setCorrectionLog(null);
+            onRefresh?.();
+          }}
+        />
+      )}
+    </>
   );
 }
 
