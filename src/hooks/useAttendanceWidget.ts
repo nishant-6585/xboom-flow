@@ -17,6 +17,12 @@ export interface TodayAttendanceSummary {
   status: string | null;
   source: string;
   reconciliation_status: string;
+  // Soft auto-checkout
+  auto_checkout_applied?: boolean;
+  auto_checkout_time?: string | null;
+  is_provisional_checkout?: boolean;
+  corrected_by?: string | null;
+  corrected_at?: string | null;
 }
 
 export interface AttendanceBreak {

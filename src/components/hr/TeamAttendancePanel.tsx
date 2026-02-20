@@ -16,7 +16,7 @@ import {
   Calendar, Download, Users, ChevronLeft, ChevronRight,
   UserCheck, UserX, CalendarCheck, Coffee, LogOut,
   Clock, AlertTriangle, RefreshCw, Activity, Eye,
-  Timer, Zap,
+  Timer, Zap, ShieldAlert,
 } from 'lucide-react';
 import { Employee, AttendanceLog } from '@/hooks/useHR';
 import { cn } from '@/lib/utils';
@@ -519,13 +519,21 @@ function LiveStatusTable({ liveRows, loading }: { liveRows: LiveRow[]; loading: 
                       <p className="text-xs text-muted-foreground">{employee.department}</p>
                     </td>
                     <td className="px-3 py-3">
-                      <Badge variant="outline" className={cn('text-xs font-medium gap-1', STATUS_STYLE[liveStatus] || '')}>
-                        {liveStatus === 'Working' && <Activity className="h-3 w-3" />}
-                        {liveStatus === 'On Break' && <Coffee className="h-3 w-3" />}
-                        {liveStatus === 'Completed' && <UserCheck className="h-3 w-3" />}
-                        {liveStatus === 'Not Checked In' && <UserX className="h-3 w-3" />}
-                        {liveStatus}
-                      </Badge>
+                      <div className="flex flex-col gap-1">
+                        <Badge variant="outline" className={cn('text-xs font-medium gap-1 w-fit', STATUS_STYLE[liveStatus] || '')}>
+                          {liveStatus === 'Working' && <Activity className="h-3 w-3" />}
+                          {liveStatus === 'On Break' && <Coffee className="h-3 w-3" />}
+                          {liveStatus === 'Completed' && <UserCheck className="h-3 w-3" />}
+                          {liveStatus === 'Not Checked In' && <UserX className="h-3 w-3" />}
+                          {liveStatus}
+                        </Badge>
+                        {log?.is_provisional_checkout && (
+                          <Badge variant="outline" className="text-xs w-fit border-yellow-400 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400 gap-1">
+                            <Clock className="h-3 w-3" />
+                            Provisional Checkout
+                          </Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-3 text-muted-foreground">
                       {log?.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}
