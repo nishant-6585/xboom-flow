@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday } from 'date-fns';
-import { ChevronLeft, ChevronRight, Download, Clock, Coffee, TrendingUp, CalendarCheck, AlertTriangle } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday, parseISO, isAfter } from 'date-fns';
+import { ChevronLeft, ChevronRight, Download, Clock, TrendingUp, CalendarCheck, AlertTriangle, Pencil, Lock } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AttendanceLog } from '@/hooks/useHR';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+import { ProvisionalCorrectionModal } from '@/components/attendance/ProvisionalCorrectionModal';
 
 interface AttendanceSectionProps {
   todayAttendance: AttendanceLog | null;
@@ -92,15 +94,24 @@ function DayDetailPanel({ log, date, onClose }: { log: AttendanceLog | null; dat
   );
 }
 
+// Correction window: until 11:59 PM of the day AFTER the log date
+function isCorrectionWindowOpen(log: AttendanceLog): boolean {
+  const logDate = parseISO(log.date);
+  const deadline = new Date(logDate.getFullYear(), logDate.getMonth(), logDate.getDate() + 1, 23, 59, 59);
+  return !isAfter(new Date(), deadline);
+}
+
 export function AttendanceSection({
   todayAttendance,
   weeklyHours,
   attendanceLogs,
   calendarMonth,
   onMonthChange,
-}: AttendanceSectionProps) {
+  onRefresh,
+}: AttendanceSectionProps & { onRefresh?: () => void }) {
   const { role } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [correctionLog, setCorrectionLog] = useState<AttendanceLog | null>(null);
 
   const isHROrAdmin = role === 'admin' || role === 'hr';
 
@@ -287,38 +298,101 @@ export function AttendanceSection({
           <CardTitle className="text-sm">Recent Logs</CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 space-y-2">
-          {attendanceLogs.slice(0, 5).map(log => (
-            <div key={log.id} className="flex items-center justify-between py-2 border-b last:border-0">
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <p className="text-sm font-medium">{log.date}</p>
-                  {log.is_provisional_checkout && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-yellow-400 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 gap-0.5">
-                      <AlertTriangle className="h-2.5 w-2.5" />
-                      Provisional
-                    </Badge>
+          {attendanceLogs.slice(0, 5).map(log => {
+            const isProvisional = !!log.is_provisional_checkout;
+            const windowOpen = isCorrectionWindowOpen(log);
+            const canEdit = isProvisional && (isHROrAdmin || windowOpen);
+
+            return (
+              <div key={log.id} className={cn(
+                'flex items-center justify-between py-2 border-b last:border-0',
+                isProvisional && 'bg-amber-50/50 dark:bg-amber-950/10 -mx-2 px-2 rounded-md',
+              )}>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-sm font-medium">{log.date}</p>
+                    {isProvisional && !windowOpen && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-muted-foreground/40 text-muted-foreground gap-0.5">
+                        Finalized (Auto)
+                      </Badge>
+                    )}
+                    {isProvisional && windowOpen && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-950/30 gap-0.5">
+                        <AlertTriangle className="h-2.5 w-2.5" />
+                        Provisional
+                      </Badge>
+                    )}
+                    {log.corrected_at && !isProvisional && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-green-400 bg-green-50 text-green-700 dark:bg-green-950/30">
+                        ✓ Corrected
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {log.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '--:--'}
+                    {' → '}
+                    {log.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '--:--'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {log.total_break_minutes ? (
+                    <span className="text-xs text-muted-foreground hidden sm:inline">{Math.round(log.total_break_minutes)}m break</span>
+                  ) : null}
+                  <span className="font-medium text-sm">{(log.working_hours || 0).toFixed(1)}h</span>
+                  <div className={cn('w-2 h-2 rounded-full', STATUS_COLORS[log.status] || 'bg-muted')} />
+
+                  {/* Edit / Locked button for provisional records */}
+                  {isProvisional && (
+                    <TooltipProvider delayDuration={200}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          {canEdit ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 px-2 text-xs border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 gap-1"
+                              onClick={() => setCorrectionLog(log)}
+                            >
+                              <Pencil className="h-3 w-3" />
+                              Edit
+                            </Button>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground cursor-not-allowed">
+                              <Lock className="h-3 w-3" />
+                              Locked
+                            </span>
+                          )}
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-[200px] text-xs">
+                          {canEdit
+                            ? 'Click to correct your checkout time'
+                            : 'Correction window closed. Contact HR.'}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {log.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '--:--'}
-                  {' → '}
-                  {log.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '--:--'}
-                </p>
               </div>
-              <div className="flex items-center gap-2">
-                {log.total_break_minutes ? (
-                  <span className="text-xs text-yellow-600">{Math.round(log.total_break_minutes)}m break</span>
-                ) : null}
-                <span className="font-medium text-sm">{(log.working_hours || 0).toFixed(1)}h</span>
-                <div className={cn('w-2 h-2 rounded-full', STATUS_COLORS[log.status] || 'bg-muted')} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
           {attendanceLogs.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-4">No attendance records this month</p>
           )}
         </CardContent>
       </Card>
+
+      {/* Correction modal */}
+      {correctionLog && (
+        <ProvisionalCorrectionModal
+          log={correctionLog}
+          open={!!correctionLog}
+          onOpenChange={open => { if (!open) setCorrectionLog(null); }}
+          onCorrected={() => {
+            setCorrectionLog(null);
+            onRefresh?.();
+          }}
+        />
+      )}
     </div>
   );
 }

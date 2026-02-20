@@ -232,6 +232,10 @@ export default function HR() {
                   attendanceLogs={attendanceLogs}
                   calendarMonth={calendarMonth}
                   onMonthChange={setCalendarMonth}
+                  onRefresh={() => {
+                    fetchYesterdayLog();
+                    if (myEmployee) fetchAttendanceLogs(myEmployee.id, calendarMonth);
+                  }}
                 />
               </TabsContent>
 
