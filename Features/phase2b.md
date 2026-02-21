@@ -4,7 +4,7 @@ Status: ⬚ BLOCKED (waiting on stable domain_events + sufficient dataset)
 
 > **Entry Criteria**:
 > - `domain_events` table actively capturing engagement signals for 4+ weeks
-> - Minimum 100 enquiries with outcome data (won/lost)
+> - Minimum 100 enquiries with outcome data (won/lost), including **at least 30 WON and 30 LOST** (prevents AUC inflation on imbalanced data)
 > - Phase 2A-1 shadow mode models validated
 
 ---
