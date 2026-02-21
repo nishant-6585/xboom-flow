@@ -86,7 +86,7 @@ function AppInner() {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
+    <TooltipProvider delayDuration={300}>
       <Toaster />
       <Sonner />
       <BrowserRouter>
