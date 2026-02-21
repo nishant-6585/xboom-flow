@@ -18,6 +18,7 @@ import { format } from 'date-fns';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { ProductSelect } from '@/components/ProductSelect';
 import { PricelistItem } from '@/hooks/usePricelist';
+import { DemandForecastWidget } from '@/components/inventory/DemandForecastWidget';
 
 function InventoryContent() {
   const { role } = useAuth();
@@ -183,6 +184,7 @@ function InventoryContent() {
             <TabsTrigger value="inventory">Inventory</TabsTrigger>
             <TabsTrigger value="transactions">Transactions</TabsTrigger>
             <TabsTrigger value="low-stock">Low Stock Alerts</TabsTrigger>
+            <TabsTrigger value="forecast">Demand Forecast</TabsTrigger>
           </TabsList>
 
           {canManage && (
@@ -434,6 +436,11 @@ function InventoryContent() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Demand Forecast Tab */}
+        <TabsContent value="forecast">
+          <DemandForecastWidget />
         </TabsContent>
       </Tabs>
 

@@ -9,6 +9,7 @@ import { CreditDebitOverview } from '@/components/finance/CreditDebitOverview';
 import { CashflowChart } from '@/components/finance/CashflowChart';
 import { ExpectedPaymentsForm } from '@/components/finance/ExpectedPaymentsForm';
 import { InvoiceAgingDashboard } from '@/components/finance/InvoiceAgingDashboard';
+import { PaymentRiskWidget } from '@/components/finance/PaymentRiskWidget';
 import { 
   IndianRupee, TrendingUp, TrendingDown, Calendar, Plus, 
   ArrowUpRight, ArrowDownRight, Loader2, Lock
@@ -213,7 +214,7 @@ export default function Finance() {
 
         {/* Main Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 max-w-lg">
+          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
             <TabsTrigger value="overview" className="gap-2">
               <ArrowUpRight className="h-4 w-4" />
               Credit / Debit
@@ -225,6 +226,10 @@ export default function Finance() {
             <TabsTrigger value="aging" className="gap-2">
               <Calendar className="h-4 w-4" />
               Invoice Aging
+            </TabsTrigger>
+            <TabsTrigger value="risk" className="gap-2">
+              <TrendingDown className="h-4 w-4" />
+              Payment Risk
             </TabsTrigger>
           </TabsList>
 
@@ -246,6 +251,10 @@ export default function Finance() {
 
           <TabsContent value="aging">
             <InvoiceAgingDashboard />
+          </TabsContent>
+
+          <TabsContent value="risk">
+            <PaymentRiskWidget />
           </TabsContent>
         </Tabs>
       </main>
