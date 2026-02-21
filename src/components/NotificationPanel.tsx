@@ -120,8 +120,8 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-md p-0">
-        <div className="p-6 pb-2 pr-12">
+      <SheetContent className="w-full sm:max-w-md p-0 overflow-hidden">
+        <div className="p-6 pb-2 pr-14">
           <SheetHeader>
             <div className="flex items-center justify-between">
               <SheetTitle className="flex items-center gap-2">
@@ -143,7 +143,7 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
             <SheetDescription>Payment reminders and alerts</SheetDescription>
           </SheetHeader>
         </div>
-        <ScrollArea className="h-[calc(100vh-120px)] px-6">
+        <ScrollArea className="h-[calc(100vh-120px)] px-6 pb-6">
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
