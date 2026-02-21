@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday, parseISO, isAfter } from 'date-fns';
 import { ChevronLeft, ChevronRight, Download, Clock, TrendingUp, CalendarCheck, AlertTriangle, Pencil, Lock } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AttendanceLog } from '@/hooks/useHR';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -343,9 +343,9 @@ export function AttendanceSection({
 
                   {/* Edit / Locked button for provisional records */}
                   {isProvisional && (
-                    <TooltipProvider delayDuration={200}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex">
                           {canEdit ? (
                             <Button
                               variant="outline"
@@ -362,14 +362,14 @@ export function AttendanceSection({
                               Locked
                             </span>
                           )}
-                        </TooltipTrigger>
-                        <TooltipContent side="left" className="max-w-[200px] text-xs">
-                          {canEdit
-                            ? 'Click to correct your checkout time'
-                            : 'Correction window closed. Contact HR.'}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-[200px] text-xs">
+                        {canEdit
+                          ? 'Click to correct your checkout time'
+                          : 'Correction window closed. Contact HR.'}
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                 </div>
               </div>
