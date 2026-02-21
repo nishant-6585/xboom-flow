@@ -143,27 +143,29 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
             <SheetDescription>Payment reminders and alerts</SheetDescription>
           </SheetHeader>
         </div>
-        <ScrollArea className="flex-1 px-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-            </div>
-          ) : notifications.length === 0 ? (
-            <div className="text-center py-8">
-              <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-              <p className="text-muted-foreground">No notifications</p>
-            </div>
-          ) : (
-            <div className="space-y-0">
-              {notifications.map(notification => (
-                <NotificationItem
-                  key={notification.id}
-                  notification={notification}
-                  onMarkAsRead={markAsRead}
-                />
-              ))}
-            </div>
-          )}
+        <ScrollArea className="flex-1">
+          <div className="px-4 pr-6 pb-6">
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="text-center py-8">
+                <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                <p className="text-muted-foreground">No notifications</p>
+              </div>
+            ) : (
+              <div className="space-y-0">
+                {notifications.map(notification => (
+                  <NotificationItem
+                    key={notification.id}
+                    notification={notification}
+                    onMarkAsRead={markAsRead}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </ScrollArea>
       </SheetContent>
     </Sheet>
