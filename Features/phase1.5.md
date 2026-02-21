@@ -9,6 +9,7 @@ Status: ✅ COMPLETE
 **Integration**: QuoteForm + useQuotes
 
 ### How it works:
+
 - On quote creation, each item's margin is computed against `pricelist.cost_price`
 - Category-specific thresholds in `margin_thresholds` table (pre-seeded for all categories)
 - Three risk levels: **Safe** (green), **Warning** (yellow), **Danger** (red)
@@ -25,6 +26,7 @@ Status: ✅ COMPLETE
 **Config**: `inventory_sync_settings` table (toggle: `enable_shopify_sync`)
 
 ### How it works:
+
 - When `enable_shopify_sync = true`, every processed Shopify order automatically creates `inventory_transactions`
 - Each line item matched by `product_name` (case-insensitive) against internal `inventory` table
 - Idempotent: uses `reference_number = SHOPIFY-{orderId}-{lineItemId}` to prevent duplicate deductions
@@ -43,6 +45,7 @@ Status: ✅ COMPLETE
 **Cron**: Runs every 6 hours (`0 */6 * * *`)
 
 ### How it works:
+
 - Scans `inventory` for items where `current_stock <= reorder_point` and `reorder_point > 0`
 - Skips items alerted within last 6 hours (`last_alert_sent_at`)
 - For each low-stock item:
@@ -57,10 +60,10 @@ Status: ✅ COMPLETE
 
 ## Configuration Checklist
 
-| Setting | Table | Current |
-|---------|-------|---------|
-| Margin thresholds | `margin_thresholds` | ✅ Pre-seeded (7 categories) |
-| Shopify sync | `inventory_sync_settings` | ⚠️ Disabled (set `enable_shopify_sync = true` when ready) |
-| Reorder points | `inventory.reorder_point` | Set per product |
-| Safety stock | `inventory.safety_stock` | Set per product |
-| Low-stock cron | pg_cron | ✅ Active (every 6 hours) |
+| Setting           | Table                     | Current                                                   |
+| ----------------- | ------------------------- | --------------------------------------------------------- |
+| Margin thresholds | `margin_thresholds`       | ✅ Pre-seeded (7 categories)                              |
+| Shopify sync      | `inventory_sync_settings` | ⚠️ Disabled (set `enable_shopify_sync = true` when ready) |
+| Reorder points    | `inventory.reorder_point` | Set per product                                           |
+| Safety stock      | `inventory.safety_stock`  | Set per product                                           |
+| Low-stock cron    | pg_cron                   | ✅ Active (every 6 hours)                                 |

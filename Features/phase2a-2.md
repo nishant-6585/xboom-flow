@@ -11,6 +11,7 @@ Status: ⬚ BLOCKED (waiting on Phase 2A-1 shadow mode validation)
 **Objective**: 30-day forward-looking cashflow projection using validated payment risk scores.
 
 ### Requirements:
+
 - Inputs:
   - `expected_payments` (scheduled inflows)
   - `payment_risk_scores` (probability-adjusted — only if validated)
@@ -22,10 +23,12 @@ Status: ⬚ BLOCKED (waiting on Phase 2A-1 shadow mode validation)
 - Store snapshots in: `cashflow_forecast_snapshots` for accuracy tracking
 
 ### Accuracy Tracking:
+
 - Compare 7-day-old projections against actual bank position
 - **Target metric**: Projection error < 15% at 7-day horizon
 
 ### UI:
+
 - Finance dashboard chart:
   - Projected inflows (green)
   - Projected outflows (red)
@@ -36,6 +39,7 @@ Status: ⬚ BLOCKED (waiting on Phase 2A-1 shadow mode validation)
 ---
 
 ## Acceptance Criteria
+
 - [ ] Cashflow projection chart live on Finance dashboard
 - [ ] Projections use validated risk scores (not raw amounts)
 - [ ] Accuracy tracking operational

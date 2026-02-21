@@ -16,14 +16,38 @@ import { HotLeadsWidget } from "@/components/HotLeadsWidget";
 import { LeadTemperatureAnalytics } from "@/components/LeadTemperatureAnalytics";
 import { DashboardNoticesWidget } from "@/components/notices/DashboardNoticesWidget";
 import { NoticePopup } from "@/components/notices/NoticePopup";
-import { useEnquiries, Enquiry, PRODUCT_CATEGORIES, QueryStatus, ENQUIRY_STATUSES, LostReason } from "@/hooks/useEnquiries";
+import {
+  useEnquiries,
+  Enquiry,
+  PRODUCT_CATEGORIES,
+  QueryStatus,
+  ENQUIRY_STATUSES,
+  LostReason,
+} from "@/hooks/useEnquiries";
 import { usePipelineOrders } from "@/hooks/usePipelineOrders";
 import { getSlaStatus, UrgencyLevel } from "@/lib/sla";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardList, PlusCircle, Loader2, Package, Filter, TableIcon, LayoutGrid, BarChart3, User, ListFilter, X, IndianRupee, Flame, Thermometer, Snowflake, Star } from "lucide-react";
+import {
+  ClipboardList,
+  PlusCircle,
+  Loader2,
+  Package,
+  Filter,
+  TableIcon,
+  LayoutGrid,
+  BarChart3,
+  User,
+  ListFilter,
+  X,
+  IndianRupee,
+  Flame,
+  Thermometer,
+  Snowflake,
+  Star,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LeadTemperature } from "@/hooks/useEnquiries";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +59,18 @@ interface SalesTeamMember {
 }
 
 const Index = () => {
-  const { enquiries, loading, createEnquiry, updateEnquiry, deleteEnquiry, escalateEnquiry, updateStatus, submitAdminResponse, updateLeadTemperature, toggleMegaDeal } = useEnquiries();
+  const {
+    enquiries,
+    loading,
+    createEnquiry,
+    updateEnquiry,
+    deleteEnquiry,
+    escalateEnquiry,
+    updateStatus,
+    submitAdminResponse,
+    updateLeadTemperature,
+    toggleMegaDeal,
+  } = useEnquiries();
   const { pipelineOrders } = usePipelineOrders();
   const { role, user } = useAuth();
   const navigate = useNavigate();
@@ -54,13 +89,13 @@ const Index = () => {
   const [slaStatusFilter, setSlaStatusFilter] = useState<string>("all");
   const [valueFilter, setValueFilter] = useState<string>("all");
   const [valueFilterDate, setValueFilterDate] = useState<Date | null>(null);
-  const [leadFilter, setLeadFilter] = useState<'all' | LeadTemperature | 'mega'>('all');
+  const [leadFilter, setLeadFilter] = useState<"all" | LeadTemperature | "mega">("all");
 
   // Handle URL params for value filter from Admin analytics
   useEffect(() => {
     const urlValueFilter = searchParams.get("valueFilter");
     const urlValueDate = searchParams.get("valueDate");
-    
+
     if (urlValueFilter) {
       setValueFilter(urlValueFilter);
       if (urlValueDate) {
@@ -75,8 +110,8 @@ const Index = () => {
   // Fetch sales team for filter dropdown (admin/supply_chain/finance only)
   useEffect(() => {
     const fetchSalesTeam = async () => {
-      if (role === 'admin' || role === 'supply_chain' || role === 'finance') {
-        const { data } = await supabase.rpc('get_sales_team');
+      if (role === "admin" || role === "supply_chain" || role === "finance") {
+        const { data } = await supabase.rpc("get_sales_team");
         if (data) {
           setSalesTeam(data);
         }
@@ -90,7 +125,7 @@ const Index = () => {
   const isAdmin = role === "admin";
   const isFinance = role === "finance";
 
-  const canFilterBySalesPerson = role === 'admin' || role === 'supply_chain' || role === 'finance';
+  const canFilterBySalesPerson = role === "admin" || role === "supply_chain" || role === "finance";
 
   // Filter enquiries by category, date, sales person, status, lost reason, SLA status, value filter, and lead filter
   const filteredEnquiries = useMemo(() => {
@@ -99,7 +134,7 @@ const Index = () => {
       const matchesSalesPerson = salesPersonFilter === "all" || e.sales_person_id === salesPersonFilter;
       const matchesStatus = statusFilter === "all" || e.status === statusFilter;
       const matchesLostReason = !lostReasonFilter || e.lost_reason === lostReasonFilter;
-      
+
       const enquiryDate = new Date(e.created_at);
       let matchesDate = true;
       if (startDate && endDate) {
@@ -126,7 +161,10 @@ const Index = () => {
         if (valueFilter === "mtd") {
           matchesValueFilter = isWithinInterval(enquiryDate, { start: startOfMonth(now), end: now });
         } else if (valueFilter === "wtd") {
-          matchesValueFilter = isWithinInterval(enquiryDate, { start: startOfWeek(now, { weekStartsOn: 1 }), end: now });
+          matchesValueFilter = isWithinInterval(enquiryDate, {
+            start: startOfWeek(now, { weekStartsOn: 1 }),
+            end: now,
+          });
         } else if (valueFilter === "today") {
           const todayStart = startOfDay(now);
           matchesValueFilter = startOfDay(enquiryDate).getTime() === todayStart.getTime();
@@ -138,14 +176,35 @@ const Index = () => {
 
       // Lead temperature / mega deal filter
       let matchesLead = true;
-      if (leadFilter === 'hot') matchesLead = e.lead_temperature === 'hot';
-      else if (leadFilter === 'warm') matchesLead = e.lead_temperature === 'warm';
-      else if (leadFilter === 'cold') matchesLead = e.lead_temperature === 'cold';
-      else if (leadFilter === 'mega') matchesLead = e.is_mega_deal === true;
-      
-      return matchesCategory && matchesDate && matchesSalesPerson && matchesStatus && matchesLostReason && matchesSlaStatus && matchesValueFilter && matchesLead;
+      if (leadFilter === "hot") matchesLead = e.lead_temperature === "hot";
+      else if (leadFilter === "warm") matchesLead = e.lead_temperature === "warm";
+      else if (leadFilter === "cold") matchesLead = e.lead_temperature === "cold";
+      else if (leadFilter === "mega") matchesLead = e.is_mega_deal === true;
+
+      return (
+        matchesCategory &&
+        matchesDate &&
+        matchesSalesPerson &&
+        matchesStatus &&
+        matchesLostReason &&
+        matchesSlaStatus &&
+        matchesValueFilter &&
+        matchesLead
+      );
     });
-  }, [enquiries, categoryFilter, salesPersonFilter, statusFilter, lostReasonFilter, startDate, endDate, slaStatusFilter, valueFilter, valueFilterDate, leadFilter]);
+  }, [
+    enquiries,
+    categoryFilter,
+    salesPersonFilter,
+    statusFilter,
+    lostReasonFilter,
+    startDate,
+    endDate,
+    slaStatusFilter,
+    valueFilter,
+    valueFilterDate,
+    leadFilter,
+  ]);
 
   const clearDateFilter = () => {
     setStartDate(undefined);
@@ -153,10 +212,9 @@ const Index = () => {
   };
 
   // Filter enquiries for sales user to show only their own
-  const salesUserEnquiries = isSales && user
-    ? filteredEnquiries.filter((e) => e.sales_person_id === user.id)
-    : filteredEnquiries;
-  
+  const salesUserEnquiries =
+    isSales && user ? filteredEnquiries.filter((e) => e.sales_person_id === user.id) : filteredEnquiries;
+
   const handleEnquiryClick = (enquiry: Enquiry) => {
     setSelectedEnquiry(enquiry);
     setDialogOpen(true);
@@ -190,11 +248,16 @@ const Index = () => {
 
   const getValueFilterLabel = (filter: string): string => {
     switch (filter) {
-      case "mtd": return "Month to Date";
-      case "wtd": return "Week to Date";
-      case "today": return "Today";
-      case "specific_day": return valueFilterDate ? format(valueFilterDate, "MMM dd") : "Specific Day";
-      default: return "";
+      case "mtd":
+        return "Month to Date";
+      case "wtd":
+        return "Week to Date";
+      case "today":
+        return "Today";
+      case "specific_day":
+        return valueFilterDate ? format(valueFilterDate, "MMM dd") : "Specific Day";
+      default:
+        return "";
     }
   };
 
@@ -205,11 +268,16 @@ const Index = () => {
 
   const getSlaStatusLabel = (status: string): string => {
     switch (status) {
-      case "met": return "SLA Met";
-      case "delayed": return "Delayed";
-      case "at_risk": return "At Risk";
-      case "breached": return "SLA Breached";
-      default: return "";
+      case "met":
+        return "SLA Met";
+      case "delayed":
+        return "Delayed";
+      case "at_risk":
+        return "At Risk";
+      case "breached":
+        return "SLA Breached";
+      default:
+        return "";
     }
   };
 
@@ -316,7 +384,7 @@ const Index = () => {
                   </div>
                 </div>
                 <HotLeadsWidget
-                  enquiries={enquiries.map(e => ({
+                  enquiries={enquiries.map((e) => ({
                     id: e.id,
                     customer_name: e.customer_name,
                     customer_company: e.customer_company,
@@ -326,9 +394,9 @@ const Index = () => {
                     is_mega_deal: e.is_mega_deal,
                     created_at: e.created_at,
                     status: e.status,
-                    type: "enquiry" as const
+                    type: "enquiry" as const,
                   }))}
-                  pipelineOrders={pipelineOrders.map(p => ({
+                  pipelineOrders={pipelineOrders.map((p) => ({
                     id: p.id,
                     customer_name: p.customer_name,
                     customer_company: p.customer_company,
@@ -338,11 +406,11 @@ const Index = () => {
                     is_mega_deal: p.is_mega_deal,
                     created_at: p.created_at,
                     status: p.status,
-                    type: "pipeline" as const
+                    type: "pipeline" as const,
                   }))}
                   onLeadClick={(lead) => {
                     if (lead.type === "enquiry") {
-                      const enquiry = enquiries.find(e => e.id === lead.id);
+                      const enquiry = enquiries.find((e) => e.id === lead.id);
                       if (enquiry) handleEnquiryClick(enquiry);
                     } else if (lead.type === "pipeline") {
                       // Navigate to Sales page with Pipeline tab and the specific lead ID
@@ -393,19 +461,13 @@ const Index = () => {
                       {enquiries.length === 0 ? "No enquiries yet" : "No enquiries in this category"}
                     </p>
                     {canCreateEnquiry && enquiries.length === 0 && (
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Click "New Enquiry" to create one
-                      </p>
+                      <p className="text-sm text-muted-foreground mt-2">Click "New Enquiry" to create one</p>
                     )}
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredEnquiries.slice(0, 6).map((enquiry) => (
-                      <EnquiryCard
-                        key={enquiry.id}
-                        enquiry={enquiry}
-                        onClick={() => handleEnquiryClick(enquiry)}
-                      />
+                      <EnquiryCard key={enquiry.id} enquiry={enquiry} onClick={() => handleEnquiryClick(enquiry)} />
                     ))}
                   </div>
                 )}
@@ -557,23 +619,39 @@ const Index = () => {
                       </div>
                     )}
                     {leadFilter !== "all" && (
-                      <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-sm ${
-                        leadFilter === 'hot' ? 'bg-orange-500/10 border border-orange-500/20' :
-                        leadFilter === 'warm' ? 'bg-yellow-500/10 border border-yellow-500/20' :
-                        leadFilter === 'cold' ? 'bg-blue-500/10 border border-blue-500/20' :
-                        'bg-amber-500/10 border border-amber-500/20'
-                      }`}>
-                        {leadFilter === 'hot' && <Flame className="h-3 w-3 text-orange-500" />}
-                        {leadFilter === 'warm' && <Thermometer className="h-3 w-3 text-yellow-500" />}
-                        {leadFilter === 'cold' && <Snowflake className="h-3 w-3 text-blue-500" />}
-                        {leadFilter === 'mega' && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
-                        <span className={`font-medium ${
-                          leadFilter === 'hot' ? 'text-orange-600' :
-                          leadFilter === 'warm' ? 'text-yellow-600' :
-                          leadFilter === 'cold' ? 'text-blue-600' :
-                          'text-amber-600'
-                        }`}>
-                          {leadFilter === 'hot' ? 'Hot' : leadFilter === 'warm' ? 'Warm' : leadFilter === 'cold' ? 'Cold' : 'Mega'}
+                      <div
+                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-sm ${
+                          leadFilter === "hot"
+                            ? "bg-orange-500/10 border border-orange-500/20"
+                            : leadFilter === "warm"
+                              ? "bg-yellow-500/10 border border-yellow-500/20"
+                              : leadFilter === "cold"
+                                ? "bg-blue-500/10 border border-blue-500/20"
+                                : "bg-amber-500/10 border border-amber-500/20"
+                        }`}
+                      >
+                        {leadFilter === "hot" && <Flame className="h-3 w-3 text-orange-500" />}
+                        {leadFilter === "warm" && <Thermometer className="h-3 w-3 text-yellow-500" />}
+                        {leadFilter === "cold" && <Snowflake className="h-3 w-3 text-blue-500" />}
+                        {leadFilter === "mega" && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
+                        <span
+                          className={`font-medium ${
+                            leadFilter === "hot"
+                              ? "text-orange-600"
+                              : leadFilter === "warm"
+                                ? "text-yellow-600"
+                                : leadFilter === "cold"
+                                  ? "text-blue-600"
+                                  : "text-amber-600"
+                          }`}
+                        >
+                          {leadFilter === "hot"
+                            ? "Hot"
+                            : leadFilter === "warm"
+                              ? "Warm"
+                              : leadFilter === "cold"
+                                ? "Cold"
+                                : "Mega"}
                         </span>
                         <Button
                           variant="ghost"
@@ -585,14 +663,22 @@ const Index = () => {
                         </Button>
                       </div>
                     )}
-                    {(categoryFilter !== "all" || startDate || endDate || salesPersonFilter !== "all" || statusFilter !== "all" || lostReasonFilter || slaStatusFilter !== "all" || valueFilter !== "all" || leadFilter !== "all") && (
+                    {(categoryFilter !== "all" ||
+                      startDate ||
+                      endDate ||
+                      salesPersonFilter !== "all" ||
+                      statusFilter !== "all" ||
+                      lostReasonFilter ||
+                      slaStatusFilter !== "all" ||
+                      valueFilter !== "all" ||
+                      leadFilter !== "all") && (
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
                           {filteredEnquiries.length} of {enquiries.length}
                         </span>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => {
                             setCategoryFilter("all");
                             setSalesPersonFilter("all");
@@ -649,11 +735,7 @@ const Index = () => {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredEnquiries.map((enquiry) => (
-                      <EnquiryCard
-                        key={enquiry.id}
-                        enquiry={enquiry}
-                        onClick={() => handleEnquiryClick(enquiry)}
-                      />
+                      <EnquiryCard key={enquiry.id} enquiry={enquiry} onClick={() => handleEnquiryClick(enquiry)} />
                     ))}
                   </div>
                 )}
@@ -668,25 +750,25 @@ const Index = () => {
               </div>
             ) : (
               <>
-                <EnquiryConversionAnalytics 
-                  enquiries={isSales && user ? salesUserEnquiries : enquiries} 
+                <EnquiryConversionAnalytics
+                  enquiries={isSales && user ? salesUserEnquiries : enquiries}
                   onStatusClick={handleAnalyticsStatusClick}
                   onLostReasonClick={handleAnalyticsLostReasonClick}
                 />
-                <LeadTemperatureAnalytics 
-                  enquiries={(isSales && user ? salesUserEnquiries : enquiries).map(e => ({
+                <LeadTemperatureAnalytics
+                  enquiries={(isSales && user ? salesUserEnquiries : enquiries).map((e) => ({
                     id: e.id,
                     lead_temperature: e.lead_temperature,
                     is_mega_deal: e.is_mega_deal,
                     status: e.status,
-                    created_at: e.created_at
+                    created_at: e.created_at,
                   }))}
-                  pipelineOrders={pipelineOrders.map(p => ({
+                  pipelineOrders={pipelineOrders.map((p) => ({
                     id: p.id,
                     lead_temperature: p.lead_temperature,
                     is_mega_deal: p.is_mega_deal,
                     status: p.status,
-                    created_at: p.created_at
+                    created_at: p.created_at,
                   }))}
                   onFilterClick={(filter) => {
                     setLeadFilter(filter);

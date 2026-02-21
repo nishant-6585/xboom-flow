@@ -19,29 +19,17 @@ Status: 🟡 PLANNED
 **Objective**: Predict future stock requirements based on historical sales velocity. Informational only.
 
 ### Why First:
+
 - Clean numeric signals (quantities, dates)
 - Measurable error (predicted vs. actual consumption)
 - Direct business value (prevent stockouts)
 - No behavioral complexity
 
-### Baseline Model (v1 — No ML):
-- **Method**: Rolling 30-day mean of daily consumption
-- Seasonality adjustment only if > 1 year of historical data exists
-- No LLM/ML — this is pure math (moving averages, linear extrapolation)
-- Future versions may introduce weighted moving averages or simple regression
-
-### Minimum Data Threshold:
-- Products with < 60 days of transaction history:
-  - `confidence` = `'low'`
-  - Excluded from MAPE target calculations
-  - Still displayed in UI with "Insufficient data" badge
-- Products with 60–180 days: `confidence` = `'medium'`
-- Products with > 180 days: `confidence` = `'high'`
-
 ### Requirements:
+
 - Analyze `inventory_transactions` + `order_items` for trailing 30/60/90 day trends
 - Compute per-product:
-  - Average daily consumption rate (rolling 30-day mean)
+  - Average daily consumption rate
   - Days until stockout (at current velocity)
   - Recommended reorder quantity
 - Store in: `demand_forecasts`
@@ -50,12 +38,14 @@ Status: 🟡 PLANNED
 - **No automation**: Does NOT auto-create tasks or trigger alerts (that remains Phase 1.5's job)
 
 ### Accuracy Tracking:
+
 - Table: `forecast_accuracy_log`
   - `forecast_id`, `product_id`, `predicted_demand`, `actual_demand`, `measurement_period_days`, `mape_percent`, `logged_at`
 - Weekly job compares past forecasts against actual transactions
 - **Target metric**: MAPE (Mean Absolute Percentage Error) < 30% after 4 weeks
 
 ### UI:
+
 - Inventory dashboard widget:
   - Products at risk of stockout (< 14 days projected)
   - Reorder recommendations (informational)
@@ -72,12 +62,14 @@ Status: 🟡 PLANNED
 **Objective**: Predict likelihood of late payment per invoice/customer. Informational only.
 
 ### Why Second:
+
 - Depends on `invoice_aging_view` (stable since Phase 1)
 - Historical payment patterns are structured and clean
 - Low political sensitivity (finance, not sales)
 - Clear validation metric (predicted delay vs. actual payment date)
 
 ### Requirements:
+
 - Compute risk score (0–1) based on:
   - Historical payment patterns per customer (avg days to pay)
   - Current aging bucket
@@ -90,6 +82,7 @@ Status: 🟡 PLANNED
 - **No automation**: Does NOT send reminders, escalate, or block anything
 
 ### Accuracy Tracking:
+
 - Table: `payment_risk_accuracy_log`
   - `score_id`, `invoice_id`, `predicted_risk_level`, `predicted_days_to_pay`, `actual_days_to_pay`, `was_late`, `logged_at`
 - Scored when invoice is marked paid — compare prediction vs. reality
@@ -99,6 +92,7 @@ Status: 🟡 PLANNED
   - Accuracy on "high risk" predictions > 60%
 
 ### UI:
+
 - Risk badge on invoice list (color-coded, hover for factors)
 - Finance dashboard widget:
   - High-risk accounts summary
@@ -115,28 +109,13 @@ Status: 🟡 PLANNED
 
 Models graduate from Shadow Mode to Active Mode (Phase 2A-2+) only when:
 
-| Model | Metric | Threshold | Minimum Data |
-|-------|--------|-----------|--------------|
-| Demand Forecast | MAPE | < 30% | 4 weeks of forecasts |
-| Payment Risk | AUC | > 0.7 | 30+ scored invoices |
-| Payment Risk | False Positive Rate | < 25% | 30+ scored invoices |
+| Model           | Metric              | Threshold | Minimum Data         |
+| --------------- | ------------------- | --------- | -------------------- |
+| Demand Forecast | MAPE                | < 30%     | 4 weeks of forecasts |
+| Payment Risk    | AUC                 | > 0.7     | 30+ scored invoices  |
+| Payment Risk    | False Positive Rate | < 25%     | 30+ scored invoices  |
 
 Until these thresholds are met, models remain informational only.
-
----
-
-## Fail-Safe Behavior
-
-All prediction edge functions MUST degrade gracefully:
-
-| Failure | Behavior |
-|---------|----------|
-| Edge function crashes | Log error to `domain_events`, keep previous forecast, never block UI |
-| Insufficient data | Mark `confidence = 'low'`, display with warning badge |
-| Stale forecast (> 14 days old) | Show "Last updated X days ago" warning in UI |
-| Database write fails | Retry once, then log and continue — never throw to client |
-
-**Critical rule**: No prediction failure may block any business workflow. Predictions are advisory overlays, not gatekeepers.
 
 ---
 
@@ -152,18 +131,19 @@ All prediction edge functions MUST degrade gracefully:
 
 ## What Is NOT In This Phase
 
-| Feature | Phase | Reason |
-|---------|-------|--------|
-| Cashflow Projection | 2A-2 | Depends on validated payment risk scores |
-| Dynamic Lead Re-Scoring | 2B | Behavioral signals need stable event tracking + dataset size |
-| Smart Follow-Up Recommendations | 2C | Requires validated conversion model first |
-| Any automated actions from predictions | 2A-2+ | Shadow Mode must prove accuracy first |
+| Feature                                | Phase | Reason                                                       |
+| -------------------------------------- | ----- | ------------------------------------------------------------ |
+| Cashflow Projection                    | 2A-2  | Depends on validated payment risk scores                     |
+| Dynamic Lead Re-Scoring                | 2B    | Behavioral signals need stable event tracking + dataset size |
+| Smart Follow-Up Recommendations        | 2C    | Requires validated conversion model first                    |
+| Any automated actions from predictions | 2A-2+ | Shadow Mode must prove accuracy first                        |
 
 ---
 
 ## Acceptance Criteria
 
 Phase 2A-1 is complete when:
+
 - [ ] Demand forecasts running weekly with per-product predictions stored
 - [ ] Forecast accuracy logging operational (MAPE computed weekly)
 - [ ] Payment risk scores computed on invoice creation and weekly refresh
