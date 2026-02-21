@@ -24,10 +24,24 @@ Status: 🟡 PLANNED
 - Direct business value (prevent stockouts)
 - No behavioral complexity
 
+### Baseline Model (v1 — No ML):
+- **Method**: Rolling 30-day mean of daily consumption
+- Seasonality adjustment only if > 1 year of historical data exists
+- No LLM/ML — this is pure math (moving averages, linear extrapolation)
+- Future versions may introduce weighted moving averages or simple regression
+
+### Minimum Data Threshold:
+- Products with < 60 days of transaction history:
+  - `confidence` = `'low'`
+  - Excluded from MAPE target calculations
+  - Still displayed in UI with "Insufficient data" badge
+- Products with 60–180 days: `confidence` = `'medium'`
+- Products with > 180 days: `confidence` = `'high'`
+
 ### Requirements:
 - Analyze `inventory_transactions` + `order_items` for trailing 30/60/90 day trends
 - Compute per-product:
-  - Average daily consumption rate
+  - Average daily consumption rate (rolling 30-day mean)
   - Days until stockout (at current velocity)
   - Recommended reorder quantity
 - Store in: `demand_forecasts`
@@ -108,6 +122,21 @@ Models graduate from Shadow Mode to Active Mode (Phase 2A-2+) only when:
 | Payment Risk | False Positive Rate | < 25% | 30+ scored invoices |
 
 Until these thresholds are met, models remain informational only.
+
+---
+
+## Fail-Safe Behavior
+
+All prediction edge functions MUST degrade gracefully:
+
+| Failure | Behavior |
+|---------|----------|
+| Edge function crashes | Log error to `domain_events`, keep previous forecast, never block UI |
+| Insufficient data | Mark `confidence = 'low'`, display with warning badge |
+| Stale forecast (> 14 days old) | Show "Last updated X days ago" warning in UI |
+| Database write fails | Retry once, then log and continue — never throw to client |
+
+**Critical rule**: No prediction failure may block any business workflow. Predictions are advisory overlays, not gatekeepers.
 
 ---
 
