@@ -120,28 +120,30 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-md">
-        <SheetHeader>
-          <div className="flex items-center justify-between">
-            <SheetTitle className="flex items-center gap-2">
-              <Bell className="w-5 h-5" />
-              Notifications
-            </SheetTitle>
-            {unreadCount > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={markAllAsRead}
-                className="text-xs"
-              >
-                <CheckCheck className="w-3 h-3 mr-1" />
-                Mark all read
-              </Button>
-            )}
-          </div>
-          <SheetDescription>Payment reminders and alerts</SheetDescription>
-        </SheetHeader>
-        <ScrollArea className="h-[calc(100vh-120px)] mt-4 -mx-6 px-6">
+      <SheetContent className="w-full sm:max-w-md p-0">
+        <div className="p-6 pb-2 pr-12">
+          <SheetHeader>
+            <div className="flex items-center justify-between">
+              <SheetTitle className="flex items-center gap-2">
+                <Bell className="w-5 h-5" />
+                Notifications
+              </SheetTitle>
+              {unreadCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={markAllAsRead}
+                  className="text-xs"
+                >
+                  <CheckCheck className="w-3 h-3 mr-1" />
+                  Mark all read
+                </Button>
+              )}
+            </div>
+            <SheetDescription>Payment reminders and alerts</SheetDescription>
+          </SheetHeader>
+        </div>
+        <ScrollArea className="h-[calc(100vh-120px)] px-6">
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
