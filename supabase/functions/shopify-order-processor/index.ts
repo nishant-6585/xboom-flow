@@ -129,6 +129,75 @@ function mapPaymentStatus(financialStatus: string | undefined): string {
   }
 }
 
+// ─── Inventory Sync ─────────────────────────────────────────────────────────
+
+async function syncShopifyOrderToInventory(
+  client: ReturnType<typeof createClient>,
+  orderData: Record<string, unknown>,
+  payload: Record<string, unknown>
+) {
+  // Check if sync is enabled
+  const { data: syncSettings } = await client
+    .from("inventory_sync_settings")
+    .select("enable_shopify_sync")
+    .limit(1)
+    .single();
+
+  if (!syncSettings?.enable_shopify_sync) return;
+
+  const lineItems = (payload.line_items as Array<Record<string, unknown>>) || [];
+
+  for (const lineItem of lineItems) {
+    const productName = String(lineItem.title || "");
+    const quantity = Number(lineItem.quantity) || 0;
+    if (!productName || quantity <= 0) continue;
+
+    // Find matching inventory item
+    const { data: invItem } = await client
+      .from("inventory")
+      .select("id, current_stock")
+      .ilike("product_name", productName)
+      .limit(1)
+      .single();
+
+    if (!invItem) {
+      console.log(`No inventory match for Shopify product: ${productName}`);
+      continue;
+    }
+
+    // Check idempotency — avoid duplicate deductions
+    const shopifyOrderId = String(payload.id);
+    const { data: existing } = await client
+      .from("inventory_transactions")
+      .select("id")
+      .eq("inventory_id", invItem.id)
+      .eq("reference_number", `SHOPIFY-${shopifyOrderId}-${lineItem.id}`)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      console.log(`Inventory transaction already exists for Shopify line item ${lineItem.id}`);
+      continue;
+    }
+
+    // Create inventory transaction (negative = stock out)
+    await client.from("inventory_transactions").insert({
+      inventory_id: invItem.id,
+      transaction_type: "order_fulfilled",
+      quantity: -quantity,
+      reference_number: `SHOPIFY-${shopifyOrderId}-${lineItem.id}`,
+      notes: `Shopify Order #${payload.order_number} — ${productName} x${quantity}`,
+    });
+
+    console.log(`Inventory deducted: ${productName} x${quantity} (Shopify #${payload.order_number})`);
+  }
+
+  // Update last sync timestamp
+  await client
+    .from("inventory_sync_settings")
+    .update({ last_sync_at: new Date().toISOString() })
+    .neq("id", "00000000-0000-0000-0000-000000000000");
+}
+
 // ─── Main Processor ─────────────────────────────────────────────────────────
 
 serve(async (req) => {
@@ -259,6 +328,13 @@ serve(async (req) => {
         .insert(orderData);
 
       if (insertError) throw new Error(insertError.message);
+
+      // ── Shopify → Inventory Sync ─────────────────────────────────────
+      try {
+        await syncShopifyOrderToInventory(serviceClient, orderData, payload);
+      } catch (syncErr) {
+        console.error(`Inventory sync failed for ${shopifyOrderId} (non-blocking):`, syncErr);
+      }
 
       // Mark raw as completed
       await serviceClient
