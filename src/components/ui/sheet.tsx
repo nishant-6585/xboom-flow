@@ -102,15 +102,21 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
       <SheetPrimitive.Content
         ref={ref}
         onPointerDownOutside={(e) => {
-          e.preventDefault();
+          if (isSheetTabSwitching) {
+            e.preventDefault();
+          }
           onPointerDownOutside?.(e);
         }}
         onInteractOutside={(e) => {
-          e.preventDefault();
+          if (isSheetTabSwitching) {
+            e.preventDefault();
+          }
           onInteractOutside?.(e);
         }}
         onFocusOutside={(e) => {
-          e.preventDefault();
+          if (isSheetTabSwitching) {
+            e.preventDefault();
+          }
           onFocusOutside?.(e);
         }}
         className={cn(sheetVariants({ side }), className)}
