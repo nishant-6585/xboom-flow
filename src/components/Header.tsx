@@ -116,11 +116,13 @@ export function Header() {
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="sm:hidden">
-                      <Menu className="w-5 h-5" />
-                    </Button>
-                  </SheetTrigger>
+                  <span className="inline-flex sm:hidden">
+                    <SheetTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <Menu className="w-5 h-5" />
+                      </Button>
+                    </SheetTrigger>
+                  </span>
                 </TooltipTrigger>
                 <TooltipContent>Menu</TooltipContent>
               </Tooltip>

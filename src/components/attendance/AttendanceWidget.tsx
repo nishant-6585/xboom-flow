@@ -84,24 +84,26 @@ export function AttendanceWidget() {
     <Popover open={open} onOpenChange={setOpen}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <PopoverTrigger asChild>
-            <button className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-muted/60 transition-colors text-sm">
-              <StatusDot status={status} />
-              <span className="hidden sm:inline text-muted-foreground font-medium">
-                {status === 'working' && todayAttendance?.check_in_time ? (
-                  <WorkingTimer
-                    checkInTime={todayAttendance.check_in_time}
-                    totalBreakMins={todayAttendance.total_break_minutes || 0}
-                  />
-                ) : status === 'on_break' && todayAttendance?.break_start_time ? (
-                  <BreakTimer breakStart={todayAttendance.break_start_time} />
-                ) : (
-                  <span>{statusLabel}</span>
-                )}
-              </span>
-              <ChevronDown className="h-3 w-3 text-muted-foreground" />
-            </button>
-          </PopoverTrigger>
+          <span className="inline-flex">
+            <PopoverTrigger asChild>
+              <button className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-muted/60 transition-colors text-sm">
+                <StatusDot status={status} />
+                <span className="hidden sm:inline text-muted-foreground font-medium">
+                  {status === 'working' && todayAttendance?.check_in_time ? (
+                    <WorkingTimer
+                      checkInTime={todayAttendance.check_in_time}
+                      totalBreakMins={todayAttendance.total_break_minutes || 0}
+                    />
+                  ) : status === 'on_break' && todayAttendance?.break_start_time ? (
+                    <BreakTimer breakStart={todayAttendance.break_start_time} />
+                  ) : (
+                    <span>{statusLabel}</span>
+                  )}
+                </span>
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+              </button>
+            </PopoverTrigger>
+          </span>
         </TooltipTrigger>
         <TooltipContent>Attendance: {statusLabel}</TooltipContent>
       </Tooltip>
