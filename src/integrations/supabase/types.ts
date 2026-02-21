@@ -5822,6 +5822,18 @@ export type Database = {
           total_working_hours: number
         }[]
       }
+      get_low_stock_items: {
+        Args: never
+        Returns: {
+          current_stock: number
+          id: string
+          last_alert_sent_at: string
+          product_category: string
+          product_name: string
+          reorder_point: number
+          safety_stock: number
+        }[]
+      }
       get_pending_registrations: {
         Args: never
         Returns: {
