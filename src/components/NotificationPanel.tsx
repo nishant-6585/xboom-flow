@@ -143,8 +143,7 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
             <SheetDescription>Payment reminders and alerts</SheetDescription>
           </SheetHeader>
         </div>
-        <ScrollArea className="flex-1">
-          <div className="px-4 pr-8 pb-6">
+        <div className="flex-1 overflow-y-auto px-4 pb-6">
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
@@ -165,8 +164,7 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
                 ))}
               </div>
             )}
-          </div>
-        </ScrollArea>
+        </div>
       </SheetContent>
     </Sheet>
   );
