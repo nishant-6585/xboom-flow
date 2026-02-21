@@ -114,11 +114,16 @@ export function Header() {
           <div className="flex items-center gap-3">
             {/* Mobile Menu Trigger */}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="sm:hidden">
-                  <Menu className="w-5 h-5" />
-                </Button>
-              </SheetTrigger>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon" className="sm:hidden">
+                      <Menu className="w-5 h-5" />
+                    </Button>
+                  </SheetTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Menu</TooltipContent>
+              </Tooltip>
               <SheetContent side="left" className="w-64 flex flex-col">
                 <SheetHeader className="mb-4 flex-shrink-0">
                   <SheetTitle className="flex items-center gap-2">
@@ -227,18 +232,22 @@ export function Header() {
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-1 h-11 overflow-x-auto">
             {filteredMainNavItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                  isActive(item.path)
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-              >
-                <item.icon className="w-4 h-4" />
-                <span>{item.label}</span>
-              </Link>
+              <Tooltip key={item.path}>
+                <TooltipTrigger asChild>
+                  <Link
+                    to={item.path}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                      isActive(item.path)
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    <span>{item.label}</span>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>{item.label}</TooltipContent>
+              </Tooltip>
             ))}
           </div>
         </div>
@@ -250,18 +259,22 @@ export function Header() {
           <div className="container mx-auto px-4">
             <div className="flex items-center gap-1 h-9 overflow-x-auto">
               {filteredSecondaryNavItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                    isActive(item.path)
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  }`}
-                >
-                  <item.icon className="w-3.5 h-3.5" />
-                  <span>{item.label}</span>
-                </Link>
+                <Tooltip key={item.path}>
+                  <TooltipTrigger asChild>
+                    <Link
+                      to={item.path}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                        isActive(item.path)
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      }`}
+                    >
+                      <item.icon className="w-3.5 h-3.5" />
+                      <span>{item.label}</span>
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent>{item.label}</TooltipContent>
+                </Tooltip>
               ))}
             </div>
           </div>

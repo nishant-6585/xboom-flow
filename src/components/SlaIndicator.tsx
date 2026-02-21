@@ -2,6 +2,7 @@ import { ProductQuery } from "@/types/query";
 import { getSlaStatus, getTimeRemaining, UrgencyLevel } from "@/lib/sla";
 import { Clock, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface SlaIndicatorProps {
   query: ProductQuery;
@@ -59,12 +60,17 @@ export function SlaIndicator({ query, showTime = true }: SlaIndicatorProps) {
   };
 
   return (
-    <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium", config.className)}>
-      <Icon className="w-3 h-3" />
-      <span>{config.label}</span>
-      {showTime && formatTime() && (
-        <span className="opacity-75">({formatTime()})</span>
-      )}
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium", config.className)}>
+          <Icon className="w-3 h-3" />
+          <span>{config.label}</span>
+          {showTime && formatTime() && (
+            <span className="opacity-75">({formatTime()})</span>
+          )}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>SLA Status: {config.label}</TooltipContent>
+    </Tooltip>
   );
 }

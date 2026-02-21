@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface DateRangeFilterProps {
   startDate: Date | undefined;
@@ -79,14 +80,19 @@ export function DateRangeFilter({
       </Popover>
 
       {hasDateFilter && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClear}
-          className="h-8 px-2"
-        >
-          <X className="h-4 w-4" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClear}
+              className="h-8 px-2"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Clear date filter</TooltipContent>
+        </Tooltip>
       )}
     </div>
   );

@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { QueryForm } from "@/components/QueryForm";
 import { PipelineForm } from "@/components/pipeline/PipelineForm";
 import { OrderForm } from "@/components/OrderForm";
@@ -219,23 +220,28 @@ export function FloatingActionButton() {
         </div>
 
         {/* Main FAB button */}
-        <Button
-          size="icon"
-          onClick={handleFabToggle}
-          className={cn(
-            "h-14 w-14 rounded-full shadow-xl",
-            "transition-all duration-300 ease-out",
-            "active:scale-90",
-            isOpen 
-              ? "bg-destructive hover:bg-destructive/90 rotate-45 shadow-destructive/25" 
-              : "bg-primary hover:bg-primary/90 hover:shadow-primary/25 hover:shadow-2xl"
-          )}
-        >
-          <Plus className={cn(
-            "h-6 w-6 transition-transform duration-300",
-            isOpen && "rotate-45"
-          )} />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon"
+              onClick={handleFabToggle}
+              className={cn(
+                "h-14 w-14 rounded-full shadow-xl",
+                "transition-all duration-300 ease-out",
+                "active:scale-90",
+                isOpen 
+                  ? "bg-destructive hover:bg-destructive/90 rotate-45 shadow-destructive/25" 
+                  : "bg-primary hover:bg-primary/90 hover:shadow-primary/25 hover:shadow-2xl"
+              )}
+            >
+              <Plus className={cn(
+                "h-6 w-6 transition-transform duration-300",
+                isOpen && "rotate-45"
+              )} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left">{isOpen ? 'Close' : 'Quick Actions'}</TooltipContent>
+        </Tooltip>
 
         {/* Backdrop */}
         {isOpen && (
