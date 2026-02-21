@@ -33,6 +33,7 @@ import Tally from "./pages/Tally";
 import Buyback from "./pages/Buyback";
 import PublicDroneRepairEnquiry from "./pages/PublicDroneRepairEnquiry";
 import Candidates from "./pages/Candidates";
+import ModelReview from "./pages/ModelReview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -73,6 +74,7 @@ function AppInner() {
         <Route path="/tally" element={<ProtectedRoute><Tally /></ProtectedRoute>} />
         <Route path="/buyback" element={<ProtectedRoute><Buyback /></ProtectedRoute>} />
         <Route path="/candidates" element={<ProtectedRoute><Candidates /></ProtectedRoute>} />
+        <Route path="/model-review" element={<ProtectedRoute><ModelReview /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <FloatingActionButton />
