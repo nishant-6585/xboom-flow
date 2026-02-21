@@ -20,11 +20,8 @@ serve(async (req) => {
     // Find items at or below reorder point that haven't been alerted in the last 6 hours
     const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
 
-    const { data: lowStockItems, error: fetchError } = await client
-      .from("inventory")
-      .select("id, product_name, product_category, current_stock, reorder_point, safety_stock, last_alert_sent_at")
-      .gt("reorder_point", 0)
-      .filter("current_stock", "lte", "reorder_point" as any);
+    // Use raw SQL via RPC since we need column-to-column comparison
+    const { data: lowStockItems, error: fetchError } = await client.rpc("get_low_stock_items" as any);
 
     if (fetchError) throw fetchError;
 

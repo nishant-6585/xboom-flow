@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useEditHistory } from '@/hooks/useEditHistory';
+import { useMarginGuardrail } from '@/hooks/useMarginGuardrail';
 import { toast } from 'sonner';
 
 export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'converted';
@@ -113,6 +114,7 @@ export function useQuotes() {
   const [loading, setLoading] = useState(true);
   const { user, profile } = useAuth();
   const { recordChanges } = useEditHistory();
+  const { analyzeQuoteMargins, flagQuoteRisk } = useMarginGuardrail();
 
   const fetchQuotes = async () => {
     try {
@@ -232,6 +234,16 @@ export function useQuotes() {
         .insert(itemsToInsert);
 
       if (itemsError) throw itemsError;
+
+      // Auto-flag margin risks
+      try {
+        const marginResult = await analyzeQuoteMargins(data.items);
+        if (marginResult.worstRiskLevel === 'danger' || marginResult.worstRiskLevel === 'warning') {
+          await flagQuoteRisk(quote.id, marginResult);
+        }
+      } catch (marginErr) {
+        console.error('Margin analysis failed (non-blocking):', marginErr);
+      }
 
       toast.success('Quote created successfully');
       fetchQuotes();

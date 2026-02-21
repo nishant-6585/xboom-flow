@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +26,8 @@ import { SignatureSection } from './SignatureSection';
 import { AttachmentsSection } from './AttachmentsSection';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { usePipelineOrders } from '@/hooks/usePipelineOrders';
+import { useMarginGuardrail, QuoteMarginResult } from '@/hooks/useMarginGuardrail';
+import { MarginRiskIndicator } from './MarginRiskIndicator';
 
 interface QuoteFormProps {
   onSubmit: (data: QuoteFormData) => Promise<boolean>;
@@ -56,6 +58,8 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
   
   const { enquiries } = useEnquiries();
   const { pipelineOrders } = usePipelineOrders();
+  const { analyzeQuoteMargins, fetchThresholds } = useMarginGuardrail();
+  const [marginAnalysis, setMarginAnalysis] = useState<QuoteMarginResult | null>(null);
 
   const [formData, setFormData] = useState<QuoteFormData>({
     customer_name: initialData?.customer_name || '',
@@ -205,6 +209,26 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
   const handleItemsChange = (items: BillingItem[]) => {
     setFormData(prev => ({ ...prev, items: items as QuoteItem[] }));
   };
+
+  // Run margin analysis when items change
+  const runMarginAnalysis = useCallback(async () => {
+    const validItems = formData.items.filter(i => i.product_name.trim() && i.unit_price > 0);
+    if (validItems.length === 0) {
+      setMarginAnalysis(null);
+      return;
+    }
+    try {
+      const result = await analyzeQuoteMargins(validItems);
+      setMarginAnalysis(result);
+    } catch {
+      setMarginAnalysis(null);
+    }
+  }, [formData.items, analyzeQuoteMargins]);
+
+  useEffect(() => {
+    const timeout = setTimeout(runMarginAnalysis, 500);
+    return () => clearTimeout(timeout);
+  }, [runMarginAnalysis]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -620,6 +644,11 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
         </div>
       </div>
 
+      {/* Margin Risk Indicator */}
+      {marginAnalysis && (
+        <MarginRiskIndicator analysis={marginAnalysis} />
+      )}
+
       {/* Actions */}
       <div className="flex justify-end gap-3 sticky bottom-0 bg-background py-4 border-t -mx-6 px-6">
         {onCancel && (
@@ -627,9 +656,15 @@ export function QuoteForm({ onSubmit, onCancel, initialData }: QuoteFormProps) {
             Cancel
           </Button>
         )}
-        <Button type="submit" disabled={submitting}>
+        <Button 
+          type="submit" 
+          disabled={submitting || (marginAnalysis?.requiresApproval === true)}
+          title={marginAnalysis?.requiresApproval ? 'This quote requires admin approval due to below-threshold margins' : undefined}
+        >
           {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          {initialData ? 'Update Quote' : 'Create Quote'}
+          {marginAnalysis?.requiresApproval 
+            ? '⚠ Requires Approval' 
+            : initialData ? 'Update Quote' : 'Create Quote'}
         </Button>
       </div>
     </form>
