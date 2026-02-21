@@ -120,12 +120,12 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-md p-0 overflow-hidden">
-        <div className="p-6 pb-2 pr-14">
+      <SheetContent className="w-full sm:max-w-md flex flex-col p-0">
+        <div className="px-6 pt-6 pb-2">
           <SheetHeader>
-            <div className="flex items-center justify-between">
-              <SheetTitle className="flex items-center gap-2">
-                <Bell className="w-5 h-5" />
+            <div className="flex items-center gap-3">
+              <SheetTitle className="flex items-center gap-2 flex-1">
+                <Bell className="w-5 h-5 shrink-0" />
                 Notifications
               </SheetTitle>
               {unreadCount > 0 && (
@@ -133,7 +133,7 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
                   variant="outline"
                   size="sm"
                   onClick={markAllAsRead}
-                  className="text-xs"
+                  className="text-xs shrink-0 mr-6"
                 >
                   <CheckCheck className="w-3 h-3 mr-1" />
                   Mark all read
@@ -143,7 +143,7 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
             <SheetDescription>Payment reminders and alerts</SheetDescription>
           </SheetHeader>
         </div>
-        <ScrollArea className="h-[calc(100vh-120px)] px-6 pb-6">
+        <ScrollArea className="flex-1 px-4">
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
