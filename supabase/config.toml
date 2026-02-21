@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.auto-checkout]
 verify_jwt = false
+
+[functions.low-stock-alerts]
+verify_jwt = false
