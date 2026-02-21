@@ -56,6 +56,50 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_scoring_logs: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          enquiry_id: string
+          error_message: string | null
+          id: string
+          priority_level: string | null
+          probability: number | null
+          raw_response: Json | null
+          score: number | null
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          enquiry_id: string
+          error_message?: string | null
+          id?: string
+          priority_level?: string | null
+          probability?: number | null
+          raw_response?: Json | null
+          score?: number | null
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          enquiry_id?: string
+          error_message?: string | null
+          id?: string
+          priority_level?: string | null
+          probability?: number | null
+          raw_response?: Json | null
+          score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_scoring_logs_enquiry_id_fkey"
+            columns: ["enquiry_id"]
+            isOneToOne: false
+            referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_audit_log: {
         Row: {
           attendance_log_id: string
@@ -529,6 +573,39 @@ export type Database = {
           },
         ]
       }
+      domain_events: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_type: string
+          event_type: string
+          id: string
+          payload: Json
+          processed: boolean
+          processed_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          event_type: string
+          id?: string
+          payload?: Json
+          processed?: boolean
+          processed_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed?: boolean
+          processed_at?: string | null
+        }
+        Relationships: []
+      }
       drone_repair_enquiries: {
         Row: {
           admin_notes: string | null
@@ -594,6 +671,57 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      duplicate_alerts: {
+        Row: {
+          created_at: string
+          dismissed_at: string | null
+          dismissed_by: string | null
+          enquiry_id: string
+          id: string
+          is_dismissed: boolean
+          match_type: string
+          matched_enquiry_id: string
+          similarity_score: number
+        }
+        Insert: {
+          created_at?: string
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          enquiry_id: string
+          id?: string
+          is_dismissed?: boolean
+          match_type: string
+          matched_enquiry_id: string
+          similarity_score?: number
+        }
+        Update: {
+          created_at?: string
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          enquiry_id?: string
+          id?: string
+          is_dismissed?: boolean
+          match_type?: string
+          matched_enquiry_id?: string
+          similarity_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duplicate_alerts_enquiry_id_fkey"
+            columns: ["enquiry_id"]
+            isOneToOne: false
+            referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duplicate_alerts_matched_enquiry_id_fkey"
+            columns: ["matched_enquiry_id"]
+            isOneToOne: false
+            referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       edit_history: {
         Row: {
@@ -939,6 +1067,10 @@ export type Database = {
           admin_response_at: string | null
           admin_response_by: string | null
           admin_response_by_name: string | null
+          ai_confidence: number | null
+          ai_last_scored_at: string | null
+          ai_priority_level: string | null
+          ai_score: number | null
           created_at: string
           customer_company: string
           customer_name: string
@@ -957,6 +1089,7 @@ export type Database = {
           order_outcome: string | null
           outcome_updated_at: string | null
           outcome_updated_by: string | null
+          probability_to_close: number | null
           product_category: string
           product_code: string
           product_name: string
@@ -980,6 +1113,10 @@ export type Database = {
           admin_response_at?: string | null
           admin_response_by?: string | null
           admin_response_by_name?: string | null
+          ai_confidence?: number | null
+          ai_last_scored_at?: string | null
+          ai_priority_level?: string | null
+          ai_score?: number | null
           created_at?: string
           customer_company: string
           customer_name: string
@@ -998,6 +1135,7 @@ export type Database = {
           order_outcome?: string | null
           outcome_updated_at?: string | null
           outcome_updated_by?: string | null
+          probability_to_close?: number | null
           product_category?: string
           product_code: string
           product_name: string
@@ -1021,6 +1159,10 @@ export type Database = {
           admin_response_at?: string | null
           admin_response_by?: string | null
           admin_response_by_name?: string | null
+          ai_confidence?: number | null
+          ai_last_scored_at?: string | null
+          ai_priority_level?: string | null
+          ai_score?: number | null
           created_at?: string
           customer_company?: string
           customer_name?: string
@@ -1039,6 +1181,7 @@ export type Database = {
           order_outcome?: string | null
           outcome_updated_at?: string | null
           outcome_updated_by?: string | null
+          probability_to_close?: number | null
           product_category?: string
           product_code?: string
           product_name?: string
@@ -1983,33 +2126,89 @@ export type Database = {
           created_at: string
           current_stock: number
           id: string
+          last_alert_sent_at: string | null
           min_stock_level: number | null
           notes: string | null
           product_category: string
           product_name: string
+          reorder_point: number | null
+          safety_stock: number | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           current_stock?: number
           id?: string
+          last_alert_sent_at?: string | null
           min_stock_level?: number | null
           notes?: string | null
           product_category?: string
           product_name: string
+          reorder_point?: number | null
+          safety_stock?: number | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           current_stock?: number
           id?: string
+          last_alert_sent_at?: string | null
           min_stock_level?: number | null
           notes?: string | null
           product_category?: string
           product_name?: string
+          reorder_point?: number | null
+          safety_stock?: number | null
           updated_at?: string
         }
         Relationships: []
+      }
+      inventory_alert_logs: {
+        Row: {
+          alert_type: string
+          created_at: string
+          current_stock: number
+          id: string
+          inventory_id: string
+          notification_sent: boolean
+          product_category: string | null
+          product_name: string
+          reorder_point: number
+          task_created_id: string | null
+        }
+        Insert: {
+          alert_type?: string
+          created_at?: string
+          current_stock: number
+          id?: string
+          inventory_id: string
+          notification_sent?: boolean
+          product_category?: string | null
+          product_name: string
+          reorder_point: number
+          task_created_id?: string | null
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          current_stock?: number
+          id?: string
+          inventory_id?: string
+          notification_sent?: boolean
+          product_category?: string | null
+          product_name?: string
+          reorder_point?: number
+          task_created_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_alert_logs_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inventory_procurements: {
         Row: {
@@ -2101,6 +2300,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      inventory_sync_settings: {
+        Row: {
+          created_at: string
+          enable_shopify_sync: boolean
+          id: string
+          last_sync_at: string | null
+          sync_direction: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enable_shopify_sync?: boolean
+          id?: string
+          last_sync_at?: string | null
+          sync_direction?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enable_shopify_sync?: boolean
+          id?: string
+          last_sync_at?: string | null
+          sync_direction?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       inventory_transactions: {
         Row: {
@@ -2221,6 +2447,13 @@ export type Database = {
             foreignKeyName: "invoice_audit_logs_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_aging_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_audit_logs_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -2286,6 +2519,13 @@ export type Database = {
             foreignKeyName: "invoice_items_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_aging_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
@@ -2329,6 +2569,13 @@ export type Database = {
           reference_number?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "invoice_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_aging_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoice_payments_invoice_id_fkey"
             columns: ["invoice_id"]
@@ -2604,6 +2851,33 @@ export type Database = {
           },
         ]
       }
+      margin_thresholds: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          minimum_margin_percent: number
+          updated_at: string
+          warning_margin_percent: number
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          minimum_margin_percent?: number
+          updated_at?: string
+          warning_margin_percent?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          minimum_margin_percent?: number
+          updated_at?: string
+          warning_margin_percent?: number
+        }
+        Relationships: []
+      }
       meetings: {
         Row: {
           agenda: string | null
@@ -2694,6 +2968,13 @@ export type Database = {
             columns: ["pipeline_id"]
             isOneToOne: false
             referencedRelation: "pipeline_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meetings_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "sales_weighted_forecast_view"
             referencedColumns: ["id"]
           },
         ]
@@ -3556,6 +3837,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pipeline_tags_pipeline_order_id_fkey"
+            columns: ["pipeline_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_weighted_forecast_view"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "pipeline_tags_tag_id_fkey"
             columns: ["tag_id"]
             isOneToOne: false
@@ -3777,6 +4065,59 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "quote_items_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_risk_flags: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          id: string
+          item_category: string | null
+          item_margin_percent: number | null
+          item_product_name: string | null
+          overall_margin_percent: number | null
+          quote_id: string
+          requires_approval: boolean
+          risk_level: string
+          threshold_percent: number | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          item_category?: string | null
+          item_margin_percent?: number | null
+          item_product_name?: string | null
+          overall_margin_percent?: number | null
+          quote_id: string
+          requires_approval?: boolean
+          risk_level?: string
+          threshold_percent?: number | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          item_category?: string | null
+          item_margin_percent?: number | null
+          item_product_name?: string | null
+          overall_margin_percent?: number | null
+          quote_id?: string
+          requires_approval?: boolean
+          risk_level?: string
+          threshold_percent?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_risk_flags_quote_id_fkey"
             columns: ["quote_id"]
             isOneToOne: false
             referencedRelation: "quotes"
@@ -4892,6 +5233,13 @@ export type Database = {
             referencedRelation: "pipeline_orders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tasks_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "sales_weighted_forecast_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ticket_comments: {
@@ -5237,6 +5585,54 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_aging_view: {
+        Row: {
+          aging_bucket: string | null
+          amount_paid: number | null
+          balance_due: number | null
+          created_by: string | null
+          customer_company: string | null
+          customer_name: string | null
+          days_overdue: number | null
+          due_date: string | null
+          id: string | null
+          invoice_date: string | null
+          invoice_number: string | null
+          status: Database["public"]["Enums"]["invoice_status"] | null
+          total_amount: number | null
+        }
+        Insert: {
+          aging_bucket?: never
+          amount_paid?: number | null
+          balance_due?: number | null
+          created_by?: string | null
+          customer_company?: string | null
+          customer_name?: string | null
+          days_overdue?: never
+          due_date?: string | null
+          id?: string | null
+          invoice_date?: string | null
+          invoice_number?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"] | null
+          total_amount?: number | null
+        }
+        Update: {
+          aging_bucket?: never
+          amount_paid?: number | null
+          balance_due?: number | null
+          created_by?: string | null
+          customer_company?: string | null
+          customer_name?: string | null
+          days_overdue?: never
+          due_date?: string | null
+          id?: string | null
+          invoice_date?: string | null
+          invoice_number?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"] | null
+          total_amount?: number | null
+        }
+        Relationships: []
+      }
       pricelist_public: {
         Row: {
           availability: string | null
@@ -5303,6 +5699,66 @@ export type Database = {
         }
         Relationships: []
       }
+      sales_weighted_forecast_view: {
+        Row: {
+          created_at: string | null
+          customer_company: string | null
+          customer_name: string | null
+          deal_stage: string | null
+          expected_closure_date: string | null
+          expected_price: number | null
+          id: string | null
+          is_mega_deal: boolean | null
+          lead_temperature: string | null
+          probability: number | null
+          product_category: string | null
+          product_name: string | null
+          quantity: number | null
+          sales_person_id: string | null
+          sales_person_name: string | null
+          status: string | null
+          weighted_revenue: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_company?: string | null
+          customer_name?: string | null
+          deal_stage?: never
+          expected_closure_date?: string | null
+          expected_price?: number | null
+          id?: string | null
+          is_mega_deal?: boolean | null
+          lead_temperature?: string | null
+          probability?: number | null
+          product_category?: string | null
+          product_name?: string | null
+          quantity?: number | null
+          sales_person_id?: string | null
+          sales_person_name?: string | null
+          status?: string | null
+          weighted_revenue?: never
+        }
+        Update: {
+          created_at?: string | null
+          customer_company?: string | null
+          customer_name?: string | null
+          deal_stage?: never
+          expected_closure_date?: string | null
+          expected_price?: number | null
+          id?: string | null
+          is_mega_deal?: boolean | null
+          lead_temperature?: string | null
+          probability?: number | null
+          product_category?: string | null
+          product_name?: string | null
+          quantity?: number | null
+          sales_person_id?: string | null
+          sales_person_name?: string | null
+          status?: string | null
+          weighted_revenue?: never
+        }
+        Relationships: []
+      }
     }
     Functions: {
       can_create_admin: { Args: never; Returns: boolean }
@@ -5333,6 +5789,22 @@ export type Database = {
           retry_count: number
           shop_domain: string
           updated_at: string
+        }[]
+      }
+      find_duplicate_enquiries: {
+        Args: {
+          p_customer_company: string
+          p_customer_name: string
+          p_exclude_id?: string
+          p_threshold?: number
+        }
+        Returns: {
+          customer_company: string
+          customer_name: string
+          enquiry_id: string
+          match_type: string
+          product_name: string
+          similarity_score: number
         }[]
       }
       generate_payment_reminders: { Args: never; Returns: undefined }
@@ -5439,6 +5911,8 @@ export type Database = {
         Returns: boolean
       }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       sync_profiles_to_employees: { Args: never; Returns: number }
       validate_admin_registration: {
         Args: { p_email: string }
@@ -5561,6 +6035,7 @@ export type Database = {
         | "order_confirmation"
         | "custom"
         | "meeting_reminder"
+        | "low_stock_alert"
       ticket_category:
         | "general_inquiry"
         | "order_issue"
@@ -5828,6 +6303,7 @@ export const Constants = {
         "order_confirmation",
         "custom",
         "meeting_reminder",
+        "low_stock_alert",
       ],
       ticket_category: [
         "general_inquiry",

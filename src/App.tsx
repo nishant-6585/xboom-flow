@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { FloatingActionButton } from "@/components/FloatingActionButton";
 import { MobileAttendanceFAB } from "@/components/attendance/MobileAttendanceFAB";
+import { CommandPalette } from "@/components/CommandPalette";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -76,6 +77,7 @@ function AppInner() {
       </Routes>
       <FloatingActionButton />
       {isMobile && <MobileAttendanceFAB />}
+      <CommandPalette />
     </>
   );
 }

@@ -59,7 +59,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const { enquiry } = await req.json() as { enquiry: EnquiryData };
+    const { enquiry, auto_score, enquiry_id } = await req.json() as { enquiry: EnquiryData; auto_score?: boolean; enquiry_id?: string };
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
