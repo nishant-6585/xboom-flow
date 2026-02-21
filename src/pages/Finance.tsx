@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { CreditDebitOverview } from '@/components/finance/CreditDebitOverview';
 import { CashflowChart } from '@/components/finance/CashflowChart';
 import { ExpectedPaymentsForm } from '@/components/finance/ExpectedPaymentsForm';
+import { InvoiceAgingDashboard } from '@/components/finance/InvoiceAgingDashboard';
 import { 
   IndianRupee, TrendingUp, TrendingDown, Calendar, Plus, 
   ArrowUpRight, ArrowDownRight, Loader2, Lock
@@ -212,14 +213,18 @@ export default function Finance() {
 
         {/* Main Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsList className="grid w-full grid-cols-3 max-w-lg">
             <TabsTrigger value="overview" className="gap-2">
               <ArrowUpRight className="h-4 w-4" />
               Credit / Debit
             </TabsTrigger>
             <TabsTrigger value="cashflow" className="gap-2">
               <TrendingUp className="h-4 w-4" />
-              Cashflow Analysis
+              Cashflow
+            </TabsTrigger>
+            <TabsTrigger value="aging" className="gap-2">
+              <Calendar className="h-4 w-4" />
+              Invoice Aging
             </TabsTrigger>
           </TabsList>
 
@@ -237,6 +242,10 @@ export default function Finance() {
               onMarkReceived={markAsReceived}
               onDelete={deletePayment}
             />
+          </TabsContent>
+
+          <TabsContent value="aging">
+            <InvoiceAgingDashboard />
           </TabsContent>
         </Tabs>
       </main>

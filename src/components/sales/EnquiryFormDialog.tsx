@@ -10,6 +10,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useEnquiries, Enquiry, EnquiryFormData, PRODUCT_CATEGORIES, ProductCategory, UrgencyLevel } from "@/hooks/useEnquiries";
 import { useEnquiryItems, EnquiryItemFormData, GST_PERCENT_OPTIONS, calculateGstAndTotal } from "@/hooks/useEnquiryItems";
+import { useDuplicateDetection } from "@/hooks/useDuplicateDetection";
+import { useAutoAIScoring } from "@/hooks/useAutoAIScoring";
+import { DuplicateAlertModal } from "@/components/DuplicateAlertModal";
 import { ProductSelect } from "@/components/ProductSelect";
 import { PricelistItem } from "@/hooks/usePricelist";
 import { useAuth } from "@/hooks/useAuth";
@@ -103,9 +106,13 @@ function StepIndicator({ currentStep, steps }: { currentStep: number; steps: typ
 export function EnquiryFormDialog({ open, onOpenChange, enquiry, onSuccess }: EnquiryFormDialogProps) {
   const { createEnquiry } = useEnquiries();
   const { createEnquiryItems, fetchEnquiryItems } = useEnquiryItems();
+  const { duplicates, checking, checkDuplicates, logDuplicateAlert, clearDuplicates } = useDuplicateDetection();
+  const { scoreEnquiry } = useAutoAIScoring();
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState(false);
 
   // Customer data
   const [customerName, setCustomerName] = useState("");
@@ -275,7 +282,18 @@ export function EnquiryFormDialog({ open, onOpenChange, enquiry, onSuccess }: En
     }
   };
 
-  const handleSubmit = async () => {
+  const handlePreSubmit = async () => {
+    if (!enquiry && customerCompany.trim().length >= 3) {
+      const matches = await checkDuplicates(customerCompany, customerName);
+      if (matches.length > 0) {
+        setShowDuplicateModal(true);
+        return;
+      }
+    }
+    await executeSubmit();
+  };
+
+  const executeSubmit = async () => {
     if (!user || !profile) {
       toast.error("You must be logged in to create an enquiry");
       return;
@@ -302,18 +320,26 @@ export function EnquiryFormDialog({ open, onOpenChange, enquiry, onSuccess }: En
       const success = await createEnquiry(formData);
 
       if (success) {
-        // If there are additional products, we need to get the enquiry ID
-        if (additionalProducts.length > 0) {
-          // Fetch the latest enquiry created by this user
-          const { data: latestEnquiry } = await supabase
-            .from("enquiries")
-            .select("id")
-            .eq("sales_person_id", user.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .single();
+        // Fetch the latest enquiry created by this user
+        const { data: latestEnquiry } = await supabase
+          .from("enquiries")
+          .select("id")
+          .eq("sales_person_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
 
-          if (latestEnquiry) {
+        if (latestEnquiry) {
+          // Log duplicate alerts if any
+          if (duplicates.length > 0) {
+            logDuplicateAlert(latestEnquiry.id, duplicates);
+          }
+
+          // Auto AI scoring (fire-and-forget)
+          scoreEnquiry(latestEnquiry.id);
+
+          // Create additional product items
+          if (additionalProducts.length > 0) {
             await createEnquiryItems(
               latestEnquiry.id,
               additionalProducts.map(p => ({
@@ -338,6 +364,7 @@ export function EnquiryFormDialog({ open, onOpenChange, enquiry, onSuccess }: En
       toast.error("Failed to create enquiry");
     } finally {
       setLoading(false);
+      clearDuplicates();
     }
   };
 
@@ -351,6 +378,7 @@ export function EnquiryFormDialog({ open, onOpenChange, enquiry, onSuccess }: En
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -642,7 +670,7 @@ export function EnquiryFormDialog({ open, onOpenChange, enquiry, onSuccess }: En
             ) : (
               <Button
                 type="button"
-                onClick={handleSubmit}
+                onClick={handlePreSubmit}
                 disabled={!canGoNext() || loading}
                 className="flex-1 sm:flex-none"
               >
@@ -663,6 +691,21 @@ export function EnquiryFormDialog({ open, onOpenChange, enquiry, onSuccess }: En
         </div>
       </DialogContent>
     </Dialog>
+
+    <DuplicateAlertModal
+      open={showDuplicateModal}
+      onOpenChange={setShowDuplicateModal}
+      duplicates={duplicates}
+      onProceed={() => {
+        setShowDuplicateModal(false);
+        executeSubmit();
+      }}
+      onCancel={() => {
+        setShowDuplicateModal(false);
+        clearDuplicates();
+      }}
+    />
+    </>
   );
 }
 
