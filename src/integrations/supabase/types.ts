@@ -573,6 +573,71 @@ export type Database = {
           },
         ]
       }
+      demand_forecasts: {
+        Row: {
+          avg_consumption_30d: number | null
+          avg_consumption_60d: number | null
+          avg_consumption_90d: number | null
+          confidence: string
+          created_at: string
+          current_stock: number | null
+          days_to_stockout: number | null
+          forecast_date: string
+          historical_data_days: number
+          id: string
+          model_version: string
+          predicted_daily_demand: number
+          product_category: string | null
+          product_id: string
+          product_name: string
+          recommended_reorder_qty: number | null
+        }
+        Insert: {
+          avg_consumption_30d?: number | null
+          avg_consumption_60d?: number | null
+          avg_consumption_90d?: number | null
+          confidence?: string
+          created_at?: string
+          current_stock?: number | null
+          days_to_stockout?: number | null
+          forecast_date?: string
+          historical_data_days?: number
+          id?: string
+          model_version?: string
+          predicted_daily_demand?: number
+          product_category?: string | null
+          product_id: string
+          product_name: string
+          recommended_reorder_qty?: number | null
+        }
+        Update: {
+          avg_consumption_30d?: number | null
+          avg_consumption_60d?: number | null
+          avg_consumption_90d?: number | null
+          confidence?: string
+          created_at?: string
+          current_stock?: number | null
+          days_to_stockout?: number | null
+          forecast_date?: string
+          historical_data_days?: number
+          id?: string
+          model_version?: string
+          predicted_daily_demand?: number
+          product_category?: string | null
+          product_id?: string
+          product_name?: string
+          recommended_reorder_qty?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demand_forecasts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       domain_events: {
         Row: {
           created_at: string
@@ -1494,6 +1559,60 @@ export type Database = {
           vendor_name?: string | null
         }
         Relationships: []
+      }
+      forecast_accuracy_log: {
+        Row: {
+          actual_demand: number
+          forecast_id: string | null
+          id: string
+          logged_at: string
+          mape_percent: number | null
+          measurement_period_days: number
+          model_version: string
+          predicted_demand: number
+          product_id: string
+          product_name: string
+        }
+        Insert: {
+          actual_demand: number
+          forecast_id?: string | null
+          id?: string
+          logged_at?: string
+          mape_percent?: number | null
+          measurement_period_days?: number
+          model_version?: string
+          predicted_demand: number
+          product_id: string
+          product_name: string
+        }
+        Update: {
+          actual_demand?: number
+          forecast_id?: string | null
+          id?: string
+          logged_at?: string
+          mape_percent?: number | null
+          measurement_period_days?: number
+          model_version?: string
+          predicted_demand?: number
+          product_id?: string
+          product_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forecast_accuracy_log_forecast_id_fkey"
+            columns: ["forecast_id"]
+            isOneToOne: false
+            referencedRelation: "demand_forecasts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "forecast_accuracy_log_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       form_fields: {
         Row: {
@@ -3657,6 +3776,121 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_risk_accuracy_log: {
+        Row: {
+          actual_days_to_pay: number
+          customer_company: string | null
+          id: string
+          invoice_id: string
+          logged_at: string
+          model_version: string
+          predicted_days_to_pay: number | null
+          predicted_risk_level: string
+          score_id: string | null
+          was_late: boolean
+        }
+        Insert: {
+          actual_days_to_pay: number
+          customer_company?: string | null
+          id?: string
+          invoice_id: string
+          logged_at?: string
+          model_version?: string
+          predicted_days_to_pay?: number | null
+          predicted_risk_level: string
+          score_id?: string | null
+          was_late?: boolean
+        }
+        Update: {
+          actual_days_to_pay?: number
+          customer_company?: string | null
+          id?: string
+          invoice_id?: string
+          logged_at?: string
+          model_version?: string
+          predicted_days_to_pay?: number | null
+          predicted_risk_level?: string
+          score_id?: string | null
+          was_late?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_risk_accuracy_log_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_aging_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_risk_accuracy_log_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_risk_accuracy_log_score_id_fkey"
+            columns: ["score_id"]
+            isOneToOne: false
+            referencedRelation: "payment_risk_scores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_risk_scores: {
+        Row: {
+          customer_company: string | null
+          customer_name: string
+          factors: Json
+          id: string
+          invoice_id: string
+          model_version: string
+          predicted_days_to_pay: number | null
+          risk_level: string
+          risk_score: number
+          scored_at: string
+        }
+        Insert: {
+          customer_company?: string | null
+          customer_name: string
+          factors?: Json
+          id?: string
+          invoice_id: string
+          model_version?: string
+          predicted_days_to_pay?: number | null
+          risk_level?: string
+          risk_score?: number
+          scored_at?: string
+        }
+        Update: {
+          customer_company?: string | null
+          customer_name?: string
+          factors?: Json
+          id?: string
+          invoice_id?: string
+          model_version?: string
+          predicted_days_to_pay?: number | null
+          risk_level?: string
+          risk_score?: number
+          scored_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_risk_scores_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_aging_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_risk_scores_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
