@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { OrderStatus } from '@/hooks/useOrders';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   FileText, 
   CheckCircle, 
@@ -88,9 +89,14 @@ export function OrderStatusBadge({ status }: OrderStatusBadgeProps) {
   const Icon = config.icon;
 
   return (
-    <Badge variant={config.variant} className={`${config.className} gap-1`}>
-      <Icon className="h-3 w-3" />
-      {config.label}
-    </Badge>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge variant={config.variant} className={`${config.className} gap-1`}>
+          <Icon className="h-3 w-3" />
+          {config.label}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent>Order Status: {config.label}</TooltipContent>
+    </Tooltip>
   );
 }
