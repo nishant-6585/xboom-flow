@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
 import { UrgencyLevel } from "@/types/query";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface UrgencyIndicatorProps {
   urgency: UrgencyLevel;
@@ -18,16 +17,11 @@ export function UrgencyIndicator({ urgency, showLabel = true }: UrgencyIndicator
   const config = urgencyConfig[urgency];
   
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="flex items-center gap-2">
-          <span className={cn("w-2 h-2 rounded-full", config.color)} />
-          {showLabel && (
-            <span className="text-sm text-muted-foreground">{config.label}</span>
-          )}
-        </div>
-      </TooltipTrigger>
-      <TooltipContent>Urgency: {config.label}</TooltipContent>
-    </Tooltip>
+    <div className="flex items-center gap-2">
+      <span className={cn("w-2 h-2 rounded-full", config.color)} />
+      {showLabel && (
+        <span className="text-sm text-muted-foreground">{config.label}</span>
+      )}
+    </div>
   );
 }

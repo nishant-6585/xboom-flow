@@ -8,11 +8,6 @@ import { NotificationPanel } from "@/components/NotificationPanel";
 import { AttendanceWidget } from "@/components/attendance/AttendanceWidget";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
