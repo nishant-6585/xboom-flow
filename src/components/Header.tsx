@@ -114,18 +114,11 @@ export function Header() {
           <div className="flex items-center gap-3">
             {/* Mobile Menu Trigger */}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex sm:hidden">
-                    <SheetTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <Menu className="w-5 h-5" />
-                      </Button>
-                    </SheetTrigger>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>Menu</TooltipContent>
-              </Tooltip>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="sm:hidden">
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
               <SheetContent side="left" className="w-64 flex flex-col">
                 <SheetHeader className="mb-4 flex-shrink-0">
                   <SheetTitle className="flex items-center gap-2">
