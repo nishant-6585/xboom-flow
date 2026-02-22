@@ -1,6 +1,5 @@
 import { Badge } from "@/components/ui/badge";
 import { QueryStatus } from "@/types/query";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface StatusBadgeProps {
   status: QueryStatus;
@@ -19,13 +18,8 @@ export function StatusBadge({ status }: StatusBadgeProps) {
   const config = statusConfig[status] || { label: status, className: "bg-muted text-muted-foreground" };
   
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Badge variant="outline" className={config.className}>
-          {config.label}
-        </Badge>
-      </TooltipTrigger>
-      <TooltipContent>Enquiry Status: {config.label}</TooltipContent>
-    </Tooltip>
+    <Badge variant="outline" className={config.className}>
+      {config.label}
+    </Badge>
   );
 }

@@ -3,7 +3,7 @@ import { format, differenceInSeconds } from 'date-fns';
 import { LogIn, LogOut, Coffee, Play, Clock, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+
 import {
   Popover,
   PopoverContent,
@@ -82,31 +82,24 @@ export function AttendanceWidget() {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="inline-flex">
-            <PopoverTrigger asChild>
-              <button className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-muted/60 transition-colors text-sm">
-                <StatusDot status={status} />
-                <span className="hidden sm:inline text-muted-foreground font-medium">
-                  {status === 'working' && todayAttendance?.check_in_time ? (
-                    <WorkingTimer
-                      checkInTime={todayAttendance.check_in_time}
-                      totalBreakMins={todayAttendance.total_break_minutes || 0}
-                    />
-                  ) : status === 'on_break' && todayAttendance?.break_start_time ? (
-                    <BreakTimer breakStart={todayAttendance.break_start_time} />
-                  ) : (
-                    <span>{statusLabel}</span>
-                  )}
-                </span>
-                <ChevronDown className="h-3 w-3 text-muted-foreground" />
-              </button>
-            </PopoverTrigger>
+      <PopoverTrigger asChild>
+        <button className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-muted/60 transition-colors text-sm">
+          <StatusDot status={status} />
+          <span className="hidden sm:inline text-muted-foreground font-medium">
+            {status === 'working' && todayAttendance?.check_in_time ? (
+              <WorkingTimer
+                checkInTime={todayAttendance.check_in_time}
+                totalBreakMins={todayAttendance.total_break_minutes || 0}
+              />
+            ) : status === 'on_break' && todayAttendance?.break_start_time ? (
+              <BreakTimer breakStart={todayAttendance.break_start_time} />
+            ) : (
+              <span>{statusLabel}</span>
+            )}
           </span>
-        </TooltipTrigger>
-        <TooltipContent>Attendance: {statusLabel}</TooltipContent>
-      </Tooltip>
+          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+        </button>
+      </PopoverTrigger>
 
       <PopoverContent className="w-72 p-0" align="end">
         {/* Header */}
