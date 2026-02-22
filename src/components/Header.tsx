@@ -234,24 +234,18 @@ export function Header() {
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-1 h-11 overflow-x-auto">
             {filteredMainNavItems.map((item) => (
-              <Tooltip key={item.path}>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex">
-                    <Link
-                      to={item.path}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                        isActive(item.path)
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
-                    >
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.label}</span>
-                    </Link>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>{item.label}</TooltipContent>
-              </Tooltip>
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                  isActive(item.path)
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                <item.icon className="w-4 h-4" />
+                <span>{item.label}</span>
+              </Link>
             ))}
           </div>
         </div>
@@ -263,24 +257,18 @@ export function Header() {
           <div className="container mx-auto px-4">
             <div className="flex items-center gap-1 h-9 overflow-x-auto">
               {filteredSecondaryNavItems.map((item) => (
-                <Tooltip key={item.path}>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex">
-                      <Link
-                        to={item.path}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                          isActive(item.path)
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                        }`}
-                      >
-                        <item.icon className="w-3.5 h-3.5" />
-                        <span>{item.label}</span>
-                      </Link>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>{item.label}</TooltipContent>
-                </Tooltip>
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                    isActive(item.path)
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  <item.icon className="w-3.5 h-3.5" />
+                  <span>{item.label}</span>
+                </Link>
               ))}
             </div>
           </div>
