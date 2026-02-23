@@ -13,6 +13,43 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+
+    // Authentication: require admin/supply_chain JWT or cron secret
+    const authHeader = req.headers.get('Authorization');
+    const cronSecret = req.headers.get('X-Cron-Secret');
+    const expectedCronSecret = Deno.env.get('CRON_SECRET');
+
+    if (cronSecret && expectedCronSecret && cronSecret === expectedCronSecret) {
+      // Authenticated via cron secret
+    } else if (authHeader?.startsWith('Bearer ')) {
+      const userClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const token = authHeader.replace('Bearer ', '');
+      const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const checkClient = createClient(supabaseUrl, supabaseKey);
+      const { data: roles } = await checkClient
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', claimsData.claims.sub)
+        .in('role', ['admin', 'supply_chain']);
+      if (!roles || roles.length === 0) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } else {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // 1. Get all inventory items
