@@ -287,11 +287,9 @@ serve(async (req) => {
   const shopDomain = req.headers.get("x-shopify-shop-domain") || "unknown";
   const topic = req.headers.get("x-shopify-topic") || "unknown";
   const orderId = String(payload.id || "unknown");
-  const email = payload.email || "N/A";
-  const totalPrice = payload.total_price || "0.00";
 
   console.log(
-    `Shopify webhook received: topic=${topic}, shop=${shopDomain}, order_id=${orderId}, email=${email}, total=${totalPrice}`
+    `Shopify webhook received: topic=${topic}, shop=${shopDomain}, order_id=${orderId}`
   );
 
   // Only process orders/create and orders/updated topics
