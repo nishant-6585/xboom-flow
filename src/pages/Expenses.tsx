@@ -112,11 +112,8 @@ export default function Expenses() {
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from('payment-screenshots')
-        .getPublicUrl(fileName);
-
-      return urlData.publicUrl;
+      // Store the path, not a public URL - bucket is private
+      return fileName;
     } catch (error: any) {
       console.error('Error uploading receipt:', error);
       toast.error('Failed to upload receipt');
