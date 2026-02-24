@@ -19,9 +19,11 @@
 11. [Data Model](#11-data-model)
 12. [Access Control Matrix](#12-access-control-matrix)
 13. [IDOR Prevention & Edge Function Auth](#13-idor-prevention--edge-function-auth)
-14. [Implementation Phases](#14-implementation-phases)
-15. [Known Gaps & Remediation](#15-known-gaps--remediation)
-16. [Security Checklist](#16-security-checklist)
+14. [RLS Policy Standard](#14-rls-policy-standard)
+15. [Security Hardening Log](#15-security-hardening-log)
+16. [Implementation Phases](#16-implementation-phases)
+17. [Known Gaps & Remediation](#17-known-gaps--remediation)
+18. [Security Checklist](#18-security-checklist)
 
 ---
 
@@ -53,18 +55,25 @@ User submits email + password + name + team
   └─ Standard user → Requires manual admin approval
 ```
 
-### 1.3 Invitation Flow
+### 1.3 Invitation Flow (Transactional)
 
 ```
 Admin creates invitation (user_invitations table)
   → approve-invitation edge function called
-    → Auth user created (admin API)
-    → Profile created (is_approved = true)
-    → Employee record created
-    → Role assigned
-    → Password reset email sent
+    → BEGIN TRANSACTION (atomic):
+      → Auth user created (admin API)
+      → Profile created (is_approved = true)
+      → Employee record created
+      → Role assigned
+      → Password reset email sent
+    → COMMIT (or full ROLLBACK on any failure)
   → User clicks link → sets password → signs in
 ```
+
+> **Requirement (Item 7):** The entire invitation flow MUST be transactional.
+> If any step fails (profile creation, role assignment, employee record), the entire
+> operation must roll back. The edge function must use service role client with
+> explicit error checking at each step, rolling back auth user creation on failure.
 
 ### 1.4 Session Lifecycle
 
@@ -75,6 +84,35 @@ Admin creates invitation (user_invitations table)
 | Sign out | `supabase.auth.signOut()` — clears local state, marks session inactive |
 | Idle timeout | Managed by Supabase token expiry |
 | Session revoke | User can revoke individual sessions from Security Settings |
+
+### 1.5 Login Rate Limiting & Account Lock
+
+> **Requirement (Item 4):** Prevent brute force attacks on login.
+
+| Rule | Value |
+|---|---|
+| Max failed attempts | **5** within **15 minutes** |
+| Lockout duration | **30 minutes** |
+| Lock status | Logged as `status = 'blocked'` in `login_history` |
+| Admin override | Admin can manually unlock user |
+| Enforcement | **Server-side** (edge function or auth hook) |
+
+**Implementation spec (deferred to code phase):**
+- On each login attempt, check `login_history` for recent failures
+- If threshold exceeded, reject login with `account_locked` reason
+- Log the blocked attempt
+- Provide admin unlock endpoint
+
+### 1.6 Session Security & Fingerprinting
+
+> **Requirement (Item 5):** Bind sessions to device context.
+
+| Feature | Implementation |
+|---|---|
+| Session binding | IP address + User-Agent fingerprint stored in `user_sessions` |
+| Drift detection | On significant IP/UA change, flag session for re-auth |
+| High-risk action guard | Role updates, org changes, password change require auth within **10 minutes** |
+| Re-auth flow | Prompt password entry before proceeding with sensitive action |
 
 ---
 
@@ -112,9 +150,9 @@ Users can hold **multiple roles** simultaneously. The system:
 |---|---|---|
 | `has_role(_user_id, _role)` | `SECURITY DEFINER` | Checks if user holds a specific role |
 | `is_user_approved(_user_id)` | `SECURITY DEFINER` | Checks if user profile is approved |
+| `is_hr_or_admin(_user_id)` | `SECURITY DEFINER` | Combined HR/Admin check for HR features |
 | `validate_admin_registration(email)` | `SECURITY DEFINER` | Validates admin signup (whitelist + count) |
 | `can_register_as_admin(email)` | `SECURITY DEFINER` | Checks admin whitelist membership |
-| `is_hr_or_admin(_user_id)` | `SECURITY DEFINER` | Combined HR/Admin check for HR features |
 
 All functions use `SET search_path TO 'public'` to prevent schema poisoning.
 
@@ -124,6 +162,24 @@ All functions use `SET search_path TO 'public'` to prevent schema poisoning.
 - Only whitelisted emails can register as admin
 - Hard cap of **5 admin accounts** enforced server-side
 - Whitelist managed by existing admins
+
+### 2.5 MFA Enforcement for Admin Role
+
+> **Requirement (Item 3):** Admins MUST have MFA enabled.
+
+| Rule | Behavior |
+|---|---|
+| Admin login without MFA enrolled | Redirect to MFA enrollment page, block app access |
+| MFA bypass | **Not allowed** for admin accounts |
+| MFA enable/disable | Logged in `security_audit_log` |
+| Non-admin users | MFA optional (recommended) |
+
+**Implementation spec (deferred to code phase):**
+- After login, check if user `has_role(uid, 'admin')`
+- If yes, check `supabase.auth.mfa.getAuthenticatorAssuranceLevel()`
+- If `currentLevel < 'aal2'`, redirect to MFA enrollment
+- Block all app routes until MFA is satisfied
+- Log MFA state changes to `security_audit_log`
 
 ---
 
@@ -146,7 +202,7 @@ Every user must be **approved** before accessing the system.
 
 ### RLS Enforcement
 
-Most RLS policies include:
+**All** business table RLS policies include:
 ```sql
 is_user_approved(auth.uid()) = true
 ```
@@ -154,9 +210,6 @@ is_user_approved(auth.uid()) = true
 ---
 
 ## 4. Profile Dropdown — Account Control Center
-
-### Current State
-- Sign Out only
 
 ### Target State — Structured Role-Aware Dropdown
 
@@ -235,10 +288,6 @@ is_user_approved(auth.uid()) = true
 - **Server-side validation** via `supabase.auth.updateUser({ password })`
 - **Invalidate all other sessions** on password change
 - **Audit log entry** in `security_audit_log` (action: `password_change`)
-
-### SSO Scenario
-- If SSO is the primary auth method, show redirect to provider's account management page
-- Display message: "Password is managed by your identity provider"
 
 ---
 
@@ -350,7 +399,6 @@ Display recent actions performed by the logged-in user:
 ### 10A. Organization Settings
 
 **Route:** `/admin/organization` (existing Admin page, Organization tab)
-
 **Source:** `org_settings` table
 
 | Field | Editable | Notes |
@@ -375,7 +423,6 @@ Existing features:
 ### 10C. Audit Logs
 
 **Route:** `/admin/audit-logs`
-
 **Sources:** `security_audit_log` + `edit_history` + `user_activity_logs`
 
 | Filter | Options |
@@ -404,7 +451,7 @@ Existing features:
 | name | TEXT | Display name |
 | email | TEXT | Normalized to lowercase |
 | is_approved | BOOLEAN | Default `false` |
-| avatar_url | TEXT | **NEW** — Profile photo URL |
+| avatar_url | TEXT | Profile photo URL |
 | reporting_manager_id | UUID | Optional hierarchy |
 | slack_user_id | TEXT | Slack integration |
 
@@ -417,9 +464,7 @@ Existing features:
 | role | `app_role` enum | One of 7 roles |
 | created_at | TIMESTAMPTZ | Auto-set |
 
-> **Design decision**: No foreign key to `auth.users` — prevents coupling to managed auth schema.
-
-### `user_settings` ✨ NEW
+### `user_settings`
 
 | Column | Type | Default | Notes |
 |---|---|---|---|
@@ -432,7 +477,7 @@ Existing features:
 | in_app_notifications | BOOLEAN | `true` | |
 | critical_alerts | BOOLEAN | `true` | Cannot be disabled via UI |
 
-### `user_sessions` ✨ NEW
+### `user_sessions`
 
 | Column | Type | Notes |
 |---|---|---|
@@ -450,7 +495,7 @@ Existing features:
 | revoked_at | TIMESTAMPTZ | When revoked (null if active) |
 | is_active | BOOLEAN | `false` when revoked/expired |
 
-### `login_history` ✨ NEW
+### `login_history` (IMMUTABLE)
 
 | Column | Type | Notes |
 |---|---|---|
@@ -467,7 +512,9 @@ Existing features:
 | location | TEXT | Approximate from IP |
 | attempted_at | TIMESTAMPTZ | Timestamp |
 
-### `security_audit_log` ✨ NEW
+> **No UPDATE or DELETE policies.** This table is append-only.
+
+### `security_audit_log` (IMMUTABLE)
 
 | Column | Type | Notes |
 |---|---|---|
@@ -481,9 +528,9 @@ Existing features:
 | user_agent | TEXT | Raw user agent |
 | performed_at | TIMESTAMPTZ | Timestamp |
 
-**Immutability:** No UPDATE or DELETE policies on `security_audit_log` or `login_history`.
+> **No UPDATE or DELETE policies.** This table is append-only.
 
-### `org_settings` ✨ NEW
+### `org_settings`
 
 | Column | Type | Default | Notes |
 |---|---|---|---|
@@ -533,7 +580,7 @@ Existing features:
 | Enquiries / Leads | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | Orders | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ |
 | Invoices / Quotes | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Expenses | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Expenses | ✅ | ❌ | ✅ | ❌ | own | ❌ | ❌ |
 | Inventory | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
 | Procurement | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Suppliers | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
@@ -546,6 +593,9 @@ Existing features:
 | Payment screenshots | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Demand forecasts | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Payment risk scores | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Petty cash | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Inventory alerts | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Margin thresholds | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -574,7 +624,122 @@ Service role key is used **only** in edge functions — **never** exposed to cli
 
 ---
 
-## 14. Implementation Phases
+## 14. RLS Policy Standard
+
+> **Requirement (Item 8):** All new and existing RLS policies must follow this standard.
+
+### Mandatory Policy Template
+
+Every RLS policy on a business table MUST include:
+
+```sql
+-- SELECT policy template
+CREATE POLICY "descriptive_name"
+  ON public.table_name FOR SELECT TO authenticated
+  USING (
+    is_user_approved(auth.uid())                    -- 1. Approval gate
+    AND (                                            -- 2. Role validation
+      has_role(auth.uid(), 'admin') OR
+      has_role(auth.uid(), 'relevant_role') OR
+      owner_column = auth.uid()                      -- 3. User scoping
+    )
+  );
+
+-- INSERT policy template
+CREATE POLICY "descriptive_name"
+  ON public.table_name FOR INSERT TO authenticated
+  WITH CHECK (
+    is_user_approved(auth.uid())                    -- 1. Approval gate
+    AND owner_column = auth.uid()                    -- 2. Creator validation
+  );
+
+-- UPDATE/DELETE policy template
+CREATE POLICY "descriptive_name"
+  ON public.table_name FOR UPDATE TO authenticated
+  USING (
+    is_user_approved(auth.uid())                    -- 1. Approval gate
+    AND (
+      has_role(auth.uid(), 'admin') OR
+      owner_column = auth.uid()                      -- 2. Owner or admin
+    )
+  );
+```
+
+### Prohibited Patterns
+
+| Pattern | Status | Reason |
+|---|---|---|
+| `USING (true)` on INSERT/UPDATE/DELETE | 🚫 **BANNED** | Allows any user to modify data |
+| `WITH CHECK (true)` on INSERT | 🚫 **BANNED** | No ownership validation |
+| `USING (true)` on SELECT for business data | 🚫 **BANNED** | Leaks data to unapproved users |
+| Missing `is_user_approved()` | 🚫 **BANNED** | Unapproved users can access data |
+| Role checks in client-side only | 🚫 **BANNED** | Easily bypassed |
+
+### Allowed Exceptions
+
+| Exception | Justification |
+|---|---|
+| `form_views` INSERT with `USING (true)` | Public form view tracking (anonymous users) |
+| `drone_repair_enquiries` INSERT with `USING (true)` | Public repair enquiry submission |
+| `form_submissions` INSERT with `USING (true)` | Public form submission |
+| `USING (true)` on SELECT for reference data | Only if `is_user_approved()` is included |
+
+### Migration-Level Validation
+
+When creating new migrations with RLS policies:
+1. **Review checklist** before committing:
+   - [ ] Does every policy include `is_user_approved(auth.uid())`?
+   - [ ] Are INSERT policies scoped to `owner_column = auth.uid()`?
+   - [ ] Are sensitive tables role-restricted via `has_role()`?
+   - [ ] Are audit tables immutable (no UPDATE/DELETE policies)?
+2. **Run linter** after migration to verify no new `USING (true)` warnings
+
+---
+
+## 15. Security Hardening Log
+
+### Hardening Round 1 — 2026-02-24
+
+**Scope:** Remove all `USING (true)` / `WITH CHECK (true)` policies on 21 business tables.
+
+| # | Table | Change | New Policy |
+|---|---|---|---|
+| 1 | `demand_forecasts` | Removed `ALL` with `true` | SELECT: admin, finance, supply_chain + approved |
+| 2 | `payment_risk_scores` | Removed `ALL` with `true` | SELECT: admin, finance + approved |
+| 3 | `forecast_accuracy_log` | Removed `ALL` with `true` | SELECT: admin, finance, supply_chain + approved |
+| 4 | `payment_risk_accuracy_log` | Removed `ALL` with `true` | SELECT: admin, finance + approved |
+| 5 | `ai_scoring_logs` | Replaced SELECT/INSERT | approved users only |
+| 6 | `attendance_audit_log` | Replaced INSERT `true` | SELECT: admin/hr + approved |
+| 7 | `domain_events` | Replaced SELECT/INSERT/UPDATE | approved users only |
+| 8 | `duplicate_alerts` | Replaced SELECT/INSERT/UPDATE | approved users only |
+| 9 | `expense_order_links` | Replaced SELECT/INSERT/DELETE | admin/finance + approved |
+| 10 | `expense_procurement_links` | Replaced SELECT/INSERT/DELETE | admin/finance/supply_chain + approved |
+| 11 | `expenses` | Replaced SELECT/INSERT | creator + admin/finance can view; creator-scoped insert |
+| 12 | `imports` | Replaced all CRUD | creator + admin/supply_chain scoped |
+| 13 | `import_items` | Replaced all CRUD | approved users only |
+| 14 | `inventory_alert_logs` | Replaced SELECT/INSERT | admin/supply_chain + approved |
+| 15 | `inventory_sync_settings` | Replaced SELECT | admin/supply_chain + approved |
+| 16 | `margin_thresholds` | Replaced SELECT | admin/finance/supply_chain + approved |
+| 17 | `org_departments` | Replaced SELECT | approved users (reference data) |
+| 18 | `org_roles` | Replaced SELECT | approved users (reference data) |
+| 19 | `petty_cash_transactions` | Replaced SELECT | admin/finance + approved |
+| 20 | `pipeline_tags` | Replaced SELECT | approved users (reference data) |
+| 21 | `quote_risk_flags` | Replaced SELECT/INSERT | approved users only |
+
+**Additional fixes:**
+- Fixed `generate_quote_number()` — added `SET search_path TO 'public'`
+- Fixed `generate_invoice_number()` — added `SET search_path TO 'public'`
+- Verified `security_audit_log` and `login_history` have no UPDATE/DELETE policies (immutable)
+
+**Remaining intentional public policies (3):**
+- `drone_repair_enquiries` INSERT — public repair form
+- `form_views` INSERT (×2) — public form view tracking
+
+**Linter results:** 33 warnings → 8 (4 pre-existing security definer views, 1 extension in public, 3 intentional public policies)
+
+---
+
+## 16. Implementation Phases
 
 ### Phase 1 — Core Identity (Priority)
 - [ ] Restructure profile dropdown (3 sections with separators)
@@ -589,34 +754,45 @@ Service role key is used **only** in edge functions — **never** exposed to cli
 - [ ] Login History (last 10 records)
 - [ ] Session tracking on sign-in (populate `user_sessions`)
 - [ ] Login attempt logging (populate `login_history`)
+- [ ] Login rate limiting (5 attempts / 15 min → 30 min lock)
+- [ ] Session fingerprinting (IP + User-Agent binding)
 
 ### Phase 3 — Activity & Notifications
 - [ ] My Activity page (aggregated from `user_activity_logs` + `edit_history`)
 - [ ] Notification preferences UI
 - [ ] Wire notification toggles to `user_settings`
 
-### Phase 4 — Admin & MFA
+### Phase 4 — Admin, MFA & Hardening
 - [ ] Admin audit logs page (filter by user, date, module)
 - [ ] Organization Settings page
 - [ ] MFA enrollment/unenrollment
+- [ ] MFA enforcement for admin role (block access without MFA)
+- [ ] Transactional invitation flow (atomic rollback)
+- [ ] High-risk action re-authentication guard
 - [ ] CSV export for audit logs
 
 ---
 
-## 15. Known Gaps & Remediation
+## 17. Known Gaps & Remediation
 
 | Gap | Risk | Status |
 |---|---|---|
-| MFA not enforced for admins | Account takeover risk | ⚠️ Planned (Phase 4) |
-| No IP-based session binding | Session hijacking | ⚠️ Mitigated by session tracking |
-| `demand_forecasts` missing `is_user_approved()` | Unapproved users can read forecasts | 🔴 Fix pending |
-| `payment_risk_scores` missing `is_user_approved()` | Unapproved users can read risk data | 🔴 Fix pending |
-| 26 RLS policies with `USING (true)` | Over-permissive access on some tables | 🟡 Audit required |
-| Profile dropdown is Sign Out only | No self-service account management | 🔵 This spec |
+| MFA not enforced for admins | Account takeover risk | ⚠️ Planned (Phase 4) — spec defined in §2.5 |
+| No IP-based session binding | Session hijacking | ⚠️ Planned (Phase 2) — spec defined in §1.6 |
+| `demand_forecasts` missing `is_user_approved()` | Unapproved users can read forecasts | ✅ **FIXED** (Hardening Round 1) |
+| `payment_risk_scores` missing `is_user_approved()` | Unapproved users can read risk data | ✅ **FIXED** (Hardening Round 1) |
+| 26 RLS policies with `USING (true)` | Over-permissive access | ✅ **FIXED** — reduced to 3 intentional public policies |
+| Profile dropdown is Sign Out only | No self-service account management | ⚠️ Planned (Phase 1) |
+| Login rate limiting not implemented | Brute force vulnerability | ⚠️ Planned (Phase 2) — spec defined in §1.5 |
+| Invitation flow not transactional | Partial state on failure | ⚠️ Planned (Phase 4) — spec defined in §1.3 |
+| 4 Security Definer Views | RLS bypass risk | 🟡 Pre-existing — requires view audit |
+| `pg_trgm` in public schema | Extension misplacement | 🟡 Low risk — move to `extensions` schema |
+| `generate_quote_number` missing search_path | Schema poisoning risk | ✅ **FIXED** (Hardening Round 1) |
+| `generate_invoice_number` missing search_path | Schema poisoning risk | ✅ **FIXED** (Hardening Round 1) |
 
 ---
 
-## 16. Security Checklist
+## 18. Security Checklist
 
 ### Identity & Access
 - [x] Roles stored in dedicated `user_roles` table (not in profiles)
@@ -625,19 +801,36 @@ Service role key is used **only** in edge functions — **never** exposed to cli
 - [x] Admin count hard-capped at 5 (server-side)
 - [x] Admin whitelist enforced before admin registration
 - [x] Service role key never exposed to client
-- [x] Invitation flow creates user + profile + role atomically
 - [x] Password reset uses single token (no dual-token invalidation)
 
-### New IAM Tables
-- [x] `user_settings` — RLS: own records only, approved users
-- [x] `user_sessions` — RLS: own records + admin view all
-- [x] `login_history` — RLS: own records + admin view all, immutable
-- [x] `security_audit_log` — RLS: own records + admin view all, immutable (no UPDATE/DELETE)
-- [x] `org_settings` — RLS: all approved can read, admin can write
+### RLS Hardening ✅ COMPLETED
+- [x] **No `USING (true)` on INSERT/UPDATE/DELETE** (except 3 intentional public policies)
+- [x] **All business tables include `is_user_approved()` check**
+- [x] Sensitive data (forecasts, risk scores) restricted by role
+- [x] Expense data scoped by creator + admin/finance
+- [x] Import data scoped by creator + admin/supply_chain
+- [x] Petty cash restricted to admin/finance
+- [x] Attendance audit logs restricted to admin/hr
+- [x] Inventory alerts restricted to admin/supply_chain
 
-### Pending
-- [ ] MFA enforced for admin accounts
-- [ ] Session idle timeout configured
-- [ ] All RLS policies include `is_user_approved()` check
-- [ ] Profile photo storage bucket created with proper RLS
-- [ ] Login attempt tracking wired to auth flow
+### Audit Log Immutability ✅ VERIFIED
+- [x] `security_audit_log` — no UPDATE/DELETE policies
+- [x] `login_history` — no UPDATE/DELETE policies
+- [x] `attendance_audit_log` — no UPDATE/DELETE policies
+
+### Function Security ✅ FIXED
+- [x] All security functions use `SET search_path TO 'public'`
+- [x] `generate_quote_number()` — search_path set
+- [x] `generate_invoice_number()` — search_path set
+
+### Pending Implementation
+- [ ] MFA enforced for admin accounts (Phase 4)
+- [ ] Login rate limiting (5 attempts / 15 min lock) (Phase 2)
+- [ ] Session fingerprint validation active (Phase 2)
+- [ ] Invitation flow wrapped in transaction (Phase 4)
+- [ ] High-risk action re-authentication (Phase 4)
+- [ ] Profile photo storage bucket created with proper RLS (Phase 1)
+- [ ] Login attempt tracking wired to auth flow (Phase 2)
+- [ ] Session idle timeout configured (Phase 2)
+- [ ] Security Definer Views audited and converted (Backlog)
+- [ ] `pg_trgm` moved to extensions schema (Backlog)
