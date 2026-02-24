@@ -131,6 +131,15 @@ Deno.serve(async (req) => {
             .update({ status: "accepted", accepted_at: new Date().toISOString() })
             .eq("id", invitation_id);
 
+          // Audit log
+          await adminClient.from("security_audit_log").insert({
+            user_id: requestingUser.id,
+            user_name: (await adminClient.from("profiles").select("name").eq("user_id", requestingUser.id).single()).data?.name || "Admin",
+            action: "invitation_approved",
+            target_user_id: existingUser.id,
+            details: { email: invitation.email, role: invitation.role, is_existing_user: true },
+          });
+
           return new Response(JSON.stringify({ 
             success: true, 
             message: "Existing user approved successfully",
@@ -179,6 +188,16 @@ Deno.serve(async (req) => {
       .from("user_invitations")
       .update({ status: "accepted", accepted_at: new Date().toISOString() })
       .eq("id", invitation_id);
+
+    // Audit log
+    const adminProfile = await adminClient.from("profiles").select("name").eq("user_id", requestingUser.id).single();
+    await adminClient.from("security_audit_log").insert({
+      user_id: requestingUser.id,
+      user_name: adminProfile.data?.name || "Admin",
+      action: "invitation_approved",
+      target_user_id: newUser.user.id,
+      details: { email: invitation.email, role: invitation.role, is_existing_user: false },
+    });
 
     // Send password reset email so user can set their own password
     const siteUrl = Deno.env.get("SITE_URL") || "https://xboom-flow.lovable.app";

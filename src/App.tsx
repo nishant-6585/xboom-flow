@@ -35,6 +35,7 @@ import PublicDroneRepairEnquiry from "./pages/PublicDroneRepairEnquiry";
 import Candidates from "./pages/Candidates";
 import ModelReview from "./pages/ModelReview";
 import SecuritySettings from "./pages/SecuritySettings";
+import AuditLogs from "./pages/AuditLogs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -77,6 +78,7 @@ function AppInner() {
         <Route path="/candidates" element={<ProtectedRoute><Candidates /></ProtectedRoute>} />
         <Route path="/model-review" element={<ProtectedRoute><ModelReview /></ProtectedRoute>} />
         <Route path="/profile/security" element={<ProtectedRoute><SecuritySettings /></ProtectedRoute>} />
+        <Route path="/admin/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <FloatingActionButton />
