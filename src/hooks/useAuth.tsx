@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from "react";
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -15,6 +15,8 @@ interface Profile {
   is_approved: boolean;
 }
 
+type MfaStatus = "not_required" | "enrollment_required" | "verification_required" | "verified";
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -23,10 +25,12 @@ interface AuthContextType {
   roles: AppRole[];
   loading: boolean;
   isApproved: boolean;
+  mfaStatus: MfaStatus;
   signUp: (email: string, password: string, name: string, team: AppRole) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  refreshMfaStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,6 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [role, setRole] = useState<AppRole | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mfaStatus, setMfaStatus] = useState<MfaStatus>("not_required");
 
   const fetchUserData = async (userId: string) => {
     try {
@@ -61,14 +66,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (rolesData && rolesData.length > 0) {
         const userRoles = rolesData.map((r) => r.role as AppRole);
         setRoles(userRoles);
-        // Set primary role by priority (admin first)
         const primaryRole = ROLE_PRIORITY.find((r) => userRoles.includes(r)) || userRoles[0];
         setRole(primaryRole);
+        // Check MFA status for admin users
+        await checkMfaStatus(userRoles);
+      } else {
+        setMfaStatus("not_required");
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
   };
+
+  const checkMfaStatus = useCallback(async (userRoles: AppRole[]) => {
+    const isAdmin = userRoles.includes("admin");
+    if (!isAdmin) {
+      setMfaStatus("not_required");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.auth.mfa.listFactors();
+      if (error) {
+        console.error("MFA check error:", error);
+        setMfaStatus("not_required"); // fail-open
+        return;
+      }
+
+      const verifiedFactors = data.totp.filter((f) => f.status === "verified");
+      if (verifiedFactors.length === 0) {
+        setMfaStatus("enrollment_required");
+        return;
+      }
+
+      // Check AAL level — if aal2 not reached, need verification
+      const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aalError) {
+        setMfaStatus("verification_required");
+        return;
+      }
+
+      if (aalData.currentLevel === "aal2") {
+        setMfaStatus("verified");
+      } else {
+        setMfaStatus("verification_required");
+      }
+    } catch (e) {
+      console.error("MFA status check failed:", e);
+      setMfaStatus("not_required");
+    }
+  }, []);
+
+  const refreshMfaStatus = useCallback(async () => {
+    await checkMfaStatus(roles);
+  }, [roles, checkMfaStatus]);
 
   const refreshProfile = async () => {
     if (user) {
@@ -329,10 +380,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         roles,
         loading,
         isApproved: profile?.is_approved ?? false,
+        mfaStatus,
         signUp,
         signIn,
         signOut,
         refreshProfile,
+        refreshMfaStatus,
       }}
     >
       {children}
