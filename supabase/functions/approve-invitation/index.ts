@@ -165,9 +165,10 @@ Deno.serve(async (req) => {
       .eq("id", invitation_id);
 
     // Send password reset email so user can set their own password
-    await adminClient.auth.admin.generateLink({
-      type: "magiclink",
-      email: invitation.email,
+    // Use resetPasswordForEmail which actually delivers the email
+    const siteUrl = Deno.env.get("SITE_URL") || "https://xboom-flow.lovable.app";
+    await adminClient.auth.resetPasswordForEmail(invitation.email, {
+      redirectTo: `${siteUrl}/auth`,
     });
 
     return new Response(JSON.stringify({ 
