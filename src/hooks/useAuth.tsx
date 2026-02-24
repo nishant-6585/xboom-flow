@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { recordSession } from "@/lib/sessionTracking";
 
 type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketing" | "hr";
 
@@ -358,16 +359,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         p_status: "success",
         p_user_id: data.user?.id ?? null,
       })).catch(() => {});
+
+      // Record session for fingerprinting
+      if (data.user) {
+        recordSession(data.user.id).catch(() => {});
+      }
     }
 
     return { error };
   };
 
   const signOut = async () => {
+    // Mark current session as inactive
+    if (user) {
+      await supabase
+        .from("user_sessions")
+        .update({ is_active: false, is_current: false, revoked_at: new Date().toISOString() })
+        .eq("user_id", user.id)
+        .eq("is_current", true);
+    }
     await supabase.auth.signOut();
     setProfile(null);
     setRole(null);
     setRoles([]);
+    setMfaStatus("not_required");
   };
 
   return (

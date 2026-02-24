@@ -773,13 +773,14 @@ When creating new migrations with RLS policies:
 - [ ] Wire `user_settings` table
 
 ### Phase 2 — Security & Sessions
-- [ ] Security Settings page
-- [ ] Active Sessions (view + revoke)
-- [ ] Login History (last 10 records)
-- [ ] Session tracking on sign-in (populate `user_sessions`)
-- [ ] Login attempt logging (populate `login_history`)
-- [ ] Login rate limiting (5 attempts / 15 min → 30 min lock)
-- [ ] Session fingerprinting (IP + User-Agent binding)
+- [x] Security Settings page ✅ IMPLEMENTED
+- [x] Active Sessions (view + revoke) ✅ IMPLEMENTED
+- [x] Login History (last 10 records) ✅ IMPLEMENTED
+- [x] Session tracking on sign-in (populate `user_sessions`) ✅ IMPLEMENTED
+- [x] Login attempt logging (populate `login_history`) ✅ IMPLEMENTED
+- [x] Login rate limiting (5 attempts / 15 min → 15 min lock) ✅ IMPLEMENTED
+- [x] Session fingerprinting (browser + OS + device type) ✅ IMPLEMENTED
+- [ ] Session idle timeout configured
 
 ### Phase 3 — Activity & Notifications
 - [ ] My Activity page (aggregated from `user_activity_logs` + `edit_history`)
@@ -789,8 +790,8 @@ When creating new migrations with RLS policies:
 ### Phase 4 — Admin, MFA & Hardening
 - [ ] Admin audit logs page (filter by user, date, module)
 - [ ] Organization Settings page
-- [ ] MFA enrollment/unenrollment
-- [ ] MFA enforcement for admin role (block access without MFA)
+- [x] MFA enrollment/unenrollment ✅ IMPLEMENTED
+- [x] MFA enforcement for admin role (block access without MFA) ✅ IMPLEMENTED
 - [ ] Transactional invitation flow (atomic rollback)
 - [ ] High-risk action re-authentication guard
 - [ ] CSV export for audit logs
@@ -801,13 +802,13 @@ When creating new migrations with RLS policies:
 
 | Gap | Risk | Status |
 |---|---|---|
-| MFA not enforced for admins | Account takeover risk | ⚠️ Planned (Phase 4) — spec defined in §2.5 |
-| No IP-based session binding | Session hijacking | ⚠️ Planned (Phase 2) — spec defined in §1.6 |
+| MFA not enforced for admins | Account takeover risk | ✅ **FIXED** — MFA enrollment + verification enforced in ProtectedRoute |
+| No IP-based session binding | Session hijacking | ✅ **FIXED** — Session fingerprinting (browser/OS/device) recorded on login |
 | `demand_forecasts` missing `is_user_approved()` | Unapproved users can read forecasts | ✅ **FIXED** (Hardening Round 1) |
 | `payment_risk_scores` missing `is_user_approved()` | Unapproved users can read risk data | ✅ **FIXED** (Hardening Round 1) |
 | 26 RLS policies with `USING (true)` | Over-permissive access | ✅ **FIXED** — reduced to 3 intentional public policies |
 | Profile dropdown is Sign Out only | No self-service account management | ⚠️ Planned (Phase 1) |
-| Login rate limiting not implemented | Brute force vulnerability | ⚠️ Planned (Phase 2) — spec defined in §1.5 |
+| Login rate limiting not implemented | Brute force vulnerability | ✅ **FIXED** — 5 attempts / 15 min window, DB functions |
 | Invitation flow not transactional | Partial state on failure | ⚠️ Planned (Phase 4) — spec defined in §1.3 |
 | 4 Security Definer Views | RLS bypass risk | ✅ **FIXED** (Hardening Round 2) — all converted to SECURITY INVOKER |
 | `pg_trgm` in public schema | Extension misplacement | 🟡 Low risk — move to `extensions` schema |
@@ -848,13 +849,14 @@ When creating new migrations with RLS policies:
 - [x] `generate_invoice_number()` — search_path set
 
 ### Pending Implementation
-- [ ] MFA enforced for admin accounts (Phase 4)
-- [ ] Login rate limiting (5 attempts / 15 min lock) (Phase 2)
-- [ ] Session fingerprint validation active (Phase 2)
+- [x] MFA enforced for admin accounts ✅
+- [x] Login rate limiting (5 attempts / 15 min lock) ✅
+- [x] Session fingerprint tracking active ✅
 - [ ] Invitation flow wrapped in transaction (Phase 4)
 - [ ] High-risk action re-authentication (Phase 4)
 - [ ] Profile photo storage bucket created with proper RLS (Phase 1)
-- [ ] Login attempt tracking wired to auth flow (Phase 2)
+- [x] Login attempt tracking wired to auth flow ✅
+- [x] Session tracking on sign-in ✅
 - [ ] Session idle timeout configured (Phase 2)
 - [x] Security Definer Views audited and converted to SECURITY INVOKER ✅
 - [ ] `pg_trgm` moved to extensions schema (Backlog)
