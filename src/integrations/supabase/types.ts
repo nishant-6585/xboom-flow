@@ -2970,6 +2970,51 @@ export type Database = {
           },
         ]
       }
+      login_history: {
+        Row: {
+          attempted_at: string
+          browser: string | null
+          device_info: string | null
+          email: string
+          failure_reason: string | null
+          id: string
+          ip_address: string | null
+          location: string | null
+          os: string | null
+          status: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          attempted_at?: string
+          browser?: string | null
+          device_info?: string | null
+          email: string
+          failure_reason?: string | null
+          id?: string
+          ip_address?: string | null
+          location?: string | null
+          os?: string | null
+          status: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          attempted_at?: string
+          browser?: string | null
+          device_info?: string | null
+          email?: string
+          failure_reason?: string | null
+          id?: string
+          ip_address?: string | null
+          location?: string | null
+          os?: string | null
+          status?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       margin_thresholds: {
         Row: {
           category: string
@@ -3679,6 +3724,39 @@ export type Database = {
         }
         Relationships: []
       }
+      org_settings: {
+        Row: {
+          business_hours_end: string
+          business_hours_start: string
+          created_at: string
+          id: string
+          logo_url: string | null
+          org_name: string
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          business_hours_end?: string
+          business_hours_start?: string
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          org_name?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          business_hours_end?: string
+          business_hours_start?: string
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          org_name?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       outbound_activities: {
         Row: {
           activity_date: string
@@ -4210,6 +4288,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           email: string
           id: string
@@ -4221,6 +4300,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           email: string
           id?: string
@@ -4232,6 +4312,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           email?: string
           id?: string
@@ -4794,6 +4875,42 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           user_name?: string
+        }
+        Relationships: []
+      }
+      security_audit_log: {
+        Row: {
+          action: string
+          details: Json | null
+          id: string
+          ip_address: string | null
+          performed_at: string
+          target_user_id: string | null
+          user_agent: string | null
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          action: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          performed_at?: string
+          target_user_id?: string | null
+          user_agent?: string | null
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          action?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          performed_at?: string
+          target_user_id?: string | null
+          user_agent?: string | null
+          user_id?: string
+          user_name?: string | null
         }
         Relationships: []
       }
@@ -5792,6 +5909,96 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_sessions: {
+        Row: {
+          browser: string | null
+          created_at: string
+          device_info: string | null
+          id: string
+          ip_address: string | null
+          is_active: boolean
+          is_current: boolean
+          last_active_at: string
+          location: string | null
+          os: string | null
+          revoked_at: string | null
+          session_token_hash: string | null
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          browser?: string | null
+          created_at?: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          is_active?: boolean
+          is_current?: boolean
+          last_active_at?: string
+          location?: string | null
+          os?: string | null
+          revoked_at?: string | null
+          session_token_hash?: string | null
+          started_at?: string
+          user_id: string
+        }
+        Update: {
+          browser?: string | null
+          created_at?: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          is_active?: boolean
+          is_current?: boolean
+          last_active_at?: string
+          location?: string | null
+          os?: string | null
+          revoked_at?: string | null
+          session_token_hash?: string | null
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          compact_mode: boolean
+          created_at: string
+          critical_alerts: boolean
+          email_notifications: Json
+          id: string
+          in_app_notifications: boolean
+          language: string
+          theme: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          compact_mode?: boolean
+          created_at?: string
+          critical_alerts?: boolean
+          email_notifications?: Json
+          id?: string
+          in_app_notifications?: boolean
+          language?: string
+          theme?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          compact_mode?: boolean
+          created_at?: string
+          critical_alerts?: boolean
+          email_notifications?: Json
+          id?: string
+          in_app_notifications?: boolean
+          language?: string
+          theme?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
