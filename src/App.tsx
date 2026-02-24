@@ -34,6 +34,7 @@ import Buyback from "./pages/Buyback";
 import PublicDroneRepairEnquiry from "./pages/PublicDroneRepairEnquiry";
 import Candidates from "./pages/Candidates";
 import ModelReview from "./pages/ModelReview";
+import SecuritySettings from "./pages/SecuritySettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -75,6 +76,7 @@ function AppInner() {
         <Route path="/buyback" element={<ProtectedRoute><Buyback /></ProtectedRoute>} />
         <Route path="/candidates" element={<ProtectedRoute><Candidates /></ProtectedRoute>} />
         <Route path="/model-review" element={<ProtectedRoute><ModelReview /></ProtectedRoute>} />
+        <Route path="/profile/security" element={<ProtectedRoute><SecuritySettings /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <FloatingActionButton />
