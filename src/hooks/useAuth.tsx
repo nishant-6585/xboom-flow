@@ -263,10 +263,51 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check rate limit before attempting login
+    try {
+      const { data: rateLimitData, error: rateLimitError } = await supabase
+        .rpc("check_login_rate_limit", { p_email: normalizedEmail });
+
+      if (!rateLimitError && rateLimitData?.[0] && !rateLimitData[0].allowed) {
+        const retryMinutes = Math.ceil((rateLimitData[0].retry_after_seconds || 60) / 60);
+        // Record the blocked attempt
+        await supabase.rpc("record_login_attempt", {
+          p_email: normalizedEmail,
+          p_status: "failure",
+          p_failure_reason: "rate_limited",
+        });
+        return {
+          error: new Error(
+            `Too many failed login attempts. Please try again in ${retryMinutes} minute${retryMinutes !== 1 ? "s" : ""}.`
+          ),
+        };
+      }
+    } catch (e) {
+      // If rate limit check fails, allow login attempt (fail-open for availability)
+      console.warn("Rate limit check failed, proceeding with login:", e);
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+
+    // Record the attempt (fire-and-forget)
+    if (error) {
+      Promise.resolve(supabase.rpc("record_login_attempt", {
+        p_email: normalizedEmail,
+        p_status: "failure",
+        p_failure_reason: error.message,
+      })).catch(() => {});
+    } else {
+      Promise.resolve(supabase.rpc("record_login_attempt", {
+        p_email: normalizedEmail,
+        p_status: "success",
+        p_user_id: data.user?.id ?? null,
+      })).catch(() => {});
+    }
 
     return { error };
   };
