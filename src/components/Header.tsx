@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart, Warehouse, FileSpreadsheet, Zap, IndianRupee, ListTodo, Users, CalendarDays, Receipt, ClipboardList, Wrench, GraduationCap, FileText, Ticket, BookCheck, RotateCcw, Activity } from "lucide-react";
+import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart, Warehouse, FileSpreadsheet, Zap, IndianRupee, ListTodo, Users, CalendarDays, Receipt, ClipboardList, Wrench, GraduationCap, FileText, Ticket, BookCheck, RotateCcw, Activity, User, KeyRound, ShieldCheck, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import logoFull from "@/assets/logo-full.jpeg";
 import { NotificationPanel } from "@/components/NotificationPanel";
 import { AttendanceWidget } from "@/components/attendance/AttendanceWidget";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +29,7 @@ export function Header() {
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const getInitials = (name: string) => {
     return name
@@ -188,13 +190,46 @@ export function Header() {
                   </div>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 bg-popover">
+              <DropdownMenuContent align="end" className="w-60 bg-popover">
                 <DropdownMenuLabel>
-                  <div>
-                    <p className="font-medium">{profile?.name}</p>
-                    <p className="text-xs text-muted-foreground">{profile?.email}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
+                      {profile?.name ? getInitials(profile.name) : "U"}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{profile?.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{getRoleLabel(role)}</Badge>
+                      </div>
+                    </div>
                   </div>
                 </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground font-normal py-1">Personal</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => navigate("/profile")}>
+                  <User className="w-4 h-4 mr-2" /> My Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/profile/security")}>
+                  <ShieldCheck className="w-4 h-4 mr-2" /> Security Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/profile/change-password")}>
+                  <KeyRound className="w-4 h-4 mr-2" /> Change Password
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/profile/preferences")}>
+                  <Settings className="w-4 h-4 mr-2" /> Preferences
+                </DropdownMenuItem>
+                {role === "admin" && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground font-normal py-1">Admin</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => navigate("/admin")}>
+                      <Shield className="w-4 h-4 mr-2" /> User Management
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/admin/audit-logs")}>
+                      <ClipboardList className="w-4 h-4 mr-2" /> Audit Logs
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">
                   <LogOut className="w-4 h-4 mr-2" />
