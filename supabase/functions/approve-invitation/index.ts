@@ -180,35 +180,22 @@ Deno.serve(async (req) => {
       .update({ status: "accepted", accepted_at: new Date().toISOString() })
       .eq("id", invitation_id);
 
-    // Generate a recovery link for the user to set their password
+    // Send password reset email so user can set their own password
     const siteUrl = Deno.env.get("SITE_URL") || "https://xboom-flow.lovable.app";
     
-    // Try sending password reset email via the anon client (which triggers built-in email)
+    // Use anon client to trigger the built-in email hook
     const anonKeyForReset = Deno.env.get("SUPABASE_ANON_KEY")!;
     const resetClient = createClient(supabaseUrl, anonKeyForReset);
     const { error: resetError } = await resetClient.auth.resetPasswordForEmail(invitation.email, {
       redirectTo: `${siteUrl}/auth`,
     });
     
-    // Also generate a direct recovery link as fallback
-    const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-      type: "recovery",
-      email: invitation.email,
-      options: { redirectTo: `${siteUrl}/auth` },
-    });
-    
-    console.log("Reset email result:", resetError ? resetError.message : "sent");
-    console.log("Recovery link generated:", linkError ? linkError.message : "success");
-    
-    const recoveryLink = linkData?.properties?.action_link || null;
+    console.log("Reset email result:", resetError ? resetError.message : "sent successfully");
 
     return new Response(JSON.stringify({ 
       success: true, 
-      message: recoveryLink 
-        ? "User created and approved. A password reset link has been generated."
-        : "User created and approved. They can use 'Forgot Password' to set their password.",
+      message: "User created and approved. Password reset email has been sent.",
       is_existing_user: false,
-      recovery_link: recoveryLink,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
