@@ -149,6 +149,11 @@ export const MFAEnrollment = ({ onComplete, onSkip }: MFAEnrollmentProps) => {
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Set Up MFA
             </Button>
+            {onSkip && (
+              <Button variant="ghost" onClick={onSkip} className="w-full text-muted-foreground">
+                Cancel
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
