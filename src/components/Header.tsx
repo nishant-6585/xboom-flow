@@ -218,6 +218,9 @@ export function Header() {
                 <DropdownMenuItem onClick={() => navigate("/profile/preferences")}>
                   <Settings className="w-4 h-4 mr-2" /> Preferences
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/profile/activity")}>
+                  <Activity className="w-4 h-4 mr-2" /> My Activity
+                </DropdownMenuItem>
                 {role === "admin" && (
                   <>
                     <DropdownMenuSeparator />

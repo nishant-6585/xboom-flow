@@ -39,6 +39,7 @@ import AuditLogs from "./pages/AuditLogs";
 import MyProfile from "./pages/MyProfile";
 import ChangePassword from "./pages/ChangePassword";
 import Preferences from "./pages/Preferences";
+import MyActivity from "./pages/MyActivity";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -84,6 +85,7 @@ function AppInner() {
         <Route path="/profile/security" element={<ProtectedRoute><SecuritySettings /></ProtectedRoute>} />
         <Route path="/profile/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
         <Route path="/profile/preferences" element={<ProtectedRoute><Preferences /></ProtectedRoute>} />
+        <Route path="/profile/activity" element={<ProtectedRoute><MyActivity /></ProtectedRoute>} />
         <Route path="/admin/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
