@@ -135,7 +135,6 @@ Deno.serve(async (req) => {
             auto_checkout_time: autoCheckoutTimeISO,
             is_provisional_checkout: true,
             checkout_missing: false,
-            working_hours: AUTO_CHECKOUT_HOURS,
           };
 
           // If on break, also end the break
