@@ -716,7 +716,7 @@ When creating new migrations with RLS policies:
 | 10 | `expense_procurement_links` | Replaced SELECT/INSERT/DELETE | admin/finance/supply_chain + approved |
 | 11 | `expenses` | Replaced SELECT/INSERT | creator + admin/finance can view; creator-scoped insert |
 | 12 | `imports` | Replaced all CRUD | creator + admin/supply_chain scoped |
-| 13 | `import_items` | Replaced all CRUD | approved users only |
+| 13 | `import_items` | Replaced all CRUD | parent import owner + admin/supply_chain (Tightened Round 2) |
 | 14 | `inventory_alert_logs` | Replaced SELECT/INSERT | admin/supply_chain + approved |
 | 15 | `inventory_sync_settings` | Replaced SELECT | admin/supply_chain + approved |
 | 16 | `margin_thresholds` | Replaced SELECT | admin/finance/supply_chain + approved |
@@ -735,7 +735,31 @@ When creating new migrations with RLS policies:
 - `drone_repair_enquiries` INSERT — public repair form
 - `form_views` INSERT (×2) — public form view tracking
 
-**Linter results:** 33 warnings → 8 (4 pre-existing security definer views, 1 extension in public, 3 intentional public policies)
+**Linter results:** 33 warnings → 8 (4 security definer views, 1 extension in public, 3 intentional public policies)
+
+### Hardening Round 2 — 2026-02-24
+
+**Scope:** Resolve 4 Security Definer Views + tighten `import_items` scoping.
+
+| # | Item | Change | Result |
+|---|---|---|---|
+| 1 | `forms_public` view | Converted to `SECURITY INVOKER` | Queries now respect `forms` table RLS (public SELECT preserved via existing policy) |
+| 2 | `invoice_aging_view` view | Converted to `SECURITY INVOKER` | Only approved users see aging data |
+| 3 | `pricelist_public` view | Added approved-user SELECT on `pricelist` + converted to `SECURITY INVOKER` | All approved users can read pricelist; admin/supply_chain retain full CRUD |
+| 4 | `sales_weighted_forecast_view` view | Converted to `SECURITY INVOKER` | Sales sees own pipeline, admin/supply_chain see all |
+| 5 | `import_items` | Replaced "approved users only" → parent import owner scoping | SELECT/INSERT/UPDATE/DELETE scoped via `EXISTS` on parent `imports.created_by` |
+
+**"Approved Users Only" Table Classification:**
+| Table | Classification | Justification |
+|---|---|---|
+| `org_departments` | ✅ Org-wide reference data | All users need dropdown values |
+| `org_roles` | ✅ Org-wide reference data | All users need dropdown values |
+| `pipeline_tags` | ✅ Reference data + owner-scoped write | Tags are shared; creation/deletion scoped |
+| `domain_events` | ✅ Org-wide operational log | Event sourcing — cross-team visibility needed |
+| `duplicate_alerts` | ✅ Operational awareness | Read-only for detection; write scoped |
+| `quote_risk_flags` | ✅ Operational with admin/finance write restriction | Read broad, write restricted |
+
+**Linter results:** 8 → 4 (0 security definer view errors, 1 extension in public, 3 intentional public policies)
 
 ---
 
@@ -785,7 +809,7 @@ When creating new migrations with RLS policies:
 | Profile dropdown is Sign Out only | No self-service account management | ⚠️ Planned (Phase 1) |
 | Login rate limiting not implemented | Brute force vulnerability | ⚠️ Planned (Phase 2) — spec defined in §1.5 |
 | Invitation flow not transactional | Partial state on failure | ⚠️ Planned (Phase 4) — spec defined in §1.3 |
-| 4 Security Definer Views | RLS bypass risk | 🟡 Pre-existing — requires view audit |
+| 4 Security Definer Views | RLS bypass risk | ✅ **FIXED** (Hardening Round 2) — all converted to SECURITY INVOKER |
 | `pg_trgm` in public schema | Extension misplacement | 🟡 Low risk — move to `extensions` schema |
 | `generate_quote_number` missing search_path | Schema poisoning risk | ✅ **FIXED** (Hardening Round 1) |
 | `generate_invoice_number` missing search_path | Schema poisoning risk | ✅ **FIXED** (Hardening Round 1) |
@@ -832,5 +856,5 @@ When creating new migrations with RLS policies:
 - [ ] Profile photo storage bucket created with proper RLS (Phase 1)
 - [ ] Login attempt tracking wired to auth flow (Phase 2)
 - [ ] Session idle timeout configured (Phase 2)
-- [ ] Security Definer Views audited and converted (Backlog)
+- [x] Security Definer Views audited and converted to SECURITY INVOKER ✅
 - [ ] `pg_trgm` moved to extensions schema (Backlog)
