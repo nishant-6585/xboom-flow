@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { MFAEnrollment } from "@/components/auth/MFAEnrollment";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,9 @@ import {
 import { useNavigate } from "react-router-dom";
 
 const SecuritySettings = () => {
-  const { user, profile, roles, mfaStatus, signOut } = useAuth();
+  const { user, profile, roles, mfaStatus, refreshMfaStatus, signOut } = useAuth();
+  const [showEnrollment, setShowEnrollment] = useState(false);
+  const [disablingMfa, setDisablingMfa] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -110,6 +113,38 @@ const SecuritySettings = () => {
   };
 
   const isAdmin = roles.includes("admin");
+
+  const handleDisableMfa = async () => {
+    setDisablingMfa(true);
+    try {
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const totpFactor = factors?.totp?.[0];
+      if (totpFactor) {
+        const { error } = await supabase.auth.mfa.unenroll({ factorId: totpFactor.id });
+        if (error) {
+          toast({ title: "Error", description: error.message, variant: "destructive" });
+          return;
+        }
+        toast({ title: "MFA Disabled", description: "Two-factor authentication has been removed." });
+        refreshMfaStatus();
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to disable MFA.", variant: "destructive" });
+    } finally {
+      setDisablingMfa(false);
+    }
+  };
+
+  if (showEnrollment) {
+    return (
+      <MFAEnrollment
+        onComplete={() => {
+          setShowEnrollment(false);
+          refreshMfaStatus();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -232,7 +267,7 @@ const SecuritySettings = () => {
                     : "Add an extra layer of security to your account."}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <div className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 border border-border">
                   <div>
                     <p className="font-medium text-sm">TOTP Authenticator</p>
@@ -257,9 +292,36 @@ const SecuritySettings = () => {
                     {mfaStatus === "verified" ? "Enabled" : "Disabled"}
                   </Badge>
                 </div>
+
+                {/* Action buttons */}
+                {mfaStatus === "verified" ? (
+                  !isAdmin && (
+                    <Button
+                      variant="outline"
+                      className="text-destructive hover:text-destructive"
+                      onClick={handleDisableMfa}
+                      disabled={disablingMfa}
+                    >
+                      {disablingMfa && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      <ShieldOff className="w-4 h-4 mr-2" />
+                      Disable MFA
+                    </Button>
+                  )
+                ) : (
+                  <Button onClick={() => setShowEnrollment(true)}>
+                    <ShieldCheck className="w-4 h-4 mr-2" />
+                    Enable MFA
+                  </Button>
+                )}
+
                 {isAdmin && mfaStatus !== "verified" && (
-                  <p className="text-xs text-warning mt-3">
+                  <p className="text-xs text-warning">
                     ⚠️ As an admin, MFA is mandatory. You will be prompted to set it up.
+                  </p>
+                )}
+                {isAdmin && mfaStatus === "verified" && (
+                  <p className="text-xs text-muted-foreground">
+                    MFA cannot be disabled for admin accounts.
                   </p>
                 )}
               </CardContent>
