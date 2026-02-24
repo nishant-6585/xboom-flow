@@ -117,6 +117,14 @@ Deno.serve(async (req) => {
               .eq("user_id", existingUser.id);
           }
 
+          // Update the employee record with the correct department
+          if (invitation.department) {
+            await adminClient
+              .from("employees")
+              .update({ department: invitation.department })
+              .eq("user_id", existingUser.id);
+          }
+
           // Mark invitation as accepted
           await adminClient
             .from("user_invitations")
@@ -144,7 +152,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create profile
+    // Create profile (triggers auto employee creation)
     await adminClient.from("profiles").insert({
       user_id: newUser.user.id,
       name: invitation.name,
@@ -157,6 +165,14 @@ Deno.serve(async (req) => {
       user_id: newUser.user.id,
       role: invitation.role,
     });
+
+    // Update the auto-created employee record with the correct department
+    if (invitation.department) {
+      await adminClient
+        .from("employees")
+        .update({ department: invitation.department })
+        .eq("user_id", newUser.user.id);
+    }
 
     // Mark invitation as accepted
     await adminClient
