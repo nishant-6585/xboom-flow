@@ -3,6 +3,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Loader2, Clock, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { MFAEnrollment } from "@/components/auth/MFAEnrollment";
+import { MFAVerification } from "@/components/auth/MFAVerification";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,7 +12,7 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute = ({ children, requireApproval = true }: ProtectedRouteProps) => {
-  const { user, loading, isApproved, signOut, profile } = useAuth();
+  const { user, loading, isApproved, signOut, profile, mfaStatus, refreshMfaStatus } = useAuth();
 
   if (loading) {
     return (
@@ -75,6 +77,28 @@ export const ProtectedRoute = ({ children, requireApproval = true }: ProtectedRo
           </CardContent>
         </Card>
       </div>
+    );
+  }
+
+  // MFA enforcement for admin users
+  if (mfaStatus === "enrollment_required") {
+    return (
+      <MFAEnrollment
+        onComplete={() => {
+          refreshMfaStatus();
+        }}
+      />
+    );
+  }
+
+  if (mfaStatus === "verification_required") {
+    return (
+      <MFAVerification
+        onVerified={() => {
+          refreshMfaStatus();
+        }}
+        onCancel={signOut}
+      />
     );
   }
 
