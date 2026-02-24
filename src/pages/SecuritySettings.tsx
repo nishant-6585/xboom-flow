@@ -142,6 +142,7 @@ const SecuritySettings = () => {
           setShowEnrollment(false);
           refreshMfaStatus();
         }}
+        onSkip={() => setShowEnrollment(false)}
       />
     );
   }
