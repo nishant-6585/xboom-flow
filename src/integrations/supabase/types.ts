@@ -6219,6 +6219,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_login_rate_limit: {
+        Args: { p_email: string }
+        Returns: {
+          allowed: boolean
+          recent_failures: number
+          retry_after_seconds: number
+        }[]
+      }
       count_admins: { Args: never; Returns: number }
       fetch_pending_shopify_orders: {
         Args: { batch_size?: number }
@@ -6364,6 +6372,15 @@ export type Database = {
         Returns: boolean
       }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }
+      record_login_attempt: {
+        Args: {
+          p_email: string
+          p_failure_reason?: string
+          p_status: string
+          p_user_id?: string
+        }
+        Returns: undefined
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       sync_profiles_to_employees: { Args: never; Returns: number }
