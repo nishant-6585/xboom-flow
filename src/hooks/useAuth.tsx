@@ -14,6 +14,7 @@ interface Profile {
   name: string;
   email: string;
   is_approved: boolean;
+  avatar_url: string | null;
 }
 
 type MfaStatus = "not_required" | "enrollment_required" | "verification_required" | "verified";
