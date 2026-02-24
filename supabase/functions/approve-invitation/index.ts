@@ -73,10 +73,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Generate a random password for the user
-    const tempPassword = crypto.randomUUID().slice(0, 16) + "Aa1!";
+    // Get admin name for audit log
+    const { data: adminProfile } = await adminClient
+      .from("profiles")
+      .select("name")
+      .eq("user_id", requestingUser.id)
+      .single();
+    const adminName = adminProfile?.name || "Admin";
 
-    // Create the auth user using admin API
+    // --- STEP 1: Create or find auth user ---
+    let targetUserId: string;
+    let isExistingUser = false;
+    let authUserCreatedByUs = false;
+
+    const tempPassword = crypto.randomUUID().slice(0, 16) + "Aa1!";
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email: invitation.email,
       password: tempPassword,
@@ -84,137 +94,89 @@ Deno.serve(async (req) => {
     });
 
     if (createError) {
-      // If user already exists, try to find them
       if (createError.message?.includes("already been registered") || createError.message?.includes("already exists")) {
+        // Find existing user
         const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers();
-        const existingUser = users?.find((u: any) => u.email === invitation.email);
-        
-        if (existingUser) {
-          // Check if profile already exists
-          const { data: existingProfile } = await adminClient
-            .from("profiles")
-            .select("id")
-            .eq("user_id", existingUser.id)
-            .maybeSingle();
-
-          if (!existingProfile) {
-            await adminClient.from("profiles").insert({
-              user_id: existingUser.id,
-              name: invitation.name,
-              email: invitation.email,
-              is_approved: true,
-            });
-
-            await adminClient.from("user_roles").insert({
-              user_id: existingUser.id,
-              role: invitation.role,
-            });
-          } else {
-            // Just approve existing profile
-            await adminClient
-              .from("profiles")
-              .update({ is_approved: true })
-              .eq("user_id", existingUser.id);
-          }
-
-          // Update the employee record with the correct department
-          if (invitation.department) {
-            await adminClient
-              .from("employees")
-              .update({ department: invitation.department })
-              .eq("user_id", existingUser.id);
-          }
-
-          // Mark invitation as accepted
-          await adminClient
-            .from("user_invitations")
-            .update({ status: "accepted", accepted_at: new Date().toISOString() })
-            .eq("id", invitation_id);
-
-          // Audit log
-          await adminClient.from("security_audit_log").insert({
-            user_id: requestingUser.id,
-            user_name: (await adminClient.from("profiles").select("name").eq("user_id", requestingUser.id).single()).data?.name || "Admin",
-            action: "invitation_approved",
-            target_user_id: existingUser.id,
-            details: { email: invitation.email, role: invitation.role, is_existing_user: true },
-          });
-
-          return new Response(JSON.stringify({ 
-            success: true, 
-            message: "Existing user approved successfully",
-            is_existing_user: true,
-          }), {
+        if (listError) {
+          return new Response(JSON.stringify({ error: "Failed to look up existing user" }), {
+            status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-
-        return new Response(JSON.stringify({ error: "User already registered but could not be found" }), {
+        const existingUser = users?.find((u: any) => u.email === invitation.email);
+        if (!existingUser) {
+          return new Response(JSON.stringify({ error: "User already registered but could not be found" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        targetUserId = existingUser.id;
+        isExistingUser = true;
+      } else {
+        return new Response(JSON.stringify({ error: createError.message }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+    } else {
+      targetUserId = newUser.user.id;
+      authUserCreatedByUs = true;
+    }
 
-      return new Response(JSON.stringify({ error: createError.message }), {
-        status: 400,
+    // --- STEP 2: Atomic DB transaction (profile + role + employee + invitation + audit) ---
+    const { data: txResult, error: txError } = await adminClient.rpc("approve_invitation_atomic", {
+      p_user_id: targetUserId,
+      p_invitation_id: invitation_id,
+      p_name: invitation.name,
+      p_email: invitation.email,
+      p_role: invitation.role,
+      p_department: invitation.department || "",
+      p_admin_user_id: requestingUser.id,
+      p_admin_name: adminName,
+      p_is_existing_user: isExistingUser,
+    });
+
+    if (txError) {
+      console.error("Atomic transaction failed:", txError.message);
+
+      // ROLLBACK: If we created the auth user in step 1, delete it to prevent orphans
+      if (authUserCreatedByUs) {
+        console.log("Rolling back auth user creation for:", targetUserId);
+        const { error: deleteError } = await adminClient.auth.admin.deleteUser(targetUserId);
+        if (deleteError) {
+          console.error("CRITICAL: Failed to rollback auth user:", deleteError.message);
+          // This is a critical state - log extensively for manual intervention
+        }
+      }
+
+      return new Response(JSON.stringify({ 
+        error: "Failed to complete invitation approval. All changes have been rolled back.",
+        detail: txError.message,
+      }), {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Create profile (triggers auto employee creation)
-    await adminClient.from("profiles").insert({
-      user_id: newUser.user.id,
-      name: invitation.name,
-      email: invitation.email,
-      is_approved: true,
-    });
-
-    // Create user role
-    await adminClient.from("user_roles").insert({
-      user_id: newUser.user.id,
-      role: invitation.role,
-    });
-
-    // Update the auto-created employee record with the correct department
-    if (invitation.department) {
-      await adminClient
-        .from("employees")
-        .update({ department: invitation.department })
-        .eq("user_id", newUser.user.id);
+    // --- STEP 3: Send password reset email (non-critical, don't rollback if this fails) ---
+    if (!isExistingUser) {
+      const siteUrl = Deno.env.get("SITE_URL") || "https://xboom-flow.lovable.app";
+      const anonKeyForReset = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const resetClient = createClient(supabaseUrl, anonKeyForReset);
+      const { error: resetError } = await resetClient.auth.resetPasswordForEmail(invitation.email, {
+        redirectTo: `${siteUrl}/auth`,
+      });
+      if (resetError) {
+        console.warn("Password reset email failed (non-critical):", resetError.message);
+      }
     }
-
-    // Mark invitation as accepted
-    await adminClient
-      .from("user_invitations")
-      .update({ status: "accepted", accepted_at: new Date().toISOString() })
-      .eq("id", invitation_id);
-
-    // Audit log
-    const adminProfile = await adminClient.from("profiles").select("name").eq("user_id", requestingUser.id).single();
-    await adminClient.from("security_audit_log").insert({
-      user_id: requestingUser.id,
-      user_name: adminProfile.data?.name || "Admin",
-      action: "invitation_approved",
-      target_user_id: newUser.user.id,
-      details: { email: invitation.email, role: invitation.role, is_existing_user: false },
-    });
-
-    // Send password reset email so user can set their own password
-    const siteUrl = Deno.env.get("SITE_URL") || "https://xboom-flow.lovable.app";
-    
-    // Use anon client to trigger the built-in email hook
-    const anonKeyForReset = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const resetClient = createClient(supabaseUrl, anonKeyForReset);
-    const { error: resetError } = await resetClient.auth.resetPasswordForEmail(invitation.email, {
-      redirectTo: `${siteUrl}/auth`,
-    });
-    
-    console.log("Reset email result:", resetError ? resetError.message : "sent successfully");
 
     return new Response(JSON.stringify({ 
       success: true, 
-      message: "User created and approved. Password reset email has been sent.",
-      is_existing_user: false,
+      message: isExistingUser 
+        ? "Existing user approved successfully" 
+        : "User created and approved. Password reset email has been sent.",
+      is_existing_user: isExistingUser,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

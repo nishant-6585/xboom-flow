@@ -6202,6 +6202,20 @@ export type Database = {
       }
     }
     Functions: {
+      approve_invitation_atomic: {
+        Args: {
+          p_admin_name: string
+          p_admin_user_id: string
+          p_department: string
+          p_email: string
+          p_invitation_id: string
+          p_is_existing_user?: boolean
+          p_name: string
+          p_role: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       can_create_admin: { Args: never; Returns: boolean }
       can_register_as_admin: { Args: { p_email: string }; Returns: boolean }
       can_view_hr_document: {
