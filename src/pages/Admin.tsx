@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth } from "@/hooks/useAuth";
+import { useReAuth } from "@/hooks/useReAuth";
+import ReAuthDialog from "@/components/admin/ReAuthDialog";
+import { recordAuditLog } from "@/lib/auditLog";
 import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +19,7 @@ import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
 import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
 import { InviteUserDialog } from "@/components/admin/InviteUserDialog";
 import { NoticesPanel } from "@/components/notices/NoticesPanel";
-import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity, Building2, CalendarClock } from "lucide-react";
+import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity, Building2, CalendarClock, Shield } from "lucide-react";
 import UserActivityTracker from "@/components/admin/UserActivityTracker";
 import {
   Select,
@@ -76,8 +79,9 @@ interface UserInvitation {
 }
 
 const Admin = () => {
-  const { role, isApproved } = useAuth();
+  const { user, profile, role, isApproved } = useAuth();
   const { toast } = useToast();
+  const { reAuthState, requireReAuth, setReAuthOpen } = useReAuth();
   const { enquiries } = useEnquiries();
   const { orders } = useOrders();
   const navigate = useNavigate();
@@ -367,92 +371,102 @@ const Admin = () => {
   };
 
   const handleDeleteUser = async (userId: string, userName: string) => {
-    setDeleteLoading(userId);
-    try {
-      // Delete user role first
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId);
+    requireReAuth({
+      title: "Delete User",
+      description: `You are about to permanently delete ${userName}. This action cannot be undone.`,
+      onConfirmed: async () => {
+        setDeleteLoading(userId);
+        try {
+          const { error: roleError } = await supabase
+            .from("user_roles")
+            .delete()
+            .eq("user_id", userId);
+          if (roleError) throw roleError;
 
-      if (roleError) throw roleError;
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .delete()
+            .eq("user_id", userId);
+          if (profileError) throw profileError;
 
-      // Delete user profile
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .delete()
-        .eq("user_id", userId);
+          // Audit log
+          if (user && profile) {
+            recordAuditLog(user.id, profile.name, {
+              action: "user_deleted",
+              targetUserId: userId,
+              details: { deleted_user: userName },
+            });
+          }
 
-      if (profileError) throw profileError;
-
-      toast({
-        title: "User Deleted",
-        description: `${userName} has been removed from the system`,
-      });
-
-      fetchApprovedUsers();
-    } catch (error) {
-      console.error("Error deleting user:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete user",
-        variant: "destructive",
-      });
-    } finally {
-      setDeleteLoading(null);
-    }
+          toast({ title: "User Deleted", description: `${userName} has been removed from the system` });
+          fetchApprovedUsers();
+        } catch (error) {
+          console.error("Error deleting user:", error);
+          toast({ title: "Error", description: "Failed to delete user", variant: "destructive" });
+        } finally {
+          setDeleteLoading(null);
+        }
+      },
+    });
   };
 
   const handleToggleRole = async (userId: string, role: string, currentRoles: string[], userName: string) => {
-    setRoleChangeLoading(userId);
-    try {
-      const hasRole = currentRoles.includes(role);
-      
-      if (hasRole) {
-        // Don't allow removing the last role
-        if (currentRoles.length <= 1) {
-          toast({
-            title: "Cannot Remove",
-            description: "User must have at least one role.",
-            variant: "destructive",
-          });
-          setRoleChangeLoading(null);
-          return;
-        }
-        // Remove role
-        const { error } = await supabase
-          .from("user_roles")
-          .delete()
-          .eq("user_id", userId)
-          .eq("role", role as any);
-        if (error) throw error;
-        toast({
-          title: "Role Removed",
-          description: `Removed ${getRoleLabel(role)} from ${userName}`,
-        });
-      } else {
-        // Add role
-        const { error } = await supabase
-          .from("user_roles")
-          .insert({ user_id: userId, role: role as any });
-        if (error) throw error;
-        toast({
-          title: "Role Added",
-          description: `Added ${getRoleLabel(role)} to ${userName}`,
-        });
-      }
+    requireReAuth({
+      title: "Change User Role",
+      description: `You are about to modify roles for ${userName}. Confirm your identity to proceed.`,
+      onConfirmed: async () => {
+        setRoleChangeLoading(userId);
+        try {
+          const hasRole = currentRoles.includes(role);
+          
+          if (hasRole) {
+            if (currentRoles.length <= 1) {
+              toast({ title: "Cannot Remove", description: "User must have at least one role.", variant: "destructive" });
+              setRoleChangeLoading(null);
+              return;
+            }
+            const { error } = await supabase
+              .from("user_roles")
+              .delete()
+              .eq("user_id", userId)
+              .eq("role", role as any);
+            if (error) throw error;
 
-      fetchApprovedUsers();
-    } catch (error) {
-      console.error("Error changing role:", error);
-      toast({
-        title: "Error",
-        description: "Failed to change user role",
-        variant: "destructive",
-      });
-    } finally {
-      setRoleChangeLoading(null);
-    }
+            if (user && profile) {
+              recordAuditLog(user.id, profile.name, {
+                action: "role_removed",
+                targetUserId: userId,
+                details: { role, user_name: userName },
+              });
+            }
+
+            toast({ title: "Role Removed", description: `Removed ${getRoleLabel(role)} from ${userName}` });
+          } else {
+            const { error } = await supabase
+              .from("user_roles")
+              .insert({ user_id: userId, role: role as any });
+            if (error) throw error;
+
+            if (user && profile) {
+              recordAuditLog(user.id, profile.name, {
+                action: "role_added",
+                targetUserId: userId,
+                details: { role, user_name: userName },
+              });
+            }
+
+            toast({ title: "Role Added", description: `Added ${getRoleLabel(role)} to ${userName}` });
+          }
+
+          fetchApprovedUsers();
+        } catch (error) {
+          console.error("Error changing role:", error);
+          toast({ title: "Error", description: "Failed to change user role", variant: "destructive" });
+        } finally {
+          setRoleChangeLoading(null);
+        }
+      },
+    });
   };
 
   const handleChangeDepartment = async (userId: string, newDept: string, userName: string) => {
@@ -615,6 +629,10 @@ const Admin = () => {
             <TabsTrigger value="attendance-policy" className="flex items-center gap-2">
               <CalendarClock className="w-4 h-4" />
               Attendance Policy
+            </TabsTrigger>
+            <TabsTrigger value="audit-logs" className="flex items-center gap-2" onClick={() => navigate("/admin/audit-logs")}>
+              <Shield className="w-4 h-4" />
+              Audit Logs
             </TabsTrigger>
           </TabsList>
 
@@ -1062,6 +1080,13 @@ const Admin = () => {
           </TabsContent>
         </Tabs>
       </main>
+      <ReAuthDialog
+        open={reAuthState.open}
+        onOpenChange={setReAuthOpen}
+        title={reAuthState.title}
+        description={reAuthState.description}
+        onConfirmed={reAuthState.onConfirmed}
+      />
     </div>
   );
 };
