@@ -22,10 +22,52 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // --- Authentication: require valid JWT ---
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      console.error('Auth claims error:', claimsError?.message);
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const userId = claimsData.claims.sub;
+
+    // --- Authorization: require admin role ---
+    const serviceClient = createClient(supabaseUrl, serviceRoleKey);
+    const { data: roles } = await serviceClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('role', 'admin');
+
+    if (!roles || roles.length === 0) {
+      console.warn(`Forbidden: non-admin user ${userId} attempted backfill`);
+      return new Response(JSON.stringify({ error: 'Forbidden: admin access required' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`Backfill initiated by admin user ${userId}`);
+
     const storeDomain = Deno.env.get('SHOPIFY_STORE_DOMAIN');
     const adminToken = Deno.env.get('SHOPIFY_ADMIN_API_TOKEN');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
     if (!storeDomain || !adminToken) {
       return new Response(JSON.stringify({ error: 'Missing Shopify credentials' }), {
@@ -33,7 +75,7 @@ serve(async (req) => {
       });
     }
 
-    const serviceClient = createClient(supabaseUrl, serviceRoleKey);
+    // serviceClient already created above for role check
 
     let totalFetched = 0;
     let totalInserted = 0;
@@ -130,7 +172,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Backfill error:', error);
-    return new Response(JSON.stringify({ error: 'Internal server error', details: error.message }), {
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
