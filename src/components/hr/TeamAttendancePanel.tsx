@@ -586,6 +586,7 @@ function LiveStatusTable({ liveRows, loading, onRefresh }: { liveRows: LiveRow[]
                     <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Employee</th>
                     <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Status</th>
                     <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Check In</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Check Out</th>
                     <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Break</th>
                     <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Work Hrs</th>
                     <th className="text-left px-3 py-2.5 font-medium text-muted-foreground">Late</th>
@@ -623,6 +624,9 @@ function LiveStatusTable({ liveRows, loading, onRefresh }: { liveRows: LiveRow[]
                         </td>
                         <td className="px-3 py-3 text-muted-foreground">
                           {log?.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}
+                        </td>
+                        <td className="px-3 py-3 text-muted-foreground">
+                          {log?.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}
                         </td>
                         <td className="px-3 py-3 text-muted-foreground">
                           {liveStatus === 'On Break'
