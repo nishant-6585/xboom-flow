@@ -9,6 +9,7 @@ import { FloatingActionButton } from "@/components/FloatingActionButton";
 import { MobileAttendanceFAB } from "@/components/attendance/MobileAttendanceFAB";
 import { CommandPalette } from "@/components/CommandPalette";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useThemeLoader } from "@/hooks/useThemeLoader";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
@@ -53,6 +54,7 @@ const queryClient = new QueryClient({
 
 function AppInner() {
   const isMobile = useIsMobile();
+  useThemeLoader();
   return (
     <>
       <Routes>
