@@ -82,7 +82,10 @@ const Preferences = () => {
         if (error) throw error;
       }
 
-      if (field === "theme") applyTheme(value);
+      if (field === "theme") {
+        applyTheme(value);
+        localStorage.setItem("xboom-theme", value);
+      }
       toast({ title: "Saved", description: "Preference updated." });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
