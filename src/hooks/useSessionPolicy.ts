@@ -118,15 +118,18 @@ export function useSessionPolicy(userId: string | undefined, signOut: () => Prom
     }
   }, [userId, forceLogout]);
 
-  // Periodic session validation
+  // Periodic session validation — delay initial check to avoid race with login session creation
   useEffect(() => {
     if (!userId) return;
 
-    // Initial validation
-    validateSession();
+    // Give login flow time to create the session record before first validation
+    const initialDelay = setTimeout(validateSession, 5000);
 
     const interval = setInterval(validateSession, CHECK_INTERVAL_MS);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initialDelay);
+      clearInterval(interval);
+    };
   }, [userId, validateSession]);
 
   /**
