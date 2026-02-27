@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { FloatingActionButton } from "@/components/FloatingActionButton";
 import { MobileAttendanceFAB } from "@/components/attendance/MobileAttendanceFAB";
@@ -91,6 +91,17 @@ function AppInner() {
         <Route path="/admin/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <AuthGuardedWidgets isMobile={isMobile} />
+    </>
+  );
+}
+
+/** Renders global widgets only when user is authenticated */
+function AuthGuardedWidgets({ isMobile }: { isMobile: boolean }) {
+  const { user } = useAuth();
+  if (!user) return null;
+  return (
+    <>
       <FloatingActionButton />
       {isMobile && <MobileAttendanceFAB />}
       <CommandPalette />
