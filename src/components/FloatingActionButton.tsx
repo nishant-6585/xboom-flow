@@ -48,10 +48,18 @@ interface QuickAction {
 }
 
 export function FloatingActionButton() {
-  const { role, user } = useAuth();
+  const auth = useAuth();
+  const { role, user } = auth;
   const [isOpen, setIsOpen] = useState(false);
   const [activeDialog, setActiveDialog] = useState<DialogType>(null);
+
+  // Don't render anything if not authenticated
+  if (!user) return null;
   
+  return <FloatingActionButtonInner role={role} user={user} isOpen={isOpen} setIsOpen={setIsOpen} activeDialog={activeDialog} setActiveDialog={setActiveDialog} />;
+}
+
+function FloatingActionButtonInner({ role, user, isOpen, setIsOpen, activeDialog, setActiveDialog }: any) {
   const { createEnquiry } = useEnquiries();
   const { createOrder } = useOrders();
   const { suppliers, createSupplier } = useSuppliers();
