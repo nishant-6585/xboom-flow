@@ -375,7 +375,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (user) {
       await supabase
         .from("user_sessions")
-        .update({ is_active: false, is_current: false, revoked_at: new Date().toISOString() })
+        .update({ 
+          is_active: false, 
+          is_current: false, 
+          revoked_at: new Date().toISOString(),
+          revocation_reason: "SIGNED_OUT",
+        })
         .eq("user_id", user.id)
         .eq("is_current", true);
     }
