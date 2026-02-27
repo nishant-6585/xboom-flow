@@ -263,6 +263,9 @@ export function useHRDocuments() {
   const uploadDocument = async (folderId: string, file: File, description?: string) => {
     if (!user || !profile) return;
     try {
+      const { validateFile } = await import('@/lib/fileValidation');
+      const validation = validateFile(file, 'documents');
+      if (!validation.valid) { toast.error(validation.error); return; }
       const fileExt = file.name.split('.').pop();
       const filePath = `${folderId}/${Date.now()}_${file.name}`;
 

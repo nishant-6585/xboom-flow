@@ -30,7 +30,10 @@ export function AttachmentsSection({
     const newUrls: string[] = [];
 
     try {
+      const { validateFile } = await import('@/lib/fileValidation');
       for (const file of Array.from(files)) {
+        const validation = validateFile(file, 'documents');
+        if (!validation.valid) { toast.error(validation.error); continue; }
         const fileExt = file.name.split('.').pop();
         const fileName = `${bucketPath}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 

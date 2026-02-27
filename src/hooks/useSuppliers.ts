@@ -326,9 +326,12 @@ export function useSupplierPayments(supplierId?: string) {
   }, [fetchPayments]);
 
   const uploadScreenshots = async (files: File[]): Promise<string[]> => {
+    const { validateFile } = await import('@/lib/fileValidation');
     const urls: string[] = [];
     
     for (const file of files) {
+      const validation = validateFile(file, 'screenshots');
+      if (!validation.valid) { console.error('Skipping invalid file:', validation.error); continue; }
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}-${file.name}`;
       const filePath = `${user?.id}/${fileName}`;
       
