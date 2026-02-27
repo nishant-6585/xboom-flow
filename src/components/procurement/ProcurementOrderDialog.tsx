@@ -155,6 +155,9 @@ export function ProcurementOrderDialog({
 
     try {
       setUploading(true);
+      const { validateFile } = await import('@/lib/fileValidation');
+      const validation = validateFile(poFile, 'documents');
+      if (!validation.valid) { toast.error(validation.error); setUploading(false); return; }
       const fileExt = poFile.name.split('.').pop();
       const fileName = `${order.id}-${Date.now()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;

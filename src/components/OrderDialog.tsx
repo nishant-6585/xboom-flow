@@ -191,6 +191,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     
     setInvoiceUploading(true);
     try {
+      const { validateFile } = await import('@/lib/fileValidation');
+      const validation = validateFile(file, 'invoices');
+      if (!validation.valid) { toast.error(validation.error); setInvoiceUploading(false); return; }
       const fileExt = file.name.split('.').pop();
       const fileName = `${order.id}-${Date.now()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
@@ -245,6 +248,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     
     setPoUploading(true);
     try {
+      const { validateFile } = await import('@/lib/fileValidation');
+      const validation = validateFile(file, 'documents');
+      if (!validation.valid) { toast.error(validation.error); setPoUploading(false); return; }
       const fileExt = file.name.split('.').pop();
       const fileName = `${order.id}-${Date.now()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;

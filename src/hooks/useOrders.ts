@@ -382,9 +382,12 @@ export function useOrders() {
     }
 
     try {
+      const { validateFile } = await import('@/lib/fileValidation');
       // Upload invoice file if provided
       let invoiceUrl = formData.invoice_url;
       if (invoiceFile) {
+        const invValidation = validateFile(invoiceFile, 'invoices');
+        if (!invValidation.valid) { toast.error(invValidation.error); return false; }
         const fileExt = invoiceFile.name.split('.').pop();
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
         const filePath = `${user.id}/${fileName}`;
@@ -408,6 +411,8 @@ export function useOrders() {
       if (poFiles && poFiles.length > 0) {
         const uploadedPoUrls: string[] = [];
         for (const poFile of poFiles) {
+          const poValidation = validateFile(poFile, 'documents');
+          if (!poValidation.valid) { console.error('Skipping invalid PO:', poValidation.error); continue; }
           const fileExt = poFile.name.split('.').pop();
           const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
           const filePath = `${user.id}/${fileName}`;
@@ -491,6 +496,8 @@ export function useOrders() {
         try {
           const uploadedPaymentUrls: string[] = [];
           for (const paymentFile of paymentFiles) {
+            const payValidation = validateFile(paymentFile, 'screenshots');
+            if (!payValidation.valid) { console.error('Skipping invalid payment file:', payValidation.error); continue; }
             const fileExt = paymentFile.name.split('.').pop();
             const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
             const filePath = `${user.id}/${fileName}`;

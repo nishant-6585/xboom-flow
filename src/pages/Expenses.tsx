@@ -103,6 +103,9 @@ export default function Expenses() {
 
   const uploadReceipt = async (file: File): Promise<string | null> => {
     try {
+      const { validateFile } = await import('@/lib/fileValidation');
+      const validation = validateFile(file, 'screenshots');
+      if (!validation.valid) { toast.error(validation.error); return null; }
       const fileExt = file.name.split('.').pop();
       const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
       

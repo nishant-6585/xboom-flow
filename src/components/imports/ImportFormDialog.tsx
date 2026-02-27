@@ -251,6 +251,9 @@ export function ImportFormDialog({
 
     setUploadingField(fieldName);
     try {
+      const { validateFile } = await import('@/lib/fileValidation');
+      const validation = validateFile(file, 'imports');
+      if (!validation.valid) { toast.error(validation.error); setUploadingField(null); return; }
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `${user.id}/${fieldName}/${fileName}`;

@@ -270,6 +270,9 @@ export function useImports() {
 
   const uploadDocument = async (file: File, importId: string, documentType: string) => {
     try {
+      const { validateFile } = await import('@/lib/fileValidation');
+      const validation = validateFile(file, 'imports');
+      if (!validation.valid) { toast.error(validation.error); return null; }
       const fileExt = file.name.split('.').pop();
       const fileName = `${importId}/${documentType}-${Date.now()}.${fileExt}`;
 

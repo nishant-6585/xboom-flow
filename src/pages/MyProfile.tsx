@@ -90,8 +90,10 @@ const MyProfile = () => {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: "File too large", description: "Max 2MB allowed.", variant: "destructive" });
+    const { validateFile } = await import('@/lib/fileValidation');
+    const validation = validateFile(file, 'avatars');
+    if (!validation.valid) {
+      toast({ title: "Invalid file", description: validation.error, variant: "destructive" });
       return;
     }
     setUploading(true);

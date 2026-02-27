@@ -125,9 +125,12 @@ export function useTrainings() {
   }, []);
 
   const uploadPictures = async (files: File[], trainingId: string): Promise<string[]> => {
+    const { validateFile } = await import('@/lib/fileValidation');
     const uploadedUrls: string[] = [];
     
     for (const file of files) {
+      const validation = validateFile(file, 'images');
+      if (!validation.valid) { console.error('Skipping invalid file:', validation.error); continue; }
       const fileExt = file.name.split('.').pop();
       const fileName = `${trainingId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       

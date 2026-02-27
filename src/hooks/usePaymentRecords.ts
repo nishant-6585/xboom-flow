@@ -115,6 +115,9 @@ export function usePaymentRecords(orderId?: string) {
 
   const uploadScreenshot = async (file: File): Promise<string | null> => {
     try {
+      const { validateFile } = await import('@/lib/fileValidation');
+      const validation = validateFile(file, 'screenshots');
+      if (!validation.valid) { toast.error(validation.error); return null; }
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `${user?.id}/${fileName}`;

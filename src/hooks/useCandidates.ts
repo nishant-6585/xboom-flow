@@ -207,6 +207,9 @@ export function useCandidateMutations() {
 
   const uploadCV = useMutation({
     mutationFn: async ({ candidateId, file }: { candidateId: string; file: File }) => {
+      const { validateFile } = await import('@/lib/fileValidation');
+      const validation = validateFile(file, 'cvs');
+      if (!validation.valid) throw new Error(validation.error);
       const ext = file.name.split(".").pop();
       const path = `${candidateId}/${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage
