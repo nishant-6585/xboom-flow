@@ -80,10 +80,67 @@ Admin creates invitation (user_invitations table)
 | Event | Behavior |
 |---|---|
 | Sign in | JWT issued, profile + roles fetched, session recorded in `user_sessions` |
-| Token refresh | Automatic via Supabase SDK |
-| Sign out | `supabase.auth.signOut()` — clears local state, marks session inactive |
-| Idle timeout | Managed by Supabase token expiry |
+| Token refresh | Automatic via Supabase SDK — does **NOT** reset idle timer |
+| Sign out | `supabase.auth.signOut()` — marks session inactive with `revocation_reason = 'SIGNED_OUT'` |
+| Idle timeout | **12 hours** of no user-initiated activity → forced logout |
+| Absolute timeout | **5 calendar days** from login → forced logout regardless of activity |
 | Session revoke | User can revoke individual sessions from Security Settings |
+
+### 1.4.1 Session Lifecycle Policy ✅ (Implemented)
+
+> **Bounded exposure window** — no session can live indefinitely.
+
+#### Timeouts
+
+| Policy | Value | Enforcement |
+|---|---|---|
+| Idle Timeout | **12 hours** since last user-initiated activity | Client-side validation every 60s via `useSessionPolicy` |
+| Absolute Timeout | **5 calendar days** from `session_started_at` | Client-side validation every 60s via `useSessionPolicy` |
+
+#### Activity Definition
+
+"Activity" = a **user-initiated interaction** (click, keypress, form submit). The following do **NOT** reset the idle timer:
+- Automatic JWT token refresh
+- Passive page loads without interaction
+- Silent SDK operations
+
+Activity updates are debounced (30s window) to reduce DB writes.
+
+#### Enforcement
+
+The `useSessionPolicy` hook runs inside `ProtectedRoute` and:
+1. Validates the session immediately on mount
+2. Re-validates every 60 seconds
+3. Updates `last_activity_at` on real user interactions (debounced)
+
+```
+Fetch session WHERE user_id = current AND is_current = true
+├─ No record → FORCE LOGOUT (fail-closed)
+├─ revoked_at IS NOT NULL → FORCE LOGOUT
+├─ now() - started_at > 5 days → ABSOLUTE_TIMEOUT
+├─ now() - last_active_at > 12h → IDLE_TIMEOUT
+└─ Valid → update last_activity_at
+```
+
+#### Revocation Reasons
+
+| Code | Trigger |
+|---|---|
+| `IDLE_TIMEOUT` | No activity for 12h |
+| `ABSOLUTE_TIMEOUT` | 5 days since login |
+| `SIGNED_OUT` | User sign out |
+| `USER_REVOKED` | Manual revocation |
+| `PASSWORD_CHANGED` | Password change |
+
+#### Audit
+
+Timeout events logged to `security_audit_log` with action `SESSION_IDLE_TIMEOUT` or `SESSION_ABSOLUTE_TIMEOUT`, including device fingerprint.
+
+#### Schema
+
+```sql
+ALTER TABLE user_sessions ADD COLUMN revocation_reason TEXT;
+```
 
 ### 1.5 Login Rate Limiting & Account Lock
 

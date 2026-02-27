@@ -1,5 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useSessionPolicy } from "@/hooks/useSessionPolicy";
+import { useActivityTracker } from "@/hooks/useActivityTracker";
 import { Loader2, Clock, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +15,8 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute = ({ children, requireApproval = true }: ProtectedRouteProps) => {
   const { user, loading, isApproved, signOut, profile, mfaStatus, refreshMfaStatus } = useAuth();
+  const { recordActivity } = useSessionPolicy(user?.id, signOut);
+  useActivityTracker(recordActivity);
 
   if (loading) {
     return (
