@@ -183,10 +183,16 @@ const Auth = () => {
             variant: "destructive",
           });
         } else {
-          toast({
-            title: "Welcome back!",
-            description: "You have successfully logged in.",
-          });
+          // Check if MFA verification is pending before showing success
+          const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+          const hasMfaPending = aalData?.currentLevel === "aal1" && aalData?.nextLevel === "aal2";
+          
+          if (!hasMfaPending) {
+            toast({
+              title: "Welcome back!",
+              description: "You have successfully logged in.",
+            });
+          }
           navigate("/");
         }
       } else {

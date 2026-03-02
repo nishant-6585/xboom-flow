@@ -81,6 +81,10 @@ export const MFAVerification = ({ onVerified, onCancel }: MFAVerificationProps) 
         return;
       }
 
+      toast({
+        title: "Welcome back!",
+        description: "MFA verification successful.",
+      });
       onVerified();
     } catch (e) {
       toast({
