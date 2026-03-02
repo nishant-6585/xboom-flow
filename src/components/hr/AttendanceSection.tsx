@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { AttendanceLog } from '@/hooks/useHR';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
-import { ProvisionalCorrectionModal } from '@/components/attendance/ProvisionalCorrectionModal';
+import { CorrectionRequestModal } from '@/components/attendance/CorrectionRequestModal';
 
 interface AttendanceSectionProps {
   todayAttendance: AttendanceLog | null;
@@ -381,13 +381,13 @@ export function AttendanceSection({
         </CardContent>
       </Card>
 
-      {/* Correction modal */}
+      {/* Correction request modal */}
       {correctionLog && (
-        <ProvisionalCorrectionModal
+        <CorrectionRequestModal
           log={correctionLog}
           open={!!correctionLog}
           onOpenChange={open => { if (!open) setCorrectionLog(null); }}
-          onCorrected={() => {
+          onSubmitted={() => {
             setCorrectionLog(null);
             onRefresh?.();
           }}

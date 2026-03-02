@@ -192,6 +192,81 @@ export type Database = {
           },
         ]
       }
+      attendance_correction_requests: {
+        Row: {
+          attendance_log_id: string
+          created_at: string
+          current_check_in_time: string | null
+          current_check_out_time: string | null
+          employee_id: string
+          id: string
+          reason: string
+          requested_by: string
+          requested_by_name: string
+          requested_check_in_time: string | null
+          requested_check_out_time: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewed_by_name: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attendance_log_id: string
+          created_at?: string
+          current_check_in_time?: string | null
+          current_check_out_time?: string | null
+          employee_id: string
+          id?: string
+          reason: string
+          requested_by: string
+          requested_by_name: string
+          requested_check_in_time?: string | null
+          requested_check_out_time?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewed_by_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attendance_log_id?: string
+          created_at?: string
+          current_check_in_time?: string | null
+          current_check_out_time?: string | null
+          employee_id?: string
+          id?: string
+          reason?: string
+          requested_by?: string
+          requested_by_name?: string
+          requested_check_in_time?: string | null
+          requested_check_out_time?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewed_by_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_correction_requests_attendance_log_id_fkey"
+            columns: ["attendance_log_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_correction_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_logs: {
         Row: {
           approved_by: string | null
