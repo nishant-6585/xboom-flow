@@ -13,6 +13,7 @@ export type TaskType =
   | 'mega_deal_review'
   | 'quotation_request'
   | 'order_confirmation'
+  | 'hr_task'
   | 'custom';
 
 export type TaskStatus = 'new' | 'in_progress' | 'awaiting_approval' | 'completed';
@@ -83,6 +84,7 @@ export const TASK_TYPES: { value: TaskType; label: string }[] = [
   { value: 'mega_deal_review', label: 'Mega Deal Review' },
   { value: 'quotation_request', label: 'Quotation Request' },
   { value: 'order_confirmation', label: 'Order Confirmation' },
+  { value: 'hr_task', label: 'HR Task' },
   { value: 'custom', label: 'Custom Task' },
 ];
 
