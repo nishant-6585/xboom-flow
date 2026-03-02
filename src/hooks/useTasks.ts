@@ -189,7 +189,7 @@ export function useTasks() {
         ...formData,
         assigned_by: user.id,
         assigned_by_name: profile.name,
-      });
+      } as any);
 
       if (error) throw error;
       toast.success('Task created successfully');
@@ -214,7 +214,7 @@ export function useTasks() {
 
       const { error } = await supabase
         .from('tasks')
-        .update(updates)
+        .update(updates as any)
         .eq('id', id);
 
       if (error) throw error;
@@ -355,7 +355,7 @@ export function useTasks() {
 
       const { error } = await supabase
         .from('tasks')
-        .update(updates)
+        .update(updates as any)
         .eq('id', taskId);
 
       if (error) throw error;
