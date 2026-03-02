@@ -57,6 +57,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (profileData) {
         setProfile(profileData as Profile);
+      } else {
+        setProfile(null);
       }
 
       // Fetch all roles (user may have multiple)
@@ -73,6 +75,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Check MFA status for admin users
         await checkMfaStatus(userRoles);
       } else {
+        setRoles([]);
+        setRole(null);
         setMfaStatus("not_required");
       }
     } catch (error) {
@@ -147,15 +151,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
 
-        // Defer Supabase calls with setTimeout to prevent deadlock
+        // Re-hydrate auth data on every signed-in state transition and block UI until complete
         if (session?.user) {
+          setLoading(true);
           setTimeout(() => {
-            fetchUserData(session.user.id);
+            fetchUserData(session.user.id).finally(() => {
+              setLoading(false);
+            });
           }, 0);
         } else {
           setProfile(null);
           setRole(null);
           setRoles([]);
+          setMfaStatus("not_required");
+          setLoading(false);
         }
 
         if (event === "SIGNED_OUT") {
@@ -170,6 +179,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
+        setLoading(true);
         fetchUserData(session.user.id).finally(() => {
           setLoading(false);
         });
