@@ -46,6 +46,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [mfaStatus, setMfaStatus] = useState<MfaStatus>("not_required");
   const lastHydratedUserIdRef = useRef<string | null>(null);
+  const isBootstrappedRef = useRef(false);
 
   const fetchUserData = async (userId: string) => {
     try {
@@ -154,20 +155,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
 
-        // Skip noisy auth events for already-hydrated sessions to avoid UI flash on tab switch
-        if (
-          event === "TOKEN_REFRESHED" ||
-          (event === "SIGNED_IN" && session?.user && lastHydratedUserIdRef.current === session.user.id)
-        ) {
+        const incomingUserId = session?.user?.id ?? null;
+        const isSameHydratedUser =
+          !!incomingUserId && lastHydratedUserIdRef.current === incomingUserId;
+
+        // Skip noisy events that happen on tab focus/background refresh
+        if (event === "TOKEN_REFRESHED" || (event === "SIGNED_IN" && isSameHydratedUser)) {
           return;
         }
 
-        // Re-hydrate auth data on meaningful state transitions (INITIAL_SESSION, SIGNED_IN on new user, USER_UPDATED)
-        if (session?.user) {
-          setLoading(true);
+        if (incomingUserId) {
+          // Only block UI during first bootstrap or when user identity actually changes
+          const shouldBlockUi = !isBootstrappedRef.current || !isSameHydratedUser;
+          if (shouldBlockUi) setLoading(true);
+
           setTimeout(() => {
-            fetchUserData(session.user.id).finally(() => {
-              setLoading(false);
+            fetchUserData(incomingUserId).finally(() => {
+              isBootstrappedRef.current = true;
+              if (shouldBlockUi) setLoading(false);
             });
           }, 0);
         } else {
@@ -176,6 +181,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setRoles([]);
           setMfaStatus("not_required");
           lastHydratedUserIdRef.current = null;
+          isBootstrappedRef.current = true;
           setLoading(false);
         }
 
@@ -185,19 +191,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
-    // THEN check for existing session
+    // THEN check for existing session (without forcing duplicate hydration)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        setLoading(true);
-        fetchUserData(session.user.id).finally(() => {
-          setLoading(false);
-        });
-      } else {
+
+      const incomingUserId = session?.user?.id ?? null;
+      if (!incomingUserId) {
+        isBootstrappedRef.current = true;
         setLoading(false);
+        return;
       }
+
+      if (lastHydratedUserIdRef.current === incomingUserId) {
+        isBootstrappedRef.current = true;
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      fetchUserData(incomingUserId).finally(() => {
+        isBootstrappedRef.current = true;
+        setLoading(false);
+      });
     });
 
     return () => subscription.unsubscribe();
