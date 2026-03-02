@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from "react";
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { recordSession } from "@/lib/sessionTracking";
@@ -45,6 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [mfaStatus, setMfaStatus] = useState<MfaStatus>("not_required");
+  const lastHydratedUserIdRef = useRef<string | null>(null);
 
   const fetchUserData = async (userId: string) => {
     try {
@@ -79,6 +80,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setRole(null);
         setMfaStatus("not_required");
       }
+
+      lastHydratedUserIdRef.current = userId;
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
@@ -151,12 +154,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
 
-        // Skip re-fetching on token refresh to avoid reload flash when switching tabs
-        if (event === "TOKEN_REFRESHED") {
+        // Skip noisy auth events for already-hydrated sessions to avoid UI flash on tab switch
+        if (
+          event === "TOKEN_REFRESHED" ||
+          (event === "SIGNED_IN" && session?.user && lastHydratedUserIdRef.current === session.user.id)
+        ) {
           return;
         }
 
-        // Re-hydrate auth data on meaningful state transitions (SIGNED_IN, INITIAL_SESSION, etc.)
+        // Re-hydrate auth data on meaningful state transitions (INITIAL_SESSION, SIGNED_IN on new user, USER_UPDATED)
         if (session?.user) {
           setLoading(true);
           setTimeout(() => {
@@ -169,6 +175,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setRole(null);
           setRoles([]);
           setMfaStatus("not_required");
+          lastHydratedUserIdRef.current = null;
           setLoading(false);
         }
 
