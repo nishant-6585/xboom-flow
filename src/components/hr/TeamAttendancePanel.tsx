@@ -24,6 +24,7 @@ import {
 import { Employee, AttendanceLog } from '@/hooks/useHR';
 import { cn } from '@/lib/utils';
 import { ProvisionalCorrectionModal } from '@/components/attendance/ProvisionalCorrectionModal';
+import { PendingCorrectionApprovals } from '@/components/attendance/PendingCorrectionApprovals';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -363,6 +364,9 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
             </CardContent>
           </Card>
         )}
+
+        {/* Pending Correction Requests */}
+        <PendingCorrectionApprovals />
 
         {/* Live Status Table */}
         <LiveStatusTable liveRows={liveRows} loading={loadingToday} onRefresh={fetchToday} />
