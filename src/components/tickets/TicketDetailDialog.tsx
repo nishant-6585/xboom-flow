@@ -104,6 +104,7 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
   const [activeTab, setActiveTab] = useState("details");
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [showResolutionForm, setShowResolutionForm] = useState(false);
   const [editData, setEditData] = useState({ subject: "", description: "", category: "" as TicketCategory, priority: "" as string });
 
   // Use the fresh ticket data from the query cache instead of the stale prop
@@ -452,39 +453,71 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                         <Label>Update Status</Label>
                         <Select
                           value={ticket.status}
-                          onValueChange={(value: TicketStatus) => handleStatusChange(value)}
+                          onValueChange={(value: TicketStatus) => {
+                            if (value === "resolved") {
+                              setShowResolutionForm(true);
+                            } else {
+                              handleStatusChange(value);
+                            }
+                          }}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {statusFlow.map((status) => (
+                            {statusFlow.filter(s => s !== "resolved").map((status) => (
                               <SelectItem key={status} value={status}>
                                 {status.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                               </SelectItem>
                             ))}
+                            <SelectItem value="resolved">Resolved</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
 
-                    {ticket.status === "in_progress" && (
-                      <div className="space-y-2">
-                        <Label>Resolution Notes</Label>
-                        <Textarea
-                          value={resolutionNotes}
-                          onChange={(e) => setResolutionNotes(e.target.value)}
-                          placeholder="Add resolution notes before marking as resolved..."
-                          rows={3}
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() => handleStatusChange("resolved")}
-                          disabled={updateTicket.isPending}
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-2" />
-                          Mark as Resolved
-                        </Button>
+                    {showResolutionForm && (
+                      <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                        <h4 className="font-medium text-sm flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                          Resolve Ticket
+                        </h4>
+                        <div className="space-y-2">
+                          <Label>Resolution Notes <span className="text-destructive">*</span></Label>
+                          <Textarea
+                            value={resolutionNotes}
+                            onChange={(e) => setResolutionNotes(e.target.value)}
+                            placeholder="Describe how the issue was resolved..."
+                            rows={3}
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              if (!resolutionNotes.trim()) return;
+                              await handleStatusChange("resolved");
+                              setShowResolutionForm(false);
+                            }}
+                            disabled={updateTicket.isPending || !resolutionNotes.trim()}
+                          >
+                            {updateTicket.isPending ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="w-4 h-4 mr-2" />
+                            )}
+                            Submit & Resolve
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowResolutionForm(false)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>
