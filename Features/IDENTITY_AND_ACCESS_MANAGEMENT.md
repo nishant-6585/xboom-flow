@@ -238,6 +238,12 @@ All functions use `SET search_path TO 'public'` to prevent schema poisoning.
 - Block all app routes until MFA is satisfied
 - Log MFA state changes to `security_audit_log`
 
+**UI Isolation Rule:**
+- Application shell (sidebar, header, floating action buttons, attendance controls, command palette) is **not mounted** until MFA verification is complete.
+- MFA enrollment and verification screens render in a standalone isolated layout (centered card, no app shell).
+- The `AuthGuardedWidgets` component gates all global protected UI on `mfaStatus` in addition to authentication state.
+- Deep links to protected routes while MFA is pending redirect to the MFA screen without rendering any protected components.
+
 ---
 
 ## 3. User Approval Gate
