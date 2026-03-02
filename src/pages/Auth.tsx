@@ -183,17 +183,21 @@ const Auth = () => {
             variant: "destructive",
           });
         } else {
-          // Check if MFA verification is pending before showing success
+          // Check if MFA verification is pending before navigating
           const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
           const hasMfaPending = aalData?.currentLevel === "aal1" && aalData?.nextLevel === "aal2";
           
-          if (!hasMfaPending) {
+          if (hasMfaPending) {
+            // Stay on auth page — ProtectedRoute will not mount dashboard
+            // MFA screen will be shown via the auth flow
+            navigate("/mfa-verify", { replace: true });
+          } else {
             toast({
               title: "Welcome back!",
               description: "You have successfully logged in.",
             });
+            navigate("/");
           }
-          navigate("/");
         }
       } else {
         const { error } = await signUp(email, password, name, team);
