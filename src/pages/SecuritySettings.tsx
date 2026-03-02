@@ -17,9 +17,8 @@ import {
 import { useNavigate } from "react-router-dom";
 
 const SecuritySettings = () => {
-  const { user, profile, roles, mfaStatus, refreshMfaStatus, signOut } = useAuth();
+  const { user, profile, mfaStatus, refreshMfaStatus, signOut } = useAuth();
   const [showEnrollment, setShowEnrollment] = useState(false);
-  const [disablingMfa, setDisablingMfa] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -112,28 +111,7 @@ const SecuritySettings = () => {
     }
   };
 
-  const isAdmin = roles.includes("admin");
-
-  const handleDisableMfa = async () => {
-    setDisablingMfa(true);
-    try {
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      const totpFactor = factors?.totp?.[0];
-      if (totpFactor) {
-        const { error } = await supabase.auth.mfa.unenroll({ factorId: totpFactor.id });
-        if (error) {
-          toast({ title: "Error", description: error.message, variant: "destructive" });
-          return;
-        }
-        toast({ title: "MFA Disabled", description: "Two-factor authentication has been removed." });
-        refreshMfaStatus();
-      }
-    } catch {
-      toast({ title: "Error", description: "Failed to disable MFA.", variant: "destructive" });
-    } finally {
-      setDisablingMfa(false);
-    }
-  };
+  // MFA is mandatory for all users — no disable option
 
   if (showEnrollment) {
     return (
@@ -263,9 +241,7 @@ const SecuritySettings = () => {
                   Two-Factor Authentication
                 </CardTitle>
                 <CardDescription>
-                  {isAdmin
-                    ? "MFA is required for all admin accounts."
-                    : "Add an extra layer of security to your account."}
+                  MFA is mandatory for all accounts to protect the system.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -294,35 +270,9 @@ const SecuritySettings = () => {
                   </Badge>
                 </div>
 
-                {/* Action buttons */}
-                {mfaStatus === "verified" ? (
-                  !isAdmin && (
-                    <Button
-                      variant="outline"
-                      className="text-destructive hover:text-destructive"
-                      onClick={handleDisableMfa}
-                      disabled={disablingMfa}
-                    >
-                      {disablingMfa && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                      <ShieldOff className="w-4 h-4 mr-2" />
-                      Disable MFA
-                    </Button>
-                  )
-                ) : (
-                  <Button onClick={() => setShowEnrollment(true)}>
-                    <ShieldCheck className="w-4 h-4 mr-2" />
-                    Enable MFA
-                  </Button>
-                )}
-
-                {isAdmin && mfaStatus !== "verified" && (
-                  <p className="text-xs text-warning">
-                    ⚠️ As an admin, MFA is mandatory. You will be prompted to set it up.
-                  </p>
-                )}
-                {isAdmin && mfaStatus === "verified" && (
+                {mfaStatus === "verified" && (
                   <p className="text-xs text-muted-foreground">
-                    MFA cannot be disabled for admin accounts.
+                    ✅ MFA is active and cannot be disabled. Your account is protected.
                   </p>
                 )}
               </CardContent>

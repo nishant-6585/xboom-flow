@@ -88,16 +88,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const checkMfaStatus = useCallback(async (userRoles: AppRole[]) => {
-    const isAdmin = userRoles.includes("admin");
-
+  const checkMfaStatus = useCallback(async (_userRoles: AppRole[]) => {
     try {
       // Always check AAL level first — this is the source of truth
       const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (aalError) {
         console.error("AAL check error:", aalError);
-        // Fail-closed for admins, fail-open for others
-        setMfaStatus(isAdmin ? "verification_required" : "not_required");
+        // Fail-closed: require verification on error
+        setMfaStatus("verification_required");
         return;
       }
 
@@ -111,7 +109,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { data, error } = await supabase.auth.mfa.listFactors();
       if (error) {
         console.error("MFA factor list error:", error);
-        setMfaStatus(isAdmin ? "verification_required" : "not_required");
+        setMfaStatus("verification_required");
         return;
       }
 
@@ -123,18 +121,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // No factors enrolled
-      if (isAdmin) {
-        // Admins MUST enroll
-        setMfaStatus("enrollment_required");
-      } else {
-        // Non-admin without factors → no MFA required
-        setMfaStatus("not_required");
-      }
+      // No factors enrolled — ALL users must enroll
+      setMfaStatus("enrollment_required");
     } catch (e) {
       console.error("MFA status check failed:", e);
-      // Fail-closed for admins
-      setMfaStatus(isAdmin ? "verification_required" : "not_required");
+      // Fail-closed: require verification on error
+      setMfaStatus("verification_required");
     }
   }, []);
 
