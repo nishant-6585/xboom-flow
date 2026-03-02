@@ -41,6 +41,7 @@ import MyProfile from "./pages/MyProfile";
 import ChangePassword from "./pages/ChangePassword";
 import Preferences from "./pages/Preferences";
 import MyActivity from "./pages/MyActivity";
+import MFAVerify from "./pages/MFAVerify";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -59,6 +60,7 @@ function AppInner() {
     <>
       <Routes>
         <Route path="/auth" element={<Auth />} />
+        <Route path="/mfa-verify" element={<MFAVerify />} />
         <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
         <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
