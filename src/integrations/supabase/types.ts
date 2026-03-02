@@ -6523,6 +6523,7 @@ export type Database = {
         | "custom"
         | "meeting_reminder"
         | "low_stock_alert"
+        | "hr_task"
       ticket_category:
         | "general_inquiry"
         | "order_issue"
@@ -6791,6 +6792,7 @@ export const Constants = {
         "custom",
         "meeting_reminder",
         "low_stock_alert",
+        "hr_task",
       ],
       ticket_category: [
         "general_inquiry",
