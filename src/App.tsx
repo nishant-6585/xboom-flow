@@ -96,10 +96,13 @@ function AppInner() {
   );
 }
 
-/** Renders global widgets only when user is authenticated */
+/** Renders global widgets only when user is fully authenticated (including MFA) */
 function AuthGuardedWidgets({ isMobile }: { isMobile: boolean }) {
-  const { user } = useAuth();
+  const { user, mfaStatus, isApproved } = useAuth();
+  // Do not render any protected UI until authentication AND MFA verification are complete
   if (!user) return null;
+  if (!isApproved) return null;
+  if (mfaStatus === "enrollment_required" || mfaStatus === "verification_required") return null;
   return (
     <>
       <FloatingActionButton />
