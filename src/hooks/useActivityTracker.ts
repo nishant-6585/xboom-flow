@@ -9,12 +9,14 @@ import { useEffect, useRef } from "react";
  * - Background token refresh
  * - Automated/silent requests
  */
-export function useActivityTracker(onActivity: () => void) {
+export function useActivityTracker(onActivity: (() => void) | undefined) {
   const onActivityRef = useRef(onActivity);
   onActivityRef.current = onActivity;
 
   useEffect(() => {
-    const handler = () => onActivityRef.current();
+    if (!onActivityRef.current) return;
+
+    const handler = () => onActivityRef.current?.();
 
     // Track real user interactions only
     window.addEventListener("click", handler, { passive: true });
@@ -26,5 +28,5 @@ export function useActivityTracker(onActivity: () => void) {
       window.removeEventListener("keydown", handler);
       window.removeEventListener("submit", handler);
     };
-  }, []);
+  }, [onActivity]);
 }

@@ -244,6 +244,13 @@ All functions use `SET search_path TO 'public'` to prevent schema poisoning.
 - The `AuthGuardedWidgets` component gates all global protected UI on `mfaStatus` in addition to authentication state.
 - Deep links to protected routes while MFA is pending redirect to the MFA screen without rendering any protected components.
 
+**AAL2 Enforcement:**
+- Password-authenticated users (AAL1) are **not** considered fully authenticated. Full application access requires `getAuthenticatorAssuranceLevel()` to return `aal2`.
+- Session policy hooks (`useSessionPolicy`, `useActivityTracker`) are **not activated** until AAL2 is confirmed, preventing session creation before MFA completion.
+- The `checkMfaStatus` function uses AAL level as the **source of truth** — if AAL is already `aal2`, the user is verified regardless of factor list state.
+- Non-admin users who have voluntarily enrolled TOTP factors are also required to complete MFA verification (AAL2) before accessing protected routes.
+- Admin MFA checks are **fail-closed**: any error during AAL/factor checks results in `verification_required` status, blocking access.
+
 ---
 
 ## 3. User Approval Gate
