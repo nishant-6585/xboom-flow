@@ -132,7 +132,7 @@ export const MFAEnrollment = ({ onComplete, onSkip }: MFAEnrollmentProps) => {
             </div>
             <CardTitle className="text-2xl">Enable Two-Factor Authentication</CardTitle>
             <CardDescription>
-              As an administrator, MFA is required to protect your account and the system.
+              MFA is required for all accounts to protect the system. Set up your authenticator to continue.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -149,11 +149,6 @@ export const MFAEnrollment = ({ onComplete, onSkip }: MFAEnrollmentProps) => {
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Set Up MFA
             </Button>
-            {onSkip && (
-              <Button variant="ghost" onClick={onSkip} className="w-full text-muted-foreground">
-                Cancel
-              </Button>
-            )}
           </CardContent>
         </Card>
       </div>
