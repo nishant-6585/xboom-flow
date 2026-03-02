@@ -15,8 +15,11 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute = ({ children, requireApproval = true }: ProtectedRouteProps) => {
   const { user, loading, isApproved, signOut, profile, mfaStatus, refreshMfaStatus } = useAuth();
-  const { recordActivity } = useSessionPolicy(user?.id, signOut);
-  useActivityTracker(recordActivity);
+
+  // Only activate session policy and activity tracking after full authentication (including MFA)
+  const isFullyAuthenticated = !!user && isApproved && mfaStatus !== "enrollment_required" && mfaStatus !== "verification_required";
+  const { recordActivity } = useSessionPolicy(isFullyAuthenticated ? user?.id : undefined, signOut);
+  useActivityTracker(isFullyAuthenticated ? recordActivity : undefined);
 
   if (loading) {
     return (

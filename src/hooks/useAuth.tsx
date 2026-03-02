@@ -82,40 +82,51 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const checkMfaStatus = useCallback(async (userRoles: AppRole[]) => {
     const isAdmin = userRoles.includes("admin");
-    if (!isAdmin) {
-      setMfaStatus("not_required");
-      return;
-    }
 
     try {
+      // Always check AAL level first — this is the source of truth
+      const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aalError) {
+        console.error("AAL check error:", aalError);
+        // Fail-closed for admins, fail-open for others
+        setMfaStatus(isAdmin ? "verification_required" : "not_required");
+        return;
+      }
+
+      // If already at AAL2, user is fully verified
+      if (aalData.currentLevel === "aal2") {
+        setMfaStatus("verified");
+        return;
+      }
+
+      // At AAL1 — check if user has TOTP factors enrolled
       const { data, error } = await supabase.auth.mfa.listFactors();
       if (error) {
-        console.error("MFA check error:", error);
-        setMfaStatus("not_required"); // fail-open
+        console.error("MFA factor list error:", error);
+        setMfaStatus(isAdmin ? "verification_required" : "not_required");
         return;
       }
 
       const verifiedFactors = data.totp.filter((f) => f.status === "verified");
-      if (verifiedFactors.length === 0) {
+
+      if (verifiedFactors.length > 0) {
+        // Has enrolled factors but AAL is not aal2 → needs verification
+        setMfaStatus("verification_required");
+        return;
+      }
+
+      // No factors enrolled
+      if (isAdmin) {
+        // Admins MUST enroll
         setMfaStatus("enrollment_required");
-        return;
-      }
-
-      // Check AAL level — if aal2 not reached, need verification
-      const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (aalError) {
-        setMfaStatus("verification_required");
-        return;
-      }
-
-      if (aalData.currentLevel === "aal2") {
-        setMfaStatus("verified");
       } else {
-        setMfaStatus("verification_required");
+        // Non-admin without factors → no MFA required
+        setMfaStatus("not_required");
       }
     } catch (e) {
       console.error("MFA status check failed:", e);
-      setMfaStatus("not_required");
+      // Fail-closed for admins
+      setMfaStatus(isAdmin ? "verification_required" : "not_required");
     }
   }, []);
 
