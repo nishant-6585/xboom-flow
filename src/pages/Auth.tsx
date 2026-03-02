@@ -184,12 +184,12 @@ const Auth = () => {
           });
         } else {
           // Check if MFA verification is pending before navigating
-          const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-          const hasMfaPending = aalData?.currentLevel === "aal1" && aalData?.nextLevel === "aal2";
+          const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+          const hasMfaPending =
+            !!aalError || (aalData?.currentLevel !== "aal2" && aalData?.nextLevel === "aal2");
           
           if (hasMfaPending) {
-            // Stay on auth page — ProtectedRoute will not mount dashboard
-            // MFA screen will be shown via the auth flow
+            // Never navigate through dashboard while second factor is still pending
             navigate("/mfa-verify", { replace: true });
           } else {
             toast({
