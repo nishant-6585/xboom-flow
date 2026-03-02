@@ -151,7 +151,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
 
-        // Re-hydrate auth data on every signed-in state transition and block UI until complete
+        // Skip re-fetching on token refresh to avoid reload flash when switching tabs
+        if (event === "TOKEN_REFRESHED") {
+          return;
+        }
+
+        // Re-hydrate auth data on meaningful state transitions (SIGNED_IN, INITIAL_SESSION, etc.)
         if (session?.user) {
           setLoading(true);
           setTimeout(() => {
