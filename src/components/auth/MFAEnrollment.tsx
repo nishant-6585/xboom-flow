@@ -26,6 +26,16 @@ export const MFAEnrollment = ({ onComplete, onSkip }: MFAEnrollmentProps) => {
   const startEnrollment = async () => {
     setLoading(true);
     try {
+      // Clean up any existing unverified factors to avoid "already exists" error
+      const { data: factorsData } = await supabase.auth.mfa.listFactors();
+      if (factorsData?.totp) {
+        for (const factor of factorsData.totp) {
+          if ((factor as any).status !== "verified") {
+            await supabase.auth.mfa.unenroll({ factorId: factor.id });
+          }
+        }
+      }
+
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: "totp",
         friendlyName: "Xboom OS Authenticator",
