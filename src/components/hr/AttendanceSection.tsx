@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { format, parseISO, isAfter } from 'date-fns';
+import { format, parseISO, isAfter, eachDayOfInterval, startOfMonth, endOfMonth, isWeekend, isFuture, isToday } from 'date-fns';
 import { ChevronLeft, ChevronRight, Download, Clock, TrendingUp, CalendarCheck, AlertTriangle, Pencil } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -74,9 +74,12 @@ export function AttendanceSection({
     : isOnBreak ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
     : 'bg-green-100 text-green-700 border-green-200';
 
-  // Monthly stats (no calendar needed)
-
-  // Monthly stats
+  // Monthly stats - count all non-weekend, non-future days
+  const monthStart = startOfMonth(calendarMonth);
+  const monthEnd = endOfMonth(calendarMonth);
+  const allMonthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const workingDaysUpToToday = allMonthDays.filter(d => d.getDay() !== 0 && (!isFuture(d) || isToday(d)));
+  
   const presentDays = attendanceLogs.filter(l => l.status === 'present').length;
   const totalWorkHours = attendanceLogs.reduce((s, l) => s + (l.working_hours || 0), 0);
 
@@ -186,82 +189,146 @@ export function AttendanceSection({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {attendanceLogs.map(log => {
-                    const isProvisional = !!log.is_provisional_checkout;
-                    const windowOpen = isCorrectionWindowOpen(log);
-                    const canEdit = isHROrAdmin || (isProvisional && windowOpen);
-                    const canRequestCorrection = !isHROrAdmin && !canEdit && !!log.check_in_time;
+                  {(() => {
+                    const monthStart = startOfMonth(calendarMonth);
+                    const monthEnd = endOfMonth(calendarMonth);
+                    const today = new Date();
+                    const allDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+                    
+                    // Build a map of logs by date string
+                    const logsByDate: Record<string, AttendanceLog> = {};
+                    attendanceLogs.forEach(log => {
+                      logsByDate[log.date] = log;
+                    });
 
-                    return (
-                      <TableRow key={log.id} className={cn(isProvisional && 'bg-amber-50/50 dark:bg-amber-950/10')}>
-                        <TableCell className="text-xs font-medium whitespace-nowrap">
-                          {format(parseISO(log.date), 'dd MMM, EEE')}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1.5">
-                            <div className={cn('w-2 h-2 rounded-full shrink-0', STATUS_COLORS[log.status] || 'bg-muted')} />
-                            <span className="text-xs">{STATUS_TEXT[log.status] || log.status}</span>
-                            {isProvisional && windowOpen && (
-                              <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-950/30">
-                                <AlertTriangle className="h-2.5 w-2.5" />
-                              </Badge>
-                            )}
-                            {log.corrected_at && !isProvisional && (
-                              <Badge variant="outline" className="text-[10px] px-1 py-0 border-green-400 bg-green-50 text-green-700 dark:bg-green-950/30">✓</Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {log.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {log.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}
-                        </TableCell>
-                        <TableCell className="text-xs font-medium">
-                          {(log.working_hours || 0).toFixed(1)}h
-                        </TableCell>
-                        <TableCell className="text-xs hidden sm:table-cell">
-                          {log.total_break_minutes ? `${Math.round(log.total_break_minutes)}m` : '—'}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-6 px-1.5 text-[10px] gap-0.5 border-blue-400 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
-                                  onClick={() => { setCorrectionMode('checkin'); setCorrectionLog(log); }}
-                                >
-                                  <Clock className="h-3 w-3" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="left" className="text-xs">
-                                {isHROrAdmin ? 'Correct check-in' : 'Request check-in correction'}
-                              </TooltipContent>
-                            </Tooltip>
-                            {(canEdit || canRequestCorrection || log.check_out_time) && (
+                    // Only show days up to today (not future days)
+                    const visibleDays = allDays.filter(day => !isFuture(day) || isToday(day));
+
+                    return visibleDays.reverse().map(day => {
+                      const dateStr = format(day, 'yyyy-MM-dd');
+                      const log = logsByDate[dateStr];
+                      const isSunday = day.getDay() === 0;
+
+                      if (!log) {
+                        // No attendance record for this day
+                        const dayStatus = isSunday ? 'weekend' : 'absent';
+                        const dayStatusText = isSunday ? 'Weekend' : 'Absent';
+                        const dayStatusColor = isSunday ? 'bg-muted-foreground/30' : 'bg-red-500';
+
+                        return (
+                          <TableRow key={dateStr} className={cn(isSunday && 'opacity-50')}>
+                            <TableCell className="text-xs font-medium whitespace-nowrap">
+                              {format(day, 'dd MMM, EEE')}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1.5">
+                                <div className={cn('w-2 h-2 rounded-full shrink-0', dayStatusColor)} />
+                                <span className="text-xs">{dayStatusText}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs">—</TableCell>
+                            <TableCell className="text-xs">—</TableCell>
+                            <TableCell className="text-xs font-medium">0.0h</TableCell>
+                            <TableCell className="text-xs hidden sm:table-cell">—</TableCell>
+                            <TableCell className="text-right">
+                              {!isSunday && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-6 px-1.5 text-[10px] gap-0.5 border-blue-400 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                                      onClick={() => { /* No log to correct for absent days without record */ }}
+                                      disabled
+                                    >
+                                      <Clock className="h-3 w-3" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left" className="text-xs">No record to correct</TooltipContent>
+                                </Tooltip>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
+
+                      // Existing log row
+                      const isProvisional = !!log.is_provisional_checkout;
+                      const windowOpen = isCorrectionWindowOpen(log);
+                      const canEdit = isHROrAdmin || (isProvisional && windowOpen);
+                      const canRequestCorrection = !isHROrAdmin && !canEdit && !!log.check_in_time;
+
+                      return (
+                        <TableRow key={log.id} className={cn(isProvisional && 'bg-amber-50/50 dark:bg-amber-950/10')}>
+                          <TableCell className="text-xs font-medium whitespace-nowrap">
+                            {format(parseISO(log.date), 'dd MMM, EEE')}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <div className={cn('w-2 h-2 rounded-full shrink-0', STATUS_COLORS[log.status] || 'bg-muted')} />
+                              <span className="text-xs">{STATUS_TEXT[log.status] || log.status}</span>
+                              {isProvisional && windowOpen && (
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-950/30">
+                                  <AlertTriangle className="h-2.5 w-2.5" />
+                                </Badge>
+                              )}
+                              {log.corrected_at && !isProvisional && (
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 border-green-400 bg-green-50 text-green-700 dark:bg-green-950/30">✓</Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {log.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {log.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}
+                          </TableCell>
+                          <TableCell className="text-xs font-medium">
+                            {(log.working_hours || 0).toFixed(1)}h
+                          </TableCell>
+                          <TableCell className="text-xs hidden sm:table-cell">
+                            {log.total_break_minutes ? `${Math.round(log.total_break_minutes)}m` : '—'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-6 px-1.5 text-[10px] gap-0.5 border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
-                                    onClick={() => { setCorrectionMode('checkout'); setCorrectionLog(log); }}
+                                    className="h-6 px-1.5 text-[10px] gap-0.5 border-blue-400 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                                    onClick={() => { setCorrectionMode('checkin'); setCorrectionLog(log); }}
                                   >
-                                    <Pencil className="h-3 w-3" />
+                                    <Clock className="h-3 w-3" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="left" className="text-xs">
-                                  {isHROrAdmin ? 'Correct checkout' : 'Request checkout correction'}
+                                  {isHROrAdmin ? 'Correct check-in' : 'Request check-in correction'}
                                 </TooltipContent>
                               </Tooltip>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                              {(canEdit || canRequestCorrection || log.check_out_time) && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-6 px-1.5 text-[10px] gap-0.5 border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                                      onClick={() => { setCorrectionMode('checkout'); setCorrectionLog(log); }}
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left" className="text-xs">
+                                    {isHROrAdmin ? 'Correct checkout' : 'Request checkout correction'}
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    });
+                  })()}
                 </TableBody>
               </Table>
             </div>
