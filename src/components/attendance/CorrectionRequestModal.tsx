@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { AttendanceLog } from '@/hooks/useHR';
 import { useAttendanceCorrectionRequests } from '@/hooks/useAttendanceCorrectionRequests';
 
-type CorrectionMode = 'checkout' | 'checkin';
+type CorrectionMode = 'checkout' | 'checkin' | 'both';
 
 interface CorrectionRequestModalProps {
   log: AttendanceLog;
@@ -26,19 +26,18 @@ export function CorrectionRequestModal({
   open,
   onOpenChange,
   onSubmitted,
-  mode = 'checkout',
+  mode = 'both',
 }: CorrectionRequestModalProps) {
   const { submitRequest } = useAttendanceCorrectionRequests();
 
-  const [newTime, setNewTime] = useState(() => {
-    if (mode === 'checkin' && log.check_in_time) return format(parseISO(log.check_in_time), 'HH:mm');
-    if (mode === 'checkout' && log.check_out_time) return format(parseISO(log.check_out_time), 'HH:mm');
-    return '';
-  });
+  const [newCheckInTime, setNewCheckInTime] = useState(() =>
+    log.check_in_time ? format(parseISO(log.check_in_time), 'HH:mm') : ''
+  );
+  const [newCheckOutTime, setNewCheckOutTime] = useState(() =>
+    log.check_out_time ? format(parseISO(log.check_out_time), 'HH:mm') : ''
+  );
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
-
-  const isCheckin = mode === 'checkin';
 
   const checkInDisplay = log.check_in_time
     ? format(parseISO(log.check_in_time), 'hh:mm a')
@@ -48,42 +47,58 @@ export function CorrectionRequestModal({
     ? format(parseISO(log.check_out_time), 'hh:mm a')
     : '—';
 
+  const buildCorrectedDate = (timeStr: string) => {
+    const logDate = parseISO(log.date);
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const d = new Date(logDate);
+    d.setHours(hours, minutes, 0, 0);
+    return d;
+  };
+
   const handleSubmit = async () => {
-    if (!newTime) {
-      toast.error(`Please enter the ${isCheckin ? 'check-in' : 'checkout'} time`);
-      return;
-    }
     if (!reason.trim()) {
       toast.error('Please provide a reason for the correction');
       return;
     }
 
-    const logDate = parseISO(log.date);
-    const [hours, minutes] = newTime.split(':').map(Number);
-    const correctedDate = new Date(logDate);
-    correctedDate.setHours(hours, minutes, 0, 0);
+    const hasCheckInChange = newCheckInTime && newCheckInTime !== (log.check_in_time ? format(parseISO(log.check_in_time), 'HH:mm') : '');
+    const hasCheckOutChange = newCheckOutTime && newCheckOutTime !== (log.check_out_time ? format(parseISO(log.check_out_time), 'HH:mm') : '');
 
-    if (isCheckin) {
-      // Check-in cannot be in the future
-      if (correctedDate > new Date()) {
+    if (!hasCheckInChange && !hasCheckOutChange) {
+      toast.error('Please change at least one time field');
+      return;
+    }
+
+    const now = new Date();
+    let requestedCheckIn = log.check_in_time;
+    let requestedCheckOut = log.check_out_time;
+
+    if (hasCheckInChange) {
+      const corrected = buildCorrectedDate(newCheckInTime);
+      if (corrected > now) {
         toast.error('Check-in time cannot be in the future');
         return;
       }
-      // If checkout exists, check-in must be before checkout
-      if (log.check_out_time && correctedDate >= new Date(log.check_out_time)) {
+      const effectiveCheckout = hasCheckOutChange ? buildCorrectedDate(newCheckOutTime) : (log.check_out_time ? new Date(log.check_out_time) : null);
+      if (effectiveCheckout && corrected >= effectiveCheckout) {
         toast.error('Check-in time must be before checkout time');
         return;
       }
-    } else {
-      // Checkout validation
-      if (log.check_in_time && correctedDate <= new Date(log.check_in_time)) {
+      requestedCheckIn = corrected.toISOString();
+    }
+
+    if (hasCheckOutChange) {
+      const corrected = buildCorrectedDate(newCheckOutTime);
+      const effectiveCheckIn = hasCheckInChange ? buildCorrectedDate(newCheckInTime) : (log.check_in_time ? new Date(log.check_in_time) : null);
+      if (effectiveCheckIn && corrected <= effectiveCheckIn) {
         toast.error('Checkout time must be after check-in time');
         return;
       }
-      if (correctedDate > new Date()) {
+      if (corrected > now) {
         toast.error('Checkout time cannot be in the future');
         return;
       }
+      requestedCheckOut = corrected.toISOString();
     }
 
     setSaving(true);
@@ -93,8 +108,8 @@ export function CorrectionRequestModal({
         employee_id: log.employee_id,
         current_check_in_time: log.check_in_time,
         current_check_out_time: log.check_out_time,
-        requested_check_in_time: isCheckin ? correctedDate.toISOString() : log.check_in_time,
-        requested_check_out_time: isCheckin ? log.check_out_time : correctedDate.toISOString(),
+        requested_check_in_time: requestedCheckIn,
+        requested_check_out_time: requestedCheckOut,
         reason: reason.trim(),
       });
 
@@ -113,13 +128,16 @@ export function CorrectionRequestModal({
     }
   };
 
+  const showCheckIn = mode === 'checkin' || mode === 'both';
+  const showCheckOut = mode === 'checkout' || mode === 'both';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-amber-500" />
-            {isCheckin ? 'Request Check-In Correction' : 'Request Checkout Correction'}
+            Regularize Attendance
           </DialogTitle>
         </DialogHeader>
 
@@ -148,34 +166,48 @@ export function CorrectionRequestModal({
           <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/40 p-3">
             <div className="space-y-0.5">
               <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Clock className="h-3 w-3" /> Check-in
+                <Clock className="h-3 w-3" /> Current Check-in
               </p>
-              <p className={`text-sm font-semibold ${isCheckin ? 'text-amber-600 dark:text-amber-400' : ''}`}>
-                {checkInDisplay}
-              </p>
+              <p className="text-sm font-semibold">{checkInDisplay}</p>
             </div>
             <div className="space-y-0.5">
               <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Clock className="h-3 w-3" /> Checkout
+                <Clock className="h-3 w-3" /> Current Checkout
               </p>
-              <p className={`text-sm font-semibold ${!isCheckin ? 'text-amber-600 dark:text-amber-400' : ''}`}>
-                {currentCheckoutDisplay}
-              </p>
+              <p className="text-sm font-semibold">{currentCheckoutDisplay}</p>
             </div>
           </div>
 
-          {/* Editable time */}
-          <div className="space-y-1.5">
-            <Label htmlFor="corrected-time" className="text-sm">
-              {isCheckin ? 'Actual Check-In Time' : 'Actual Checkout Time'}
-            </Label>
-            <Input
-              id="corrected-time"
-              type="time"
-              value={newTime}
-              onChange={e => setNewTime(e.target.value)}
-              className="h-10"
-            />
+          {/* Editable times */}
+          <div className="grid grid-cols-2 gap-3">
+            {showCheckIn && (
+              <div className="space-y-1.5">
+                <Label htmlFor="corrected-checkin" className="text-sm">
+                  Actual Check-In Time
+                </Label>
+                <Input
+                  id="corrected-checkin"
+                  type="time"
+                  value={newCheckInTime}
+                  onChange={e => setNewCheckInTime(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+            )}
+            {showCheckOut && (
+              <div className="space-y-1.5">
+                <Label htmlFor="corrected-checkout" className="text-sm">
+                  Actual Checkout Time
+                </Label>
+                <Input
+                  id="corrected-checkout"
+                  type="time"
+                  value={newCheckOutTime}
+                  onChange={e => setNewCheckOutTime(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+            )}
           </div>
 
           {/* Reason (mandatory) */}
@@ -185,9 +217,7 @@ export function CorrectionRequestModal({
             </Label>
             <Textarea
               id="correction-reason"
-              placeholder={isCheckin
-                ? 'e.g. Forgot to check in, was present from 9 AM...'
-                : 'e.g. Forgot to check out, was working until 7 PM...'}
+              placeholder="e.g. Forgot to check in/out, system error, was working remotely..."
               value={reason}
               onChange={e => setReason(e.target.value)}
               rows={2}
@@ -202,7 +232,7 @@ export function CorrectionRequestModal({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={saving || !newTime || !reason.trim()}
+            disabled={saving || !reason.trim()}
             className="bg-amber-600 hover:bg-amber-700 text-white gap-1"
           >
             <Send className="h-3.5 w-3.5" />

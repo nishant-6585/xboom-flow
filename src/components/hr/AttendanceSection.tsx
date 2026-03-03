@@ -56,7 +56,6 @@ export function AttendanceSection({
 }: AttendanceSectionProps & { onRefresh?: () => void }) {
   const { role } = useAuth();
   const [correctionLog, setCorrectionLog] = useState<AttendanceLog | null>(null);
-  const [correctionMode, setCorrectionMode] = useState<'checkout' | 'checkin'>('checkout');
   const { getHoliday } = useHolidays(calendarMonth.getFullYear());
 
   const isHROrAdmin = role === 'admin' || role === 'hr';
@@ -295,40 +294,22 @@ export function AttendanceSection({
                             {log.total_break_minutes ? `${Math.round(log.total_break_minutes)}m` : '—'}
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-6 px-1.5 text-[10px] gap-0.5 border-blue-400 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
-                                    onClick={() => { setCorrectionMode('checkin'); setCorrectionLog(log); }}
-                                  >
-                                    <Clock className="h-3 w-3" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent side="left" className="text-xs">
-                                  {isHROrAdmin ? 'Correct check-in' : 'Request check-in correction'}
-                                </TooltipContent>
-                              </Tooltip>
-                              {(canEdit || canRequestCorrection || log.check_out_time) && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-6 px-1.5 text-[10px] gap-0.5 border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
-                                      onClick={() => { setCorrectionMode('checkout'); setCorrectionLog(log); }}
-                                    >
-                                      <Pencil className="h-3 w-3" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="left" className="text-xs">
-                                    {isHROrAdmin ? 'Correct checkout' : 'Request checkout correction'}
-                                  </TooltipContent>
-                                </Tooltip>
-                              )}
-                            </div>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 px-2 text-[10px] gap-1 border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                                  onClick={() => setCorrectionLog(log)}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                  Regularize
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="text-xs">
+                                {isHROrAdmin ? 'Correct attendance' : 'Request attendance correction'}
+                              </TooltipContent>
+                            </Tooltip>
                           </TableCell>
                         </TableRow>
                       );
@@ -357,11 +338,12 @@ export function AttendanceSection({
           log={correctionLog}
           open={!!correctionLog}
           onOpenChange={open => { if (!open) setCorrectionLog(null); }}
+          mode="both"
           onSubmitted={() => {
             setCorrectionLog(null);
             onRefresh?.();
           }}
-          mode={correctionMode}
+          
         />
       )}
     </div>
