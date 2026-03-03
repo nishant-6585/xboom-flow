@@ -28,7 +28,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Mail, Phone, MapPin, Briefcase, Building2, IndianRupee,
-  Clock, Upload, Download, Trash2, Plus, Star, Edit, FileText
+  Clock, Upload, Download, Trash2, Plus, Star, Edit, FileText,
+  Calendar, UserCheck, ClipboardList
 } from "lucide-react";
 import {
   Candidate,
@@ -48,6 +49,15 @@ const decisionConfig = {
   pass: { label: "Pass", className: "bg-green-500/10 text-green-600 border-green-500/20" },
   reject: { label: "Reject", className: "bg-red-500/10 text-red-600 border-red-500/20" },
   hold: { label: "Hold", className: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20" },
+};
+
+const sourceLabels: Record<string, string> = {
+  Referral: "Referral", Naukri: "Naukri", LinkedIn: "LinkedIn",
+  Website: "Website", Consultant: "Consultant", "Walk-in": "Walk-in", Other: "Other",
+};
+
+const employmentLabels: Record<string, string> = {
+  "Full-time": "Full-time", Contract: "Contract", Intern: "Intern",
 };
 
 interface Props {
@@ -100,9 +110,12 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
               <div className="flex-1 min-w-0">
                 <DialogTitle className="text-xl">{candidate.full_name}</DialogTitle>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  {candidate.candidate_number && (
+                    <Badge variant="outline" className="text-xs font-mono">{candidate.candidate_number}</Badge>
+                  )}
                   <CandidateStatusBadge status={candidate.status} />
-                  {candidate.source && (
-                    <Badge variant="outline" className="text-xs">{candidate.source}</Badge>
+                  {candidate.application_source && (
+                    <Badge variant="outline" className="text-xs">{sourceLabels[candidate.application_source] || candidate.application_source}</Badge>
                   )}
                 </div>
               </div>
@@ -139,21 +152,21 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
                 <span>{candidate.phone}</span>
               </div>
             )}
-            {candidate.location && (
+            {(candidate.location_city || candidate.location) && (
               <div className="flex items-center gap-2 text-sm">
                 <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
-                <span>{candidate.location}</span>
+                <span>{[candidate.location_city, candidate.location_state].filter(Boolean).join(", ") || candidate.location}</span>
               </div>
             )}
             {candidate.current_company && (
               <div className="flex items-center gap-2 text-sm">
                 <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
-                <span>{candidate.current_company}</span>
+                <span>{candidate.current_company}{candidate.current_designation ? ` · ${candidate.current_designation}` : ""}</span>
               </div>
             )}
             <div className="flex items-center gap-2 text-sm">
               <Briefcase className="w-4 h-4 text-muted-foreground shrink-0" />
-              <span>{fmtExp(candidate.years_of_experience)} experience</span>
+              <span>{fmtExp(candidate.years_of_experience)} total{candidate.relevant_experience_years != null ? ` · ${fmtExp(candidate.relevant_experience_years)} relevant` : ""}</span>
             </div>
             {candidate.notice_period_days !== undefined && candidate.notice_period_days !== null && (
               <div className="flex items-center gap-2 text-sm">
@@ -161,17 +174,59 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
                 <span>{candidate.notice_period_days} days notice</span>
               </div>
             )}
+            {candidate.employment_type && (
+              <div className="flex items-center gap-2 text-sm">
+                <ClipboardList className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span>{employmentLabels[candidate.employment_type] || candidate.employment_type}</span>
+              </div>
+            )}
           </div>
+
+          {/* Hiring Info */}
+          {(candidate.job_role_applied || candidate.department || candidate.recruiter_name || candidate.screening_status || candidate.final_status) && (
+            <div className="p-3 bg-muted/30 rounded-lg space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Hiring Info</p>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                {candidate.job_role_applied && <div><span className="text-muted-foreground">Role: </span>{candidate.job_role_applied}</div>}
+                {candidate.department && <div><span className="text-muted-foreground">Dept: </span>{candidate.department}</div>}
+                {candidate.recruiter_name && <div><span className="text-muted-foreground">Recruiter: </span>{candidate.recruiter_name}</div>}
+                {candidate.screening_status && <div><span className="text-muted-foreground">Screening: </span><span className="capitalize">{candidate.screening_status.replace("_", " ")}</span></div>}
+                {candidate.interview_stage && <div><span className="text-muted-foreground">Stage: </span><span className="capitalize">{candidate.interview_stage}</span></div>}
+                {candidate.final_status && <div><span className="text-muted-foreground">Final: </span><span className="capitalize">{candidate.final_status}</span></div>}
+              </div>
+            </div>
+          )}
+
+          {/* Compliance */}
+          {(candidate.offer_letter_issued || candidate.joining_date) && (
+            <div className="p-3 bg-muted/30 rounded-lg space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Compliance</p>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                {candidate.offer_letter_issued !== undefined && (
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="w-4 h-4 text-muted-foreground" />
+                    <span>Offer Letter: {candidate.offer_letter_issued ? "✅ Issued" : "Not issued"}</span>
+                  </div>
+                )}
+                {candidate.joining_date && (
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                    <span>Joining: {new Date(candidate.joining_date).toLocaleDateString()}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* CTC */}
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 bg-muted/50 rounded-lg">
               <p className="text-xs text-muted-foreground mb-1">Current CTC</p>
-              <p className="font-semibold flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5" />{candidate.current_ctc !== undefined && candidate.current_ctc !== null ? `${candidate.current_ctc} LPA` : "—"}</p>
+              <p className="font-semibold flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5" />{candidate.current_ctc != null ? `${candidate.current_ctc} LPA` : "—"}</p>
             </div>
             <div className="p-3 bg-muted/50 rounded-lg">
               <p className="text-xs text-muted-foreground mb-1">Expected CTC</p>
-              <p className="font-semibold flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5" />{candidate.expected_ctc !== undefined && candidate.expected_ctc !== null ? `${candidate.expected_ctc} LPA` : "—"}</p>
+              <p className="font-semibold flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5" />{candidate.expected_ctc != null ? `${candidate.expected_ctc} LPA` : "—"}</p>
             </div>
           </div>
 
@@ -187,11 +242,23 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
             </div>
           )}
 
-          {/* Notes */}
+          {/* Notes / Remarks / Rejection Reason */}
           {candidate.notes && (
             <div className="space-y-1">
               <p className="text-sm font-medium">Notes</p>
               <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">{candidate.notes}</p>
+            </div>
+          )}
+          {candidate.remarks && (
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Remarks</p>
+              <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">{candidate.remarks}</p>
+            </div>
+          )}
+          {candidate.rejection_reason && (
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-destructive">Rejection Reason</p>
+              <p className="text-sm text-muted-foreground bg-destructive/5 p-3 rounded-lg border border-destructive/10">{candidate.rejection_reason}</p>
             </div>
           )}
 
@@ -310,6 +377,14 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
               </div>
             )}
           </div>
+
+          {/* Follow-up */}
+          {candidate.follow_up_date && (
+            <div className="flex items-center gap-2 text-sm p-3 bg-primary/5 rounded-lg border border-primary/10">
+              <Calendar className="w-4 h-4 text-primary" />
+              <span>Follow-up: {new Date(candidate.follow_up_date).toLocaleDateString()}</span>
+            </div>
+          )}
 
           <div className="text-xs text-muted-foreground pt-2 border-t border-border">
             Added by {candidate.created_by_name || "Unknown"} · {new Date(candidate.created_at).toLocaleDateString()}

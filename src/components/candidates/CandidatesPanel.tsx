@@ -31,7 +31,10 @@ import {
 import {
   UserPlus, Search, Filter, Trash2, Eye, Briefcase, MapPin, Users, TrendingUp, UserCheck, UserX
 } from "lucide-react";
-import { useCandidates, CandidateStatus, useCandidateMutations, Candidate } from "@/hooks/useCandidates";
+import {
+  useCandidates, CandidateStatus, ScreeningStatus, InterviewStage,
+  useCandidateMutations, Candidate
+} from "@/hooks/useCandidates";
 import { CandidateStatusBadge } from "./CandidateStatusBadge";
 import { CandidateFormDialog } from "./CandidateFormDialog";
 import { CandidateDetailDialog } from "./CandidateDetailDialog";
@@ -45,9 +48,34 @@ const STATUSES: { value: CandidateStatus | "all"; label: string }[] = [
   { value: "blacklisted", label: "Blacklisted" },
 ];
 
+const SCREENING_OPTS: { value: ScreeningStatus | "all"; label: string }[] = [
+  { value: "all", label: "All Screening" },
+  { value: "New", label: "New" },
+  { value: "Shortlisted", label: "Shortlisted" },
+  { value: "Rejected", label: "Rejected" },
+  { value: "On Hold", label: "On Hold" },
+];
+
+const STAGE_OPTS: { value: InterviewStage | "all"; label: string }[] = [
+  { value: "all", label: "All Stages" },
+  { value: "HR", label: "HR" },
+  { value: "Technical", label: "Technical" },
+  { value: "Managerial", label: "Managerial" },
+  { value: "Final", label: "Final" },
+];
+
+const screeningBadge: Record<string, string> = {
+  New: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+  Shortlisted: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
+  Rejected: "bg-red-500/10 text-red-600 border-red-500/20",
+  "On Hold": "bg-orange-500/10 text-orange-600 border-orange-500/20",
+};
+
 export function CandidatesPanel() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<CandidateStatus | "all">("all");
+  const [screeningStatus, setScreeningStatus] = useState<ScreeningStatus | "all">("all");
+  const [interviewStage, setInterviewStage] = useState<InterviewStage | "all">("all");
   const [minExp, setMinExp] = useState("");
   const [maxExp, setMaxExp] = useState("");
   const [addOpen, setAddOpen] = useState(false);
@@ -57,6 +85,8 @@ export function CandidatesPanel() {
   const { candidates, isLoading } = useCandidates({
     search,
     status,
+    screeningStatus,
+    interviewStage,
     minExperience: minExp ? Number(minExp) : undefined,
     maxExperience: maxExp ? Number(maxExp) : undefined,
   });
@@ -83,7 +113,7 @@ export function CandidatesPanel() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-lg font-semibold">Candidate Database</h2>
-          <p className="text-sm text-muted-foreground">Manage all candidates — selected, rejected, and archived</p>
+          <p className="text-sm text-muted-foreground">ATS-ready recruitment tracking</p>
         </div>
         <Button onClick={() => setAddOpen(true)}>
           <UserPlus className="w-4 h-4 mr-2" />
@@ -104,24 +134,44 @@ export function CandidatesPanel() {
         ))}
       </div>
 
-      {/* Filters */}
+      {/* Filters Row 1 */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             className="pl-9"
-            placeholder="Search by name, email, company..."
+            placeholder="Search by name, email, ID, role, recruiter..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         <Select value={status} onValueChange={(v) => setStatus(v as any)}>
-          <SelectTrigger className="w-full sm:w-44">
+          <SelectTrigger className="w-full sm:w-40">
             <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Filters Row 2 */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Select value={screeningStatus} onValueChange={(v) => setScreeningStatus(v as any)}>
+          <SelectTrigger className="w-full sm:w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SCREENING_OPTS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={interviewStage} onValueChange={(v) => setInterviewStage(v as any)}>
+          <SelectTrigger className="w-full sm:w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STAGE_OPTS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
           </SelectContent>
         </Select>
         <div className="flex items-center gap-2">
@@ -148,18 +198,21 @@ export function CandidatesPanel() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>ID</TableHead>
                 <TableHead>Candidate</TableHead>
-                <TableHead className="hidden sm:table-cell">Experience</TableHead>
-                <TableHead className="hidden md:table-cell">Location</TableHead>
-                <TableHead className="hidden lg:table-cell">CTC Range</TableHead>
+                <TableHead className="hidden md:table-cell">Role Applied</TableHead>
+                <TableHead className="hidden lg:table-cell">Recruiter</TableHead>
+                <TableHead className="hidden sm:table-cell">Screening</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="hidden sm:table-cell">Skills</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {candidates.map((c) => (
                 <TableRow key={c.id} className="cursor-pointer" onClick={() => setDetailCandidate(c)}>
+                  <TableCell>
+                    <span className="text-xs font-mono text-muted-foreground">{c.candidate_number || "—"}</span>
+                  </TableCell>
                   <TableCell>
                     <div>
                       <p className="font-medium">{c.full_name}</p>
@@ -171,37 +224,20 @@ export function CandidatesPanel() {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell">
-                    {c.years_of_experience !== undefined && c.years_of_experience !== null
-                      ? `${c.years_of_experience} yr${c.years_of_experience !== 1 ? "s" : ""}`
-                      : "—"}
-                  </TableCell>
                   <TableCell className="hidden md:table-cell">
-                    {c.location ? (
-                      <span className="flex items-center gap-1 text-sm">
-                        <MapPin className="w-3 h-3" />{c.location}
-                      </span>
-                    ) : "—"}
+                    <span className="text-sm">{c.job_role_applied || "—"}</span>
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
-                    <div className="text-sm">
-                      {c.current_ctc != null ? <span className="text-muted-foreground">₹{c.current_ctc}L</span> : null}
-                      {c.current_ctc != null && c.expected_ctc != null ? <span className="text-muted-foreground"> → </span> : null}
-                      {c.expected_ctc != null ? <span className="font-medium">₹{c.expected_ctc}L</span> : null}
-                      {c.current_ctc == null && c.expected_ctc == null ? "—" : null}
-                    </div>
+                    <span className="text-sm">{c.recruiter_name || "—"}</span>
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    {c.screening_status ? (
+                      <Badge variant="outline" className={`text-xs capitalize ${screeningBadge[c.screening_status] || ""}`}>
+                        {c.screening_status.replace("_", " ")}
+                      </Badge>
+                    ) : "—"}
                   </TableCell>
                   <TableCell><CandidateStatusBadge status={c.status} /></TableCell>
-                  <TableCell className="hidden sm:table-cell">
-                    <div className="flex flex-wrap gap-1 max-w-[200px]">
-                      {c.primary_skills?.slice(0, 3).map((s) => (
-                        <Badge key={s} variant="secondary" className="text-[10px] px-1.5 py-0">{s}</Badge>
-                      ))}
-                      {(c.primary_skills?.length || 0) > 3 && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">+{c.primary_skills!.length - 3}</Badge>
-                      )}
-                    </div>
-                  </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetailCandidate(c)}>
