@@ -34,6 +34,9 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Search, Package, Download, Upload, MoreVertical } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import useEmployeeAssets, {
   EmployeeAsset,
@@ -42,7 +45,6 @@ import useEmployeeAssets, {
   AssetFormData,
 } from "@/hooks/useEmployeeAssets";
 import { AssetFormDialog } from "./AssetFormDialog";
-import { AssetCard } from "./AssetCard";
 import { AssetImportDialog } from "./AssetImportDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -358,16 +360,62 @@ export function AssetManagementPanel() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredAssets.map((asset) => (
-            <AssetCard
-              key={asset.id}
-              asset={asset}
-              onEdit={handleEdit}
-              onDelete={(id) => setDeleteConfirmId(id)}
-              onMarkReturned={(asset) => setReturnDialogAsset(asset)}
-            />
-          ))}
+        <div className="rounded-md border overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Asset Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Employee</TableHead>
+                <TableHead>Brand / Model</TableHead>
+                <TableHead>Serial Number</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Assigned Date</TableHead>
+                <TableHead className="text-right">Price</TableHead>
+                <TableHead className="w-10"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredAssets.map((asset) => {
+                const statusInfo = ASSET_STATUSES.find((s) => s.value === asset.status);
+                const typeLabel = ASSET_TYPES.find((t) => t.value === asset.asset_type)?.label || asset.asset_type;
+                return (
+                  <TableRow key={asset.id}>
+                    <TableCell className="font-medium">{asset.asset_name}</TableCell>
+                    <TableCell>{typeLabel}</TableCell>
+                    <TableCell>{asset.employees?.name || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">{[asset.brand, asset.model].filter(Boolean).join(" • ") || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground font-mono text-xs">{asset.serial_number || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">{asset.phone_number || "—"}</TableCell>
+                    <TableCell>
+                      <Badge className={statusInfo?.color || "bg-muted"}>
+                        {statusInfo?.label || asset.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{format(new Date(asset.assigned_date), "dd MMM yyyy")}</TableCell>
+                    <TableCell className="text-right">{asset.purchase_price ? `₹${asset.purchase_price.toLocaleString()}` : "—"}</TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEdit(asset)}>Edit</DropdownMenuItem>
+                          {asset.status === "assigned" && (
+                            <DropdownMenuItem onClick={() => setReturnDialogAsset(asset)}>Mark Returned</DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => setDeleteConfirmId(asset.id)} className="text-destructive">Delete</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
       )}
 
