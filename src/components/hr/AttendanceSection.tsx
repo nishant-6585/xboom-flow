@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday, parseISO, isAfter } from 'date-fns';
-import { ChevronLeft, ChevronRight, Download, Clock, TrendingUp, CalendarCheck, AlertTriangle, Pencil, Lock } from 'lucide-react';
+import { format, parseISO, isAfter } from 'date-fns';
+import { ChevronLeft, ChevronRight, Download, Clock, TrendingUp, CalendarCheck, AlertTriangle, Pencil } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AttendanceLog } from '@/hooks/useHR';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -36,63 +37,6 @@ const STATUS_TEXT: Record<string, string> = {
   holiday: 'Holiday',
 };
 
-function DayDetailPanel({ log, date, onClose }: { log: AttendanceLog | null; date: Date; onClose: () => void }) {
-  return (
-    <div className="p-4 bg-muted/30 rounded-xl mt-3 space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="font-medium text-sm">{format(date, 'EEEE, dd MMM yyyy')}</p>
-        <div className="flex items-center gap-2">
-          {log && <Badge variant="outline" className="text-xs">{STATUS_TEXT[log.status] || log.status}</Badge>}
-          <button onClick={onClose} className="text-muted-foreground text-xs hover:text-foreground">✕</button>
-        </div>
-      </div>
-      {!log ? (
-        <p className="text-sm text-muted-foreground">No attendance record for this day.</p>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <p className="text-muted-foreground text-xs">Check In</p>
-              <p className="font-medium">{log.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground text-xs">Check Out</p>
-              <div className="flex items-center gap-1.5">
-                <p className="font-medium">{log.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}</p>
-                {log.is_provisional_checkout && (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-yellow-400 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 gap-1">
-                    <AlertTriangle className="h-2.5 w-2.5" />
-                    Provisional
-                  </Badge>
-                )}
-              </div>
-            </div>
-            <div>
-              <p className="text-muted-foreground text-xs">Work Hours</p>
-              <p className="font-medium">{log.working_hours?.toFixed(1) || '0.0'}h</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground text-xs">Break Time</p>
-              <p className="font-medium">{Math.round(log.total_break_minutes || 0)}m</p>
-            </div>
-          </div>
-          {log.is_provisional_checkout && (
-            <p className="text-xs text-yellow-700 dark:text-yellow-400 flex items-center gap-1">
-              <AlertTriangle className="h-3 w-3 shrink-0" />
-              Auto-marked checkout. You can correct this from the Attendance tab.
-            </p>
-          )}
-          {log.corrected_at && (
-            <p className="text-xs text-green-600 dark:text-green-400">
-              ✓ Corrected on {format(new Date(log.corrected_at), 'dd MMM, hh:mm a')}
-            </p>
-          )}
-          {log.notes && <p className="text-xs text-muted-foreground">Note: {log.notes}</p>}
-        </>
-      )}
-    </div>
-  );
-}
 
 // Correction window: until 11:59 PM of the day AFTER the log date
 function isCorrectionWindowOpen(log: AttendanceLog): boolean {
@@ -110,7 +54,6 @@ export function AttendanceSection({
   onRefresh,
 }: AttendanceSectionProps & { onRefresh?: () => void }) {
   const { role } = useAuth();
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [correctionLog, setCorrectionLog] = useState<AttendanceLog | null>(null);
   const [correctionMode, setCorrectionMode] = useState<'checkout' | 'checkin'>('checkout');
 
@@ -131,19 +74,7 @@ export function AttendanceSection({
     : isOnBreak ? 'bg-yellow-100 text-yellow-700 border-yellow-200'
     : 'bg-green-100 text-green-700 border-green-200';
 
-  // Calendar
-  const start = startOfMonth(calendarMonth);
-  const end = endOfMonth(calendarMonth);
-  const days = eachDayOfInterval({ start, end });
-  const startPadding = getDay(start);
-  const paddedDays: (Date | null)[] = [...Array(startPadding).fill(null), ...days];
-
-  const getLogForDate = (date: Date): AttendanceLog | undefined => {
-    const dateStr = format(date, 'yyyy-MM-dd');
-    return attendanceLogs.find(l => l.date === dateStr);
-  };
-
-  const selectedLog = selectedDate ? getLogForDate(selectedDate) || null : null;
+  // Monthly stats (no calendar needed)
 
   // Monthly stats
   const presentDays = attendanceLogs.filter(l => l.status === 'present').length;
@@ -216,7 +147,7 @@ export function AttendanceSection({
         </Card>
       </div>
 
-      {/* Compact Calendar */}
+      {/* Attendance List */}
       <Card>
         <CardHeader className="pb-2 pt-4 px-4">
           <div className="flex items-center justify-between">
@@ -238,43 +169,103 @@ export function AttendanceSection({
           </div>
         </CardHeader>
         <CardContent className="px-4 pb-4">
-          {/* Day headers */}
-          <div className="grid grid-cols-7 mb-1">
-            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-              <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
-            ))}
-          </div>
+          {attendanceLogs.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No attendance records this month</p>
+          ) : (
+            <div className="overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Date</TableHead>
+                    <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs">Check In</TableHead>
+                    <TableHead className="text-xs">Check Out</TableHead>
+                    <TableHead className="text-xs">Hours</TableHead>
+                    <TableHead className="text-xs hidden sm:table-cell">Break</TableHead>
+                    <TableHead className="text-xs text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {attendanceLogs.map(log => {
+                    const isProvisional = !!log.is_provisional_checkout;
+                    const windowOpen = isCorrectionWindowOpen(log);
+                    const canEdit = isHROrAdmin || (isProvisional && windowOpen);
+                    const canRequestCorrection = !isHROrAdmin && !canEdit && !!log.check_in_time;
 
-          {/* Days */}
-          <div className="grid grid-cols-7 gap-0.5">
-            {paddedDays.map((day, idx) => {
-              if (!day) return <div key={`pad-${idx}`} className="aspect-square" />;
-              const log = getLogForDate(day);
-              const isWknd = getDay(day) === 0 || getDay(day) === 6;
-              const isSelected = selectedDate && format(selectedDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
-              return (
-                <button
-                  key={day.toISOString()}
-                  onClick={() => setSelectedDate(isSelected ? null : day)}
-                  className={cn(
-                    'aspect-square flex flex-col items-center justify-center rounded text-xs transition-colors relative',
-                    isToday(day) && 'ring-1 ring-primary',
-                    isSelected && 'bg-primary/10',
-                    !isWknd && 'hover:bg-muted/60 cursor-pointer',
-                    isWknd && 'cursor-default',
-                    !isSameMonth(day, calendarMonth) && 'opacity-30',
-                  )}
-                >
-                  <span className={cn('text-xs', isWknd && 'text-muted-foreground', isToday(day) && 'font-bold text-primary')}>
-                    {format(day, 'd')}
-                  </span>
-                  {log && (
-                    <div className={cn('w-1.5 h-1.5 rounded-full mt-0.5', STATUS_COLORS[log.status] || 'bg-muted-foreground/40')} />
-                  )}
-                </button>
-              );
-            })}
-          </div>
+                    return (
+                      <TableRow key={log.id} className={cn(isProvisional && 'bg-amber-50/50 dark:bg-amber-950/10')}>
+                        <TableCell className="text-xs font-medium whitespace-nowrap">
+                          {format(parseISO(log.date), 'dd MMM, EEE')}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            <div className={cn('w-2 h-2 rounded-full shrink-0', STATUS_COLORS[log.status] || 'bg-muted')} />
+                            <span className="text-xs">{STATUS_TEXT[log.status] || log.status}</span>
+                            {isProvisional && windowOpen && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-950/30">
+                                <AlertTriangle className="h-2.5 w-2.5" />
+                              </Badge>
+                            )}
+                            {log.corrected_at && !isProvisional && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 border-green-400 bg-green-50 text-green-700 dark:bg-green-950/30">✓</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {log.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {log.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}
+                        </TableCell>
+                        <TableCell className="text-xs font-medium">
+                          {(log.working_hours || 0).toFixed(1)}h
+                        </TableCell>
+                        <TableCell className="text-xs hidden sm:table-cell">
+                          {log.total_break_minutes ? `${Math.round(log.total_break_minutes)}m` : '—'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 px-1.5 text-[10px] gap-0.5 border-blue-400 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                                  onClick={() => { setCorrectionMode('checkin'); setCorrectionLog(log); }}
+                                >
+                                  <Clock className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="text-xs">
+                                {isHROrAdmin ? 'Correct check-in' : 'Request check-in correction'}
+                              </TooltipContent>
+                            </Tooltip>
+                            {(canEdit || canRequestCorrection || log.check_out_time) && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-6 px-1.5 text-[10px] gap-0.5 border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                                    onClick={() => { setCorrectionMode('checkout'); setCorrectionLog(log); }}
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="left" className="text-xs">
+                                  {isHROrAdmin ? 'Correct checkout' : 'Request checkout correction'}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
 
           {/* Legend */}
           <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t">
@@ -285,116 +276,6 @@ export function AttendanceSection({
               </div>
             ))}
           </div>
-
-          {/* Selected day detail */}
-          {selectedDate && (
-            <DayDetailPanel log={selectedLog} date={selectedDate} onClose={() => setSelectedDate(null)} />
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Recent logs (last 5) */}
-      <Card>
-        <CardHeader className="pb-2 pt-4 px-4">
-          <CardTitle className="text-sm">Recent Logs</CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4 space-y-2">
-          {attendanceLogs.slice(0, 5).map(log => {
-            const isProvisional = !!log.is_provisional_checkout;
-            const windowOpen = isCorrectionWindowOpen(log);
-            // Admins/HR can always edit; employees can always request corrections
-            const canEdit = isHROrAdmin || isProvisional && windowOpen;
-            const canRequestCorrection = !isHROrAdmin && !canEdit && !!log.check_in_time;
-            // Show check-in correction for non-admin employees when check-in is missing or any log exists
-            const canRequestCheckinCorrection = !isHROrAdmin;
-
-            return (
-              <div key={log.id} className={cn(
-                'flex items-center justify-between py-2 border-b last:border-0',
-                isProvisional && 'bg-amber-50/50 dark:bg-amber-950/10 -mx-2 px-2 rounded-md',
-              )}>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <p className="text-sm font-medium">{log.date}</p>
-                    {isProvisional && !windowOpen && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-muted-foreground/40 text-muted-foreground gap-0.5">
-                        Finalized (Auto)
-                      </Badge>
-                    )}
-                    {isProvisional && windowOpen && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-950/30 gap-0.5">
-                        <AlertTriangle className="h-2.5 w-2.5" />
-                        Provisional
-                      </Badge>
-                    )}
-                    {!log.check_in_time && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-red-400 bg-red-50 text-red-700 dark:bg-red-950/30 gap-0.5">
-                        Missing Check-In
-                      </Badge>
-                    )}
-                    {log.corrected_at && !isProvisional && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-green-400 bg-green-50 text-green-700 dark:bg-green-950/30">
-                        ✓ Corrected
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {log.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '--:--'}
-                    {' → '}
-                    {log.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '--:--'}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {log.total_break_minutes ? (
-                    <span className="text-xs text-muted-foreground hidden sm:inline">{Math.round(log.total_break_minutes)}m break</span>
-                  ) : null}
-                  <span className="font-medium text-sm">{(log.working_hours || 0).toFixed(1)}h</span>
-                  <div className={cn('w-2 h-2 rounded-full', STATUS_COLORS[log.status] || 'bg-muted')} />
-
-                  {/* Check-in correction button - always visible */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-6 px-2 text-xs gap-1 border-blue-400 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
-                        onClick={() => { setCorrectionMode('checkin'); setCorrectionLog(log); }}
-                      >
-                        <Clock className="h-3 w-3" />
-                        {!log.check_in_time ? 'Add Check-In' : 'Fix Check-In'}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="left" className="max-w-[200px] text-xs">
-                      {isHROrAdmin ? 'Correct check-in time' : 'Submit a check-in correction request for HR approval'}
-                    </TooltipContent>
-                  </Tooltip>
-
-                  {/* Checkout correction button */}
-                  {(canEdit || canRequestCorrection || log.check_out_time) && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 px-2 text-xs border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 gap-1"
-                          onClick={() => { setCorrectionMode('checkout'); setCorrectionLog(log); }}
-                        >
-                          <Pencil className="h-3 w-3" />
-                          {isHROrAdmin ? 'Edit' : 'Request Edit'}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="left" className="max-w-[200px] text-xs">
-                        {isHROrAdmin ? 'Correct checkout time' : 'Submit a checkout correction request for HR approval'}
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          {attendanceLogs.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-4">No attendance records this month</p>
-          )}
         </CardContent>
       </Card>
 
