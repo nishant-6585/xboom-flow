@@ -23,10 +23,18 @@ const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
 
 const STATUS_COLORS: Record<LeaveStatus, string> = {
   draft: 'bg-gray-500',
-  submitted: 'bg-blue-500',
-  approved: 'bg-green-500',
-  rejected: 'bg-red-500',
+  submitted: 'bg-amber-500',
+  approved: 'bg-green-600',
+  rejected: 'bg-red-600',
   cancelled: 'bg-gray-400',
+};
+
+const STATUS_LABELS: Record<LeaveStatus, string> = {
+  draft: 'Draft',
+  submitted: 'Requested',
+  approved: 'Approved',
+  rejected: 'Rejected',
+  cancelled: 'Cancelled',
 };
 
 export function LeaveRequestCard({ leave, showEmployee, onView }: LeaveRequestCardProps) {
@@ -39,7 +47,7 @@ export function LeaveRequestCard({ leave, showEmployee, onView }: LeaveRequestCa
         <div className="flex items-start justify-between">
           <div>
             <Badge className={STATUS_COLORS[leave.status]}>
-              {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
+              {STATUS_LABELS[leave.status]}
             </Badge>
             <Badge variant="outline" className="ml-2">
               {LEAVE_TYPE_LABELS[leave.leave_type]}

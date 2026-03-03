@@ -49,6 +49,7 @@ export default function HR() {
 
   const [activeTab, setActiveTab] = useState("home");
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [leaveFilter, setLeaveFilter] = useState('all');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [yesterdayLog, setYesterdayLog] = useState<AttendanceLog | null>(null);
 
@@ -255,14 +256,43 @@ export default function HR() {
 
             <div className="space-y-3">
               <h3 className="font-semibold">My Leave Requests</h3>
+              
+              {/* Status filter chips */}
+              {myLeaves.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: 'All', filter: 'all', count: myLeaves.length },
+                    { label: 'Requested', filter: 'submitted', count: myLeaves.filter(l => l.status === 'submitted').length },
+                    { label: 'Approved', filter: 'approved', count: myLeaves.filter(l => l.status === 'approved').length },
+                    { label: 'Rejected', filter: 'rejected', count: myLeaves.filter(l => l.status === 'rejected').length },
+                  ].filter(f => f.filter === 'all' || f.count > 0).map(f => (
+                    <Button
+                      key={f.filter}
+                      variant={leaveFilter === f.filter ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setLeaveFilter(f.filter)}
+                    >
+                      {f.label} ({f.count})
+                    </Button>
+                  ))}
+                </div>
+              )}
+
               {myLeaves.length === 0 ? (
                 <p className="text-center py-8 text-muted-foreground">
                   No leave requests yet
                 </p>
               ) : (
-                myLeaves.map((leave) => (
-                  <LeaveRequestCard key={leave.id} leave={leave} />
-                ))
+                (leaveFilter === 'all' ? myLeaves : myLeaves.filter(l => l.status === leaveFilter)).length === 0 ? (
+                  <p className="text-center py-4 text-muted-foreground text-sm">
+                    No {leaveFilter} requests
+                  </p>
+                ) : (
+                  (leaveFilter === 'all' ? myLeaves : myLeaves.filter(l => l.status === leaveFilter)).map((leave) => (
+                    <LeaveRequestCard key={leave.id} leave={leave} />
+                  ))
+                )
               )}
             </div>
 
