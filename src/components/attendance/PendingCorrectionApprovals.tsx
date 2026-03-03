@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { Check, X, Clock, User, FileText } from 'lucide-react';
+import { Check, X, Clock, User, FileText, LogIn, LogOut } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,11 +12,19 @@ import { CorrectionRequest, useAttendanceCorrectionRequests } from '@/hooks/useA
 import { supabase } from '@/integrations/supabase/client';
 
 interface EmployeeLookup {
-  [employeeId: string]: string; // employee_id -> name
+  [employeeId: string]: string;
 }
 
 interface PendingCorrectionApprovalsProps {
   employeeLookup?: EmployeeLookup;
+}
+
+function detectCorrectionType(req: CorrectionRequest): 'checkin' | 'checkout' | 'both' {
+  const checkinChanged = req.requested_check_in_time && req.requested_check_in_time !== req.current_check_in_time;
+  const checkoutChanged = req.requested_check_out_time && req.requested_check_out_time !== req.current_check_out_time;
+  if (checkinChanged && checkoutChanged) return 'both';
+  if (checkinChanged) return 'checkin';
+  return 'checkout';
 }
 
 export function PendingCorrectionApprovals({ employeeLookup }: PendingCorrectionApprovalsProps) {
@@ -27,7 +35,6 @@ export function PendingCorrectionApprovals({ employeeLookup }: PendingCorrection
   const [submitting, setSubmitting] = useState(false);
   const [employeeNames, setEmployeeNames] = useState<EmployeeLookup>(employeeLookup || {});
 
-  // Fetch employee names if not provided
   useState(() => {
     if (!employeeLookup && pendingRequests.length > 0) {
       const ids = [...new Set(pendingRequests.map(r => r.employee_id))];
@@ -78,6 +85,7 @@ export function PendingCorrectionApprovals({ employeeLookup }: PendingCorrection
         <CardContent className="px-4 pb-3 space-y-2">
           {pendingRequests.map(req => {
             const empName = employeeNames[req.employee_id] || req.requested_by_name;
+            const corrType = detectCorrectionType(req);
             return (
               <div
                 key={req.id}
@@ -92,16 +100,33 @@ export function PendingCorrectionApprovals({ employeeLookup }: PendingCorrection
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                       {req.attendance_log_id ? format(parseISO(req.created_at), 'dd MMM yyyy') : ''}
                     </Badge>
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-0.5">
+                      {corrType === 'checkin' && <><LogIn className="h-2.5 w-2.5" /> Check-In</>}
+                      {corrType === 'checkout' && <><LogOut className="h-2.5 w-2.5" /> Checkout</>}
+                      {corrType === 'both' && 'Check-In & Checkout'}
+                    </Badge>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      Current: {req.current_check_out_time ? format(parseISO(req.current_check_out_time), 'hh:mm a') : '—'}
-                    </span>
-                    <span>→</span>
-                    <span className="font-medium text-foreground">
-                      Requested: {req.requested_check_out_time ? format(parseISO(req.requested_check_out_time), 'hh:mm a') : '—'}
-                    </span>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                    {(corrType === 'checkin' || corrType === 'both') && (
+                      <span className="flex items-center gap-1">
+                        <LogIn className="h-3 w-3" />
+                        {req.current_check_in_time ? format(parseISO(req.current_check_in_time), 'hh:mm a') : 'Missing'}
+                        <span>→</span>
+                        <span className="font-medium text-foreground">
+                          {req.requested_check_in_time ? format(parseISO(req.requested_check_in_time), 'hh:mm a') : '—'}
+                        </span>
+                      </span>
+                    )}
+                    {(corrType === 'checkout' || corrType === 'both') && (
+                      <span className="flex items-center gap-1">
+                        <LogOut className="h-3 w-3" />
+                        {req.current_check_out_time ? format(parseISO(req.current_check_out_time), 'hh:mm a') : '—'}
+                        <span>→</span>
+                        <span className="font-medium text-foreground">
+                          {req.requested_check_out_time ? format(parseISO(req.requested_check_out_time), 'hh:mm a') : '—'}
+                        </span>
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Reason: {req.reason}
@@ -148,14 +173,22 @@ export function PendingCorrectionApprovals({ employeeLookup }: PendingCorrection
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            {reviewingRequest && (
-              <div className="rounded-lg bg-muted/40 p-3 space-y-1 text-sm">
-                <p><strong>Employee:</strong> {employeeNames[reviewingRequest.employee_id] || reviewingRequest.requested_by_name}</p>
-                <p><strong>Current Checkout:</strong> {reviewingRequest.current_check_out_time ? format(parseISO(reviewingRequest.current_check_out_time), 'hh:mm a') : '—'}</p>
-                <p><strong>Requested Checkout:</strong> {reviewingRequest.requested_check_out_time ? format(parseISO(reviewingRequest.requested_check_out_time), 'hh:mm a') : '—'}</p>
-                <p><strong>Reason:</strong> {reviewingRequest.reason}</p>
-              </div>
-            )}
+            {reviewingRequest && (() => {
+              const ct = detectCorrectionType(reviewingRequest);
+              return (
+                <div className="rounded-lg bg-muted/40 p-3 space-y-1 text-sm">
+                  <p><strong>Employee:</strong> {employeeNames[reviewingRequest.employee_id] || reviewingRequest.requested_by_name}</p>
+                  <p><strong>Type:</strong> {ct === 'checkin' ? 'Check-In Correction' : ct === 'checkout' ? 'Checkout Correction' : 'Check-In & Checkout Correction'}</p>
+                  {(ct === 'checkin' || ct === 'both') && (
+                    <p><strong>Check-In:</strong> {reviewingRequest.current_check_in_time ? format(parseISO(reviewingRequest.current_check_in_time), 'hh:mm a') : 'Missing'} → {reviewingRequest.requested_check_in_time ? format(parseISO(reviewingRequest.requested_check_in_time), 'hh:mm a') : '—'}</p>
+                  )}
+                  {(ct === 'checkout' || ct === 'both') && (
+                    <p><strong>Checkout:</strong> {reviewingRequest.current_check_out_time ? format(parseISO(reviewingRequest.current_check_out_time), 'hh:mm a') : '—'} → {reviewingRequest.requested_check_out_time ? format(parseISO(reviewingRequest.requested_check_out_time), 'hh:mm a') : '—'}</p>
+                  )}
+                  <p><strong>Reason:</strong> {reviewingRequest.reason}</p>
+                </div>
+              );
+            })()}
             <div className="space-y-1.5">
               <Label className="text-sm">Review Notes (optional)</Label>
               <Textarea

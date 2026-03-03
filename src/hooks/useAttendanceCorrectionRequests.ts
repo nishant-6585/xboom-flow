@@ -115,10 +115,18 @@ export function useAttendanceCorrectionRequests() {
       if (logError) throw logError;
 
       // Audit log
+      const checkinChanged = request.requested_check_in_time && request.requested_check_in_time !== request.current_check_in_time;
+      const checkoutChanged = request.requested_check_out_time && request.requested_check_out_time !== request.current_check_out_time;
+      const eventType = checkinChanged && checkoutChanged
+        ? 'CORRECTION_APPROVED'
+        : checkinChanged
+        ? 'CHECKIN_CORRECTION_APPROVED'
+        : 'CORRECTION_APPROVED';
+
       await supabase.from('attendance_audit_log').insert({
         attendance_log_id: request.attendance_log_id,
         employee_id: request.employee_id,
-        event_type: 'CORRECTION_APPROVED',
+        event_type: eventType,
         performed_by: user.id,
         old_checkout_time: request.current_check_out_time,
         new_checkout_time: request.requested_check_out_time,
@@ -126,6 +134,8 @@ export function useAttendanceCorrectionRequests() {
         metadata: {
           request_id: requestId,
           requested_by: request.requested_by_name,
+          old_check_in_time: request.current_check_in_time,
+          new_check_in_time: request.requested_check_in_time,
         },
       });
     }

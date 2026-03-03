@@ -11,11 +11,14 @@ import { toast } from 'sonner';
 import { AttendanceLog } from '@/hooks/useHR';
 import { useAttendanceCorrectionRequests } from '@/hooks/useAttendanceCorrectionRequests';
 
+type CorrectionMode = 'checkout' | 'checkin';
+
 interface CorrectionRequestModalProps {
   log: AttendanceLog;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmitted: () => void;
+  mode?: CorrectionMode;
 }
 
 export function CorrectionRequestModal({
@@ -23,15 +26,19 @@ export function CorrectionRequestModal({
   open,
   onOpenChange,
   onSubmitted,
+  mode = 'checkout',
 }: CorrectionRequestModalProps) {
   const { submitRequest } = useAttendanceCorrectionRequests();
 
-  const [newCheckoutTime, setNewCheckoutTime] = useState(() => {
-    if (log.check_out_time) return format(parseISO(log.check_out_time), 'HH:mm');
+  const [newTime, setNewTime] = useState(() => {
+    if (mode === 'checkin' && log.check_in_time) return format(parseISO(log.check_in_time), 'HH:mm');
+    if (mode === 'checkout' && log.check_out_time) return format(parseISO(log.check_out_time), 'HH:mm');
     return '';
   });
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const isCheckin = mode === 'checkin';
 
   const checkInDisplay = log.check_in_time
     ? format(parseISO(log.check_in_time), 'hh:mm a')
@@ -42,22 +49,41 @@ export function CorrectionRequestModal({
     : '—';
 
   const handleSubmit = async () => {
-    if (!newCheckoutTime) { toast.error('Please enter the actual checkout time'); return; }
-    if (!reason.trim()) { toast.error('Please provide a reason for the correction'); return; }
-
-    const logDate = parseISO(log.date);
-    const [hours, minutes] = newCheckoutTime.split(':').map(Number);
-    const correctedDate = new Date(logDate);
-    correctedDate.setHours(hours, minutes, 0, 0);
-
-    if (log.check_in_time && correctedDate <= new Date(log.check_in_time)) {
-      toast.error('Checkout time must be after check-in time');
+    if (!newTime) {
+      toast.error(`Please enter the ${isCheckin ? 'check-in' : 'checkout'} time`);
+      return;
+    }
+    if (!reason.trim()) {
+      toast.error('Please provide a reason for the correction');
       return;
     }
 
-    if (correctedDate > new Date()) {
-      toast.error('Checkout time cannot be in the future');
-      return;
+    const logDate = parseISO(log.date);
+    const [hours, minutes] = newTime.split(':').map(Number);
+    const correctedDate = new Date(logDate);
+    correctedDate.setHours(hours, minutes, 0, 0);
+
+    if (isCheckin) {
+      // Check-in cannot be in the future
+      if (correctedDate > new Date()) {
+        toast.error('Check-in time cannot be in the future');
+        return;
+      }
+      // If checkout exists, check-in must be before checkout
+      if (log.check_out_time && correctedDate >= new Date(log.check_out_time)) {
+        toast.error('Check-in time must be before checkout time');
+        return;
+      }
+    } else {
+      // Checkout validation
+      if (log.check_in_time && correctedDate <= new Date(log.check_in_time)) {
+        toast.error('Checkout time must be after check-in time');
+        return;
+      }
+      if (correctedDate > new Date()) {
+        toast.error('Checkout time cannot be in the future');
+        return;
+      }
     }
 
     setSaving(true);
@@ -67,8 +93,8 @@ export function CorrectionRequestModal({
         employee_id: log.employee_id,
         current_check_in_time: log.check_in_time,
         current_check_out_time: log.check_out_time,
-        requested_check_in_time: log.check_in_time, // keep same
-        requested_check_out_time: correctedDate.toISOString(),
+        requested_check_in_time: isCheckin ? correctedDate.toISOString() : log.check_in_time,
+        requested_check_out_time: isCheckin ? log.check_out_time : correctedDate.toISOString(),
         reason: reason.trim(),
       });
 
@@ -76,7 +102,12 @@ export function CorrectionRequestModal({
       onOpenChange(false);
       onSubmitted();
     } catch (e: any) {
-      toast.error(e.message || 'Failed to submit correction request');
+      const msg = e.message || 'Failed to submit correction request';
+      if (msg.includes('idx_unique_pending_correction_per_log') || msg.includes('duplicate key')) {
+        toast.error('A pending correction request already exists for this record');
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setSaving(false);
     }
@@ -88,7 +119,7 @@ export function CorrectionRequestModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-amber-500" />
-            Request Checkout Correction
+            {isCheckin ? 'Request Check-In Correction' : 'Request Checkout Correction'}
           </DialogTitle>
         </DialogHeader>
 
@@ -119,26 +150,30 @@ export function CorrectionRequestModal({
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <Clock className="h-3 w-3" /> Check-in
               </p>
-              <p className="text-sm font-semibold">{checkInDisplay}</p>
+              <p className={`text-sm font-semibold ${isCheckin ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+                {checkInDisplay}
+              </p>
             </div>
             <div className="space-y-0.5">
               <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Clock className="h-3 w-3" /> Current Checkout
+                <Clock className="h-3 w-3" /> Checkout
               </p>
-              <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">{currentCheckoutDisplay}</p>
+              <p className={`text-sm font-semibold ${!isCheckin ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+                {currentCheckoutDisplay}
+              </p>
             </div>
           </div>
 
-          {/* Editable checkout */}
+          {/* Editable time */}
           <div className="space-y-1.5">
-            <Label htmlFor="corrected-checkout" className="text-sm">
-              Actual Checkout Time
+            <Label htmlFor="corrected-time" className="text-sm">
+              {isCheckin ? 'Actual Check-In Time' : 'Actual Checkout Time'}
             </Label>
             <Input
-              id="corrected-checkout"
+              id="corrected-time"
               type="time"
-              value={newCheckoutTime}
-              onChange={e => setNewCheckoutTime(e.target.value)}
+              value={newTime}
+              onChange={e => setNewTime(e.target.value)}
               className="h-10"
             />
           </div>
@@ -150,7 +185,9 @@ export function CorrectionRequestModal({
             </Label>
             <Textarea
               id="correction-reason"
-              placeholder="e.g. Forgot to check out, was working until 7 PM..."
+              placeholder={isCheckin
+                ? 'e.g. Forgot to check in, was present from 9 AM...'
+                : 'e.g. Forgot to check out, was working until 7 PM...'}
               value={reason}
               onChange={e => setReason(e.target.value)}
               rows={2}
@@ -165,7 +202,7 @@ export function CorrectionRequestModal({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={saving || !newCheckoutTime || !reason.trim()}
+            disabled={saving || !newTime || !reason.trim()}
             className="bg-amber-600 hover:bg-amber-700 text-white gap-1"
           >
             <Send className="h-3.5 w-3.5" />
