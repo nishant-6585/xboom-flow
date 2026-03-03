@@ -60,6 +60,7 @@ export function AttendanceSection({
 }: AttendanceSectionProps & { onRefresh?: () => void }) {
   const { role } = useAuth();
   const [correctionLog, setCorrectionLog] = useState<AttendanceLog | null>(null);
+  const [stubLogId, setStubLogId] = useState<string | null>(null);
   const [creatingStub, setCreatingStub] = useState(false);
   const { getHoliday } = useHolidays(calendarMonth.getFullYear());
 
@@ -263,6 +264,7 @@ export function AttendanceSection({
                                             .select()
                                             .single();
                                           if (error) throw error;
+                                          setStubLogId(data.id);
                                           setCorrectionLog(data as AttendanceLog);
                                         } catch (e: any) {
                                           toast.error(e.message || 'Failed to create attendance record');
@@ -366,13 +368,23 @@ export function AttendanceSection({
         <CorrectionRequestModal
           log={correctionLog}
           open={!!correctionLog}
-          onOpenChange={open => { if (!open) setCorrectionLog(null); }}
+          onOpenChange={async (open) => {
+            if (!open) {
+              // If dismissed without submitting & this was a stub, delete the stub
+              if (stubLogId && correctionLog && correctionLog.id === stubLogId) {
+                await supabase.from('attendance_logs').delete().eq('id', stubLogId);
+                onRefresh?.();
+              }
+              setCorrectionLog(null);
+              setStubLogId(null);
+            }
+          }}
           mode="both"
           onSubmitted={() => {
             setCorrectionLog(null);
+            setStubLogId(null);
             onRefresh?.();
           }}
-          
         />
       )}
     </div>
