@@ -20,6 +20,8 @@ const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
   half_day: 'Half Day',
   half_day_casual: 'Half Day Casual',
   half_day_sick: 'Half Day Sick',
+  half_day_paid: 'Half Day Paid',
+  half_day_unpaid: 'Half Day Unpaid',
   wfh: 'Work from Home',
 };
 

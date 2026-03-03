@@ -36,6 +36,8 @@ const LEAVE_TYPES: { value: LeaveType; label: string }[] = [
   { value: 'unpaid', label: 'Unpaid Leave' },
   { value: 'half_day_casual', label: 'Half Day Casual Leave' },
   { value: 'half_day_sick', label: 'Half Day Sick Leave' },
+  { value: 'half_day_paid', label: 'Half Day Paid Leave' },
+  { value: 'half_day_unpaid', label: 'Half Day Unpaid Leave' },
   { value: 'wfh', label: 'Work from Home' },
 ];
 
