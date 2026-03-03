@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useHRDocuments, HRFolder, HRDocument, ShareRule } from "@/hooks/useHRDocuments";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -61,6 +62,8 @@ const FOLDER_TYPES = [
 type ShareTarget = { type: "folder" | "document"; id: string; name: string };
 
 export function HRDocumentsPanel() {
+  const { user } = useAuth();
+  const currentUserId = user?.id;
   const {
     folders,
     documents,
@@ -420,12 +423,14 @@ export function HRDocumentsPanel() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenuItem
-                            onClick={() => openShareDialog({ type: "folder", id: folder.id, name: folder.name })}
-                          >
-                            <Share2 className="h-4 w-4 mr-2" /> Sharing
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
+                          {currentUserId === folder.created_by && (
+                            <DropdownMenuItem
+                              onClick={() => openShareDialog({ type: "folder", id: folder.id, name: folder.name })}
+                            >
+                              <Share2 className="h-4 w-4 mr-2" /> Sharing
+                            </DropdownMenuItem>
+                          )}
+                          {currentUserId === folder.created_by && <DropdownMenuSeparator />}
                           <DropdownMenuItem
                             onClick={() => {
                               setRenameTarget({ id: folder.id, name: folder.name, type: "folder" });
@@ -514,12 +519,14 @@ export function HRDocumentsPanel() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => openShareDialog({ type: "document", id: doc.id, name: doc.name })}
-                            >
-                              <Share2 className="h-4 w-4 mr-2" /> Sharing
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
+                            {currentUserId === doc.uploaded_by && (
+                              <DropdownMenuItem
+                                onClick={() => openShareDialog({ type: "document", id: doc.id, name: doc.name })}
+                              >
+                                <Share2 className="h-4 w-4 mr-2" /> Sharing
+                              </DropdownMenuItem>
+                            )}
+                            {currentUserId === doc.uploaded_by && <DropdownMenuSeparator />}
                             <DropdownMenuItem
                               onClick={() => {
                                 setRenameTarget({ id: doc.id, name: doc.name, type: "document" });
