@@ -6,22 +6,47 @@ import { useAuth } from "./useAuth";
 
 export type CandidateStatus = "applied" | "shortlisted" | "rejected" | "hired" | "blacklisted";
 export type InterviewDecision = "pass" | "reject" | "hold";
+export type ApplicationSource = "Referral" | "Naukri" | "LinkedIn" | "Website" | "Consultant" | "Walk-in" | "Other";
+export type EmploymentType = "Full-time" | "Contract" | "Intern";
+export type ScreeningStatus = "New" | "Shortlisted" | "Rejected" | "On Hold";
+export type InterviewStage = "HR" | "Technical" | "Managerial" | "Final";
+export type FinalStatus = "Selected" | "Rejected";
 
 export interface Candidate {
   id: string;
+  candidate_number?: string;
   full_name: string;
   email: string;
   phone?: string;
   years_of_experience?: number;
+  relevant_experience_years?: number;
   current_company?: string;
+  current_designation?: string;
   current_ctc?: number;
   expected_ctc?: number;
   notice_period_days?: number;
   location?: string;
+  location_city?: string;
+  location_state?: string;
   primary_skills?: string[];
   source?: string;
+  application_source?: ApplicationSource;
+  employment_type?: EmploymentType;
+  job_role_applied?: string;
+  department?: string;
+  recruiter_id?: string;
+  recruiter_name?: string;
+  screening_status?: ScreeningStatus;
+  interview_stage?: InterviewStage;
+  final_status?: FinalStatus;
+  offer_letter_issued?: boolean;
+  joining_date?: string;
+  rejection_reason?: string;
+  follow_up_date?: string;
+  remarks?: string;
   status: CandidateStatus;
   notes?: string;
+  resume_url?: string;
   created_by?: string;
   created_by_name?: string;
   created_at: string;
@@ -43,9 +68,11 @@ export interface InterviewRecord {
   candidate_id: string;
   round_type: string;
   interviewer_name: string;
+  interviewer_id?: string;
   rating?: number;
   feedback?: string;
   decision: InterviewDecision;
+  result?: string;
   interview_date: string;
   created_by?: string;
   created_by_name?: string;
@@ -55,6 +82,9 @@ export interface InterviewRecord {
 export interface CandidateFilters {
   search?: string;
   status?: CandidateStatus | "all";
+  screeningStatus?: ScreeningStatus | "all";
+  department?: string;
+  interviewStage?: InterviewStage | "all";
   minExperience?: number;
   maxExperience?: number;
   skills?: string[];
@@ -71,6 +101,15 @@ export function useCandidates(filters?: CandidateFilters) {
 
       if (filters?.status && filters.status !== "all") {
         query = query.eq("status", filters.status);
+      }
+      if (filters?.screeningStatus && filters.screeningStatus !== "all") {
+        query = query.eq("screening_status", filters.screeningStatus);
+      }
+      if (filters?.department) {
+        query = query.eq("department", filters.department);
+      }
+      if (filters?.interviewStage && filters.interviewStage !== "all") {
+        query = query.eq("interview_stage", filters.interviewStage);
       }
       if (filters?.minExperience !== undefined) {
         query = query.gte("years_of_experience", filters.minExperience);
@@ -94,7 +133,11 @@ export function useCandidates(filters?: CandidateFilters) {
             c.full_name.toLowerCase().includes(s) ||
             c.email.toLowerCase().includes(s) ||
             c.current_company?.toLowerCase().includes(s) ||
-            c.location?.toLowerCase().includes(s)
+            c.location_city?.toLowerCase().includes(s) ||
+            c.location?.toLowerCase().includes(s) ||
+            c.candidate_number?.toLowerCase().includes(s) ||
+            c.job_role_applied?.toLowerCase().includes(s) ||
+            c.recruiter_name?.toLowerCase().includes(s)
         );
       }
 
