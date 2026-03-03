@@ -212,6 +212,7 @@ export default function HR() {
                   }}
                 />
                 <AttendanceSection
+                  employeeId={myEmployee?.id}
                   todayAttendance={todayAttendance}
                   weeklyHours={weeklyHours}
                   attendanceLogs={attendanceLogs}
