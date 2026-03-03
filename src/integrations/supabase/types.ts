@@ -3206,11 +3206,45 @@ export type Database = {
         }
         Relationships: []
       }
+      meeting_participants: {
+        Row: {
+          created_at: string
+          id: string
+          meeting_id: string
+          response_status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          meeting_id: string
+          response_status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          meeting_id?: string
+          response_status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_participants_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meetings: {
         Row: {
           agenda: string | null
           background: string | null
           created_at: string
+          description: string | null
+          end_datetime: string | null
           enquiry_id: string | null
           host_id: string | null
           host_name: string | null
@@ -3228,12 +3262,16 @@ export type Database = {
           participants: string[] | null
           pipeline_id: string | null
           status: string
+          title: string | null
           updated_at: string
+          visibility: string
         }
         Insert: {
           agenda?: string | null
           background?: string | null
           created_at?: string
+          description?: string | null
+          end_datetime?: string | null
           enquiry_id?: string | null
           host_id?: string | null
           host_name?: string | null
@@ -3251,12 +3289,16 @@ export type Database = {
           participants?: string[] | null
           pipeline_id?: string | null
           status?: string
+          title?: string | null
           updated_at?: string
+          visibility?: string
         }
         Update: {
           agenda?: string | null
           background?: string | null
           created_at?: string
+          description?: string | null
+          end_datetime?: string | null
           enquiry_id?: string | null
           host_id?: string | null
           host_name?: string | null
@@ -3274,7 +3316,9 @@ export type Database = {
           participants?: string[] | null
           pipeline_id?: string | null
           status?: string
+          title?: string | null
           updated_at?: string
+          visibility?: string
         }
         Relationships: [
           {
