@@ -19,7 +19,7 @@ import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
 import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
 import { InviteUserDialog } from "@/components/admin/InviteUserDialog";
 import { NoticesPanel } from "@/components/notices/NoticesPanel";
-import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity, Building2, CalendarClock, Shield } from "lucide-react";
+import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity, Building2, CalendarClock, Shield, CalendarDays } from "lucide-react";
 import UserActivityTracker from "@/components/admin/UserActivityTracker";
 import {
   Select,
@@ -45,6 +45,7 @@ import { FormPermissionsPanel } from "@/components/admin/FormPermissionsPanel";
 import { AdminSignatureSettings } from "@/components/admin/AdminSignatureSettings";
 import OrgSettingsPanel from "@/components/admin/OrgSettingsPanel";
 import { AttendancePolicySettings } from "@/components/admin/AttendancePolicySettings";
+import { HolidayManagementPanel } from "@/components/admin/HolidayManagementPanel";
 
 interface PendingUser {
   id: string;
@@ -630,6 +631,10 @@ const Admin = () => {
               <CalendarClock className="w-4 h-4" />
               Attendance Policy
             </TabsTrigger>
+            <TabsTrigger value="holidays" className="flex items-center gap-2">
+              <CalendarDays className="w-4 h-4" />
+              Holidays
+            </TabsTrigger>
             <TabsTrigger value="audit-logs" className="flex items-center gap-2" onClick={() => navigate("/admin/audit-logs")}>
               <Shield className="w-4 h-4" />
               Audit Logs
@@ -1077,6 +1082,10 @@ const Admin = () => {
               </p>
             </div>
             <AttendancePolicySettings />
+          </TabsContent>
+
+          <TabsContent value="holidays">
+            <HolidayManagementPanel />
           </TabsContent>
         </Tabs>
       </main>
