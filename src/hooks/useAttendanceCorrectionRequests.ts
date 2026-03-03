@@ -101,12 +101,7 @@ export function useAttendanceCorrectionRequests() {
         updateData.check_out_time = request.requested_check_out_time;
       }
 
-      // Recalculate working hours
-      const checkIn = new Date(request.requested_check_in_time || request.current_check_in_time!);
-      const checkOut = new Date(request.requested_check_out_time || request.current_check_out_time!);
-      const totalMs = checkOut.getTime() - checkIn.getTime();
-      // We don't have break info here, the trigger will recalculate
-      updateData.working_hours = Math.max(0, totalMs / (1000 * 60 * 60));
+      // working_hours is automatically recalculated by the calculate_working_hours trigger
 
       const { error: logError } = await supabase
         .from('attendance_logs')
