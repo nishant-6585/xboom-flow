@@ -33,9 +33,10 @@ import {
 } from "lucide-react";
 import {
   useCandidates, CandidateStatus, ScreeningStatus, InterviewStage,
+  LifecycleStatus, LIFECYCLE_LABELS,
   useCandidateMutations, Candidate
 } from "@/hooks/useCandidates";
-import { CandidateStatusBadge } from "./CandidateStatusBadge";
+import { CandidateStatusBadge, LifecycleStatusBadge } from "./CandidateStatusBadge";
 import { CandidateFormDialog } from "./CandidateFormDialog";
 import { CandidateDetailDialog } from "./CandidateDetailDialog";
 
@@ -203,6 +204,7 @@ export function CandidatesPanel() {
                 <TableHead className="hidden md:table-cell">Role Applied</TableHead>
                 <TableHead className="hidden lg:table-cell">Recruiter</TableHead>
                 <TableHead className="hidden sm:table-cell">Screening</TableHead>
+                <TableHead>Lifecycle</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -236,6 +238,9 @@ export function CandidatesPanel() {
                         {c.screening_status.replace("_", " ")}
                       </Badge>
                     ) : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <LifecycleStatusBadge status={(c.lifecycle_status as LifecycleStatus) || "NEW"} />
                   </TableCell>
                   <TableCell><CandidateStatusBadge status={c.status} /></TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>

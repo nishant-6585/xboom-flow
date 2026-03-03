@@ -34,16 +34,19 @@ import {
 import {
   Candidate,
   CandidateStatus,
+  LifecycleStatus,
+  LIFECYCLE_TRANSITIONS,
+  LIFECYCLE_LABELS,
+  FINAL_LIFECYCLE_STATES,
   useCandidateDocuments,
   useInterviewRecords,
   useCandidateMutations,
   useSignedCVUrl,
 } from "@/hooks/useCandidates";
-import { CandidateStatusBadge } from "./CandidateStatusBadge";
+import { CandidateStatusBadge, LifecycleStatusBadge } from "./CandidateStatusBadge";
 import { InterviewRecordDialog } from "./InterviewRecordDialog";
-import { toast } from "sonner";
 
-const STATUSES: CandidateStatus[] = ["applied", "shortlisted", "rejected", "hired", "blacklisted"];
+import { toast } from "sonner";
 
 const decisionConfig = {
   pass: { label: "Pass", className: "bg-green-500/10 text-green-600 border-green-500/20" },
@@ -74,9 +77,13 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
   const { getSignedUrl, loading: urlLoading } = useSignedCVUrl();
   const [interviewDialogOpen, setInterviewDialogOpen] = useState(false);
 
-  const handleStatusChange = (status: CandidateStatus) => {
-    updateCandidate.mutate({ id: candidate.id, status });
+  const handleLifecycleChange = (newStatus: LifecycleStatus) => {
+    updateCandidate.mutate({ id: candidate.id, lifecycle_status: newStatus } as any);
   };
+
+  const currentLifecycle = candidate.lifecycle_status || "NEW";
+  const allowedTransitions = LIFECYCLE_TRANSITIONS[currentLifecycle] || [];
+  const isFinalState = FINAL_LIFECYCLE_STATES.includes(currentLifecycle);
 
   const handleDownload = async (fileUrl: string, fileName: string) => {
     const url = await getSignedUrl(fileUrl);
@@ -113,7 +120,7 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
                   {candidate.candidate_number && (
                     <Badge variant="outline" className="text-xs font-mono">{candidate.candidate_number}</Badge>
                   )}
-                  <CandidateStatusBadge status={candidate.status} />
+                  <LifecycleStatusBadge status={currentLifecycle} />
                   {candidate.application_source && (
                     <Badge variant="outline" className="text-xs">{sourceLabels[candidate.application_source] || candidate.application_source}</Badge>
                   )}
@@ -125,19 +132,24 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
             </div>
           </DialogHeader>
 
-          {/* Status Update */}
+          {/* Lifecycle Status Update */}
           <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Update Status:</span>
-            <Select value={candidate.status} onValueChange={(v) => handleStatusChange(v as CandidateStatus)}>
-              <SelectTrigger className="flex-1 h-8 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUSES.map((s) => (
-                  <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Lifecycle:</span>
+            <LifecycleStatusBadge status={currentLifecycle} />
+            {isFinalState ? (
+              <span className="text-xs text-muted-foreground italic">Final state — no further transitions</span>
+            ) : allowedTransitions.length > 0 ? (
+              <Select onValueChange={(v) => handleLifecycleChange(v as LifecycleStatus)}>
+                <SelectTrigger className="flex-1 h-8 text-sm">
+                  <SelectValue placeholder="Move to..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {allowedTransitions.map((s) => (
+                    <SelectItem key={s} value={s}>{LIFECYCLE_LABELS[s]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
           </div>
 
           {/* Contact & Profile Info */}
