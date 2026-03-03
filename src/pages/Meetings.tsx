@@ -15,10 +15,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMeetings, Meeting, MeetingFormData, MEETING_TYPES, MEETING_STATUSES, MEETING_OUTCOMES, MeetingType, MeetingStatus, MeetingOutcome } from "@/hooks/useMeetings";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { TeamCalendar } from "@/components/calendar/TeamCalendar";
+import type { CalendarMeeting } from "@/components/calendar/CalendarMonthView";
 import { 
   Calendar as CalendarIcon, Plus, Search, Filter, Clock, 
   Users, Video, Phone, Building2, User, Loader2, Edit, 
-  Trash2, CheckCircle2, XCircle, Target, TrendingUp, Link as LinkIcon, ExternalLink
+  Trash2, CheckCircle2, XCircle, Target, TrendingUp, Link as LinkIcon, ExternalLink,
+  LayoutGrid, List
 } from "lucide-react";
 import { format, isToday, isTomorrow, isPast, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -169,6 +172,7 @@ const Meetings = () => {
   const { meetings, loading, createMeeting, updateMeeting, meetingsThisMonth, closedLeadMeetings, todaysMeetings } = useMeetings();
   const { role } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [statusFilter, setStatusFilter] = useState<MeetingStatus | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<MeetingType | 'all'>('all');
   const [hostFilter, setHostFilter] = useState<string>('all');
@@ -182,8 +186,11 @@ const Meetings = () => {
   const [leadsLoading, setLeadsLoading] = useState(false);
   
   // Form state
+  const [formTitle, setFormTitle] = useState('');
+  const [formDescription, setFormDescription] = useState('');
   const [formDate, setFormDate] = useState<Date | undefined>(new Date());
   const [formTime, setFormTime] = useState('10:00');
+  const [formEndTime, setFormEndTime] = useState('11:00');
   const [formType, setFormType] = useState<MeetingType>('discovery');
   const [formAgenda, setFormAgenda] = useState('');
   const [formBackground, setFormBackground] = useState('');
@@ -193,6 +200,7 @@ const Meetings = () => {
   const [formHostId, setFormHostId] = useState<string>('');
   const [formParticipants, setFormParticipants] = useState<string[]>([]);
   const [formMeetingOutcome, setFormMeetingOutcome] = useState<MeetingOutcome | ''>('');
+  const [formVisibility, setFormVisibility] = useState<string>('team');
   const [saving, setSaving] = useState(false);
 
   // Fetch leads and users for dropdown
@@ -274,8 +282,11 @@ const Meetings = () => {
   }).length;
 
   const resetForm = () => {
+    setFormTitle('');
+    setFormDescription('');
     setFormDate(new Date());
     setFormTime('10:00');
+    setFormEndTime('11:00');
     setFormType('discovery');
     setFormAgenda('');
     setFormBackground('');
@@ -285,11 +296,16 @@ const Meetings = () => {
     setFormHostId('');
     setFormParticipants([]);
     setFormMeetingOutcome('');
+    setFormVisibility('team');
   };
 
   const handleCreate = async () => {
     if (!formDate) {
       toast.error('Please select a date');
+      return;
+    }
+    if (!formTitle.trim()) {
+      toast.error('Please enter a meeting title');
       return;
     }
 
@@ -301,8 +317,21 @@ const Meetings = () => {
       const meetingDateTime = new Date(formDate);
       meetingDateTime.setHours(hours, minutes, 0, 0);
 
+      const [endH, endM] = formEndTime.split(':').map(Number);
+      const endDateTime = new Date(formDate);
+      endDateTime.setHours(endH, endM, 0, 0);
+
+      if (endDateTime <= meetingDateTime) {
+        toast.error('End time must be after start time');
+        setSaving(false);
+        return;
+      }
+
       const success = await createMeeting({
+        title: formTitle,
+        description: formDescription || undefined,
         meeting_date: meetingDateTime.toISOString(),
+        end_datetime: endDateTime.toISOString(),
         meeting_type: formType,
         agenda: formAgenda || undefined,
         background: formBackground || undefined,
@@ -314,6 +343,7 @@ const Meetings = () => {
         host_name: selectedHost?.name || undefined,
         participants: formParticipants.length > 0 ? formParticipants : undefined,
         meeting_outcome: formMeetingOutcome || undefined,
+        visibility: formVisibility,
       });
 
       if (success) {
@@ -336,8 +366,15 @@ const Meetings = () => {
       const meetingDateTime = new Date(formDate);
       meetingDateTime.setHours(hours, minutes, 0, 0);
 
+      const [endH, endM] = formEndTime.split(':').map(Number);
+      const endDateTime = new Date(formDate);
+      endDateTime.setHours(endH, endM, 0, 0);
+
       const success = await updateMeeting(editMeeting.id, {
+        title: formTitle || null,
+        description: formDescription || null,
         meeting_date: meetingDateTime.toISOString(),
+        end_datetime: endDateTime.toISOString(),
         meeting_type: formType,
         agenda: formAgenda || null,
         background: formBackground || null,
@@ -348,7 +385,8 @@ const Meetings = () => {
         host_name: selectedHost?.name || null,
         participants: formParticipants,
         meeting_outcome: formMeetingOutcome || null,
-      });
+        visibility: formVisibility,
+      } as any);
 
       if (success) {
         setEditMeeting(null);
@@ -370,8 +408,12 @@ const Meetings = () => {
   const openEditDialog = (meeting: Meeting) => {
     setEditMeeting(meeting);
     const meetingDate = new Date(meeting.meeting_date);
+    setFormTitle((meeting as any).title || '');
+    setFormDescription((meeting as any).description || '');
     setFormDate(meetingDate);
     setFormTime(format(meetingDate, 'HH:mm'));
+    const endDt = (meeting as any).end_datetime ? new Date((meeting as any).end_datetime) : null;
+    setFormEndTime(endDt ? format(endDt, 'HH:mm') : format(new Date(meetingDate.getTime() + 3600000), 'HH:mm'));
     setFormType(meeting.meeting_type);
     setFormAgenda(meeting.agenda || '');
     setFormBackground(meeting.background || '');
@@ -379,6 +421,7 @@ const Meetings = () => {
     setFormHostId(meeting.host_id || '');
     setFormParticipants(meeting.participants || []);
     setFormMeetingOutcome(meeting.meeting_outcome || '');
+    setFormVisibility((meeting as any).visibility || 'team');
     // Set lead info
     if (meeting.enquiry_id) {
       setFormLeadId(meeting.enquiry_id);
@@ -411,13 +454,37 @@ const Meetings = () => {
           </Button>
         </div>
 
+        {/* View Toggle */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
+            <Button
+              variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+              size="sm"
+              className="text-xs h-7 px-3"
+              onClick={() => setViewMode('calendar')}
+            >
+              <LayoutGrid className="w-3.5 h-3.5 mr-1.5" />
+              Calendar
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              className="text-xs h-7 px-3"
+              onClick={() => setViewMode('list')}
+            >
+              <List className="w-3.5 h-3.5 mr-1.5" />
+              List
+            </Button>
+          </div>
+        </div>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+          <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-500/20">
-                  <CalendarIcon className="h-5 w-5 text-blue-600" />
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <CalendarIcon className="h-5 w-5 text-primary" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{todaysMeetings.length}</p>
@@ -426,11 +493,11 @@ const Meetings = () => {
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-gradient-to-br from-yellow-500/10 to-yellow-500/5 border-yellow-500/20">
+          <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-yellow-500/20">
-                  <Clock className="h-5 w-5 text-yellow-600" />
+                <div className="p-2 rounded-lg bg-accent/10">
+                  <Clock className="h-5 w-5 text-accent" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{upcomingCount}</p>
@@ -439,11 +506,11 @@ const Meetings = () => {
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
+          <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-green-500/20">
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <div className="p-2 rounded-lg bg-secondary">
+                  <CheckCircle2 className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{meetingsThisMonth}</p>
@@ -452,11 +519,11 @@ const Meetings = () => {
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20">
+          <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-purple-500/20">
-                  <Target className="h-5 w-5 text-purple-600" />
+                <div className="p-2 rounded-lg bg-secondary">
+                  <Target className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{closedLeadMeetings.length}</p>
@@ -515,39 +582,66 @@ const Meetings = () => {
           </Select>
         </div>
 
-        {/* Meetings List */}
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : filteredMeetings.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <CalendarIcon className="w-12 h-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No meetings found</h3>
-              <p className="text-muted-foreground text-center mb-4">
-                {meetings.length === 0 
-                  ? "Schedule your first meeting to get started" 
-                  : "No meetings match your filters"}
-              </p>
-              <Button onClick={() => setCreateDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Schedule Meeting
-              </Button>
-            </CardContent>
-          </Card>
+        {/* Content: Calendar or List */}
+        {viewMode === 'calendar' ? (
+          loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <TeamCalendar
+              meetings={filteredMeetings.map(m => ({
+                id: m.id,
+                title: (m as any).title || m.agenda?.slice(0, 60) || `${m.meeting_type} Meeting`,
+                meeting_date: m.meeting_date,
+                end_datetime: (m as any).end_datetime || null,
+                meeting_type: m.meeting_type,
+                status: m.status,
+                meeting_link: m.meeting_link,
+                host_name: m.host_name,
+                owner_name: m.owner_name,
+                visibility: (m as any).visibility || 'team',
+                agenda: m.agenda,
+                description: (m as any).description || null,
+                participants: m.participants || [],
+                participant_names: m.participant_names,
+              }))}
+            />
+          )
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredMeetings.map((meeting) => (
-              <MeetingCard 
-                key={meeting.id} 
-                meeting={meeting}
-                onEdit={openEditDialog}
-                onComplete={handleComplete}
-                onCancel={handleCancel}
-              />
-            ))}
-          </div>
+          loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredMeetings.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <CalendarIcon className="w-12 h-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">No meetings found</h3>
+                <p className="text-muted-foreground text-center mb-4">
+                  {meetings.length === 0 
+                    ? "Schedule your first meeting to get started" 
+                    : "No meetings match your filters"}
+                </p>
+                <Button onClick={() => setCreateDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Schedule Meeting
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredMeetings.map((meeting) => (
+                <MeetingCard 
+                  key={meeting.id} 
+                  meeting={meeting}
+                  onEdit={openEditDialog}
+                  onComplete={handleComplete}
+                  onCancel={handleCancel}
+                />
+              ))}
+            </div>
+          )
         )}
       </main>
 
@@ -571,6 +665,16 @@ const Meetings = () => {
           </DialogHeader>
           <ScrollArea className="max-h-[60vh]">
             <div className="space-y-4 p-1">
+              {/* Title */}
+              <div className="space-y-2">
+                <Label>Title *</Label>
+                <Input
+                  placeholder="Meeting title"
+                  value={formTitle}
+                  onChange={(e) => setFormTitle(e.target.value)}
+                />
+              </div>
+
               {/* Lead Selection */}
               <div className="space-y-2">
                 <Label>Link to Lead (Optional)</Label>
@@ -637,13 +741,23 @@ const Meetings = () => {
               </div>
 
               {/* Time */}
-              <div className="space-y-2">
-                <Label>Time</Label>
-                <Input
-                  type="time"
-                  value={formTime}
-                  onChange={(e) => setFormTime(e.target.value)}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Start Time</Label>
+                  <Input
+                    type="time"
+                    value={formTime}
+                    onChange={(e) => setFormTime(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>End Time</Label>
+                  <Input
+                    type="time"
+                    value={formEndTime}
+                    onChange={(e) => setFormEndTime(e.target.value)}
+                  />
+                </div>
               </div>
 
               {/* Type */}
@@ -752,6 +866,32 @@ const Meetings = () => {
                   onChange={(e) => setFormBackground(e.target.value)}
                   rows={2}
                 />
+              </div>
+
+              {/* Description */}
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea
+                  placeholder="Detailed description..."
+                  value={formDescription}
+                  onChange={(e) => setFormDescription(e.target.value)}
+                  rows={2}
+                />
+              </div>
+
+              {/* Visibility */}
+              <div className="space-y-2">
+                <Label>Visibility</Label>
+                <Select value={formVisibility} onValueChange={setFormVisibility}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="team">Team (All employees)</SelectItem>
+                    <SelectItem value="department">Department</SelectItem>
+                    <SelectItem value="private">Private (Host + Participants)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </ScrollArea>

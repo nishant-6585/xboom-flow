@@ -9,10 +9,13 @@ export type MeetingOutcome = 'pursued' | 'deal_closed' | 'deal_lost';
 
 export interface Meeting {
   id: string;
+  title: string | null;
+  description: string | null;
   enquiry_id: string | null;
   pipeline_id: string | null;
   order_id: string | null;
   meeting_date: string;
+  end_datetime: string | null;
   meeting_type: MeetingType;
   agenda: string | null;
   background: string | null;
@@ -27,6 +30,7 @@ export interface Meeting {
   next_steps: string | null;
   next_followup_date: string | null;
   meeting_link: string | null;
+  visibility: string;
   created_at: string;
   updated_at: string;
   // Joined fields
@@ -39,10 +43,13 @@ export interface Meeting {
 }
 
 export interface MeetingFormData {
+  title?: string;
+  description?: string;
   enquiry_id?: string;
   pipeline_id?: string;
   order_id?: string;
   meeting_date: string;
+  end_datetime?: string;
   meeting_type: MeetingType;
   agenda?: string;
   background?: string;
@@ -52,6 +59,7 @@ export interface MeetingFormData {
   status?: MeetingStatus;
   meeting_link?: string;
   meeting_outcome?: MeetingOutcome;
+  visibility?: string;
 }
 
 export const MEETING_TYPES: { value: MeetingType; label: string }[] = [
