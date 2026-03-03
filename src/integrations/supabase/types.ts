@@ -552,6 +552,7 @@ export type Database = {
           interview_stage: Database["public"]["Enums"]["interview_stage"] | null
           job_role_applied: string | null
           joining_date: string | null
+          lifecycle_status: Database["public"]["Enums"]["candidate_lifecycle_status"]
           location: string | null
           location_city: string | null
           location_state: string | null
@@ -600,6 +601,7 @@ export type Database = {
             | null
           job_role_applied?: string | null
           joining_date?: string | null
+          lifecycle_status?: Database["public"]["Enums"]["candidate_lifecycle_status"]
           location?: string | null
           location_city?: string | null
           location_state?: string | null
@@ -648,6 +650,7 @@ export type Database = {
             | null
           job_role_applied?: string | null
           joining_date?: string | null
+          lifecycle_status?: Database["public"]["Enums"]["candidate_lifecycle_status"]
           location?: string | null
           location_city?: string | null
           location_state?: string | null
@@ -6604,6 +6607,16 @@ export type Database = {
         | "keyboard"
         | "mouse"
         | "other"
+      candidate_lifecycle_status:
+        | "NEW"
+        | "SCREENING"
+        | "INTERVIEW"
+        | "SELECTED"
+        | "OFFERED"
+        | "JOINED"
+        | "REJECTED"
+        | "DROPPED"
+        | "ON_HOLD"
       candidate_status:
         | "applied"
         | "shortlisted"
@@ -6881,6 +6894,17 @@ export const Constants = {
         "keyboard",
         "mouse",
         "other",
+      ],
+      candidate_lifecycle_status: [
+        "NEW",
+        "SCREENING",
+        "INTERVIEW",
+        "SELECTED",
+        "OFFERED",
+        "JOINED",
+        "REJECTED",
+        "DROPPED",
+        "ON_HOLD",
       ],
       candidate_status: [
         "applied",

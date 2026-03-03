@@ -5,12 +5,40 @@ import { toast } from "sonner";
 import { useAuth } from "./useAuth";
 
 export type CandidateStatus = "applied" | "shortlisted" | "rejected" | "hired" | "blacklisted";
+export type LifecycleStatus = "NEW" | "SCREENING" | "INTERVIEW" | "SELECTED" | "OFFERED" | "JOINED" | "REJECTED" | "DROPPED" | "ON_HOLD";
 export type InterviewDecision = "pass" | "reject" | "hold";
 export type ApplicationSource = "Referral" | "Naukri" | "LinkedIn" | "Website" | "Consultant" | "Walk-in" | "Other";
 export type EmploymentType = "Full-time" | "Contract" | "Intern";
 export type ScreeningStatus = "New" | "Shortlisted" | "Rejected" | "On Hold";
 export type InterviewStage = "HR" | "Technical" | "Managerial" | "Final";
 export type FinalStatus = "Selected" | "Rejected";
+
+// Lifecycle transition map: current status → allowed next statuses
+export const LIFECYCLE_TRANSITIONS: Record<LifecycleStatus, LifecycleStatus[]> = {
+  NEW: ["SCREENING", "REJECTED"],
+  SCREENING: ["INTERVIEW", "ON_HOLD", "REJECTED"],
+  INTERVIEW: ["SELECTED", "ON_HOLD", "REJECTED"],
+  SELECTED: ["OFFERED", "REJECTED"],
+  OFFERED: ["JOINED", "DROPPED"],
+  ON_HOLD: ["SCREENING", "INTERVIEW", "REJECTED"],
+  JOINED: [],
+  REJECTED: [],
+  DROPPED: [],
+};
+
+export const LIFECYCLE_LABELS: Record<LifecycleStatus, string> = {
+  NEW: "New",
+  SCREENING: "Screening",
+  INTERVIEW: "Interview",
+  SELECTED: "Selected",
+  OFFERED: "Offered",
+  JOINED: "Joined",
+  REJECTED: "Rejected",
+  DROPPED: "Dropped",
+  ON_HOLD: "On Hold",
+};
+
+export const FINAL_LIFECYCLE_STATES: LifecycleStatus[] = ["JOINED", "REJECTED", "DROPPED"];
 
 export interface Candidate {
   id: string;
@@ -45,6 +73,7 @@ export interface Candidate {
   follow_up_date?: string;
   remarks?: string;
   status: CandidateStatus;
+  lifecycle_status: LifecycleStatus;
   notes?: string;
   resume_url?: string;
   created_by?: string;
@@ -233,7 +262,14 @@ export function useCandidateMutations() {
       queryClient.invalidateQueries({ queryKey: ["candidate", vars.id] });
       toast.success("Candidate updated");
     },
-    onError: (err: any) => toast.error(err.message || "Failed to update candidate"),
+    onError: (err: any) => {
+      const msg = err?.message || "Failed to update candidate";
+      if (msg.includes("Invalid status transition")) {
+        toast.error("Invalid status transition. This change is not allowed.");
+      } else {
+        toast.error(msg);
+      }
+    },
   });
 
   const deleteCandidate = useMutation({
