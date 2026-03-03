@@ -301,7 +301,9 @@ export function AttendanceSection({
           {attendanceLogs.slice(0, 5).map(log => {
             const isProvisional = !!log.is_provisional_checkout;
             const windowOpen = isCorrectionWindowOpen(log);
-            const canEdit = isProvisional && (isHROrAdmin || windowOpen);
+            // Admins/HR can always edit; employees can always request corrections
+            const canEdit = isHROrAdmin || isProvisional && windowOpen;
+            const canRequestCorrection = !isHROrAdmin && !canEdit && !!log.check_in_time;
 
             return (
               <div key={log.id} className={cn(
@@ -341,33 +343,42 @@ export function AttendanceSection({
                   <span className="font-medium text-sm">{(log.working_hours || 0).toFixed(1)}h</span>
                   <div className={cn('w-2 h-2 rounded-full', STATUS_COLORS[log.status] || 'bg-muted')} />
 
-                  {/* Edit / Locked button for provisional records */}
-                  {isProvisional && (
+                  {/* Edit button for editable records */}
+                  {canEdit && (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="inline-flex">
-                          {canEdit ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-6 px-2 text-xs border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 gap-1"
-                              onClick={() => setCorrectionLog(log)}
-                            >
-                              <Pencil className="h-3 w-3" />
-                              Edit
-                            </Button>
-                          ) : (
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground cursor-not-allowed">
-                              <Lock className="h-3 w-3" />
-                              Locked
-                            </span>
-                          )}
-                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-xs border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 gap-1"
+                          onClick={() => setCorrectionLog(log)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                          Edit
+                        </Button>
                       </TooltipTrigger>
                       <TooltipContent side="left" className="max-w-[200px] text-xs">
-                        {canEdit
-                          ? 'Click to correct your checkout time'
-                          : 'Correction window closed. Contact HR.'}
+                        Click to correct your checkout time
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
+                  {/* Request correction button for non-admin when direct edit not available */}
+                  {canRequestCorrection && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-xs gap-1"
+                          onClick={() => setCorrectionLog(log)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                          Request Edit
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-[200px] text-xs">
+                        Submit a correction request for HR approval
                       </TooltipContent>
                     </Tooltip>
                   )}
