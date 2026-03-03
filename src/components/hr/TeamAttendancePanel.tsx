@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
-  getDay, isToday, differenceInMinutes, subDays,
+  getDay, isToday, differenceInMinutes, subDays, addDays, isFuture,
+  isSameDay,
 } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +13,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -19,7 +22,7 @@ import {
   Calendar, Download, Users, ChevronLeft, ChevronRight,
   UserCheck, UserX, CalendarCheck, Coffee, LogOut,
   Clock, AlertTriangle, RefreshCw, Activity, Eye,
-  Timer, Zap, ShieldAlert, Pencil,
+  Timer, Zap, ShieldAlert, Pencil, CalendarDays,
 } from 'lucide-react';
 import { Employee, AttendanceLog } from '@/hooks/useHR';
 import { cn } from '@/lib/utils';
@@ -131,27 +134,34 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const policyTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
-  const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+  // ── Date selection for the "Today" tab ──
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const isViewingToday = isToday(selectedDate);
+  const isViewingFuture = isFuture(selectedDate) && !isToday(selectedDate);
+  const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
 
-  // ── Fetch today's data (lightweight) ──
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const yesterdayOfSelectedStr = format(subDays(selectedDate, 1), 'yyyy-MM-dd');
+
+  // ── Fetch data for selected date ──
   const fetchToday = useCallback(async () => {
     setLoadingToday(true);
     const { data } = await supabase
       .from('attendance_logs')
       .select('*')
-      .eq('date', todayStr);
+      .eq('date', selectedDateStr);
     setTodayLogs((data as AttendanceLog[]) || []);
 
     const { data: yd } = await supabase
       .from('attendance_logs')
       .select('*')
-      .eq('date', yesterdayStr);
+      .eq('date', yesterdayOfSelectedStr);
     setYesterdayLogs((yd as AttendanceLog[]) || []);
 
     setLoadingToday(false);
     setLastRefresh(new Date());
-  }, [todayStr, yesterdayStr]);
+  }, [selectedDateStr, yesterdayOfSelectedStr]);
 
   // ── Fetch month data for Calendar/Monthly tabs ──
   const fetchMonth = useCallback(async () => {
@@ -182,30 +192,42 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
   useEffect(() => { fetchMonth(); }, [fetchMonth]);
   useEffect(() => { fetchPolicy(); }, [fetchPolicy]);
 
-  // 60s auto-refresh for today data; 5-min cache refresh for policy
+  // 60s auto-refresh only when viewing today; 5-min cache refresh for policy
   useEffect(() => {
+    if (!isViewingToday) return; // no auto-refresh for past dates
     refreshTimerRef.current = setInterval(() => { fetchToday(); }, 60_000);
     return () => { if (refreshTimerRef.current) clearInterval(refreshTimerRef.current); };
-  }, [fetchToday]);
+  }, [fetchToday, isViewingToday]);
   useEffect(() => {
     policyTimerRef.current = setInterval(() => { fetchPolicy(); }, 5 * 60_000);
     return () => { if (policyTimerRef.current) clearInterval(policyTimerRef.current); };
   }, [fetchPolicy]);
 
-  // ── Build live rows ──
+  // ── Build rows — live for today, historical for past ──
   const liveRows: LiveRow[] = employees.map(emp => {
     const log = todayLogs.find(l => l.employee_id === emp.id) || null;
+    if (isViewingToday) {
+      return {
+        employee: emp,
+        log,
+        liveStatus: getLiveStatus(log),
+        isLate: isLateCheckIn(log, policy),
+        breakMinutes: currentBreakMinutes(log),
+      };
+    }
+    // Historical mode — show final statuses
+    const historicalStatus = deriveHistoricalStatus(log, selectedDate, policy);
     return {
       employee: emp,
       log,
-      liveStatus: getLiveStatus(log),
-      isLate: isLateCheckIn(log, policy),
-      breakMinutes: currentBreakMinutes(log),
+      liveStatus: historicalStatus,
+      isLate: historicalStatus === 'Late',
+      breakMinutes: log?.total_break_minutes || 0,
     };
   });
 
   // ── Control center metrics ──
-  const metrics = {
+  const metrics = isViewingToday ? {
     present: liveRows.filter(r => r.liveStatus === 'Working' || r.liveStatus === 'Completed').length,
     absent: liveRows.filter(r => r.liveStatus === 'Not Checked In').length,
     onLeave: liveRows.filter(r => r.liveStatus === 'On Leave').length,
@@ -216,23 +238,43 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
       const yl = yesterdayLogs.find(l => l.employee_id === emp.id);
       return yl?.check_in_time && !yl?.check_out_time;
     }).length,
+  } : {
+    present: liveRows.filter(r => r.liveStatus === 'Present' || r.liveStatus === 'Late' || r.liveStatus === 'Half Day').length,
+    absent: liveRows.filter(r => r.liveStatus === 'Absent').length,
+    onLeave: liveRows.filter(r => r.liveStatus === 'On Leave').length,
+    working: 0,
+    onBreak: 0,
+    late: liveRows.filter(r => r.isLate).length,
+    noCheckoutYesterday: employees.filter(emp => {
+      const yl = yesterdayLogs.find(l => l.employee_id === emp.id);
+      return yl?.check_in_time && !yl?.check_out_time;
+    }).length,
   };
 
   // ── Anomalies — thresholds from policy ──
   const now = new Date();
   const lateHour = lateThresholdHour(policy);
-  const noCheckInAfterThreshold = liveRows.filter(r =>
-    r.liveStatus === 'Not Checked In' && now.getHours() + now.getMinutes() / 60 > lateHour
-  );
-  // keep alias for template usage
+
+  // For today: employees with no check-in after threshold
+  // For past dates: employees marked absent
+  const noCheckInAfterThreshold = isViewingToday
+    ? liveRows.filter(r => r.liveStatus === 'Not Checked In' && now.getHours() + now.getMinutes() / 60 > lateHour)
+    : liveRows.filter(r => r.liveStatus === 'Absent');
   const noCheckInAfter10 = noCheckInAfterThreshold;
-  const longBreak = liveRows.filter(r =>
-    r.liveStatus === 'On Break' && r.breakMinutes > policy.break_warning_minutes
-  );
-  const missingCheckoutYesterday = employees.filter(emp => {
-    const yl = yesterdayLogs.find(l => l.employee_id === emp.id);
-    return yl?.check_in_time && !yl?.check_out_time;
-  });
+
+  const longBreak = isViewingToday
+    ? liveRows.filter(r => r.liveStatus === 'On Break' && r.breakMinutes > policy.break_warning_minutes)
+    : []; // No live break anomalies for past dates
+
+  const missingCheckoutYesterday = isViewingToday
+    ? employees.filter(emp => {
+        const yl = yesterdayLogs.find(l => l.employee_id === emp.id);
+        return yl?.check_in_time && !yl?.check_out_time;
+      })
+    : employees.filter(emp => {
+        const yl = yesterdayLogs.find(l => l.employee_id === emp.id);
+        return yl?.check_in_time && !yl?.check_out_time;
+      });
 
   // ── CSV Export ──
   const monthDays = eachDayOfInterval({ start: startOfMonth(calendarMonth), end: endOfMonth(calendarMonth) });
@@ -267,7 +309,7 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
       <div className="flex flex-col gap-2">
         <TabsList className="h-9 w-full grid grid-cols-4">
           <TabsTrigger value="today" className="gap-1 text-xs">
-            <Activity className="h-3.5 w-3.5 shrink-0" /> Today
+            <Activity className="h-3.5 w-3.5 shrink-0" /> {isViewingToday ? 'Today' : 'Date View'}
           </TabsTrigger>
           <TabsTrigger value="calendar" className="gap-1 text-xs">
             <Calendar className="h-3.5 w-3.5 shrink-0" /> <span className="hidden xs:inline">Calendar</span><span className="xs:hidden">Cal</span>
@@ -279,97 +321,181 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
             <Download className="h-3.5 w-3.5 shrink-0" /> Export
           </TabsTrigger>
         </TabsList>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>Refreshed {format(lastRefresh, 'hh:mm:ss a')}</span>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={fetchToday} disabled={loadingToday}>
-            <RefreshCw className={cn('h-3.5 w-3.5', loadingToday && 'animate-spin')} />
-          </Button>
+
+        {/* Date picker bar + refresh info */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setSelectedDate(d => subDays(d, 1))}
+              title="Previous Day"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+
+            <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs gap-1.5">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  {format(selectedDate, 'dd MMM yyyy')}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarPicker
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => {
+                    if (date) {
+                      setSelectedDate(date);
+                      setDatePickerOpen(false);
+                    }
+                  }}
+                  disabled={(date) => isFuture(date) && !isToday(date)}
+                  initialFocus
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => {
+                const next = addDays(selectedDate, 1);
+                if (!isFuture(next) || isToday(next)) setSelectedDate(next);
+              }}
+              disabled={isViewingToday}
+              title="Next Day"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+
+          {!isViewingToday && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="h-7 px-2.5 text-xs gap-1"
+              onClick={() => setSelectedDate(new Date())}
+            >
+              <Activity className="h-3 w-3" /> Reset to Today
+            </Button>
+          )}
+
+          <div className="flex items-center gap-1.5 ml-auto text-xs text-muted-foreground">
+            {isViewingToday && <Badge variant="outline" className="text-xs border-green-300 text-green-700 gap-1"><Activity className="h-3 w-3" />Live</Badge>}
+            <span>Refreshed {format(lastRefresh, 'hh:mm:ss a')}</span>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={fetchToday} disabled={loadingToday}>
+              <RefreshCw className={cn('h-3.5 w-3.5', loadingToday && 'animate-spin')} />
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════ TODAY ══ */}
+      {/* ══════════════════════════════════════════ TODAY / DATE VIEW ══ */}
       <TabsContent value="today" className="space-y-4 mt-0">
-        {/* Metrics Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-          {[
-            { label: 'Present', value: metrics.present, icon: UserCheck, color: 'text-green-600', bg: 'bg-green-500/10' },
-            { label: 'Absent', value: metrics.absent, icon: UserX, color: 'text-red-600', bg: 'bg-red-500/10' },
-            { label: 'On Leave', value: metrics.onLeave, icon: CalendarCheck, color: 'text-purple-600', bg: 'bg-purple-500/10' },
-            { label: 'Working', value: metrics.working, icon: Activity, color: 'text-blue-600', bg: 'bg-blue-500/10' },
-            { label: 'On Break', value: metrics.onBreak, icon: Coffee, color: 'text-orange-600', bg: 'bg-orange-500/10' },
-            { label: 'Late', value: metrics.late, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-500/10' },
-            { label: 'No Checkout (Yesterday)', value: metrics.noCheckoutYesterday, icon: LogOut, color: 'text-rose-600', bg: 'bg-rose-500/10' },
-          ].map(({ label, value, icon: Icon, color, bg }) => (
-            <div key={label} className={`flex flex-col items-start gap-1 rounded-xl px-3 py-2.5 ${bg}`}>
-              <div className="flex items-center gap-1.5">
-                <Icon className={`h-4 w-4 ${color}`} />
-                <p className={`text-2xl font-bold leading-none ${color}`}>{value}</p>
-              </div>
-              <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
-            </div>
-          ))}
-        </div>
 
-        {/* Anomaly Panel */}
-        {(noCheckInAfter10.length > 0 || longBreak.length > 0 || missingCheckoutYesterday.length > 0) && (
-          <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-800">
-            <CardHeader className="pb-2 pt-3 px-4">
-              <CardTitle className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" /> Anomalies Detected
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-3 space-y-2">
-              {noCheckInAfter10.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">
-                    No check-in after 10 AM ({noCheckInAfter10.length})
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    {noCheckInAfter10.map(r => (
-                      <Badge key={r.employee.id} variant="outline" className="text-xs border-amber-300 text-amber-700">
-                        {r.employee.name}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {longBreak.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-orange-700 dark:text-orange-400 mb-1">
-                    On break &gt; 60 min ({longBreak.length})
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    {longBreak.map(r => (
-                      <Badge key={r.employee.id} variant="outline" className="text-xs border-orange-300 text-orange-700">
-                        {r.employee.name} ({r.breakMinutes}m)
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {missingCheckoutYesterday.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-rose-700 dark:text-rose-400 mb-1">
-                    No checkout yesterday ({missingCheckoutYesterday.length})
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    {missingCheckoutYesterday.map(emp => (
-                      <Badge key={emp.id} variant="outline" className="text-xs border-rose-300 text-rose-700">
-                        {emp.name}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
+        {/* Future date message */}
+        {isViewingFuture ? (
+          <Card>
+            <CardContent className="py-10 text-center text-muted-foreground text-sm">
+              <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-40" />
+              No data available for future dates.
             </CardContent>
           </Card>
+        ) : (
+          <>
+            {/* Metrics Bar */}
+            <div className={cn('grid gap-2', isViewingToday ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-7' : 'grid-cols-2 sm:grid-cols-4')}>
+              {[
+                { label: 'Present', value: metrics.present, icon: UserCheck, color: 'text-green-600', bg: 'bg-green-500/10', show: true },
+                { label: 'Absent', value: metrics.absent, icon: UserX, color: 'text-red-600', bg: 'bg-red-500/10', show: true },
+                { label: 'On Leave', value: metrics.onLeave, icon: CalendarCheck, color: 'text-purple-600', bg: 'bg-purple-500/10', show: true },
+                { label: 'Working', value: metrics.working, icon: Activity, color: 'text-blue-600', bg: 'bg-blue-500/10', show: isViewingToday },
+                { label: 'On Break', value: metrics.onBreak, icon: Coffee, color: 'text-orange-600', bg: 'bg-orange-500/10', show: isViewingToday },
+                { label: 'Late', value: metrics.late, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-500/10', show: true },
+                { label: isViewingToday ? 'No Checkout (Yesterday)' : `No Checkout (${format(subDays(selectedDate, 1), 'dd MMM')})`, value: metrics.noCheckoutYesterday, icon: LogOut, color: 'text-rose-600', bg: 'bg-rose-500/10', show: true },
+              ].filter(m => m.show).map(({ label, value, icon: Icon, color, bg }) => (
+                <div key={label} className={`flex flex-col items-start gap-1 rounded-xl px-3 py-2.5 ${bg}`}>
+                  <div className="flex items-center gap-1.5">
+                    <Icon className={`h-4 w-4 ${color}`} />
+                    <p className={`text-2xl font-bold leading-none ${color}`}>{value}</p>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Anomaly Panel */}
+            {(noCheckInAfter10.length > 0 || longBreak.length > 0 || missingCheckoutYesterday.length > 0) && (
+              <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-800">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <CardTitle className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    {isViewingToday ? 'Anomalies Detected' : `Anomalies — ${format(selectedDate, 'dd MMM yyyy')}`}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-3 space-y-2">
+                  {noCheckInAfter10.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">
+                        {isViewingToday
+                          ? `No check-in after ${policy.work_start_time.slice(0, 5)} (${noCheckInAfter10.length})`
+                          : `Absent — no check-in recorded (${noCheckInAfter10.length})`}
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {noCheckInAfter10.map(r => (
+                          <Badge key={r.employee.id} variant="outline" className="text-xs border-amber-300 text-amber-700">
+                            {r.employee.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {longBreak.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-orange-700 dark:text-orange-400 mb-1">
+                        On break &gt; {policy.break_warning_minutes} min ({longBreak.length})
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {longBreak.map(r => (
+                          <Badge key={r.employee.id} variant="outline" className="text-xs border-orange-300 text-orange-700">
+                            {r.employee.name} ({r.breakMinutes}m)
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {missingCheckoutYesterday.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-rose-700 dark:text-rose-400 mb-1">
+                        {isViewingToday
+                          ? `No checkout yesterday (${missingCheckoutYesterday.length})`
+                          : `No checkout on ${format(subDays(selectedDate, 1), 'dd MMM')} (${missingCheckoutYesterday.length})`}
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {missingCheckoutYesterday.map(emp => (
+                          <Badge key={emp.id} variant="outline" className="text-xs border-rose-300 text-rose-700">
+                            {emp.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Pending Correction Requests */}
+            <PendingCorrectionApprovals />
+
+            {/* Live Status Table */}
+            <LiveStatusTable liveRows={liveRows} loading={loadingToday} onRefresh={fetchToday} isLive={isViewingToday} selectedDate={selectedDate} />
+          </>
         )}
-
-        {/* Pending Correction Requests */}
-        <PendingCorrectionApprovals />
-
-        {/* Live Status Table */}
-        <LiveStatusTable liveRows={liveRows} loading={loadingToday} onRefresh={fetchToday} />
       </TabsContent>
 
       {/* ══════════════════════════════════════════ CALENDAR ══ */}
@@ -503,7 +629,7 @@ function EmployeeDetailDialog({ row, open, onOpenChange }: {
   );
 }
 
-function LiveStatusTable({ liveRows, loading, onRefresh }: { liveRows: LiveRow[]; loading: boolean; onRefresh?: () => void }) {
+function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selectedDate }: { liveRows: LiveRow[]; loading: boolean; onRefresh?: () => void; isLive?: boolean; selectedDate?: Date }) {
   const [filter, setFilter] = useState<QuickFilter>('all');
   const [empFilter, setEmpFilter] = useState('all');
   const [detailRow, setDetailRow] = useState<LiveRow | null>(null);
@@ -513,17 +639,26 @@ function LiveStatusTable({ liveRows, loading, onRefresh }: { liveRows: LiveRow[]
     if (empFilter !== 'all' && r.employee.id !== empFilter) return false;
     if (filter === 'all') return true;
     if (filter === 'Late') return r.isLate;
+    // For historical mode, "Not Checked In" maps to "Absent"
+    if (!isLive && filter === 'Not Checked In') return r.liveStatus === 'Absent';
     return r.liveStatus === filter;
   });
 
-  const quickFilters: { label: string; value: QuickFilter; color: string }[] = [
-    { label: 'All', value: 'all', color: '' },
-    { label: 'Working', value: 'Working', color: 'data-[active=true]:bg-blue-500 data-[active=true]:text-white' },
-    { label: 'Absent', value: 'Not Checked In', color: 'data-[active=true]:bg-red-500 data-[active=true]:text-white' },
-    { label: 'Late', value: 'Late', color: 'data-[active=true]:bg-amber-500 data-[active=true]:text-white' },
-    { label: 'On Break', value: 'On Break', color: 'data-[active=true]:bg-orange-500 data-[active=true]:text-white' },
-    { label: 'Completed', value: 'Completed', color: 'data-[active=true]:bg-green-500 data-[active=true]:text-white' },
-  ];
+  const quickFilters: { label: string; value: QuickFilter; color: string }[] = isLive
+    ? [
+        { label: 'All', value: 'all', color: '' },
+        { label: 'Working', value: 'Working', color: 'data-[active=true]:bg-blue-500 data-[active=true]:text-white' },
+        { label: 'Absent', value: 'Not Checked In', color: 'data-[active=true]:bg-red-500 data-[active=true]:text-white' },
+        { label: 'Late', value: 'Late', color: 'data-[active=true]:bg-amber-500 data-[active=true]:text-white' },
+        { label: 'On Break', value: 'On Break', color: 'data-[active=true]:bg-orange-500 data-[active=true]:text-white' },
+        { label: 'Completed', value: 'Completed', color: 'data-[active=true]:bg-green-500 data-[active=true]:text-white' },
+      ]
+    : [
+        { label: 'All', value: 'all', color: '' },
+        { label: 'Late', value: 'Late', color: 'data-[active=true]:bg-amber-500 data-[active=true]:text-white' },
+      ];
+
+  const displayDate = selectedDate || new Date();
 
   return (
     <>
@@ -531,8 +666,8 @@ function LiveStatusTable({ liveRows, loading, onRefresh }: { liveRows: LiveRow[]
         <CardHeader className="pb-0 pt-4 px-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Zap className="h-4 w-4 text-primary" />
-              Live Status — {format(new Date(), 'EEEE, dd MMMM yyyy')}
+              {isLive ? <Zap className="h-4 w-4 text-primary" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
+              {isLive ? 'Live Status' : 'Attendance'} — {format(displayDate, 'EEEE, dd MMMM yyyy')}
               <Badge variant="secondary" className="text-xs">{filtered.length} employees</Badge>
             </CardTitle>
             <Select value={empFilter} onValueChange={setEmpFilter}>
@@ -633,7 +768,7 @@ function LiveStatusTable({ liveRows, loading, onRefresh }: { liveRows: LiveRow[]
                           {log?.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}
                         </td>
                         <td className="px-3 py-3 text-muted-foreground">
-                          {liveStatus === 'On Break'
+                          {isLive && liveStatus === 'On Break'
                             ? <span className="text-orange-600 font-medium flex items-center gap-1"><Timer className="h-3 w-3" />{breakMinutes}m</span>
                             : log?.total_break_minutes ? `${Math.round(log.total_break_minutes)}m` : '—'}
                         </td>
