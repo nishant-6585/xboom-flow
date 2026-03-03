@@ -112,6 +112,7 @@ export function AttendanceSection({
   const { role } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [correctionLog, setCorrectionLog] = useState<AttendanceLog | null>(null);
+  const [correctionMode, setCorrectionMode] = useState<'checkout' | 'checkin'>('checkout');
 
   const isHROrAdmin = role === 'admin' || role === 'hr';
 
@@ -304,6 +305,8 @@ export function AttendanceSection({
             // Admins/HR can always edit; employees can always request corrections
             const canEdit = isHROrAdmin || isProvisional && windowOpen;
             const canRequestCorrection = !isHROrAdmin && !canEdit && !!log.check_in_time;
+            // Show check-in correction for non-admin employees when check-in is missing or any log exists
+            const canRequestCheckinCorrection = !isHROrAdmin;
 
             return (
               <div key={log.id} className={cn(
@@ -322,6 +325,11 @@ export function AttendanceSection({
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-950/30 gap-0.5">
                         <AlertTriangle className="h-2.5 w-2.5" />
                         Provisional
+                      </Badge>
+                    )}
+                    {!log.check_in_time && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-red-400 bg-red-50 text-red-700 dark:bg-red-950/30 gap-0.5">
+                        Missing Check-In
                       </Badge>
                     )}
                     {log.corrected_at && !isProvisional && (
@@ -343,7 +351,7 @@ export function AttendanceSection({
                   <span className="font-medium text-sm">{(log.working_hours || 0).toFixed(1)}h</span>
                   <div className={cn('w-2 h-2 rounded-full', STATUS_COLORS[log.status] || 'bg-muted')} />
 
-                  {/* Edit button for editable records */}
+                  {/* Edit button for editable records (checkout) */}
                   {canEdit && (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -351,7 +359,7 @@ export function AttendanceSection({
                           variant="outline"
                           size="sm"
                           className="h-6 px-2 text-xs border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 gap-1"
-                          onClick={() => setCorrectionLog(log)}
+                          onClick={() => { setCorrectionMode('checkout'); setCorrectionLog(log); }}
                         >
                           <Pencil className="h-3 w-3" />
                           Edit
@@ -363,7 +371,7 @@ export function AttendanceSection({
                     </Tooltip>
                   )}
 
-                  {/* Request correction button for non-admin when direct edit not available */}
+                  {/* Request checkout correction for non-admin */}
                   {canRequestCorrection && (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -371,14 +379,34 @@ export function AttendanceSection({
                           variant="outline"
                           size="sm"
                           className="h-6 px-2 text-xs gap-1"
-                          onClick={() => setCorrectionLog(log)}
+                          onClick={() => { setCorrectionMode('checkout'); setCorrectionLog(log); }}
                         >
                           <Pencil className="h-3 w-3" />
                           Request Edit
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent side="left" className="max-w-[200px] text-xs">
-                        Submit a correction request for HR approval
+                        Submit a checkout correction request for HR approval
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
+                  {/* Request check-in correction */}
+                  {canRequestCheckinCorrection && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-xs gap-1 border-blue-400 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                          onClick={() => { setCorrectionMode('checkin'); setCorrectionLog(log); }}
+                        >
+                          <Clock className="h-3 w-3" />
+                          {!log.check_in_time ? 'Add Check-In' : 'Fix Check-In'}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-[200px] text-xs">
+                        Submit a check-in correction request for HR approval
                       </TooltipContent>
                     </Tooltip>
                   )}
@@ -402,6 +430,7 @@ export function AttendanceSection({
             setCorrectionLog(null);
             onRefresh?.();
           }}
+          mode={correctionMode}
         />
       )}
     </div>
