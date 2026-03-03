@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useNotices } from "@/hooks/useNotices";
+import { useNotices, Notice } from "@/hooks/useNotices";
 import { NoticeCard } from "./NoticeCard";
 import {
   Dialog,
@@ -11,12 +11,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { useState } from "react";
+import { format } from "date-fns";
 
 export function DashboardNoticesWidget() {
   const { notices, unreadNotices, readNoticeIds, markAsRead, loading } = useNotices();
   const [viewAllOpen, setViewAllOpen] = useState(false);
+  const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
 
   // Show only recent notices (last 5)
   const recentNotices = notices.slice(0, 5);
@@ -88,17 +91,47 @@ export function DashboardNoticesWidget() {
         ) : (
           <div className="space-y-2">
             {recentNotices.map((notice) => (
-              <NoticeCard
+              <div
                 key={notice.id}
-                notice={notice}
-                isRead={readNoticeIds.includes(notice.id)}
-                onMarkRead={markAsRead}
-                compact
-              />
+                onClick={() => {
+                  setSelectedNotice(notice);
+                  markAsRead(notice.id);
+                }}
+              >
+                <NoticeCard
+                  notice={notice}
+                  isRead={readNoticeIds.includes(notice.id)}
+                  onMarkRead={() => {
+                    setSelectedNotice(notice);
+                    markAsRead(notice.id);
+                  }}
+                  compact
+                />
+              </div>
             ))}
           </div>
         )}
       </CardContent>
+
+      {/* Notice detail dialog */}
+      <Dialog open={!!selectedNotice} onOpenChange={(open) => !open && setSelectedNotice(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{selectedNotice?.title}</DialogTitle>
+            <DialogDescription className="text-xs">
+              By {selectedNotice?.created_by_name} • {selectedNotice?.created_at ? format(new Date(selectedNotice.created_at), "dd MMM yyyy, h:mm a") : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-2">
+            <p className="text-sm whitespace-pre-wrap">{selectedNotice?.content}</p>
+            {selectedNotice?.expires_at && (
+              <p className="text-xs text-muted-foreground mt-4">
+                Expires: {format(new Date(selectedNotice.expires_at), "dd MMM yyyy")}
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
