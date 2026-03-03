@@ -62,8 +62,9 @@ const FOLDER_TYPES = [
 type ShareTarget = { type: "folder" | "document"; id: string; name: string };
 
 export function HRDocumentsPanel() {
-  const { user } = useAuth();
+  const { user, roles } = useAuth();
   const currentUserId = user?.id;
+  const isAdmin = roles.includes('admin');
   const {
     folders,
     documents,
@@ -423,14 +424,14 @@ export function HRDocumentsPanel() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                          {currentUserId === folder.created_by && (
+                          {(currentUserId === folder.created_by || isAdmin) && (
                             <DropdownMenuItem
                               onClick={() => openShareDialog({ type: "folder", id: folder.id, name: folder.name })}
                             >
                               <Share2 className="h-4 w-4 mr-2" /> Sharing
                             </DropdownMenuItem>
                           )}
-                          {currentUserId === folder.created_by && <DropdownMenuSeparator />}
+                          {(currentUserId === folder.created_by || isAdmin) && <DropdownMenuSeparator />}
                           <DropdownMenuItem
                             onClick={() => {
                               setRenameTarget({ id: folder.id, name: folder.name, type: "folder" });
@@ -519,14 +520,14 @@ export function HRDocumentsPanel() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {currentUserId === doc.uploaded_by && (
+                            {(currentUserId === doc.uploaded_by || isAdmin) && (
                               <DropdownMenuItem
                                 onClick={() => openShareDialog({ type: "document", id: doc.id, name: doc.name })}
                               >
                                 <Share2 className="h-4 w-4 mr-2" /> Sharing
                               </DropdownMenuItem>
                             )}
-                            {currentUserId === doc.uploaded_by && <DropdownMenuSeparator />}
+                            {(currentUserId === doc.uploaded_by || isAdmin) && <DropdownMenuSeparator />}
                             <DropdownMenuItem
                               onClick={() => {
                                 setRenameTarget({ id: doc.id, name: doc.name, type: "document" });
