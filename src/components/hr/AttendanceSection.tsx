@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO, isAfter, eachDayOfInterval, startOfMonth, endOfMonth, isWeekend, isFuture, isToday } from 'date-fns';
@@ -9,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AttendanceLog } from '@/hooks/useHR';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import { CorrectionRequestModal } from '@/components/attendance/CorrectionRequestModal';
 import { useHolidays } from '@/hooks/useHolidays';
 
@@ -18,6 +20,7 @@ interface AttendanceSectionProps {
   attendanceLogs: AttendanceLog[];
   calendarMonth: Date;
   onMonthChange: (m: Date) => void;
+  employeeId?: string;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -53,9 +56,11 @@ export function AttendanceSection({
   calendarMonth,
   onMonthChange,
   onRefresh,
+  employeeId,
 }: AttendanceSectionProps & { onRefresh?: () => void }) {
   const { role } = useAuth();
   const [correctionLog, setCorrectionLog] = useState<AttendanceLog | null>(null);
+  const [creatingStub, setCreatingStub] = useState(false);
   const { getHoliday } = useHolidays(calendarMonth.getFullYear());
 
   const isHROrAdmin = role === 'admin' || role === 'hr';
@@ -235,20 +240,44 @@ export function AttendanceSection({
                             <TableCell className="text-xs font-medium">0.0h</TableCell>
                             <TableCell className="text-xs hidden sm:table-cell">—</TableCell>
                             <TableCell className="text-right">
-                              {!isNonWorking && (
+                              {!isFuture(day) && employeeId && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      className="h-6 px-1.5 text-[10px] gap-0.5 border-blue-400 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
-                                      onClick={() => { /* No log to correct for absent days without record */ }}
-                                      disabled
+                                      className="h-6 px-2 text-[10px] gap-1 border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                                      disabled={creatingStub}
+                                      onClick={async () => {
+                                        setCreatingStub(true);
+                                        try {
+                                          // Create a stub attendance log for this date
+                                          const { data, error } = await supabase
+                                            .from('attendance_logs')
+                                            .insert({
+                                              employee_id: employeeId,
+                                              date: dateStr,
+                                              status: 'present',
+                                              source: 'regularization',
+                                            })
+                                            .select()
+                                            .single();
+                                          if (error) throw error;
+                                          setCorrectionLog(data as AttendanceLog);
+                                        } catch (e: any) {
+                                          toast.error(e.message || 'Failed to create attendance record');
+                                        } finally {
+                                          setCreatingStub(false);
+                                        }
+                                      }}
                                     >
-                                      <Clock className="h-3 w-3" />
+                                      <Pencil className="h-3 w-3" />
+                                      Regularize
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent side="left" className="text-xs">No record to correct</TooltipContent>
+                                  <TooltipContent side="left" className="text-xs">
+                                    {isWeekendDay ? 'Mark weekend attendance' : holiday ? 'Mark holiday attendance' : 'Request attendance correction'}
+                                  </TooltipContent>
                                 </Tooltip>
                               )}
                             </TableCell>
