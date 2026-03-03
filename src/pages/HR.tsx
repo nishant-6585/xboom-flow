@@ -12,12 +12,12 @@ import { TeamAttendancePanel } from "@/components/hr/TeamAttendancePanel";
 import { LeaveRequestCard } from "@/components/hr/LeaveRequestCard";
 import { LeaveApplyDialog } from "@/components/hr/LeaveApplyDialog";
 import { LeaveApprovalCard } from "@/components/hr/LeaveApprovalCard";
-import { TeamAttendanceOverview } from "@/components/hr/TeamAttendanceOverview";
+
 import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
 import { HRDocumentsPanel } from "@/components/hr/HRDocumentsPanel";
 import { KPIManagementPanel } from "@/components/kpi/KPIManagementPanel";
 import { ProvisionalCheckoutBanner } from "@/components/attendance/ProvisionalCheckoutBanner";
-import { Plus, Calendar, Clock, FileText, Users, LayoutList, Package, FolderOpen, Target, UserSearch, User } from "lucide-react";
+import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CandidatesPanel } from "@/components/candidates/CandidatesPanel";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,7 +35,6 @@ export default function HR() {
     attendanceLogs,
     leaveRequests,
     pendingLeaves,
-    teamAttendanceStatus,
     loading,
     checkIn,
     checkOut,
@@ -44,7 +43,6 @@ export default function HR() {
     applyLeave,
     approveLeave,
     fetchAttendanceLogs,
-    fetchTeamAttendanceStatus,
   } = useHR();
 
   const [activeTab, setActiveTab] = useState("home");
@@ -135,12 +133,6 @@ export default function HR() {
                 <Clock className="h-4 w-4 shrink-0" />
                 <span>Home</span>
               </TabsTrigger>
-              {isHROrAdmin && (
-                <TabsTrigger value="team" className="gap-1.5 whitespace-nowrap">
-                  <LayoutList className="h-4 w-4 shrink-0" />
-                  <span>Team</span>
-                </TabsTrigger>
-              )}
               <TabsTrigger value="attendance" className="gap-1.5 whitespace-nowrap">
                 <Calendar className="h-4 w-4 shrink-0" />
                 <span>Attendance</span>
@@ -195,14 +187,6 @@ export default function HR() {
             )}
           </TabsContent>
 
-          {isHROrAdmin && (
-            <TabsContent value="team" className="space-y-4">
-              <TeamAttendanceOverview
-                teamStatus={teamAttendanceStatus}
-                loading={loading}
-              />
-            </TabsContent>
-          )}
 
           <TabsContent value="attendance" className="space-y-4">
             <Tabs defaultValue="my">
