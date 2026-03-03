@@ -10,6 +10,7 @@ import { AttendanceLog } from '@/hooks/useHR';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { CorrectionRequestModal } from '@/components/attendance/CorrectionRequestModal';
+import { useHolidays } from '@/hooks/useHolidays';
 
 interface AttendanceSectionProps {
   todayAttendance: AttendanceLog | null;
@@ -56,6 +57,7 @@ export function AttendanceSection({
   const { role } = useAuth();
   const [correctionLog, setCorrectionLog] = useState<AttendanceLog | null>(null);
   const [correctionMode, setCorrectionMode] = useState<'checkout' | 'checkin'>('checkout');
+  const { getHoliday } = useHolidays(calendarMonth.getFullYear());
 
   const isHROrAdmin = role === 'admin' || role === 'hr';
 
@@ -78,7 +80,7 @@ export function AttendanceSection({
   const monthStart = startOfMonth(calendarMonth);
   const monthEnd = endOfMonth(calendarMonth);
   const allMonthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
-  const workingDaysUpToToday = allMonthDays.filter(d => d.getDay() !== 0 && d.getDay() !== 6 && (!isFuture(d) || isToday(d)));
+  const workingDaysUpToToday = allMonthDays.filter(d => d.getDay() !== 0 && d.getDay() !== 6 && !getHoliday(format(d, 'yyyy-MM-dd')) && (!isFuture(d) || isToday(d)));
   
   const presentDays = attendanceLogs.filter(l => l.status === 'present').length;
   const totalWorkHours = attendanceLogs.reduce((s, l) => s + (l.working_hours || 0), 0);
@@ -209,14 +211,17 @@ export function AttendanceSection({
                       const log = logsByDate[dateStr];
                       const isWeekendDay = day.getDay() === 0 || day.getDay() === 6;
 
+                      const holiday = getHoliday(dateStr);
+
                       if (!log) {
                         // No attendance record for this day
-                        const dayStatus = isWeekendDay ? 'weekend' : 'absent';
-                        const dayStatusText = isWeekendDay ? 'Weekend' : 'Absent';
-                        const dayStatusColor = isWeekendDay ? 'bg-muted-foreground/30' : 'bg-red-500';
+                        const dayStatus = isWeekendDay ? 'weekend' : holiday ? 'holiday' : 'absent';
+                        const dayStatusText = isWeekendDay ? 'Weekend' : holiday ? `Holiday — ${holiday.name}` : 'Absent';
+                        const dayStatusColor = isWeekendDay ? 'bg-muted-foreground/30' : holiday ? 'bg-blue-400' : 'bg-red-500';
+                        const isNonWorking = isWeekendDay || !!holiday;
 
                         return (
-                          <TableRow key={dateStr} className={cn(isWeekendDay && 'opacity-50')}>
+                          <TableRow key={dateStr} className={cn(isNonWorking && 'opacity-50')}>
                             <TableCell className="text-xs font-medium whitespace-nowrap">
                               {format(day, 'dd MMM, EEE')}
                             </TableCell>
@@ -231,7 +236,7 @@ export function AttendanceSection({
                             <TableCell className="text-xs font-medium">0.0h</TableCell>
                             <TableCell className="text-xs hidden sm:table-cell">—</TableCell>
                             <TableCell className="text-right">
-                              {!isWeekendDay && (
+                              {!isNonWorking && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
@@ -336,7 +341,7 @@ export function AttendanceSection({
 
           {/* Legend */}
           <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t">
-            {[['present', 'bg-green-500', 'Present'], ['absent', 'bg-red-500', 'Absent'], ['on_leave', 'bg-purple-500', 'Leave'], ['half_day', 'bg-yellow-500', 'Half Day']].map(([, color, label]) => (
+            {[['present', 'bg-green-500', 'Present'], ['absent', 'bg-red-500', 'Absent'], ['on_leave', 'bg-purple-500', 'Leave'], ['half_day', 'bg-yellow-500', 'Half Day'], ['holiday', 'bg-blue-400', 'Holiday']].map(([, color, label]) => (
               <div key={label} className="flex items-center gap-1 text-xs text-muted-foreground">
                 <div className={cn('w-2 h-2 rounded-full', color)} />
                 <span>{label}</span>
