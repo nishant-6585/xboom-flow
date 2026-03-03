@@ -351,8 +351,26 @@ export function AttendanceSection({
                   <span className="font-medium text-sm">{(log.working_hours || 0).toFixed(1)}h</span>
                   <div className={cn('w-2 h-2 rounded-full', STATUS_COLORS[log.status] || 'bg-muted')} />
 
-                  {/* Edit button for editable records (checkout) */}
-                  {canEdit && (
+                  {/* Check-in correction button - always visible */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 px-2 text-xs gap-1 border-blue-400 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                        onClick={() => { setCorrectionMode('checkin'); setCorrectionLog(log); }}
+                      >
+                        <Clock className="h-3 w-3" />
+                        {!log.check_in_time ? 'Add Check-In' : 'Fix Check-In'}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-[200px] text-xs">
+                      {isHROrAdmin ? 'Correct check-in time' : 'Submit a check-in correction request for HR approval'}
+                    </TooltipContent>
+                  </Tooltip>
+
+                  {/* Checkout correction button */}
+                  {(canEdit || canRequestCorrection || log.check_out_time) && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -362,51 +380,11 @@ export function AttendanceSection({
                           onClick={() => { setCorrectionMode('checkout'); setCorrectionLog(log); }}
                         >
                           <Pencil className="h-3 w-3" />
-                          Edit
+                          {isHROrAdmin ? 'Edit' : 'Request Edit'}
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent side="left" className="max-w-[200px] text-xs">
-                        Click to correct your checkout time
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-
-                  {/* Request checkout correction for non-admin */}
-                  {canRequestCorrection && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 px-2 text-xs gap-1"
-                          onClick={() => { setCorrectionMode('checkout'); setCorrectionLog(log); }}
-                        >
-                          <Pencil className="h-3 w-3" />
-                          Request Edit
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="left" className="max-w-[200px] text-xs">
-                        Submit a checkout correction request for HR approval
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-
-                  {/* Request check-in correction */}
-                  {canRequestCheckinCorrection && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 px-2 text-xs gap-1 border-blue-400 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30"
-                          onClick={() => { setCorrectionMode('checkin'); setCorrectionLog(log); }}
-                        >
-                          <Clock className="h-3 w-3" />
-                          {!log.check_in_time ? 'Add Check-In' : 'Fix Check-In'}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="left" className="max-w-[200px] text-xs">
-                        Submit a check-in correction request for HR approval
+                        {isHROrAdmin ? 'Correct checkout time' : 'Submit a checkout correction request for HR approval'}
                       </TooltipContent>
                     </Tooltip>
                   )}
