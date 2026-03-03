@@ -78,7 +78,7 @@ export function AttendanceSection({
   const monthStart = startOfMonth(calendarMonth);
   const monthEnd = endOfMonth(calendarMonth);
   const allMonthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
-  const workingDaysUpToToday = allMonthDays.filter(d => d.getDay() !== 0 && (!isFuture(d) || isToday(d)));
+  const workingDaysUpToToday = allMonthDays.filter(d => d.getDay() !== 0 && d.getDay() !== 6 && (!isFuture(d) || isToday(d)));
   
   const presentDays = attendanceLogs.filter(l => l.status === 'present').length;
   const totalWorkHours = attendanceLogs.reduce((s, l) => s + (l.working_hours || 0), 0);
@@ -207,16 +207,16 @@ export function AttendanceSection({
                     return visibleDays.reverse().map(day => {
                       const dateStr = format(day, 'yyyy-MM-dd');
                       const log = logsByDate[dateStr];
-                      const isSunday = day.getDay() === 0;
+                      const isWeekendDay = day.getDay() === 0 || day.getDay() === 6;
 
                       if (!log) {
                         // No attendance record for this day
-                        const dayStatus = isSunday ? 'weekend' : 'absent';
-                        const dayStatusText = isSunday ? 'Weekend' : 'Absent';
-                        const dayStatusColor = isSunday ? 'bg-muted-foreground/30' : 'bg-red-500';
+                        const dayStatus = isWeekendDay ? 'weekend' : 'absent';
+                        const dayStatusText = isWeekendDay ? 'Weekend' : 'Absent';
+                        const dayStatusColor = isWeekendDay ? 'bg-muted-foreground/30' : 'bg-red-500';
 
                         return (
-                          <TableRow key={dateStr} className={cn(isSunday && 'opacity-50')}>
+                          <TableRow key={dateStr} className={cn(isWeekendDay && 'opacity-50')}>
                             <TableCell className="text-xs font-medium whitespace-nowrap">
                               {format(day, 'dd MMM, EEE')}
                             </TableCell>
@@ -231,7 +231,7 @@ export function AttendanceSection({
                             <TableCell className="text-xs font-medium">0.0h</TableCell>
                             <TableCell className="text-xs hidden sm:table-cell">—</TableCell>
                             <TableCell className="text-right">
-                              {!isSunday && (
+                              {!isWeekendDay && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
