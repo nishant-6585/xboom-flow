@@ -26,19 +26,26 @@ export const MFAEnrollment = ({ onComplete, onSkip }: MFAEnrollmentProps) => {
   const startEnrollment = async () => {
     setLoading(true);
     try {
-      // Clean up any existing unverified factors to avoid "already exists" error
-      const { data: factorsData } = await supabase.auth.mfa.listFactors();
+      // Clean up ALL existing unverified factors to avoid "already exists" errors
+      const { data: factorsData, error: listError } = await supabase.auth.mfa.listFactors();
+      if (listError) {
+        console.error("Failed to list MFA factors:", listError);
+      }
       if (factorsData?.totp) {
         for (const factor of factorsData.totp) {
-          if ((factor as any).status !== "verified") {
-            await supabase.auth.mfa.unenroll({ factorId: factor.id });
+          if (factor.status !== "verified") {
+            console.log("Removing unverified factor:", factor.id);
+            const { error: unenrollError } = await supabase.auth.mfa.unenroll({ factorId: factor.id });
+            if (unenrollError) {
+              console.error("Failed to unenroll factor:", factor.id, unenrollError);
+            }
           }
         }
       }
 
+      // Enroll without friendlyName to avoid name conflict errors
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: "totp",
-        friendlyName: "Xboom OS Authenticator",
       });
 
       if (error) {
