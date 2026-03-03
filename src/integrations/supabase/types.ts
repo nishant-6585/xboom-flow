@@ -531,60 +531,140 @@ export type Database = {
       }
       candidates: {
         Row: {
+          application_source:
+            | Database["public"]["Enums"]["application_source"]
+            | null
+          candidate_number: string | null
           created_at: string
           created_by: string | null
           created_by_name: string | null
           current_company: string | null
           current_ctc: number | null
+          current_designation: string | null
+          department: string | null
           email: string
+          employment_type: Database["public"]["Enums"]["employment_type"] | null
           expected_ctc: number | null
+          final_status: Database["public"]["Enums"]["final_status"] | null
+          follow_up_date: string | null
           full_name: string
           id: string
+          interview_stage: Database["public"]["Enums"]["interview_stage"] | null
+          job_role_applied: string | null
+          joining_date: string | null
           location: string | null
+          location_city: string | null
+          location_state: string | null
           notes: string | null
           notice_period_days: number | null
+          offer_letter_issued: boolean | null
           phone: string | null
           primary_skills: string[] | null
+          recruiter_id: string | null
+          recruiter_name: string | null
+          rejection_reason: string | null
+          relevant_experience_years: number | null
+          remarks: string | null
+          resume_url: string | null
+          screening_status:
+            | Database["public"]["Enums"]["screening_status"]
+            | null
           source: string | null
           status: Database["public"]["Enums"]["candidate_status"]
           updated_at: string
           years_of_experience: number | null
         }
         Insert: {
+          application_source?:
+            | Database["public"]["Enums"]["application_source"]
+            | null
+          candidate_number?: string | null
           created_at?: string
           created_by?: string | null
           created_by_name?: string | null
           current_company?: string | null
           current_ctc?: number | null
+          current_designation?: string | null
+          department?: string | null
           email: string
+          employment_type?:
+            | Database["public"]["Enums"]["employment_type"]
+            | null
           expected_ctc?: number | null
+          final_status?: Database["public"]["Enums"]["final_status"] | null
+          follow_up_date?: string | null
           full_name: string
           id?: string
+          interview_stage?:
+            | Database["public"]["Enums"]["interview_stage"]
+            | null
+          job_role_applied?: string | null
+          joining_date?: string | null
           location?: string | null
+          location_city?: string | null
+          location_state?: string | null
           notes?: string | null
           notice_period_days?: number | null
+          offer_letter_issued?: boolean | null
           phone?: string | null
           primary_skills?: string[] | null
+          recruiter_id?: string | null
+          recruiter_name?: string | null
+          rejection_reason?: string | null
+          relevant_experience_years?: number | null
+          remarks?: string | null
+          resume_url?: string | null
+          screening_status?:
+            | Database["public"]["Enums"]["screening_status"]
+            | null
           source?: string | null
           status?: Database["public"]["Enums"]["candidate_status"]
           updated_at?: string
           years_of_experience?: number | null
         }
         Update: {
+          application_source?:
+            | Database["public"]["Enums"]["application_source"]
+            | null
+          candidate_number?: string | null
           created_at?: string
           created_by?: string | null
           created_by_name?: string | null
           current_company?: string | null
           current_ctc?: number | null
+          current_designation?: string | null
+          department?: string | null
           email?: string
+          employment_type?:
+            | Database["public"]["Enums"]["employment_type"]
+            | null
           expected_ctc?: number | null
+          final_status?: Database["public"]["Enums"]["final_status"] | null
+          follow_up_date?: string | null
           full_name?: string
           id?: string
+          interview_stage?:
+            | Database["public"]["Enums"]["interview_stage"]
+            | null
+          job_role_applied?: string | null
+          joining_date?: string | null
           location?: string | null
+          location_city?: string | null
+          location_state?: string | null
           notes?: string | null
           notice_period_days?: number | null
+          offer_letter_issued?: boolean | null
           phone?: string | null
           primary_skills?: string[] | null
+          recruiter_id?: string | null
+          recruiter_name?: string | null
+          rejection_reason?: string | null
+          relevant_experience_years?: number | null
+          remarks?: string | null
+          resume_url?: string | null
+          screening_status?:
+            | Database["public"]["Enums"]["screening_status"]
+            | null
           source?: string | null
           status?: Database["public"]["Enums"]["candidate_status"]
           updated_at?: string
@@ -2275,8 +2355,10 @@ export type Database = {
           feedback: string | null
           id: string
           interview_date: string
+          interviewer_id: string | null
           interviewer_name: string
           rating: number | null
+          result: string | null
           round_type: string
         }
         Insert: {
@@ -2288,8 +2370,10 @@ export type Database = {
           feedback?: string | null
           id?: string
           interview_date: string
+          interviewer_id?: string | null
           interviewer_name: string
           rating?: number | null
+          result?: string | null
           round_type: string
         }
         Update: {
@@ -2301,8 +2385,10 @@ export type Database = {
           feedback?: string | null
           id?: string
           interview_date?: string
+          interviewer_id?: string | null
           interviewer_name?: string
           rating?: number | null
+          result?: string | null
           round_type?: string
         }
         Relationships: [
@@ -6493,6 +6579,14 @@ export type Database = {
         | "it"
         | "marketing"
         | "hr"
+      application_source:
+        | "Referral"
+        | "Naukri"
+        | "LinkedIn"
+        | "Website"
+        | "Consultant"
+        | "Walk-in"
+        | "Other"
       asset_status:
         | "assigned"
         | "returned"
@@ -6516,7 +6610,14 @@ export type Database = {
         | "rejected"
         | "hired"
         | "blacklisted"
+        | "active"
+        | "offered"
+        | "joined"
+        | "dropped"
+      employment_type: "Full-time" | "Contract" | "Intern"
+      final_status: "Selected" | "Rejected" | "Pending"
       interview_decision: "pass" | "reject" | "hold"
+      interview_stage: "HR" | "Technical" | "Managerial" | "Final"
       invoice_status:
         | "draft"
         | "sent"
@@ -6578,6 +6679,7 @@ export type Database = {
         | "crash_damage"
         | "other"
       repair_payment_status: "pending" | "partial" | "paid"
+      screening_status: "New" | "Shortlisted" | "Rejected" | "On Hold"
       shopify_processing_status:
         | "pending"
         | "processing"
@@ -6758,6 +6860,15 @@ export const Constants = {
         "marketing",
         "hr",
       ],
+      application_source: [
+        "Referral",
+        "Naukri",
+        "LinkedIn",
+        "Website",
+        "Consultant",
+        "Walk-in",
+        "Other",
+      ],
       asset_status: ["assigned", "returned", "lost", "damaged", "under_repair"],
       asset_type: [
         "mobile_phone",
@@ -6777,8 +6888,15 @@ export const Constants = {
         "rejected",
         "hired",
         "blacklisted",
+        "active",
+        "offered",
+        "joined",
+        "dropped",
       ],
+      employment_type: ["Full-time", "Contract", "Intern"],
+      final_status: ["Selected", "Rejected", "Pending"],
       interview_decision: ["pass", "reject", "hold"],
+      interview_stage: ["HR", "Technical", "Managerial", "Final"],
       invoice_status: [
         "draft",
         "sent",
@@ -6846,6 +6964,7 @@ export const Constants = {
         "other",
       ],
       repair_payment_status: ["pending", "partial", "paid"],
+      screening_status: ["New", "Shortlisted", "Rejected", "On Hold"],
       shopify_processing_status: [
         "pending",
         "processing",
