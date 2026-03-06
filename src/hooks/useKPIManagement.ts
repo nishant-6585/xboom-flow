@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 export type KPIMeasurementUnit = 'percentage' | 'numeric' | 'currency' | 'count' | 'rating' | 'boolean';
 export type KPIPriority = 'low' | 'medium' | 'high';
 export type KPIRAGStatus = 'green' | 'amber' | 'red' | 'not_started';
+export type KPISource = 'hr' | 'employee';
+export type KPIWorkflowStatus = 'draft' | 'active' | 'completed' | 'reviewed';
 
 export interface EmployeeKPIRecord {
   id: string;
@@ -29,6 +31,8 @@ export interface EmployeeKPIRecord {
   created_by_name: string;
   created_at: string;
   updated_at: string;
+  kpi_source: KPISource;
+  workflow_status: KPIWorkflowStatus;
   // Joined
   employee_name?: string;
 }
@@ -71,6 +75,8 @@ export interface KPIFormData {
   due_date: string;
   green_threshold: number;
   amber_threshold: number;
+  kpi_source?: KPISource;
+  workflow_status?: KPIWorkflowStatus;
 }
 
 export interface KPIAnalytics {
@@ -83,6 +89,8 @@ export interface KPIAnalytics {
   overallScore: number;
   departmentStats: { department: string; avg: number; count: number }[];
   monthlyTrends: { month: string; avg: number }[];
+  hrCreatedCount: number;
+  employeeCreatedCount: number;
 }
 
 export function useKPIManagement() {
@@ -93,8 +101,23 @@ export function useKPIManagement() {
   const [rolesResponsibilities, setRolesResponsibilities] = useState<RoleResponsibility[]>([]);
   const [loading, setLoading] = useState(true);
   const initialLoadDoneRef = useRef(false);
+  const [myEmployeeId, setMyEmployeeId] = useState<string | null>(null);
 
   const isHROrAdmin = role === 'admin' || role === 'hr';
+
+  // Fetch current user's employee ID
+  useEffect(() => {
+    if (!user) return;
+    const fetchMyEmployeeId = async () => {
+      const { data } = await supabase
+        .from('employees')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      setMyEmployeeId(data?.id || null);
+    };
+    fetchMyEmployeeId();
+  }, [user]);
 
   const fetchKPIs = useCallback(async () => {
     if (!user) return;
@@ -111,17 +134,15 @@ export function useKPIManagement() {
       const transformed = (data || []).map((k: any) => ({
         ...k,
         employee_name: k.employees?.name,
+        kpi_source: k.kpi_source || 'hr',
+        workflow_status: k.workflow_status || 'active',
       }));
 
       if (isHROrAdmin) {
         setKpis(transformed);
       }
 
-      // Filter my KPIs
-      const myEmployeeKpis = transformed.filter((k: any) => {
-        return true; // RLS already filters for employees
-      });
-      setMyKpis(isHROrAdmin ? transformed : myEmployeeKpis);
+      setMyKpis(isHROrAdmin ? transformed : transformed);
     } catch (error: any) {
       console.error('Error fetching KPIs:', error);
     } finally {
@@ -197,6 +218,8 @@ export function useKPIManagement() {
         ...formData,
         created_by: user.id,
         created_by_name: profile.name,
+        kpi_source: formData.kpi_source || 'hr',
+        workflow_status: formData.workflow_status || (formData.kpi_source === 'employee' ? 'draft' : 'active'),
       });
       if (error) throw error;
       toast.success('KPI created successfully');
@@ -216,6 +239,21 @@ export function useKPIManagement() {
       return true;
     } catch (error: any) {
       toast.error(error.message || 'Failed to update KPI');
+      return false;
+    }
+  };
+
+  const updateWorkflowStatus = async (id: string, status: KPIWorkflowStatus): Promise<boolean> => {
+    if (!user) return false;
+    try {
+      const { error } = await supabase.from('employee_kpis')
+        .update({ workflow_status: status } as any)
+        .eq('id', id);
+      if (error) throw error;
+      toast.success(`KPI status updated to ${status}`);
+      return true;
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update status');
       return false;
     }
   };
@@ -291,13 +329,14 @@ export function useKPIManagement() {
   };
 
   // Analytics
-  const getAnalytics = useCallback((filterMonth?: number, filterYear?: number, filterEmployeeId?: string, filterDepartment?: string): KPIAnalytics => {
+  const getAnalytics = useCallback((filterMonth?: number, filterYear?: number, filterEmployeeId?: string, filterDepartment?: string, filterSource?: string): KPIAnalytics => {
     let filtered = isHROrAdmin ? kpis : myKpis;
 
     if (filterMonth) filtered = filtered.filter(k => k.month === filterMonth);
     if (filterYear) filtered = filtered.filter(k => k.year === filterYear);
     if (filterEmployeeId) filtered = filtered.filter(k => k.employee_id === filterEmployeeId);
     if (filterDepartment) filtered = filtered.filter(k => k.department === filterDepartment);
+    if (filterSource && filterSource !== 'all') filtered = filtered.filter(k => k.kpi_source === filterSource);
 
     const greenCount = filtered.filter(k => k.status === 'green').length;
     const amberCount = filtered.filter(k => k.status === 'amber').length;
@@ -308,13 +347,11 @@ export function useKPIManagement() {
       ? filtered.reduce((sum, k) => sum + (k.achievement_percentage || 0), 0) / filtered.length
       : 0;
 
-    // Weighted score
     const totalWeightage = filtered.reduce((sum, k) => sum + k.weightage, 0);
     const overallScore = totalWeightage > 0
       ? filtered.reduce((sum, k) => sum + ((k.achievement_percentage || 0) * k.weightage), 0) / totalWeightage
       : 0;
 
-    // Department stats
     const deptMap = new Map<string, { total: number; count: number }>();
     filtered.forEach(k => {
       const dept = k.department || 'Unassigned';
@@ -327,7 +364,6 @@ export function useKPIManagement() {
       count,
     }));
 
-    // Monthly trends
     const monthMap = new Map<string, { total: number; count: number }>();
     filtered.forEach(k => {
       const key = `${k.year}-${String(k.month).padStart(2, '0')}`;
@@ -337,6 +373,9 @@ export function useKPIManagement() {
     const monthlyTrends = Array.from(monthMap.entries())
       .map(([month, { total, count }]) => ({ month, avg: count > 0 ? total / count : 0 }))
       .sort((a, b) => a.month.localeCompare(b.month));
+
+    const hrCreatedCount = filtered.filter(k => k.kpi_source === 'hr').length;
+    const employeeCreatedCount = filtered.filter(k => k.kpi_source === 'employee').length;
 
     return {
       totalKPIs: filtered.length,
@@ -348,6 +387,8 @@ export function useKPIManagement() {
       overallScore,
       departmentStats,
       monthlyTrends,
+      hrCreatedCount,
+      employeeCreatedCount,
     };
   }, [kpis, myKpis, isHROrAdmin]);
 
@@ -358,8 +399,10 @@ export function useKPIManagement() {
     rolesResponsibilities,
     loading,
     isHROrAdmin,
+    myEmployeeId,
     createKPI,
     updateKPI,
+    updateWorkflowStatus,
     deleteKPI,
     updateProgress,
     fetchProgressHistory,

@@ -5,27 +5,35 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { EmployeeKPIRecord } from "@/hooks/useKPIManagement";
+import { EmployeeKPIRecord, KPIWorkflowStatus } from "@/hooks/useKPIManagement";
 import { Employee } from "@/hooks/useHR";
-import { Edit, Trash2, Eye, Search, ArrowUpDown } from "lucide-react";
+import { Edit, Trash2, Eye, Search, ArrowUpDown, TrendingUp, CheckCircle, Clock } from "lucide-react";
 import { format } from "date-fns";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface KPITableProps {
   kpis: EmployeeKPIRecord[];
   employees: Employee[];
   isAdmin: boolean;
+  myEmployeeId?: string | null;
   onEdit?: (kpi: EmployeeKPIRecord) => void;
+  onEmployeeEdit?: (kpi: EmployeeKPIRecord) => void;
   onDelete?: (id: string) => void;
+  onEmployeeDelete?: (id: string) => void;
   onViewProgress: (kpi: EmployeeKPIRecord) => void;
+  onUpdateWorkflowStatus?: (id: string, status: KPIWorkflowStatus) => Promise<boolean>;
+  canEmployeeEdit: (kpi: EmployeeKPIRecord) => boolean;
+  canEmployeeDelete: (kpi: EmployeeKPIRecord) => boolean;
 }
 
 const MONTHS = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-export function KPITable({ kpis, employees, isAdmin, onEdit, onDelete, onViewProgress }: KPITableProps) {
+export function KPITable({ kpis, employees, isAdmin, myEmployeeId, onEdit, onEmployeeEdit, onDelete, onEmployeeDelete, onViewProgress, onUpdateWorkflowStatus, canEmployeeEdit, canEmployeeDelete }: KPITableProps) {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterEmployee, setFilterEmployee] = useState<string>("all");
   const [filterPriority, setFilterPriority] = useState<string>("all");
+  const [filterSource, setFilterSource] = useState<string>("all");
   const [sortField, setSortField] = useState<string>("due_date");
   const [sortAsc, setSortAsc] = useState(true);
 
@@ -35,7 +43,8 @@ export function KPITable({ kpis, employees, isAdmin, onEdit, onDelete, onViewPro
     const matchesStatus = filterStatus === "all" || k.status === filterStatus;
     const matchesEmployee = filterEmployee === "all" || k.employee_id === filterEmployee;
     const matchesPriority = filterPriority === "all" || k.priority === filterPriority;
-    return matchesSearch && matchesStatus && matchesEmployee && matchesPriority;
+    const matchesSource = filterSource === "all" || k.kpi_source === filterSource;
+    return matchesSearch && matchesStatus && matchesEmployee && matchesPriority && matchesSource;
   });
 
   filtered.sort((a, b) => {
@@ -65,6 +74,24 @@ export function KPITable({ kpis, employees, isAdmin, onEdit, onDelete, onViewPro
     return <Badge variant={map[priority] as any || "outline"}>{priority}</Badge>;
   };
 
+  const getSourceBadge = (source: string) => {
+    if (source === 'employee') {
+      return <Badge variant="outline" className="bg-blue-500/10 text-blue-700 border-blue-200 text-[10px]">Self</Badge>;
+    }
+    return <Badge variant="outline" className="bg-purple-500/10 text-purple-700 border-purple-200 text-[10px]">HR</Badge>;
+  };
+
+  const getWorkflowBadge = (status: string) => {
+    const map: Record<string, { className: string; label: string }> = {
+      draft: { className: "bg-muted text-muted-foreground", label: "Draft" },
+      active: { className: "bg-green-500/10 text-green-700 border-green-200", label: "Active" },
+      completed: { className: "bg-blue-500/10 text-blue-700 border-blue-200", label: "Completed" },
+      reviewed: { className: "bg-purple-500/10 text-purple-700 border-purple-200", label: "Reviewed" },
+    };
+    const s = map[status] || map.draft;
+    return <Badge variant="outline" className={`${s.className} text-[10px]`}>{s.label}</Badge>;
+  };
+
   const toggleSort = (field: string) => {
     if (sortField === field) setSortAsc(!sortAsc);
     else { setSortField(field); setSortAsc(true); }
@@ -85,6 +112,14 @@ export function KPITable({ kpis, employees, isAdmin, onEdit, onDelete, onViewPro
             <SelectItem value="amber">Amber</SelectItem>
             <SelectItem value="red">Red</SelectItem>
             <SelectItem value="not_started">Not Started</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterSource} onValueChange={setFilterSource}>
+          <SelectTrigger className="w-[140px]"><SelectValue placeholder="Owner" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Owners</SelectItem>
+            <SelectItem value="hr">HR Assigned</SelectItem>
+            <SelectItem value="employee">Self Created</SelectItem>
           </SelectContent>
         </Select>
         {isAdmin && (
@@ -113,6 +148,7 @@ export function KPITable({ kpis, employees, isAdmin, onEdit, onDelete, onViewPro
             <TableRow>
               {isAdmin && <TableHead>Employee</TableHead>}
               <TableHead>KPI Title</TableHead>
+              <TableHead>Owner</TableHead>
               <TableHead>Period</TableHead>
               <TableHead className="cursor-pointer" onClick={() => toggleSort("priority")}>
                 Priority <ArrowUpDown className="inline h-3 w-3" />
@@ -120,17 +156,19 @@ export function KPITable({ kpis, employees, isAdmin, onEdit, onDelete, onViewPro
               <TableHead className="cursor-pointer" onClick={() => toggleSort("achievement")}>
                 Progress <ArrowUpDown className="inline h-3 w-3" />
               </TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>RAG</TableHead>
+              <TableHead>Workflow</TableHead>
               <TableHead className="cursor-pointer" onClick={() => toggleSort("due_date")}>
-                Due Date <ArrowUpDown className="inline h-3 w-3" />
+                Due <ArrowUpDown className="inline h-3 w-3" />
               </TableHead>
+              <TableHead>Updated</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 8 : 7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={isAdmin ? 11 : 10} className="text-center py-8 text-muted-foreground">
                   No KPIs found
                 </TableCell>
               </TableRow>
@@ -146,7 +184,8 @@ export function KPITable({ kpis, employees, isAdmin, onEdit, onDelete, onViewPro
                       </p>
                     </div>
                   </TableCell>
-                  <TableCell>{MONTHS[kpi.month]} {kpi.year}</TableCell>
+                  <TableCell>{getSourceBadge(kpi.kpi_source)}</TableCell>
+                  <TableCell className="text-sm">{MONTHS[kpi.month]} {kpi.year}</TableCell>
                   <TableCell>{getPriorityBadge(kpi.priority)}</TableCell>
                   <TableCell>
                     <div className="w-24">
@@ -158,19 +197,57 @@ export function KPITable({ kpis, employees, isAdmin, onEdit, onDelete, onViewPro
                     </div>
                   </TableCell>
                   <TableCell>{getStatusBadge(kpi.status)}</TableCell>
-                  <TableCell>{format(new Date(kpi.due_date), "dd MMM")}</TableCell>
+                  <TableCell>
+                    {isAdmin && onUpdateWorkflowStatus ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="cursor-pointer">{getWorkflowBadge(kpi.workflow_status)}</button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => onUpdateWorkflowStatus(kpi.id, 'draft')}>
+                            <Clock className="h-3 w-3 mr-2" /> Draft
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onUpdateWorkflowStatus(kpi.id, 'active')}>
+                            <TrendingUp className="h-3 w-3 mr-2" /> Active
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onUpdateWorkflowStatus(kpi.id, 'completed')}>
+                            <CheckCircle className="h-3 w-3 mr-2" /> Completed
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onUpdateWorkflowStatus(kpi.id, 'reviewed')}>
+                            <Eye className="h-3 w-3 mr-2" /> Reviewed
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      getWorkflowBadge(kpi.workflow_status)
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm">{format(new Date(kpi.due_date), "dd MMM")}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {format(new Date(kpi.updated_at), "dd MMM")}
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => onViewProgress(kpi)}>
-                        <Eye className="h-4 w-4" />
+                      <Button size="icon" variant="ghost" onClick={() => onViewProgress(kpi)} title="Update Progress">
+                        <TrendingUp className="h-4 w-4" />
                       </Button>
                       {isAdmin && onEdit && (
                         <Button size="icon" variant="ghost" onClick={() => onEdit(kpi)}>
                           <Edit className="h-4 w-4" />
                         </Button>
                       )}
+                      {!isAdmin && onEmployeeEdit && canEmployeeEdit(kpi) && (
+                        <Button size="icon" variant="ghost" onClick={() => onEmployeeEdit(kpi)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
                       {isAdmin && onDelete && (
                         <Button size="icon" variant="ghost" onClick={() => onDelete(kpi.id)} className="text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {!isAdmin && onEmployeeDelete && canEmployeeDelete(kpi) && (
+                        <Button size="icon" variant="ghost" onClick={() => onEmployeeDelete(kpi.id)} className="text-destructive">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       )}

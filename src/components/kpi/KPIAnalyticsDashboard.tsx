@@ -5,14 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { KPIAnalytics, EmployeeKPIRecord } from "@/hooks/useKPIManagement";
 import { Employee } from "@/hooks/useHR";
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { Download, TrendingUp, Target, AlertTriangle, CheckCircle } from "lucide-react";
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Download, TrendingUp, Target, AlertTriangle, CheckCircle, Users, UserCheck } from "lucide-react";
 import * as XLSX from "xlsx";
 
 interface KPIAnalyticsDashboardProps {
   kpis: EmployeeKPIRecord[];
   employees: Employee[];
-  getAnalytics: (month?: number, year?: number, employeeId?: string, department?: string) => KPIAnalytics;
+  getAnalytics: (month?: number, year?: number, employeeId?: string, department?: string, source?: string) => KPIAnalytics;
   isAdmin: boolean;
 }
 
@@ -32,12 +32,14 @@ export function KPIAnalyticsDashboard({ kpis, employees, getAnalytics, isAdmin }
   const [filterYear, setFilterYear] = useState<string>(String(now.getFullYear()));
   const [filterEmployee, setFilterEmployee] = useState<string>("all");
   const [filterDepartment, setFilterDepartment] = useState<string>("all");
+  const [filterSource, setFilterSource] = useState<string>("all");
 
   const analytics = getAnalytics(
     filterMonth !== "0" ? parseInt(filterMonth) : undefined,
     parseInt(filterYear),
     filterEmployee !== "all" ? filterEmployee : undefined,
     filterDepartment !== "all" ? filterDepartment : undefined,
+    filterSource !== "all" ? filterSource : undefined,
   );
 
   const departments = [...new Set(employees.map(e => e.department))];
@@ -62,6 +64,8 @@ export function KPIAnalyticsDashboard({ kpis, employees, getAnalytics, isAdmin }
     const data = kpis.map(k => ({
       Employee: k.employee_name || "",
       Title: k.title,
+      Owner: k.kpi_source === 'employee' ? 'Self Created' : 'HR Assigned',
+      "Workflow Status": k.workflow_status,
       Month: k.month,
       Year: k.year,
       Target: k.target_value,
@@ -71,6 +75,7 @@ export function KPIAnalyticsDashboard({ kpis, employees, getAnalytics, isAdmin }
       Status: k.status,
       Priority: k.priority,
       "Due Date": k.due_date,
+      "Last Updated": k.updated_at,
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -94,6 +99,14 @@ export function KPIAnalyticsDashboard({ kpis, employees, getAnalytics, isAdmin }
             {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map(y => (
               <SelectItem key={y} value={String(y)}>{y}</SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterSource} onValueChange={setFilterSource}>
+          <SelectTrigger className="w-[140px]"><SelectValue placeholder="KPI Owner" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Owners</SelectItem>
+            <SelectItem value="hr">HR Assigned</SelectItem>
+            <SelectItem value="employee">Self Created</SelectItem>
           </SelectContent>
         </Select>
         {isAdmin && (
@@ -120,7 +133,7 @@ export function KPIAnalyticsDashboard({ kpis, employees, getAnalytics, isAdmin }
       </div>
 
       {/* Score Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         <Card>
           <CardContent className="p-4 text-center">
             <Target className="h-5 w-5 mx-auto mb-1 text-primary" />
@@ -156,11 +169,24 @@ export function KPIAnalyticsDashboard({ kpis, employees, getAnalytics, isAdmin }
             <p className="text-xs text-muted-foreground">Critical</p>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Users className="h-5 w-5 mx-auto mb-1 text-purple-600" />
+            <p className="text-2xl font-bold text-purple-600">{analytics.hrCreatedCount}</p>
+            <p className="text-xs text-muted-foreground">HR Assigned</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <UserCheck className="h-5 w-5 mx-auto mb-1 text-blue-600" />
+            <p className="text-2xl font-bold text-blue-600">{analytics.employeeCreatedCount}</p>
+            <p className="text-xs text-muted-foreground">Self Created</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* RAG Distribution Pie */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">KPI Status Distribution</CardTitle>
@@ -181,7 +207,6 @@ export function KPIAnalyticsDashboard({ kpis, employees, getAnalytics, isAdmin }
           </CardContent>
         </Card>
 
-        {/* Department Performance Bar Chart */}
         {isAdmin && analytics.departmentStats.length > 0 && (
           <Card>
             <CardHeader className="pb-2">
@@ -201,7 +226,6 @@ export function KPIAnalyticsDashboard({ kpis, employees, getAnalytics, isAdmin }
           </Card>
         )}
 
-        {/* Monthly Trends Line Chart */}
         {analytics.monthlyTrends.length > 1 && (
           <Card className={isAdmin ? "" : "md:col-span-2"}>
             <CardHeader className="pb-2">
