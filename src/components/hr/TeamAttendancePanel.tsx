@@ -366,9 +366,14 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
                         <Activity className="h-4 w-4 text-primary" />
                         <span className="text-sm font-medium">Attendance Health Score</span>
                       </div>
-                      <span className={cn('text-2xl font-bold', healthScore >= 90 ? 'text-green-600' : healthScore >= 70 ? 'text-amber-600' : 'text-red-600')}>{healthScore}%</span>
+                      <div className="text-right">
+                        <span className={cn('text-2xl font-bold', healthScore >= 90 ? 'text-green-600' : healthScore >= 70 ? 'text-amber-600' : healthScore >= 40 ? 'text-orange-600' : 'text-red-600')}>{healthScore}%</span>
+                        <p className={cn('text-[11px] font-medium', healthScore >= 90 ? 'text-green-600' : healthScore >= 70 ? 'text-amber-600' : healthScore >= 40 ? 'text-orange-600' : 'text-red-600')}>
+                          {healthScore >= 90 ? 'Excellent' : healthScore >= 70 ? 'Good' : healthScore >= 40 ? 'Moderate' : 'Poor'}
+                        </p>
+                      </div>
                     </div>
-                    <Progress value={healthScore} className={cn('h-2', healthScore >= 90 ? '[&>div]:bg-green-500' : healthScore >= 70 ? '[&>div]:bg-amber-500' : '[&>div]:bg-red-500')} />
+                    <Progress value={healthScore} className={cn('h-2', healthScore >= 90 ? '[&>div]:bg-green-500' : healthScore >= 70 ? '[&>div]:bg-amber-500' : healthScore >= 40 ? '[&>div]:bg-orange-500' : '[&>div]:bg-red-500')} />
                     <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                       <span>{metrics.present} present</span>
                       <span>{metrics.late} late</span>
