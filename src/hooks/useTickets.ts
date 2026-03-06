@@ -103,6 +103,7 @@ export interface UpdateTicketData {
   subject?: string;
   description?: string;
   category?: TicketCategory;
+  attachment_urls?: string[];
 }
 
 export function useTickets() {
@@ -268,6 +269,10 @@ export function useTickets() {
 
       if (data.category !== undefined) {
         updates.category = data.category;
+      }
+
+      if (data.attachment_urls !== undefined) {
+        updates.attachment_urls = data.attachment_urls;
       }
 
       const { data: updatedTicket, error } = await supabase
