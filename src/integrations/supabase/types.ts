@@ -7008,7 +7008,11 @@ export type Database = {
         | "crash_damage"
         | "other"
       repair_payment_status: "pending" | "partial" | "paid"
-      salary_sheet_status: "draft" | "locked"
+      salary_sheet_status:
+        | "draft"
+        | "locked"
+        | "hr_approved"
+        | "finance_approved"
       screening_status: "New" | "Shortlisted" | "Rejected" | "On Hold"
       shopify_processing_status:
         | "pending"
@@ -7305,7 +7309,12 @@ export const Constants = {
         "other",
       ],
       repair_payment_status: ["pending", "partial", "paid"],
-      salary_sheet_status: ["draft", "locked"],
+      salary_sheet_status: [
+        "draft",
+        "locked",
+        "hr_approved",
+        "finance_approved",
+      ],
       screening_status: ["New", "Shortlisted", "Rejected", "On Hold"],
       shopify_processing_status: [
         "pending",

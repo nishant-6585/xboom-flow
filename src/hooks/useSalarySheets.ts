@@ -4,13 +4,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { recordAuditLog } from "@/lib/auditLog";
 
+export type SalarySheetStatus = "draft" | "hr_approved" | "finance_approved" | "locked";
+
 export interface SalarySheet {
   id: string;
   month: number;
   year: number;
   created_by: string;
   created_by_name: string;
-  status: "draft" | "locked";
+  status: SalarySheetStatus;
   locked_at: string | null;
   locked_by: string | null;
   created_at: string;
@@ -382,6 +384,45 @@ export function useSalarySheets() {
     return errors;
   }, []);
 
+  const submitForFinanceApproval = useCallback(async (sheetId: string) => {
+    if (!user) return false;
+    const { error } = await supabase
+      .from("salary_sheets")
+      .update({ status: "hr_approved" } as any)
+      .eq("id", sheetId);
+    if (error) { toast.error("Failed to submit for approval"); return false; }
+    recordAuditLog(user.id, userName || "", { action: "PAYROLL_SUBMITTED_FOR_APPROVAL", details: { sheetId } });
+    toast.success("Submitted for finance approval");
+    await fetchSheets();
+    return true;
+  }, [user, userName, fetchSheets]);
+
+  const financeApprove = useCallback(async (sheetId: string) => {
+    if (!user) return false;
+    const { error } = await supabase
+      .from("salary_sheets")
+      .update({ status: "finance_approved" } as any)
+      .eq("id", sheetId);
+    if (error) { toast.error("Failed to approve"); return false; }
+    recordAuditLog(user.id, userName || "", { action: "PAYROLL_FINANCE_APPROVED", details: { sheetId } });
+    toast.success("Payroll approved by finance");
+    await fetchSheets();
+    return true;
+  }, [user, userName, fetchSheets]);
+
+  const financeRequestChanges = useCallback(async (sheetId: string) => {
+    if (!user) return false;
+    const { error } = await supabase
+      .from("salary_sheets")
+      .update({ status: "draft" } as any)
+      .eq("id", sheetId);
+    if (error) { toast.error("Failed to return to draft"); return false; }
+    recordAuditLog(user.id, userName || "", { action: "PAYROLL_CHANGES_REQUESTED", details: { sheetId } });
+    toast.success("Returned to draft for changes");
+    await fetchSheets();
+    return true;
+  }, [user, userName, fetchSheets]);
+
   const lockSheet = useCallback(async (sheetId: string) => {
     if (!user) return false;
     const { error } = await supabase
@@ -392,7 +433,7 @@ export function useSalarySheets() {
       toast.error("Failed to lock sheet");
       return false;
     }
-    recordAuditLog(user.id, userName || "", { action: "SALARY_SHEET_LOCKED", details: { sheetId } });
+    recordAuditLog(user.id, userName || "", { action: "PAYROLL_LOCKED", details: { sheetId } });
     toast.success("Salary sheet locked");
     await fetchSheets();
     return true;
@@ -424,5 +465,8 @@ export function useSalarySheets() {
     deleteEntry,
     refreshAttendanceData,
     validateBeforeLock,
+    submitForFinanceApproval,
+    financeApprove,
+    financeRequestChanges,
   };
 }
