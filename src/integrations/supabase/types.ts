@@ -4274,6 +4274,47 @@ export type Database = {
           },
         ]
       }
+      payroll_transfer_files: {
+        Row: {
+          employee_count: number
+          file_url: string | null
+          generated_at: string
+          generated_by: string
+          generated_by_name: string
+          id: string
+          salary_sheet_id: string
+          total_amount: number
+        }
+        Insert: {
+          employee_count?: number
+          file_url?: string | null
+          generated_at?: string
+          generated_by: string
+          generated_by_name: string
+          id?: string
+          salary_sheet_id: string
+          total_amount?: number
+        }
+        Update: {
+          employee_count?: number
+          file_url?: string | null
+          generated_at?: string
+          generated_by?: string
+          generated_by_name?: string
+          id?: string
+          salary_sheet_id?: string
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_transfer_files_salary_sheet_id_fkey"
+            columns: ["salary_sheet_id"]
+            isOneToOne: false
+            referencedRelation: "salary_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       petty_cash_transactions: {
         Row: {
           amount: number
