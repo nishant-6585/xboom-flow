@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Eye, Lock, Loader2 } from "lucide-react";
 import { SalarySheet, useSalarySheets } from "@/hooks/useSalarySheets";
 import { SalarySheetCreateDialog } from "./SalarySheetCreateDialog";
@@ -15,6 +16,7 @@ export function SalarySheetsList() {
   const { sheets, loading, fetchSheets, createSheet, lockSheet } = useSalarySheets();
   const [createOpen, setCreateOpen] = useState(false);
   const [viewSheet, setViewSheet] = useState<SalarySheet | null>(null);
+  const [lockConfirmId, setLockConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSheets();
@@ -80,7 +82,7 @@ export function SalarySheetsList() {
                         <Eye className="h-4 w-4 mr-1" /> View
                       </Button>
                       {sheet.status === "draft" && (
-                        <Button variant="ghost" size="sm" onClick={() => lockSheet(sheet.id)}>
+                        <Button variant="ghost" size="sm" onClick={() => setLockConfirmId(sheet.id)}>
                           <Lock className="h-4 w-4 mr-1" /> Lock
                         </Button>
                       )}
@@ -104,6 +106,28 @@ export function SalarySheetsList() {
           }
         }}
       />
+
+      <AlertDialog open={!!lockConfirmId} onOpenChange={(open) => { if (!open) setLockConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Lock Salary Sheet?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Once locked, this salary sheet will become read-only and no further edits will be allowed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => {
+              if (lockConfirmId) {
+                await lockSheet(lockConfirmId);
+                setLockConfirmId(null);
+              }
+            }}>
+              Yes, Lock Sheet
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
