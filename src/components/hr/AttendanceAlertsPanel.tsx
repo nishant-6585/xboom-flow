@@ -174,6 +174,35 @@ export function AttendanceAlertsPanel({ logs, employees, selectedDate, onViewEmp
         ))}
       </div>
 
+      {/* Daily Summary Banner */}
+      {alerts.length > 0 && (
+        <Card className="border-muted">
+          <CardContent className="px-4 py-3">
+            <p className="text-xs font-semibold text-muted-foreground mb-2">Today's Alerts Summary</p>
+            <div className="flex flex-wrap gap-x-6 gap-y-1">
+              {(Object.entries(grouped) as [AlertType, Alert[]][])
+                .filter(([, items]) => items.length > 0)
+                .sort((a, b) => {
+                  const order: AlertType[] = ['missing_checkout', 'excessive_hours', 'provisional', 'late_checkin', 'early_checkin'];
+                  return order.indexOf(a[0]) - order.indexOf(b[0]);
+                })
+                .map(([type, items]) => {
+                  const config = ALERT_CONFIG[type];
+                  const Icon = config.icon;
+                  const style = SEVERITY_STYLE[config.severity];
+                  return (
+                    <div key={type} className="flex items-center gap-1.5 text-xs">
+                      <Icon className={cn('h-3.5 w-3.5', style.text)} />
+                      <span className="text-muted-foreground">{config.label}:</span>
+                      <span className={cn('font-bold', style.text)}>{items.length}</span>
+                    </div>
+                  );
+                })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
         <Filter className="h-4 w-4 text-muted-foreground" />
