@@ -4870,6 +4870,129 @@ export type Database = {
         }
         Relationships: []
       }
+      salary_sheet_entries: {
+        Row: {
+          bank_account: string | null
+          created_at: string
+          deductions: number
+          el_leaves: number
+          employee_id: string
+          employee_name: string
+          id: string
+          ifsc_code: string | null
+          pending_amount: number
+          reimbursements: number
+          remarks: string | null
+          salary: number
+          salary_sheet_id: string
+          sl_leaves: number
+          tax: number
+          tds: number
+          total: number
+          unpaid_leaves: number
+          updated_at: string
+          wfh_days: number
+        }
+        Insert: {
+          bank_account?: string | null
+          created_at?: string
+          deductions?: number
+          el_leaves?: number
+          employee_id: string
+          employee_name: string
+          id?: string
+          ifsc_code?: string | null
+          pending_amount?: number
+          reimbursements?: number
+          remarks?: string | null
+          salary?: number
+          salary_sheet_id: string
+          sl_leaves?: number
+          tax?: number
+          tds?: number
+          total?: number
+          unpaid_leaves?: number
+          updated_at?: string
+          wfh_days?: number
+        }
+        Update: {
+          bank_account?: string | null
+          created_at?: string
+          deductions?: number
+          el_leaves?: number
+          employee_id?: string
+          employee_name?: string
+          id?: string
+          ifsc_code?: string | null
+          pending_amount?: number
+          reimbursements?: number
+          remarks?: string | null
+          salary?: number
+          salary_sheet_id?: string
+          sl_leaves?: number
+          tax?: number
+          tds?: number
+          total?: number
+          unpaid_leaves?: number
+          updated_at?: string
+          wfh_days?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salary_sheet_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_sheet_entries_salary_sheet_id_fkey"
+            columns: ["salary_sheet_id"]
+            isOneToOne: false
+            referencedRelation: "salary_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      salary_sheets: {
+        Row: {
+          created_at: string
+          created_by: string
+          created_by_name: string
+          id: string
+          locked_at: string | null
+          locked_by: string | null
+          month: number
+          status: Database["public"]["Enums"]["salary_sheet_status"]
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          created_by_name: string
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          month: number
+          status?: Database["public"]["Enums"]["salary_sheet_status"]
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          id?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          month?: number
+          status?: Database["public"]["Enums"]["salary_sheet_status"]
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       sales_daily_activities: {
         Row: {
           activity_date: string
@@ -6766,6 +6889,7 @@ export type Database = {
         | "crash_damage"
         | "other"
       repair_payment_status: "pending" | "partial" | "paid"
+      salary_sheet_status: "draft" | "locked"
       screening_status: "New" | "Shortlisted" | "Rejected" | "On Hold"
       shopify_processing_status:
         | "pending"
@@ -7062,6 +7186,7 @@ export const Constants = {
         "other",
       ],
       repair_payment_status: ["pending", "partial", "paid"],
+      salary_sheet_status: ["draft", "locked"],
       screening_status: ["New", "Shortlisted", "Rejected", "On Hold"],
       shopify_processing_status: [
         "pending",
