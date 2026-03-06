@@ -180,47 +180,54 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
     return ["jpg", "jpeg", "png", "gif", "webp"].includes(ext || "");
   };
 
+  // Stable keys for dependency tracking to avoid infinite loops
+  const ticketAttachmentKey = JSON.stringify(ticket?.attachment_urls ?? []);
+  const commentAttachmentKey = JSON.stringify(
+    comments.map((c) => ({ id: c.id, urls: c.attachment_urls ?? [] }))
+  );
+
   useEffect(() => {
     let cancelled = false;
 
     const resolveAllAttachmentLinks = async () => {
-      if (!open || !ticket) {
-        setTicketAttachmentLinks({});
-        setCommentAttachmentLinks({});
-        return;
-      }
+      if (!open || !ticket) return;
 
       const ticketRefs = ticket.attachment_urls ?? [];
-      const ticketResolved = await Promise.all(
-        ticketRefs.map(async (ref) => {
-          const resolved = await resolveAttachmentUrl(ref);
-          return [ref, resolved] as const;
-        })
-      );
-
-      const commentResolved = await Promise.all(
-        comments.map(async (comment) => {
-          const refs = comment.attachment_urls ?? [];
-          const urls = await Promise.all(
-            refs.map(async (ref) => {
-              const resolved = await resolveAttachmentUrl(ref);
-              return [ref, resolved] as const;
-            })
+      if (ticketRefs.length > 0) {
+        const ticketResolved = await Promise.all(
+          ticketRefs.map(async (ref) => {
+            const resolved = await resolveAttachmentUrl(ref);
+            return [ref, resolved] as const;
+          })
+        );
+        if (!cancelled) {
+          setTicketAttachmentLinks(
+            Object.fromEntries(ticketResolved.filter((entry): entry is [string, string] => Boolean(entry[1])))
           );
+        }
+      }
 
-          return [
-            comment.id,
-            Object.fromEntries(urls.filter((entry): entry is [string, string] => Boolean(entry[1]))),
-          ] as const;
-        })
-      );
-
-      if (cancelled) return;
-
-      setTicketAttachmentLinks(
-        Object.fromEntries(ticketResolved.filter((entry): entry is [string, string] => Boolean(entry[1])))
-      );
-      setCommentAttachmentLinks(Object.fromEntries(commentResolved));
+      const commentsWithAttachments = comments.filter((c) => c.attachment_urls && c.attachment_urls.length > 0);
+      if (commentsWithAttachments.length > 0) {
+        const commentResolved = await Promise.all(
+          commentsWithAttachments.map(async (comment) => {
+            const refs = comment.attachment_urls ?? [];
+            const urls = await Promise.all(
+              refs.map(async (ref) => {
+                const resolved = await resolveAttachmentUrl(ref);
+                return [ref, resolved] as const;
+              })
+            );
+            return [
+              comment.id,
+              Object.fromEntries(urls.filter((entry): entry is [string, string] => Boolean(entry[1]))),
+            ] as const;
+          })
+        );
+        if (!cancelled) {
+          setCommentAttachmentLinks(Object.fromEntries(commentResolved));
+        }
+      }
     };
 
     void resolveAllAttachmentLinks();
@@ -228,7 +235,8 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
     return () => {
       cancelled = true;
     };
-  }, [open, ticket, comments]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, ticketAttachmentKey, commentAttachmentKey]);
 
   if (!ticket) return null;
 
