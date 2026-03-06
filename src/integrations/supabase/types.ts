@@ -1186,6 +1186,57 @@ export type Database = {
           },
         ]
       }
+      employee_payslips: {
+        Row: {
+          employee_id: string
+          generated_at: string
+          generated_by: string | null
+          generated_by_name: string | null
+          id: string
+          month: number
+          pdf_url: string
+          salary_sheet_id: string
+          year: number
+        }
+        Insert: {
+          employee_id: string
+          generated_at?: string
+          generated_by?: string | null
+          generated_by_name?: string | null
+          id?: string
+          month: number
+          pdf_url: string
+          salary_sheet_id: string
+          year: number
+        }
+        Update: {
+          employee_id?: string
+          generated_at?: string
+          generated_by?: string | null
+          generated_by_name?: string | null
+          id?: string
+          month?: number
+          pdf_url?: string
+          salary_sheet_id?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_payslips_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_payslips_salary_sheet_id_fkey"
+            columns: ["salary_sheet_id"]
+            isOneToOne: false
+            referencedRelation: "salary_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_roles_responsibilities: {
         Row: {
           created_at: string
@@ -1232,12 +1283,16 @@ export type Database = {
       }
       employees: {
         Row: {
+          bank_account: string | null
           created_at: string
           department: string
+          designation: string | null
           id: string
+          ifsc_code: string | null
           is_active: boolean | null
           manager_id: string | null
           monthly_attendance_target: number | null
+          monthly_salary: number | null
           name: string
           role: string | null
           shift_end_time: string | null
@@ -1249,12 +1304,16 @@ export type Database = {
           work_location: string | null
         }
         Insert: {
+          bank_account?: string | null
           created_at?: string
           department?: string
+          designation?: string | null
           id?: string
+          ifsc_code?: string | null
           is_active?: boolean | null
           manager_id?: string | null
           monthly_attendance_target?: number | null
+          monthly_salary?: number | null
           name: string
           role?: string | null
           shift_end_time?: string | null
@@ -1266,12 +1325,16 @@ export type Database = {
           work_location?: string | null
         }
         Update: {
+          bank_account?: string | null
           created_at?: string
           department?: string
+          designation?: string | null
           id?: string
+          ifsc_code?: string | null
           is_active?: boolean | null
           manager_id?: string | null
           monthly_attendance_target?: number | null
+          monthly_salary?: number | null
           name?: string
           role?: string | null
           shift_end_time?: string | null
@@ -4869,6 +4932,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      salary_history: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          effective_from: string
+          employee_id: string
+          id: string
+          notes: string | null
+          salary: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          effective_from: string
+          employee_id: string
+          id?: string
+          notes?: string | null
+          salary?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          effective_from?: string
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          salary?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salary_history_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       salary_sheet_entries: {
         Row: {

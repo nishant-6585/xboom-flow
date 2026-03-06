@@ -4,9 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { SalarySheetEntry, calculateTotal, calculateDeduction, calculateAttendanceData, AttendanceSummary } from "@/hooks/useSalarySheets";
-import { AlertTriangle, Calendar, Info } from "lucide-react";
+import { SalarySheetEntry, calculateTotal, calculateDeduction, calculateAttendanceData, AttendanceSummary, calculateEarnings, calculateTotalDeductions, calculateNetPay } from "@/hooks/useSalarySheets";
+import { AlertTriangle, Calendar } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -68,7 +67,6 @@ export function SalaryEntryEditDialog({ open, onOpenChange, entry, onSave, month
   useEffect(() => {
     if (open && entry) {
       setForm(initForm(entry));
-      // Fetch attendance summary
       setLoadingSummary(true);
       calculateAttendanceData(entry.employee_id, month, year)
         .then(setAttendanceSummary)
@@ -79,7 +77,7 @@ export function SalaryEntryEditDialog({ open, onOpenChange, entry, onSave, month
 
   const isFirstEntry = entry && entry.salary === 0 && entry.total === 0;
 
-  const liveTotal = useMemo(() => calculateTotal({
+  const formNumbers = useMemo(() => ({
     salary: parseFloat(form.salary) || 0,
     deductions: parseFloat(form.deductions) || 0,
     pending_amount: parseFloat(form.pending_amount) || 0,
@@ -88,14 +86,10 @@ export function SalaryEntryEditDialog({ open, onOpenChange, entry, onSave, month
     reimbursements: parseFloat(form.reimbursements) || 0,
   }), [form.salary, form.deductions, form.pending_amount, form.tds, form.tax, form.reimbursements]);
 
-  const rawTotal = (parseFloat(form.salary) || 0)
-    - (parseFloat(form.deductions) || 0)
-    - (parseFloat(form.pending_amount) || 0)
-    - (parseFloat(form.tds) || 0)
-    - (parseFloat(form.tax) || 0)
-    + (parseFloat(form.reimbursements) || 0);
-
-  const isNegative = rawTotal < 0;
+  const liveEarnings = formNumbers.salary + formNumbers.reimbursements;
+  const liveTotalDeductions = formNumbers.deductions + formNumbers.pending_amount + formNumbers.tds + formNumbers.tax;
+  const liveNetPay = liveEarnings - liveTotalDeductions;
+  const isNegative = liveNetPay < 0;
 
   const setField = (field: keyof FormData, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -110,52 +104,42 @@ export function SalaryEntryEditDialog({ open, onOpenChange, entry, onSave, month
     }
   };
 
-  // Determine override status for each field
   const getOverrideInfo = (field: "wfh_days" | "unpaid_leaves" | "el_leaves" | "sl_leaves" | "deductions") => {
     if (!entry) return null;
     const overrideKey = `${field}_override` as keyof SalarySheetEntry;
-    const isOverridden = entry[overrideKey] as boolean;
-    return isOverridden;
+    return entry[overrideKey] as boolean;
   };
 
-  // Check if current form value differs from auto-calculated
   const isFieldModified = (field: "wfh_days" | "unpaid_leaves" | "el_leaves" | "sl_leaves", formValue: string) => {
     if (!attendanceSummary) return false;
-    const autoValue = attendanceSummary[field];
-    const currentValue = parseFloat(formValue) || 0;
-    return currentValue !== autoValue;
+    return (parseFloat(formValue) || 0) !== attendanceSummary[field];
   };
 
   const handleSave = async () => {
     if (!entry) return;
     if (isNegative) return;
-
     setSaving(true);
 
-    // Determine override flags
     const wfh_days_override = entry.wfh_days_override || isFieldModified("wfh_days", form.wfh_days);
     const unpaid_leaves_override = entry.unpaid_leaves_override || isFieldModified("unpaid_leaves", form.unpaid_leaves);
     const el_leaves_override = entry.el_leaves_override || isFieldModified("el_leaves", form.el_leaves);
     const sl_leaves_override = entry.sl_leaves_override || isFieldModified("sl_leaves", form.sl_leaves);
-
-    // Deduction override: if HR changed it manually from the auto-calc value
-    const autoDeduction = calculateDeduction(parseFloat(form.salary) || 0, parseInt(form.unpaid_leaves) || 0);
-    const manualDeduction = parseFloat(form.deductions) || 0;
-    const deductions_override = entry.deductions_override || Math.abs(manualDeduction - autoDeduction) > 0.01;
+    const autoDeduction = calculateDeduction(formNumbers.salary, parseInt(form.unpaid_leaves) || 0);
+    const deductions_override = entry.deductions_override || Math.abs(formNumbers.deductions - autoDeduction) > 0.01;
 
     const updates: Partial<SalarySheetEntry> = {
-      salary: parseFloat(form.salary) || 0,
+      salary: formNumbers.salary,
       bank_account: form.bank_account || null,
       ifsc_code: form.ifsc_code || null,
       wfh_days: parseInt(form.wfh_days) || 0,
       unpaid_leaves: parseInt(form.unpaid_leaves) || 0,
       el_leaves: parseInt(form.el_leaves) || 0,
       sl_leaves: parseInt(form.sl_leaves) || 0,
-      deductions: parseFloat(form.deductions) || 0,
-      pending_amount: parseFloat(form.pending_amount) || 0,
-      tds: parseFloat(form.tds) || 0,
-      tax: parseFloat(form.tax) || 0,
-      reimbursements: parseFloat(form.reimbursements) || 0,
+      deductions: formNumbers.deductions,
+      pending_amount: formNumbers.pending_amount,
+      tds: formNumbers.tds,
+      tax: formNumbers.tax,
+      reimbursements: formNumbers.reimbursements,
       remarks: form.remarks || null,
       wfh_days_override,
       unpaid_leaves_override,
@@ -179,6 +163,10 @@ export function SalaryEntryEditDialog({ open, onOpenChange, entry, onSave, month
     );
   };
 
+  const AutoFilledLabel = () => (
+    <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">Auto filled from profile</span>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -188,7 +176,6 @@ export function SalaryEntryEditDialog({ open, onOpenChange, entry, onSave, month
 
         {entry && (
           <div className="space-y-4">
-            {/* Employee name read-only */}
             <div>
               <Label className="text-muted-foreground">Employee Name</Label>
               <div className="mt-1 font-medium text-foreground">{entry.employee_name}</div>
@@ -204,22 +191,17 @@ export function SalaryEntryEditDialog({ open, onOpenChange, entry, onSave, month
                 <p className="text-xs text-muted-foreground">Loading...</p>
               ) : attendanceSummary ? (
                 <div className="grid grid-cols-4 gap-2 text-xs">
-                  <div className="rounded bg-background p-2 text-center">
-                    <div className="font-bold text-foreground">{attendanceSummary.wfh_days}</div>
-                    <div className="text-muted-foreground">WFH</div>
-                  </div>
-                  <div className="rounded bg-background p-2 text-center">
-                    <div className="font-bold text-foreground">{attendanceSummary.el_leaves}</div>
-                    <div className="text-muted-foreground">EL</div>
-                  </div>
-                  <div className="rounded bg-background p-2 text-center">
-                    <div className="font-bold text-foreground">{attendanceSummary.sl_leaves}</div>
-                    <div className="text-muted-foreground">SL</div>
-                  </div>
-                  <div className="rounded bg-background p-2 text-center">
-                    <div className="font-bold text-foreground">{attendanceSummary.unpaid_leaves}</div>
-                    <div className="text-muted-foreground">Unpaid</div>
-                  </div>
+                  {[
+                    { label: "WFH", value: attendanceSummary.wfh_days },
+                    { label: "EL", value: attendanceSummary.el_leaves },
+                    { label: "SL", value: attendanceSummary.sl_leaves },
+                    { label: "Unpaid", value: attendanceSummary.unpaid_leaves },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="rounded bg-background p-2 text-center">
+                      <div className="font-bold text-foreground">{value}</div>
+                      <div className="text-muted-foreground">{label}</div>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground">No attendance data available</p>
@@ -227,21 +209,28 @@ export function SalaryEntryEditDialog({ open, onOpenChange, entry, onSave, month
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {/* Currency fields */}
               <div>
-                <Label htmlFor="salary">Salary (₹)</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="salary">Salary (₹)</Label>
+                  {!entry.salary && <AutoFilledLabel />}
+                </div>
                 <Input id="salary" value={form.salary} onChange={e => handleNumericChange("salary", e.target.value)} />
               </div>
               <div>
-                <Label htmlFor="bank_account">Bank Account</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="bank_account">Bank Account</Label>
+                  {!isFirstEntry && entry.bank_account && <AutoFilledLabel />}
+                </div>
                 <Input id="bank_account" value={form.bank_account} onChange={e => setField("bank_account", e.target.value)} />
               </div>
               <div>
-                <Label htmlFor="ifsc_code">IFSC Code</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="ifsc_code">IFSC Code</Label>
+                  {!isFirstEntry && entry.ifsc_code && <AutoFilledLabel />}
+                </div>
                 <Input id="ifsc_code" value={form.ifsc_code} onChange={e => setField("ifsc_code", e.target.value)} />
               </div>
 
-              {/* Integer leave fields with override labels */}
               <div>
                 <div className="flex items-center justify-between">
                   <Label htmlFor="wfh_days">WFH Days</Label>
@@ -271,7 +260,6 @@ export function SalaryEntryEditDialog({ open, onOpenChange, entry, onSave, month
                 <Input id="sl_leaves" value={form.sl_leaves} onChange={e => handleNumericChange("sl_leaves", e.target.value, true)} />
               </div>
 
-              {/* Deduction fields */}
               <div>
                 <div className="flex items-center justify-between">
                   <Label htmlFor="deductions">Deductions (₹)</Label>
@@ -297,23 +285,35 @@ export function SalaryEntryEditDialog({ open, onOpenChange, entry, onSave, month
               </div>
             </div>
 
-            {/* Remarks */}
             <div>
               <Label htmlFor="remarks">Remarks</Label>
               <Textarea id="remarks" value={form.remarks} onChange={e => setField("remarks", e.target.value)} rows={2} className="mt-1" />
             </div>
 
-            {/* Live total */}
-            <div className="rounded-lg border bg-muted/50 p-3 flex items-center justify-between">
-              <span className="font-medium">Total</span>
-              <span className={`text-lg font-bold ${isNegative ? "text-destructive" : "text-primary"}`}>
-                ₹{liveTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-              </span>
+            {/* Earnings / Deductions / Net Pay breakdown */}
+            <div className="space-y-2">
+              <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total Earnings</span>
+                  <span className="font-medium text-emerald-600 dark:text-emerald-400">₹{liveEarnings.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total Deductions</span>
+                  <span className="font-medium text-red-600 dark:text-red-400">₹{liveTotalDeductions.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+              <div className="rounded-lg border bg-primary/5 p-3 flex items-center justify-between">
+                <span className="font-bold">Net Pay</span>
+                <span className={`text-lg font-bold ${isNegative ? "text-destructive" : "text-primary"}`}>
+                  ₹{liveNetPay.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
             </div>
+
             {isNegative && (
               <div className="flex items-center gap-2 text-sm text-destructive">
                 <AlertTriangle className="h-4 w-4" />
-                Total cannot be negative. Please adjust deductions.
+                Net pay cannot be negative. Please adjust deductions.
               </div>
             )}
           </div>

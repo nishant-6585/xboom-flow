@@ -50,6 +50,14 @@ export interface AttendanceSummary {
   sl_leaves: number;
 }
 
+export interface EmployeeProfileData {
+  salary: number;
+  bank_account: string | null;
+  ifsc_code: string | null;
+  designation: string | null;
+  department: string | null;
+}
+
 const TOTAL_WORKING_DAYS = 26;
 
 export function calculateTotal(entry: Partial<SalarySheetEntry>): number {
@@ -62,6 +70,18 @@ export function calculateTotal(entry: Partial<SalarySheetEntry>): number {
   return Math.max(0, salary - deductions - pending - tds - tax + reimbursements);
 }
 
+export function calculateEarnings(entry: Partial<SalarySheetEntry>): number {
+  return (Number(entry.salary) || 0) + (Number(entry.reimbursements) || 0);
+}
+
+export function calculateTotalDeductions(entry: Partial<SalarySheetEntry>): number {
+  return (Number(entry.deductions) || 0) + (Number(entry.pending_amount) || 0) + (Number(entry.tds) || 0) + (Number(entry.tax) || 0);
+}
+
+export function calculateNetPay(entry: Partial<SalarySheetEntry>): number {
+  return calculateEarnings(entry) - calculateTotalDeductions(entry);
+}
+
 export function calculateDeduction(salary: number, unpaidLeaves: number): number {
   if (unpaidLeaves <= 0 || salary <= 0) return 0;
   const perDaySalary = salary / TOTAL_WORKING_DAYS;
@@ -69,8 +89,46 @@ export function calculateDeduction(salary: number, unpaidLeaves: number): number
 }
 
 /**
- * Fetch attendance/leave data for a given employee in a specific month/year.
+ * Fetch the effective salary for an employee for a given month/year from salary_history.
+ * Falls back to employees.monthly_salary if no history exists.
  */
+export async function getEmployeeProfileData(
+  employeeId: string,
+  month: number,
+  year: number
+): Promise<EmployeeProfileData> {
+  // Get employee base data
+  const { data: emp } = await supabase
+    .from("employees")
+    .select("monthly_salary, bank_account, ifsc_code, designation, department")
+    .eq("id", employeeId)
+    .single();
+
+  let salary = Number(emp?.monthly_salary) || 0;
+
+  // Check salary_history for the effective salary for this month
+  const effectiveDate = `${year}-${String(month).padStart(2, "0")}-01`;
+  const { data: history } = await supabase
+    .from("salary_history")
+    .select("salary")
+    .eq("employee_id", employeeId)
+    .lte("effective_from", effectiveDate)
+    .order("effective_from", { ascending: false })
+    .limit(1);
+
+  if (history && history.length > 0) {
+    salary = Number((history[0] as any).salary) || salary;
+  }
+
+  return {
+    salary,
+    bank_account: (emp as any)?.bank_account || null,
+    ifsc_code: (emp as any)?.ifsc_code || null,
+    designation: (emp as any)?.designation || null,
+    department: (emp as any)?.department || null,
+  };
+}
+
 export async function calculateAttendanceData(
   employeeId: string,
   month: number,
@@ -95,21 +153,17 @@ export async function calculateAttendanceData(
     const days = Number(lr.total_days) || 0;
     const lt = (lr.leave_type || "").toLowerCase();
 
-    // Calculate overlap with the month
     const leaveStart = new Date(lr.start_date);
     const leaveEnd = new Date(lr.end_date);
     const monthStart = new Date(startDate);
     const monthEnd = new Date(endDate);
-    monthEnd.setDate(monthEnd.getDate() - 1); // last day of month
+    monthEnd.setDate(monthEnd.getDate() - 1);
 
     const overlapStart = leaveStart > monthStart ? leaveStart : monthStart;
     const overlapEnd = leaveEnd < monthEnd ? leaveEnd : monthEnd;
     const overlapDays = Math.max(0, Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / 86400000) + 1);
 
-    // Use total_days if fully within month, otherwise use overlap
     const effectiveDays = (leaveStart >= monthStart && leaveEnd <= monthEnd) ? days : overlapDays;
-
-    // Half-day types count as 0.5
     const isHalfDay = lt.startsWith("half_day");
     const countDays = isHalfDay ? 0.5 : effectiveDays;
 
@@ -117,7 +171,6 @@ export async function calculateAttendanceData(
     else if (lt === "unpaid" || lt === "half_day_unpaid") unpaid += countDays;
     else if (lt === "paid" || lt === "half_day_paid") el += countDays;
     else if (lt === "sick" || lt === "half_day_sick") sl += countDays;
-    // casual / half_day_casual / half_day don't map to salary fields
   }
 
   return { wfh_days: wfh, unpaid_leaves: unpaid, el_leaves: el, sl_leaves: sl };
@@ -160,7 +213,7 @@ export function useSalarySheets() {
       }
       return null;
     }
-    recordAuditLog(user.id, userName || "", { action: "salary_sheet_created", details: { month, year } });
+    recordAuditLog(user.id, userName || "", { action: "SALARY_SHEET_CREATED", details: { month, year } });
     toast.success("Salary sheet created");
     await fetchSheets();
     return data as unknown as SalarySheet;
@@ -190,30 +243,46 @@ export function useSalarySheets() {
     const rows = [];
     for (const emp of employees) {
       let attendanceData: AttendanceSummary = { wfh_days: 0, unpaid_leaves: 0, el_leaves: 0, sl_leaves: 0 };
+      let profileData: EmployeeProfileData = { salary: 0, bank_account: null, ifsc_code: null, designation: null, department: null };
 
       if (month && year) {
         try {
-          attendanceData = await calculateAttendanceData(emp.id, month, year);
+          [attendanceData, profileData] = await Promise.all([
+            calculateAttendanceData(emp.id, month, year),
+            getEmployeeProfileData(emp.id, month, year),
+          ]);
         } catch (e) {
-          console.error("Failed to calc attendance for", emp.name, e);
+          console.error("Failed to calc data for", emp.name, e);
         }
       }
+
+      const deduction = calculateDeduction(profileData.salary, attendanceData.unpaid_leaves);
+      const total = calculateTotal({
+        salary: profileData.salary,
+        deductions: deduction,
+        pending_amount: 0,
+        tds: 0,
+        tax: 0,
+        reimbursements: 0,
+      });
 
       rows.push({
         salary_sheet_id: sheetId,
         employee_id: emp.id,
         employee_name: emp.name,
-        salary: 0,
+        salary: profileData.salary,
+        bank_account: profileData.bank_account,
+        ifsc_code: profileData.ifsc_code,
         wfh_days: attendanceData.wfh_days,
         unpaid_leaves: attendanceData.unpaid_leaves,
         el_leaves: attendanceData.el_leaves,
         sl_leaves: attendanceData.sl_leaves,
-        deductions: 0, // Will be recalculated when salary is set
+        deductions: deduction,
         pending_amount: 0,
         tds: 0,
         tax: 0,
         reimbursements: 0,
-        total: 0,
+        total,
         wfh_days_override: false,
         unpaid_leaves_override: false,
         el_leaves_override: false,
@@ -238,12 +307,12 @@ export function useSalarySheets() {
         details: {
           month, year,
           employee_count: employees.length,
-          calculated_fields: ["wfh_days", "unpaid_leaves", "el_leaves", "sl_leaves"],
+          calculated_fields: ["salary", "bank_account", "ifsc_code", "wfh_days", "unpaid_leaves", "el_leaves", "sl_leaves", "deductions"],
         },
       });
     }
 
-    toast.success(`${employees.length} employees added`);
+    toast.success(`${employees.length} employees added with auto-filled data`);
     await fetchEntries(sheetId);
     return true;
   }, [fetchEntries, user, userName]);
@@ -275,7 +344,6 @@ export function useSalarySheets() {
       if (!entry.el_leaves_override) updates.el_leaves = attendanceData.el_leaves;
       if (!entry.sl_leaves_override) updates.sl_leaves = attendanceData.sl_leaves;
 
-      // Recalculate deduction if not overridden
       const effectiveUnpaid = updates.unpaid_leaves ?? entry.unpaid_leaves;
       if (!entry.deductions_override) {
         updates.deductions = calculateDeduction(entry.salary, effectiveUnpaid);
@@ -302,6 +370,18 @@ export function useSalarySheets() {
     toast.success(`Attendance data refreshed for ${updatedCount} entries`);
   }, [fetchEntries, user, userName]);
 
+  const validateBeforeLock = useCallback((entriesToValidate: SalarySheetEntry[]): string[] => {
+    const errors: string[] = [];
+    for (const e of entriesToValidate) {
+      if (!e.salary || e.salary <= 0) errors.push(`${e.employee_name}: Salary not entered`);
+      if (!e.bank_account) errors.push(`${e.employee_name}: Bank account missing`);
+      if (!e.ifsc_code) errors.push(`${e.employee_name}: IFSC code missing`);
+      const netPay = calculateNetPay(e);
+      if (netPay < 0) errors.push(`${e.employee_name}: Net pay is negative`);
+    }
+    return errors;
+  }, []);
+
   const lockSheet = useCallback(async (sheetId: string) => {
     if (!user) return false;
     const { error } = await supabase
@@ -312,7 +392,7 @@ export function useSalarySheets() {
       toast.error("Failed to lock sheet");
       return false;
     }
-    recordAuditLog(user.id, userName || "", { action: "salary_sheet_locked", details: { sheetId } });
+    recordAuditLog(user.id, userName || "", { action: "SALARY_SHEET_LOCKED", details: { sheetId } });
     toast.success("Salary sheet locked");
     await fetchSheets();
     return true;
@@ -343,5 +423,6 @@ export function useSalarySheets() {
     lockSheet,
     deleteEntry,
     refreshAttendanceData,
+    validateBeforeLock,
   };
 }
