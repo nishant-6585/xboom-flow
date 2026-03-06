@@ -17,9 +17,10 @@ import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
 import { HRDocumentsPanel } from "@/components/hr/HRDocumentsPanel";
 import { KPIManagementPanel } from "@/components/kpi/KPIManagementPanel";
 import { ProvisionalCheckoutBanner } from "@/components/attendance/ProvisionalCheckoutBanner";
-import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User } from "lucide-react";
+import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CandidatesPanel } from "@/components/candidates/CandidatesPanel";
+import { SalarySheetsList } from "@/components/salary/SalarySheetsList";
 import { supabase } from "@/integrations/supabase/client";
 import { AttendanceLog } from "@/hooks/useHR";
 
@@ -159,6 +160,12 @@ export default function HR() {
                 <TabsTrigger value="candidates" className="gap-1.5 whitespace-nowrap">
                   <UserSearch className="h-4 w-4 shrink-0" />
                   <span>Candidates</span>
+                </TabsTrigger>
+              )}
+              {isHROrAdmin && (
+                <TabsTrigger value="salary" className="gap-1.5 whitespace-nowrap">
+                  <Wallet className="h-4 w-4 shrink-0" />
+                  <span>Salary</span>
                 </TabsTrigger>
               )}
             </TabsList>
@@ -312,6 +319,12 @@ export default function HR() {
           {isHROrAdmin && (
             <TabsContent value="candidates">
               <CandidatesPanel />
+            </TabsContent>
+          )}
+
+          {isHROrAdmin && (
+            <TabsContent value="salary">
+              <SalarySheetsList />
             </TabsContent>
           )}
         </Tabs>
