@@ -5,10 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Lock, Download, UserPlus, Trash2, Loader2, Pencil, RefreshCw, FileText, AlertTriangle } from "lucide-react";
-import { SalarySheet, SalarySheetEntry, useSalarySheets, calculateEarnings, calculateTotalDeductions, calculateNetPay } from "@/hooks/useSalarySheets";
+import { ArrowLeft, Lock, Download, UserPlus, Trash2, Loader2, Pencil, RefreshCw, FileText, AlertTriangle, CheckCircle, RotateCcw, Send } from "lucide-react";
+import { SalarySheet, SalarySheetEntry, SalarySheetStatus, useSalarySheets, calculateEarnings, calculateTotalDeductions, calculateNetPay } from "@/hooks/useSalarySheets";
 import { SalaryAddEmployeesDialog } from "./SalaryAddEmployeesDialog";
 import { SalaryEntryEditDialog } from "./SalaryEntryEditDialog";
+import { PayrollSummaryPanel } from "./PayrollSummaryPanel";
 import { downloadPayslipPDF, getPayslipBlob } from "@/lib/payslipGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,11 +23,26 @@ interface Props {
   sheet: SalarySheet;
   onBack: () => void;
   onLock: () => Promise<void>;
+  onStatusChange?: () => void;
 }
 
-export function SalarySheetView({ sheet, onBack, onLock }: Props) {
-  const { user, profile } = useAuth();
-  const { entries, fetchEntries, updateEntry, addEmployeesToSheet, deleteEntry, refreshAttendanceData, validateBeforeLock } = useSalarySheets();
+const STATUS_LABELS: Record<SalarySheetStatus, string> = {
+  draft: "Draft",
+  hr_approved: "HR Approved",
+  finance_approved: "Finance Approved",
+  locked: "Locked",
+};
+
+const STATUS_COLORS: Record<SalarySheetStatus, string> = {
+  draft: "",
+  hr_approved: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  finance_approved: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  locked: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+};
+
+export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props) {
+  const { user, profile, role } = useAuth();
+  const { entries, fetchEntries, updateEntry, addEmployeesToSheet, deleteEntry, refreshAttendanceData, validateBeforeLock, submitForFinanceApproval, financeApprove, financeRequestChanges } = useSalarySheets();
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [locking, setLocking] = useState(false);
@@ -37,8 +53,16 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [generatingAll, setGeneratingAll] = useState(false);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [currentStatus, setCurrentStatus] = useState<SalarySheetStatus>(sheet.status);
+  const [submitting, setSubmitting] = useState(false);
 
-  const isLocked = sheet.status === "locked";
+  const isLocked = currentStatus === "locked";
+  const isDraft = currentStatus === "draft";
+  const isHrApproved = currentStatus === "hr_approved";
+  const isFinanceApproved = currentStatus === "finance_approved";
+  const isHROrAdmin = role === "admin" || role === "hr";
+  const isFinance = role === "finance" || role === "admin";
+  const canEdit = isDraft && isHROrAdmin;
 
   useEffect(() => {
     setLoading(true);
@@ -47,17 +71,38 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
 
   const handleLockAttempt = () => {
     const errors = validateBeforeLock(entries);
-    if (errors.length > 0) {
-      setValidationErrors(errors);
-      return;
-    }
+    if (errors.length > 0) { setValidationErrors(errors); return; }
     setLockConfirmOpen(true);
   };
 
   const handleLock = async () => {
     setLocking(true);
     await onLock();
+    setCurrentStatus("locked");
     setLocking(false);
+  };
+
+  const handleSubmitForApproval = async () => {
+    const errors = validateBeforeLock(entries);
+    if (errors.length > 0) { setValidationErrors(errors); return; }
+    setSubmitting(true);
+    const ok = await submitForFinanceApproval(sheet.id);
+    if (ok) { setCurrentStatus("hr_approved"); onStatusChange?.(); }
+    setSubmitting(false);
+  };
+
+  const handleFinanceApprove = async () => {
+    setSubmitting(true);
+    const ok = await financeApprove(sheet.id);
+    if (ok) { setCurrentStatus("finance_approved"); onStatusChange?.(); }
+    setSubmitting(false);
+  };
+
+  const handleFinanceRequestChanges = async () => {
+    setSubmitting(true);
+    const ok = await financeRequestChanges(sheet.id);
+    if (ok) { setCurrentStatus("draft"); onStatusChange?.(); }
+    setSubmitting(false);
   };
 
   const handleRefresh = async () => {
@@ -73,57 +118,17 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
   const generatePayslip = async (entry: SalarySheetEntry) => {
     setGeneratingId(entry.id);
     try {
-      // Get employee details
-      const { data: emp } = await supabase
-        .from("employees")
-        .select("designation, department")
-        .eq("id", entry.employee_id)
-        .single();
-
-      const blob = getPayslipBlob({
-        entry,
-        month: sheet.month,
-        year: sheet.year,
-        department: (emp as any)?.department || undefined,
-        designation: (emp as any)?.designation || undefined,
-      });
-
+      const { data: emp } = await supabase.from("employees").select("designation, department").eq("id", entry.employee_id).single();
+      const blob = getPayslipBlob({ entry, month: sheet.month, year: sheet.year, department: (emp as any)?.department || undefined, designation: (emp as any)?.designation || undefined });
       const fileName = `${entry.employee_id}/payslip_${sheet.month}_${sheet.year}.pdf`;
-      const { error: uploadError } = await supabase.storage
-        .from("payslips")
-        .upload(fileName, blob, { upsert: true, contentType: "application/pdf" });
-
-      if (uploadError) {
-        toast.error(`Failed to upload payslip for ${entry.employee_name}`);
-        return;
-      }
-
+      const { error: uploadError } = await supabase.storage.from("payslips").upload(fileName, blob, { upsert: true, contentType: "application/pdf" });
+      if (uploadError) { toast.error(`Failed to upload payslip for ${entry.employee_name}`); return; }
       const { data: urlData } = supabase.storage.from("payslips").getPublicUrl(fileName);
-
-      // Save payslip record
-      await supabase.from("employee_payslips").upsert({
-        employee_id: entry.employee_id,
-        salary_sheet_id: sheet.id,
-        month: sheet.month,
-        year: sheet.year,
-        pdf_url: urlData.publicUrl,
-        generated_by: user?.id,
-        generated_by_name: profile?.name || "Unknown",
-      } as any, { onConflict: "employee_id,salary_sheet_id" });
-
-      if (user) {
-        recordAuditLog(user.id, profile?.name || "", {
-          action: "PAYSLIP_GENERATED",
-          details: { employee_id: entry.employee_id, employee_name: entry.employee_name, month: sheet.month, year: sheet.year },
-        });
-      }
-
+      await supabase.from("employee_payslips").upsert({ employee_id: entry.employee_id, salary_sheet_id: sheet.id, month: sheet.month, year: sheet.year, pdf_url: urlData.publicUrl, generated_by: user?.id, generated_by_name: profile?.name || "Unknown" } as any, { onConflict: "employee_id,salary_sheet_id" });
+      if (user) recordAuditLog(user.id, profile?.name || "", { action: "PAYSLIP_GENERATED", details: { employee_id: entry.employee_id, employee_name: entry.employee_name, month: sheet.month, year: sheet.year } });
       toast.success(`Payslip generated for ${entry.employee_name}`);
-    } catch (e) {
-      toast.error(`Failed to generate payslip for ${entry.employee_name}`);
-    } finally {
-      setGeneratingId(null);
-    }
+    } catch (e) { toast.error(`Failed to generate payslip for ${entry.employee_name}`); }
+    finally { setGeneratingId(null); }
   };
 
   const generateAllPayslips = async () => {
@@ -131,118 +136,42 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
     let count = 0;
     for (const entry of entries) {
       try {
-        const { data: emp } = await supabase
-          .from("employees")
-          .select("designation, department")
-          .eq("id", entry.employee_id)
-          .single();
-
-        const blob = getPayslipBlob({
-          entry,
-          month: sheet.month,
-          year: sheet.year,
-          department: (emp as any)?.department || undefined,
-          designation: (emp as any)?.designation || undefined,
-        });
-
+        const { data: emp } = await supabase.from("employees").select("designation, department").eq("id", entry.employee_id).single();
+        const blob = getPayslipBlob({ entry, month: sheet.month, year: sheet.year, department: (emp as any)?.department || undefined, designation: (emp as any)?.designation || undefined });
         const fileName = `${entry.employee_id}/payslip_${sheet.month}_${sheet.year}.pdf`;
         await supabase.storage.from("payslips").upload(fileName, blob, { upsert: true, contentType: "application/pdf" });
         const { data: urlData } = supabase.storage.from("payslips").getPublicUrl(fileName);
-
-        await supabase.from("employee_payslips").upsert({
-          employee_id: entry.employee_id,
-          salary_sheet_id: sheet.id,
-          month: sheet.month,
-          year: sheet.year,
-          pdf_url: urlData.publicUrl,
-          generated_by: user?.id,
-          generated_by_name: profile?.name || "Unknown",
-        } as any, { onConflict: "employee_id,salary_sheet_id" });
-
+        await supabase.from("employee_payslips").upsert({ employee_id: entry.employee_id, salary_sheet_id: sheet.id, month: sheet.month, year: sheet.year, pdf_url: urlData.publicUrl, generated_by: user?.id, generated_by_name: profile?.name || "Unknown" } as any, { onConflict: "employee_id,salary_sheet_id" });
         count++;
-      } catch (e) {
-        console.error("Failed for", entry.employee_name, e);
-      }
+      } catch (e) { console.error("Failed for", entry.employee_name, e); }
     }
-
-    if (user) {
-      recordAuditLog(user.id, profile?.name || "", {
-        action: "PAYSLIP_GENERATED",
-        details: { bulk: true, count, month: sheet.month, year: sheet.year },
-      });
-    }
-
+    if (user) recordAuditLog(user.id, profile?.name || "", { action: "PAYSLIP_GENERATED", details: { bulk: true, count, month: sheet.month, year: sheet.year } });
     toast.success(`${count} payslips generated`);
     setGeneratingAll(false);
   };
 
   const handleDownloadPayslip = async (entry: SalarySheetEntry) => {
-    const { data: emp } = await supabase
-      .from("employees")
-      .select("designation, department")
-      .eq("id", entry.employee_id)
-      .single();
-
-    downloadPayslipPDF({
-      entry,
-      month: sheet.month,
-      year: sheet.year,
-      department: (emp as any)?.department || undefined,
-      designation: (emp as any)?.designation || undefined,
-    });
-
-    if (user) {
-      recordAuditLog(user.id, profile?.name || "", {
-        action: "PAYSLIP_DOWNLOADED",
-        details: { employee_id: entry.employee_id, month: sheet.month, year: sheet.year },
-      });
-    }
+    const { data: emp } = await supabase.from("employees").select("designation, department").eq("id", entry.employee_id).single();
+    downloadPayslipPDF({ entry, month: sheet.month, year: sheet.year, department: (emp as any)?.department || undefined, designation: (emp as any)?.designation || undefined });
+    if (user) recordAuditLog(user.id, profile?.name || "", { action: "PAYSLIP_DOWNLOADED", details: { employee_id: entry.employee_id, month: sheet.month, year: sheet.year } });
   };
 
   const exportToExcel = () => {
     const data = entries.map((e, idx) => ({
-      "SN": idx + 1,
-      "Name of Employee": e.employee_name,
-      "Salary": e.salary,
-      "Bank Account": e.bank_account || "",
-      "IFSC Code": e.ifsc_code || "",
-      "WFH Days": e.wfh_days,
-      "Unpaid Leaves": e.unpaid_leaves,
-      "EL": e.el_leaves,
-      "SL": e.sl_leaves,
-      "Deductions": e.deductions,
-      "Pending": e.pending_amount,
-      "TDS": e.tds,
-      "Tax": e.tax,
-      "Reimbursements": e.reimbursements,
-      "Total Earnings": calculateEarnings(e),
-      "Total Deductions": calculateTotalDeductions(e),
-      "Net Pay": calculateNetPay(e),
-      "Remarks": e.remarks || "",
+      "SN": idx + 1, "Name of Employee": e.employee_name, "Salary": e.salary, "Bank Account": e.bank_account || "", "IFSC Code": e.ifsc_code || "",
+      "WFH Days": e.wfh_days, "Unpaid Leaves": e.unpaid_leaves, "EL": e.el_leaves, "SL": e.sl_leaves,
+      "Deductions": e.deductions, "Pending": e.pending_amount, "TDS": e.tds, "Tax": e.tax, "Reimbursements": e.reimbursements,
+      "Total Earnings": calculateEarnings(e), "Total Deductions": calculateTotalDeductions(e), "Net Pay": calculateNetPay(e), "Remarks": e.remarks || "",
     }));
-
-    // Add summary row
     data.push({
-      "SN": 0,
-      "Name of Employee": "TOTAL",
-      "Salary": entries.reduce((s, e) => s + Number(e.salary), 0),
-      "Bank Account": "",
-      "IFSC Code": "",
-      "WFH Days": 0,
-      "Unpaid Leaves": 0,
-      "EL": 0,
-      "SL": 0,
-      "Deductions": entries.reduce((s, e) => s + Number(e.deductions), 0),
-      "Pending": entries.reduce((s, e) => s + Number(e.pending_amount), 0),
-      "TDS": entries.reduce((s, e) => s + Number(e.tds), 0),
-      "Tax": entries.reduce((s, e) => s + Number(e.tax), 0),
+      "SN": 0, "Name of Employee": "TOTAL", "Salary": entries.reduce((s, e) => s + Number(e.salary), 0), "Bank Account": "", "IFSC Code": "",
+      "WFH Days": 0, "Unpaid Leaves": 0, "EL": 0, "SL": 0,
+      "Deductions": entries.reduce((s, e) => s + Number(e.deductions), 0), "Pending": entries.reduce((s, e) => s + Number(e.pending_amount), 0),
+      "TDS": entries.reduce((s, e) => s + Number(e.tds), 0), "Tax": entries.reduce((s, e) => s + Number(e.tax), 0),
       "Reimbursements": entries.reduce((s, e) => s + Number(e.reimbursements), 0),
-      "Total Earnings": entries.reduce((s, e) => s + calculateEarnings(e), 0),
-      "Total Deductions": entries.reduce((s, e) => s + calculateTotalDeductions(e), 0),
-      "Net Pay": entries.reduce((s, e) => s + calculateNetPay(e), 0),
-      "Remarks": "",
+      "Total Earnings": entries.reduce((s, e) => s + calculateEarnings(e), 0), "Total Deductions": entries.reduce((s, e) => s + calculateTotalDeductions(e), 0),
+      "Net Pay": entries.reduce((s, e) => s + calculateNetPay(e), 0), "Remarks": "",
     });
-
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `Salary ${MONTH_NAMES[sheet.month]} ${sheet.year}`);
@@ -250,38 +179,22 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
     toast.success("Exported to Excel");
   };
 
-  const fmt = (val: number | null | undefined) =>
-    val === null || val === undefined ? "—" : Number(val).toLocaleString("en-IN");
-
-  const fmtCurrency = (val: number | null | undefined) =>
-    val === null || val === undefined ? "—" : Number(val).toLocaleString("en-IN", { minimumFractionDigits: 2 });
-
-  const LockedTooltipWrapper = ({ children }: { children: React.ReactNode }) => (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>{children}</TooltipTrigger>
-        <TooltipContent>Sheet is locked and cannot be modified.</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
+  const fmt = (val: number | null | undefined) => val === null || val === undefined ? "—" : Number(val).toLocaleString("en-IN");
+  const fmtCurrency = (val: number | null | undefined) => val === null || val === undefined ? "—" : Number(val).toLocaleString("en-IN", { minimumFractionDigits: 2 });
 
   return (
     <Card>
       <CardHeader className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={onBack}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <CardTitle className="text-lg">
-              {MONTH_NAMES[sheet.month]} {sheet.year} — Salary Sheet
-            </CardTitle>
-            <Badge variant={isLocked ? "secondary" : "outline"} className={isLocked ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" : ""}>
-              {isLocked ? "Locked" : "Draft"}
+            <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
+            <CardTitle className="text-lg">{MONTH_NAMES[sheet.month]} {sheet.year} — Salary Sheet</CardTitle>
+            <Badge variant={isLocked ? "secondary" : "outline"} className={STATUS_COLORS[currentStatus]}>
+              {STATUS_LABELS[currentStatus]}
             </Badge>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {!isLocked && (
+            {canEdit && (
               <>
                 <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
                   <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Refreshing..." : "Refresh Attendance"}
@@ -299,7 +212,24 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
             <Button variant="outline" size="sm" onClick={exportToExcel}>
               <Download className="h-4 w-4 mr-1" /> Export
             </Button>
-            {!isLocked && (
+
+            {/* Workflow buttons */}
+            {isDraft && isHROrAdmin && (
+              <Button size="sm" onClick={handleSubmitForApproval} disabled={submitting}>
+                <Send className="h-4 w-4 mr-1" /> {submitting ? "Submitting..." : "Submit for Finance Approval"}
+              </Button>
+            )}
+            {isHrApproved && isFinance && (
+              <>
+                <Button size="sm" onClick={handleFinanceApprove} disabled={submitting}>
+                  <CheckCircle className="h-4 w-4 mr-1" /> Approve
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleFinanceRequestChanges} disabled={submitting}>
+                  <RotateCcw className="h-4 w-4 mr-1" /> Request Changes
+                </Button>
+              </>
+            )}
+            {isFinanceApproved && isHROrAdmin && (
               <Button variant="destructive" size="sm" onClick={handleLockAttempt} disabled={locking}>
                 <Lock className="h-4 w-4 mr-1" /> {locking ? "Locking..." : "Lock Sheet"}
               </Button>
@@ -307,15 +237,14 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {/* Payroll Summary */}
+        <PayrollSummaryPanel entries={entries} />
+
         {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         ) : entries.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            No employees added yet. Click "Add Employees" to populate the sheet.
-          </div>
+          <div className="text-center py-12 text-muted-foreground">No employees added yet. Click "Add Employees" to populate the sheet.</div>
         ) : (
           <div className="overflow-x-auto">
             <Table>
@@ -347,7 +276,6 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
                   const earnings = calculateEarnings(entry);
                   const totalDed = calculateTotalDeductions(entry);
                   const netPay = calculateNetPay(entry);
-
                   return (
                     <TableRow key={entry.id}>
                       <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
@@ -372,54 +300,26 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
                         <div className="flex items-center gap-1">
                           {isLocked ? (
                             <>
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7"
-                                      onClick={() => handleDownloadPayslip(entry)}
-                                    >
-                                      <Download className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Download Payslip</TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7"
-                                      onClick={() => generatePayslip(entry)}
-                                      disabled={generatingId === entry.id}
-                                    >
-                                      <FileText className={`h-3.5 w-3.5 ${generatingId === entry.id ? "animate-pulse" : ""}`} />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Generate Payslip</TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                              <TooltipProvider><Tooltip><TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadPayslip(entry)}><Download className="h-3.5 w-3.5" /></Button>
+                              </TooltipTrigger><TooltipContent>Download Payslip</TooltipContent></Tooltip></TooltipProvider>
+                              <TooltipProvider><Tooltip><TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => generatePayslip(entry)} disabled={generatingId === entry.id}>
+                                  <FileText className={`h-3.5 w-3.5 ${generatingId === entry.id ? "animate-pulse" : ""}`} />
+                                </Button>
+                              </TooltipTrigger><TooltipContent>Generate Payslip</TooltipContent></Tooltip></TooltipProvider>
                             </>
-                          ) : (
+                          ) : canEdit ? (
                             <>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditEntry(entry); setEditOpen(true); }}>
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteEntry(entry.id, sheet.id)}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditEntry(entry); setEditOpen(true); }}><Pencil className="h-3.5 w-3.5" /></Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteEntry(entry.id, sheet.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                             </>
-                          )}
+                          ) : null}
                         </div>
                       </TableCell>
                     </TableRow>
                   );
                 })}
-                {/* Totals row */}
                 <TableRow className="bg-muted/50 font-bold">
                   <TableCell colSpan={2} className="text-right">Grand Total</TableCell>
                   <TableCell>{entries.reduce((s, e) => s + Number(e.salary), 0).toLocaleString("en-IN")}</TableCell>
@@ -429,15 +329,9 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
                   <TableCell>{entries.reduce((s, e) => s + Number(e.tds), 0).toLocaleString("en-IN")}</TableCell>
                   <TableCell>{entries.reduce((s, e) => s + Number(e.tax), 0).toLocaleString("en-IN")}</TableCell>
                   <TableCell>{entries.reduce((s, e) => s + Number(e.reimbursements), 0).toLocaleString("en-IN")}</TableCell>
-                  <TableCell className="text-emerald-600 dark:text-emerald-400">
-                    {entries.reduce((s, e) => s + calculateEarnings(e), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell className="text-red-600 dark:text-red-400">
-                    {entries.reduce((s, e) => s + calculateTotalDeductions(e), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell className="text-primary">
-                    {entries.reduce((s, e) => s + calculateNetPay(e), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                  </TableCell>
+                  <TableCell className="text-emerald-600 dark:text-emerald-400">{entries.reduce((s, e) => s + calculateEarnings(e), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</TableCell>
+                  <TableCell className="text-red-600 dark:text-red-400">{entries.reduce((s, e) => s + calculateTotalDeductions(e), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</TableCell>
+                  <TableCell className="text-primary">{entries.reduce((s, e) => s + calculateNetPay(e), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</TableCell>
                   <TableCell colSpan={2}></TableCell>
                 </TableRow>
               </TableBody>
@@ -446,69 +340,36 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
         )}
       </CardContent>
 
-      <SalaryAddEmployeesDialog
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        sheetId={sheet.id}
-        existingEmployeeIds={entries.map((e) => e.employee_id)}
-        onAdd={async (employees) => {
-          const ok = await addEmployeesToSheet(sheet.id, employees, sheet.month, sheet.year);
-          if (ok) setAddOpen(false);
-        }}
-      />
+      <SalaryAddEmployeesDialog open={addOpen} onOpenChange={setAddOpen} sheetId={sheet.id} existingEmployeeIds={entries.map((e) => e.employee_id)}
+        onAdd={async (employees) => { const ok = await addEmployeesToSheet(sheet.id, employees, sheet.month, sheet.year); if (ok) setAddOpen(false); }} />
 
-      <SalaryEntryEditDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        entry={editEntry}
-        onSave={handleEditSave}
-        month={sheet.month}
-        year={sheet.year}
-      />
+      <SalaryEntryEditDialog open={editOpen} onOpenChange={setEditOpen} entry={editEntry} onSave={handleEditSave} month={sheet.month} year={sheet.year} />
 
-      {/* Lock confirmation */}
       <AlertDialog open={lockConfirmOpen} onOpenChange={setLockConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Lock Salary Sheet?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Once locked, this salary sheet will become read-only and no further edits will be allowed. This action cannot be undone.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Once locked, this salary sheet will become read-only and no further edits will be allowed. This action cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={async () => {
-              setLockConfirmOpen(false);
-              await handleLock();
-            }}>
-              Yes, Lock Sheet
-            </AlertDialogAction>
+            <AlertDialogAction onClick={async () => { setLockConfirmOpen(false); await handleLock(); }}>Yes, Lock Sheet</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Validation errors dialog */}
       <AlertDialog open={validationErrors.length > 0} onOpenChange={(open) => { if (!open) setValidationErrors([]); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              Cannot Lock Sheet
-            </AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-destructive" /> Validation Errors</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2">
-                <p>Please fix the following issues before locking:</p>
-                <ul className="list-disc pl-5 space-y-1 text-sm text-destructive">
-                  {validationErrors.map((err, i) => (
-                    <li key={i}>{err}</li>
-                  ))}
-                </ul>
+                <p>Please fix the following issues:</p>
+                <ul className="list-disc pl-5 space-y-1 text-sm text-destructive">{validationErrors.map((err, i) => <li key={i}>{err}</li>)}</ul>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Close</AlertDialogCancel>
-          </AlertDialogFooter>
+          <AlertDialogFooter><AlertDialogCancel>Close</AlertDialogCancel></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </Card>
