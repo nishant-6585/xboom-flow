@@ -18,8 +18,10 @@ export function KPIManagementPanel() {
     rolesResponsibilities,
     loading,
     isHROrAdmin,
+    myEmployeeId,
     createKPI,
     updateKPI,
+    updateWorkflowStatus,
     deleteKPI,
     updateProgress,
     fetchProgressHistory,
@@ -35,8 +37,16 @@ export function KPIManagementPanel() {
   const [editingKPI, setEditingKPI] = useState<EmployeeKPIRecord | null>(null);
   const [progressKPI, setProgressKPI] = useState<EmployeeKPIRecord | null>(null);
   const [progressDialogOpen, setProgressDialogOpen] = useState(false);
+  const [selfServiceMode, setSelfServiceMode] = useState(false);
 
   const handleEdit = (kpi: EmployeeKPIRecord) => {
+    setSelfServiceMode(false);
+    setEditingKPI(kpi);
+    setFormDialogOpen(true);
+  };
+
+  const handleEmployeeEdit = (kpi: EmployeeKPIRecord) => {
+    setSelfServiceMode(true);
     setEditingKPI(kpi);
     setFormDialogOpen(true);
   };
@@ -48,7 +58,28 @@ export function KPIManagementPanel() {
 
   const handleCloseForm = (open: boolean) => {
     setFormDialogOpen(open);
-    if (!open) setEditingKPI(null);
+    if (!open) {
+      setEditingKPI(null);
+      setSelfServiceMode(false);
+    }
+  };
+
+  const handleCreateMyKPI = () => {
+    setSelfServiceMode(true);
+    setEditingKPI(null);
+    setFormDialogOpen(true);
+  };
+
+  // Determine if employee can edit a specific KPI
+  const canEmployeeEdit = (kpi: EmployeeKPIRecord) => {
+    if (isHROrAdmin) return false; // HR uses their own edit button
+    return kpi.kpi_source === 'employee' && kpi.employee_id === myEmployeeId;
+  };
+
+  // Determine if employee can delete a specific KPI
+  const canEmployeeDelete = (kpi: EmployeeKPIRecord) => {
+    if (isHROrAdmin) return true;
+    return kpi.kpi_source === 'employee' && kpi.employee_id === myEmployeeId;
   };
 
   if (loading) {
@@ -64,11 +95,18 @@ export function KPIManagementPanel() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">KPI Management</h2>
-        {isHROrAdmin && (
-          <Button onClick={() => { setEditingKPI(null); setFormDialogOpen(true); }}>
-            <Plus className="h-4 w-4 mr-1" /> Create KPI
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {!isHROrAdmin && myEmployeeId && (
+            <Button onClick={handleCreateMyKPI} variant="outline">
+              <Plus className="h-4 w-4 mr-1" /> Create My KPI
+            </Button>
+          )}
+          {isHROrAdmin && (
+            <Button onClick={() => { setSelfServiceMode(false); setEditingKPI(null); setFormDialogOpen(true); }}>
+              <Plus className="h-4 w-4 mr-1" /> Create KPI
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -92,9 +130,15 @@ export function KPIManagementPanel() {
             kpis={kpis}
             employees={employees}
             isAdmin={isHROrAdmin}
+            myEmployeeId={myEmployeeId}
             onEdit={isHROrAdmin ? handleEdit : undefined}
+            onEmployeeEdit={!isHROrAdmin ? handleEmployeeEdit : undefined}
             onDelete={isHROrAdmin ? deleteKPI : undefined}
+            onEmployeeDelete={!isHROrAdmin ? deleteKPI : undefined}
             onViewProgress={handleViewProgress}
+            onUpdateWorkflowStatus={isHROrAdmin ? updateWorkflowStatus : undefined}
+            canEmployeeEdit={canEmployeeEdit}
+            canEmployeeDelete={canEmployeeDelete}
           />
         </TabsContent>
 
@@ -125,6 +169,8 @@ export function KPIManagementPanel() {
         onSubmit={createKPI}
         editingKPI={editingKPI}
         onUpdate={updateKPI}
+        selfServiceMode={selfServiceMode}
+        myEmployeeId={myEmployeeId}
       />
 
       <KPIProgressDialog
@@ -134,7 +180,7 @@ export function KPIManagementPanel() {
         progressHistory={progressHistory}
         onUpdateProgress={updateProgress}
         onFetchProgress={fetchProgressHistory}
-        readOnly={isHROrAdmin && false}
+        readOnly={false}
       />
     </div>
   );

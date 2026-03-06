@@ -15,6 +15,8 @@ interface KPIFormDialogProps {
   onSubmit: (data: KPIFormData) => Promise<boolean>;
   editingKPI?: EmployeeKPIRecord | null;
   onUpdate?: (id: string, data: Partial<KPIFormData>) => Promise<boolean>;
+  selfServiceMode?: boolean;
+  myEmployeeId?: string | null;
 }
 
 const MONTHS = [
@@ -33,7 +35,7 @@ const UNITS: { value: KPIMeasurementUnit; label: string }[] = [
   { value: "boolean", label: "Yes/No" },
 ];
 
-export function KPIFormDialog({ open, onOpenChange, employees, onSubmit, editingKPI, onUpdate }: KPIFormDialogProps) {
+export function KPIFormDialog({ open, onOpenChange, employees, onSubmit, editingKPI, onUpdate, selfServiceMode, myEmployeeId }: KPIFormDialogProps) {
   const now = new Date();
   const [form, setForm] = useState<KPIFormData>({
     employee_id: "",
@@ -71,7 +73,7 @@ export function KPIFormDialog({ open, onOpenChange, employees, onSubmit, editing
       });
     } else if (open) {
       setForm({
-        employee_id: "",
+        employee_id: selfServiceMode && myEmployeeId ? myEmployeeId : "",
         title: "",
         description: "",
         month: now.getMonth() + 1,
@@ -86,7 +88,7 @@ export function KPIFormDialog({ open, onOpenChange, employees, onSubmit, editing
         amber_threshold: 70,
       });
     }
-  }, [editingKPI, open]);
+  }, [editingKPI, open, selfServiceMode, myEmployeeId]);
 
   const handleSubmit = async () => {
     if (!form.employee_id || !form.title || !form.due_date) return;
@@ -95,7 +97,12 @@ export function KPIFormDialog({ open, onOpenChange, employees, onSubmit, editing
     if (editingKPI && onUpdate) {
       success = await onUpdate(editingKPI.id, form);
     } else {
-      success = await onSubmit(form);
+      const submitData: KPIFormData = {
+        ...form,
+        kpi_source: selfServiceMode ? 'employee' : 'hr',
+        workflow_status: selfServiceMode ? 'draft' : 'active',
+      };
+      success = await onSubmit(submitData);
     }
     setSubmitting(false);
     if (success) onOpenChange(false);
@@ -109,30 +116,42 @@ export function KPIFormDialog({ open, onOpenChange, employees, onSubmit, editing
     }
   }, [form.employee_id, employees]);
 
+  const dialogTitle = selfServiceMode
+    ? editingKPI ? "Edit My KPI" : "Create My KPI"
+    : editingKPI ? "Edit KPI" : "Create New KPI";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{editingKPI ? "Edit KPI" : "Create New KPI"}</DialogTitle>
+          <DialogTitle>{dialogTitle}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Employee *</Label>
-              <Select value={form.employee_id} onValueChange={v => setForm(p => ({ ...p, employee_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
-                <SelectContent>
-                  {employees.map(emp => (
-                    <SelectItem key={emp.id} value={emp.id}>{emp.name} ({emp.department})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {!selfServiceMode && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Employee *</Label>
+                <Select value={form.employee_id} onValueChange={v => setForm(p => ({ ...p, employee_id: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                  <SelectContent>
+                    {employees.map(emp => (
+                      <SelectItem key={emp.id} value={emp.id}>{emp.name} ({emp.department})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Department</Label>
+                <Input value={form.department} onChange={e => setForm(p => ({ ...p, department: e.target.value }))} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Department</Label>
-              <Input value={form.department} onChange={e => setForm(p => ({ ...p, department: e.target.value }))} />
+          )}
+
+          {selfServiceMode && (
+            <div className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
+              This KPI will be created for yourself and will start in <strong>Draft</strong> status. HR/Admin can review and activate it.
             </div>
-          </div>
+          )}
 
           <div className="space-y-2">
             <Label>KPI Title *</Label>
@@ -205,7 +224,7 @@ export function KPIFormDialog({ open, onOpenChange, employees, onSubmit, editing
           </div>
 
           <Button onClick={handleSubmit} disabled={submitting || !form.employee_id || !form.title} className="w-full">
-            {submitting ? "Saving..." : editingKPI ? "Update KPI" : "Create KPI"}
+            {submitting ? "Saving..." : editingKPI ? "Update KPI" : selfServiceMode ? "Create My KPI" : "Create KPI"}
           </Button>
         </div>
       </DialogContent>
