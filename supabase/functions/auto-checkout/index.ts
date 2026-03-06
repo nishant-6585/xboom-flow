@@ -20,17 +20,8 @@ Deno.serve(async (req) => {
     const cronSecret = req.headers.get('X-Cron-Secret');
     const expectedCronSecret = Deno.env.get('CRON_SECRET');
 
-    // Check if this is a scheduled/cron invocation
-    let isScheduled = false;
-    try {
-      const body = await req.clone().json();
-      isScheduled = body?.scheduled === true;
-    } catch { /* not json, that's fine */ }
-
     if (cronSecret && expectedCronSecret && cronSecret === expectedCronSecret) {
       // Authenticated via cron secret
-    } else if (isScheduled) {
-      // pg_cron invocation via pg_net — trusted internal call
     } else if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.replace('Bearer ', '');
       // Verify it's a valid user with admin/hr role

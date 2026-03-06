@@ -249,7 +249,7 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error('Payment risk scoring error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
