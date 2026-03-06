@@ -204,3 +204,15 @@ Follow OWASP Top 10 strictly.
 - [ ] Admin whitelist enforced (max 5 admins)
 - [ ] Audit logs exist for sensitive mutations
 - [ ] No secrets in codebase or localStorage
+
+---
+
+## Related Documents
+
+- [IDENTITY_AND_ACCESS_MANAGEMENT.md](IDENTITY_AND_ACCESS_MANAGEMENT.md) — RBAC implementation, MFA enforcement, session policy, access control matrix, IDOR prevention, RLS policy standards
+- [SHOPIFY_SECURITY.md](../SHOPIFY_SECURITY.md) — Shopify credential management, HMAC verification, health-check endpoint
+- [SHOPIFY_WEBHOOK_SETUP.md](../SHOPIFY_WEBHOOK_SETUP.md) — Webhook registration, HMAC testing, database schema
+
+---
+
+*Last updated: 2026-03-06*
