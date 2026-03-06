@@ -4875,7 +4875,9 @@ export type Database = {
           bank_account: string | null
           created_at: string
           deductions: number
+          deductions_override: boolean | null
           el_leaves: number
+          el_leaves_override: boolean | null
           employee_id: string
           employee_name: string
           id: string
@@ -4886,18 +4888,23 @@ export type Database = {
           salary: number
           salary_sheet_id: string
           sl_leaves: number
+          sl_leaves_override: boolean | null
           tax: number
           tds: number
           total: number
           unpaid_leaves: number
+          unpaid_leaves_override: boolean | null
           updated_at: string
           wfh_days: number
+          wfh_days_override: boolean | null
         }
         Insert: {
           bank_account?: string | null
           created_at?: string
           deductions?: number
+          deductions_override?: boolean | null
           el_leaves?: number
+          el_leaves_override?: boolean | null
           employee_id: string
           employee_name: string
           id?: string
@@ -4908,18 +4915,23 @@ export type Database = {
           salary?: number
           salary_sheet_id: string
           sl_leaves?: number
+          sl_leaves_override?: boolean | null
           tax?: number
           tds?: number
           total?: number
           unpaid_leaves?: number
+          unpaid_leaves_override?: boolean | null
           updated_at?: string
           wfh_days?: number
+          wfh_days_override?: boolean | null
         }
         Update: {
           bank_account?: string | null
           created_at?: string
           deductions?: number
+          deductions_override?: boolean | null
           el_leaves?: number
+          el_leaves_override?: boolean | null
           employee_id?: string
           employee_name?: string
           id?: string
@@ -4930,12 +4942,15 @@ export type Database = {
           salary?: number
           salary_sheet_id?: string
           sl_leaves?: number
+          sl_leaves_override?: boolean | null
           tax?: number
           tds?: number
           total?: number
           unpaid_leaves?: number
+          unpaid_leaves_override?: boolean | null
           updated_at?: string
           wfh_days?: number
+          wfh_days_override?: boolean | null
         }
         Relationships: [
           {
