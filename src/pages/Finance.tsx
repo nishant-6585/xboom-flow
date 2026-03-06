@@ -12,9 +12,9 @@ import { InvoiceAgingDashboard } from '@/components/finance/InvoiceAgingDashboar
 import { PaymentRiskWidget } from '@/components/finance/PaymentRiskWidget';
 import { 
   IndianRupee, TrendingUp, TrendingDown, Calendar, Plus, 
-  ArrowUpRight, ArrowDownRight, Loader2, Lock
+  ArrowUpRight, ArrowDownRight, Loader2, Lock, FileSpreadsheet
 } from 'lucide-react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 
 interface PaymentRecord {
   id: string;
@@ -65,6 +65,7 @@ interface InventoryProcurement {
 
 export default function Finance() {
   const { user, role, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const { payments: expectedPayments, markAsReceived, deletePayment } = useExpectedPayments();
   
   const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>([]);
@@ -206,10 +207,16 @@ export default function Finance() {
               Track credits, debits, and cashflow analysis
             </p>
           </div>
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Expected Payment
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate('/payroll-reconciliation')}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Payroll Reconciliation
+            </Button>
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Expected Payment
+            </Button>
+          </div>
         </div>
 
         {/* Main Tabs */}

@@ -42,6 +42,7 @@ import ChangePassword from "./pages/ChangePassword";
 import Preferences from "./pages/Preferences";
 import MyActivity from "./pages/MyActivity";
 import MFAVerify from "./pages/MFAVerify";
+import PayrollReconciliation from "./pages/PayrollReconciliation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -91,6 +92,7 @@ function AppInner() {
         <Route path="/profile/preferences" element={<ProtectedRoute><Preferences /></ProtectedRoute>} />
         <Route path="/profile/activity" element={<ProtectedRoute><MyActivity /></ProtectedRoute>} />
         <Route path="/admin/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
+        <Route path="/payroll-reconciliation" element={<ProtectedRoute><PayrollReconciliation /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <AuthGuardedWidgets isMobile={isMobile} />
