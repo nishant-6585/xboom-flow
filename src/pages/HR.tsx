@@ -17,10 +17,12 @@ import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
 import { HRDocumentsPanel } from "@/components/hr/HRDocumentsPanel";
 import { KPIManagementPanel } from "@/components/kpi/KPIManagementPanel";
 import { ProvisionalCheckoutBanner } from "@/components/attendance/ProvisionalCheckoutBanner";
-import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet } from "lucide-react";
+import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CandidatesPanel } from "@/components/candidates/CandidatesPanel";
 import { SalarySheetsList } from "@/components/salary/SalarySheetsList";
+import { EmployeePayslipsPanel } from "@/components/salary/EmployeePayslipsPanel";
+import { SalaryHistoryPanel } from "@/components/salary/SalaryHistoryPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { AttendanceLog } from "@/hooks/useHR";
 
@@ -168,6 +170,16 @@ export default function HR() {
                   <span>Salary</span>
                 </TabsTrigger>
               )}
+              {isHROrAdmin && (
+                <TabsTrigger value="salary_history" className="gap-1.5 whitespace-nowrap">
+                  <History className="h-4 w-4 shrink-0" />
+                  <span>Salary History</span>
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="payslips" className="gap-1.5 whitespace-nowrap">
+                <Receipt className="h-4 w-4 shrink-0" />
+                <span>Payslips</span>
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -327,6 +339,16 @@ export default function HR() {
               <SalarySheetsList />
             </TabsContent>
           )}
+
+          {isHROrAdmin && (
+            <TabsContent value="salary_history">
+              <SalaryHistoryPanel />
+            </TabsContent>
+          )}
+
+          <TabsContent value="payslips">
+            <EmployeePayslipsPanel />
+          </TabsContent>
         </Tabs>
       </main>
 
