@@ -1,9 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Users, CheckCircle2, XCircle, Clock, Coffee, CalendarCheck, AlertCircle } from "lucide-react";
+import { Users, CheckCircle2, XCircle, Clock, Coffee, CalendarCheck, AlertCircle, PartyPopper } from "lucide-react";
 import { format } from "date-fns";
 import { EmployeeAttendanceStatus } from "@/hooks/useHR";
+import { useHolidays } from "@/hooks/useHolidays";
+import { cn } from "@/lib/utils";
 
 interface TeamAttendanceOverviewProps {
   teamStatus: EmployeeAttendanceStatus[];
@@ -11,6 +13,11 @@ interface TeamAttendanceOverviewProps {
 }
 
 export function TeamAttendanceOverview({ teamStatus, loading }: TeamAttendanceOverviewProps) {
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const { isHoliday, getHoliday } = useHolidays(new Date().getFullYear());
+  const todayIsHoliday = isHoliday(todayStr);
+  const holidayInfo = getHoliday(todayStr);
+
   if (loading) {
     return (
       <Card>
@@ -41,11 +48,30 @@ export function TeamAttendanceOverview({ teamStatus, loading }: TeamAttendanceOv
     (s) => s.todayLog?.break_start_time && !s.todayLog?.break_end_time
   );
   const onLeave = teamStatus.filter((s) => s.approvedLeave);
-  const absent = teamStatus.filter(
-    (s) => !s.todayLog?.check_in_time && !s.approvedLeave
-  );
+  const absent = todayIsHoliday
+    ? [] // On holidays, nobody is absent
+    : teamStatus.filter((s) => !s.todayLog?.check_in_time && !s.approvedLeave);
+  const workedOnHoliday = todayIsHoliday
+    ? teamStatus.filter((s) => !!s.todayLog?.check_in_time)
+    : [];
 
   const getStatusBadge = (status: EmployeeAttendanceStatus) => {
+    if (todayIsHoliday && !status.todayLog?.check_in_time && !status.approvedLeave) {
+      return (
+        <Badge className="bg-blue-500">
+          <PartyPopper className="h-3 w-3 mr-1" />
+          Holiday
+        </Badge>
+      );
+    }
+    if (todayIsHoliday && status.todayLog?.check_in_time) {
+      return (
+        <Badge className="bg-cyan-500">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          Worked on Holiday
+        </Badge>
+      );
+    }
     if (status.approvedLeave) {
       return (
         <Badge className="bg-purple-500">
@@ -108,28 +134,55 @@ export function TeamAttendanceOverview({ teamStatus, loading }: TeamAttendanceOv
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Holiday Banner */}
+        {todayIsHoliday && holidayInfo && (
+          <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/80 dark:bg-blue-950/20 dark:border-blue-800 px-3 py-2">
+            <PartyPopper className="h-4 w-4 text-blue-600 shrink-0" />
+            <p className="text-sm font-medium text-blue-700 dark:text-blue-400">
+              🎉 Holiday — {holidayInfo.name}
+            </p>
+          </div>
+        )}
+
         {/* Summary Stats */}
-        <div className="grid grid-cols-5 gap-2 text-center">
-          <div className="p-2 bg-blue-500/10 rounded-lg">
-            <p className="text-lg font-bold text-blue-600">{checkedIn.length}</p>
-            <p className="text-xs text-muted-foreground">Working</p>
-          </div>
-          <div className="p-2 bg-green-500/10 rounded-lg">
-            <p className="text-lg font-bold text-green-600">{checkedOut.length}</p>
-            <p className="text-xs text-muted-foreground">Done</p>
-          </div>
-          <div className="p-2 bg-orange-500/10 rounded-lg">
-            <p className="text-lg font-bold text-orange-600">{onBreak.length}</p>
-            <p className="text-xs text-muted-foreground">Break</p>
-          </div>
+        <div className={cn("grid gap-2 text-center", todayIsHoliday ? "grid-cols-3" : "grid-cols-5")}>
+          {!todayIsHoliday && (
+            <>
+              <div className="p-2 bg-blue-500/10 rounded-lg">
+                <p className="text-lg font-bold text-blue-600">{checkedIn.length}</p>
+                <p className="text-xs text-muted-foreground">Working</p>
+              </div>
+              <div className="p-2 bg-green-500/10 rounded-lg">
+                <p className="text-lg font-bold text-green-600">{checkedOut.length}</p>
+                <p className="text-xs text-muted-foreground">Done</p>
+              </div>
+              <div className="p-2 bg-orange-500/10 rounded-lg">
+                <p className="text-lg font-bold text-orange-600">{onBreak.length}</p>
+                <p className="text-xs text-muted-foreground">Break</p>
+              </div>
+            </>
+          )}
+          {todayIsHoliday && (
+            <div className="p-2 bg-blue-500/10 rounded-lg">
+              <p className="text-lg font-bold text-blue-600">{teamStatus.length - workedOnHoliday.length - onLeave.length}</p>
+              <p className="text-xs text-muted-foreground">Holiday</p>
+            </div>
+          )}
           <div className="p-2 bg-purple-500/10 rounded-lg">
             <p className="text-lg font-bold text-purple-600">{onLeave.length}</p>
             <p className="text-xs text-muted-foreground">Leave</p>
           </div>
-          <div className="p-2 bg-red-500/10 rounded-lg">
-            <p className="text-lg font-bold text-red-600">{absent.length}</p>
-            <p className="text-xs text-muted-foreground">Absent</p>
-          </div>
+          {todayIsHoliday ? (
+            <div className="p-2 bg-cyan-500/10 rounded-lg">
+              <p className="text-lg font-bold text-cyan-600">{workedOnHoliday.length}</p>
+              <p className="text-xs text-muted-foreground">Worked</p>
+            </div>
+          ) : (
+            <div className="p-2 bg-red-500/10 rounded-lg">
+              <p className="text-lg font-bold text-red-600">{absent.length}</p>
+              <p className="text-xs text-muted-foreground">Absent</p>
+            </div>
+          )}
         </div>
 
         {/* Employee List */}
