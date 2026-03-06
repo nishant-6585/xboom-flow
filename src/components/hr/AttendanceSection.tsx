@@ -1,13 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { format, parseISO, isAfter, eachDayOfInterval, startOfMonth, endOfMonth, isWeekend, isFuture, isToday } from 'date-fns';
+import { format, parseISO, isAfter, eachDayOfInterval, startOfMonth, endOfMonth, isWeekend, isFuture, isToday, isWithinInterval } from 'date-fns';
 import { ChevronLeft, ChevronRight, Download, Clock, TrendingUp, CalendarCheck, AlertTriangle, Pencil } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AttendanceLog } from '@/hooks/useHR';
+import { AttendanceLog, LeaveRequest } from '@/hooks/useHR';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -41,6 +41,18 @@ const STATUS_TEXT: Record<string, string> = {
   holiday: 'Holiday',
 };
 
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+  casual: 'Casual',
+  sick: 'Sick',
+  paid: 'Paid',
+  unpaid: 'Unpaid',
+  half_day: 'Half Day',
+  half_day_casual: 'Half Day Casual',
+  half_day_sick: 'Half Day Sick',
+  half_day_paid: 'Half Day Paid',
+  half_day_unpaid: 'Half Day Unpaid',
+  wfh: 'Work from Home',
+};
 
 // Correction window: until 11:59 PM of the day AFTER the log date
 function isCorrectionWindowOpen(log: AttendanceLog): boolean {
@@ -63,6 +75,32 @@ export function AttendanceSection({
   const [stubLogId, setStubLogId] = useState<string | null>(null);
   const [creatingStub, setCreatingStub] = useState(false);
   const { getHoliday } = useHolidays(calendarMonth.getFullYear());
+
+  // Fetch approved leave requests for the current month
+  const [approvedLeaves, setApprovedLeaves] = useState<LeaveRequest[]>([]);
+  useEffect(() => {
+    if (!employeeId) return;
+    const monthStart = format(startOfMonth(calendarMonth), 'yyyy-MM-dd');
+    const monthEnd = format(endOfMonth(calendarMonth), 'yyyy-MM-dd');
+    supabase
+      .from('leave_requests')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .eq('status', 'approved')
+      .lte('start_date', monthEnd)
+      .gte('end_date', monthStart)
+      .then(({ data }) => {
+        setApprovedLeaves((data as LeaveRequest[]) || []);
+      });
+  }, [employeeId, calendarMonth]);
+
+  // Helper to check if a date falls within any approved leave
+  const getApprovedLeave = (dateStr: string): LeaveRequest | undefined => {
+    const d = parseISO(dateStr);
+    return approvedLeaves.find(l =>
+      isWithinInterval(d, { start: parseISO(l.start_date), end: parseISO(l.end_date) })
+    );
+  };
 
   const isHROrAdmin = role === 'admin' || role === 'hr';
 
@@ -219,11 +257,14 @@ export function AttendanceSection({
                       const holiday = getHoliday(dateStr);
 
                       if (!log) {
-                        // No attendance record for this day
-                        const dayStatus = isWeekendDay ? 'weekend' : holiday ? 'holiday' : 'absent';
-                        const dayStatusText = isWeekendDay ? 'Weekend' : holiday ? `Holiday — ${holiday.name}` : 'Absent';
-                        const dayStatusColor = isWeekendDay ? 'bg-muted-foreground/30' : holiday ? 'bg-blue-400' : 'bg-red-500';
-                        const isNonWorking = isWeekendDay || !!holiday;
+                        // No attendance record — check for approved leave
+                        const approvedLeave = getApprovedLeave(dateStr);
+                        const isOnApprovedLeave = !!approvedLeave;
+                        const dayStatus = isOnApprovedLeave ? 'on_leave' : isWeekendDay ? 'weekend' : holiday ? 'holiday' : 'absent';
+                        const leaveTypeLabel = approvedLeave ? (LEAVE_TYPE_LABELS[approvedLeave.leave_type] || approvedLeave.leave_type) : '';
+                        const dayStatusText = isOnApprovedLeave ? `On Leave — ${leaveTypeLabel}` : isWeekendDay ? 'Weekend' : holiday ? `Holiday — ${holiday.name}` : 'Absent';
+                        const dayStatusColor = isOnApprovedLeave ? 'bg-purple-500' : isWeekendDay ? 'bg-muted-foreground/30' : holiday ? 'bg-blue-400' : 'bg-red-500';
+                        const isNonWorking = isWeekendDay || !!holiday || isOnApprovedLeave;
 
                         return (
                           <TableRow key={dateStr} className={cn(isNonWorking && 'opacity-50')}>
@@ -241,7 +282,7 @@ export function AttendanceSection({
                             <TableCell className="text-xs font-medium">0.0h</TableCell>
                             <TableCell className="text-xs hidden sm:table-cell">—</TableCell>
                             <TableCell className="text-right">
-                              {!isFuture(day) && employeeId && (
+                              {!isFuture(day) && employeeId && !isOnApprovedLeave && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
