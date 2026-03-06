@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -116,6 +116,115 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
     if (!ticketProp) return null;
     return tickets.find((t) => t.id === ticketProp.id) || ticketProp;
   }, [ticketProp, tickets]);
+
+  const [ticketAttachmentLinks, setTicketAttachmentLinks] = useState<Record<string, string>>({});
+  const [commentAttachmentLinks, setCommentAttachmentLinks] = useState<Record<string, Record<string, string>>>({});
+
+  const getAttachmentPath = (value: string) => {
+    if (!value) return null;
+
+    if (value.startsWith("http://") || value.startsWith("https://")) {
+      try {
+        const parsed = new URL(value);
+        const path = parsed.pathname;
+        const signedPrefix = "/object/sign/ticket-attachments/";
+        const publicPrefix = "/object/public/ticket-attachments/";
+
+        if (path.includes(signedPrefix)) {
+          return decodeURIComponent(path.split(signedPrefix)[1] || "").split("?")[0];
+        }
+        if (path.includes(publicPrefix)) {
+          return decodeURIComponent(path.split(publicPrefix)[1] || "").split("?")[0];
+        }
+      } catch {
+        return null;
+      }
+      return null;
+    }
+
+    return value.replace(/^ticket-attachments\//, "");
+  };
+
+  const resolveAttachmentUrl = async (value: string) => {
+    if (value.startsWith("http://") || value.startsWith("https://")) {
+      return value;
+    }
+
+    const path = getAttachmentPath(value);
+    if (!path) return null;
+
+    const { data, error } = await supabase.storage
+      .from("ticket-attachments")
+      .createSignedUrl(path, 60 * 60);
+
+    if (error) {
+      console.error("Failed to resolve ticket attachment URL", error);
+      return null;
+    }
+
+    return data?.signedUrl ?? null;
+  };
+
+  const getAttachmentName = (value: string, fallbackIndex: number) => {
+    const source = getAttachmentPath(value) || value;
+    const fullName = source.split("/").pop() || `Attachment ${fallbackIndex + 1}`;
+    return decodeURIComponent(fullName).replace(/^\d+-[a-z0-9]+-/i, "");
+  };
+
+  const isImageAttachment = (value: string) => {
+    const ext = value.split(".").pop()?.toLowerCase();
+    return ["jpg", "jpeg", "png", "gif", "webp"].includes(ext || "");
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveAllAttachmentLinks = async () => {
+      if (!open || !ticket) {
+        setTicketAttachmentLinks({});
+        setCommentAttachmentLinks({});
+        return;
+      }
+
+      const ticketRefs = ticket.attachment_urls ?? [];
+      const ticketResolved = await Promise.all(
+        ticketRefs.map(async (ref) => {
+          const resolved = await resolveAttachmentUrl(ref);
+          return [ref, resolved] as const;
+        })
+      );
+
+      const commentResolved = await Promise.all(
+        comments.map(async (comment) => {
+          const refs = comment.attachment_urls ?? [];
+          const urls = await Promise.all(
+            refs.map(async (ref) => {
+              const resolved = await resolveAttachmentUrl(ref);
+              return [ref, resolved] as const;
+            })
+          );
+
+          return [
+            comment.id,
+            Object.fromEntries(urls.filter((entry): entry is [string, string] => Boolean(entry[1]))),
+          ] as const;
+        })
+      );
+
+      if (cancelled) return;
+
+      setTicketAttachmentLinks(
+        Object.fromEntries(ticketResolved.filter((entry): entry is [string, string] => Boolean(entry[1])))
+      );
+      setCommentAttachmentLinks(Object.fromEntries(commentResolved));
+    };
+
+    void resolveAllAttachmentLinks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, ticket, comments]);
 
   if (!ticket) return null;
 
@@ -413,14 +522,15 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                     Attachments ({ticket.attachment_urls.length})
                   </Label>
                   <div className="flex flex-wrap gap-2">
-                    {ticket.attachment_urls.map((url, index) => {
-                      const fileName = url.split('/').pop() || `Attachment ${index + 1}`;
-                      const ext = fileName.split('.').pop()?.toLowerCase();
-                      const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '');
-                      return (
+                    {ticket.attachment_urls.map((ref, index) => {
+                      const fileName = getAttachmentName(ref, index);
+                      const isImage = isImageAttachment(fileName);
+                      const displayUrl = ticketAttachmentLinks[ref];
+
+                      return displayUrl ? (
                         <a
-                          key={index}
-                          href={url}
+                          key={`${ref}-${index}`}
+                          href={displayUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-2 bg-muted px-3 py-2 rounded-lg text-sm hover:bg-muted/80 transition-colors"
@@ -429,6 +539,14 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                           <span className="max-w-[150px] truncate">{fileName}</span>
                           <ExternalLink className="w-3 h-3 text-muted-foreground" />
                         </a>
+                      ) : (
+                        <div
+                          key={`${ref}-${index}`}
+                          className="flex items-center gap-2 bg-muted/50 px-3 py-2 rounded-lg text-sm text-muted-foreground"
+                        >
+                          {isImage ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                          <span className="max-w-[150px] truncate">{fileName}</span>
+                        </div>
                       );
                     })}
                   </div>
@@ -622,6 +740,38 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                         </span>
                       </div>
                       <p className="whitespace-pre-wrap">{comment.comment}</p>
+
+                      {comment.attachment_urls && comment.attachment_urls.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {comment.attachment_urls.map((ref, index) => {
+                            const fileName = getAttachmentName(ref, index);
+                            const isImage = isImageAttachment(fileName);
+                            const displayUrl = commentAttachmentLinks[comment.id]?.[ref];
+
+                            return displayUrl ? (
+                              <a
+                                key={`${comment.id}-${ref}-${index}`}
+                                href={displayUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 rounded-md bg-background/80 px-2 py-1 text-xs hover:bg-background"
+                              >
+                                {isImage ? <ImageIcon className="h-3 w-3" /> : <FileText className="h-3 w-3" />}
+                                <span className="max-w-[160px] truncate">{fileName}</span>
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            ) : (
+                              <div
+                                key={`${comment.id}-${ref}-${index}`}
+                                className="inline-flex items-center gap-1 rounded-md bg-background/50 px-2 py-1 text-xs text-muted-foreground"
+                              >
+                                {isImage ? <ImageIcon className="h-3 w-3" /> : <FileText className="h-3 w-3" />}
+                                <span className="max-w-[160px] truncate">{fileName}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

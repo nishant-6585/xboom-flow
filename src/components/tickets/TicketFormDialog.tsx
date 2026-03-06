@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import {
   Dialog,
   DialogContent,
@@ -24,16 +24,23 @@ import { useOrgRoles } from "@/hooks/useOrgRolesAndDepartments";
 import { useOrders } from "@/hooks/useOrders";
 import { useEnquiries } from "@/hooks/useEnquiries";
 import { Database } from "@/integrations/supabase/types";
-import { 
-  Loader2, 
-  ChevronRight, 
-  ChevronLeft, 
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import {
+  Loader2,
+  ChevronRight,
+  ChevronLeft,
   Check,
   AlertCircle,
   User,
   Building2,
   Link2,
   Clock,
+  Paperclip,
+  Upload,
+  X,
+  FileText,
+  Image as ImageIcon,
 } from "lucide-react";
 
 type TicketPriority = Database["public"]["Enums"]["ticket_priority"];
@@ -71,11 +78,11 @@ const steps = [
   { id: 1, title: "Basic Info", description: "Subject & Description" },
   { id: 2, title: "Category & Priority", description: "Classification" },
   { id: 3, title: "Assignment", description: "Department & Person" },
-  { id: 4, title: "Links", description: "Optional References" },
+  { id: 4, title: "Links & Files", description: "References & Attachments" },
 ];
 
 export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) {
-  const { createTicket, updateTicket } = useTickets();
+  const { createTicket } = useTickets();
   const { orders } = useOrders();
   const { enquiries } = useEnquiries();
   const { data: teamMembers = [] } = useTeamMembers();
@@ -102,13 +109,73 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
     enquiry_id: "",
   });
 
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const departmentMembers = teamMembers.filter(
     (m) => m.role === formData.assigned_department
   );
 
+  const getAttachmentFileName = (path: string) => {
+    const fullName = path.split("/").pop() || "attachment";
+    const cleanedName = fullName.replace(/^\d+-[a-z0-9]+-/i, "");
+    return decodeURIComponent(cleanedName);
+  };
+
+  const isImageAttachment = (path: string) => {
+    const ext = path.split(".").pop()?.toLowerCase();
+    return ["jpg", "jpeg", "png", "gif", "webp"].includes(ext || "");
+  };
+
+  const handleAttachmentUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingFiles(true);
+
+    try {
+      const { validateFile } = await import("@/lib/fileValidation");
+      const uploadedPaths: string[] = [];
+
+      for (const file of Array.from(files)) {
+        const validation = validateFile(file, "documents");
+        if (!validation.valid) {
+          toast.error(validation.error || "Invalid file");
+          continue;
+        }
+
+        const safeName = file.name.replace(/\s+/g, "-");
+        const storagePath = `tickets/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`;
+
+        const { error } = await supabase.storage
+          .from("ticket-attachments")
+          .upload(storagePath, file);
+
+        if (error) throw error;
+        uploadedPaths.push(storagePath);
+      }
+
+      if (uploadedPaths.length > 0) {
+        setAttachmentUrls((prev) => [...prev, ...uploadedPaths]);
+        toast.success(`${uploadedPaths.length} attachment(s) uploaded`);
+      }
+    } catch (error) {
+      console.error("Failed to upload ticket attachment", error);
+      toast.error("Failed to upload attachment");
+    } finally {
+      setUploadingFiles(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const removeAttachment = (path: string) => {
+    setAttachmentUrls((prev) => prev.filter((item) => item !== path));
+  };
+
   const handleSubmit = async () => {
-    const member = formData.assigned_to 
-      ? teamMembers.find((m) => m.user_id === formData.assigned_to) 
+    const member = formData.assigned_to
+      ? teamMembers.find((m) => m.user_id === formData.assigned_to)
       : null;
 
     const data: CreateTicketData = {
@@ -119,6 +186,7 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
       assigned_department: formData.assigned_department,
       order_id: formData.order_id || null,
       enquiry_id: formData.enquiry_id || null,
+      attachment_urls: attachmentUrls,
       assigned_to: formData.assigned_to || null,
       assigned_to_name: member?.name || null,
     };
@@ -130,6 +198,7 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
   const handleClose = () => {
     onOpenChange(false);
     setCurrentStep(1);
+    setAttachmentUrls([]);
     setFormData({
       subject: "",
       description: "",
@@ -420,6 +489,65 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-base font-medium flex items-center gap-2">
+                  <Paperclip className="w-4 h-4" />
+                  Attachments
+                </Label>
+
+                <div className="flex flex-wrap gap-2">
+                  {attachmentUrls.map((path, index) => (
+                    <div key={`${path}-${index}`} className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm">
+                      {isImageAttachment(path) ? <ImageIcon className="h-4 w-4 text-muted-foreground" /> : <FileText className="h-4 w-4 text-muted-foreground" />}
+                      <span className="max-w-[220px] truncate">{getAttachmentFileName(path)}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(path)}
+                        className="text-muted-foreground hover:text-foreground"
+                        aria-label="Remove attachment"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div
+                  className="rounded-lg border border-dashed p-4 text-center"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => fileInputRef.current?.click()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                >
+                  {uploadingFiles ? (
+                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Uploading files...
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Upload className="mx-auto h-6 w-6 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Click to upload attachments</p>
+                      <p className="text-xs text-muted-foreground">PDF, Word, Excel, Images (max 10MB each)</p>
+                    </div>
+                  )}
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp"
+                  onChange={handleAttachmentUpload}
+                  className="hidden"
+                />
               </div>
 
               {/* Summary */}
