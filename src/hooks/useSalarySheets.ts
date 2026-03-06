@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { recordAuditLog } from "@/lib/auditLog";
+import { eachDayOfInterval, startOfMonth, endOfMonth, getDay } from "date-fns";
 
 export type SalarySheetStatus = "draft" | "hr_approved" | "finance_approved" | "locked";
 
@@ -60,7 +61,33 @@ export interface EmployeeProfileData {
   department: string | null;
 }
 
-const TOTAL_WORKING_DAYS = 26;
+/**
+ * Calculate the number of working days in a month, excluding weekends and holidays.
+ */
+export async function getWorkingDaysInMonth(month: number, year: number): Promise<number> {
+  const monthStart = startOfMonth(new Date(year, month - 1));
+  const monthEnd = endOfMonth(new Date(year, month - 1));
+  const allDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+
+  // Fetch holidays for this month
+  const startStr = `${year}-${String(month).padStart(2, "0")}-01`;
+  const endStr = `${year}-${String(month).padStart(2, "0")}-${String(allDays.length).padStart(2, "0")}`;
+  const { data: holidays } = await supabase
+    .from("holidays")
+    .select("date")
+    .gte("date", startStr)
+    .lte("date", endStr);
+
+  const holidaySet = new Set((holidays || []).map((h: any) => h.date));
+
+  return allDays.filter(d => {
+    const day = getDay(d);
+    if (day === 0 || day === 6) return false; // weekend
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    if (holidaySet.has(dateStr)) return false; // holiday
+    return true;
+  }).length;
+}
 
 export function calculateTotal(entry: Partial<SalarySheetEntry>): number {
   const salary = Number(entry.salary) || 0;
@@ -84,9 +111,13 @@ export function calculateNetPay(entry: Partial<SalarySheetEntry>): number {
   return calculateEarnings(entry) - calculateTotalDeductions(entry);
 }
 
-export function calculateDeduction(salary: number, unpaidLeaves: number): number {
-  if (unpaidLeaves <= 0 || salary <= 0) return 0;
-  const perDaySalary = salary / TOTAL_WORKING_DAYS;
+/**
+ * Calculate deduction based on actual working days in the month (not a fixed 26).
+ * workingDays should be pre-calculated via getWorkingDaysInMonth().
+ */
+export function calculateDeduction(salary: number, unpaidLeaves: number, workingDays: number = 26): number {
+  if (unpaidLeaves <= 0 || salary <= 0 || workingDays <= 0) return 0;
+  const perDaySalary = salary / workingDays;
   return Math.round(perDaySalary * unpaidLeaves * 100) / 100;
 }
 
@@ -137,9 +168,20 @@ export async function calculateAttendanceData(
   year: number
 ): Promise<AttendanceSummary> {
   const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+  const monthStart = new Date(year, month - 1, 1);
+  const monthEnd = endOfMonth(monthStart);
   const endDate = month === 12
     ? `${year + 1}-01-01`
     : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+
+  // Fetch holidays for the month
+  const endDateStr = `${year}-${String(month).padStart(2, "0")}-${String(monthEnd.getDate()).padStart(2, "0")}`;
+  const { data: holidays } = await supabase
+    .from("holidays")
+    .select("date")
+    .gte("date", startDate)
+    .lte("date", endDateStr);
+  const holidaySet = new Set((holidays || []).map((h: any) => h.date));
 
   const { data: leaves } = await supabase
     .from("leave_requests")
@@ -152,22 +194,29 @@ export async function calculateAttendanceData(
   let wfh = 0, unpaid = 0, el = 0, sl = 0;
 
   for (const lr of leaves || []) {
-    const days = Number(lr.total_days) || 0;
     const lt = (lr.leave_type || "").toLowerCase();
+    const isHalfDay = lt.startsWith("half_day");
 
     const leaveStart = new Date(lr.start_date);
     const leaveEnd = new Date(lr.end_date);
-    const monthStart = new Date(startDate);
-    const monthEnd = new Date(endDate);
-    monthEnd.setDate(monthEnd.getDate() - 1);
 
+    // Calculate effective working days in leave range that overlap this month
     const overlapStart = leaveStart > monthStart ? leaveStart : monthStart;
     const overlapEnd = leaveEnd < monthEnd ? leaveEnd : monthEnd;
-    const overlapDays = Math.max(0, Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / 86400000) + 1);
 
-    const effectiveDays = (leaveStart >= monthStart && leaveEnd <= monthEnd) ? days : overlapDays;
-    const isHalfDay = lt.startsWith("half_day");
-    const countDays = isHalfDay ? 0.5 : effectiveDays;
+    if (overlapStart > overlapEnd) continue;
+
+    const daysInRange = eachDayOfInterval({ start: overlapStart, end: overlapEnd });
+    // Count only working days (exclude weekends and holidays)
+    const workingLeaveDays = daysInRange.filter(d => {
+      const day = getDay(d);
+      if (day === 0 || day === 6) return false; // weekend
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (holidaySet.has(dateStr)) return false; // holiday
+      return true;
+    }).length;
+
+    const countDays = isHalfDay ? 0.5 : workingLeaveDays;
 
     if (lt === "wfh") wfh += countDays;
     else if (lt === "unpaid" || lt === "half_day_unpaid") unpaid += countDays;
@@ -243,6 +292,11 @@ export function useSalarySheets() {
     year?: number
   ) => {
     const rows = [];
+    let workingDays = 26; // fallback
+    if (month && year) {
+      try { workingDays = await getWorkingDaysInMonth(month, year); } catch {}
+    }
+
     for (const emp of employees) {
       let attendanceData: AttendanceSummary = { wfh_days: 0, unpaid_leaves: 0, el_leaves: 0, sl_leaves: 0 };
       let profileData: EmployeeProfileData = { salary: 0, bank_account: null, ifsc_code: null, designation: null, department: null };
@@ -258,7 +312,7 @@ export function useSalarySheets() {
         }
       }
 
-      const deduction = calculateDeduction(profileData.salary, attendanceData.unpaid_leaves);
+      const deduction = calculateDeduction(profileData.salary, attendanceData.unpaid_leaves, workingDays);
       const total = calculateTotal({
         salary: profileData.salary,
         deductions: deduction,
@@ -336,6 +390,8 @@ export function useSalarySheets() {
   const refreshAttendanceData = useCallback(async (sheetId: string, month: number, year: number) => {
     const currentEntries = await fetchEntries(sheetId);
     let updatedCount = 0;
+    let workingDays = 26;
+    try { workingDays = await getWorkingDaysInMonth(month, year); } catch {}
 
     for (const entry of currentEntries) {
       const attendanceData = await calculateAttendanceData(entry.employee_id, month, year);
@@ -348,7 +404,7 @@ export function useSalarySheets() {
 
       const effectiveUnpaid = updates.unpaid_leaves ?? entry.unpaid_leaves;
       if (!entry.deductions_override) {
-        updates.deductions = calculateDeduction(entry.salary, effectiveUnpaid);
+        updates.deductions = calculateDeduction(entry.salary, effectiveUnpaid, workingDays);
       }
 
       if (Object.keys(updates).length > 0) {
