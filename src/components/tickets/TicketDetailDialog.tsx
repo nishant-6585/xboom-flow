@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -28,6 +28,7 @@ import { Ticket, useTickets, useTicketComments, useTeamMembers, UpdateTicketData
 import { useEditHistory } from "@/hooks/useEditHistory";
 import { useAuth } from "@/hooks/useAuth";
 import { format, formatDistanceToNow, isPast } from "date-fns";
+import { toast } from "sonner";
 import {
   User,
   Building2,
@@ -45,6 +46,7 @@ import {
   FileText,
   Image as ImageIcon,
   ExternalLink,
+  Upload,
 } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
 
@@ -109,6 +111,8 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showResolutionForm, setShowResolutionForm] = useState(false);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const [editData, setEditData] = useState({ subject: "", description: "", category: "" as TicketCategory, priority: "" as string });
 
   // Use the fresh ticket data from the query cache instead of the stale prop
@@ -550,6 +554,82 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* Add Attachment to Existing Ticket */}
+              {!isClosed && (
+                <div className="space-y-2">
+                  {!(ticket.attachment_urls && ticket.attachment_urls.length > 0) && (
+                    <Label className="text-muted-foreground text-xs uppercase flex items-center gap-1">
+                      <Paperclip className="w-3 h-3" />
+                      Attachments
+                    </Label>
+                  )}
+                  <div
+                    className="rounded-lg border border-dashed p-3 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => attachmentInputRef.current?.click()}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        attachmentInputRef.current?.click();
+                      }
+                    }}
+                  >
+                    {uploadingAttachment ? (
+                      <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Uploading...
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                        <Upload className="h-4 w-4" />
+                        <span>Click to add attachments</span>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    ref={attachmentInputRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp"
+                    onChange={async (e: ChangeEvent<HTMLInputElement>) => {
+                      const files = e.target.files;
+                      if (!files || files.length === 0) return;
+                      setUploadingAttachment(true);
+                      try {
+                        const { validateFile } = await import("@/lib/fileValidation");
+                        const uploadedPaths: string[] = [];
+                        for (const file of Array.from(files)) {
+                          const validation = validateFile(file, "documents");
+                          if (!validation.valid) {
+                            toast.error(validation.error || "Invalid file");
+                            continue;
+                          }
+                          const safeName = file.name.replace(/\s+/g, "-");
+                          const storagePath = `tickets/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`;
+                          const { error } = await supabase.storage.from("ticket-attachments").upload(storagePath, file);
+                          if (error) throw error;
+                          uploadedPaths.push(storagePath);
+                        }
+                        if (uploadedPaths.length > 0) {
+                          const existingUrls = ticket.attachment_urls || [];
+                          const newUrls = [...existingUrls, ...uploadedPaths];
+                          await updateTicket.mutateAsync({ id: ticket.id, attachment_urls: newUrls });
+                          toast.success(`${uploadedPaths.length} attachment(s) added`);
+                        }
+                      } catch (error) {
+                        console.error("Failed to upload attachment", error);
+                        toast.error("Failed to upload attachment");
+                      } finally {
+                        setUploadingAttachment(false);
+                        if (attachmentInputRef.current) attachmentInputRef.current.value = "";
+                      }
+                    }}
+                    className="hidden"
+                  />
                 </div>
               )}
 
