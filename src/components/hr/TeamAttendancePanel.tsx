@@ -27,6 +27,7 @@ import { Employee, AttendanceLog } from '@/hooks/useHR';
 import { cn } from '@/lib/utils';
 import { ProvisionalCorrectionModal } from '@/components/attendance/ProvisionalCorrectionModal';
 import { PendingCorrectionApprovals } from '@/components/attendance/PendingCorrectionApprovals';
+import { AttendanceAnomalyPanel } from '@/components/hr/AttendanceAnomalyPanel';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -490,6 +491,9 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
 
           {/* Pending Correction Requests */}
           <PendingCorrectionApprovals />
+
+          {/* Attendance Anomaly Detection */}
+          <AttendanceAnomalyPanel logs={todayLogs} employees={employees} selectedDate={selectedDate} />
 
           {/* Status Table */}
           <LiveStatusTable liveRows={liveRows} loading={loadingToday} onRefresh={fetchToday} isLive={isViewingToday} selectedDate={selectedDate} isHoliday={selectedDateIsHoliday} />
