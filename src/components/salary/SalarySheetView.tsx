@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Lock, Download, UserPlus, Trash2, Loader2, Pencil } from "lucide-react";
+import { ArrowLeft, Lock, Download, UserPlus, Trash2, Loader2, Pencil, RefreshCw } from "lucide-react";
 import { SalarySheet, SalarySheetEntry, useSalarySheets } from "@/hooks/useSalarySheets";
 import { SalaryAddEmployeesDialog } from "./SalaryAddEmployeesDialog";
 import { SalaryEntryEditDialog } from "./SalaryEntryEditDialog";
@@ -21,10 +21,11 @@ interface Props {
 }
 
 export function SalarySheetView({ sheet, onBack, onLock }: Props) {
-  const { entries, fetchEntries, updateEntry, addEmployeesToSheet, deleteEntry } = useSalarySheets();
+  const { entries, fetchEntries, updateEntry, addEmployeesToSheet, deleteEntry, refreshAttendanceData } = useSalarySheets();
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [locking, setLocking] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [editEntry, setEditEntry] = useState<SalarySheetEntry | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [lockConfirmOpen, setLockConfirmOpen] = useState(false);
@@ -40,6 +41,12 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
     setLocking(true);
     await onLock();
     setLocking(false);
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refreshAttendanceData(sheet.id, sheet.month, sheet.year);
+    setRefreshing(false);
   };
 
   const handleEditSave = async (entryId: string, updates: Partial<SalarySheetEntry>) => {
@@ -104,9 +111,14 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
           </div>
           <div className="flex items-center gap-2">
             {!isLocked && (
-              <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
-                <UserPlus className="h-4 w-4 mr-1" /> Add Employees
-              </Button>
+              <>
+                <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+                  <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Refreshing..." : "Refresh Attendance"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+                  <UserPlus className="h-4 w-4 mr-1" /> Add Employees
+                </Button>
+              </>
             )}
             <Button variant="outline" size="sm" onClick={exportToExcel}>
               <Download className="h-4 w-4 mr-1" /> Export
@@ -225,7 +237,7 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
         sheetId={sheet.id}
         existingEmployeeIds={entries.map((e) => e.employee_id)}
         onAdd={async (employees) => {
-          const ok = await addEmployeesToSheet(sheet.id, employees);
+          const ok = await addEmployeesToSheet(sheet.id, employees, sheet.month, sheet.year);
           if (ok) setAddOpen(false);
         }}
       />
@@ -235,6 +247,8 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
         onOpenChange={setEditOpen}
         entry={editEntry}
         onSave={handleEditSave}
+        month={sheet.month}
+        year={sheet.year}
       />
 
       <AlertDialog open={lockConfirmOpen} onOpenChange={setLockConfirmOpen}>
