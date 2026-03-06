@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   format, isToday, differenceInMinutes, subDays, addDays, isFuture,
   getDay,
@@ -8,7 +8,7 @@ import { useHolidays } from '@/hooks/useHolidays';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -17,18 +17,18 @@ import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
 import {
   Download, Users, ChevronLeft, ChevronRight,
   UserCheck, UserX, CalendarCheck, Coffee, LogOut,
   Clock, AlertTriangle, RefreshCw, Activity, Eye,
-  Timer, Zap, Pencil, CalendarDays,
+  Timer, Zap, Pencil, CalendarDays, LayoutDashboard, List,
 } from 'lucide-react';
 import { Employee, AttendanceLog } from '@/hooks/useHR';
 import { cn } from '@/lib/utils';
 import { ProvisionalCorrectionModal } from '@/components/attendance/ProvisionalCorrectionModal';
 import { PendingCorrectionApprovals } from '@/components/attendance/PendingCorrectionApprovals';
-import { AttendanceAnomalyPanel } from '@/components/hr/AttendanceAnomalyPanel';
-import { Progress } from '@/components/ui/progress';
+import { AttendanceAlertsPanel, AttendanceAlertIndicator } from '@/components/hr/AttendanceAlertsPanel';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -41,7 +41,7 @@ interface LiveRow {
 }
 
 interface AttendancePolicy {
-  work_start_time: string;        // "HH:MM:SS"
+  work_start_time: string;
   grace_period_minutes: number;
   break_warning_minutes: number;
   break_severe_minutes: number;
@@ -123,7 +123,6 @@ const STATUS_STYLE: Record<string, string> = {
   'Not Employed': 'bg-gray-100 text-gray-500 border-gray-200',
 };
 
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 interface TeamAttendancePanelProps {
@@ -138,41 +137,29 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
   const [policy, setPolicy] = useState<AttendancePolicy>(POLICY_DEFAULTS);
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const policyTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [activeSubTab, setActiveSubTab] = useState('overview');
 
-  // ── Date selection for the "Today" tab ──
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const isViewingToday = isToday(selectedDate);
   const isViewingFuture = isFuture(selectedDate) && !isToday(selectedDate);
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
   const yesterdayOfSelectedStr = format(subDays(selectedDate, 1), 'yyyy-MM-dd');
 
-  // ── Holiday awareness ──
   const { isHoliday, getHoliday } = useHolidays(selectedDate.getFullYear());
   const selectedDateIsHoliday = isHoliday(selectedDateStr);
   const holidayInfo = getHoliday(selectedDateStr);
 
-  // ── Leave data for selected date ──
   const [approvedLeaves, setApprovedLeaves] = useState<Record<string, { leave_type: string; start_date: string; end_date: string }>>({});
 
-  // ── Fetch data for selected date ──
   const fetchToday = useCallback(async () => {
     setLoadingToday(true);
-    const { data } = await supabase
-      .from('attendance_logs')
-      .select('*')
-      .eq('date', selectedDateStr);
+    const { data } = await supabase.from('attendance_logs').select('*').eq('date', selectedDateStr);
     setTodayLogs((data as AttendanceLog[]) || []);
 
-    const { data: yd } = await supabase
-      .from('attendance_logs')
-      .select('*')
-      .eq('date', yesterdayOfSelectedStr);
+    const { data: yd } = await supabase.from('attendance_logs').select('*').eq('date', yesterdayOfSelectedStr);
     setYesterdayLogs((yd as AttendanceLog[]) || []);
 
-    // Fetch approved leaves that cover the selected date
     const { data: leaves } = await supabase
       .from('leave_requests')
       .select('employee_id, leave_type, start_date, end_date')
@@ -181,31 +168,22 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
       .gte('end_date', selectedDateStr);
 
     const leaveMap: Record<string, { leave_type: string; start_date: string; end_date: string }> = {};
-    (leaves || []).forEach((l: any) => {
-      leaveMap[l.employee_id] = { leave_type: l.leave_type, start_date: l.start_date, end_date: l.end_date };
-    });
+    (leaves || []).forEach((l: any) => { leaveMap[l.employee_id] = { leave_type: l.leave_type, start_date: l.start_date, end_date: l.end_date }; });
     setApprovedLeaves(leaveMap);
-
     setLoadingToday(false);
     setLastRefresh(new Date());
   }, [selectedDateStr, yesterdayOfSelectedStr]);
 
-  // Initial loads + policy fetch
   const fetchPolicy = useCallback(async () => {
-    const { data } = await supabase
-      .from('attendance_policy_settings')
-      .select('work_start_time, grace_period_minutes, break_warning_minutes, break_severe_minutes')
-      .limit(1)
-      .maybeSingle();
+    const { data } = await supabase.from('attendance_policy_settings').select('work_start_time, grace_period_minutes, break_warning_minutes, break_severe_minutes').limit(1).maybeSingle();
     if (data) setPolicy(data as AttendancePolicy);
   }, []);
 
   useEffect(() => { fetchToday(); }, [fetchToday]);
   useEffect(() => { fetchPolicy(); }, [fetchPolicy]);
 
-  // 60s auto-refresh only when viewing today; 5-min cache refresh for policy
   useEffect(() => {
-    if (!isViewingToday) return; // no auto-refresh for past dates
+    if (!isViewingToday) return;
     refreshTimerRef.current = setInterval(() => { fetchToday(); }, 60_000);
     return () => { if (refreshTimerRef.current) clearInterval(refreshTimerRef.current); };
   }, [fetchToday, isViewingToday]);
@@ -214,37 +192,20 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
     return () => { if (policyTimerRef.current) clearInterval(policyTimerRef.current); };
   }, [fetchPolicy]);
 
-  // ── Build rows — live for today, historical for past ──
   const liveRows: LiveRow[] = employees.map(emp => {
     const log = todayLogs.find(l => l.employee_id === emp.id) || null;
     const hasLeave = !!approvedLeaves[emp.id];
-    // Joining date protection: if date is before joining, mark Not Employed
     const notEmployed = emp.joining_date ? selectedDateStr < emp.joining_date : false;
-    // Exit date protection: if date is after exit, mark Not Employed
     const hasExited = emp.exit_date ? selectedDateStr > emp.exit_date : false;
     const isNotEmployed = notEmployed || hasExited;
 
     if (isViewingToday) {
-      return {
-        employee: emp,
-        log,
-        liveStatus: getLiveStatus(log, selectedDateIsHoliday, hasLeave, isNotEmployed),
-        isLate: isNotEmployed || selectedDateIsHoliday ? false : isLateCheckIn(log, policy),
-        breakMinutes: currentBreakMinutes(log),
-      };
+      return { employee: emp, log, liveStatus: getLiveStatus(log, selectedDateIsHoliday, hasLeave, isNotEmployed), isLate: isNotEmployed || selectedDateIsHoliday ? false : isLateCheckIn(log, policy), breakMinutes: currentBreakMinutes(log) };
     }
-    // Historical mode — show final statuses
     const historicalStatus = deriveHistoricalStatus(log, selectedDate, policy, selectedDateIsHoliday, hasLeave, isNotEmployed);
-    return {
-      employee: emp,
-      log,
-      liveStatus: historicalStatus,
-      isLate: historicalStatus === 'Late',
-      breakMinutes: log?.total_break_minutes || 0,
-    };
+    return { employee: emp, log, liveStatus: historicalStatus, isLate: historicalStatus === 'Late', breakMinutes: log?.total_break_minutes || 0 };
   });
 
-  // ── Control center metrics ──
   const metrics = isViewingToday ? {
     present: liveRows.filter(r => r.liveStatus === 'Working' || r.liveStatus === 'Completed' || r.liveStatus === 'Worked on Holiday').length,
     absent: liveRows.filter(r => r.liveStatus === 'Not Checked In').length,
@@ -253,50 +214,48 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
     onBreak: liveRows.filter(r => r.liveStatus === 'On Break').length,
     late: liveRows.filter(r => r.isLate).length,
     holiday: liveRows.filter(r => r.liveStatus === 'Holiday' || r.liveStatus === 'Worked on Holiday').length,
-    noCheckoutYesterday: employees.filter(emp => {
-      const yl = yesterdayLogs.find(l => l.employee_id === emp.id);
-      return yl?.check_in_time && !yl?.check_out_time;
-    }).length,
+    noCheckoutYesterday: employees.filter(emp => { const yl = yesterdayLogs.find(l => l.employee_id === emp.id); return yl?.check_in_time && !yl?.check_out_time; }).length,
   } : {
     present: liveRows.filter(r => r.liveStatus === 'Present' || r.liveStatus === 'Late' || r.liveStatus === 'Half Day' || r.liveStatus === 'Worked on Holiday').length,
     absent: liveRows.filter(r => r.liveStatus === 'Absent').length,
     onLeave: liveRows.filter(r => r.liveStatus === 'On Leave').length,
-    working: 0,
-    onBreak: 0,
+    working: 0, onBreak: 0,
     late: liveRows.filter(r => r.isLate).length,
     holiday: liveRows.filter(r => r.liveStatus === 'Holiday' || r.liveStatus === 'Worked on Holiday').length,
-    noCheckoutYesterday: employees.filter(emp => {
-      const yl = yesterdayLogs.find(l => l.employee_id === emp.id);
-      return yl?.check_in_time && !yl?.check_out_time;
-    }).length,
+    noCheckoutYesterday: employees.filter(emp => { const yl = yesterdayLogs.find(l => l.employee_id === emp.id); return yl?.check_in_time && !yl?.check_out_time; }).length,
   };
 
-  // ── Anomalies — thresholds from policy ──
-  const now = new Date();
-  const lateHour = lateThresholdHour(policy);
+  // Alert count for indicator
+  const alertCount = useMemo(() => {
+    let count = 0;
+    for (const log of todayLogs) {
+      if (log.working_hours && log.working_hours > 12) count++;
+      if (log.check_in_time && !log.check_out_time && !log.is_provisional_checkout) count++;
+      if (log.check_in_time) {
+        const h = new Date(log.check_in_time).getHours();
+        const m = new Date(log.check_in_time).getMinutes();
+        if (h < 5) count++;
+        if (h >= 10 || (h === 9 && m > 45)) count++;
+      }
+      if (log.is_provisional_checkout) count++;
+    }
+    return count;
+  }, [todayLogs]);
 
-  // For today: employees with no check-in after threshold
-  // For past dates: employees marked absent
-  const noCheckInAfterThreshold = isViewingToday
-    ? liveRows.filter(r => r.liveStatus === 'Not Checked In' && now.getHours() + now.getMinutes() / 60 > lateHour)
-    : liveRows.filter(r => r.liveStatus === 'Absent');
-  const noCheckInAfter10 = noCheckInAfterThreshold;
+  // Health score
+  const healthScore = useMemo(() => {
+    const relevantRows = liveRows.filter(r => r.liveStatus !== 'Not Employed' && r.liveStatus !== 'Weekend');
+    const total = relevantRows.length;
+    if (total === 0) return null;
+    const presentCount = relevantRows.filter(r => ['Working', 'Completed', 'Present', 'Worked on Holiday', 'Late', 'Half Day', 'On Break'].includes(r.liveStatus)).length;
+    const holidayOrLeave = relevantRows.filter(r => r.liveStatus === 'Holiday' || r.liveStatus === 'On Leave').length;
+    const lateCount = relevantRows.filter(r => r.isLate).length;
+    const baseScore = ((presentCount + holidayOrLeave) / total) * 100;
+    const latePenalty = Math.min(lateCount * 2, 10);
+    const anomalyPenalty = Math.min(alertCount * 3, 15);
+    return Math.max(0, Math.min(100, Math.round(baseScore - latePenalty - anomalyPenalty)));
+  }, [liveRows, alertCount]);
 
-  const longBreak = isViewingToday
-    ? liveRows.filter(r => r.liveStatus === 'On Break' && r.breakMinutes > policy.break_warning_minutes)
-    : []; // No live break anomalies for past dates
-
-  const missingCheckoutYesterday = isViewingToday
-    ? employees.filter(emp => {
-        const yl = yesterdayLogs.find(l => l.employee_id === emp.id);
-        return yl?.check_in_time && !yl?.check_out_time;
-      })
-    : employees.filter(emp => {
-        const yl = yesterdayLogs.find(l => l.employee_id === emp.id);
-        return yl?.check_in_time && !yl?.check_out_time;
-      });
-
-  // ── CSV Export (exports current selected date) ──
   const exportCSV = () => {
     const rows: string[][] = [['Employee', 'Department', 'Date', 'Check In', 'Check Out', 'Work Hours', 'Break (min)', 'Status']];
     for (const emp of employees) {
@@ -306,38 +265,22 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
       const isNotEmployed = notEmployed || hasExited;
       const hasLeave = !!approvedLeaves[emp.id];
       const status = isViewingToday ? getLiveStatus(log, selectedDateIsHoliday, hasLeave, isNotEmployed) : deriveHistoricalStatus(log, selectedDate, policy, selectedDateIsHoliday, hasLeave, isNotEmployed);
-      rows.push([
-        emp.name, emp.department, selectedDateStr,
-        log?.check_in_time ? format(new Date(log.check_in_time), 'HH:mm') : '',
-        log?.check_out_time ? format(new Date(log.check_out_time), 'HH:mm') : '',
-        (log?.working_hours || 0).toFixed(2),
-        Math.round(log?.total_break_minutes || 0).toString(),
-        status,
-      ]);
+      rows.push([emp.name, emp.department, selectedDateStr, log?.check_in_time ? format(new Date(log.check_in_time), 'HH:mm') : '', log?.check_out_time ? format(new Date(log.check_out_time), 'HH:mm') : '', (log?.working_hours || 0).toFixed(2), Math.round(log?.total_break_minutes || 0).toString(), status]);
     }
     const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `team-attendance-${selectedDateStr}.csv`;
-    a.click(); URL.revokeObjectURL(url);
+    const a = document.createElement('a'); a.href = url; a.download = `team-attendance-${selectedDateStr}.csv`; a.click(); URL.revokeObjectURL(url);
   };
+
+  const [correctionLog, setCorrectionLog] = useState<AttendanceLog | null>(null);
 
   return (
     <div className="space-y-4">
-      {/* ── Date picker bar + refresh info ── */}
+      {/* Date picker bar */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1.5">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => setSelectedDate(d => subDays(d, 1))}
-            title="Previous Day"
-          >
-            <ChevronLeft className="h-3.5 w-3.5" />
-          </Button>
-
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedDate(d => subDays(d, 1))}><ChevronLeft className="h-3.5 w-3.5" /></Button>
           <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs gap-1.5">
@@ -346,61 +289,22 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
-              <CalendarPicker
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => {
-                  if (date) {
-                    setSelectedDate(date);
-                    setDatePickerOpen(false);
-                  }
-                }}
-                disabled={(date) => isFuture(date) && !isToday(date)}
-                initialFocus
-                className="p-3 pointer-events-auto"
-              />
+              <CalendarPicker mode="single" selected={selectedDate} onSelect={(date) => { if (date) { setSelectedDate(date); setDatePickerOpen(false); } }} disabled={(date) => isFuture(date) && !isToday(date)} initialFocus className="p-3 pointer-events-auto" />
             </PopoverContent>
           </Popover>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => {
-              const next = addDays(selectedDate, 1);
-              if (!isFuture(next) || isToday(next)) setSelectedDate(next);
-            }}
-            disabled={isViewingToday}
-            title="Next Day"
-          >
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { const next = addDays(selectedDate, 1); if (!isFuture(next) || isToday(next)) setSelectedDate(next); }} disabled={isViewingToday}><ChevronRight className="h-3.5 w-3.5" /></Button>
         </div>
-
         {!isViewingToday && (
-          <Button
-            variant="secondary"
-            size="sm"
-            className="h-7 px-2.5 text-xs gap-1"
-            onClick={() => setSelectedDate(new Date())}
-          >
-            <Activity className="h-3 w-3" /> Reset to Today
-          </Button>
+          <Button variant="secondary" size="sm" className="h-7 px-2.5 text-xs gap-1" onClick={() => setSelectedDate(new Date())}><Activity className="h-3 w-3" /> Reset to Today</Button>
         )}
-
         <div className="flex items-center gap-1.5 ml-auto text-xs text-muted-foreground">
           {isViewingToday && <Badge variant="outline" className="text-xs border-green-300 text-green-700 gap-1"><Activity className="h-3 w-3" />Live</Badge>}
           <span>Refreshed {format(lastRefresh, 'hh:mm:ss a')}</span>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={fetchToday} disabled={loadingToday}>
-            <RefreshCw className={cn('h-3.5 w-3.5', loadingToday && 'animate-spin')} />
-          </Button>
-          <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs gap-1" onClick={exportCSV}>
-            <Download className="h-3.5 w-3.5" /> Export
-          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={fetchToday} disabled={loadingToday}><RefreshCw className={cn('h-3.5 w-3.5', loadingToday && 'animate-spin')} /></Button>
+          <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs gap-1" onClick={exportCSV}><Download className="h-3.5 w-3.5" /> Export</Button>
         </div>
       </div>
 
-      {/* Future date message */}
       {isViewingFuture ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground text-sm">
@@ -410,154 +314,105 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
         </Card>
       ) : (
         <>
-          {/* Holiday Banner */}
           {selectedDateIsHoliday && holidayInfo && (
             <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/80 dark:bg-blue-950/20 dark:border-blue-800 px-4 py-2.5">
               <CalendarCheck className="h-4 w-4 text-blue-600 shrink-0" />
-              <p className="text-sm font-medium text-blue-700 dark:text-blue-400">
-                🎉 Holiday — {holidayInfo.name}. Attendance tracking disabled for this date.
-              </p>
+              <p className="text-sm font-medium text-blue-700 dark:text-blue-400">🎉 Holiday — {holidayInfo.name}. Attendance tracking disabled for this date.</p>
             </div>
           )}
 
-          {/* Metrics Bar */}
-          <div className={cn('grid gap-2', isViewingToday ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-8' : 'grid-cols-2 sm:grid-cols-5')}>
-            {[
-              { label: 'Present', value: metrics.present, icon: UserCheck, color: 'text-green-600', bg: 'bg-green-500/10', show: true },
-              { label: 'Absent', value: metrics.absent, icon: UserX, color: 'text-red-600', bg: 'bg-red-500/10', show: true },
-              { label: 'Holiday', value: metrics.holiday, icon: CalendarCheck, color: 'text-blue-600', bg: 'bg-blue-500/10', show: selectedDateIsHoliday },
-              { label: 'On Leave', value: metrics.onLeave, icon: CalendarCheck, color: 'text-purple-600', bg: 'bg-purple-500/10', show: true },
-              { label: 'Working', value: metrics.working, icon: Activity, color: 'text-blue-600', bg: 'bg-blue-500/10', show: isViewingToday && !selectedDateIsHoliday },
-              { label: 'On Break', value: metrics.onBreak, icon: Coffee, color: 'text-orange-600', bg: 'bg-orange-500/10', show: isViewingToday && !selectedDateIsHoliday },
-              { label: 'Late', value: metrics.late, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-500/10', show: !selectedDateIsHoliday },
-              { label: isViewingToday ? 'No Checkout (Yesterday)' : `No Checkout (${format(subDays(selectedDate, 1), 'dd MMM')})`, value: metrics.noCheckoutYesterday, icon: LogOut, color: 'text-rose-600', bg: 'bg-rose-500/10', show: true },
-            ].filter(m => m.show).map(({ label, value, icon: Icon, color, bg }) => (
-              <div key={label} className={`flex flex-col items-start gap-1 rounded-xl px-3 py-2.5 ${bg}`}>
-                <div className="flex items-center gap-1.5">
-                  <Icon className={`h-4 w-4 ${color}`} />
-                  <p className={`text-2xl font-bold leading-none ${color}`}>{value}</p>
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
+          {/* Sub Tabs */}
+          <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
+            <TabsList className="h-auto">
+              <TabsTrigger value="overview" className="gap-1.5 text-xs"><LayoutDashboard className="h-3.5 w-3.5" />Overview</TabsTrigger>
+              <TabsTrigger value="employees" className="gap-1.5 text-xs"><List className="h-3.5 w-3.5" />Employees</TabsTrigger>
+              <TabsTrigger value="alerts" className="gap-1.5 text-xs">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Alerts
+                {alertCount > 0 && <Badge variant="destructive" className="text-[10px] px-1.5 py-0 ml-1">{alertCount}</Badge>}
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Overview Tab */}
+            <TabsContent value="overview" className="space-y-4">
+              {/* Metrics */}
+              <div className={cn('grid gap-2', isViewingToday ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-8' : 'grid-cols-2 sm:grid-cols-5')}>
+                {[
+                  { label: 'Present', value: metrics.present, icon: UserCheck, color: 'text-green-600', bg: 'bg-green-500/10', show: true },
+                  { label: 'Absent', value: metrics.absent, icon: UserX, color: 'text-red-600', bg: 'bg-red-500/10', show: true },
+                  { label: 'Holiday', value: metrics.holiday, icon: CalendarCheck, color: 'text-blue-600', bg: 'bg-blue-500/10', show: selectedDateIsHoliday },
+                  { label: 'On Leave', value: metrics.onLeave, icon: CalendarCheck, color: 'text-purple-600', bg: 'bg-purple-500/10', show: true },
+                  { label: 'Working', value: metrics.working, icon: Activity, color: 'text-blue-600', bg: 'bg-blue-500/10', show: isViewingToday && !selectedDateIsHoliday },
+                  { label: 'On Break', value: metrics.onBreak, icon: Coffee, color: 'text-orange-600', bg: 'bg-orange-500/10', show: isViewingToday && !selectedDateIsHoliday },
+                  { label: 'Late', value: metrics.late, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-500/10', show: !selectedDateIsHoliday },
+                  { label: isViewingToday ? 'No Checkout (Yesterday)' : `No Checkout (${format(subDays(selectedDate, 1), 'dd MMM')})`, value: metrics.noCheckoutYesterday, icon: LogOut, color: 'text-rose-600', bg: 'bg-rose-500/10', show: true },
+                ].filter(m => m.show).map(({ label, value, icon: Icon, color, bg }) => (
+                  <div key={label} className={cn('flex flex-col items-start gap-1 rounded-xl px-3 py-2.5', bg)}>
+                    <div className="flex items-center gap-1.5">
+                      <Icon className={cn('h-4 w-4', color)} />
+                      <p className={cn('text-2xl font-bold leading-none', color)}>{value}</p>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Anomaly Panel */}
-          {(noCheckInAfter10.length > 0 || longBreak.length > 0 || missingCheckoutYesterday.length > 0) && (
-            <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-800">
-              <CardHeader className="pb-2 pt-3 px-4">
-                <CardTitle className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  {isViewingToday ? 'Anomalies Detected' : `Anomalies — ${format(selectedDate, 'dd MMM yyyy')}`}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-3 space-y-2">
-                {noCheckInAfter10.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">
-                      {isViewingToday
-                        ? `No check-in after ${policy.work_start_time.slice(0, 5)} (${noCheckInAfter10.length})`
-                        : `Absent — no check-in recorded (${noCheckInAfter10.length})`}
-                    </p>
-                    <div className="flex flex-wrap gap-1">
-                      {noCheckInAfter10.map(r => (
-                        <Badge key={r.employee.id} variant="outline" className="text-xs border-amber-300 text-amber-700">
-                          {r.employee.name}
-                        </Badge>
-                      ))}
+              {/* Health Score */}
+              {healthScore !== null && (
+                <Card>
+                  <CardContent className="px-4 py-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Activity className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium">Attendance Health Score</span>
+                      </div>
+                      <span className={cn('text-2xl font-bold', healthScore >= 90 ? 'text-green-600' : healthScore >= 70 ? 'text-amber-600' : 'text-red-600')}>{healthScore}%</span>
                     </div>
-                  </div>
-                )}
-                {longBreak.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-orange-700 dark:text-orange-400 mb-1">
-                      On break &gt; {policy.break_warning_minutes} min ({longBreak.length})
-                    </p>
-                    <div className="flex flex-wrap gap-1">
-                      {longBreak.map(r => (
-                        <Badge key={r.employee.id} variant="outline" className="text-xs border-orange-300 text-orange-700">
-                          {r.employee.name} ({r.breakMinutes}m)
-                        </Badge>
-                      ))}
+                    <Progress value={healthScore} className={cn('h-2', healthScore >= 90 ? '[&>div]:bg-green-500' : healthScore >= 70 ? '[&>div]:bg-amber-500' : '[&>div]:bg-red-500')} />
+                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                      <span>{metrics.present} present</span>
+                      <span>{metrics.late} late</span>
+                      <span>{metrics.absent} absent</span>
+                      <span>{metrics.onLeave} on leave</span>
                     </div>
-                  </div>
-                )}
-                {missingCheckoutYesterday.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-rose-700 dark:text-rose-400 mb-1">
-                      {isViewingToday
-                        ? `No checkout yesterday (${missingCheckoutYesterday.length})`
-                        : `No checkout on ${format(subDays(selectedDate, 1), 'dd MMM')} (${missingCheckoutYesterday.length})`}
-                    </p>
-                    <div className="flex flex-wrap gap-1">
-                      {missingCheckoutYesterday.map(emp => (
-                        <Badge key={emp.id} variant="outline" className="text-xs border-rose-300 text-rose-700">
-                          {emp.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                  </CardContent>
+                </Card>
+              )}
 
-          {/* Pending Correction Requests */}
-          <PendingCorrectionApprovals />
+              {/* Alert Indicator */}
+              <AttendanceAlertIndicator alertCount={alertCount} onNavigate={() => setActiveSubTab('alerts')} />
 
-          {/* Attendance Anomaly Detection */}
-          <AttendanceAnomalyPanel logs={todayLogs} employees={employees} selectedDate={selectedDate} />
+              {/* Pending Corrections */}
+              <PendingCorrectionApprovals />
+            </TabsContent>
 
-          {/* Attendance Health Score */}
-          {(() => {
-            // Only count employees who are "active" for this date (exclude Not Employed, Weekend)
-            const relevantRows = liveRows.filter(r => r.liveStatus !== 'Not Employed' && r.liveStatus !== 'Weekend');
-            const total = relevantRows.length;
-            if (total === 0) return null;
+            {/* Employees Tab */}
+            <TabsContent value="employees">
+              <LiveStatusTable liveRows={liveRows} loading={loadingToday} onRefresh={fetchToday} isLive={isViewingToday} selectedDate={selectedDate} isHoliday={selectedDateIsHoliday} />
+            </TabsContent>
 
-            const presentCount = relevantRows.filter(r =>
-              ['Working', 'Completed', 'Present', 'Worked on Holiday', 'Late', 'Half Day', 'On Break'].includes(r.liveStatus)
-            ).length;
-            const holidayOrLeave = relevantRows.filter(r => r.liveStatus === 'Holiday' || r.liveStatus === 'On Leave').length;
-            const lateCount = relevantRows.filter(r => r.isLate).length;
-            const missingCheckout = isViewingToday ? metrics.noCheckoutYesterday : 0;
-            const anomalyCount = todayLogs.filter(l => (l.working_hours || 0) > 12 || (l.check_in_time && !l.check_out_time && !l.is_provisional_checkout)).length;
-
-            // Score: (present + holiday/leave) / total * 100, penalized by late & anomalies
-            const baseScore = ((presentCount + holidayOrLeave) / total) * 100;
-            const latePenalty = Math.min(lateCount * 2, 10);
-            const anomalyPenalty = Math.min((missingCheckout + anomalyCount) * 3, 15);
-            const healthScore = Math.max(0, Math.min(100, Math.round(baseScore - latePenalty - anomalyPenalty)));
-
-            const scoreColor = healthScore >= 90 ? 'text-green-600' : healthScore >= 70 ? 'text-amber-600' : 'text-red-600';
-            const progressColor = healthScore >= 90 ? '[&>div]:bg-green-500' : healthScore >= 70 ? '[&>div]:bg-amber-500' : '[&>div]:bg-red-500';
-
-            return (
-              <Card>
-                <CardContent className="px-4 py-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Activity className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium">Attendance Health Score</span>
-                    </div>
-                    <span className={cn('text-2xl font-bold', scoreColor)}>{healthScore}%</span>
-                  </div>
-                  <Progress value={healthScore} className={cn('h-2', progressColor)} />
-                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                    <span>{presentCount} present</span>
-                    <span>{lateCount} late</span>
-                    <span>{metrics.absent} absent</span>
-                    <span>{metrics.onLeave} on leave</span>
-                    {anomalyCount > 0 && <span className="text-amber-600">{anomalyCount} anomalies</span>}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })()}
-
-          {/* Status Table */}
-          <LiveStatusTable liveRows={liveRows} loading={loadingToday} onRefresh={fetchToday} isLive={isViewingToday} selectedDate={selectedDate} isHoliday={selectedDateIsHoliday} />
+            {/* Alerts Tab */}
+            <TabsContent value="alerts">
+              <AttendanceAlertsPanel
+                logs={todayLogs}
+                employees={employees}
+                selectedDate={selectedDate}
+                onCorrectCheckout={(log) => setCorrectionLog(log)}
+              />
+            </TabsContent>
+          </Tabs>
         </>
+      )}
+
+      {/* Provisional Correction Modal */}
+      {correctionLog && (
+        <ProvisionalCorrectionModal
+          log={correctionLog}
+          open={!!correctionLog}
+          onOpenChange={open => { if (!open) setCorrectionLog(null); }}
+          isAdminCorrection={true}
+          onCorrected={() => { setCorrectionLog(null); fetchToday(); }}
+        />
       )}
     </div>
   );
@@ -567,73 +422,36 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
 
 type QuickFilter = 'all' | 'Working' | 'Not Checked In' | 'Late' | 'On Break' | 'Completed' | 'Holiday' | 'On Leave';
 
-// ─── Employee Detail Dialog ───────────────────────────────────────────────────
-function EmployeeDetailDialog({ row, open, onOpenChange }: {
-  row: LiveRow | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
+function EmployeeDetailDialog({ row, open, onOpenChange }: { row: LiveRow | null; open: boolean; onOpenChange: (open: boolean) => void }) {
   if (!row) return null;
   const { employee, log, liveStatus, isLate, breakMinutes } = row;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" />
-            {employee.name}
-          </DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><Users className="h-4 w-4 text-primary" />{employee.name}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="outline" className={cn('text-xs font-medium gap-1', STATUS_STYLE[liveStatus] || '')}>
-              {liveStatus}
-            </Badge>
+            <Badge variant="outline" className={cn('text-xs font-medium gap-1', STATUS_STYLE[liveStatus] || '')}>{liveStatus}</Badge>
             {isLate && <Badge variant="outline" className="text-xs border-amber-300 bg-amber-50 text-amber-700">Late</Badge>}
             {log?.is_provisional_checkout && (
-              <Badge variant="outline" className="text-xs border-yellow-400 bg-yellow-50 text-yellow-700 gap-1">
-                <AlertTriangle className="h-3 w-3" /> Provisional Checkout
-              </Badge>
+              <Badge variant="outline" className="text-xs border-yellow-400 bg-yellow-50 text-yellow-700 gap-1"><AlertTriangle className="h-3 w-3" /> Provisional Checkout</Badge>
             )}
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm rounded-lg bg-muted/40 p-3">
-            <div>
-              <p className="text-xs text-muted-foreground">Department</p>
-              <p className="font-medium">{employee.department}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Role</p>
-              <p className="font-medium">{employee.role || '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Check In</p>
-              <p className="font-medium">{log?.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Check Out</p>
-              <p className="font-medium">{log?.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Work Hours</p>
-              <p className="font-medium">{log?.working_hours?.toFixed(1) || '—'}h</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Break</p>
-              <p className="font-medium">
-                {liveStatus === 'On Break' ? `${breakMinutes}m (ongoing)` : log?.total_break_minutes ? `${Math.round(log.total_break_minutes)}m` : '—'}
-              </p>
-            </div>
+            <div><p className="text-xs text-muted-foreground">Department</p><p className="font-medium">{employee.department}</p></div>
+            <div><p className="text-xs text-muted-foreground">Role</p><p className="font-medium">{employee.role || '—'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Check In</p><p className="font-medium">{log?.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Check Out</p><p className="font-medium">{log?.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}</p></div>
+            <div><p className="text-xs text-muted-foreground">Work Hours</p><p className="font-medium">{log?.working_hours?.toFixed(1) || '—'}h</p></div>
+            <div><p className="text-xs text-muted-foreground">Break</p><p className="font-medium">{liveStatus === 'On Break' ? `${breakMinutes}m (ongoing)` : log?.total_break_minutes ? `${Math.round(log.total_break_minutes)}m` : '—'}</p></div>
           </div>
           {log?.is_provisional_checkout && (
-            <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1">
-              <AlertTriangle className="h-3 w-3 shrink-0" />
-              Auto-checkout was applied. Use the Edit Checkout button to correct the time.
-            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1"><AlertTriangle className="h-3 w-3 shrink-0" />Auto-checkout was applied. Use the Edit Checkout button to correct the time.</p>
           )}
           {log?.corrected_at && (
-            <p className="text-xs text-green-600 dark:text-green-400">
-              ✓ Previously corrected on {format(new Date(log.corrected_at), 'dd MMM, hh:mm a')}
-            </p>
+            <p className="text-xs text-green-600 dark:text-green-400">✓ Previously corrected on {format(new Date(log.corrected_at), 'dd MMM, hh:mm a')}</p>
           )}
         </div>
       </DialogContent>
@@ -652,7 +470,6 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
     if (filter === 'all') return true;
     if (filter === 'Late') return r.isLate;
     if (filter === 'Holiday') return r.liveStatus === 'Holiday' || r.liveStatus === 'Worked on Holiday';
-    // For historical mode, "Not Checked In" maps to "Absent"
     if (!isLive && filter === 'Not Checked In') return r.liveStatus === 'Absent';
     return r.liveStatus === filter;
   });
@@ -688,21 +505,13 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
               <Badge variant="secondary" className="text-xs">{filtered.length} employees</Badge>
             </CardTitle>
             <Select value={empFilter} onValueChange={setEmpFilter}>
-              <SelectTrigger className="h-8 w-44 text-xs">
-                <Users className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                <SelectValue placeholder="All Employees" />
-              </SelectTrigger>
+              <SelectTrigger className="h-8 w-44 text-xs"><Users className="h-3.5 w-3.5 mr-1 text-muted-foreground" /><SelectValue placeholder="All Employees" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Employees</SelectItem>
-                {liveRows.map(r => (
-                  <SelectItem key={r.employee.id} value={r.employee.id}>
-                    {r.employee.name}
-                  </SelectItem>
-                ))}
+                {liveRows.map(r => <SelectItem key={r.employee.id} value={r.employee.id}>{r.employee.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-          {/* Quick filter pills */}
           <div className="flex flex-wrap gap-1.5 mt-3 mb-1 pb-3 border-b">
             {quickFilters.map(({ label, value, color }) => (
               <button
@@ -711,21 +520,13 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
                 onClick={() => setFilter(value)}
                 className={cn(
                   'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
-                  filter === value
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-background text-muted-foreground border-border hover:border-foreground/30',
+                  filter === value ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-foreground/30',
                   color,
                 )}
               >
                 {label}
                 <span className="ml-1 opacity-70">
-                  {value === 'all'
-                    ? liveRows.length
-                    : value === 'Late'
-                    ? liveRows.filter(r => r.isLate).length
-                    : value === 'Holiday'
-                    ? liveRows.filter(r => r.liveStatus === 'Holiday' || r.liveStatus === 'Worked on Holiday').length
-                    : liveRows.filter(r => r.liveStatus === value).length}
+                  {value === 'all' ? liveRows.length : value === 'Late' ? liveRows.filter(r => r.isLate).length : value === 'Holiday' ? liveRows.filter(r => r.liveStatus === 'Holiday' || r.liveStatus === 'Worked on Holiday').length : liveRows.filter(r => r.liveStatus === value).length}
                 </span>
               </button>
             ))}
@@ -733,9 +534,7 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <div className="p-4 space-y-2">
-              {[1, 2, 3, 4].map(i => <div key={i} className="h-12 bg-muted rounded animate-pulse" />)}
-            </div>
+            <div className="p-4 space-y-2">{[1, 2, 3, 4].map(i => <div key={i} className="h-12 bg-muted rounded animate-pulse" />)}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -755,77 +554,40 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
                   {filtered.map((row) => {
                     const { employee, log, liveStatus, isLate, breakMinutes } = row;
                     return (
-                      <tr key={employee.id} className={cn(
-                        'border-b last:border-0 hover:bg-muted/30 transition-colors',
-                        log?.is_provisional_checkout && 'bg-amber-50/30 dark:bg-amber-950/10',
-                      )}>
-                        <td className="px-4 py-3">
-                          <p className="font-medium">{employee.name}</p>
-                          <p className="text-xs text-muted-foreground">{employee.department}</p>
-                        </td>
+                      <tr key={employee.id} className={cn('border-b last:border-0 hover:bg-muted/30 transition-colors', log?.is_provisional_checkout && 'bg-amber-50/30 dark:bg-amber-950/10')}>
+                        <td className="px-4 py-3"><p className="font-medium">{employee.name}</p><p className="text-xs text-muted-foreground">{employee.department}</p></td>
                         <td className="px-3 py-3">
                           <div className="flex flex-col gap-1">
                             <Badge variant="outline" className={cn('text-xs font-medium gap-1 w-fit', STATUS_STYLE[liveStatus] || '')}>
                               {liveStatus === 'Working' && <Activity className="h-3 w-3" />}
                               {liveStatus === 'On Break' && <Coffee className="h-3 w-3" />}
                               {liveStatus === 'Completed' && <UserCheck className="h-3 w-3" />}
-                              {liveStatus === 'Not Checked In' && <UserX className="h-3 w-3" />}
-                              {liveStatus === 'On Leave' && <CalendarCheck className="h-3 w-3" />}
-                              {liveStatus === 'Absent' && <UserX className="h-3 w-3" />}
-                              {liveStatus === 'Holiday' && <CalendarCheck className="h-3 w-3" />}
-                              {liveStatus === 'Worked on Holiday' && <CalendarCheck className="h-3 w-3" />}
+                              {(liveStatus === 'Not Checked In' || liveStatus === 'Absent') && <UserX className="h-3 w-3" />}
+                              {(liveStatus === 'On Leave' || liveStatus === 'Holiday' || liveStatus === 'Worked on Holiday') && <CalendarCheck className="h-3 w-3" />}
                               {liveStatus}
                             </Badge>
                             {log?.is_provisional_checkout && (
-                              <Badge variant="outline" className="text-xs w-fit border-yellow-400 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400 gap-1">
-                                <AlertTriangle className="h-3 w-3" />
-                                Provisional
-                              </Badge>
+                              <Badge variant="outline" className="text-xs w-fit border-yellow-400 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400 gap-1"><AlertTriangle className="h-3 w-3" />Provisional</Badge>
                             )}
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-muted-foreground">
-                          {log?.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}
-                        </td>
-                        <td className="px-3 py-3 text-muted-foreground">
-                          {log?.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}
-                        </td>
+                        <td className="px-3 py-3 text-muted-foreground">{log?.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}</td>
+                        <td className="px-3 py-3 text-muted-foreground">{log?.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}</td>
                         <td className="px-3 py-3 text-muted-foreground">
                           {isLive && liveStatus === 'On Break'
                             ? <span className="text-orange-600 font-medium flex items-center gap-1"><Timer className="h-3 w-3" />{breakMinutes}m</span>
                             : log?.total_break_minutes ? `${Math.round(log.total_break_minutes)}m` : '—'}
                         </td>
-                        <td className="px-3 py-3 font-medium">
-                          {log?.working_hours ? `${log.working_hours.toFixed(1)}h` : '—'}
-                        </td>
+                        <td className="px-3 py-3 font-medium">{log?.working_hours ? `${log.working_hours.toFixed(1)}h` : '—'}</td>
                         <td className="px-3 py-3">
-                          {isLate
-                            ? <Badge variant="outline" className="text-xs border-amber-300 bg-amber-50 text-amber-700 dark:bg-amber-950/30">Late</Badge>
-                            : <span className="text-muted-foreground text-xs">—</span>}
+                          {isLate ? <Badge variant="outline" className="text-xs border-amber-300 bg-amber-50 text-amber-700 dark:bg-amber-950/30">Late</Badge> : <span className="text-muted-foreground text-xs">—</span>}
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-1">
-                            {/* Eye — View Details */}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              title="View Details"
-                              onClick={() => setDetailRow(row)}
-                            >
-                              <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                            </Button>
-                            {/* Edit — only for provisional checkouts (HR/Admin always see this) */}
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="View Details" onClick={() => setDetailRow(row)}><Eye className="h-3.5 w-3.5 text-muted-foreground" /></Button>
                             {log?.is_provisional_checkout && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-6 px-2 text-xs border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 gap-1"
-                                title="Correct Provisional Checkout"
-                                onClick={() => setCorrectionLog(log)}
-                              >
-                                <Pencil className="h-3 w-3" />
-                                Edit
+                              <Button variant="outline" size="sm" className="h-6 px-2 text-xs border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 gap-1" title="Correct Provisional Checkout" onClick={() => setCorrectionLog(log)}>
+                                <Pencil className="h-3 w-3" />Edit
                               </Button>
                             )}
                           </div>
@@ -834,9 +596,7 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
                     );
                   })}
                   {filtered.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="text-center py-8 text-muted-foreground">No employees match this filter</td>
-                    </tr>
+                    <tr><td colSpan={8} className="text-center py-8 text-muted-foreground">No employees match this filter</td></tr>
                   )}
                 </tbody>
               </table>
@@ -845,27 +605,17 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
         </CardContent>
       </Card>
 
-      {/* Employee Detail Dialog */}
-      <EmployeeDetailDialog
-        row={detailRow}
-        open={!!detailRow}
-        onOpenChange={open => { if (!open) setDetailRow(null); }}
-      />
+      <EmployeeDetailDialog row={detailRow} open={!!detailRow} onOpenChange={open => { if (!open) setDetailRow(null); }} />
 
-      {/* Provisional Correction Modal (HR/Admin override) */}
       {correctionLog && (
         <ProvisionalCorrectionModal
           log={correctionLog}
           open={!!correctionLog}
           onOpenChange={open => { if (!open) setCorrectionLog(null); }}
           isAdminCorrection={true}
-          onCorrected={() => {
-            setCorrectionLog(null);
-            onRefresh?.();
-          }}
+          onCorrected={() => { setCorrectionLog(null); onRefresh?.(); }}
         />
       )}
     </>
   );
 }
-
