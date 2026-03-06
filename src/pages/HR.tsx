@@ -102,8 +102,8 @@ export default function HR() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <div className="overflow-x-auto mb-6">
-            <TabsList className="inline-flex w-max min-w-full">
+          <div className="mb-6">
+            <TabsList className="flex flex-wrap h-auto gap-1 p-1">
               <TabsTrigger value="home" className="gap-1.5 whitespace-nowrap"><Clock className="h-4 w-4 shrink-0" /><span>Home</span></TabsTrigger>
               <TabsTrigger value="attendance" className="gap-1.5 whitespace-nowrap"><Calendar className="h-4 w-4 shrink-0" /><span>Attendance</span></TabsTrigger>
               <TabsTrigger value="leave" className="gap-1.5 whitespace-nowrap"><FileText className="h-4 w-4 shrink-0" /><span>Leave</span></TabsTrigger>
