@@ -155,6 +155,38 @@ export function BankTransferFileGenerator({ sheet, entries }: Props) {
         total_amount: totalAmount,
       } as any);
 
+      // Auto-create payment status records for each employee
+      const paymentRows = valid.map((e) => ({
+        salary_sheet_id: sheet.id,
+        employee_id: e.employee_id,
+        employee_name: e.employee_name,
+        bank_account: (e.bank_account || "").replace(/\s/g, ""),
+        ifsc_code: (e.ifsc_code || "").replace(/\s/g, "").toUpperCase(),
+        amount: calculateNetPay(e),
+        status: "pending",
+      }));
+
+      // Upsert: if re-generating, reset failed/pending statuses but keep paid ones
+      for (const row of paymentRows) {
+        const { data: existing } = await supabase
+          .from("payroll_payment_status")
+          .select("id, status")
+          .eq("salary_sheet_id", row.salary_sheet_id)
+          .eq("employee_id", row.employee_id)
+          .limit(1);
+        
+        if (existing && existing.length > 0) {
+          // Only update if not already paid
+          if ((existing[0] as any).status !== "paid") {
+            await supabase.from("payroll_payment_status")
+              .update({ amount: row.amount, bank_account: row.bank_account, ifsc_code: row.ifsc_code, status: "pending", failure_reason: null, updated_at: new Date().toISOString() } as any)
+              .eq("id", (existing[0] as any).id);
+          }
+        } else {
+          await supabase.from("payroll_payment_status").insert(row as any);
+        }
+      }
+
       // Audit log
       if (user) {
         recordAuditLog(user.id, profile?.name || "", {

@@ -4274,6 +4274,72 @@ export type Database = {
           },
         ]
       }
+      payroll_payment_status: {
+        Row: {
+          amount: number
+          bank_account: string | null
+          bank_reference_number: string | null
+          created_at: string
+          employee_id: string
+          employee_name: string
+          failure_reason: string | null
+          id: string
+          ifsc_code: string | null
+          salary_sheet_id: string
+          status: string
+          updated_at: string
+          updated_by: string | null
+          updated_by_name: string | null
+        }
+        Insert: {
+          amount?: number
+          bank_account?: string | null
+          bank_reference_number?: string | null
+          created_at?: string
+          employee_id: string
+          employee_name: string
+          failure_reason?: string | null
+          id?: string
+          ifsc_code?: string | null
+          salary_sheet_id: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Update: {
+          amount?: number
+          bank_account?: string | null
+          bank_reference_number?: string | null
+          created_at?: string
+          employee_id?: string
+          employee_name?: string
+          failure_reason?: string | null
+          id?: string
+          ifsc_code?: string | null
+          salary_sheet_id?: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_payment_status_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_payment_status_salary_sheet_id_fkey"
+            columns: ["salary_sheet_id"]
+            isOneToOne: false
+            referencedRelation: "salary_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_transfer_files: {
         Row: {
           employee_count: number
