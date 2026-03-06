@@ -1120,6 +1120,7 @@ export type Database = {
           employee_id: string
           green_threshold: number
           id: string
+          kpi_source: Database["public"]["Enums"]["kpi_source"]
           measurement_unit: Database["public"]["Enums"]["kpi_measurement_unit"]
           month: number
           priority: Database["public"]["Enums"]["kpi_priority"]
@@ -1128,6 +1129,7 @@ export type Database = {
           title: string
           updated_at: string
           weightage: number
+          workflow_status: Database["public"]["Enums"]["kpi_workflow_status"]
           year: number
         }
         Insert: {
@@ -1143,6 +1145,7 @@ export type Database = {
           employee_id: string
           green_threshold?: number
           id?: string
+          kpi_source?: Database["public"]["Enums"]["kpi_source"]
           measurement_unit?: Database["public"]["Enums"]["kpi_measurement_unit"]
           month: number
           priority?: Database["public"]["Enums"]["kpi_priority"]
@@ -1151,6 +1154,7 @@ export type Database = {
           title: string
           updated_at?: string
           weightage?: number
+          workflow_status?: Database["public"]["Enums"]["kpi_workflow_status"]
           year: number
         }
         Update: {
@@ -1166,6 +1170,7 @@ export type Database = {
           employee_id?: string
           green_threshold?: number
           id?: string
+          kpi_source?: Database["public"]["Enums"]["kpi_source"]
           measurement_unit?: Database["public"]["Enums"]["kpi_measurement_unit"]
           month?: number
           priority?: Database["public"]["Enums"]["kpi_priority"]
@@ -1174,6 +1179,7 @@ export type Database = {
           title?: string
           updated_at?: string
           weightage?: number
+          workflow_status?: Database["public"]["Enums"]["kpi_workflow_status"]
           year?: number
         }
         Relationships: [
@@ -7082,6 +7088,8 @@ export type Database = {
         | "boolean"
       kpi_priority: "low" | "medium" | "high"
       kpi_rag_status: "green" | "amber" | "red" | "not_started"
+      kpi_source: "hr" | "employee"
+      kpi_workflow_status: "draft" | "active" | "completed" | "reviewed"
       notice_visibility:
         | "all"
         | "sales"
@@ -7380,6 +7388,8 @@ export const Constants = {
       ],
       kpi_priority: ["low", "medium", "high"],
       kpi_rag_status: ["green", "amber", "red", "not_started"],
+      kpi_source: ["hr", "employee"],
+      kpi_workflow_status: ["draft", "active", "completed", "reviewed"],
       notice_visibility: [
         "all",
         "sales",
