@@ -59,8 +59,9 @@ function lateThresholdHour(policy: AttendancePolicy): number {
   return h + m / 60 + policy.grace_period_minutes / 60;
 }
 
-function getLiveStatus(log: AttendanceLog | null, isHoliday?: boolean): string {
+function getLiveStatus(log: AttendanceLog | null, isHoliday?: boolean, hasApprovedLeave?: boolean): string {
   if (!log || !log.check_in_time) {
+    if (hasApprovedLeave) return 'On Leave';
     if (isHoliday) return 'Holiday';
     return 'Not Checked In';
   }
@@ -82,12 +83,15 @@ function currentBreakMinutes(log: AttendanceLog | null): number {
   return differenceInMinutes(new Date(), new Date(log.break_start_time));
 }
 
-function deriveHistoricalStatus(log: AttendanceLog | null, date: Date, policy: AttendancePolicy = POLICY_DEFAULTS, isHoliday?: boolean): string {
+function deriveHistoricalStatus(log: AttendanceLog | null, date: Date, policy: AttendancePolicy = POLICY_DEFAULTS, isHoliday?: boolean, hasApprovedLeave?: boolean): string {
   const day = getDay(date);
   if (day === 0 || day === 6) return 'Weekend';
-  if (isHoliday && (!log || !log.check_in_time)) return 'Holiday';
-  if (isHoliday && log?.check_in_time) return 'Worked on Holiday';
-  if (!log) return 'Absent';
+  if (!log || !log.check_in_time) {
+    if (hasApprovedLeave) return 'On Leave';
+    if (isHoliday) return 'Holiday';
+    return 'Absent';
+  }
+  if (isHoliday) return 'Worked on Holiday';
   if (log.status === 'on_leave') return 'On Leave';
   const wh = log.working_hours || 0;
   const checkInHour = log.check_in_time
@@ -145,6 +149,9 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
   const selectedDateIsHoliday = isHoliday(selectedDateStr);
   const holidayInfo = getHoliday(selectedDateStr);
 
+  // ── Leave data for selected date ──
+  const [approvedLeaves, setApprovedLeaves] = useState<Record<string, { leave_type: string; start_date: string; end_date: string }>>({});
+
   // ── Fetch data for selected date ──
   const fetchToday = useCallback(async () => {
     setLoadingToday(true);
@@ -159,6 +166,20 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
       .select('*')
       .eq('date', yesterdayOfSelectedStr);
     setYesterdayLogs((yd as AttendanceLog[]) || []);
+
+    // Fetch approved leaves that cover the selected date
+    const { data: leaves } = await supabase
+      .from('leave_requests')
+      .select('employee_id, leave_type, start_date, end_date')
+      .eq('status', 'approved')
+      .lte('start_date', selectedDateStr)
+      .gte('end_date', selectedDateStr);
+
+    const leaveMap: Record<string, { leave_type: string; start_date: string; end_date: string }> = {};
+    (leaves || []).forEach((l: any) => {
+      leaveMap[l.employee_id] = { leave_type: l.leave_type, start_date: l.start_date, end_date: l.end_date };
+    });
+    setApprovedLeaves(leaveMap);
 
     setLoadingToday(false);
     setLastRefresh(new Date());
@@ -191,17 +212,18 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
   // ── Build rows — live for today, historical for past ──
   const liveRows: LiveRow[] = employees.map(emp => {
     const log = todayLogs.find(l => l.employee_id === emp.id) || null;
+    const hasLeave = !!approvedLeaves[emp.id];
     if (isViewingToday) {
       return {
         employee: emp,
         log,
-        liveStatus: getLiveStatus(log, selectedDateIsHoliday),
+        liveStatus: getLiveStatus(log, selectedDateIsHoliday, hasLeave),
         isLate: selectedDateIsHoliday ? false : isLateCheckIn(log, policy),
         breakMinutes: currentBreakMinutes(log),
       };
     }
     // Historical mode — show final statuses
-    const historicalStatus = deriveHistoricalStatus(log, selectedDate, policy, selectedDateIsHoliday);
+    const historicalStatus = deriveHistoricalStatus(log, selectedDate, policy, selectedDateIsHoliday, hasLeave);
     return {
       employee: emp,
       log,
@@ -268,7 +290,8 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
     const rows: string[][] = [['Employee', 'Department', 'Date', 'Check In', 'Check Out', 'Work Hours', 'Break (min)', 'Status']];
     for (const emp of employees) {
       const log = todayLogs.find(l => l.employee_id === emp.id) || null;
-      const status = isViewingToday ? getLiveStatus(log, selectedDateIsHoliday) : deriveHistoricalStatus(log, selectedDate, policy, selectedDateIsHoliday);
+      const hasLeave = !!approvedLeaves[emp.id];
+      const status = isViewingToday ? getLiveStatus(log, selectedDateIsHoliday, hasLeave) : deriveHistoricalStatus(log, selectedDate, policy, selectedDateIsHoliday, hasLeave);
       rows.push([
         emp.name, emp.department, selectedDateStr,
         log?.check_in_time ? format(new Date(log.check_in_time), 'HH:mm') : '',
@@ -478,7 +501,7 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
 
 // ─── Live Status Table ────────────────────────────────────────────────────────
 
-type QuickFilter = 'all' | 'Working' | 'Not Checked In' | 'Late' | 'On Break' | 'Completed' | 'Holiday';
+type QuickFilter = 'all' | 'Working' | 'Not Checked In' | 'Late' | 'On Break' | 'Completed' | 'Holiday' | 'On Leave';
 
 // ─── Employee Detail Dialog ───────────────────────────────────────────────────
 function EmployeeDetailDialog({ row, open, onOpenChange }: {
@@ -576,6 +599,7 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
         ...(isHoliday ? [{ label: 'Holiday', value: 'Holiday' as QuickFilter, color: 'data-[active=true]:bg-blue-500 data-[active=true]:text-white' }] : []),
         { label: 'Working', value: 'Working', color: 'data-[active=true]:bg-blue-500 data-[active=true]:text-white' },
         ...(!isHoliday ? [{ label: 'Absent', value: 'Not Checked In' as QuickFilter, color: 'data-[active=true]:bg-red-500 data-[active=true]:text-white' }] : []),
+        { label: 'On Leave', value: 'On Leave' as QuickFilter, color: 'data-[active=true]:bg-purple-500 data-[active=true]:text-white' },
         { label: 'Late', value: 'Late', color: 'data-[active=true]:bg-amber-500 data-[active=true]:text-white' },
         { label: 'On Break', value: 'On Break', color: 'data-[active=true]:bg-orange-500 data-[active=true]:text-white' },
         { label: 'Completed', value: 'Completed', color: 'data-[active=true]:bg-green-500 data-[active=true]:text-white' },
@@ -583,6 +607,7 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
     : [
         { label: 'All', value: 'all', color: '' },
         ...(isHoliday ? [{ label: 'Holiday', value: 'Holiday' as QuickFilter, color: 'data-[active=true]:bg-blue-500 data-[active=true]:text-white' }] : []),
+        { label: 'On Leave', value: 'On Leave' as QuickFilter, color: 'data-[active=true]:bg-purple-500 data-[active=true]:text-white' },
         { label: 'Late', value: 'Late', color: 'data-[active=true]:bg-amber-500 data-[active=true]:text-white' },
       ];
 
@@ -681,6 +706,8 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
                               {liveStatus === 'On Break' && <Coffee className="h-3 w-3" />}
                               {liveStatus === 'Completed' && <UserCheck className="h-3 w-3" />}
                               {liveStatus === 'Not Checked In' && <UserX className="h-3 w-3" />}
+                              {liveStatus === 'On Leave' && <CalendarCheck className="h-3 w-3" />}
+                              {liveStatus === 'Absent' && <UserX className="h-3 w-3" />}
                               {liveStatus === 'Holiday' && <CalendarCheck className="h-3 w-3" />}
                               {liveStatus === 'Worked on Holiday' && <CalendarCheck className="h-3 w-3" />}
                               {liveStatus}
