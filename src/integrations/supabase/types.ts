@@ -1287,9 +1287,12 @@ export type Database = {
           created_at: string
           department: string
           designation: string | null
+          employment_status: Database["public"]["Enums"]["employment_status"]
+          exit_date: string | null
           id: string
           ifsc_code: string | null
           is_active: boolean | null
+          joining_date: string | null
           manager_id: string | null
           monthly_attendance_target: number | null
           monthly_salary: number | null
@@ -1308,9 +1311,12 @@ export type Database = {
           created_at?: string
           department?: string
           designation?: string | null
+          employment_status?: Database["public"]["Enums"]["employment_status"]
+          exit_date?: string | null
           id?: string
           ifsc_code?: string | null
           is_active?: boolean | null
+          joining_date?: string | null
           manager_id?: string | null
           monthly_attendance_target?: number | null
           monthly_salary?: number | null
@@ -1329,9 +1335,12 @@ export type Database = {
           created_at?: string
           department?: string
           designation?: string | null
+          employment_status?: Database["public"]["Enums"]["employment_status"]
+          exit_date?: string | null
           id?: string
           ifsc_code?: string | null
           is_active?: boolean | null
+          joining_date?: string | null
           manager_id?: string | null
           monthly_attendance_target?: number | null
           monthly_salary?: number | null
@@ -7050,6 +7059,7 @@ export type Database = {
         | "offered"
         | "joined"
         | "dropped"
+      employment_status: "active" | "probation" | "resigned" | "terminated"
       employment_type: "Full-time" | "Contract" | "Intern"
       final_status: "Selected" | "Rejected" | "Pending"
       interview_decision: "pass" | "reject" | "hold"
@@ -7345,6 +7355,7 @@ export const Constants = {
         "joined",
         "dropped",
       ],
+      employment_status: ["active", "probation", "resigned", "terminated"],
       employment_type: ["Full-time", "Contract", "Intern"],
       final_status: ["Selected", "Rejected", "Pending"],
       interview_decision: ["pass", "reject", "hold"],

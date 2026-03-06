@@ -23,6 +23,9 @@ export interface Employee {
   weekly_hours_target: number;
   monthly_attendance_target: number;
   is_active: boolean;
+  joining_date: string | null;
+  exit_date: string | null;
+  employment_status: 'active' | 'probation' | 'resigned' | 'terminated';
   created_at: string;
   updated_at: string;
 }
