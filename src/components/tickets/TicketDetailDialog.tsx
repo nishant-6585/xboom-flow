@@ -41,6 +41,10 @@ import {
   History,
   Pencil,
   X,
+  Paperclip,
+  FileText,
+  Image as ImageIcon,
+  ExternalLink,
 } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
 
@@ -397,6 +401,36 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                         Enquiry: {ticket.enquiries.customer_name} - {ticket.enquiries.product_name}
                       </Badge>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* Attachments */}
+              {ticket.attachment_urls && ticket.attachment_urls.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground text-xs uppercase flex items-center gap-1">
+                    <Paperclip className="w-3 h-3" />
+                    Attachments ({ticket.attachment_urls.length})
+                  </Label>
+                  <div className="flex flex-wrap gap-2">
+                    {ticket.attachment_urls.map((url, index) => {
+                      const fileName = url.split('/').pop() || `Attachment ${index + 1}`;
+                      const ext = fileName.split('.').pop()?.toLowerCase();
+                      const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '');
+                      return (
+                        <a
+                          key={index}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 bg-muted px-3 py-2 rounded-lg text-sm hover:bg-muted/80 transition-colors"
+                        >
+                          {isImage ? <ImageIcon className="w-4 h-4 text-muted-foreground" /> : <FileText className="w-4 h-4 text-muted-foreground" />}
+                          <span className="max-w-[150px] truncate">{fileName}</span>
+                          <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                        </a>
+                      );
+                    })}
                   </div>
                 </div>
               )}
