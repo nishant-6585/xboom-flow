@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Lock, Download, UserPlus, Trash2, Loader2, Pencil } from "lucide-react";
 import { SalarySheet, SalarySheetEntry, useSalarySheets } from "@/hooks/useSalarySheets";
 import { SalaryAddEmployeesDialog } from "./SalaryAddEmployeesDialog";
@@ -26,6 +27,7 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
   const [locking, setLocking] = useState(false);
   const [editEntry, setEditEntry] = useState<SalarySheetEntry | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [lockConfirmOpen, setLockConfirmOpen] = useState(false);
 
   const isLocked = sheet.status === "locked";
 
@@ -110,7 +112,7 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
               <Download className="h-4 w-4 mr-1" /> Export
             </Button>
             {!isLocked && (
-              <Button variant="destructive" size="sm" onClick={handleLock} disabled={locking}>
+              <Button variant="destructive" size="sm" onClick={() => setLockConfirmOpen(true)} disabled={locking}>
                 <Lock className="h-4 w-4 mr-1" /> {locking ? "Locking..." : "Lock Sheet"}
               </Button>
             )}
@@ -234,6 +236,26 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
         entry={editEntry}
         onSave={handleEditSave}
       />
+
+      <AlertDialog open={lockConfirmOpen} onOpenChange={setLockConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Lock Salary Sheet?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Once locked, this salary sheet will become read-only and no further edits will be allowed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => {
+              setLockConfirmOpen(false);
+              await handleLock();
+            }}>
+              Yes, Lock Sheet
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
