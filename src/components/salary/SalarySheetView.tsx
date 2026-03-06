@@ -1,21 +1,17 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Lock, Download, UserPlus, Trash2, Loader2 } from "lucide-react";
-import { SalarySheet, SalarySheetEntry, useSalarySheets, calculateTotal } from "@/hooks/useSalarySheets";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ArrowLeft, Lock, Download, UserPlus, Trash2, Loader2, Pencil } from "lucide-react";
+import { SalarySheet, SalarySheetEntry, useSalarySheets } from "@/hooks/useSalarySheets";
 import { SalaryAddEmployeesDialog } from "./SalaryAddEmployeesDialog";
+import { SalaryEntryEditDialog } from "./SalaryEntryEditDialog";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
 const MONTH_NAMES = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-const NUMERIC_FIELDS: (keyof SalarySheetEntry)[] = [
-  "salary", "wfh_days", "unpaid_leaves", "el_leaves", "sl_leaves",
-  "deductions", "pending_amount", "tds", "tax", "reimbursements",
-];
 
 interface Props {
   sheet: SalarySheet;
@@ -27,9 +23,9 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
   const { entries, fetchEntries, updateEntry, addEmployeesToSheet, deleteEntry } = useSalarySheets();
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
-  const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
-  const [editValue, setEditValue] = useState("");
   const [locking, setLocking] = useState(false);
+  const [editEntry, setEditEntry] = useState<SalarySheetEntry | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const isLocked = sheet.status === "locked";
 
@@ -38,41 +34,14 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
     fetchEntries(sheet.id).then(() => setLoading(false));
   }, [sheet.id, fetchEntries]);
 
-  const startEdit = (entry: SalarySheetEntry, field: keyof SalarySheetEntry) => {
-    if (isLocked) return;
-    setEditingCell({ id: entry.id, field });
-    setEditValue(String(entry[field] ?? ""));
-  };
-
-  const saveEdit = async (entry: SalarySheetEntry) => {
-    if (!editingCell) return;
-    const field = editingCell.field as keyof SalarySheetEntry;
-    let newValue: any = editValue;
-
-    if (NUMERIC_FIELDS.includes(field)) {
-      const num = parseFloat(editValue);
-      if (isNaN(num) || num < 0) {
-        toast.error("Please enter a valid non-negative number");
-        return;
-      }
-      newValue = num;
-    }
-
-    const updatedEntry = { ...entry, [field]: newValue };
-    const total = calculateTotal(updatedEntry);
-    await updateEntry(entry.id, { [field]: newValue, total } as any, sheet.id);
-    setEditingCell(null);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent, entry: SalarySheetEntry) => {
-    if (e.key === "Enter") saveEdit(entry);
-    if (e.key === "Escape") setEditingCell(null);
-  };
-
   const handleLock = async () => {
     setLocking(true);
     await onLock();
     setLocking(false);
+  };
+
+  const handleEditSave = async (entryId: string, updates: Partial<SalarySheetEntry>) => {
+    return await updateEntry(entryId, updates, sheet.id);
   };
 
   const exportToExcel = () => {
@@ -101,30 +70,20 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
     toast.success("Exported to Excel");
   };
 
-  const renderCell = (entry: SalarySheetEntry, field: keyof SalarySheetEntry) => {
-    const isEditing = editingCell?.id === entry.id && editingCell?.field === field;
-    if (isEditing) {
-      return (
-        <Input
-          className="h-8 w-24 text-xs"
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={() => saveEdit(entry)}
-          onKeyDown={(e) => handleKeyDown(e, entry)}
-          autoFocus
-        />
-      );
-    }
-    const val = entry[field];
-    return (
-      <span
-        className={!isLocked ? "cursor-pointer hover:bg-muted px-1 py-0.5 rounded" : ""}
-        onClick={() => !isLocked && startEdit(entry, field)}
-      >
-        {val === null || val === undefined || val === "" ? "—" : String(val)}
-      </span>
-    );
-  };
+  const fmt = (val: number | null | undefined) =>
+    val === null || val === undefined ? "—" : Number(val).toLocaleString("en-IN");
+
+  const fmtCurrency = (val: number | null | undefined) =>
+    val === null || val === undefined ? "—" : Number(val).toLocaleString("en-IN", { minimumFractionDigits: 2 });
+
+  const LockedTooltipWrapper = ({ children }: { children: React.ReactNode }) => (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>{children}</TooltipTrigger>
+        <TooltipContent>Sheet is locked and cannot be modified.</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 
   return (
     <Card>
@@ -188,7 +147,7 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
                   <TableHead>Reimb.</TableHead>
                   <TableHead className="font-bold">Total</TableHead>
                   <TableHead>Remarks</TableHead>
-                  {!isLocked && <TableHead className="w-10"></TableHead>}
+                  <TableHead className="w-20">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -196,29 +155,45 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
                   <TableRow key={entry.id}>
                     <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
                     <TableCell className="font-medium">{entry.employee_name}</TableCell>
-                    <TableCell>{renderCell(entry, "salary")}</TableCell>
-                    <TableCell>{renderCell(entry, "bank_account")}</TableCell>
-                    <TableCell>{renderCell(entry, "ifsc_code")}</TableCell>
-                    <TableCell>{renderCell(entry, "wfh_days")}</TableCell>
-                    <TableCell>{renderCell(entry, "unpaid_leaves")}</TableCell>
-                    <TableCell>{renderCell(entry, "el_leaves")}</TableCell>
-                    <TableCell>{renderCell(entry, "sl_leaves")}</TableCell>
-                    <TableCell>{renderCell(entry, "deductions")}</TableCell>
-                    <TableCell>{renderCell(entry, "pending_amount")}</TableCell>
-                    <TableCell>{renderCell(entry, "tds")}</TableCell>
-                    <TableCell>{renderCell(entry, "tax")}</TableCell>
-                    <TableCell>{renderCell(entry, "reimbursements")}</TableCell>
+                    <TableCell>{fmt(entry.salary)}</TableCell>
+                    <TableCell>{entry.bank_account || "—"}</TableCell>
+                    <TableCell>{entry.ifsc_code || "—"}</TableCell>
+                    <TableCell>{fmt(entry.wfh_days)}</TableCell>
+                    <TableCell>{fmt(entry.unpaid_leaves)}</TableCell>
+                    <TableCell>{fmt(entry.el_leaves)}</TableCell>
+                    <TableCell>{fmt(entry.sl_leaves)}</TableCell>
+                    <TableCell>{fmt(entry.deductions)}</TableCell>
+                    <TableCell>{fmt(entry.pending_amount)}</TableCell>
+                    <TableCell>{fmt(entry.tds)}</TableCell>
+                    <TableCell>{fmt(entry.tax)}</TableCell>
+                    <TableCell>{fmt(entry.reimbursements)}</TableCell>
                     <TableCell className="font-bold text-primary">
-                      {entry.total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      {fmtCurrency(entry.total)}
                     </TableCell>
-                    <TableCell>{renderCell(entry, "remarks")}</TableCell>
-                    {!isLocked && (
-                      <TableCell>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteEntry(entry.id, sheet.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </TableCell>
-                    )}
+                    <TableCell>{entry.remarks || "—"}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        {isLocked ? (
+                          <>
+                            <LockedTooltipWrapper>
+                              <span><Button variant="ghost" size="icon" className="h-7 w-7" disabled><Pencil className="h-3.5 w-3.5" /></Button></span>
+                            </LockedTooltipWrapper>
+                            <LockedTooltipWrapper>
+                              <span><Button variant="ghost" size="icon" className="h-7 w-7" disabled><Trash2 className="h-3.5 w-3.5" /></Button></span>
+                            </LockedTooltipWrapper>
+                          </>
+                        ) : (
+                          <>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditEntry(entry); setEditOpen(true); }}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteEntry(entry.id, sheet.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {/* Totals row */}
@@ -234,7 +209,7 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
                   <TableCell className="text-primary">
                     {entries.reduce((s, e) => s + Number(e.total), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </TableCell>
-                  <TableCell colSpan={isLocked ? 1 : 2}></TableCell>
+                  <TableCell colSpan={2}></TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -251,6 +226,13 @@ export function SalarySheetView({ sheet, onBack, onLock }: Props) {
           const ok = await addEmployeesToSheet(sheet.id, employees);
           if (ok) setAddOpen(false);
         }}
+      />
+
+      <SalaryEntryEditDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        entry={editEntry}
+        onSave={handleEditSave}
       />
     </Card>
   );
