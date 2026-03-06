@@ -10,6 +10,7 @@ import { SalarySheet, SalarySheetEntry, SalarySheetStatus, useSalarySheets, calc
 import { SalaryAddEmployeesDialog } from "./SalaryAddEmployeesDialog";
 import { SalaryEntryEditDialog } from "./SalaryEntryEditDialog";
 import { PayrollSummaryPanel } from "./PayrollSummaryPanel";
+import { BankTransferFileGenerator } from "./BankTransferFileGenerator";
 import { downloadPayslipPDF, getPayslipBlob } from "@/lib/payslipGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -240,6 +241,11 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
       <CardContent className="space-y-4">
         {/* Payroll Summary */}
         <PayrollSummaryPanel entries={entries} />
+
+        {/* Bank Transfer File Generator - only for locked sheets */}
+        {isLocked && entries.length > 0 && (
+          <BankTransferFileGenerator sheet={sheet} entries={entries} />
+        )}
 
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
