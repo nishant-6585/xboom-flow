@@ -1,132 +1,166 @@
-# Xboom Workflow — Technical Architecture & Operations Reference
+# XBoom Workflow (XBoom OS)
 
-> **Purpose**: This document is written for technical architects evaluating AI integration opportunities. It provides detailed operational, architectural, and data-level clarity into the Xboom Workflow platform.
+> **Internal operations platform for end-to-end business management** — Sales, Inventory, Procurement, Finance, HR, Payroll, Recruitment, Ticketing, and Shopify integration in a single system.
 
 ---
 
-## 1. Project Overview
+## Table of Contents
 
-### What is Xboom Workflow?
+1. [Overview](#overview)
+2. [Core Modules](#core-modules)
+3. [Key Features](#key-features)
+4. [System Architecture](#system-architecture)
+5. [Tech Stack](#tech-stack)
+6. [Deployment Overview](#deployment-overview)
+7. [Database Overview](#database-overview)
+8. [Edge Functions](#edge-functions)
+9. [Security Model](#security-model)
+10. [Automation & Triggers](#automation--triggers)
+11. [Storage Buckets](#storage-buckets)
+12. [Audit Logging](#audit-logging)
+13. [Payroll Lifecycle](#payroll-lifecycle)
+14. [Local Development](#local-development)
+15. [Related Documentation](#related-documentation)
+16. [Future Roadmap](#future-roadmap)
+17. [Contribution Guidelines](#contribution-guidelines)
 
-Xboom Workflow (internally "Xboom OS") is a custom-built internal operations platform for a B2B robotics and drone equipment company. It manages the full operational lifecycle: lead capture → quotation → order → procurement → delivery → invoicing → post-sale support.
+---
+
+## Overview
+
+XBoom Workflow (internally **XBoom OS**) is a custom-built internal operations platform for a B2B robotics and drone equipment company. It manages the full operational lifecycle from lead capture to payment reconciliation.
+
+### Purpose
+
+- **Manage employee lifecycle** — onboarding, attendance, KPIs, documents, payroll
+- **Automate payroll** — attendance-based deductions, approval workflow, payslip generation, bank transfer files, reconciliation
+- **Streamline sales operations** — CRM, pipeline, quotations, orders, AI-powered lead scoring
+- **Control supply chain** — procurement, inventory tracking, supplier management, import logistics
+- **Provide financial oversight** — invoicing, expenses, petty cash, payment tracking, cashflow analysis
+- **Enable internal collaboration** — IT ticketing, meetings, tasks, notices, custom forms
 
 ### Core Business Model
 
-- **Primary**: B2B sales of drones, robotics, safety devices, and related equipment to enterprises, government agencies, and institutional buyers.
-- **Secondary**: Buyback/resale of used drones, drone repair services (B2C-facing public enquiry form).
-- **Revenue streams**: Hardware sales (consumer drones, enterprise drones, agriculture drones, security devices, robotics kits), repair services, training programs, buyback-resale arbitrage.
+- **Primary**: B2B sales of drones, robotics, safety devices, and related equipment
+- **Secondary**: Buyback/resale of used drones, drone repair services (B2C public form)
+- **Revenue streams**: Hardware sales, repair services, training programs, buyback-resale
 
-### Primary Users
+### Users
 
-| Role | Description | Count Limit |
-|------|-------------|-------------|
-| **Admin** | Full system access, user approvals, org settings | Max 5 |
-| **Sales** | Lead management, enquiries, pipeline, quotations, meetings | Unlimited |
-| **Supply Chain** | Procurement, supplier management, inventory, imports | Unlimited |
-| **Finance** | Invoicing, expenses, payments, petty cash, expected payments | Unlimited |
-| **HR** | Attendance, leave, KPIs, documents, assets, candidates | Unlimited |
+| Role | Description | Limit |
+|------|-------------|-------|
+| **Admin** | Full system access, user management, org settings | Max 5 |
+| **Sales** | Leads, enquiries, pipeline, quotations, meetings | Unlimited |
+| **Supply Chain** | Procurement, suppliers, inventory, imports | Unlimited |
+| **Finance** | Invoicing, expenses, payments, payroll reconciliation | Unlimited |
+| **HR** | Attendance, leave, KPIs, documents, payroll, candidates | Unlimited |
 | **IT** | Internal tickets, system support | Unlimited |
-| **Marketing** | Limited access, content/campaign coordination | Unlimited |
+| **Marketing** | Campaign coordination, limited access | Unlimited |
 
-Users can hold multiple roles simultaneously. A role priority hierarchy (`Admin > HR > Finance > Supply Chain > IT > Marketing > Sales`) determines the primary role for UI rendering and navigation visibility.
-
-External users interact only via:
-- Public drone repair enquiry form (`/public/drone-repair-enquiry`)
-- Embeddable custom forms (`/form-embed/:formId`)
+Users can hold multiple roles simultaneously. A priority hierarchy (`Admin > HR > Finance > Supply Chain > IT > Marketing > Sales`) determines the primary role for UI rendering.
 
 ---
 
-## 2. System Architecture
+## Core Modules
 
-### Frontend Stack
+### Sales & CRM
+Lead management with multi-item enquiries, AI-powered lead scoring (1–10 scale), lead temperature tracking (Hot/Warm/Cold), mega deal flagging, pipeline management with stage tracking, sales leaderboard with points gamification, daily activity logging, and customer testimonials.
 
-| Component | Technology | Version |
-|-----------|------------|---------|
-| Framework | React (SPA) | 18.3.x |
-| Build tool | Vite | Latest |
-| Language | TypeScript | Strict mode |
-| Styling | Tailwind CSS + shadcn/ui | Latest |
-| State management | TanStack React Query | 5.x |
-| Routing | React Router DOM | 6.x |
-| Charts | Recharts | 2.x |
-| PDF generation | jsPDF + jspdf-autotable | 4.x / 5.x |
-| Drag & Drop | @dnd-kit | 6.x |
-| Spreadsheet export | xlsx (SheetJS) | 0.18.x |
-| QR Code | qrcode.react | 4.x |
+### Inventory Management
+Real-time stock tracking via database triggers on inventory transactions. Supports procurement-in, order-fulfilled, customer-return, and adjustment transaction types. Product catalog with pricing (internal + public pricelist). Demand forecasting widget.
 
-### Backend Stack
+### Procurement
+Auto-created from orders via database trigger. Sequential numbering (`PROC` + YY + 5-digit). Multi-product procurement forms, supplier quotation comparison, payment status tracking, and expense linking. Supplier rating system with multi-dimensional scoring.
 
-| Component | Technology |
-|-----------|------------|
-| Platform | Lovable Cloud (Supabase-managed) |
-| Database | PostgreSQL 15+ |
-| Auth | Supabase Auth (email/password, JWT) |
-| Edge Functions | Deno (TypeScript) — deployed automatically |
-| File Storage | Supabase Storage (private buckets with RLS) |
-| Realtime | Supabase Realtime (PostgreSQL CDC) |
-| Scheduled Jobs | pg_cron (database-level) |
-| HTTP from DB | pg_net extension |
+### Finance
+Invoice generation with sequential numbering and digital signature support. Expense management with approval workflow and petty cash tracking. Expected payment scheduling, payment risk scoring, cashflow charts, credit/debit overview, and invoice aging dashboard.
 
-### Database Overview
+### HR Management
+Employee profiles with department/designation tracking. Salary history, bank detail management with update-approval workflow. HR document management with folder structure and granular sharing. Employee asset tracking (laptops, phones, SIMs). KPI management with RAG status indicators and progress tracking. Roles & responsibilities documentation.
 
-**90+ tables** across these domains:
+### Payroll
+Complete payroll lifecycle — salary sheets with attendance-based deduction calculation, 4-stage approval workflow (Draft → HR Approved → Finance Approved → Locked), payslip PDF generation, bank transfer file generation (NEFT format), and payroll reconciliation dashboard. See [PAYROLL_MODULE.md](Features/PAYROLL_MODULE.md) for details.
 
-| Domain | Key Tables |
-|--------|------------|
-| Auth & Users | `profiles`, `user_roles`, `user_invitations`, `admin_whitelist` |
-| Sales & Leads | `enquiries`, `enquiry_items`, `enquiry_tags`, `pipeline_orders`, `pipeline_tags`, `lead_tags` |
-| Orders | `orders`, `order_items`, `order_procurement_links` |
-| Procurement | `inventory_procurements`, `procurement_payment_requests`, `supplier_quotations` |
-| Inventory | `inventory`, `inventory_transactions` |
-| Suppliers | `suppliers`, `supplier_ratings`, `supplier_payments` |
-| Billing | `quotes`, `quote_items`, `invoices`, `invoice_items`, `invoice_payments`, `invoice_audit_logs` |
-| Finance | `expenses`, `expense_order_links`, `expense_procurement_links`, `expected_payments`, `petty_cash_transactions`, `payment_records` |
-| HR | `employees`, `attendance_logs`, `attendance_breaks`, `attendance_audit_log`, `attendance_policy_settings`, `leave_requests`, `employee_kpis`, `employee_kpi_progress`, `employee_assets`, `employee_roles_responsibilities` |
-| Candidates | `candidates`, `candidate_documents`, `interview_records` |
-| Documents | `hr_documents`, `hr_folders`, `hr_document_shares`, `hr_folder_shares` |
-| Tasks | `tasks` (auto-generated from enquiries, meetings, hot leads) |
-| Meetings | `meetings` |
-| Tickets | `tickets`, `ticket_comments` |
-| Trainings | `trainings` |
-| Repairs | `repairs`, `drone_repair_enquiries` |
-| Buyback | `buyback_drones` |
-| Forms | `forms`, `form_fields`, `form_submissions`, `form_views`, `form_permissions` |
-| Notifications | `notifications`, `notices`, `notice_reads` |
-| Shopify | `shopify_orders`, `shopify_orders_raw` |
-| Imports | `imports`, `import_items` |
-| Gamification | `sales_points`, `sales_targets`, `sales_daily_activities`, `sales_faqs`, `sales_suggestions`, `customer_testimonials` |
-| Audit | `edit_history`, `user_activity_logs`, `attendance_notifications_log`, `nudge_health_log` |
-| Config | `attendance_policy_settings`, `slack_settings`, `org_departments`, `org_roles`, `pricelist`, `admin_signatures` |
+### Attendance
+Check-in/check-out with break tracking. Provisional checkout with correction request workflow. Auto-checkout after configurable hours. Attendance nudge notifications. Team attendance dashboard for managers. Calendar view with daily/weekly/monthly breakdown. Attendance policy settings (grace period, work start time, break limits).
 
-### Authentication System
+### Recruitment
+Full candidate lifecycle management — application, screening, interview stages, offer, joining. Candidate database with skills, experience, CTC tracking. Interview record logging. Document uploads per candidate. Application source and employment type tracking.
 
-- Email/password authentication via Supabase Auth
-- JWT-based session management
-- New registrations default to `pending approval` — admin must approve before access is granted
-- Admin registration requires email whitelist + max 5 admin cap (server-side validated via `validate_admin_registration` RPC)
-- Invitation system: admins can invite users with pre-assigned roles; invited users are auto-approved
-- Multi-role support per user with priority-based primary role selection
+### IT Tickets
+Internal ticket system with priority-based SLA. Sequential numbering. Ticket comments, status tracking, edit history. Performance dashboard with resolution metrics. Email notifications on ticket events.
 
-### Deployment Architecture
+### Meetings & Calendar
+Meeting scheduling with team calendar (day/week/month views). Auto-created reminder tasks for participants. Lead-linked meetings panel.
+
+### Tasks
+Auto-generated from enquiries, meetings, and hot leads. Kanban and table views. Stage-based workflow. Time tracking with timer. Task performance reports.
+
+### Notices
+Company-wide notice board with publish/unpublish controls. Dashboard widget for recent notices. Read tracking per user.
+
+### Custom Forms
+Drag-and-drop form builder with field types (text, select, file upload, etc.). Embeddable public forms. QR code generation. Submission analytics. Per-user form permissions.
+
+### Shopify Integration
+Server-side-only architecture for e-commerce order ingestion. Webhook-based with HMAC-SHA256 verification. Background processing via pg_cron (every 2 minutes). Cursored backfill for historical orders. Health monitoring dashboard. Shopify orders kept separate from internal orders. See [SHOPIFY_WEBHOOK_SETUP.md](SHOPIFY_WEBHOOK_SETUP.md) and [SHOPIFY_SECURITY.md](SHOPIFY_SECURITY.md).
+
+### Buyback & Resale
+Used drone buyback tracking with condition assessment, pricing, and resale management. Profit/loss calculation per unit.
+
+### Repairs
+Drone repair tracking with sequential numbering. Public-facing repair enquiry form. Internal repair management with status workflow.
+
+### Trainings
+Training program management with sequential numbering and certificate generation.
+
+---
+
+## Key Features
+
+| Feature | Description |
+|---------|-------------|
+| AI Lead Scoring | Gemini-powered 1–10 scoring with key factors, risk analysis, and suggested approach |
+| AI Sales Assistant | Conversational chatbot for product/pricing queries (cost-price gated by role) |
+| Sales Pipeline | Stage-based deal tracking with weighted forecast |
+| Inventory Tracking | Trigger-based real-time stock updates |
+| Payroll Automation | Attendance → salary sheet → approval → payslip → bank file → reconciliation |
+| Payslip Generation | PDF payslips with earnings/deductions breakdown |
+| Bank Transfer Files | NEFT-format CSV for bulk salary disbursement |
+| Payroll Reconciliation | Bank statement import, auto-matching, retry file generation |
+| Attendance System | Check-in/out with breaks, corrections, auto-checkout, nudges |
+| Candidate Lifecycle | Application → screening → interview → offer → joining |
+| Document Management | HR documents with folder structure, sharing, and viewer |
+| Invoice Signing | Digital signatures with immutability enforcement (DB triggers) |
+| Custom Forms | Embeddable public forms with file upload support |
+| Task Automation | DB triggers auto-create tasks from enquiries, meetings, hot leads |
+| Gamification | Sales leaderboard with points for orders, deliveries, testimonials |
+| Slack Integration | Automated notifications for hot leads, mega deals, escalations |
+| Audit Logging | Field-level change tracking, security event logging, session tracking |
+| MFA Enforcement | TOTP-based MFA mandatory for all users (AAL2 required) |
+
+---
+
+## System Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
 │              Lovable Cloud                  │
 │                                             │
 │  ┌──────────┐    ┌──────────────────────┐   │
-│  │ Frontend  │    │  Supabase Backend    │   │
+│  │ Frontend  │    │  Backend             │   │
 │  │ (Vite SPA)│───▶│                      │   │
 │  │ CDN-hosted│    │  ┌─────────────────┐ │   │
 │  └──────────┘    │  │ PostgreSQL 15+  │ │   │
 │                   │  │ (90+ tables)    │ │   │
 │                   │  │ RLS policies    │ │   │
 │                   │  │ pg_cron jobs    │ │   │
+│                   │  │ 30+ triggers    │ │   │
 │                   │  └─────────────────┘ │   │
 │                   │                      │   │
 │                   │  ┌─────────────────┐ │   │
 │                   │  │ Edge Functions  │ │   │
-│                   │  │ (Deno runtime)  │ │   │
-│                   │  │ 14 functions    │ │   │
+│                   │  │ (17 functions)  │ │   │
 │                   │  └─────────────────┘ │   │
 │                   │                      │   │
 │                   │  ┌─────────────────┐ │   │
@@ -144,398 +178,336 @@ External users interact only via:
 └─────────────────────────────────────────────┘
 ```
 
-### Edge Functions (14 deployed)
+For detailed security architecture, see [SECURITY_ARCHITECTURE.md](Features/SECURITY_ARCHITECTURE.md).
+
+---
+
+## Tech Stack
+
+### Frontend
+
+| Component | Technology | Version |
+|-----------|------------|---------|
+| Framework | React (SPA) | 18.3.x |
+| Build Tool | Vite | Latest |
+| Language | TypeScript | Strict mode |
+| Styling | Tailwind CSS + shadcn/ui | Latest |
+| State Management | TanStack React Query | 5.x |
+| Routing | React Router DOM | 6.x |
+| Charts | Recharts | 2.x |
+| PDF Generation | jsPDF + jspdf-autotable | 4.x / 5.x |
+| Drag & Drop | @dnd-kit | 6.x |
+| Spreadsheet Export | xlsx (SheetJS) | 0.18.x |
+| QR Code | qrcode.react | 4.x |
+
+### Backend / Infrastructure
+
+| Component | Technology |
+|-----------|------------|
+| Platform | Lovable Cloud |
+| Database | PostgreSQL 15+ |
+| Auth | Email/password with JWT, MFA (TOTP) |
+| Edge Functions | Deno (TypeScript) — auto-deployed |
+| File Storage | Private buckets with RLS |
+| Realtime | PostgreSQL Change Data Capture |
+| Scheduled Jobs | pg_cron |
+| HTTP from DB | pg_net extension |
+
+### Security
+
+| Feature | Implementation |
+|---------|---------------|
+| RBAC | 7-role model via `user_roles` table + `has_role()` security definer |
+| MFA | Universal TOTP enforcement (AAL2 required) |
+| RLS | Enabled on all tables with role-based policies |
+| Audit Logging | `security_audit_log`, `edit_history`, `user_activity_logs` |
+| Session Policy | 12h idle timeout, 5-day absolute timeout |
+| Webhook Security | HMAC-SHA256 with timing-safe comparison |
+
+---
+
+## Deployment Overview
+
+| Layer | Details |
+|-------|---------|
+| **Frontend** | React SPA hosted on Lovable platform (CDN) |
+| **Backend** | Lovable Cloud (PostgreSQL + Edge Functions + Storage) |
+| **Database Migrations** | Stored in `supabase/migrations/` — applied automatically |
+| **Edge Functions** | Deployed automatically from `supabase/functions/` |
+| **Storage** | Private buckets for payslips, invoices, signatures, attachments |
+| **External APIs** | Shopify Admin API, Slack (OAuth connector), Lovable AI Gateway |
+
+---
+
+## Database Overview
+
+**90+ tables** organized by domain. See [DATABASE_SCHEMA.md](Features/DATABASE_SCHEMA.md) for full overview.
+
+| Domain | Key Tables | Purpose |
+|--------|------------|---------|
+| **Auth & Users** | `profiles`, `user_roles`, `user_invitations`, `admin_whitelist`, `user_sessions`, `login_history` | User identity, roles, sessions |
+| **Sales** | `enquiries`, `enquiry_items`, `pipeline_orders`, `lead_tags` | Lead management, pipeline tracking |
+| **Orders** | `orders`, `order_items`, `order_procurement_links` | Order lifecycle |
+| **Procurement** | `inventory_procurements`, `procurement_payment_requests`, `supplier_quotations` | Purchase management |
+| **Inventory** | `inventory`, `inventory_transactions` | Stock tracking |
+| **Suppliers** | `suppliers`, `supplier_ratings`, `supplier_payments` | Supplier management |
+| **Billing** | `quotes`, `invoices`, `invoice_items`, `invoice_payments` | Quotations and invoicing |
+| **Finance** | `expenses`, `expected_payments`, `petty_cash_transactions`, `payment_records` | Financial tracking |
+| **HR** | `employees`, `attendance_logs`, `leave_requests`, `employee_kpis`, `employee_assets` | Employee management |
+| **Payroll** | `salary_sheets`, `salary_sheet_entries`, `employee_payslips`, `payroll_payment_status` | Payroll lifecycle |
+| **Recruitment** | `candidates`, `candidate_documents`, `interview_records` | Hiring pipeline |
+| **Tasks** | `tasks` | Task management |
+| **Meetings** | `meetings` | Calendar and scheduling |
+| **Tickets** | `tickets`, `ticket_comments` | IT support |
+| **Forms** | `forms`, `form_fields`, `form_submissions` | Custom form builder |
+| **Shopify** | `shopify_orders`, `shopify_orders_raw` | E-commerce sync |
+| **Audit** | `security_audit_log`, `edit_history`, `user_activity_logs` | Compliance logging |
+
+---
+
+## Edge Functions
+
+17 deployed edge functions. See [EDGE_FUNCTIONS.md](Features/EDGE_FUNCTIONS.md) for detailed documentation.
 
 | Function | Purpose |
 |----------|---------|
-| `ai-lead-scoring` | AI-powered lead analysis (score 1-10, talking points, risk factors) |
-| `ai-sales-assistant` | Conversational AI for product/pricing queries (role-gated cost-price access) |
-| `send-order-notification` | Email notifications on order events |
-| `send-slack-notification` | Slack channel notifications for hot leads, mega deals |
-| `send-ticket-email` | Email notifications for IT tickets |
-| `approve-invitation` | Server-side user invitation approval |
+| `ai-lead-scoring` | AI-powered lead analysis (score 1–10, talking points, risk factors) |
+| `ai-sales-assistant` | Conversational AI for product/pricing queries |
+| `approve-invitation` | Transactional user invitation approval |
 | `attendance-nudge` | Scheduled attendance reminders |
-| `auto-checkout` | Automatic attendance checkout after configurable hours |
-| `shopify-config` | Shopify credential validation and HMAC utilities |
-| `shopify-webhook` | Receives Shopify order webhooks (HMAC-verified) |
-| `shopify-order-processor` | Batch processes raw Shopify orders into `shopify_orders` |
-| `shopify-order-backfill` | Cursor-based pagination backfill of historical Shopify orders |
-| `shopify-monitor` | Health monitoring for Shopify integration |
-| `upload-form-attachment` | Handles file uploads for custom form submissions |
-
-### API Integrations
-
-| Integration | Method | Purpose |
-|-------------|--------|---------|
-| **Shopify** | Admin API + Webhooks | E-commerce order sync (separate from internal orders) |
-| **Slack** | Connector Gateway | Automated notifications for hot leads, mega deals, escalations |
-| **Lovable AI Gateway** | REST API | LLM-powered lead scoring and sales assistant (Gemini 3 Flash) |
-
-### Third-Party Services
-
-- **Lovable AI Gateway**: Proxied LLM access (Google Gemini models) — no user API key required
-- **Slack Connector**: OAuth-based via Lovable Connector Gateway
-- **Shopify**: Direct Admin API integration with HMAC-verified webhooks
+| `auto-checkout` | Automatic checkout after configurable hours |
+| `demand-forecast` | Inventory demand forecasting |
+| `low-stock-alerts` | Low stock level notifications |
+| `payment-risk-scoring` | Customer payment risk analysis |
+| `send-order-notification` | Email notifications for order events |
+| `send-slack-notification` | Slack channel notifications |
+| `send-ticket-email` | Email notifications for IT tickets |
+| `shopify-config` | Shopify credential validation and health check |
+| `shopify-monitor` | Shopify integration health monitoring |
+| `shopify-order-backfill` | Cursor-based historical order backfill |
+| `shopify-order-processor` | Batch processes raw Shopify orders |
+| `shopify-webhook` | Receives HMAC-verified Shopify order webhooks |
+| `upload-form-attachment` | File uploads for custom form submissions |
 
 ---
 
-## 3. Current Sales Workflow
+## Security Model
 
-### Step-by-Step Flow
+XBoom Workflow follows a **6-layer security architecture** (Network → Authentication → Authorization → API → Data Protection → Monitoring).
 
-```
-Lead Source → Enquiry Creation → Response & Qualification → Pipeline →
-Quotation → Order → Procurement → Delivery → Invoice → Payment
-```
+### Key Security Features
 
-| Step | Process | Manual/Automated |
-|------|---------|-----------------|
-| **1. Lead Source** | Manual entry by sales team via 3-step wizard (Customer → Product → Details). No website form integration for B2B leads. Public form exists only for drone repair enquiries. | **Manual** |
-| **2. Lead Storage** | Stored in `enquiries` table with multi-item support (`enquiry_items`). Includes customer info, product details, GST tracking, urgency/SLA, state-level geography. | Automated (DB) |
-| **3. Lead Qualification** | Sales person sets `lead_temperature` (Hot/Warm/Cold) and `is_mega_deal` flag manually. **AI Lead Scoring** available on-demand (edge function) — provides 1-10 score, key factors, suggested approach, risk factors. No automatic scoring on creation. | **Manual** (AI-assisted on demand) |
-| **4. Task Auto-Creation** | On enquiry creation: auto-creates `sales_followup` task assigned to salesperson. On status change to `responded`: auto-creates `supplier_validation` task for supply chain. On hot lead: auto-creates priority task. On mega deal: auto-creates management review task. | **Automated** (DB triggers) |
-| **5. Proposal/Quotation** | Quotes generated via Billing module with auto-fill from enquiries/pipeline. Supports per-item discounts, GST, payment terms (Advance 100%, 60-40%, 50-50%, Custom). PDF generation via jsPDF. Requires Admin/Supply Chain approval. | **Manual** (with auto-fill) |
-| **6. Follow-up Tracking** | Via `tasks` table — SLA-based due dates computed from urgency level. Meeting scheduling with auto-created reminder tasks for participants. Daily activity logging by sales team. | **Semi-automated** |
-| **7. Pipeline Management** | Separate `pipeline_orders` table tracks deals through stages. Linked to enquiries. Sales leaderboard with points gamification. | **Manual** |
-| **8. Order Creation** | Orders created in `orders` table with auto-generated sequential numbers (`ORD` + YY + 5-digit). Auto-creates procurement record via DB trigger (`auto_create_procurement_on_order`). Awards gamification points. | **Semi-automated** |
-| **9. Invoicing** | Invoice created from order data. Sequential numbering (`INV-YYMM-XXXX`). Digital signature support with audit trail (`invoice_audit_logs`). Signed invoices are immutable (DB trigger enforced). | **Manual** |
-| **10. Payment Tracking** | `payment_records` and `expected_payments` tables. Payment screenshot uploads to private storage bucket. Manual reconciliation. | **Manual** |
-| **11. Delivery Tracking** | Order status progression tracked in `orders.status`. Awards bonus points on delivery completion. | **Manual** |
+- **RBAC**: 7 roles stored in `user_roles` table, checked via `has_role()` security definer function
+- **MFA**: Universal TOTP enforcement — all users must complete AAL2 verification before accessing the application
+- **Session Policy**: 12-hour idle timeout, 5-day absolute timeout, device fingerprinting
+- **RLS**: Row-Level Security on all tables with `is_user_approved()` checks
+- **Admin Controls**: Whitelist-based registration, max 5 admin cap, re-auth for sensitive operations
+- **Webhook HMAC**: Timing-safe HMAC-SHA256 verification for Shopify webhooks
+- **Immutable Records**: Signed invoices protected by database triggers
+- **Private Storage**: All file buckets are private with role-based RLS policies
 
-### Notification Automation
+### Related Security Documents
 
-- Hot lead / Mega deal creation → Slack notification + in-app notification (DB trigger)
-- Lead temperature upgrade → In-app notification (DB trigger)
-- Enquiry escalation → Tracked with reason and timestamp
+- [SECURITY_ARCHITECTURE.md](Features/SECURITY_ARCHITECTURE.md) — 6-layer security model, shared responsibility, audit findings
+- [IDENTITY_AND_ACCESS_MANAGEMENT.md](Features/IDENTITY_AND_ACCESS_MANAGEMENT.md) — Authentication, RBAC, session policy, MFA, access control matrix
+- [SHOPIFY_SECURITY.md](SHOPIFY_SECURITY.md) — Shopify credential management, HMAC verification
+- [SHOPIFY_WEBHOOK_SETUP.md](SHOPIFY_WEBHOOK_SETUP.md) — Webhook registration, testing, security notes
 
 ---
 
-## 4. Marketing Workflow
+## Automation & Triggers
 
-### Current State: Minimal
+### Database Triggers (30+)
 
-The platform has a `marketing` role but **very limited marketing-specific functionality**:
-
-| Area | Current State |
-|------|---------------|
-| Campaign management | **Not implemented** — no campaign tracking or management tools |
-| Ad platform integration | **Not integrated** — no Meta Ads, Google Ads, or other ad platform connections |
-| Email marketing | **Not implemented** — only transactional emails (order notifications, ticket emails) |
-| Lead tracking from ads | **Not implemented** — all leads are manually entered |
-| Analytics | Enquiry-level analytics only (conversion rates, SLA compliance, lead temperature distribution). No marketing attribution. |
-| Customer segmentation | **Not implemented** — no segment definitions or targeting |
-| Content creation | **Not implemented** — no CMS or content management |
-
-### What Exists
-
-- **Customer testimonials**: Sales team submits testimonials with ratings; admin approves. Stored in `customer_testimonials`.
-- **Sales FAQs**: Internal knowledge base for sales team (`sales_faqs` table).
-- **Custom forms**: Form builder with embeddable public forms — could be adapted for lead capture but currently used for general-purpose data collection.
-- **Pricelist**: Product catalog with pricing (`pricelist` table) — currently internal-facing with a public view (`pricelist_public`).
-
-**AI Opportunity**: Marketing is the largest gap. Campaign management, lead attribution, automated nurturing, customer segmentation, and ad platform integrations are all greenfield.
-
----
-
-## 5. Inventory & Supply Chain Workflow
-
-| Area | Implementation | Details |
-|------|---------------|---------|
-| **Inventory tracking** | `inventory` table with `current_stock` field | Stock levels updated via DB triggers on `inventory_transactions` |
-| **Transaction types** | 4 types | Procurement In, Order Fulfilled, Customer Return, Adjustment/Write-off |
-| **Stock updates** | **Real-time** (trigger-based) | `update_inventory_stock` and `revert_inventory_stock` triggers fire on transaction insert/delete |
-| **Reorder process** | **Manual** | No automatic reorder points or alerts |
-| **Supplier management** | `suppliers` table + rating system | Multi-dimensional ratings (delivery, quality, pricing, communication). Supplier score calculated via `get_supplier_score` RPC. On-time delivery percentage tracked. |
-| **Procurement** | `inventory_procurements` table | Auto-created from orders (DB trigger). Sequential numbering (`PROC` + YY + 5-digit). Payment status tracking. Multi-product procurement forms. |
-| **Import logistics** | `imports` + `import_items` tables | Tracks shipments with BL number, container number, ports, shipping method, customs clearance. Document attachments (PO, commercial invoice, packing list, bill of entry, courier docs). |
-| **SKU categorization** | Product name + category based | No formal SKU system — deliberately removed from sales-facing UI. Categories: Consumer Drones, Enterprise Drones, Agriculture Drones, Security Devices, Robotics, Accessories, etc. |
-| **Warehouse management** | **Not implemented** | No multi-warehouse support, bin locations, or warehouse-level tracking |
-| **Forecasting** | **Not implemented** | No demand forecasting, seasonal analysis, or predictive reordering |
-| **Supplier quotations** | `supplier_quotations` table | Tracks competitive quotes from multiple suppliers per procurement |
-| **Procurement-Expense linking** | `expense_procurement_links` | Links expenses to specific procurements for cost tracking |
-
-**Shopify inventory**: Completely separate. `shopify_orders` table stores e-commerce orders independently. No inventory sync between Shopify and internal inventory.
-
----
-
-## 6. Data Availability
-
-### Structured Data
-
-| Data Type | Table(s) | Format | Historical Range | Quality |
-|-----------|----------|--------|-----------------|---------|
-| Sales enquiries | `enquiries`, `enquiry_items`, `enquiry_tags` | PostgreSQL | Since platform launch | Clean — structured wizard input |
-| Pipeline deals | `pipeline_orders`, `pipeline_tags` | PostgreSQL | Since platform launch | Clean |
-| Orders | `orders`, `order_items` | PostgreSQL | Since platform launch | Clean — auto-numbered |
-| Invoices | `invoices`, `invoice_items`, `invoice_payments` | PostgreSQL | Since platform launch | Clean — immutable once signed |
-| Quotes | `quotes`, `quote_items` | PostgreSQL | Since platform launch | Clean |
-| Inventory levels | `inventory`, `inventory_transactions` | PostgreSQL | Since platform launch | Clean — trigger-maintained |
-| Procurement | `inventory_procurements` | PostgreSQL | Since platform launch | Clean |
-| Supplier data | `suppliers`, `supplier_ratings`, `supplier_quotations` | PostgreSQL | Since platform launch | Moderate — ratings are voluntary |
-| Expenses | `expenses` | PostgreSQL | Since platform launch | Clean |
-| Attendance | `attendance_logs`, `attendance_breaks` | PostgreSQL | Since platform launch | Clean — timestamp-based |
-| Employee KPIs | `employee_kpis`, `employee_kpi_progress` | PostgreSQL | Since platform launch | Clean |
-| User activity | `user_activity_logs` | PostgreSQL | Since platform launch | Clean — session-level tracking |
-| Sales gamification | `sales_points`, `sales_daily_activities` | PostgreSQL | Since platform launch | Clean — trigger-generated |
-| Edit history | `edit_history` | PostgreSQL | Since platform launch | Clean — field-level diffs |
-| Shopify orders | `shopify_orders` | PostgreSQL | Backfilled via API | Clean |
-| Customer testimonials | `customer_testimonials` | PostgreSQL | Since platform launch | Clean |
-| Form submissions | `form_submissions` | PostgreSQL (JSONB) | Since platform launch | Variable — depends on form design |
-| Tickets | `tickets`, `ticket_comments` | PostgreSQL | Since platform launch | Clean |
-| Repairs | `repairs`, `drone_repair_enquiries` | PostgreSQL | Since platform launch | Clean |
-
-### Data Access Methods
-
-- **Primary**: Supabase JS client (PostgREST API) with RLS enforcement
-- **Bulk export**: XLSX export available in frontend for orders, enquiries, inventory
-- **Analytics**: In-app Recharts dashboards; `user_activity_logs` for usage analytics
-- **RPC functions**: 10+ database functions for computed data (leaderboards, KPIs, supplier scores, task counts)
-
-### Data Quality Notes
-
-- All user-facing data requires authentication and role-based access
-- Timestamps are UTC (`timestamptz`)
-- Financial amounts stored as `numeric` (not floating point)
-- No data deduplication logic — duplicate leads possible
-- No data archival/purge policy implemented
-
----
-
-## 7. Operational Bottlenecks
-
-### Time-Consuming Processes
-
-1. **Manual lead entry**: Every B2B lead is manually entered via a 3-step wizard. No inbound form, no WhatsApp integration, no email parsing.
-2. **Manual lead qualification**: Sales team manually sets lead temperature. AI scoring exists but must be triggered per-lead (not batch).
-3. **Quote approval workflow**: Requires manual admin/supply chain review. No automated approval rules based on deal size or margin.
-4. **Payment reconciliation**: Payment screenshots uploaded manually. No bank feed integration or automatic matching.
-5. **Supplier quotation comparison**: Manual collection and comparison. No automated RFQ distribution.
-
-### Manual Repetitive Tasks
-
-1. **Daily activity logging**: Sales team manually logs daily activities.
-2. **Attendance corrections**: Provisional checkout corrections require manual HR review.
-3. **Inventory stock checks**: No automated low-stock alerts or reorder triggers.
-4. **Follow-up reminders**: Task-based but manually created beyond the auto-generated ones.
-
-### Error-Prone Steps
-
-1. **Pricing accuracy**: No automated margin calculation or pricing guard rails. Sales can quote any price.
-2. **Order-to-procurement linking**: Auto-created but manual unlinking/relinking is possible.
-3. **Invoice-order consistency**: No automated validation that invoice totals match order totals.
-4. **Duplicate leads**: No deduplication check on customer name/company/phone.
-
-### Sales Cycle Delays
-
-1. **No automated follow-up sequences**: Single task created per enquiry; no drip/sequence automation.
-2. **No customer self-service**: Customers cannot check order status, download invoices, or submit enquiries online (except repairs).
-3. **No WhatsApp/email integration**: All communication happens outside the platform.
-
-### Cash Flow Challenges
-
-1. **Expected payments tracking is manual**: No automatic extraction from invoice payment terms.
-2. **No aging analysis**: Overdue invoice tracking is basic (status-based, not duration-based).
-3. **No bank integration**: Cash position requires manual reconciliation.
-
-### Inventory Misalignment
-
-1. **Shopify stock not synced**: E-commerce and internal inventory are completely separate.
-2. **No multi-warehouse tracking**: Single stock count per product.
-3. **No safety stock / reorder point alerts**.
-
----
-
-## 8. Scalability Constraints
-
-### Current System Limitations
-
-| Constraint | Detail |
-|-----------|--------|
-| **Database query limit** | Supabase default 1000-row limit per query. Pagination required for large datasets. |
-| **Single-tenant** | Built for one organization. No multi-tenancy support. |
-| **No caching layer** | React Query provides client-side caching (5-min stale time) but no server-side cache (Redis, etc.). |
-| **Edge function cold starts** | Deno edge functions have cold start latency (~200-500ms). |
-| **No background job queue** | Only pg_cron for scheduled tasks. No proper job queue for long-running operations. |
-| **File storage limits** | Supabase Storage limits apply. No CDN optimization for large file delivery. |
-| **No API rate limiting** | Edge functions have no request rate limiting beyond Supabase defaults. |
-| **Frontend monolith** | Single SPA with 25+ routes. Bundle size will grow with features. No code splitting beyond route-level lazy loading. |
-
-### Team Size
-
-- Platform serves an internal team (exact size not specified in code, but role structure suggests 10-50 users).
-- Max 5 admin users (hard-coded constraint).
-
-### Expected Growth Considerations
-
-- Adding more product categories / SKUs → inventory table can handle but lacks hierarchy.
-- Adding more sales team members → gamification and leaderboard scale with user count.
-- Adding more Shopify channels → current architecture supports one store only.
-- International expansion → no multi-currency support (INR assumed throughout; ₹ symbol hardcoded).
-
----
-
-## 9. Existing Automation
-
-### Database Triggers (Active)
-
-| Trigger | Table | Purpose |
-|---------|-------|---------|
-| `generate_order_number` | `orders` | Auto-sequential order numbering |
-| `generate_repair_number` | `repairs` | Auto-sequential repair numbering |
-| `generate_procurement_number` | `inventory_procurements` | Auto-sequential procurement numbering |
-| `generate_quote_number` | `quotes` | Auto-sequential quote numbering |
-| `generate_invoice_number` | `invoices` | Auto-sequential invoice numbering |
-| `generate_ticket_number` | `tickets` | Auto-sequential ticket numbering |
-| `generate_training_number` | `trainings` | Auto-sequential training numbering |
-| `auto_create_procurement_on_order` | `orders` | Creates procurement record when order is created |
-| `update_inventory_stock` | `inventory_transactions` | Adjusts stock on transaction insert |
-| `revert_inventory_stock` | `inventory_transactions` | Reverts stock on transaction delete |
-| `calculate_working_hours` | `attendance_logs` | Computes working hours from check-in/out times |
-| `create_enquiry_task` | `enquiries` | Auto-creates sales follow-up task |
-| `create_supplier_validation_task` | `enquiries` | Auto-creates supply chain task on response |
-| `create_hot_lead_task` | `enquiries` | Auto-creates priority task for hot leads / mega deals |
-| `create_followup_task_on_completion` | `tasks` | Cascading task creation (supplier validation → finance review) |
-| `create_meeting_reminder_tasks` | `meetings` | Auto-creates reminder tasks for meeting participants |
-| `notify_on_hot_lead_enquiry` | `enquiries` | In-app notification for hot leads (INSERT) |
-| `notify_on_hot_lead_pipeline` | `pipeline_orders` | In-app notification for hot pipeline leads |
-| `notify_on_lead_upgrade` | `enquiries` | Notification when lead temperature upgraded (UPDATE) |
-| `award_points_on_order_create` | `orders` | Gamification points for order creation |
-| `award_points_on_delivery` | `orders` | Gamification points on delivery completion |
-| `award_points_on_pipeline_create` | `pipeline_orders` | Gamification points for pipeline entries |
-| `award_points_on_testimonial` | `customer_testimonials` | Gamification points for testimonial submission |
-| `award_points_on_testimonial_approval` | `customer_testimonials` | Bonus points on approval |
-| `prevent_signed_invoice_edit` | `invoices` | Immutability enforcement for signed invoices |
-| `prevent_signed_invoice_delete` | `invoices` | Deletion prevention for signed invoices |
-| `log_invoice_signing` | `invoices` | Audit trail for invoice signing events |
-| `validate_form_submission` | `form_submissions` | Server-side validation of form data against field schema |
-| `create_employee_on_profile_approval` | `profiles` | Auto-creates employee record when profile is approved |
-| `calculate_ticket_sla` | `tickets` | Auto-sets SLA due date based on ticket priority |
+| Category | Examples |
+|----------|----------|
+| **Auto-numbering** | Orders (`ORD`), repairs, procurements, quotes, invoices, tickets, trainings |
+| **Task creation** | Sales follow-up on enquiry, supplier validation on response, hot lead priority tasks, meeting reminders |
+| **Stock management** | Auto-adjust inventory on transaction insert/delete |
+| **Procurement** | Auto-create procurement record when order is created |
+| **Gamification** | Award points on order creation, delivery, pipeline entry, testimonial |
+| **Notifications** | In-app alerts for hot leads, lead temperature upgrades |
+| **Invoice security** | Prevent edit/delete of signed invoices, log signing events |
+| **Validation** | Form submission validation against field schema |
+| **HR automation** | Calculate working hours, create employee on profile approval, calculate ticket SLA |
 
 ### Scheduled Jobs (pg_cron)
 
 | Job | Schedule | Purpose |
 |-----|----------|---------|
-| Shopify order processor | Every 2 minutes | Processes `shopify_orders_raw` → `shopify_orders` via edge function |
-| Auto-checkout | Configurable | Automatically checks out employees after max hours |
-| Attendance nudge | Configurable | Sends reminders for missing check-in/checkout |
-
-### AI Usage
-
-| Feature | Model | Trigger | Output |
-|---------|-------|---------|--------|
-| **Lead Scoring** | Google Gemini 3 Flash (via Lovable AI Gateway) | On-demand per enquiry | Score 1-10, confidence level, key factors, suggested approach, priority actions, talking points, risk factors, recommended timeline |
-| **Sales Assistant** | Google Gemini 3 Flash | Conversational chatbot on Sales/Pricelist pages | Natural language answers about product specs, pricing, availability. Cost-price data restricted to admin/supply_chain roles via server-side JWT verification. |
-
-### Integrations
-
-| System | Type | Status |
-|--------|------|--------|
-| Shopify | Webhook ingestion + REST API backfill | Active |
-| Slack | Connector Gateway (OAuth) | Active |
-| Lovable AI Gateway | REST API (no user key required) | Active |
+| Shopify order processor | Every 2 minutes | Processes raw webhook data into structured orders |
+| Auto-checkout | Configurable | Checks out employees after max hours |
+| Attendance nudge | Configurable | Reminds employees about missing check-in/checkout |
 
 ---
 
-## 10. Security & Compliance
+## Storage Buckets
 
-### Data Protection
-
-| Measure | Implementation |
-|---------|---------------|
-| **Row-Level Security (RLS)** | Enabled on all tables. Policies enforce role-based and user-based data access at the database level. |
-| **JWT verification** | All edge functions verify JWT tokens server-side before processing requests. |
-| **Private storage buckets** | `invoices`, `signatures`, `payment-screenshots`, `training-pictures`, `ticket-attachments` — all private with role-restricted RLS policies. |
-| **Webhook HMAC validation** | Shopify webhooks verified via HMAC-SHA256 with timing-safe comparison. |
-| **Credential management** | All API keys/tokens stored as encrypted secrets (never in code). `SHOPIFY_ADMIN_API_TOKEN`, `SHOPIFY_API_SECRET`, `SLACK_API_KEY` are server-side only. |
-| **Signed invoice immutability** | Database triggers prevent modification or deletion of signed invoices. Audit log captures signing events with invoice hash. |
-| **Form submission validation** | Server-side trigger validates all form submissions against field schema (type checking, required fields, option validation, size limits). |
-| **Admin registration controls** | Whitelist-based + max 5 admin cap, validated via server-side RPC. |
-
-### Role-Based Access Control
-
-| Data | Access Rules |
-|------|-------------|
-| Enquiries | Sales sees own only; Admin/Supply Chain/Finance see all |
-| Orders | Sales sees own; Admin/Supply Chain see all |
-| Payment screenshots | Admin + Finance only |
-| Cost pricing (AI assistant) | Admin + Supply Chain only (server-side enforced) |
-| HR documents | HR/Admin see all; employees see shared + personal folders |
-| Attendance corrections | Self-correction within window; HR/Admin override anytime with audit trail |
-| Form management | Granular per-user permissions (view/create/edit/view submissions/delete submissions) |
-| Inventory | All roles can view; Supply Chain + Admin can manage |
-| Tickets | Assigned user + IT + Admin access |
-
-### Compliance Considerations
-
-- **No explicit defense/security product compliance** (e.g., ITAR, EAR) implemented despite dealing with drone/security equipment.
-- **No GDPR/data privacy tooling** — no data export, deletion, or consent management for customer data.
-- **Audit trail**: `edit_history` table tracks field-level changes across tables. `user_activity_logs` tracks session-level user behavior.
-- **No data encryption at rest** beyond Supabase defaults.
-- **No penetration testing or security scanning** integrated into CI/CD.
+| Bucket | Purpose | Access |
+|--------|---------|--------|
+| `payslips` | Generated employee payslip PDFs | HR + Admin |
+| `payroll_transfers` | Bank transfer files | Finance + Admin |
+| `invoices` | Invoice PDFs and attachments | Finance + Admin |
+| `signatures` | Admin digital signatures | Admin only |
+| `payment-screenshots` | Payment proof uploads | Finance + Admin |
+| `avatars` | Employee profile photos | User's own |
+| `training-pictures` | Training documentation | HR + Admin |
+| `ticket-attachments` | IT ticket file attachments | Assigned + IT + Admin |
+| `form-attachments` | Custom form file uploads | Authenticated users |
+| `hr-documents` | HR document storage | Per-share permissions |
+| `candidate-documents` | Recruitment documents | HR + Admin |
 
 ---
 
-## Appendix: High-Level Architecture Diagram
+## Audit Logging
 
-```mermaid
-graph TB
-    subgraph "Frontend (React SPA)"
-        UI[Xboom OS Dashboard]
-        AUTH[Auth Page]
-        PUB[Public Forms]
-    end
+All security-sensitive events are recorded in `security_audit_log`. Field-level changes tracked in `edit_history`. Session activity in `user_activity_logs`.
 
-    subgraph "Lovable Cloud (Supabase)"
-        subgraph "Edge Functions (Deno)"
-            AI_LS[ai-lead-scoring]
-            AI_SA[ai-sales-assistant]
-            SHOP_WH[shopify-webhook]
-            SHOP_PROC[shopify-order-processor]
-            SHOP_BF[shopify-order-backfill]
-            SLACK_FN[send-slack-notification]
-            NOTIF[send-order-notification]
-            ATT[auto-checkout / attendance-nudge]
-        end
+### Key Audited Events
 
-        subgraph "PostgreSQL"
-            DB[(90+ Tables)]
-            TRIGGERS[30+ Triggers]
-            RLS[RLS Policies]
-            CRON[pg_cron Jobs]
-            RPC[RPC Functions]
-        end
+| Event | Trigger |
+|-------|---------|
+| `SALARY_SHEET_CREATED` | New salary sheet created |
+| `SALARY_SHEET_LOCKED` | Sheet finalized for payment |
+| `PAYSLIP_GENERATED` | Payslip PDF created |
+| `BANK_TRANSFER_FILE_GENERATED` | NEFT file downloaded |
+| `PAYROLL_PAYMENT_MARKED_PAID` | Payment status updated |
+| `PAYROLL_RECONCILIATION_FILE_IMPORTED` | Bank statement uploaded |
+| `BANK_UPDATE_REQUEST_CREATED` | Employee bank detail change request |
+| `BANK_UPDATE_REQUEST_APPROVED` | Bank detail change approved |
+| `ROLE_ASSIGNED` / `ROLE_REMOVED` | User role changes |
+| `USER_APPROVED` | New user approved by admin |
+| `MFA_ENABLED` / `MFA_DISABLED` | MFA status changes |
+| `SESSION_IDLE_TIMEOUT` / `SESSION_ABSOLUTE_TIMEOUT` | Session expirations |
+| `PASSWORD_CHANGED` | Password updates |
+| `INVOICE_SIGNED` | Invoice digitally signed |
 
-        STORAGE[(Storage Buckets)]
-        REALTIME[Realtime CDC]
-    end
+---
 
-    subgraph "External"
-        SHOPIFY[Shopify Admin API]
-        SLACK[Slack API]
-        AI_GW[Lovable AI Gateway<br/>Gemini 3 Flash]
-    end
+## Payroll Lifecycle
 
-    UI --> DB
-    UI --> STORAGE
-    UI --> AI_LS
-    UI --> AI_SA
-    AUTH --> DB
-    PUB --> DB
+Complete end-to-end payroll flow managed within the system:
 
-    SHOP_WH --> DB
-    CRON --> SHOP_PROC
-    SHOP_PROC --> DB
-    SHOP_BF --> SHOPIFY
-
-    AI_LS --> AI_GW
-    AI_SA --> AI_GW
-    SLACK_FN --> SLACK
-
-    TRIGGERS --> DB
-    DB --> REALTIME
-    REALTIME --> UI
+```
+Attendance Data (daily check-in/out)
+       ↓
+Leave Calculation (deductions computed)
+       ↓
+Salary Sheet Creation (auto-populated from employee data)
+       ↓
+HR Approval (HR reviews and submits)
+       ↓
+Finance Approval (Finance verifies)
+       ↓
+Sheet Locked (finalized, no further edits)
+       ↓
+Payslip Generation (PDF per employee)
+       ↓
+Bank Transfer File Generation (NEFT CSV)
+       ↓
+Upload to Bank Portal (manual)
+       ↓
+Payroll Reconciliation (bank statement import, status tracking)
 ```
 
+See [PAYROLL_MODULE.md](Features/PAYROLL_MODULE.md) for detailed documentation.
+
 ---
 
-*Document generated: 2026-02-21 | Source: Xboom Workflow codebase analysis*
+## Local Development
+
+### Prerequisites
+
+- Node.js 18+
+- npm or bun
+
+### Setup
+
+```bash
+# Clone repository
+git clone <repo-url>
+cd xboom-workflow
+
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+```
+
+### Environment Variables
+
+The following are auto-configured by Lovable Cloud:
+
+| Variable | Purpose |
+|----------|---------|
+| `VITE_SUPABASE_URL` | Backend API URL |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Client-side API key |
+| `VITE_SUPABASE_PROJECT_ID` | Project identifier |
+
+See [LOCAL_SETUP.md](Features/LOCAL_SETUP.md) for detailed instructions.
+
+---
+
+## Related Documentation
+
+| Document | Description |
+|----------|-------------|
+| [PAYROLL_MODULE.md](Features/PAYROLL_MODULE.md) | Complete payroll system documentation |
+| [HR_OPERATIONS.md](Features/HR_OPERATIONS.md) | HR operations guide |
+| [EDGE_FUNCTIONS.md](Features/EDGE_FUNCTIONS.md) | Edge function reference |
+| [DATABASE_SCHEMA.md](Features/DATABASE_SCHEMA.md) | Database schema overview |
+| [LOCAL_SETUP.md](Features/LOCAL_SETUP.md) | Local development setup |
+| [SECURITY_ARCHITECTURE.md](Features/SECURITY_ARCHITECTURE.md) | Security architecture |
+| [IDENTITY_AND_ACCESS_MANAGEMENT.md](Features/IDENTITY_AND_ACCESS_MANAGEMENT.md) | IAM documentation |
+| [SHOPIFY_SECURITY.md](SHOPIFY_SECURITY.md) | Shopify credential security |
+| [SHOPIFY_WEBHOOK_SETUP.md](SHOPIFY_WEBHOOK_SETUP.md) | Webhook setup guide |
+
+---
+
+## Future Roadmap
+
+- [ ] Company operations dashboard (executive overview)
+- [ ] Payroll analytics and department cost reports
+- [ ] Multi-warehouse inventory tracking
+- [ ] WhatsApp / email integration for lead capture
+- [ ] Customer self-service portal
+- [ ] Automated follow-up sequences
+- [ ] Bank feed integration for payment reconciliation
+- [ ] Multi-currency support
+- [ ] Marketing campaign management
+- [ ] Advanced demand forecasting with ML
+
+---
+
+## Contribution Guidelines
+
+### Code Style
+
+- TypeScript strict mode — no `any` types without justification
+- Tailwind CSS with semantic design tokens — no hardcoded colors
+- shadcn/ui components with proper variants
+- React Query for all server state
+- Small, focused components (< 300 lines)
+
+### Pull Requests
+
+- Clear description of what changed and why
+- Link related issues
+- Include screenshots for UI changes
+- Ensure all existing functionality still works
+
+### Commit Messages
+
+```
+feat: add payroll reconciliation dashboard
+fix: correct attendance deduction calculation
+docs: update payroll module documentation
+refactor: extract payment status component
+```
+
+Use conventional commit format: `type: description`
+
+---
+
+*Last updated: 2026-03-06 | Source: XBoom Workflow codebase*
