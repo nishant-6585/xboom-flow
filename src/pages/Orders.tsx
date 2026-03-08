@@ -84,7 +84,7 @@ export default function Orders() {
   const paymentTermsOptions = [...new Set(orders.map(o => o.payment_terms).filter(Boolean))] as string[];
   const salesPersonOptions = [...new Set(orders.map(o => o.sales_person_name).filter(Boolean))] as string[];
 
-  const canCreateOrder = role === 'sales' || role === 'supply_chain' || role === 'admin';
+  const canCreateOrder = role === 'sales' || role === 'sales_manager' || role === 'supply_chain' || role === 'admin';
   const isAdmin = role === 'admin';
   const canViewRefunds = role === 'supply_chain' || role === 'admin';
   const canViewProcurementWidget = role === 'admin' || role === 'supply_chain' || role === 'finance';

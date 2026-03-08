@@ -33,7 +33,7 @@ export function MobileBottomNav() {
 
   // More menu items based on role with icons
   const moreItems = [
-    { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/pricelist", label: "Pricelist", icon: FileSpreadsheet, roles: ["sales", "supply_chain", "admin"] },
     { path: "/procurement", label: "Procurement", icon: ShoppingCart, roles: ["admin", "supply_chain", "finance"] },
     { path: "/inventory", label: "Inventory", icon: Warehouse, roles: ["sales", "supply_chain", "admin"] },

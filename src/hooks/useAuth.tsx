@@ -3,10 +3,10 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { recordSession } from "@/lib/sessionTracking";
 
-type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketing" | "hr";
+type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketing" | "hr" | "sales_manager";
 
 // Priority order for determining primary role (highest privilege first)
-const ROLE_PRIORITY: AppRole[] = ["admin", "hr", "finance", "supply_chain", "it", "marketing", "sales"];
+const ROLE_PRIORITY: AppRole[] = ["admin", "hr", "finance", "supply_chain", "sales_manager", "it", "marketing", "sales"];
 
 interface Profile {
   id: string;

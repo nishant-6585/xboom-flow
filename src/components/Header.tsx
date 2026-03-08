@@ -77,16 +77,16 @@ export function Header() {
 
   // Secondary navigation items (Tasks, HR, Expenses, Forms, Repairs, Trainings, Tickets)
   const secondaryNavItems = [
-    { path: "/tasks", label: "Tasks", icon: ListTodo, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/tickets", label: "Tickets", icon: Ticket, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/hr", label: "HR", icon: Users, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/meetings", label: "Meetings", icon: CalendarDays, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/expenses", label: "Expenses", icon: Receipt, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/repairs", label: "Repairs", icon: Wrench, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/trainings", label: "Training", icon: GraduationCap, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/billing", label: "Billing", icon: FileText, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/buyback", label: "Buyback", icon: RotateCcw, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/tasks", label: "Tasks", icon: ListTodo, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/tickets", label: "Tickets", icon: Ticket, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/hr", label: "HR", icon: Users, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/meetings", label: "Meetings", icon: CalendarDays, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/expenses", label: "Expenses", icon: Receipt, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/repairs", label: "Repairs", icon: Wrench, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/trainings", label: "Training", icon: GraduationCap, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/billing", label: "Billing", icon: FileText, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/buyback", label: "Buyback", icon: RotateCcw, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance"] },
     { path: "/model-review", label: "Model Review", icon: Activity, roles: ["admin", "supply_chain", "finance"] },
   ];
 
