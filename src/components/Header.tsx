@@ -63,12 +63,12 @@ export function Header() {
 
   // Main navigation items
   const mainNavItems = [
-    { path: "/", label: "Dashboard", icon: Home, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/sales", label: "Sales", icon: Zap, roles: ["sales", "supply_chain", "admin"] },
-    { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/pricelist", label: "Pricelist", icon: FileSpreadsheet, roles: ["sales", "supply_chain", "admin"] },
+    { path: "/", label: "Dashboard", icon: Home, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/sales", label: "Sales", icon: Zap, roles: ["sales", "sales_manager", "supply_chain", "admin"] },
+    { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/pricelist", label: "Pricelist", icon: FileSpreadsheet, roles: ["sales", "sales_manager", "supply_chain", "admin"] },
     { path: "/procurement", label: "Procurement", icon: ShoppingCart, roles: ["admin", "supply_chain", "finance"] },
-    { path: "/inventory", label: "Inventory", icon: Warehouse, roles: ["sales", "supply_chain", "admin"] },
+    { path: "/inventory", label: "Inventory", icon: Warehouse, roles: ["sales", "sales_manager", "supply_chain", "admin"] },
     { path: "/suppliers", label: "Suppliers", icon: Building2, roles: ["admin", "supply_chain", "finance"] },
     { path: "/finance", label: "Finance", icon: IndianRupee, roles: ["admin", "finance"] },
     { path: "/tally", label: "Tally", icon: BookCheck, roles: ["admin"] },
@@ -77,16 +77,16 @@ export function Header() {
 
   // Secondary navigation items (Tasks, HR, Expenses, Forms, Repairs, Trainings, Tickets)
   const secondaryNavItems = [
-    { path: "/tasks", label: "Tasks", icon: ListTodo, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/tickets", label: "Tickets", icon: Ticket, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/hr", label: "HR", icon: Users, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/meetings", label: "Meetings", icon: CalendarDays, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/expenses", label: "Expenses", icon: Receipt, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/repairs", label: "Repairs", icon: Wrench, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/trainings", label: "Training", icon: GraduationCap, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/billing", label: "Billing", icon: FileText, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/buyback", label: "Buyback", icon: RotateCcw, roles: ["sales", "supply_chain", "admin", "finance"] },
+    { path: "/tasks", label: "Tasks", icon: ListTodo, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/tickets", label: "Tickets", icon: Ticket, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/hr", label: "HR", icon: Users, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/meetings", label: "Meetings", icon: CalendarDays, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/expenses", label: "Expenses", icon: Receipt, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/repairs", label: "Repairs", icon: Wrench, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/trainings", label: "Training", icon: GraduationCap, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/billing", label: "Billing", icon: FileText, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/buyback", label: "Buyback", icon: RotateCcw, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance"] },
     { path: "/model-review", label: "Model Review", icon: Activity, roles: ["admin", "supply_chain", "finance"] },
   ];
 

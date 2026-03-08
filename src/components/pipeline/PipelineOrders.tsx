@@ -19,8 +19,8 @@ export function PipelineOrders({ enquiryIdFilter, selectedLeadId }: PipelineOrde
   const [activeTab, setActiveTab] = useState('list');
   const [statusFilter, setStatusFilter] = useState<PipelineStatus | 'all'>('all');
 
-  const canCreate = role === 'sales' || role === 'supply_chain' || role === 'admin';
-  const canViewAnalytics = role === 'sales' || role === 'supply_chain' || role === 'admin';
+  const canCreate = role === 'sales' || role === 'sales_manager' || role === 'supply_chain' || role === 'admin';
+  const canViewAnalytics = role === 'sales' || role === 'sales_manager' || role === 'supply_chain' || role === 'admin';
 
   // Filter by enquiry_id if provided
   const filteredByEnquiry = enquiryIdFilter 
