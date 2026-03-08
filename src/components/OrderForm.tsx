@@ -33,7 +33,7 @@ interface OrderFormProps {
   enquiries?: Enquiry[];
   suppliers?: Supplier[];
   showProcurementRate?: boolean;
-  userRole?: 'sales' | 'supply_chain' | 'admin';
+  userRole?: 'sales' | 'sales_manager' | 'supply_chain' | 'admin';
 }
 
 const STEPS = [
