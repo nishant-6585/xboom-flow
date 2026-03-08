@@ -27,7 +27,7 @@ export function MobileBottomNav() {
   const navItems = [
     { path: "/", label: "Home", icon: Home },
     { path: "/tasks", label: "Tasks", icon: ListTodo, badge: taskCounts?.new_tasks || 0 },
-    { path: "/sales", label: "Sales", icon: Zap, roles: ["sales", "supply_chain", "admin"] },
+    { path: "/sales", label: "Sales", icon: Zap, roles: ["sales", "sales_manager", "supply_chain", "admin"] },
     { path: "/meetings", label: "Meetings", icon: Calendar },
   ];
 
