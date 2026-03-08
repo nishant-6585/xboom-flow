@@ -7020,6 +7020,7 @@ export type Database = {
         | "it"
         | "marketing"
         | "hr"
+        | "sales_manager"
       application_source:
         | "Referral"
         | "Naukri"
@@ -7318,6 +7319,7 @@ export const Constants = {
         "it",
         "marketing",
         "hr",
+        "sales_manager",
       ],
       application_source: [
         "Referral",
