@@ -54,6 +54,9 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error('Please log in to use the AI assistant');
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout
+
       const response = await fetch(CHAT_URL, {
         method: 'POST',
         headers: {
@@ -61,7 +64,10 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ messages: allMessages }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -125,11 +131,21 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
       }
     } catch (error) {
       console.error('Chat error:', error);
+      let errorMsg = 'Unknown error';
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMsg = 'The request took too long. Please try a simpler query.';
+        } else if (error.message === 'Load failed' || error.message === 'Failed to fetch') {
+          errorMsg = 'Network error — the request may have timed out. Please try again.';
+        } else {
+          errorMsg = error.message;
+        }
+      }
       setMessages(prev => [
         ...prev.filter(m => m.content !== ''),
         {
           role: 'assistant',
-          content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+          content: `Sorry, I encountered an error: ${errorMsg}`,
         },
       ]);
     } finally {
