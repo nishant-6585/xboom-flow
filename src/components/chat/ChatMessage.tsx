@@ -1,4 +1,5 @@
 import { Bot, User } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
 
 interface ChatMessageProps {
@@ -11,9 +12,9 @@ export function ChatMessage({ role, content, isStreaming }: ChatMessageProps) {
   const isUser = role === 'user';
 
   return (
-    <div className={cn('flex gap-2', isUser ? 'justify-end' : 'justify-start')}>
+    <div className={cn('flex gap-2 animate-fade-in', isUser ? 'justify-end' : 'justify-start')}>
       {!isUser && (
-        <div className="shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+        <div className="shrink-0 w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
           <Bot className="w-3.5 h-3.5 text-primary" />
         </div>
       )}
@@ -25,13 +26,19 @@ export function ChatMessage({ role, content, isStreaming }: ChatMessageProps) {
             : 'bg-muted rounded-bl-sm'
         )}
       >
-        <div className="whitespace-pre-wrap break-words">
-          {content || (isStreaming ? '•••' : '')}
-        </div>
+        {isUser ? (
+          <div className="whitespace-pre-wrap break-words">{content}</div>
+        ) : content ? (
+          <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_table]:text-xs [&_code]:text-xs [&_code]:bg-background/50 [&_code]:px-1 [&_code]:rounded [&_pre]:bg-background/50 [&_pre]:text-xs">
+            <ReactMarkdown>{content}</ReactMarkdown>
+          </div>
+        ) : isStreaming ? (
+          <span className="text-muted-foreground">•••</span>
+        ) : null}
       </div>
       {isUser && (
-        <div className="shrink-0 w-6 h-6 rounded-full bg-secondary flex items-center justify-center mt-0.5">
-          <User className="w-3.5 h-3.5" />
+        <div className="shrink-0 w-7 h-7 rounded-full bg-secondary flex items-center justify-center mt-0.5">
+          <User className="w-3.5 h-3.5 text-muted-foreground" />
         </div>
       )}
     </div>

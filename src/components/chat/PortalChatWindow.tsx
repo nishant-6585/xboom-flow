@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, Send, X, Loader2, Sparkles, Trash2, Minimize2 } from 'lucide-react';
+import { Bot, Send, X, Loader2, Sparkles, Trash2, Zap, BarChart3, Package, Users, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -15,10 +14,10 @@ interface Message {
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-portal-assistant`;
 
 const QUICK_PROMPTS = [
-  "Show me today's dashboard summary",
-  "What are the pending orders?",
-  "Show hot leads",
-  "Low stock items?",
+  { icon: BarChart3, label: "Dashboard summary", prompt: "Show me today's dashboard summary" },
+  { icon: Package, label: "Pending orders", prompt: "What are the pending orders?" },
+  { icon: Zap, label: "Hot leads", prompt: "Show me all hot leads" },
+  { icon: ClipboardList, label: "My tasks", prompt: "What tasks are assigned to me?" },
 ];
 
 interface PortalChatWindowProps {
@@ -30,7 +29,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -53,9 +52,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error('Please log in to use the AI assistant');
-      }
+      if (!session?.access_token) throw new Error('Please log in to use the AI assistant');
 
       const response = await fetch(CHAT_URL, {
         method: 'POST',
@@ -70,7 +67,6 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to get response');
       }
-
       if (!response.body) throw new Error('No response body');
 
       const reader = response.body.getReader();
@@ -82,7 +78,6 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
         buffer += decoder.decode(value, { stream: true });
 
         let newlineIndex: number;
@@ -134,57 +129,97 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
     streamChat(input.trim());
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
   return (
     <div className={cn(
-      "fixed z-50 flex flex-col bg-background border border-border rounded-2xl shadow-2xl",
-      "bottom-4 right-4 w-[420px] h-[600px]",
-      "max-sm:inset-2 max-sm:w-auto max-sm:h-auto max-sm:rounded-xl"
+      "fixed z-50 flex flex-col animate-scale-in",
+      "bg-background/95 backdrop-blur-xl border border-border/60 shadow-2xl",
+      // Desktop: left-aligned panel
+      "bottom-4 left-4 w-[400px] h-[620px] rounded-2xl",
+      // Mobile: full screen
+      "max-sm:inset-0 max-sm:w-full max-sm:h-full max-sm:rounded-none max-sm:bottom-0 max-sm:left-0"
     )}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-lg bg-primary/10">
-            <Bot className="w-5 h-5 text-primary" />
+      {/* Header with gradient accent */}
+      <div className="relative overflow-hidden rounded-t-2xl max-sm:rounded-t-none">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent" />
+        <div className="relative flex items-center justify-between px-4 py-3 border-b border-border/40">
+          <div className="flex items-center gap-3">
+            <div className="relative p-2 rounded-xl bg-primary/15">
+              <Bot className="w-5 h-5 text-primary" />
+              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-success border-2 border-background" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground leading-none">XBoom AI</h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5 font-medium tracking-wide uppercase">
+                Intelligent Portal Assistant
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-sm font-semibold leading-none">XBoom AI</h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Ask anything about your data</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          {messages.length > 0 && (
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setMessages([])} title="Clear chat">
-              <Trash2 className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-1">
+            {messages.length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                onClick={() => setMessages([])}
+                title="Clear chat"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+              onClick={onClose}
+            >
+              <X className="w-4 h-4" />
             </Button>
-          )}
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-            <X className="w-4 h-4" />
-          </Button>
+          </div>
         </div>
       </div>
 
       {/* Messages */}
       <ScrollArea className="flex-1 px-4 py-3" ref={scrollRef}>
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center py-8">
-            <div className="p-3 rounded-full bg-primary/10 mb-3">
-              <Sparkles className="w-6 h-6 text-primary" />
+          <div className="h-full flex flex-col items-center justify-center text-center py-6">
+            {/* Animated orb */}
+            <div className="relative mb-5">
+              <div className="absolute inset-0 rounded-full bg-primary/20 animate-pulse scale-150" />
+              <div className="relative p-4 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/10">
+                <Sparkles className="w-7 h-7 text-primary" />
+              </div>
             </div>
-            <h3 className="text-sm font-semibold mb-1">How can I help?</h3>
-            <p className="text-xs text-muted-foreground mb-4 max-w-[280px]">
-              I can query orders, leads, inventory, tasks, and more — all based on your access level.
+
+            <h3 className="text-base font-bold text-foreground mb-1">What can I help with?</h3>
+            <p className="text-xs text-muted-foreground mb-5 max-w-[260px] leading-relaxed">
+              Query orders, leads, inventory, HR data and more — powered by AI with your access level.
             </p>
-            <div className="flex flex-wrap gap-1.5 justify-center max-w-sm">
-              {QUICK_PROMPTS.map((prompt, i) => (
-                <Button
+
+            {/* Quick prompt cards */}
+            <div className="grid grid-cols-2 gap-2 w-full max-w-[320px]">
+              {QUICK_PROMPTS.map(({ icon: Icon, label, prompt }, i) => (
+                <button
                   key={i}
-                  variant="outline"
-                  size="sm"
-                  className="text-[11px] h-7 px-2.5"
                   onClick={() => !isLoading && streamChat(prompt)}
+                  className={cn(
+                    "flex items-center gap-2 p-2.5 rounded-xl text-left",
+                    "bg-card border border-border/50 hover:border-primary/30",
+                    "hover:bg-primary/5 transition-all duration-200",
+                    "group cursor-pointer"
+                  )}
                 >
-                  {prompt}
-                </Button>
+                  <div className="p-1.5 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors shrink-0">
+                    <Icon className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <span className="text-[11px] font-medium text-foreground leading-tight">{label}</span>
+                </button>
               ))}
             </div>
           </div>
@@ -198,26 +233,61 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                 isStreaming={isLoading && i === messages.length - 1 && msg.role === 'assistant'}
               />
             ))}
+            {isLoading && messages[messages.length - 1]?.role === 'user' && (
+              <div className="flex gap-2">
+                <div className="shrink-0 w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Bot className="w-3.5 h-3.5 text-primary" />
+                </div>
+                <div className="bg-muted rounded-xl rounded-bl-sm px-3 py-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-pulse" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-pulse [animation-delay:150ms]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary/20 animate-pulse [animation-delay:300ms]" />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </ScrollArea>
 
-      {/* Input */}
-      <form onSubmit={handleSubmit} className="px-3 py-2.5 border-t shrink-0">
-        <div className="flex gap-2">
-          <Input
+      {/* Input area */}
+      <div className="px-3 py-2.5 border-t border-border/40 shrink-0">
+        <form onSubmit={handleSubmit} className="relative">
+          <textarea
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="Ask about orders, leads, inventory..."
             disabled={isLoading}
-            className="flex-1 h-9 text-sm"
+            rows={1}
+            className={cn(
+              "w-full resize-none rounded-xl border border-border/60 bg-card",
+              "px-4 py-2.5 pr-12 text-sm placeholder:text-muted-foreground",
+              "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40",
+              "disabled:opacity-50 transition-all"
+            )}
           />
-          <Button type="submit" disabled={isLoading || !input.trim()} size="icon" className="h-9 w-9 shrink-0">
+          <Button
+            type="submit"
+            disabled={isLoading || !input.trim()}
+            size="icon"
+            className={cn(
+              "absolute right-1.5 bottom-1.5 h-8 w-8 rounded-lg",
+              "transition-all duration-200",
+              input.trim() && !isLoading
+                ? "bg-primary text-primary-foreground shadow-md hover:shadow-lg"
+                : "bg-muted text-muted-foreground"
+            )}
+          >
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </Button>
-        </div>
-      </form>
+        </form>
+        <p className="text-[9px] text-muted-foreground text-center mt-1.5 tracking-wide">
+          AI responses are based on your role-level data access
+        </p>
+      </div>
     </div>
   );
 }
