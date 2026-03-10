@@ -548,7 +548,7 @@ Available modules based on your role: ${Array.from(allAllowedTools).map(t => t.r
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+           model: "google/gemini-2.5-flash",
           messages: [
             { role: "system", content: systemPrompt + "\n\nIMPORTANT: Answer the user's question directly based on your knowledge of the system. Do not attempt to call any tools." },
             ...messages,
