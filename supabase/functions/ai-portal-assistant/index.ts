@@ -359,7 +359,7 @@ async function executeToolCall(
       }
 
       case "query_pipeline": {
-        let query = client.from("pipeline_orders").select("id, customer_name, customer_company, product_name, expected_price, status, stage, probability, sales_person_name, created_at, expected_close_date").order("created_at", { ascending: false }).limit(limit);
+        let query = client.from("pipeline_orders").select("id, customer_name, customer_company, product_name, expected_price, status, probability, sales_person_name, created_at, expected_closure_date").order("created_at", { ascending: false }).limit(limit);
         if (isSales && !isAdmin && !isSalesManager) query = query.eq("sales_person_id", userId);
         if (args.search) query = query.or(`customer_name.ilike.%${args.search}%,customer_company.ilike.%${args.search}%,product_name.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
@@ -587,8 +587,8 @@ async function executeToolCall(
         // Stalled pipeline (no update in 7+ days)
         const stalledDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
         const stalledQuery = isAdmin || isSalesManager
-          ? client.from("pipeline_orders").select("id, customer_name, product_name, expected_price, updated_at, stage").eq("status", "active").lt("updated_at", stalledDate).limit(10)
-          : client.from("pipeline_orders").select("id, customer_name, product_name, expected_price, updated_at, stage").eq("sales_person_id", userId).eq("status", "active").lt("updated_at", stalledDate).limit(10);
+           ? client.from("pipeline_orders").select("id, customer_name, product_name, expected_price, updated_at, status").eq("status", "active").lt("updated_at", stalledDate).limit(10)
+           : client.from("pipeline_orders").select("id, customer_name, product_name, expected_price, updated_at, status").eq("sales_person_id", userId).eq("status", "active").lt("updated_at", stalledDate).limit(10);
         const { data: stalled } = await stalledQuery;
         briefing.stalled_deals = { count: stalled?.length || 0, records: stalled || [] };
 
