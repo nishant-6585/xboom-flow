@@ -652,7 +652,7 @@ Available modules based on your role: ${Array.from(allAllowedTools).map(t => t.r
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: step3Messages,
         stream: true,
       }),
