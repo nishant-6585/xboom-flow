@@ -39,16 +39,18 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_enquiries",
-      description: "Search sales enquiries/leads by customer, product, status, salesperson, or date range. Returns lead details, temperature, and conversion info.",
+      description: "Search sales enquiries/leads by customer, product, status, salesperson, or date range. Returns lead details, temperature, and conversion info. 'Hot leads' means probability_to_close >= 70. 'Mega deals' means is_mega_deal = true.",
       parameters: {
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Search term (customer name, company, product)" },
           status: { type: "string" as const, description: "Filter by status: new, responded, converted, closed" },
           lead_temperature: { type: "string" as const, description: "Filter: hot, warm, cold" },
+          hot_leads_only: { type: "boolean" as const, description: "If true, filters enquiries with probability_to_close >= 70 (hot leads)" },
+          mega_deals_only: { type: "boolean" as const, description: "If true, filters enquiries where is_mega_deal = true" },
           date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
           date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
-          limit: { type: "number" as const, description: "Max results (default 20)" },
+          limit: { type: "number" as const, description: "Max results (default 50)" },
         },
         required: [] as string[],
         additionalProperties: false,
@@ -280,11 +282,13 @@ async function executeToolCall(
       }
 
       case "query_enquiries": {
-        let query = client.from("enquiries").select("id, customer_name, customer_company, product_name, quantity, status, lead_temperature, urgency, sales_person_name, created_at, is_mega_deal, ai_score").order("created_at", { ascending: false }).limit(limit);
+        let query = client.from("enquiries").select("id, customer_name, customer_company, product_name, product_category, quantity, status, lead_temperature, urgency, sales_person_name, created_at, is_mega_deal, ai_score, probability_to_close, customer_state").order("created_at", { ascending: false }).limit(limit);
         if (isSales && !isAdmin && !isSalesManager) query = query.eq("sales_person_id", userId);
         if (args.search) query = query.or(`customer_name.ilike.%${args.search}%,customer_company.ilike.%${args.search}%,product_name.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
         if (args.lead_temperature) query = query.eq("lead_temperature", args.lead_temperature);
+        if (args.hot_leads_only) query = query.gte("probability_to_close", 70);
+        if (args.mega_deals_only) query = query.eq("is_mega_deal", true);
         if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
         if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
