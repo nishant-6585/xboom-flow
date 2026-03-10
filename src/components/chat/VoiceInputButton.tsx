@@ -163,4 +163,4 @@ export const VoiceInputButton = forwardRef<HTMLButtonElement, VoiceInputButtonPr
       {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
     </Button>
   );
-}
+});
