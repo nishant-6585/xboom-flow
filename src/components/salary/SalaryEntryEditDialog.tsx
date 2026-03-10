@@ -290,6 +290,36 @@ export function SalaryEntryEditDialog({ open, onOpenChange, entry, onSave, month
                 <Label htmlFor="reimbursements">Reimbursements (₹)</Label>
                 <Input id="reimbursements" value={form.reimbursements} onChange={e => handleNumericChange("reimbursements", e.target.value)} />
               </div>
+              <div>
+                <Label>Last Working Date (LWD)</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn("w-full justify-start text-left font-normal mt-1", !form.last_working_date && "text-muted-foreground")}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {form.last_working_date ? format(form.last_working_date, "dd MMM yyyy") : "Not set (full month)"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarWidget
+                      mode="single"
+                      selected={form.last_working_date}
+                      onSelect={(date) => setForm(prev => ({ ...prev, last_working_date: date || undefined }))}
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                    {form.last_working_date && (
+                      <div className="p-2 border-t">
+                        <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => setForm(prev => ({ ...prev, last_working_date: undefined }))}>
+                          Clear Date
+                        </Button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+                <p className="text-[10px] text-muted-foreground mt-1">Set for employees leaving mid-month to pro-rate salary</p>
+              </div>
             </div>
 
             <div>
