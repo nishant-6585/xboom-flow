@@ -152,6 +152,7 @@ export function SalaryEntryEditDialog({ open, onOpenChange, entry, onSave, month
       el_leaves_override,
       sl_leaves_override,
       deductions_override,
+      last_working_date: form.last_working_date ? format(form.last_working_date, "yyyy-MM-dd") : null,
     };
 
     const ok = await onSave(entry.id, updates);
