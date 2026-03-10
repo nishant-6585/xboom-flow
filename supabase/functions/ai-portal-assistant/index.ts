@@ -24,7 +24,7 @@ const DATA_TOOLS = [
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Search term (customer name, order number, product)" },
-          status: { type: "string" as const, description: "Filter by status: pending, confirmed, dispatched, delivered, cancelled" },
+          status: { type: "string" as const, description: "Filter by order status: po_received, procurement_to_plan, in_transit, delivery_done, payment_received, partial_payment_received, cancelled" },
           payment_status: { type: "string" as const, description: "Filter by payment: pending, partial, paid" },
           date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
           date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
