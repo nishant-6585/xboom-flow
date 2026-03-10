@@ -355,9 +355,11 @@ async function executeToolCall(
         let query = client.from("inventory_procurements").select("id, procurement_number, product_name, product_category, quantity, supplier_name, payment_status, total_cost, procurement_date, status").order("created_at", { ascending: false }).limit(limit);
         if (args.search) query = query.or(`product_name.ilike.%${args.search}%,supplier_name.ilike.%${args.search}%,procurement_number.ilike.%${args.search}%`);
         if (args.payment_status) query = query.eq("payment_status", args.payment_status);
+        if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
+        if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify(data || []);
+        return JSON.stringify({ count: data?.length || 0, records: data || [] });
       }
 
       case "query_suppliers": {
