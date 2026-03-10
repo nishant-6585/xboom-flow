@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, Send, X, Loader2, Sparkles, Trash2, Zap, BarChart3, Package, ClipboardList, BrainCircuit } from 'lucide-react';
+import { Bot, Send, X, Loader2, Sparkles, Trash2, Zap, BarChart3, Package, ClipboardList, BrainCircuit, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { ChatMessage } from './ChatMessage';
+import { ChatMessage, stopSpeaking } from './ChatMessage';
 import { VoiceInputButton } from './VoiceInputButton';
 
 interface Message {
@@ -28,7 +28,6 @@ interface PortalChatWindowProps {
   onClose: () => void;
 }
 
-// Conversation memory helpers
 function loadMessages(): Message[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -50,6 +49,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>(() => loadMessages());
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -57,7 +57,6 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
     inputRef.current?.focus();
   }, []);
 
-  // Persist messages to localStorage
   useEffect(() => {
     saveMessages(messages);
   }, [messages]);
@@ -68,12 +67,20 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
     }
   }, [messages]);
 
+  // Stop speaking when component unmounts or chat is cleared
+  useEffect(() => {
+    return () => stopSpeaking();
+  }, []);
+
   const streamChat = useCallback(async (userMessage: string) => {
     const userMsg: Message = { role: 'user', content: userMessage };
     const allMessages = [...messages, userMsg];
     setMessages(allMessages);
     setInput('');
     setIsLoading(true);
+
+    // Stop any current speech when new message is sent
+    stopSpeaking();
 
     let assistantContent = '';
 
@@ -191,7 +198,8 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
 
   const handleVoiceTranscript = useCallback((text: string) => {
     setInput(text);
-    // Auto-submit after a short delay so user can see the transcript
+    // Enable voice mode automatically when using mic
+    setVoiceMode(true);
     setTimeout(() => {
       if (text.trim() && !isLoading) {
         streamChat(text.trim());
@@ -199,7 +207,15 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
     }, 300);
   }, [isLoading, streamChat]);
 
+  const toggleVoiceMode = useCallback(() => {
+    setVoiceMode(prev => {
+      if (prev) stopSpeaking();
+      return !prev;
+    });
+  }, []);
+
   const clearChat = useCallback(() => {
+    stopSpeaking();
     setMessages([]);
     localStorage.removeItem(STORAGE_KEY);
   }, []);
@@ -223,11 +239,26 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
             <div>
               <h3 className="text-sm font-bold text-foreground leading-none">XBoom AI</h3>
               <p className="text-[10px] text-muted-foreground mt-0.5 font-medium tracking-wide uppercase">
-                Intelligent Portal Assistant
+                {voiceMode ? '🔊 Voice Mode Active' : 'Intelligent Portal Assistant'}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-1">
+            {/* Voice mode toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "h-8 w-8 rounded-lg transition-colors",
+                voiceMode
+                  ? "text-primary bg-primary/15 hover:bg-primary/20"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+              onClick={toggleVoiceMode}
+              title={voiceMode ? "Disable voice replies" : "Enable voice replies"}
+            >
+              {voiceMode ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+            </Button>
             {messages.length > 0 && (
               <Button
                 variant="ghost"
@@ -290,14 +321,19 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
           </div>
         ) : (
           <div className="space-y-3">
-            {messages.map((msg, i) => (
-              <ChatMessage
-                key={i}
-                role={msg.role}
-                content={msg.content}
-                isStreaming={isLoading && i === messages.length - 1 && msg.role === 'assistant'}
-              />
-            ))}
+            {messages.map((msg, i) => {
+              const isLastAssistant = msg.role === 'assistant' && i === messages.length - 1;
+              const isCurrentlyStreaming = isLoading && isLastAssistant;
+              return (
+                <ChatMessage
+                  key={i}
+                  role={msg.role}
+                  content={msg.content}
+                  isStreaming={isCurrentlyStreaming}
+                  autoSpeak={voiceMode && isLastAssistant && !isCurrentlyStreaming}
+                />
+              );
+            })}
             {isLoading && messages[messages.length - 1]?.role === 'user' && (
               <div className="flex gap-2">
                 <div className="shrink-0 w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
@@ -353,7 +389,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
           </div>
         </form>
         <p className="text-[9px] text-muted-foreground text-center mt-1.5 tracking-wide">
-          AI responses are based on your role-level data access
+          {voiceMode ? '🔊 Voice replies ON — tap speaker icon to disable' : 'AI responses are based on your role-level data access'}
         </p>
       </div>
     </div>

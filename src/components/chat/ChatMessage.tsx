@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Bot, User, Volume2, VolumeX } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
@@ -9,11 +9,13 @@ interface ChatMessageProps {
   role: 'user' | 'assistant';
   content: string;
   isStreaming?: boolean;
+  autoSpeak?: boolean;
+  onSpeakingChange?: (speaking: boolean) => void;
 }
 
 function stripMarkdown(md: string): string {
   return md
-    .replace(/```[\s\S]*?```/g, '') // code blocks
+    .replace(/```[\s\S]*?```/g, '')
     .replace(/`([^`]+)`/g, '$1')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/\*([^*]+)\*/g, '$1')
@@ -27,7 +29,6 @@ function stripMarkdown(md: string): string {
 
 function getPreferredFemaleVoice(): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices();
-  // Prefer high-quality female voices
   const preferred = [
     'Google UK English Female',
     'Google US English',
@@ -41,43 +42,81 @@ function getPreferredFemaleVoice(): SpeechSynthesisVoice | null {
     const v = voices.find(v => v.name.includes(name));
     if (v) return v;
   }
-  // Fallback: any female-sounding English voice
   const female = voices.find(v => v.lang.startsWith('en') && /female|woman|samantha|karen|zira|victoria/i.test(v.name));
   if (female) return female;
-  // Last fallback: any English voice
   return voices.find(v => v.lang.startsWith('en')) || voices[0] || null;
 }
 
-export function ChatMessage({ role, content, isStreaming }: ChatMessageProps) {
+export function speakText(text: string, onEnd?: () => void): SpeechSynthesisUtterance | null {
+  if (!text || typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+  const plainText = stripMarkdown(text);
+  if (!plainText) return null;
+
+  const utterance = new SpeechSynthesisUtterance(plainText);
+  const voice = getPreferredFemaleVoice();
+  if (voice) utterance.voice = voice;
+  utterance.rate = 1.0;
+  utterance.pitch = 1.15;
+  if (onEnd) {
+    utterance.onend = onEnd;
+    utterance.onerror = onEnd;
+  }
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+  return utterance;
+}
+
+export function stopSpeaking() {
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+}
+
+export function ChatMessage({ role, content, isStreaming, autoSpeak, onSpeakingChange }: ChatMessageProps) {
   const isUser = role === 'user';
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const hasAutoSpokenRef = useRef(false);
+  const prevContentLenRef = useRef(0);
+
+  // Auto-speak when content is finalized (streaming done)
+  useEffect(() => {
+    if (!autoSpeak || isUser || !content || isStreaming) return;
+    // Reset when content starts fresh (new message)
+    if (content.length < prevContentLenRef.current) {
+      hasAutoSpokenRef.current = false;
+    }
+    prevContentLenRef.current = content.length;
+  }, [content, isStreaming, autoSpeak, isUser]);
+
+  useEffect(() => {
+    if (!autoSpeak || isUser || !content || isStreaming || hasAutoSpokenRef.current) return;
+    
+    hasAutoSpokenRef.current = true;
+    setIsSpeaking(true);
+    onSpeakingChange?.(true);
+    speakText(content, () => {
+      setIsSpeaking(false);
+      onSpeakingChange?.(false);
+    });
+  }, [isStreaming, autoSpeak, isUser, content, onSpeakingChange]);
 
   const handleSpeak = useCallback(() => {
     if (!content || isStreaming) return;
 
     if (isSpeaking) {
-      window.speechSynthesis.cancel();
+      stopSpeaking();
       setIsSpeaking(false);
+      onSpeakingChange?.(false);
       return;
     }
 
-    const plainText = stripMarkdown(content);
-    if (!plainText) return;
-
-    const utterance = new SpeechSynthesisUtterance(plainText);
-    const voice = getPreferredFemaleVoice();
-    if (voice) utterance.voice = voice;
-    utterance.rate = 1.0;
-    utterance.pitch = 1.15;
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
-    utteranceRef.current = utterance;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
     setIsSpeaking(true);
-  }, [content, isStreaming, isSpeaking]);
+    onSpeakingChange?.(true);
+    speakText(content, () => {
+      setIsSpeaking(false);
+      onSpeakingChange?.(false);
+    });
+  }, [content, isStreaming, isSpeaking, onSpeakingChange]);
 
   const showSpeaker = !isUser && content && !isStreaming && typeof window !== 'undefined' && 'speechSynthesis' in window;
 
