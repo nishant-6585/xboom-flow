@@ -572,14 +572,13 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="customer_company">Company Name *</Label>
+                      <Label htmlFor="customer_company">Company Name <span className="text-muted-foreground text-xs">(Optional)</span></Label>
                       <Input
                         id="customer_company"
                         value={formData.customer_company}
                         onChange={e => setFormData(prev => ({ ...prev, customer_company: e.target.value }))}
-                        required
                         disabled={loading}
-                        placeholder="Enter company name"
+                        placeholder="Enter company name (optional for B2C)"
                         className="h-11"
                       />
                     </div>
