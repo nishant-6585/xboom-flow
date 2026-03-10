@@ -239,19 +239,81 @@ const DATA_TOOLS = [
       },
     },
   },
+  // --- ACTIONABLE COMMANDS ---
+  {
+    type: "function" as const,
+    function: {
+      name: "update_order_status",
+      description: "Update the status of an order. Use when the user asks to change an order's status (e.g., 'mark order ORD2500012 as dispatched').",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          order_number: { type: "string" as const, description: "The order number (e.g., ORD2500012)" },
+          new_status: { type: "string" as const, description: "New status: confirmed, dispatched, delivered, cancelled" },
+        },
+        required: ["order_number", "new_status"] as string[],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "update_enquiry_status",
+      description: "Update the status of an enquiry/lead. Use when the user asks to change a lead's status (e.g., 'mark this enquiry as responded').",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          enquiry_id: { type: "string" as const, description: "The enquiry UUID" },
+          new_status: { type: "string" as const, description: "New status: new, responded, on_hold, moved_to_pipeline, order_won, order_lost" },
+        },
+        required: ["enquiry_id", "new_status"] as string[],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "update_task_status",
+      description: "Update the status of a task. Use when the user asks to complete or update a task.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          task_id: { type: "string" as const, description: "The task UUID" },
+          new_status: { type: "string" as const, description: "New status: pending, in_progress, completed" },
+        },
+        required: ["task_id", "new_status"] as string[],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_daily_briefing",
+      description: "Get a comprehensive daily briefing with overdue payments, stalled deals, pending approvals, low stock alerts, and task deadlines. Use when user asks for a briefing or morning summary.",
+      parameters: {
+        type: "object" as const,
+        properties: {},
+        required: [] as string[],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 // Role-based module access map
 const ROLE_MODULE_ACCESS: Record<string, string[]> = {
-  admin: ["query_orders", "query_enquiries", "query_pipeline", "query_inventory", "query_employees", "query_tasks", "query_tickets", "query_procurements", "query_suppliers", "query_expenses", "query_repairs", "get_dashboard_stats"],
-  sales: ["query_orders", "query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats"],
-  sales_manager: ["query_orders", "query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats"],
-  supply_chain: ["query_orders", "query_inventory", "query_procurements", "query_suppliers", "query_tasks", "get_dashboard_stats"],
-  finance: ["query_orders", "query_expenses", "query_procurements", "query_tasks", "get_dashboard_stats"],
-  hr: ["query_employees", "query_tasks", "query_tickets", "get_dashboard_stats"],
-  it: ["query_tickets", "query_tasks", "get_dashboard_stats"],
-  marketing: ["query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats"],
-  employee: ["query_tasks", "query_tickets", "get_dashboard_stats"],
+  admin: ["query_orders", "query_enquiries", "query_pipeline", "query_inventory", "query_employees", "query_tasks", "query_tickets", "query_procurements", "query_suppliers", "query_expenses", "query_repairs", "get_dashboard_stats", "update_order_status", "update_enquiry_status", "update_task_status", "get_daily_briefing"],
+  sales: ["query_orders", "query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats", "update_enquiry_status", "update_task_status", "get_daily_briefing"],
+  sales_manager: ["query_orders", "query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats", "update_order_status", "update_enquiry_status", "update_task_status", "get_daily_briefing"],
+  supply_chain: ["query_orders", "query_inventory", "query_procurements", "query_suppliers", "query_tasks", "get_dashboard_stats", "update_order_status", "update_task_status", "get_daily_briefing"],
+  finance: ["query_orders", "query_expenses", "query_procurements", "query_tasks", "get_dashboard_stats", "update_task_status", "get_daily_briefing"],
+  hr: ["query_employees", "query_tasks", "query_tickets", "get_dashboard_stats", "update_task_status", "get_daily_briefing"],
+  it: ["query_tickets", "query_tasks", "get_dashboard_stats", "update_task_status", "get_daily_briefing"],
+  marketing: ["query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats", "update_task_status", "get_daily_briefing"],
+  employee: ["query_tasks", "query_tickets", "get_dashboard_stats", "update_task_status", "get_daily_briefing"],
 };
 
 async function executeToolCall(
