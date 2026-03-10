@@ -1243,16 +1243,32 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Total Amount:</span>
-                    <p className="font-medium">₹{(parseFloat(totalSalesAmount) || order.total_sales_amount || 0).toLocaleString('en-IN')}</p>
-                  </div>
-                  {(parseFloat(discountAmount) > 0 || (order.discount_amount && order.discount_amount > 0)) && (
-                    <div>
-                      <span className="text-muted-foreground">Discount:</span>
-                      <p className="font-medium text-purple-600">-₹{(parseFloat(discountAmount) || order.discount_amount || 0).toLocaleString('en-IN')}</p>
-                    </div>
-                  )}
+                  {(() => {
+                    const currentTotal = parseFloat(totalSalesAmount) || order.total_sales_amount || 0;
+                    const currentDiscount = parseFloat(discountAmount) || order.discount_amount || 0;
+                    const hasDiscount = currentDiscount > 0;
+                    const subtotal = currentTotal + currentDiscount;
+                    return (
+                      <>
+                        {hasDiscount && (
+                          <div>
+                            <span className="text-muted-foreground">Subtotal:</span>
+                            <p className="font-medium">₹{subtotal.toLocaleString('en-IN')}</p>
+                          </div>
+                        )}
+                        {hasDiscount && (
+                          <div>
+                            <span className="text-muted-foreground">Discount:</span>
+                            <p className="font-medium text-purple-600">-₹{currentDiscount.toLocaleString('en-IN')}</p>
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-muted-foreground">{hasDiscount ? 'Net Amount:' : 'Total Amount:'}</span>
+                          <p className="font-medium">₹{currentTotal.toLocaleString('en-IN')}</p>
+                        </div>
+                      </>
+                    );
+                  })()}
                   <div>
                     <span className="text-muted-foreground">Paid:</span>
                     <p className="font-medium text-green-600">₹{(parseFloat(amountPaid) || order.amount_paid || 0).toLocaleString('en-IN')}</p>
