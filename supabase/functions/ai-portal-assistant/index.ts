@@ -359,7 +359,7 @@ async function executeToolCall(
       }
 
       case "query_pipeline": {
-        let query = client.from("pipeline_orders").select("id, customer_name, customer_company, product_name, expected_price, status, stage, probability, sales_person_name, created_at, expected_close_date").order("created_at", { ascending: false }).limit(limit);
+        let query = client.from("pipeline_orders").select("id, customer_name, customer_company, product_name, expected_price, status, probability, sales_person_name, created_at, expected_closure_date").order("created_at", { ascending: false }).limit(limit);
         if (isSales && !isAdmin && !isSalesManager) query = query.eq("sales_person_id", userId);
         if (args.search) query = query.or(`customer_name.ilike.%${args.search}%,customer_company.ilike.%${args.search}%,product_name.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
