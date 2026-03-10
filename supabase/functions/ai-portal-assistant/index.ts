@@ -24,7 +24,7 @@ const DATA_TOOLS = [
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Search term (customer name, order number, product)" },
-          status: { type: "string" as const, description: "Filter by status: pending, confirmed, dispatched, delivered, cancelled" },
+          status: { type: "string" as const, description: "Filter by order status: po_received, procurement_to_plan, in_transit, delivery_done, payment_received, partial_payment_received, cancelled" },
           payment_status: { type: "string" as const, description: "Filter by payment: pending, partial, paid" },
           date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
           date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
@@ -134,11 +134,11 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_tickets",
-      description: "Search IT support tickets by title, status, priority, assignee, or date range.",
+      description: "Search IT support tickets by subject, status, priority, assignee, or date range.",
       parameters: {
         type: "object" as const,
         properties: {
-          search: { type: "string" as const, description: "Ticket title or number" },
+          search: { type: "string" as const, description: "Ticket subject or number" },
           status: { type: "string" as const, description: "Filter: open, in_progress, resolved, closed" },
           priority: { type: "string" as const, description: "Filter: low, medium, high, critical" },
           date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
