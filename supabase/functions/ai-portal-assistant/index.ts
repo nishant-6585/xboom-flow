@@ -732,6 +732,17 @@ Guidelines:
 - Respect that data is filtered based on the user's role
 - When doing comparisons or multi-period analysis, make multiple tool calls as needed
 
+ACTIONABLE COMMANDS:
+- You can update order statuses, enquiry statuses, and task statuses when the user asks.
+- For updates, ALWAYS confirm what you're about to do BEFORE executing: "I'll update order ORD2500012 status to dispatched. Proceeding..."
+- After executing an update, clearly confirm the result: "✅ Done — Order ORD2500012 is now dispatched."
+- If the user asks to update something and you need an ID, first query to find the record, then update.
+
+DAILY BRIEFING:
+- When user asks for "daily briefing", "morning summary", or "what should I focus on", use the get_daily_briefing tool.
+- Present the briefing in a structured format with emoji sections: 🔴 Overdue Payments, 📊 Stalled Deals, ⚡ Urgent Tasks, 📦 Low Stock, 🔥 New Hot Leads
+- Prioritize actionable items and give specific recommendations.
+
 VISUAL CHARTS — You can render interactive charts by outputting a special code block. Use this for aggregation/analytics queries. Format:
 
 \`\`\`chart
