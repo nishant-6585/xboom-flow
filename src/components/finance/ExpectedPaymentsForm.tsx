@@ -32,7 +32,7 @@ export function ExpectedPaymentsForm({ open, onOpenChange, orders = [], pipeline
   const handleOrderSelect = (orderId: string) => {
     const order = orders.find(o => o.id === orderId);
     if (order) {
-      const pendingAmount = (order.total_sales_amount || 0) - (order.amount_paid || 0);
+      const pendingAmount = (order.total_sales_amount || 0) - (order.discount_amount || 0) - (order.amount_paid || 0);
       setFormData({
         ...formData,
         source_id: order.id,

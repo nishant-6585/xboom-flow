@@ -105,7 +105,7 @@ export default function Finance() {
         // Fetch orders for linking
         const { data: ordersData } = await supabase
           .from('orders')
-          .select('id, order_number, customer_name, customer_company, total_sales_amount, amount_paid, payment_status')
+          .select('id, order_number, customer_name, customer_company, total_sales_amount, discount_amount, amount_paid, payment_status')
           .order('created_at', { ascending: false });
 
         // Fetch pipeline orders for linking
