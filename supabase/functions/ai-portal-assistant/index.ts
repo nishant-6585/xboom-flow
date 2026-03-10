@@ -267,7 +267,7 @@ async function executeToolCall(
   try {
     switch (toolName) {
       case "query_orders": {
-        let query = client.from("orders").select("id, order_number, customer_name, customer_company, product_name, quantity, total_sales_amount, amount_paid, discount_amount, payment_status, status, sales_person_name, created_at, payment_due_date, shipping_address_state").order("created_at", { ascending: false }).limit(limit);
+        let query = client.from("orders").select("id, order_number, customer_name, customer_company, product_name, quantity, total_sales_amount, amount_paid, discount_amount, payment_status, status, sales_person_name, created_at, payment_due_date, shipping_address").order("created_at", { ascending: false }).limit(limit);
         if (isSales && !isAdmin && !isSalesManager) query = query.eq("sales_person_id", userId);
         if (args.search) query = query.or(`customer_name.ilike.%${args.search}%,order_number.ilike.%${args.search}%,product_name.ilike.%${args.search}%,customer_company.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
