@@ -134,11 +134,11 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_tickets",
-      description: "Search IT support tickets by title, status, priority, assignee, or date range.",
+      description: "Search IT support tickets by subject, status, priority, assignee, or date range.",
       parameters: {
         type: "object" as const,
         properties: {
-          search: { type: "string" as const, description: "Ticket title or number" },
+          search: { type: "string" as const, description: "Ticket subject or number" },
           status: { type: "string" as const, description: "Filter: open, in_progress, resolved, closed" },
           priority: { type: "string" as const, description: "Filter: low, medium, high, critical" },
           date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
