@@ -344,9 +344,11 @@ async function executeToolCall(
         if (args.search) query = query.or(`title.ilike.%${args.search}%,ticket_number.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
         if (args.priority) query = query.eq("priority", args.priority);
+        if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
+        if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify(data || []);
+        return JSON.stringify({ count: data?.length || 0, records: data || [] });
       }
 
       case "query_procurements": {
