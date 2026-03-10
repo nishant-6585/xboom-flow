@@ -26,6 +26,8 @@ const DATA_TOOLS = [
           search: { type: "string" as const, description: "Search term (customer name, order number, product)" },
           status: { type: "string" as const, description: "Filter by status: pending, confirmed, dispatched, delivered, cancelled" },
           payment_status: { type: "string" as const, description: "Filter by payment: pending, partial, paid" },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
           limit: { type: "number" as const, description: "Max results (default 20)" },
         },
         required: [] as string[],
@@ -37,13 +39,15 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_enquiries",
-      description: "Search sales enquiries/leads by customer, product, status, or salesperson. Returns lead details, temperature, and conversion info.",
+      description: "Search sales enquiries/leads by customer, product, status, salesperson, or date range. Returns lead details, temperature, and conversion info.",
       parameters: {
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Search term (customer name, company, product)" },
           status: { type: "string" as const, description: "Filter by status: new, responded, converted, closed" },
           lead_temperature: { type: "string" as const, description: "Filter: hot, warm, cold" },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
           limit: { type: "number" as const, description: "Max results (default 20)" },
         },
         required: [] as string[],
@@ -55,12 +59,14 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_pipeline",
-      description: "Search pipeline orders (deals in progress) by customer, product, stage, or salesperson.",
+      description: "Search pipeline orders (deals in progress) by customer, product, stage, salesperson, or date range.",
       parameters: {
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Search term" },
           status: { type: "string" as const, description: "Filter: active, won, lost, stalled" },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
           limit: { type: "number" as const, description: "Max results (default 20)" },
         },
         required: [] as string[],
@@ -106,13 +112,15 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_tasks",
-      description: "Search tasks by title, assignee, status, or type.",
+      description: "Search tasks by title, assignee, status, type, or date range.",
       parameters: {
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Task title or description" },
           status: { type: "string" as const, description: "Filter: pending, in_progress, completed" },
           assigned_to_name: { type: "string" as const, description: "Filter by assignee name" },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
           limit: { type: "number" as const, description: "Max results (default 20)" },
         },
         required: [] as string[],
@@ -124,13 +132,15 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_tickets",
-      description: "Search IT support tickets by title, status, priority, or assignee.",
+      description: "Search IT support tickets by title, status, priority, assignee, or date range.",
       parameters: {
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Ticket title or number" },
           status: { type: "string" as const, description: "Filter: open, in_progress, resolved, closed" },
           priority: { type: "string" as const, description: "Filter: low, medium, high, critical" },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
           limit: { type: "number" as const, description: "Max results (default 20)" },
         },
         required: [] as string[],
@@ -142,12 +152,14 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_procurements",
-      description: "Search procurement orders by product, supplier, or payment status.",
+      description: "Search procurement orders by product, supplier, payment status, or date range.",
       parameters: {
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Product name, supplier, or procurement number" },
           payment_status: { type: "string" as const, description: "Filter: pending, partial, paid" },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
           limit: { type: "number" as const, description: "Max results (default 20)" },
         },
         required: [] as string[],
@@ -175,12 +187,14 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_expenses",
-      description: "Search expenses by description, category, or approval status.",
+      description: "Search expenses by description, category, approval status, or date range.",
       parameters: {
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Expense description or category" },
           status: { type: "string" as const, description: "Filter: pending, approved, rejected" },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
           limit: { type: "number" as const, description: "Max results (default 20)" },
         },
         required: [] as string[],
@@ -192,12 +206,14 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_repairs",
-      description: "Search repair orders by customer, drone model, or status.",
+      description: "Search repair orders by customer, drone model, status, or date range.",
       parameters: {
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Customer name, drone model, or repair number" },
           status: { type: "string" as const, description: "Filter: received, diagnosing, repairing, completed, delivered" },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
           limit: { type: "number" as const, description: "Max results (default 20)" },
         },
         required: [] as string[],
@@ -209,10 +225,13 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "get_dashboard_stats",
-      description: "Get overall dashboard statistics: total orders, revenue, pending payments, active enquiries, inventory summary, and more.",
+      description: "Get overall dashboard statistics including counts and summaries. Optionally filter by date range for time-specific stats.",
       parameters: {
         type: "object" as const,
-        properties: {},
+        properties: {
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
+        },
         required: [] as string[],
         additionalProperties: false,
       },
@@ -253,9 +272,11 @@ async function executeToolCall(
         if (args.search) query = query.or(`customer_name.ilike.%${args.search}%,order_number.ilike.%${args.search}%,product_name.ilike.%${args.search}%,customer_company.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
         if (args.payment_status) query = query.eq("payment_status", args.payment_status);
+        if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
+        if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify(data || []);
+        return JSON.stringify({ count: data?.length || 0, records: data || [] });
       }
 
       case "query_enquiries": {
@@ -264,9 +285,11 @@ async function executeToolCall(
         if (args.search) query = query.or(`customer_name.ilike.%${args.search}%,customer_company.ilike.%${args.search}%,product_name.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
         if (args.lead_temperature) query = query.eq("lead_temperature", args.lead_temperature);
+        if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
+        if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify(data || []);
+        return JSON.stringify({ count: data?.length || 0, records: data || [] });
       }
 
       case "query_pipeline": {
@@ -274,9 +297,11 @@ async function executeToolCall(
         if (isSales && !isAdmin && !isSalesManager) query = query.eq("sales_person_id", userId);
         if (args.search) query = query.or(`customer_name.ilike.%${args.search}%,customer_company.ilike.%${args.search}%,product_name.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
+        if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
+        if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify(data || []);
+        return JSON.stringify({ count: data?.length || 0, records: data || [] });
       }
 
       case "query_inventory": {
@@ -306,9 +331,11 @@ async function executeToolCall(
         if (args.search) query = query.or(`title.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
         if (args.assigned_to_name) query = query.ilike("assigned_to_name", `%${args.assigned_to_name}%`);
+        if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
+        if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify(data || []);
+        return JSON.stringify({ count: data?.length || 0, records: data || [] });
       }
 
       case "query_tickets": {
@@ -317,18 +344,22 @@ async function executeToolCall(
         if (args.search) query = query.or(`title.ilike.%${args.search}%,ticket_number.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
         if (args.priority) query = query.eq("priority", args.priority);
+        if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
+        if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify(data || []);
+        return JSON.stringify({ count: data?.length || 0, records: data || [] });
       }
 
       case "query_procurements": {
         let query = client.from("inventory_procurements").select("id, procurement_number, product_name, product_category, quantity, supplier_name, payment_status, total_cost, procurement_date, status").order("created_at", { ascending: false }).limit(limit);
         if (args.search) query = query.or(`product_name.ilike.%${args.search}%,supplier_name.ilike.%${args.search}%,procurement_number.ilike.%${args.search}%`);
         if (args.payment_status) query = query.eq("payment_status", args.payment_status);
+        if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
+        if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify(data || []);
+        return JSON.stringify({ count: data?.length || 0, records: data || [] });
       }
 
       case "query_suppliers": {
@@ -342,29 +373,37 @@ async function executeToolCall(
       case "query_expenses": {
         let query = client.from("expenses").select("id, description, amount, category, payment_mode, status, created_by_name, created_at, approved_by_name").order("created_at", { ascending: false }).limit(limit);
         if (!isAdmin && !roles.includes("finance")) query = query.eq("created_by", userId);
-        if (args.search) query = query.or(`description.ilike.%${args.search}%,category.ilike.%${args.search}%`);
+        if (args.search) query = query.or(`description.ilike.%${args.search}%,vendor_name.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
+        if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
+        if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify(data || []);
+        return JSON.stringify({ count: data?.length || 0, records: data || [] });
       }
 
       case "query_repairs": {
         let query = client.from("repairs").select("id, repair_number, customer_name, customer_phone, drone_model, issue_description, status, repair_cost, created_at").order("created_at", { ascending: false }).limit(limit);
         if (args.search) query = query.or(`customer_name.ilike.%${args.search}%,drone_model.ilike.%${args.search}%,repair_number.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
+        if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
+        if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify(data || []);
+        return JSON.stringify({ count: data?.length || 0, records: data || [] });
       }
 
       case "get_dashboard_stats": {
         const stats: Record<string, unknown> = {};
+        const dateFrom = args.date_from as string | undefined;
+        const dateTo = args.date_to as string | undefined;
 
         // Orders summary
-        const ordersQuery = isAdmin || isSalesManager
+        let ordersQuery = isAdmin || isSalesManager
           ? client.from("orders").select("id, total_sales_amount, amount_paid, payment_status, status", { count: "exact" })
           : client.from("orders").select("id, total_sales_amount, amount_paid, payment_status, status", { count: "exact" }).eq("sales_person_id", userId);
+        if (dateFrom) ordersQuery = ordersQuery.gte("created_at", `${dateFrom}T00:00:00`);
+        if (dateTo) ordersQuery = ordersQuery.lte("created_at", `${dateTo}T23:59:59`);
         const { data: orders, count: orderCount } = await ordersQuery;
         
         if (orders) {
@@ -375,9 +414,11 @@ async function executeToolCall(
         }
 
         // Enquiries
-        const enqQuery = isAdmin || isSalesManager
+        let enqQuery = isAdmin || isSalesManager
           ? client.from("enquiries").select("id, status, lead_temperature", { count: "exact" })
           : client.from("enquiries").select("id, status, lead_temperature", { count: "exact" }).eq("sales_person_id", userId);
+        if (dateFrom) enqQuery = enqQuery.gte("created_at", `${dateFrom}T00:00:00`);
+        if (dateTo) enqQuery = enqQuery.lte("created_at", `${dateTo}T23:59:59`);
         const { data: enquiries, count: enqCount } = await enqQuery;
         if (enquiries) {
           stats.total_enquiries = enqCount;
@@ -479,17 +520,27 @@ serve(async (req) => {
     }
     const filteredTools = DATA_TOOLS.filter(t => allAllowedTools.has(t.function.name));
 
+    const today = new Date().toISOString().split("T")[0];
     const systemPrompt = `You are XBoom AI Assistant, an intelligent helper for the XBoom Workflow portal — an internal operations platform for a drone/UAV business.
 
 User: ${userName}
 Roles: ${roles.join(", ")}
+Today's date: ${today}
 
 You can query the system's data using the available tools. When the user asks about data, use the appropriate tool to fetch it, then present the results clearly.
+
+IMPORTANT — Date filtering:
+- All query tools support date_from and date_to parameters (ISO format YYYY-MM-DD).
+- When users ask "this month", "last week", "today", "this year", etc., calculate the correct date range from today's date and pass date_from/date_to.
+- Example: "orders this month" with today=${today} → date_from="${today.substring(0, 8)}01", date_to="${today}"
+- Example: "last 7 days" → calculate date_from as 7 days ago
+- get_dashboard_stats also supports date_from/date_to for time-specific summaries.
 
 Guidelines:
 - Be concise and professional
 - Format prices with ₹ symbol for Indian Rupees
 - Present data in clean tables or bullet points when showing multiple records
+- Always include the count of records found
 - If results are empty, say so clearly
 - For dashboard/summary questions, use get_dashboard_stats
 - For specific searches, use the appropriate query tool
