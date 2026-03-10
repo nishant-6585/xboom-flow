@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, Send, X, Loader2, Sparkles, Trash2, Zap, BarChart3, Package, Users, ClipboardList } from 'lucide-react';
+import { Bot, Send, X, Loader2, Sparkles, Trash2, Zap, BarChart3, Package, ClipboardList, BrainCircuit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { ChatMessage } from './ChatMessage';
+import { VoiceInputButton } from './VoiceInputButton';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -12,20 +13,41 @@ interface Message {
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-portal-assistant`;
+const STORAGE_KEY = 'xboom-ai-chat-history';
+const MAX_STORED_MESSAGES = 50;
 
 const QUICK_PROMPTS = [
   { icon: BarChart3, label: "Dashboard summary", prompt: "Show me today's dashboard summary" },
   { icon: Package, label: "Pending orders", prompt: "What are the pending orders?" },
   { icon: Zap, label: "Hot leads", prompt: "Show me all hot leads" },
   { icon: ClipboardList, label: "My tasks", prompt: "What tasks are assigned to me?" },
+  { icon: BrainCircuit, label: "Daily briefing", prompt: "Give me my daily briefing — overdue payments, stalled deals, pending approvals, and any anomalies" },
 ];
 
 interface PortalChatWindowProps {
   onClose: () => void;
 }
 
+// Conversation memory helpers
+function loadMessages(): Message[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored) as Message[];
+      return parsed.slice(-MAX_STORED_MESSAGES);
+    }
+  } catch { /* ignore */ }
+  return [];
+}
+
+function saveMessages(messages: Message[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-MAX_STORED_MESSAGES)));
+  } catch { /* ignore */ }
+}
+
 export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => loadMessages());
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -34,6 +56,11 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Persist messages to localStorage
+  useEffect(() => {
+    saveMessages(messages);
+  }, [messages]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -55,7 +82,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
       if (!session?.access_token) throw new Error('Please log in to use the AI assistant');
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 90000);
 
       const response = await fetch(CHAT_URL, {
         method: 'POST',
@@ -121,7 +148,6 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
         }
       }
 
-      // If streaming completed but no content was received, show a fallback
       if (!assistantContent.trim()) {
         setMessages(prev => {
           const updated = [...prev];
@@ -143,10 +169,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
       }
       setMessages(prev => [
         ...prev.filter(m => m.content !== ''),
-        {
-          role: 'assistant',
-          content: `Sorry, I encountered an error: ${errorMsg}`,
-        },
+        { role: 'assistant', content: `Sorry, I encountered an error: ${errorMsg}` },
       ]);
     } finally {
       setIsLoading(false);
@@ -166,16 +189,29 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
     }
   };
 
+  const handleVoiceTranscript = useCallback((text: string) => {
+    setInput(text);
+    // Auto-submit after a short delay so user can see the transcript
+    setTimeout(() => {
+      if (text.trim() && !isLoading) {
+        streamChat(text.trim());
+      }
+    }, 300);
+  }, [isLoading, streamChat]);
+
+  const clearChat = useCallback(() => {
+    setMessages([]);
+    localStorage.removeItem(STORAGE_KEY);
+  }, []);
+
   return (
     <div className={cn(
       "fixed z-50 flex flex-col animate-scale-in",
       "bg-background/95 backdrop-blur-xl border border-border/60 shadow-2xl",
-      // Desktop: left-aligned panel
       "bottom-4 left-4 w-[400px] h-[620px] rounded-2xl",
-      // Mobile: full screen
       "max-sm:inset-0 max-sm:w-full max-sm:h-full max-sm:rounded-none max-sm:bottom-0 max-sm:left-0"
     )}>
-      {/* Header with gradient accent */}
+      {/* Header */}
       <div className="relative overflow-hidden rounded-t-2xl max-sm:rounded-t-none">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent" />
         <div className="relative flex items-center justify-between px-4 py-3 border-b border-border/40">
@@ -197,7 +233,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                onClick={() => setMessages([])}
+                onClick={clearChat}
                 title="Clear chat"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -219,7 +255,6 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
       <ScrollArea className="flex-1 px-4 py-3" ref={scrollRef}>
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center py-6">
-            {/* Animated orb */}
             <div className="relative mb-5">
               <div className="absolute inset-0 rounded-full bg-primary/20 animate-pulse scale-150" />
               <div className="relative p-4 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/10">
@@ -229,10 +264,9 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
 
             <h3 className="text-base font-bold text-foreground mb-1">What can I help with?</h3>
             <p className="text-xs text-muted-foreground mb-5 max-w-[260px] leading-relaxed">
-              Query orders, leads, inventory, HR data and more — powered by AI with your access level.
+              Query, analyze, or take action on orders, leads, inventory & more — powered by AI.
             </p>
 
-            {/* Quick prompt cards */}
             <div className="grid grid-cols-2 gap-2 w-full max-w-[320px]">
               {QUICK_PROMPTS.map(({ icon: Icon, label, prompt }, i) => (
                 <button
@@ -242,7 +276,8 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                     "flex items-center gap-2 p-2.5 rounded-xl text-left",
                     "bg-card border border-border/50 hover:border-primary/30",
                     "hover:bg-primary/5 transition-all duration-200",
-                    "group cursor-pointer"
+                    "group cursor-pointer",
+                    i === 4 && "col-span-2"
                   )}
                 >
                   <div className="p-1.5 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors shrink-0">
@@ -283,36 +318,39 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
 
       {/* Input area */}
       <div className="px-3 py-2.5 border-t border-border/40 shrink-0">
-        <form onSubmit={handleSubmit} className="relative">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask about orders, leads, inventory..."
-            disabled={isLoading}
-            rows={1}
-            className={cn(
-              "w-full resize-none rounded-xl border border-border/60 bg-card",
-              "px-4 py-2.5 pr-12 text-sm placeholder:text-muted-foreground",
-              "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40",
-              "disabled:opacity-50 transition-all"
-            )}
-          />
-          <Button
-            type="submit"
-            disabled={isLoading || !input.trim()}
-            size="icon"
-            className={cn(
-              "absolute right-1.5 bottom-1.5 h-8 w-8 rounded-lg",
-              "transition-all duration-200",
-              input.trim() && !isLoading
-                ? "bg-primary text-primary-foreground shadow-md hover:shadow-lg"
-                : "bg-muted text-muted-foreground"
-            )}
-          >
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          </Button>
+        <form onSubmit={handleSubmit} className="relative flex items-end gap-1.5">
+          <VoiceInputButton onTranscript={handleVoiceTranscript} disabled={isLoading} />
+          <div className="relative flex-1">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask about orders, leads, inventory..."
+              disabled={isLoading}
+              rows={1}
+              className={cn(
+                "w-full resize-none rounded-xl border border-border/60 bg-card",
+                "px-4 py-2.5 pr-12 text-sm placeholder:text-muted-foreground",
+                "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40",
+                "disabled:opacity-50 transition-all"
+              )}
+            />
+            <Button
+              type="submit"
+              disabled={isLoading || !input.trim()}
+              size="icon"
+              className={cn(
+                "absolute right-1.5 bottom-1.5 h-8 w-8 rounded-lg",
+                "transition-all duration-200",
+                input.trim() && !isLoading
+                  ? "bg-primary text-primary-foreground shadow-md hover:shadow-lg"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            </Button>
+          </div>
         </form>
         <p className="text-[9px] text-muted-foreground text-center mt-1.5 tracking-wide">
           AI responses are based on your role-level data access
