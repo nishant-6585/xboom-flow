@@ -40,7 +40,6 @@ interface Order {
   customer_name: string;
   customer_company: string;
   total_sales_amount: number;
-  discount_amount: number | null;
   amount_paid: number;
   payment_status: string;
 }
