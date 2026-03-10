@@ -94,6 +94,11 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
 
           try {
             const parsed = JSON.parse(jsonStr);
+            const finishReason = parsed.choices?.[0]?.finish_reason;
+            if (finishReason === 'error') {
+              console.warn('AI returned error finish_reason:', parsed);
+              break;
+            }
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
               assistantContent += content;
