@@ -361,29 +361,59 @@ export function ChatMessage({ role, content, isStreaming, autoSpeak, onSpeakingD
     }
 
     const hasChartBlock = content.includes('```chart');
-    const proseClasses = cn(
-      "prose prose-sm dark:prose-invert max-w-none",
-      "[&_p]:my-1.5 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_li]:my-0.5",
-      "[&_h1]:text-base [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-1.5",
-      "[&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-2.5 [&_h2]:mb-1",
-      "[&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1",
-      "[&_strong]:text-foreground",
-      // Table styling
-      "[&_table]:w-full [&_table]:text-xs [&_table]:my-2 [&_table]:border-collapse [&_table]:rounded-lg [&_table]:overflow-hidden",
-      "[&_thead]:bg-primary/10",
-      "[&_th]:px-2.5 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-semibold [&_th]:text-foreground [&_th]:text-[11px] [&_th]:uppercase [&_th]:tracking-wider [&_th]:border-b [&_th]:border-border/50",
-      "[&_td]:px-2.5 [&_td]:py-1.5 [&_td]:border-b [&_td]:border-border/30 [&_td]:text-foreground/80",
-      "[&_tr:last-child_td]:border-b-0",
-      "[&_tr:hover_td]:bg-muted/30",
-      // Code blocks
-      "[&_code]:text-xs [&_code]:bg-background/50 [&_code]:px-1 [&_code]:rounded",
-      "[&_pre]:bg-background/50 [&_pre]:text-xs",
-    );
+
+    const markdownComponents = {
+      table: ({ children, ...props }: any) => (
+        <div className="my-2.5 rounded-lg border border-border/40 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse" {...props}>{children}</table>
+          </div>
+        </div>
+      ),
+      thead: ({ children, ...props }: any) => (
+        <thead className="bg-primary/10" {...props}>{children}</thead>
+      ),
+      th: ({ children, ...props }: any) => (
+        <th className="px-3 py-2 text-left font-semibold text-foreground text-[11px] uppercase tracking-wider border-b border-border/50" {...props}>{children}</th>
+      ),
+      td: ({ children, ...props }: any) => (
+        <td className="px-3 py-2 border-b border-border/20 text-foreground/85" {...props}>{children}</td>
+      ),
+      tr: ({ children, ...props }: any) => (
+        <tr className="hover:bg-muted/40 transition-colors" {...props}>{children}</tr>
+      ),
+      h2: ({ children, ...props }: any) => (
+        <h2 className="text-sm font-semibold text-foreground mt-3 mb-1.5 flex items-center gap-1.5" {...props}>{children}</h2>
+      ),
+      h3: ({ children, ...props }: any) => (
+        <h3 className="text-sm font-semibold text-foreground mt-2 mb-1 flex items-center gap-1" {...props}>{children}</h3>
+      ),
+      p: ({ children, ...props }: any) => (
+        <p className="my-1.5 leading-relaxed" {...props}>{children}</p>
+      ),
+      ul: ({ children, ...props }: any) => (
+        <ul className="my-1.5 ml-1 space-y-0.5" {...props}>{children}</ul>
+      ),
+      li: ({ children, ...props }: any) => (
+        <li className="flex items-start gap-1.5 text-foreground/85" {...props}>
+          <span className="text-primary mt-1 text-[8px]">●</span>
+          <span>{children}</span>
+        </li>
+      ),
+      strong: ({ children, ...props }: any) => (
+        <strong className="font-semibold text-foreground" {...props}>{children}</strong>
+      ),
+      code: ({ children, ...props }: any) => (
+        <code className="text-xs bg-background/50 px-1 py-0.5 rounded text-primary" {...props}>{children}</code>
+      ),
+    };
+
+    const proseClasses = "max-w-none text-sm leading-relaxed";
 
     if (!hasChartBlock || isStreaming) {
       return (
         <div className={proseClasses}>
-          <ReactMarkdown>{content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{content}</ReactMarkdown>
         </div>
       );
     }
@@ -396,7 +426,7 @@ export function ChatMessage({ role, content, isStreaming, autoSpeak, onSpeakingD
             <ChatChart key={i} spec={part.spec} />
           ) : (
             <div key={i} className={proseClasses}>
-              <ReactMarkdown>{part.value}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{part.value}</ReactMarkdown>
             </div>
           )
         )}
