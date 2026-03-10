@@ -44,6 +44,7 @@ export interface SalarySheetEntry {
   el_leaves_override: boolean;
   sl_leaves_override: boolean;
   deductions_override: boolean;
+  last_working_date: string | null;
 }
 
 export interface AttendanceSummary {
