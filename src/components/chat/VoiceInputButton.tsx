@@ -4,13 +4,6 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-declare global {
-  interface Window {
-    SpeechRecognition: new () => SpeechRecognition;
-    webkitSpeechRecognition: new () => SpeechRecognition;
-  }
-}
-
 interface VoiceInputButtonProps {
   onTranscript: (text: string) => void;
   disabled?: boolean;
@@ -18,7 +11,8 @@ interface VoiceInputButtonProps {
 
 export function VoiceInputButton({ onTranscript, disabled }: VoiceInputButtonProps) {
   const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
 
   const isSupported = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
 
@@ -28,21 +22,22 @@ export function VoiceInputButton({ onTranscript, disabled }: VoiceInputButtonPro
       return;
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SR();
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.lang = 'en-IN';
 
-    recognition.onresult = (event) => {
-      const transcript = event.results[0]?.[0]?.transcript;
+    recognition.onresult = (event: any) => {
+      const transcript = event.results?.[0]?.[0]?.transcript;
       if (transcript) {
         onTranscript(transcript);
       }
       setIsListening(false);
     };
 
-    recognition.onerror = (event) => {
+    recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
       if (event.error === 'not-allowed') {
         toast.error('Microphone access denied. Please enable it in browser settings.');
