@@ -368,11 +368,41 @@ export function useSalarySheets() {
         reimbursements: 0,
       });
 
+      // Check if employee has an exit_date in this month
+      let lastWorkingDate: string | null = null;
+      const { data: empData } = await supabase
+        .from("employees")
+        .select("exit_date")
+        .eq("id", emp.id)
+        .single();
+      if (empData?.exit_date) {
+        const exitDate = new Date(empData.exit_date);
+        if (month && year && exitDate.getMonth() + 1 === month && exitDate.getFullYear() === year) {
+          lastWorkingDate = empData.exit_date;
+        }
+      }
+
+      // Pro-rate salary if LWD is set
+      let effectiveSalary = profileData.salary;
+      if (lastWorkingDate && month && year) {
+        effectiveSalary = await calculateProratedSalary(profileData.salary, lastWorkingDate, month, year);
+      }
+
+      const deduction = calculateDeduction(effectiveSalary, attendanceData.unpaid_leaves, workingDays);
+      const total = calculateTotal({
+        salary: effectiveSalary,
+        deductions: deduction,
+        pending_amount: 0,
+        tds: 0,
+        tax: 0,
+        reimbursements: 0,
+      });
+
       rows.push({
         salary_sheet_id: sheetId,
         employee_id: emp.id,
         employee_name: emp.name,
-        salary: profileData.salary,
+        salary: effectiveSalary,
         bank_account: profileData.bank_account,
         ifsc_code: profileData.ifsc_code,
         wfh_days: attendanceData.wfh_days,
@@ -390,6 +420,7 @@ export function useSalarySheets() {
         el_leaves_override: false,
         sl_leaves_override: false,
         deductions_override: false,
+        last_working_date: lastWorkingDate,
       });
     }
 
