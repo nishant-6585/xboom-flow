@@ -34,6 +34,7 @@ type FormData = {
   tax: string;
   reimbursements: string;
   remarks: string;
+  last_working_date: Date | undefined;
 };
 
 function initForm(entry: SalarySheetEntry | null): FormData {
