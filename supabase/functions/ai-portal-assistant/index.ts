@@ -19,7 +19,7 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_orders",
-      description: "Search orders by customer name, order number, status, product, or date range. Returns order details including amounts, payment status, and delivery info.",
+      description: "Search orders by customer name, order number, status, product, or date range. Returns order details including amounts, payment status, and delivery info. Use higher limits (100-500) for aggregation/analytics queries.",
       parameters: {
         type: "object" as const,
         properties: {
