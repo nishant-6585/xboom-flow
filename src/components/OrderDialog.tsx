@@ -182,8 +182,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     ? (order.selling_price - order.procurement_rate) * order.quantity
     : null;
 
-  const balanceAmount = order.total_sales_amount && order.amount_paid !== null
-    ? order.total_sales_amount - (order.amount_paid || 0)
+  const effectiveTotal = (order.total_sales_amount || 0) - (order.discount_amount || 0);
+  const balanceAmount = order.total_sales_amount != null
+    ? effectiveTotal - (order.amount_paid || 0)
     : null;
 
   const handleInvoiceUpload = async (file: File) => {
