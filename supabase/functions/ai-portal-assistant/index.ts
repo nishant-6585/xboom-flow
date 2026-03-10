@@ -259,7 +259,7 @@ async function executeToolCall(
   userId: string,
   roles: string[]
 ): Promise<string> {
-  const limit = Math.min(Number(args.limit) || 20, 50);
+  const limit = Math.min(Number(args.limit) || 50, 500);
   const isAdmin = roles.includes("admin");
   const isSalesManager = roles.includes("sales_manager");
   const isSales = roles.includes("sales");
