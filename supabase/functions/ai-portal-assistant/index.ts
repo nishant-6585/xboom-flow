@@ -373,11 +373,13 @@ async function executeToolCall(
       case "query_expenses": {
         let query = client.from("expenses").select("id, description, amount, category, payment_mode, status, created_by_name, created_at, approved_by_name").order("created_at", { ascending: false }).limit(limit);
         if (!isAdmin && !roles.includes("finance")) query = query.eq("created_by", userId);
-        if (args.search) query = query.or(`description.ilike.%${args.search}%,category.ilike.%${args.search}%`);
+        if (args.search) query = query.or(`description.ilike.%${args.search}%,vendor_name.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
+        if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
+        if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify(data || []);
+        return JSON.stringify({ count: data?.length || 0, records: data || [] });
       }
 
       case "query_repairs": {
