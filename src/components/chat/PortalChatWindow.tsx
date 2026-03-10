@@ -131,11 +131,21 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
       }
     } catch (error) {
       console.error('Chat error:', error);
+      let errorMsg = 'Unknown error';
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMsg = 'The request took too long. Please try a simpler query.';
+        } else if (error.message === 'Load failed' || error.message === 'Failed to fetch') {
+          errorMsg = 'Network error — the request may have timed out. Please try again.';
+        } else {
+          errorMsg = error.message;
+        }
+      }
       setMessages(prev => [
         ...prev.filter(m => m.content !== ''),
         {
           role: 'assistant',
-          content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+          content: `Sorry, I encountered an error: ${errorMsg}`,
         },
       ]);
     } finally {
