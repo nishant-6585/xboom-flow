@@ -42,7 +42,7 @@ function initForm(entry: SalarySheetEntry | null): FormData {
     salary: "0", bank_account: "", ifsc_code: "",
     wfh_days: "0", unpaid_leaves: "0", el_leaves: "0", sl_leaves: "0",
     deductions: "0", pending_amount: "0", tds: "0", tax: "0", reimbursements: "0",
-    remarks: "",
+    remarks: "", last_working_date: undefined,
   };
   return {
     salary: String(entry.salary ?? 0),
@@ -58,6 +58,7 @@ function initForm(entry: SalarySheetEntry | null): FormData {
     tax: String(entry.tax ?? 0),
     reimbursements: String(entry.reimbursements ?? 0),
     remarks: entry.remarks ?? "",
+    last_working_date: entry.last_working_date ? new Date(entry.last_working_date) : undefined,
   };
 }
 
