@@ -11,14 +11,37 @@ interface VoiceInputButtonProps {
 
 export function VoiceInputButton({ onTranscript, disabled }: VoiceInputButtonProps) {
   const [isListening, setIsListening] = useState(false);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
+  const onTranscriptRef = useRef(onTranscript);
+
+  // Keep ref in sync without causing callback re-creation
+  useEffect(() => {
+    onTranscriptRef.current = onTranscript;
+  }, [onTranscript]);
 
   const isSupported = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback(async () => {
     if (!isSupported) {
       toast.error('Voice input is not supported in this browser');
+      return;
+    }
+
+    // Request microphone permission explicitly first (must be in click handler)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Stop tracks immediately — we only needed the permission grant
+      stream.getTracks().forEach(t => t.stop());
+    } catch (err) {
+      console.error('Microphone permission error:', err);
+      setPermissionDenied(true);
+      if (err instanceof Error && err.name === 'NotAllowedError') {
+        toast.error('Microphone access denied. Please allow microphone in your browser settings, or open the app in a new tab.');
+      } else {
+        toast.error('Could not access microphone. Try opening the app in a new tab.');
+      }
       return;
     }
 
@@ -29,19 +52,26 @@ export function VoiceInputButton({ onTranscript, disabled }: VoiceInputButtonPro
     recognition.interimResults = false;
     recognition.lang = 'en-IN';
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (event: any) => {
       const transcript = event.results?.[0]?.[0]?.transcript;
       if (transcript) {
-        onTranscript(transcript);
+        onTranscriptRef.current(transcript);
       }
-      setIsListening(false);
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
       if (event.error === 'not-allowed') {
+        setPermissionDenied(true);
         toast.error('Microphone access denied. Please enable it in browser settings.');
-      } else if (event.error !== 'aborted') {
+      } else if (event.error === 'aborted') {
+        // Silently handle — usually caused by iframe restrictions
+        toast.error('Voice input unavailable here. Try opening the app in a new tab.');
+      } else if (event.error === 'network') {
+        toast.error('Voice recognition requires an internet connection.');
+      } else {
         toast.error('Voice input failed. Please try again.');
       }
       setIsListening(false);
@@ -52,9 +82,15 @@ export function VoiceInputButton({ onTranscript, disabled }: VoiceInputButtonPro
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
-    setIsListening(true);
-  }, [isSupported, onTranscript]);
+    try {
+      recognition.start();
+      setIsListening(true);
+    } catch (e) {
+      console.error('Failed to start speech recognition:', e);
+      toast.error('Voice input failed to start. Try opening the app in a new tab.');
+      setIsListening(false);
+    }
+  }, [isSupported]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
@@ -67,7 +103,7 @@ export function VoiceInputButton({ onTranscript, disabled }: VoiceInputButtonPro
     };
   }, []);
 
-  if (!isSupported) return null;
+  if (!isSupported || permissionDenied) return null;
 
   return (
     <Button
