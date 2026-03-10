@@ -287,7 +287,7 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
                     <TableRow key={entry.id}>
                       <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
                       <TableCell className="font-medium">{entry.employee_name}</TableCell>
-                      <TableCell>{fmt(entry.salary)}</TableCell>
+                      <TableCell className="text-xs">{entry.last_working_date ? new Date(entry.last_working_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : "—"}</TableCell>
                       <TableCell className="text-xs">{entry.bank_account || "—"}</TableCell>
                       <TableCell className="text-xs">{entry.ifsc_code || "—"}</TableCell>
                       <TableCell>{fmt(entry.wfh_days)}</TableCell>
