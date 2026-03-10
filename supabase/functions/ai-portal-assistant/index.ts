@@ -39,16 +39,18 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_enquiries",
-      description: "Search sales enquiries/leads by customer, product, status, salesperson, or date range. Returns lead details, temperature, and conversion info.",
+      description: "Search sales enquiries/leads by customer, product, status, salesperson, or date range. Returns lead details, temperature, and conversion info. 'Hot leads' means probability_to_close >= 70. 'Mega deals' means is_mega_deal = true.",
       parameters: {
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Search term (customer name, company, product)" },
           status: { type: "string" as const, description: "Filter by status: new, responded, converted, closed" },
           lead_temperature: { type: "string" as const, description: "Filter: hot, warm, cold" },
+          hot_leads_only: { type: "boolean" as const, description: "If true, filters enquiries with probability_to_close >= 70 (hot leads)" },
+          mega_deals_only: { type: "boolean" as const, description: "If true, filters enquiries where is_mega_deal = true" },
           date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
           date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
-          limit: { type: "number" as const, description: "Max results (default 20)" },
+          limit: { type: "number" as const, description: "Max results (default 50)" },
         },
         required: [] as string[],
         additionalProperties: false,
