@@ -405,9 +405,9 @@ async function executeToolCall(
       }
 
       case "query_tickets": {
-        let query = client.from("tickets").select("id, ticket_number, title, status, priority, category, assigned_to_name, created_by_name, created_at, resolved_at").order("created_at", { ascending: false }).limit(limit);
-        if (!isAdmin && !roles.includes("it")) query = query.eq("created_by", userId);
-        if (args.search) query = query.or(`title.ilike.%${args.search}%,ticket_number.ilike.%${args.search}%`);
+        let query = client.from("tickets").select("id, ticket_number, subject, description, status, priority, category, assigned_to_name, raised_by_name, created_at, resolved_at").order("created_at", { ascending: false }).limit(limit);
+        if (!isAdmin && !roles.includes("it")) query = query.eq("raised_by", userId);
+        if (args.search) query = query.or(`subject.ilike.%${args.search}%,ticket_number.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
         if (args.priority) query = query.eq("priority", args.priority);
         if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
