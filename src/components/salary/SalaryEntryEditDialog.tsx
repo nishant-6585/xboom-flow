@@ -4,8 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarWidget } from "@/components/ui/calendar";
 import { SalarySheetEntry, calculateTotal, calculateDeduction, calculateAttendanceData, AttendanceSummary, calculateEarnings, calculateTotalDeductions, calculateNetPay } from "@/hooks/useSalarySheets";
-import { AlertTriangle, Calendar } from "lucide-react";
+import { AlertTriangle, Calendar, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface Props {
   open: boolean;
