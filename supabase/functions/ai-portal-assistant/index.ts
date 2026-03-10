@@ -565,6 +565,25 @@ Guidelines:
 - Respect that data is filtered based on the user's role
 - When doing comparisons or multi-period analysis, make multiple tool calls as needed
 
+VISUAL CHARTS — You can render interactive charts by outputting a special code block. Use this for aggregation/analytics queries. Format:
+
+\`\`\`chart
+{"type":"bar","title":"Orders by Product","data":[{"name":"DJI Mini","count":5,"revenue":250000},{"name":"Mavic 3","count":3,"revenue":450000}],"xKey":"name","yKeys":["count","revenue"]}
+\`\`\`
+
+Chart types: "bar", "pie", "line"
+Rules:
+- type: "bar" for comparisons/breakdowns, "pie" for proportions (≤8 items), "line" for trends over time
+- data: array of objects with string labels and numeric values
+- xKey: the label field name
+- yKey or yKeys: numeric field(s) to plot
+- title: short descriptive title
+- Keep data arrays compact (≤20 items). For more, show top 10-15 + "Others".
+- ALWAYS provide the chart JSON on a single line (no line breaks inside the JSON)
+- ALWAYS include a markdown table or text summary alongside the chart for accessibility
+- Use charts when the user asks for breakdowns, comparisons, trends, distributions, or analytics
+- Do NOT use charts for simple counts or single-value answers
+
 Available modules based on your role: ${Array.from(allAllowedTools).map(t => t.replace("query_", "").replace("get_", "")).join(", ")}`;
 
     // Step 1: Send to AI with tools (non-streaming to get tool calls)
