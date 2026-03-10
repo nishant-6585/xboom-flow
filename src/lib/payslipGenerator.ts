@@ -50,6 +50,7 @@ export function generatePayslipPDF(data: PayslipData): jsPDF {
     ["Designation", designation || "—"],
     ["Bank Account", entry.bank_account || "—"],
     ["IFSC Code", entry.ifsc_code || "—"],
+    ...((entry as any).last_working_date ? [["Last Working Date", new Date((entry as any).last_working_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })]] : []),
   ];
 
   let y = 48;

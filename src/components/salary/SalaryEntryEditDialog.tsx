@@ -4,8 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarWidget } from "@/components/ui/calendar";
 import { SalarySheetEntry, calculateTotal, calculateDeduction, calculateAttendanceData, AttendanceSummary, calculateEarnings, calculateTotalDeductions, calculateNetPay } from "@/hooks/useSalarySheets";
-import { AlertTriangle, Calendar } from "lucide-react";
+import { AlertTriangle, Calendar, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -30,6 +34,7 @@ type FormData = {
   tax: string;
   reimbursements: string;
   remarks: string;
+  last_working_date: Date | undefined;
 };
 
 function initForm(entry: SalarySheetEntry | null): FormData {
@@ -37,7 +42,7 @@ function initForm(entry: SalarySheetEntry | null): FormData {
     salary: "0", bank_account: "", ifsc_code: "",
     wfh_days: "0", unpaid_leaves: "0", el_leaves: "0", sl_leaves: "0",
     deductions: "0", pending_amount: "0", tds: "0", tax: "0", reimbursements: "0",
-    remarks: "",
+    remarks: "", last_working_date: undefined,
   };
   return {
     salary: String(entry.salary ?? 0),
@@ -53,6 +58,7 @@ function initForm(entry: SalarySheetEntry | null): FormData {
     tax: String(entry.tax ?? 0),
     reimbursements: String(entry.reimbursements ?? 0),
     remarks: entry.remarks ?? "",
+    last_working_date: entry.last_working_date ? new Date(entry.last_working_date) : undefined,
   };
 }
 
@@ -146,6 +152,7 @@ export function SalaryEntryEditDialog({ open, onOpenChange, entry, onSave, month
       el_leaves_override,
       sl_leaves_override,
       deductions_override,
+      last_working_date: form.last_working_date ? format(form.last_working_date, "yyyy-MM-dd") : null,
     };
 
     const ok = await onSave(entry.id, updates);
@@ -282,6 +289,36 @@ export function SalaryEntryEditDialog({ open, onOpenChange, entry, onSave, month
               <div>
                 <Label htmlFor="reimbursements">Reimbursements (₹)</Label>
                 <Input id="reimbursements" value={form.reimbursements} onChange={e => handleNumericChange("reimbursements", e.target.value)} />
+              </div>
+              <div>
+                <Label>Last Working Date (LWD)</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn("w-full justify-start text-left font-normal mt-1", !form.last_working_date && "text-muted-foreground")}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {form.last_working_date ? format(form.last_working_date, "dd MMM yyyy") : "Not set (full month)"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarWidget
+                      mode="single"
+                      selected={form.last_working_date}
+                      onSelect={(date) => setForm(prev => ({ ...prev, last_working_date: date || undefined }))}
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                    {form.last_working_date && (
+                      <div className="p-2 border-t">
+                        <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => setForm(prev => ({ ...prev, last_working_date: undefined }))}>
+                          Clear Date
+                        </Button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+                <p className="text-[10px] text-muted-foreground mt-1">Set for employees leaving mid-month to pro-rate salary</p>
               </div>
             </div>
 

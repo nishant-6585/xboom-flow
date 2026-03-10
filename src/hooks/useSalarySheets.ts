@@ -44,6 +44,7 @@ export interface SalarySheetEntry {
   el_leaves_override: boolean;
   sl_leaves_override: boolean;
   deductions_override: boolean;
+  last_working_date: string | null;
 }
 
 export interface AttendanceSummary {
@@ -97,6 +98,51 @@ export function calculateTotal(entry: Partial<SalarySheetEntry>): number {
   const tax = Number(entry.tax) || 0;
   const reimbursements = Number(entry.reimbursements) || 0;
   return Math.max(0, salary - deductions - pending - tds - tax + reimbursements);
+}
+
+/**
+ * Calculate pro-rated salary based on last working date within a month.
+ * Returns the pro-rated salary amount.
+ */
+export async function calculateProratedSalary(
+  fullSalary: number,
+  lastWorkingDate: string,
+  month: number,
+  year: number
+): Promise<number> {
+  if (!lastWorkingDate || fullSalary <= 0) return fullSalary;
+  const lwd = new Date(lastWorkingDate);
+  const lwdMonth = lwd.getMonth() + 1;
+  const lwdYear = lwd.getFullYear();
+  // Only pro-rate if LWD falls within the sheet month
+  if (lwdMonth !== month || lwdYear !== year) return fullSalary;
+
+  const workingDays = await getWorkingDaysInMonth(month, year);
+  if (workingDays <= 0) return fullSalary;
+
+  // Count working days from 1st to LWD (inclusive)
+  const monthStart = startOfMonth(new Date(year, month - 1));
+  const daysRange = eachDayOfInterval({ start: monthStart, end: lwd });
+
+  const startStr = `${year}-${String(month).padStart(2, "0")}-01`;
+  const endStr = `${year}-${String(month).padStart(2, "0")}-${String(endOfMonth(monthStart).getDate()).padStart(2, "0")}`;
+  const { data: holidays } = await supabase
+    .from("holidays")
+    .select("date")
+    .gte("date", startStr)
+    .lte("date", endStr);
+  const holidaySet = new Set((holidays || []).map((h: any) => h.date));
+
+  const workedDays = daysRange.filter(d => {
+    const day = getDay(d);
+    if (day === 0 || day === 6) return false;
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    if (holidaySet.has(dateStr)) return false;
+    return true;
+  }).length;
+
+  const perDaySalary = fullSalary / workingDays;
+  return Math.round(perDaySalary * workedDays * 100) / 100;
 }
 
 export function calculateEarnings(entry: Partial<SalarySheetEntry>): number {
@@ -312,9 +358,30 @@ export function useSalarySheets() {
         }
       }
 
-      const deduction = calculateDeduction(profileData.salary, attendanceData.unpaid_leaves, workingDays);
+
+      // Check if employee has an exit_date in this month
+      let lastWorkingDate: string | null = null;
+      const { data: empData } = await supabase
+        .from("employees")
+        .select("exit_date")
+        .eq("id", emp.id)
+        .single();
+      if (empData?.exit_date) {
+        const exitDate = new Date(empData.exit_date);
+        if (month && year && exitDate.getMonth() + 1 === month && exitDate.getFullYear() === year) {
+          lastWorkingDate = empData.exit_date;
+        }
+      }
+
+      // Pro-rate salary if LWD is set
+      let effectiveSalary = profileData.salary;
+      if (lastWorkingDate && month && year) {
+        effectiveSalary = await calculateProratedSalary(profileData.salary, lastWorkingDate, month, year);
+      }
+
+      const deduction = calculateDeduction(effectiveSalary, attendanceData.unpaid_leaves, workingDays);
       const total = calculateTotal({
-        salary: profileData.salary,
+        salary: effectiveSalary,
         deductions: deduction,
         pending_amount: 0,
         tds: 0,
@@ -326,7 +393,7 @@ export function useSalarySheets() {
         salary_sheet_id: sheetId,
         employee_id: emp.id,
         employee_name: emp.name,
-        salary: profileData.salary,
+        salary: effectiveSalary,
         bank_account: profileData.bank_account,
         ifsc_code: profileData.ifsc_code,
         wfh_days: attendanceData.wfh_days,
@@ -344,6 +411,7 @@ export function useSalarySheets() {
         el_leaves_override: false,
         sl_leaves_override: false,
         deductions_override: false,
+        last_working_date: lastWorkingDate,
       });
     }
 

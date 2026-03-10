@@ -159,13 +159,13 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
 
   const exportToExcel = () => {
     const data = entries.map((e, idx) => ({
-      "SN": idx + 1, "Name of Employee": e.employee_name, "Salary": e.salary, "Bank Account": e.bank_account || "", "IFSC Code": e.ifsc_code || "",
+      "SN": idx + 1, "Name of Employee": e.employee_name, "LWD": e.last_working_date || "", "Salary": e.salary, "Bank Account": e.bank_account || "", "IFSC Code": e.ifsc_code || "",
       "WFH Days": e.wfh_days, "Unpaid Leaves": e.unpaid_leaves, "EL": e.el_leaves, "SL": e.sl_leaves,
       "Deductions": e.deductions, "Pending": e.pending_amount, "TDS": e.tds, "Tax": e.tax, "Reimbursements": e.reimbursements,
       "Total Earnings": calculateEarnings(e), "Total Deductions": calculateTotalDeductions(e), "Net Pay": calculateNetPay(e), "Remarks": e.remarks || "",
     }));
     data.push({
-      "SN": 0, "Name of Employee": "TOTAL", "Salary": entries.reduce((s, e) => s + Number(e.salary), 0), "Bank Account": "", "IFSC Code": "",
+      "SN": 0, "Name of Employee": "TOTAL", "LWD": "", "Salary": entries.reduce((s, e) => s + Number(e.salary), 0), "Bank Account": "", "IFSC Code": "",
       "WFH Days": 0, "Unpaid Leaves": 0, "EL": 0, "SL": 0,
       "Deductions": entries.reduce((s, e) => s + Number(e.deductions), 0), "Pending": entries.reduce((s, e) => s + Number(e.pending_amount), 0),
       "TDS": entries.reduce((s, e) => s + Number(e.tds), 0), "Tax": entries.reduce((s, e) => s + Number(e.tax), 0),
@@ -258,6 +258,7 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
                 <TableRow>
                   <TableHead className="w-12">SN</TableHead>
                   <TableHead className="min-w-[140px]">Name</TableHead>
+                  <TableHead>LWD</TableHead>
                   <TableHead>Salary</TableHead>
                   <TableHead>Bank Acc.</TableHead>
                   <TableHead>IFSC</TableHead>
@@ -286,6 +287,7 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
                     <TableRow key={entry.id}>
                       <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
                       <TableCell className="font-medium">{entry.employee_name}</TableCell>
+                      <TableCell className="text-xs">{entry.last_working_date ? new Date(entry.last_working_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : "—"}</TableCell>
                       <TableCell>{fmt(entry.salary)}</TableCell>
                       <TableCell className="text-xs">{entry.bank_account || "—"}</TableCell>
                       <TableCell className="text-xs">{entry.ifsc_code || "—"}</TableCell>

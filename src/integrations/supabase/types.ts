@@ -5108,6 +5108,7 @@ export type Database = {
           employee_name: string
           id: string
           ifsc_code: string | null
+          last_working_date: string | null
           pending_amount: number
           reimbursements: number
           remarks: string | null
@@ -5135,6 +5136,7 @@ export type Database = {
           employee_name: string
           id?: string
           ifsc_code?: string | null
+          last_working_date?: string | null
           pending_amount?: number
           reimbursements?: number
           remarks?: string | null
@@ -5162,6 +5164,7 @@ export type Database = {
           employee_name?: string
           id?: string
           ifsc_code?: string | null
+          last_working_date?: string | null
           pending_amount?: number
           reimbursements?: number
           remarks?: string | null

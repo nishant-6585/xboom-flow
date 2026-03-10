@@ -1,0 +1,1 @@
+ALTER TABLE public.salary_sheet_entries ADD COLUMN last_working_date date DEFAULT NULL;
