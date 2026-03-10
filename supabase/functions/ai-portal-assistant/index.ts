@@ -272,9 +272,11 @@ async function executeToolCall(
         if (args.search) query = query.or(`customer_name.ilike.%${args.search}%,order_number.ilike.%${args.search}%,product_name.ilike.%${args.search}%,customer_company.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
         if (args.payment_status) query = query.eq("payment_status", args.payment_status);
+        if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
+        if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify(data || []);
+        return JSON.stringify({ count: data?.length || 0, records: data || [] });
       }
 
       case "query_enquiries": {
