@@ -414,9 +414,11 @@ async function executeToolCall(
         }
 
         // Enquiries
-        const enqQuery = isAdmin || isSalesManager
+        let enqQuery = isAdmin || isSalesManager
           ? client.from("enquiries").select("id, status, lead_temperature", { count: "exact" })
           : client.from("enquiries").select("id, status, lead_temperature", { count: "exact" }).eq("sales_person_id", userId);
+        if (dateFrom) enqQuery = enqQuery.gte("created_at", `${dateFrom}T00:00:00`);
+        if (dateTo) enqQuery = enqQuery.lte("created_at", `${dateTo}T23:59:59`);
         const { data: enquiries, count: enqCount } = await enqQuery;
         if (enquiries) {
           stats.total_enquiries = enqCount;
