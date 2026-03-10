@@ -358,15 +358,6 @@ export function useSalarySheets() {
         }
       }
 
-      const deduction = calculateDeduction(profileData.salary, attendanceData.unpaid_leaves, workingDays);
-      const total = calculateTotal({
-        salary: profileData.salary,
-        deductions: deduction,
-        pending_amount: 0,
-        tds: 0,
-        tax: 0,
-        reimbursements: 0,
-      });
 
       // Check if employee has an exit_date in this month
       let lastWorkingDate: string | null = null;
