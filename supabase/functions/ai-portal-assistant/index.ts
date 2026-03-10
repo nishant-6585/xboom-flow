@@ -741,6 +741,11 @@ RESPONSE FORMATTING — CRITICAL:
 - Use natural language for single records: "Order ORD2500012 from Aerial Tech is confirmed, worth ₹3.5L, payment pending."
 - For lists of 3 or fewer items, use bullet points instead of tables.
 - Round large numbers: ₹10,50,000 → ₹10.5L, ₹1,06,00,000 → ₹1.06 Cr
+- Use markdown headers (##, ###) to section your response when it has multiple parts.
+- Use **bold** for order numbers, customer names, and key figures.
+- For tables, always use proper markdown table syntax with aligned headers.
+- When showing order lists, include: Order #, Customer, Product, Amount, Status — as a clean table.
+- Add a brief "💡 Tip" or actionable insight at the end when relevant.
 
 ACTIONABLE COMMANDS:
 - You can update order statuses, enquiry statuses, and task statuses when the user asks.
