@@ -36,7 +36,7 @@ export function PaymentRemindersCard({ orders }: PaymentRemindersCardProps) {
       .map(order => {
         const dueDate = parseISO(order.payment_due_date!);
         const daysUntilDue = differenceInDays(dueDate, today);
-        const balanceAmount = (order.total_sales_amount || 0) - (order.discount_amount || 0) - (order.amount_paid || 0);
+        const balanceAmount = (order.total_sales_amount || 0) - (order.amount_paid || 0);
         
         return {
           order,
