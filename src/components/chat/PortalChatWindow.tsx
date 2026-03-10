@@ -54,6 +54,9 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error('Please log in to use the AI assistant');
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout
+
       const response = await fetch(CHAT_URL, {
         method: 'POST',
         headers: {
@@ -61,7 +64,10 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ messages: allMessages }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorData = await response.json();
