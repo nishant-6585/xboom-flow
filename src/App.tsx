@@ -114,6 +114,7 @@ function AuthGuardedWidgets({ isMobile }: { isMobile: boolean }) {
       <FloatingActionButton />
       {isMobile && <MobileAttendanceFAB />}
       <CommandPalette />
+      <PortalChatButton />
     </>
   );
 }
