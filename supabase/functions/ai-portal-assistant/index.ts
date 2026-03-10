@@ -514,6 +514,107 @@ async function executeToolCall(
         return JSON.stringify(stats);
       }
 
+      // --- ACTIONABLE COMMANDS ---
+      case "update_order_status": {
+        const orderNum = args.order_number as string;
+        const newStatus = args.new_status as string;
+        const validStatuses = ["confirmed", "dispatched", "delivered", "cancelled"];
+        if (!validStatuses.includes(newStatus)) {
+          return JSON.stringify({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+        }
+        // Find order
+        const { data: orderMatch } = await client.from("orders").select("id, order_number, status").ilike("order_number", orderNum).limit(1);
+        if (!orderMatch?.length) return JSON.stringify({ error: `Order ${orderNum} not found` });
+        // RLS check for sales users
+        if (isSales && !isAdmin && !isSalesManager) {
+          const { data: ownOrder } = await client.from("orders").select("id").eq("id", orderMatch[0].id).eq("sales_person_id", userId);
+          if (!ownOrder?.length) return JSON.stringify({ error: "You don't have permission to update this order" });
+        }
+        const { error: updateErr } = await client.from("orders").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", orderMatch[0].id);
+        if (updateErr) throw updateErr;
+        return JSON.stringify({ success: true, message: `Order ${orderNum} status updated from "${orderMatch[0].status}" to "${newStatus}"` });
+      }
+
+      case "update_enquiry_status": {
+        const enquiryId = args.enquiry_id as string;
+        const newStatus = args.new_status as string;
+        const validStatuses = ["new", "responded", "on_hold", "moved_to_pipeline", "order_won", "order_lost"];
+        if (!validStatuses.includes(newStatus)) {
+          return JSON.stringify({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+        }
+        const { data: enqMatch } = await client.from("enquiries").select("id, status").eq("id", enquiryId).limit(1);
+        if (!enqMatch?.length) return JSON.stringify({ error: "Enquiry not found" });
+        if (isSales && !isAdmin && !isSalesManager) {
+          const { data: ownEnq } = await client.from("enquiries").select("id").eq("id", enquiryId).eq("sales_person_id", userId);
+          if (!ownEnq?.length) return JSON.stringify({ error: "You don't have permission to update this enquiry" });
+        }
+        const { error: updateErr } = await client.from("enquiries").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", enquiryId);
+        if (updateErr) throw updateErr;
+        return JSON.stringify({ success: true, message: `Enquiry status updated from "${enqMatch[0].status}" to "${newStatus}"` });
+      }
+
+      case "update_task_status": {
+        const taskId = args.task_id as string;
+        const newStatus = args.new_status as string;
+        const validStatuses = ["pending", "in_progress", "completed"];
+        if (!validStatuses.includes(newStatus)) {
+          return JSON.stringify({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+        }
+        const { data: taskMatch } = await client.from("tasks").select("id, status, title").eq("id", taskId).limit(1);
+        if (!taskMatch?.length) return JSON.stringify({ error: "Task not found" });
+        if (!isAdmin && !isSalesManager) {
+          const { data: ownTask } = await client.from("tasks").select("id").eq("id", taskId).eq("assigned_to", userId);
+          if (!ownTask?.length) return JSON.stringify({ error: "You can only update tasks assigned to you" });
+        }
+        const updateData: Record<string, unknown> = { status: newStatus, updated_at: new Date().toISOString() };
+        if (newStatus === "completed") updateData.completed_at = new Date().toISOString();
+        const { error: updateErr } = await client.from("tasks").update(updateData).eq("id", taskId);
+        if (updateErr) throw updateErr;
+        return JSON.stringify({ success: true, message: `Task "${taskMatch[0].title}" updated to "${newStatus}"` });
+      }
+
+      case "get_daily_briefing": {
+        const briefing: Record<string, unknown> = {};
+        const today = new Date().toISOString().split("T")[0];
+
+        // Overdue payments
+        const overdueQuery = isAdmin || isSalesManager || roles.includes("finance")
+          ? client.from("orders").select("id, order_number, customer_name, total_sales_amount, amount_paid, payment_due_date").in("payment_status", ["pending", "partial"]).lt("payment_due_date", today).order("payment_due_date").limit(10)
+          : client.from("orders").select("id, order_number, customer_name, total_sales_amount, amount_paid, payment_due_date").eq("sales_person_id", userId).in("payment_status", ["pending", "partial"]).lt("payment_due_date", today).order("payment_due_date").limit(10);
+        const { data: overdue } = await overdueQuery;
+        briefing.overdue_payments = { count: overdue?.length || 0, records: overdue || [] };
+
+        // Stalled pipeline (no update in 7+ days)
+        const stalledDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const stalledQuery = isAdmin || isSalesManager
+          ? client.from("pipeline_orders").select("id, customer_name, product_name, expected_price, updated_at, stage").eq("status", "active").lt("updated_at", stalledDate).limit(10)
+          : client.from("pipeline_orders").select("id, customer_name, product_name, expected_price, updated_at, stage").eq("sales_person_id", userId).eq("status", "active").lt("updated_at", stalledDate).limit(10);
+        const { data: stalled } = await stalledQuery;
+        briefing.stalled_deals = { count: stalled?.length || 0, records: stalled || [] };
+
+        // My pending tasks (due today or overdue)
+        const { data: urgentTasks } = await client.from("tasks").select("id, title, due_date, priority, status")
+          .eq("assigned_to", userId).in("status", ["pending", "in_progress"]).lte("due_date", `${today}T23:59:59`).order("due_date").limit(10);
+        briefing.urgent_tasks = { count: urgentTasks?.length || 0, records: urgentTasks || [] };
+
+        // Low stock (admin/supply chain only)
+        if (isAdmin || roles.includes("supply_chain")) {
+          const { data: lowStock } = await client.from("inventory").select("id, product_name, current_stock, reorder_point").gt("reorder_point", 0);
+          const lowItems = (lowStock || []).filter(i => i.current_stock <= (i.reorder_point || 0));
+          briefing.low_stock_alerts = { count: lowItems.length, items: lowItems.slice(0, 5) };
+        }
+
+        // Recent hot leads (last 24h)
+        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const hotQuery = isAdmin || isSalesManager
+          ? client.from("enquiries").select("id, customer_name, product_name, probability_to_close, created_at").gte("probability_to_close", 70).gte("created_at", yesterday).limit(5)
+          : client.from("enquiries").select("id, customer_name, product_name, probability_to_close, created_at").eq("sales_person_id", userId).gte("probability_to_close", 70).gte("created_at", yesterday).limit(5);
+        const { data: newHot } = await hotQuery;
+        briefing.new_hot_leads = { count: newHot?.length || 0, records: newHot || [] };
+
+        return JSON.stringify(briefing);
+      }
+
       default:
         return JSON.stringify({ error: "Unknown tool" });
     }
