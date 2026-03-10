@@ -258,6 +258,7 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
                 <TableRow>
                   <TableHead className="w-12">SN</TableHead>
                   <TableHead className="min-w-[140px]">Name</TableHead>
+                  <TableHead>LWD</TableHead>
                   <TableHead>Salary</TableHead>
                   <TableHead>Bank Acc.</TableHead>
                   <TableHead>IFSC</TableHead>
