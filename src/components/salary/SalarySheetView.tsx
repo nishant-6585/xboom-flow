@@ -159,7 +159,7 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
 
   const exportToExcel = () => {
     const data = entries.map((e, idx) => ({
-      "SN": idx + 1, "Name of Employee": e.employee_name, "Salary": e.salary, "Bank Account": e.bank_account || "", "IFSC Code": e.ifsc_code || "",
+      "SN": idx + 1, "Name of Employee": e.employee_name, "LWD": e.last_working_date || "", "Salary": e.salary, "Bank Account": e.bank_account || "", "IFSC Code": e.ifsc_code || "",
       "WFH Days": e.wfh_days, "Unpaid Leaves": e.unpaid_leaves, "EL": e.el_leaves, "SL": e.sl_leaves,
       "Deductions": e.deductions, "Pending": e.pending_amount, "TDS": e.tds, "Tax": e.tax, "Reimbursements": e.reimbursements,
       "Total Earnings": calculateEarnings(e), "Total Deductions": calculateTotalDeductions(e), "Net Pay": calculateNetPay(e), "Remarks": e.remarks || "",
