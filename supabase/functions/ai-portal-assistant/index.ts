@@ -26,6 +26,8 @@ const DATA_TOOLS = [
           search: { type: "string" as const, description: "Search term (customer name, order number, product)" },
           status: { type: "string" as const, description: "Filter by status: pending, confirmed, dispatched, delivered, cancelled" },
           payment_status: { type: "string" as const, description: "Filter by payment: pending, partial, paid" },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
           limit: { type: "number" as const, description: "Max results (default 20)" },
         },
         required: [] as string[],
@@ -37,13 +39,15 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_enquiries",
-      description: "Search sales enquiries/leads by customer, product, status, or salesperson. Returns lead details, temperature, and conversion info.",
+      description: "Search sales enquiries/leads by customer, product, status, salesperson, or date range. Returns lead details, temperature, and conversion info.",
       parameters: {
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Search term (customer name, company, product)" },
           status: { type: "string" as const, description: "Filter by status: new, responded, converted, closed" },
           lead_temperature: { type: "string" as const, description: "Filter: hot, warm, cold" },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
           limit: { type: "number" as const, description: "Max results (default 20)" },
         },
         required: [] as string[],
@@ -55,12 +59,14 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_pipeline",
-      description: "Search pipeline orders (deals in progress) by customer, product, stage, or salesperson.",
+      description: "Search pipeline orders (deals in progress) by customer, product, stage, salesperson, or date range.",
       parameters: {
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Search term" },
           status: { type: "string" as const, description: "Filter: active, won, lost, stalled" },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
           limit: { type: "number" as const, description: "Max results (default 20)" },
         },
         required: [] as string[],
@@ -106,13 +112,15 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_tasks",
-      description: "Search tasks by title, assignee, status, or type.",
+      description: "Search tasks by title, assignee, status, type, or date range.",
       parameters: {
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Task title or description" },
           status: { type: "string" as const, description: "Filter: pending, in_progress, completed" },
           assigned_to_name: { type: "string" as const, description: "Filter by assignee name" },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
           limit: { type: "number" as const, description: "Max results (default 20)" },
         },
         required: [] as string[],
@@ -124,13 +132,15 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_tickets",
-      description: "Search IT support tickets by title, status, priority, or assignee.",
+      description: "Search IT support tickets by title, status, priority, assignee, or date range.",
       parameters: {
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Ticket title or number" },
           status: { type: "string" as const, description: "Filter: open, in_progress, resolved, closed" },
           priority: { type: "string" as const, description: "Filter: low, medium, high, critical" },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
           limit: { type: "number" as const, description: "Max results (default 20)" },
         },
         required: [] as string[],
@@ -142,12 +152,14 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_procurements",
-      description: "Search procurement orders by product, supplier, or payment status.",
+      description: "Search procurement orders by product, supplier, payment status, or date range.",
       parameters: {
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Product name, supplier, or procurement number" },
           payment_status: { type: "string" as const, description: "Filter: pending, partial, paid" },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
           limit: { type: "number" as const, description: "Max results (default 20)" },
         },
         required: [] as string[],
@@ -175,12 +187,14 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_expenses",
-      description: "Search expenses by description, category, or approval status.",
+      description: "Search expenses by description, category, approval status, or date range.",
       parameters: {
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Expense description or category" },
           status: { type: "string" as const, description: "Filter: pending, approved, rejected" },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
           limit: { type: "number" as const, description: "Max results (default 20)" },
         },
         required: [] as string[],
@@ -192,12 +206,14 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_repairs",
-      description: "Search repair orders by customer, drone model, or status.",
+      description: "Search repair orders by customer, drone model, status, or date range.",
       parameters: {
         type: "object" as const,
         properties: {
           search: { type: "string" as const, description: "Customer name, drone model, or repair number" },
           status: { type: "string" as const, description: "Filter: received, diagnosing, repairing, completed, delivered" },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
           limit: { type: "number" as const, description: "Max results (default 20)" },
         },
         required: [] as string[],
@@ -209,10 +225,13 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "get_dashboard_stats",
-      description: "Get overall dashboard statistics: total orders, revenue, pending payments, active enquiries, inventory summary, and more.",
+      description: "Get overall dashboard statistics including counts and summaries. Optionally filter by date range for time-specific stats.",
       parameters: {
         type: "object" as const,
-        properties: {},
+        properties: {
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
+        },
         required: [] as string[],
         additionalProperties: false,
       },
