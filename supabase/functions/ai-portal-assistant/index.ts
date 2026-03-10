@@ -282,11 +282,13 @@ async function executeToolCall(
       }
 
       case "query_enquiries": {
-        let query = client.from("enquiries").select("id, customer_name, customer_company, product_name, quantity, status, lead_temperature, urgency, sales_person_name, created_at, is_mega_deal, ai_score").order("created_at", { ascending: false }).limit(limit);
+        let query = client.from("enquiries").select("id, customer_name, customer_company, product_name, product_category, quantity, status, lead_temperature, urgency, sales_person_name, created_at, is_mega_deal, ai_score, probability_to_close, customer_state").order("created_at", { ascending: false }).limit(limit);
         if (isSales && !isAdmin && !isSalesManager) query = query.eq("sales_person_id", userId);
         if (args.search) query = query.or(`customer_name.ilike.%${args.search}%,customer_company.ilike.%${args.search}%,product_name.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
         if (args.lead_temperature) query = query.eq("lead_temperature", args.lead_temperature);
+        if (args.hot_leads_only) query = query.gte("probability_to_close", 70);
+        if (args.mega_deals_only) query = query.eq("is_mega_deal", true);
         if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
         if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
