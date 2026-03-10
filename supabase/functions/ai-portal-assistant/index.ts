@@ -587,8 +587,8 @@ async function executeToolCall(
         // Stalled pipeline (no update in 7+ days)
         const stalledDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
         const stalledQuery = isAdmin || isSalesManager
-          ? client.from("pipeline_orders").select("id, customer_name, product_name, expected_price, updated_at, stage").eq("status", "active").lt("updated_at", stalledDate).limit(10)
-          : client.from("pipeline_orders").select("id, customer_name, product_name, expected_price, updated_at, stage").eq("sales_person_id", userId).eq("status", "active").lt("updated_at", stalledDate).limit(10);
+           ? client.from("pipeline_orders").select("id, customer_name, product_name, expected_price, updated_at, status").eq("status", "active").lt("updated_at", stalledDate).limit(10)
+           : client.from("pipeline_orders").select("id, customer_name, product_name, expected_price, updated_at, status").eq("sales_person_id", userId).eq("status", "active").lt("updated_at", stalledDate).limit(10);
         const { data: stalled } = await stalledQuery;
         briefing.stalled_deals = { count: stalled?.length || 0, records: stalled || [] };
 
