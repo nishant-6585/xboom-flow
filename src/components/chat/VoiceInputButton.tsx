@@ -7,21 +7,25 @@ import { toast } from 'sonner';
 interface VoiceInputButtonProps {
   onTranscript: (text: string) => void;
   disabled?: boolean;
-  /** When true, mic auto-starts listening (for voice mode) */
   autoListen?: boolean;
+  variant?: 'default' | 'large';
+  onListeningChange?: (listening: boolean) => void;
 }
 
-export function VoiceInputButton({ onTranscript, disabled, autoListen }: VoiceInputButtonProps) {
+export function VoiceInputButton({ onTranscript, disabled, autoListen, variant = 'default', onListeningChange }: VoiceInputButtonProps) {
   const [isListening, setIsListening] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const onTranscriptRef = useRef(onTranscript);
-  const autoListenTriggeredRef = useRef(false);
 
   useEffect(() => {
     onTranscriptRef.current = onTranscript;
   }, [onTranscript]);
+
+  useEffect(() => {
+    onListeningChange?.(isListening);
+  }, [isListening, onListeningChange]);
 
   const isSupported = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
 
@@ -96,7 +100,6 @@ export function VoiceInputButton({ onTranscript, disabled, autoListen }: VoiceIn
   // Auto-listen when voice mode triggers it
   useEffect(() => {
     if (autoListen && !isListening && !disabled && !permissionDenied && isSupported) {
-      // Small delay to avoid overlapping with speech synthesis
       const timer = setTimeout(() => {
         startListening();
       }, 500);
@@ -112,6 +115,35 @@ export function VoiceInputButton({ onTranscript, disabled, autoListen }: VoiceIn
 
   if (!isSupported || permissionDenied) return null;
 
+  // Large variant for voice mode overlay
+  if (variant === 'large') {
+    return (
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={isListening ? stopListening : startListening}
+        className={cn(
+          "relative flex items-center justify-center rounded-full transition-all duration-300 focus:outline-none",
+          "w-16 h-16",
+          isListening
+            ? "bg-emerald-500/15 text-emerald-500 ring-2 ring-emerald-500/30"
+            : "bg-primary/10 text-primary hover:bg-primary/20 ring-2 ring-primary/20 hover:ring-primary/30",
+          disabled && "opacity-40 pointer-events-none"
+        )}
+        title={isListening ? "Stop listening" : "Tap to speak"}
+      >
+        {/* Pulse rings when listening */}
+        {isListening && (
+          <>
+            <span className="absolute inset-0 rounded-full border-2 border-emerald-500/30 animate-[voicePing_2s_ease-out_infinite]" />
+            <span className="absolute inset-0 rounded-full border-2 border-emerald-500/20 animate-[voicePing_2s_ease-out_0.7s_infinite]" />
+          </>
+        )}
+        {isListening ? <MicOff className="w-6 h-6 relative z-10" /> : <Mic className="w-6 h-6" />}
+      </button>
+    );
+  }
+
   return (
     <Button
       type="button"
@@ -122,7 +154,7 @@ export function VoiceInputButton({ onTranscript, disabled, autoListen }: VoiceIn
       className={cn(
         "h-8 w-8 rounded-lg transition-all duration-200 shrink-0",
         isListening
-          ? "bg-destructive/15 text-destructive hover:bg-destructive/20 animate-pulse"
+          ? "bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/20 ring-1 ring-emerald-500/30"
           : "text-muted-foreground hover:text-foreground hover:bg-muted"
       )}
       title={isListening ? "Stop listening" : "Voice input"}
