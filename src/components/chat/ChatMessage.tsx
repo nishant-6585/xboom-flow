@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Bot, User, Volume2, VolumeX, Download } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 import { parseChartBlocks, ChatChart } from './ChatChart';
 import { Button } from '@/components/ui/button';
