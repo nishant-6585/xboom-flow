@@ -395,11 +395,15 @@ async function executeToolCall(
 
       case "get_dashboard_stats": {
         const stats: Record<string, unknown> = {};
+        const dateFrom = args.date_from as string | undefined;
+        const dateTo = args.date_to as string | undefined;
 
         // Orders summary
-        const ordersQuery = isAdmin || isSalesManager
+        let ordersQuery = isAdmin || isSalesManager
           ? client.from("orders").select("id, total_sales_amount, amount_paid, payment_status, status", { count: "exact" })
           : client.from("orders").select("id, total_sales_amount, amount_paid, payment_status, status", { count: "exact" }).eq("sales_person_id", userId);
+        if (dateFrom) ordersQuery = ordersQuery.gte("created_at", `${dateFrom}T00:00:00`);
+        if (dateTo) ordersQuery = ordersQuery.lte("created_at", `${dateTo}T23:59:59`);
         const { data: orders, count: orderCount } = await ordersQuery;
         
         if (orders) {
