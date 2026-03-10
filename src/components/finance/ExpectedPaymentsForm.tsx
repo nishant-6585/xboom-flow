@@ -11,7 +11,7 @@ import { Loader2, Plus, Calendar, IndianRupee } from 'lucide-react';
 interface ExpectedPaymentsFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  orders?: Array<{ id: string; order_number: string; customer_name: string; customer_company: string; total_sales_amount: number; amount_paid: number }>;
+  orders?: Array<{ id: string; order_number: string; customer_name: string; customer_company: string; total_sales_amount: number; discount_amount?: number | null; amount_paid: number }>;
   pipelineOrders?: Array<{ id: string; customer_name: string; customer_company: string; expected_price: number; product_name: string }>;
 }
 
