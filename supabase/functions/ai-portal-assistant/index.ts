@@ -487,7 +487,7 @@ Guidelines:
 
 Available modules based on your role: ${Array.from(allAllowedTools).map(t => t.replace("query_", "").replace("get_", "")).join(", ")}`;
 
-    // Step 1: Send to AI with tools
+    // Step 1: Send to AI with tools (non-streaming to get tool calls)
     const step1Response = await fetch(GATEWAY_URL, {
       method: "POST",
       headers: {
@@ -499,6 +499,7 @@ Available modules based on your role: ${Array.from(allAllowedTools).map(t => t.r
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         tools: filteredTools,
         tool_choice: "auto",
+        stream: false,
       }),
     });
 
@@ -522,10 +523,53 @@ Available modules based on your role: ${Array.from(allAllowedTools).map(t => t.r
 
     const step1Data = await step1Response.json();
     const assistantMessage = step1Data.choices?.[0]?.message;
+    const finishReason = step1Data.choices?.[0]?.finish_reason;
 
-    // If no tool calls, return the text response via streaming
+    // Handle malformed function calls or errors from the AI
+    if (finishReason === "error" || !assistantMessage) {
+      console.error("AI step1 finish_reason:", finishReason, JSON.stringify(step1Data.choices?.[0]));
+      // Retry without tools — just answer directly via streaming
+      const retryResponse = await fetch(GATEWAY_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: systemPrompt + "\n\nIMPORTANT: Answer the user's question directly based on your knowledge of the system. Do not attempt to call any tools." },
+            ...messages,
+          ],
+          stream: true,
+        }),
+      });
+
+      if (!retryResponse.ok) {
+        return new Response(JSON.stringify({ error: "AI assistant unavailable" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(retryResponse.body, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    }
+
+    // If no tool calls, stream the response directly
     if (!assistantMessage?.tool_calls || assistantMessage.tool_calls.length === 0) {
-      // Stream the final answer
+      // If there's already content, stream it as a simple response
+      if (assistantMessage?.content) {
+        const encoder = new TextEncoder();
+        const sseData = `data: ${JSON.stringify({
+          choices: [{ delta: { content: assistantMessage.content, role: "assistant" }, finish_reason: "stop" }]
+        })}\n\ndata: [DONE]\n\n`;
+        return new Response(encoder.encode(sseData), {
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+        });
+      }
+      
+      // Otherwise re-request as streaming
       const streamResponse = await fetch(GATEWAY_URL, {
         method: "POST",
         headers: {
