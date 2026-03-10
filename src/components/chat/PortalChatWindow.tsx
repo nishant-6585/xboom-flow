@@ -114,6 +114,15 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
           }
         }
       }
+
+      // If streaming completed but no content was received, show a fallback
+      if (!assistantContent.trim()) {
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'assistant', content: 'I processed your request but couldn\'t generate a response. Please try rephrasing your question.' };
+          return updated;
+        });
+      }
     } catch (error) {
       console.error('Chat error:', error);
       setMessages(prev => [
