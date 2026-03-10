@@ -349,7 +349,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
       return orderItems.some(item => item.product_name.trim());
     }
     if (currentStep === 2) {
-      return formData.customer_name && formData.customer_company && 
+      return formData.customer_name && 
              (formData.is_website_order || formData.sales_person_name);
     }
     return true;
