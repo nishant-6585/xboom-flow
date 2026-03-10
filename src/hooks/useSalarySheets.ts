@@ -100,6 +100,51 @@ export function calculateTotal(entry: Partial<SalarySheetEntry>): number {
   return Math.max(0, salary - deductions - pending - tds - tax + reimbursements);
 }
 
+/**
+ * Calculate pro-rated salary based on last working date within a month.
+ * Returns the pro-rated salary amount.
+ */
+export async function calculateProratedSalary(
+  fullSalary: number,
+  lastWorkingDate: string,
+  month: number,
+  year: number
+): Promise<number> {
+  if (!lastWorkingDate || fullSalary <= 0) return fullSalary;
+  const lwd = new Date(lastWorkingDate);
+  const lwdMonth = lwd.getMonth() + 1;
+  const lwdYear = lwd.getFullYear();
+  // Only pro-rate if LWD falls within the sheet month
+  if (lwdMonth !== month || lwdYear !== year) return fullSalary;
+
+  const workingDays = await getWorkingDaysInMonth(month, year);
+  if (workingDays <= 0) return fullSalary;
+
+  // Count working days from 1st to LWD (inclusive)
+  const monthStart = startOfMonth(new Date(year, month - 1));
+  const daysRange = eachDayOfInterval({ start: monthStart, end: lwd });
+
+  const startStr = `${year}-${String(month).padStart(2, "0")}-01`;
+  const endStr = `${year}-${String(month).padStart(2, "0")}-${String(endOfMonth(monthStart).getDate()).padStart(2, "0")}`;
+  const { data: holidays } = await supabase
+    .from("holidays")
+    .select("date")
+    .gte("date", startStr)
+    .lte("date", endStr);
+  const holidaySet = new Set((holidays || []).map((h: any) => h.date));
+
+  const workedDays = daysRange.filter(d => {
+    const day = getDay(d);
+    if (day === 0 || day === 6) return false;
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    if (holidaySet.has(dateStr)) return false;
+    return true;
+  }).length;
+
+  const perDaySalary = fullSalary / workingDays;
+  return Math.round(perDaySalary * workedDays * 100) / 100;
+}
+
 export function calculateEarnings(entry: Partial<SalarySheetEntry>): number {
   return (Number(entry.salary) || 0) + (Number(entry.reimbursements) || 0);
 }
