@@ -10,21 +10,71 @@ interface ChatMessageProps {
   content: string;
   isStreaming?: boolean;
   autoSpeak?: boolean;
-  onSpeakingChange?: (speaking: boolean) => void;
+  onSpeakingDone?: () => void;
 }
 
-function stripMarkdown(md: string): string {
-  return md
-    .replace(/```[\s\S]*?```/g, '')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/\*([^*]+)\*/g, '$1')
-    .replace(/#{1,6}\s/g, '')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/[|\-]+/g, ' ')
-    .replace(/\n+/g, '. ')
-    .replace(/\s+/g, ' ')
-    .trim();
+/** Strip markdown + tables into natural speech-friendly text */
+function stripForSpeech(md: string): string {
+  let text = md;
+  // Remove chart blocks entirely
+  text = text.replace(/```chart[\s\S]*?```/g, '');
+  // Remove code blocks
+  text = text.replace(/```[\s\S]*?```/g, '');
+  // Remove inline code
+  text = text.replace(/`([^`]+)`/g, '$1');
+  // Bold/italic
+  text = text.replace(/\*\*([^*]+)\*\*/g, '$1');
+  text = text.replace(/\*([^*]+)\*/g, '$1');
+  // Headers → just the text
+  text = text.replace(/#{1,6}\s+/g, '');
+  // Links → just the label
+  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+  
+  // Convert markdown tables to spoken form
+  // Detect table rows and convert
+  const lines = text.split('\n');
+  const spokenLines: string[] = [];
+  let inTable = false;
+  let headers: string[] = [];
+  
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+      const cells = trimmed.split('|').filter(c => c.trim()).map(c => c.trim());
+      // Skip separator rows
+      if (cells.every(c => /^[-:]+$/.test(c))) continue;
+      
+      if (!inTable) {
+        // First table row = headers
+        headers = cells;
+        inTable = true;
+      } else {
+        // Data row → "Customer: Aerial Tech, Product: DJI Mavic, Amount: 3.5 lakhs"
+        const parts = cells.map((cell, i) => {
+          const header = headers[i] || '';
+          return `${header}: ${cell}`;
+        });
+        spokenLines.push(parts.join(', ') + '.');
+      }
+    } else {
+      if (inTable) {
+        inTable = false;
+        headers = [];
+      }
+      if (trimmed) spokenLines.push(trimmed);
+    }
+  }
+  
+  text = spokenLines.join(' ');
+  // Clean up bullets
+  text = text.replace(/^[-•*]\s+/gm, '');
+  // Clean up emoji
+  text = text.replace(/[🔴📊⚡📦🔥✅❌⚠️🌟💰📈📉🎯]/g, '');
+  // Multiple spaces/newlines
+  text = text.replace(/\n+/g, '. ');
+  text = text.replace(/\s+/g, ' ');
+  text = text.replace(/\.\s*\./g, '.');
+  return text.trim();
 }
 
 function getPreferredFemaleVoice(): SpeechSynthesisVoice | null {
@@ -49,13 +99,13 @@ function getPreferredFemaleVoice(): SpeechSynthesisVoice | null {
 
 export function speakText(text: string, onEnd?: () => void): SpeechSynthesisUtterance | null {
   if (!text || typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
-  const plainText = stripMarkdown(text);
+  const plainText = stripForSpeech(text);
   if (!plainText) return null;
 
   const utterance = new SpeechSynthesisUtterance(plainText);
   const voice = getPreferredFemaleVoice();
   if (voice) utterance.voice = voice;
-  utterance.rate = 1.0;
+  utterance.rate = 1.05;
   utterance.pitch = 1.15;
   if (onEnd) {
     utterance.onend = onEnd;
@@ -72,16 +122,14 @@ export function stopSpeaking() {
   }
 }
 
-export function ChatMessage({ role, content, isStreaming, autoSpeak, onSpeakingChange }: ChatMessageProps) {
+export function ChatMessage({ role, content, isStreaming, autoSpeak, onSpeakingDone }: ChatMessageProps) {
   const isUser = role === 'user';
   const [isSpeaking, setIsSpeaking] = useState(false);
   const hasAutoSpokenRef = useRef(false);
   const prevContentLenRef = useRef(0);
 
-  // Auto-speak when content is finalized (streaming done)
   useEffect(() => {
     if (!autoSpeak || isUser || !content || isStreaming) return;
-    // Reset when content starts fresh (new message)
     if (content.length < prevContentLenRef.current) {
       hasAutoSpokenRef.current = false;
     }
@@ -93,12 +141,11 @@ export function ChatMessage({ role, content, isStreaming, autoSpeak, onSpeakingC
     
     hasAutoSpokenRef.current = true;
     setIsSpeaking(true);
-    onSpeakingChange?.(true);
     speakText(content, () => {
       setIsSpeaking(false);
-      onSpeakingChange?.(false);
+      onSpeakingDone?.();
     });
-  }, [isStreaming, autoSpeak, isUser, content, onSpeakingChange]);
+  }, [isStreaming, autoSpeak, isUser, content, onSpeakingDone]);
 
   const handleSpeak = useCallback(() => {
     if (!content || isStreaming) return;
@@ -106,17 +153,14 @@ export function ChatMessage({ role, content, isStreaming, autoSpeak, onSpeakingC
     if (isSpeaking) {
       stopSpeaking();
       setIsSpeaking(false);
-      onSpeakingChange?.(false);
       return;
     }
 
     setIsSpeaking(true);
-    onSpeakingChange?.(true);
     speakText(content, () => {
       setIsSpeaking(false);
-      onSpeakingChange?.(false);
     });
-  }, [content, isStreaming, isSpeaking, onSpeakingChange]);
+  }, [content, isStreaming, isSpeaking]);
 
   const showSpeaker = !isUser && content && !isStreaming && typeof window !== 'undefined' && 'speechSynthesis' in window;
 

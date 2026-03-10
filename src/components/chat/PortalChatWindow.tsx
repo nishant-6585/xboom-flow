@@ -50,6 +50,8 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [aiSpeaking, setAiSpeaking] = useState(false);
+  const [readyToListen, setReadyToListen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -67,10 +69,17 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
     }
   }, [messages]);
 
-  // Stop speaking when component unmounts or chat is cleared
   useEffect(() => {
     return () => stopSpeaking();
   }, []);
+
+  const handleSpeakingDone = useCallback(() => {
+    setAiSpeaking(false);
+    // In voice mode, auto-restart mic after AI finishes speaking
+    if (voiceMode) {
+      setReadyToListen(true);
+    }
+  }, [voiceMode]);
 
   const streamChat = useCallback(async (userMessage: string) => {
     const userMsg: Message = { role: 'user', content: userMessage };
@@ -78,8 +87,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
     setMessages(allMessages);
     setInput('');
     setIsLoading(true);
-
-    // Stop any current speech when new message is sent
+    setReadyToListen(false);
     stopSpeaking();
 
     let assistantContent = '';
@@ -135,10 +143,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
           try {
             const parsed = JSON.parse(jsonStr);
             const finishReason = parsed.choices?.[0]?.finish_reason;
-            if (finishReason === 'error') {
-              console.warn('AI returned error finish_reason:', parsed);
-              break;
-            }
+            if (finishReason === 'error') break;
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
               assistantContent += content;
@@ -198,8 +203,8 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
 
   const handleVoiceTranscript = useCallback((text: string) => {
     setInput(text);
-    // Enable voice mode automatically when using mic
     setVoiceMode(true);
+    setReadyToListen(false);
     setTimeout(() => {
       if (text.trim() && !isLoading) {
         streamChat(text.trim());
@@ -209,7 +214,11 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
 
   const toggleVoiceMode = useCallback(() => {
     setVoiceMode(prev => {
-      if (prev) stopSpeaking();
+      if (prev) {
+        stopSpeaking();
+        setReadyToListen(false);
+        setAiSpeaking(false);
+      }
       return !prev;
     });
   }, []);
@@ -217,8 +226,13 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
   const clearChat = useCallback(() => {
     stopSpeaking();
     setMessages([]);
+    setReadyToListen(false);
+    setAiSpeaking(false);
     localStorage.removeItem(STORAGE_KEY);
   }, []);
+
+  // Determine if mic should auto-listen: voice mode ON, not loading, AI not speaking
+  const shouldAutoListen = voiceMode && !isLoading && !aiSpeaking && readyToListen;
 
   return (
     <div className={cn(
@@ -239,12 +253,11 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
             <div>
               <h3 className="text-sm font-bold text-foreground leading-none">XBoom AI</h3>
               <p className="text-[10px] text-muted-foreground mt-0.5 font-medium tracking-wide uppercase">
-                {voiceMode ? '🔊 Voice Mode Active' : 'Intelligent Portal Assistant'}
+                {voiceMode ? (aiSpeaking ? '🔊 Speaking...' : '🎤 Voice Mode Active') : 'Intelligent Portal Assistant'}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {/* Voice mode toggle */}
             <Button
               variant="ghost"
               size="icon"
@@ -255,7 +268,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
               onClick={toggleVoiceMode}
-              title={voiceMode ? "Disable voice replies" : "Enable voice replies"}
+              title={voiceMode ? "Disable voice mode" : "Enable voice mode"}
             >
               {voiceMode ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
             </Button>
@@ -331,6 +344,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                   content={msg.content}
                   isStreaming={isCurrentlyStreaming}
                   autoSpeak={voiceMode && isLastAssistant && !isCurrentlyStreaming}
+                  onSpeakingDone={handleSpeakingDone}
                 />
               );
             })}
@@ -355,14 +369,18 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
       {/* Input area */}
       <div className="px-3 py-2.5 border-t border-border/40 shrink-0">
         <form onSubmit={handleSubmit} className="relative flex items-end gap-1.5">
-          <VoiceInputButton onTranscript={handleVoiceTranscript} disabled={isLoading} />
+          <VoiceInputButton
+            onTranscript={handleVoiceTranscript}
+            disabled={isLoading || aiSpeaking}
+            autoListen={shouldAutoListen}
+          />
           <div className="relative flex-1">
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about orders, leads, inventory..."
+              placeholder={voiceMode ? "Voice mode active — speak or type..." : "Ask about orders, leads, inventory..."}
               disabled={isLoading}
               rows={1}
               className={cn(
@@ -389,7 +407,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
           </div>
         </form>
         <p className="text-[9px] text-muted-foreground text-center mt-1.5 tracking-wide">
-          {voiceMode ? '🔊 Voice replies ON — tap speaker icon to disable' : 'AI responses are based on your role-level data access'}
+          {voiceMode ? '🔊 Voice mode — replies auto-play, mic auto-restarts' : 'AI responses are based on your role-level data access'}
         </p>
       </div>
     </div>

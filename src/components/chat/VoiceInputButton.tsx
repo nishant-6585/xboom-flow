@@ -7,16 +7,18 @@ import { toast } from 'sonner';
 interface VoiceInputButtonProps {
   onTranscript: (text: string) => void;
   disabled?: boolean;
+  /** When true, mic auto-starts listening (for voice mode) */
+  autoListen?: boolean;
 }
 
-export function VoiceInputButton({ onTranscript, disabled }: VoiceInputButtonProps) {
+export function VoiceInputButton({ onTranscript, disabled, autoListen }: VoiceInputButtonProps) {
   const [isListening, setIsListening] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const onTranscriptRef = useRef(onTranscript);
+  const autoListenTriggeredRef = useRef(false);
 
-  // Keep ref in sync without causing callback re-creation
   useEffect(() => {
     onTranscriptRef.current = onTranscript;
   }, [onTranscript]);
@@ -24,15 +26,10 @@ export function VoiceInputButton({ onTranscript, disabled }: VoiceInputButtonPro
   const isSupported = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
 
   const startListening = useCallback(async () => {
-    if (!isSupported) {
-      toast.error('Voice input is not supported in this browser');
-      return;
-    }
+    if (!isSupported || isListening) return;
 
-    // Request microphone permission explicitly first (must be in click handler)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Stop tracks immediately — we only needed the permission grant
       stream.getTracks().forEach(t => t.stop());
     } catch (err) {
       console.error('Microphone permission error:', err);
@@ -67,11 +64,10 @@ export function VoiceInputButton({ onTranscript, disabled }: VoiceInputButtonPro
         setPermissionDenied(true);
         toast.error('Microphone access denied. Please enable it in browser settings.');
       } else if (event.error === 'aborted') {
-        // Silently handle — usually caused by iframe restrictions
         toast.error('Voice input unavailable here. Try opening the app in a new tab.');
       } else if (event.error === 'network') {
         toast.error('Voice recognition requires an internet connection.');
-      } else {
+      } else if (event.error !== 'no-speech') {
         toast.error('Voice input failed. Please try again.');
       }
       setIsListening(false);
@@ -90,12 +86,23 @@ export function VoiceInputButton({ onTranscript, disabled }: VoiceInputButtonPro
       toast.error('Voice input failed to start. Try opening the app in a new tab.');
       setIsListening(false);
     }
-  }, [isSupported]);
+  }, [isSupported, isListening]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
     setIsListening(false);
   }, []);
+
+  // Auto-listen when voice mode triggers it
+  useEffect(() => {
+    if (autoListen && !isListening && !disabled && !permissionDenied && isSupported) {
+      // Small delay to avoid overlapping with speech synthesis
+      const timer = setTimeout(() => {
+        startListening();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [autoListen, isListening, disabled, permissionDenied, isSupported, startListening]);
 
   useEffect(() => {
     return () => {
