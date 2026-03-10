@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.low-stock-alerts]
 verify_jwt = false
+
+[functions.ai-portal-assistant]
+verify_jwt = false

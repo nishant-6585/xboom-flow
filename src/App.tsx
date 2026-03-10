@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { FloatingActionButton } from "@/components/FloatingActionButton";
 import { MobileAttendanceFAB } from "@/components/attendance/MobileAttendanceFAB";
 import { CommandPalette } from "@/components/CommandPalette";
+import { PortalChatButton } from "@/components/chat/PortalChatButton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useThemeLoader } from "@/hooks/useThemeLoader";
 import Index from "./pages/Index";
@@ -113,6 +114,7 @@ function AuthGuardedWidgets({ isMobile }: { isMobile: boolean }) {
       <FloatingActionButton />
       {isMobile && <MobileAttendanceFAB />}
       <CommandPalette />
+      <PortalChatButton />
     </>
   );
 }
