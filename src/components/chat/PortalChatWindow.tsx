@@ -94,6 +94,11 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
 
           try {
             const parsed = JSON.parse(jsonStr);
+            const finishReason = parsed.choices?.[0]?.finish_reason;
+            if (finishReason === 'error') {
+              console.warn('AI returned error finish_reason:', parsed);
+              break;
+            }
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
               assistantContent += content;
@@ -108,6 +113,15 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
             break;
           }
         }
+      }
+
+      // If streaming completed but no content was received, show a fallback
+      if (!assistantContent.trim()) {
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'assistant', content: 'I processed your request but couldn\'t generate a response. Please try rephrasing your question.' };
+          return updated;
+        });
       }
     } catch (error) {
       console.error('Chat error:', error);
