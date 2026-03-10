@@ -165,7 +165,7 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
       "Total Earnings": calculateEarnings(e), "Total Deductions": calculateTotalDeductions(e), "Net Pay": calculateNetPay(e), "Remarks": e.remarks || "",
     }));
     data.push({
-      "SN": 0, "Name of Employee": "TOTAL", "Salary": entries.reduce((s, e) => s + Number(e.salary), 0), "Bank Account": "", "IFSC Code": "",
+      "SN": 0, "Name of Employee": "TOTAL", "LWD": "", "Salary": entries.reduce((s, e) => s + Number(e.salary), 0), "Bank Account": "", "IFSC Code": "",
       "WFH Days": 0, "Unpaid Leaves": 0, "EL": 0, "SL": 0,
       "Deductions": entries.reduce((s, e) => s + Number(e.deductions), 0), "Pending": entries.reduce((s, e) => s + Number(e.pending_amount), 0),
       "TDS": entries.reduce((s, e) => s + Number(e.tds), 0), "Tax": entries.reduce((s, e) => s + Number(e.tax), 0),
