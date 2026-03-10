@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, forwardRef } from 'react';
 import { Mic, MicOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -12,7 +12,8 @@ interface VoiceInputButtonProps {
   onListeningChange?: (listening: boolean) => void;
 }
 
-export function VoiceInputButton({ onTranscript, disabled, autoListen, variant = 'default', onListeningChange }: VoiceInputButtonProps) {
+export const VoiceInputButton = forwardRef<HTMLButtonElement, VoiceInputButtonProps>(
+  function VoiceInputButton({ onTranscript, disabled, autoListen, variant = 'default', onListeningChange }, ref) {
   const [isListening, setIsListening] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -162,4 +163,4 @@ export function VoiceInputButton({ onTranscript, disabled, autoListen, variant =
       {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
     </Button>
   );
-}
+});
