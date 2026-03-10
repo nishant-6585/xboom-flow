@@ -77,24 +77,60 @@ function stripForSpeech(md: string): string {
   return text.trim();
 }
 
-function getPreferredFemaleVoice(): SpeechSynthesisVoice | null {
+/** Pick the most natural-sounding voice available */
+function getBestVoice(): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices();
-  const preferred = [
-    'Google UK English Female',
-    'Google US English',
-    'Samantha',
-    'Karen',
-    'Victoria',
-    'Zira',
-    'Microsoft Zira',
+  if (!voices.length) return null;
+
+  // Premium natural voices ranked by quality (these sound most human-like)
+  const premium = [
+    'Microsoft Jenny Online',    // Windows 11 neural voice — very natural
+    'Microsoft Aria Online',     // Windows 11 neural voice
+    'Google UK English Female',  // Chrome — smooth & clear
+    'Samantha',                  // macOS / iOS — warm & natural
+    'Karen',                     // macOS Australian — soft
+    'Moira',                     // macOS Irish — pleasant
+    'Tessa',                     // macOS South African
+    'Google US English',         // Chrome fallback
+    'Microsoft Zira',            // Windows desktop
+    'Victoria',                  // macOS legacy
   ];
-  for (const name of preferred) {
+
+  for (const name of premium) {
     const v = voices.find(v => v.name.includes(name));
     if (v) return v;
   }
-  const female = voices.find(v => v.lang.startsWith('en') && /female|woman|samantha|karen|zira|victoria/i.test(v.name));
+
+  // Fallback: prefer any English "Online" / neural voice (they sound better)
+  const neural = voices.find(v => v.lang.startsWith('en') && /online|neural|natural|premium/i.test(v.name));
+  if (neural) return neural;
+
+  // Any English female-sounding voice
+  const female = voices.find(v => v.lang.startsWith('en') && /female|woman|samantha|karen|zira|victoria|jenny|aria/i.test(v.name));
   if (female) return female;
+
   return voices.find(v => v.lang.startsWith('en')) || voices[0] || null;
+}
+
+/**
+ * Break long text into smaller chunks at sentence boundaries
+ * to keep the browser TTS engine sounding natural (avoids monotone on long text).
+ */
+function chunkText(text: string, maxLen = 200): string[] {
+  if (text.length <= maxLen) return [text];
+  const sentences = text.match(/[^.!?]+[.!?]+\s*/g) || [text];
+  const chunks: string[] = [];
+  let current = '';
+  for (const s of sentences) {
+    if ((current + s).length > maxLen && current) {
+      chunks.push(current.trim());
+      current = s;
+    } else {
+      current += s;
+    }
+  }
+  if (current.trim()) chunks.push(current.trim());
+  return chunks;
 }
 
 export function speakText(text: string, onEnd?: () => void): SpeechSynthesisUtterance | null {
@@ -102,18 +138,28 @@ export function speakText(text: string, onEnd?: () => void): SpeechSynthesisUtte
   const plainText = stripForSpeech(text);
   if (!plainText) return null;
 
-  const utterance = new SpeechSynthesisUtterance(plainText);
-  const voice = getPreferredFemaleVoice();
-  if (voice) utterance.voice = voice;
-  utterance.rate = 1.05;
-  utterance.pitch = 1.15;
-  if (onEnd) {
-    utterance.onend = onEnd;
-    utterance.onerror = onEnd;
-  }
   window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utterance);
-  return utterance;
+
+  const voice = getBestVoice();
+  const chunks = chunkText(plainText);
+
+  chunks.forEach((chunk, i) => {
+    const utterance = new SpeechSynthesisUtterance(chunk);
+    if (voice) utterance.voice = voice;
+    // Slightly slower & lower pitch = warmer, more natural feel
+    utterance.rate = 0.95;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    // Only fire onEnd after the last chunk
+    if (i === chunks.length - 1 && onEnd) {
+      utterance.onend = onEnd;
+      utterance.onerror = onEnd;
+    }
+    window.speechSynthesis.speak(utterance);
+  });
+
+  return null; // multiple utterances queued
 }
 
 export function stopSpeaking() {
