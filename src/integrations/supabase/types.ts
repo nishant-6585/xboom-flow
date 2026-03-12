@@ -675,6 +675,36 @@ export type Database = {
         }
         Relationships: []
       }
+      checklist_templates: {
+        Row: {
+          checklist_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          item_name: string
+          item_order: number
+          updated_at: string
+        }
+        Insert: {
+          checklist_type: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          item_name: string
+          item_order?: number
+          updated_at?: string
+        }
+        Update: {
+          checklist_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          item_name?: string
+          item_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customer_testimonials: {
         Row: {
           approved_at: string | null
@@ -1058,6 +1088,104 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "employee_assets_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_checklist_items: {
+        Row: {
+          checklist_id: string
+          completed_at: string | null
+          completed_by: string | null
+          completed_by_name: string | null
+          created_at: string
+          id: string
+          is_completed: boolean
+          item_name: string
+          item_order: number
+          notes: string | null
+          template_item_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          checklist_id: string
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_by_name?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          item_name: string
+          item_order?: number
+          notes?: string | null
+          template_item_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          checklist_id?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_by_name?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          item_name?: string
+          item_order?: number
+          notes?: string | null
+          template_item_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_checklist_items_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "employee_checklists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_checklist_items_template_item_id_fkey"
+            columns: ["template_item_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_checklists: {
+        Row: {
+          checklist_type: string
+          completion_percentage: number
+          created_at: string
+          employee_id: string
+          id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          checklist_type: string
+          completion_percentage?: number
+          created_at?: string
+          employee_id: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          checklist_type?: string
+          completion_percentage?: number
+          created_at?: string
+          employee_id?: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_checklists_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"

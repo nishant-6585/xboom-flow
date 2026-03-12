@@ -17,7 +17,7 @@ import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
 import { HRDocumentsPanel } from "@/components/hr/HRDocumentsPanel";
 import { KPIManagementPanel } from "@/components/kpi/KPIManagementPanel";
 import { ProvisionalCheckoutBanner } from "@/components/attendance/ProvisionalCheckoutBanner";
-import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History, Building2, CreditCard, LogOut, Leaf } from "lucide-react";
+import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History, Building2, CreditCard, LogOut, ClipboardCheck, ClipboardX } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CandidatesPanel } from "@/components/candidates/CandidatesPanel";
 import { EmployeesPanel } from "@/components/hr/EmployeesPanel";
@@ -29,6 +29,7 @@ import { BankUpdateRequestsPanel } from "@/components/hr/BankUpdateRequestsPanel
 import { MyFinancialDetailsPanel } from "@/components/hr/MyFinancialDetailsPanel";
 import { ResignationPanel } from "@/components/hr/ResignationPanel";
 import { LeaveBalancePanel } from "@/components/hr/LeaveBalancePanel";
+import { ChecklistPanel } from "@/components/hr/ChecklistPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { AttendanceLog } from "@/hooks/useHR";
 
@@ -137,6 +138,12 @@ export default function HR() {
               )}
               <TabsTrigger value="payslips" className="gap-1.5 whitespace-nowrap"><Receipt className="h-4 w-4 shrink-0" /><span>Payslips</span></TabsTrigger>
               <TabsTrigger value="resignation" className="gap-1.5 whitespace-nowrap"><LogOut className="h-4 w-4 shrink-0" /><span>Resignation</span></TabsTrigger>
+              {isHROrAdmin && (
+                <TabsTrigger value="onboarding" className="gap-1.5 whitespace-nowrap"><ClipboardCheck className="h-4 w-4 shrink-0" /><span>Onboarding</span></TabsTrigger>
+              )}
+              {isHROrAdmin && (
+                <TabsTrigger value="offboarding" className="gap-1.5 whitespace-nowrap"><ClipboardX className="h-4 w-4 shrink-0" /><span>Offboarding</span></TabsTrigger>
+              )}
             </TabsList>
           </div>
 
@@ -216,6 +223,8 @@ export default function HR() {
           {isHROrAdmin && <TabsContent value="salary_history"><SalaryHistoryPanel /></TabsContent>}
           <TabsContent value="payslips"><EmployeePayslipsPanel /></TabsContent>
           <TabsContent value="resignation"><ResignationPanel /></TabsContent>
+          {isHROrAdmin && <TabsContent value="onboarding"><ChecklistPanel checklistType="onboarding" /></TabsContent>}
+          {isHROrAdmin && <TabsContent value="offboarding"><ChecklistPanel checklistType="offboarding" /></TabsContent>}
         </Tabs>
       </main>
 
