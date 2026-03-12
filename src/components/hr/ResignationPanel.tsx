@@ -288,6 +288,13 @@ export function ResignationPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* HR Entry dialog */}
+      <HRResignationEntryDialog
+        open={hrEntryDialogOpen}
+        onOpenChange={setHrEntryDialogOpen}
+        onSubmit={addResignationByHR}
+      />
     </div>
   );
 }
