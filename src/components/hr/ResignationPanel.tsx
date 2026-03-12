@@ -3,16 +3,18 @@ import { useResignation, ResignationRequest } from "@/hooks/useResignation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ResignationRequestDialog } from "./ResignationRequestDialog";
+import { HRResignationEntryDialog } from "./HRResignationEntryDialog";
 import { format, parseISO, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
-  CalendarIcon, LogOut, Loader2, Clock, CheckCircle2, XCircle, AlertTriangle, RotateCcw
+  CalendarIcon, LogOut, Loader2, Clock, CheckCircle2, XCircle, AlertTriangle, RotateCcw, UserPlus
 } from "lucide-react";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
@@ -25,10 +27,11 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 export function ResignationPanel() {
   const {
     requests, myRequest, loading, isHROrAdmin,
-    submitResignation, withdrawResignation, reviewResignation,
+    submitResignation, withdrawResignation, reviewResignation, addResignationByHR,
   } = useResignation();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [hrEntryDialogOpen, setHrEntryDialogOpen] = useState(false);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<ResignationRequest | null>(null);
   const [reviewAction, setReviewAction] = useState<"approved" | "rejected">("approved");
@@ -55,8 +58,7 @@ export function ResignationPanel() {
     setReviewDialogOpen(false);
   };
 
-  const pendingRequests = requests.filter((r) => r.status === "pending");
-  const processedRequests = requests.filter((r) => r.status !== "pending");
+  const pendingCount = requests.filter((r) => r.status === "pending").length;
 
   if (loading) {
     return (
@@ -68,6 +70,14 @@ export function ResignationPanel() {
 
   return (
     <div className="space-y-6">
+      {/* HR Add Resignation Button */}
+      {isHROrAdmin && (
+        <div className="flex justify-end">
+          <Button onClick={() => setHrEntryDialogOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-2" /> Add Resignation
+          </Button>
+        </div>
+      )}
       {/* Employee's own section */}
       <Card>
         <CardHeader className="pb-3">
@@ -128,79 +138,84 @@ export function ResignationPanel() {
         </CardContent>
       </Card>
 
-      {/* HR/Admin view */}
-      {isHROrAdmin && pendingRequests.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Pending Resignations ({pendingRequests.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {pendingRequests.map((req) => (
-              <div key={req.id} className="border rounded-lg p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{req.employee_name || "Unknown"}</p>
-                    <p className="text-xs text-muted-foreground">{req.employee_department}</p>
-                  </div>
-                  <Badge variant="secondary">Pending</Badge>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-muted-foreground text-xs">Proposed LWD</span>
-                    <p className="font-medium">{format(parseISO(req.proposed_lwd), "dd MMM yyyy")}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Submitted</span>
-                    <p className="font-medium">{format(parseISO(req.created_at), "dd MMM yyyy")}</p>
-                  </div>
-                </div>
-                <p className="text-sm"><span className="text-muted-foreground">Reason:</span> {req.reason}</p>
-                {req.personal_email && (
-                  <p className="text-xs text-muted-foreground">Personal email: {req.personal_email}</p>
-                )}
-                <div className="flex gap-2 pt-1">
-                  <Button size="sm" onClick={() => handleReview(req, "approved")} className="flex-1">
-                    <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
-                  </Button>
-                  <Button size="sm" variant="destructive" onClick={() => handleReview(req, "rejected")} className="flex-1">
-                    <XCircle className="h-4 w-4 mr-1" /> Reject
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+      {/* Pending count banner */}
+      {isHROrAdmin && pendingCount > 0 && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3">
+          <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          <span className="text-sm font-medium">{pendingCount} resignation(s) pending review</span>
+        </div>
       )}
 
-      {/* History */}
-      {isHROrAdmin && processedRequests.length > 0 && (
+      {/* All Resignations Table */}
+      {isHROrAdmin && requests.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Resignation History</CardTitle>
+            <CardTitle className="text-lg">All Resignations</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {processedRequests.map((req) => {
-              const cfg = statusConfig[req.status] || statusConfig.pending;
-              const Icon = cfg.icon;
-              return (
-                <div key={req.id} className="flex items-center justify-between border rounded-lg p-3">
-                  <div className="flex items-center gap-3">
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium text-sm">{req.employee_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        LWD: {format(parseISO(req.approved_lwd || req.proposed_lwd), "dd MMM yyyy")}
-                        {req.reviewed_by_name && ` • By ${req.reviewed_by_name}`}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant={cfg.variant}>{cfg.label}</Badge>
-                </div>
-              );
-            })}
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Resignation Date</TableHead>
+                    <TableHead>Last Working Day</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Created By</TableHead>
+                    <TableHead>Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {requests.map((req) => {
+                    const cfg = statusConfig[req.status] || statusConfig.pending;
+                    return (
+                      <TableRow key={req.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-sm">{req.employee_name || "Unknown"}</p>
+                            <p className="text-xs text-muted-foreground">{req.employee_number}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm">{req.employee_department || "—"}</TableCell>
+                        <TableCell className="text-sm">
+                          {req.resignation_date
+                            ? format(parseISO(req.resignation_date), "dd MMM yyyy")
+                            : format(parseISO(req.created_at), "dd MMM yyyy")}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {format(parseISO(req.approved_lwd || req.proposed_lwd), "dd MMM yyyy")}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {req.created_by_hr_name
+                            ? `${req.created_by_hr_name} (HR)`
+                            : req.employee_name || "Employee"}
+                        </TableCell>
+                        <TableCell>
+                          {req.status === "pending" ? (
+                            <div className="flex gap-1">
+                              <Button size="sm" variant="outline" onClick={() => handleReview(req, "approved")}>
+                                <CheckCircle2 className="h-3 w-3 mr-1" /> Approve
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => handleReview(req, "rejected")}>
+                                <XCircle className="h-3 w-3 mr-1" /> Reject
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              {req.reviewed_by_name && `By ${req.reviewed_by_name}`}
+                            </span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -278,6 +293,13 @@ export function ResignationPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* HR Entry dialog */}
+      <HRResignationEntryDialog
+        open={hrEntryDialogOpen}
+        onOpenChange={setHrEntryDialogOpen}
+        onSubmit={addResignationByHR}
+      />
     </div>
   );
 }
