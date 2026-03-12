@@ -6446,6 +6446,7 @@ export type Database = {
           resolved_at: string | null
           resolved_by: string | null
           resolved_by_name: string | null
+          sla_breached: boolean
           sla_due_at: string | null
           sla_response_at: string | null
           sla_status: string | null
@@ -6474,6 +6475,7 @@ export type Database = {
           resolved_at?: string | null
           resolved_by?: string | null
           resolved_by_name?: string | null
+          sla_breached?: boolean
           sla_due_at?: string | null
           sla_response_at?: string | null
           sla_status?: string | null
@@ -6502,6 +6504,7 @@ export type Database = {
           resolved_at?: string | null
           resolved_by?: string | null
           resolved_by_name?: string | null
+          sla_breached?: boolean
           sla_due_at?: string | null
           sla_response_at?: string | null
           sla_status?: string | null
