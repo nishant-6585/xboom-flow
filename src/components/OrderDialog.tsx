@@ -27,6 +27,8 @@ import { EditHistoryPanel } from '@/components/EditHistoryPanel';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { ProductSelect } from '@/components/ProductSelect';
+import { PricelistItem } from '@/hooks/usePricelist';
 
 interface OrderDialogProps {
   order: Order | null;
