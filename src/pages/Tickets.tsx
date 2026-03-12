@@ -47,13 +47,7 @@ export default function Tickets() {
   });
 
   const isOverdue = (ticket: Ticket) => {
-    return (
-      ticket.sla_due_at &&
-      isPast(new Date(ticket.sla_due_at)) &&
-      ticket.status !== "resolved" &&
-      ticket.status !== "closed" &&
-      ticket.status !== "removed"
-    );
+    return ticket.sla_breached === true;
   };
 
   const filteredTickets = useMemo(() => {
