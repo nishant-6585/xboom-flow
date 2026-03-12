@@ -578,6 +578,11 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
                               {(liveStatus === 'On Leave' || liveStatus === 'Holiday' || liveStatus === 'Worked on Holiday') && <CalendarCheck className="h-3 w-3" />}
                               {liveStatus}
                             </Badge>
+                            {liveStatus === 'On Leave' && approvedLeaves[employee.id] && (
+                              <Badge variant="outline" className="text-xs w-fit border-purple-300 bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400">
+                                {LEAVE_TYPE_LABELS[approvedLeaves[employee.id].leave_type] || approvedLeaves[employee.id].leave_type}
+                              </Badge>
+                            )}
                             {log?.is_provisional_checkout && (
                               <Badge variant="outline" className="text-xs w-fit border-yellow-400 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400 gap-1"><AlertTriangle className="h-3 w-3" />Provisional</Badge>
                             )}
