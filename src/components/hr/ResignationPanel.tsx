@@ -58,8 +58,7 @@ export function ResignationPanel() {
     setReviewDialogOpen(false);
   };
 
-  const pendingRequests = requests.filter((r) => r.status === "pending");
-  const processedRequests = requests.filter((r) => r.status !== "pending");
+  const pendingCount = requests.filter((r) => r.status === "pending").length;
 
   if (loading) {
     return (
