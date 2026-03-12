@@ -408,7 +408,7 @@ export function ChatMessage({ role, content, isStreaming, autoSpeak, onSpeakingD
       ),
     };
 
-    const proseClasses = "max-w-none text-sm leading-relaxed";
+    const proseClasses = "max-w-full text-sm leading-relaxed break-words [word-break:break-word]";
 
     if (!hasChartBlock || isStreaming) {
       return (
@@ -441,10 +441,10 @@ export function ChatMessage({ role, content, isStreaming, autoSpeak, onSpeakingD
           <Bot className="w-3.5 h-3.5 text-primary" />
         </div>
       )}
-      <div className="flex flex-col max-w-[85%]">
+      <div className="flex flex-col max-w-[85%] min-w-0">
         <div
           className={cn(
-            'rounded-xl px-3 py-2 text-sm leading-relaxed',
+            'rounded-xl px-3 py-2 text-sm leading-relaxed overflow-hidden break-words',
             isUser
               ? 'bg-primary text-primary-foreground rounded-br-sm'
               : 'bg-muted rounded-bl-sm'
