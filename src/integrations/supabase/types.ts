@@ -5055,6 +5055,65 @@ export type Database = {
         }
         Relationships: []
       }
+      resignation_requests: {
+        Row: {
+          approved_lwd: string | null
+          created_at: string
+          employee_id: string
+          hr_notes: string | null
+          id: string
+          personal_email: string | null
+          proposed_lwd: string
+          reason: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewed_by_name: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_lwd?: string | null
+          created_at?: string
+          employee_id: string
+          hr_notes?: string | null
+          id?: string
+          personal_email?: string | null
+          proposed_lwd: string
+          reason: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewed_by_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_lwd?: string | null
+          created_at?: string
+          employee_id?: string
+          hr_notes?: string | null
+          id?: string
+          personal_email?: string | null
+          proposed_lwd?: string
+          reason?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewed_by_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resignation_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       salary_history: {
         Row: {
           created_at: string

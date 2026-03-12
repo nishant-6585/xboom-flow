@@ -17,7 +17,7 @@ import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
 import { HRDocumentsPanel } from "@/components/hr/HRDocumentsPanel";
 import { KPIManagementPanel } from "@/components/kpi/KPIManagementPanel";
 import { ProvisionalCheckoutBanner } from "@/components/attendance/ProvisionalCheckoutBanner";
-import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History, Building2, CreditCard } from "lucide-react";
+import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History, Building2, CreditCard, LogOut } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CandidatesPanel } from "@/components/candidates/CandidatesPanel";
 import { SalarySheetsList } from "@/components/salary/SalarySheetsList";
@@ -26,6 +26,7 @@ import { SalaryHistoryPanel } from "@/components/salary/SalaryHistoryPanel";
 import { EmployeeFinancialDetailsPanel } from "@/components/hr/EmployeeFinancialDetailsPanel";
 import { BankUpdateRequestsPanel } from "@/components/hr/BankUpdateRequestsPanel";
 import { MyFinancialDetailsPanel } from "@/components/hr/MyFinancialDetailsPanel";
+import { ResignationPanel } from "@/components/hr/ResignationPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { AttendanceLog } from "@/hooks/useHR";
 
@@ -129,6 +130,7 @@ export default function HR() {
                 <TabsTrigger value="salary_history" className="gap-1.5 whitespace-nowrap"><History className="h-4 w-4 shrink-0" /><span>Salary History</span></TabsTrigger>
               )}
               <TabsTrigger value="payslips" className="gap-1.5 whitespace-nowrap"><Receipt className="h-4 w-4 shrink-0" /><span>Payslips</span></TabsTrigger>
+              <TabsTrigger value="resignation" className="gap-1.5 whitespace-nowrap"><LogOut className="h-4 w-4 shrink-0" /><span>Resignation</span></TabsTrigger>
             </TabsList>
           </div>
 
@@ -203,6 +205,7 @@ export default function HR() {
           {(isHROrAdmin || isFinance) && <TabsContent value="salary"><SalarySheetsList /></TabsContent>}
           {isHROrAdmin && <TabsContent value="salary_history"><SalaryHistoryPanel /></TabsContent>}
           <TabsContent value="payslips"><EmployeePayslipsPanel /></TabsContent>
+          <TabsContent value="resignation"><ResignationPanel /></TabsContent>
         </Tabs>
       </main>
 
