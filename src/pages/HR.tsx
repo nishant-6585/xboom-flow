@@ -108,6 +108,9 @@ export default function HR() {
           <div className="mb-6">
             <TabsList className="flex flex-wrap h-auto gap-1 p-1">
               <TabsTrigger value="home" className="gap-1.5 whitespace-nowrap"><Clock className="h-4 w-4 shrink-0" /><span>Home</span></TabsTrigger>
+              {isHROrAdmin && (
+                <TabsTrigger value="employees" className="gap-1.5 whitespace-nowrap"><Users className="h-4 w-4 shrink-0" /><span>Employees</span></TabsTrigger>
+              )}
               <TabsTrigger value="attendance" className="gap-1.5 whitespace-nowrap"><Calendar className="h-4 w-4 shrink-0" /><span>Attendance</span></TabsTrigger>
               <TabsTrigger value="leave" className="gap-1.5 whitespace-nowrap"><FileText className="h-4 w-4 shrink-0" /><span>Leave</span></TabsTrigger>
               
