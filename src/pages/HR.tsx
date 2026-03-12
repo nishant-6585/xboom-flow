@@ -162,6 +162,7 @@ export default function HR() {
           </TabsContent>
 
           <TabsContent value="leave" className="space-y-4">
+            <LeaveBalancePanel employeeId={myEmployee?.id} />
             <Button className="w-full" onClick={() => setLeaveDialogOpen(true)}><Plus className="mr-2 h-4 w-4" /> Apply for Leave</Button>
             <div className="space-y-3">
               <h3 className="font-semibold">My Leave Requests</h3>
@@ -195,9 +196,6 @@ export default function HR() {
                 {pendingLeaves.map((leave) => <LeaveApprovalCard key={leave.id} leave={leave} onApprove={approveLeave} />)}
               </div>
             )}
-            <div className="pt-4 border-t">
-              <LeaveBalancePanel employeeId={myEmployee?.id} />
-            </div>
           </TabsContent>
 
           <TabsContent value="kpi_management" className="space-y-4"><KPIManagementPanel /></TabsContent>
