@@ -7,7 +7,7 @@ import { recordAuditLog } from "@/lib/auditLog";
 export interface ResignationRequest {
   id: string;
   employee_id: string;
-  user_id: string;
+  user_id: string | null;
   proposed_lwd: string;
   reason: string;
   personal_email: string | null;
@@ -17,11 +17,15 @@ export interface ResignationRequest {
   reviewed_by: string | null;
   reviewed_by_name: string | null;
   reviewed_at: string | null;
+  resignation_date: string | null;
+  created_by_hr: string | null;
+  created_by_hr_name: string | null;
   created_at: string;
   updated_at: string;
   // joined
   employee_name?: string;
   employee_department?: string;
+  employee_number?: string;
 }
 
 export function useResignation() {
