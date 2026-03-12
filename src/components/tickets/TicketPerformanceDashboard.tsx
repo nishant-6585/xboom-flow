@@ -187,7 +187,6 @@ export function TicketPerformanceDashboard({ tickets }: TicketPerformanceDashboa
   const resolutionTimeData = useMemo(() => {
     return userPerformance
       .filter(p => p.ticketsResolved > 0)
-      .slice(0, 8)
       .map(p => ({
         name: p.userName.split(' ')[0],
         hours: Math.round(p.avgResolutionTime * 10) / 10,
