@@ -187,7 +187,6 @@ export function TicketPerformanceDashboard({ tickets }: TicketPerformanceDashboa
   const resolutionTimeData = useMemo(() => {
     return userPerformance
       .filter(p => p.ticketsResolved > 0)
-      .slice(0, 8)
       .map(p => ({
         name: p.userName.split(' ')[0],
         hours: Math.round(p.avgResolutionTime * 10) / 10,
@@ -352,7 +351,7 @@ export function TicketPerformanceDashboard({ tickets }: TicketPerformanceDashboa
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[250px]">
+            <div style={{ height: Math.max(250, resolutionTimeData.length * 40) }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={resolutionTimeData} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
