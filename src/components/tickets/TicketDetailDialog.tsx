@@ -47,6 +47,7 @@ import {
   Image as ImageIcon,
   ExternalLink,
   Upload,
+  Trash2,
 } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
 
@@ -60,7 +61,7 @@ interface TicketDetailDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const statusFlow: TicketStatus[] = ["open", "assigned", "in_progress", "pending", "resolved", "closed"];
+const statusFlow: TicketStatus[] = ["open", "assigned", "in_progress", "pending", "resolved", "closed", "removed"];
 
 const departmentLabels: Record<string, string> = {
   sales: "Sales",
@@ -106,11 +107,9 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
   const { recordChanges } = useEditHistory();
 
   const [newComment, setNewComment] = useState("");
-  const [resolutionNotes, setResolutionNotes] = useState("");
   const [activeTab, setActiveTab] = useState("details");
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [showResolutionForm, setShowResolutionForm] = useState(false);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const [editData, setEditData] = useState({ subject: "", description: "", category: "" as TicketCategory, priority: "" as string });
@@ -241,11 +240,22 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
   if (!ticket) return null;
 
   const isOverdue = ticket.sla_due_at && isPast(new Date(ticket.sla_due_at)) && ticket.status !== "resolved" && ticket.status !== "closed";
-  const canManage = role === "admin" || role === ticket.assigned_department || ticket.assigned_to === user?.id;
+  const canManage = role === "admin" || role === "hr" || role === ticket.assigned_department || ticket.assigned_to === user?.id;
   const isClosed = ticket.status === "closed";
+  const isRemoved = ticket.status === "removed";
+  const isLocked = isClosed || isRemoved; // No edits when closed or removed
   const isResolved = ticket.status === "resolved";
+
+  // Creator or assigned user can edit (even after resolution), but NOT when closed/removed
+  const isCreatorOrAssigned = ticket.raised_by === user?.id || ticket.assigned_to === user?.id;
+  const canEditTicket = isCreatorOrAssigned && !isLocked;
   const canCreatorClose = ticket.raised_by === user?.id && isResolved;
-  const canCreatorEdit = ticket.raised_by === user?.id && !isClosed && !isResolved;
+
+  // Determine who can change status/assignee - creator, assigned user, or managers
+  const canManageActions = (canManage || isCreatorOrAssigned) && !isLocked;
+
+  // Comments allowed until ticket is closed/removed
+  const canAddComments = !isLocked;
 
   const handleStartEdit = () => {
     setEditData({
@@ -290,11 +300,9 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
   const filteredByDept = teamMembers.filter(
     (m) => m.role === activeDepartment
   );
-  // If no members found for the department, show all team members so assignment is always possible
   const departmentMembers = filteredByDept.length > 0 ? filteredByDept : teamMembers;
 
   const handleStatusChange = async (newStatus: TicketStatus) => {
-    // Record the change in history
     if (profile) {
       await recordChanges("tickets", ticket.id, {
         status: { old: ticket.status, new: newStatus }
@@ -304,14 +312,12 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
     await updateTicket.mutateAsync({
       id: ticket.id,
       status: newStatus,
-      resolution_notes: newStatus === "resolved" ? resolutionNotes : undefined,
     });
   };
 
   const handleAssign = async (userId: string) => {
     const member = teamMembers.find((m) => m.user_id === userId);
     
-    // Record the change in history
     if (profile) {
       const changes: Record<string, { old: unknown; new: unknown }> = {
         assigned_to_name: { old: ticket.assigned_to_name, new: member?.name || null }
@@ -328,9 +334,7 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
       assigned_to_name: member?.name || null,
     };
 
-    // If admin changed the department, update it too
     if (selectedDepartment && selectedDepartment !== ticket.assigned_department) {
-      // We need to update assigned_department via a separate call since UpdateTicketData doesn't include it
       await supabase.from("tickets").update({ assigned_department: selectedDepartment as AppRole }).eq("id", ticket.id);
     }
 
@@ -339,8 +343,33 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
 
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
+
+    // Record comment addition in edit history
+    if (profile) {
+      await recordChanges("tickets", ticket.id, {
+        comment: { old: null, new: newComment.substring(0, 200) + (newComment.length > 200 ? "..." : "") }
+      }, profile.name);
+    }
+
     await addComment.mutateAsync({ comment: newComment });
     setNewComment("");
+  };
+
+  const handleRemoveTicket = async () => {
+    if (profile) {
+      await recordChanges("tickets", ticket.id, {
+        status: { old: ticket.status, new: "removed" }
+      }, profile.name);
+    }
+    await updateTicket.mutateAsync({ id: ticket.id, status: "removed" });
+  };
+
+  // Build available status options based on current state
+  const getAvailableStatuses = (): TicketStatus[] => {
+    const all: TicketStatus[] = ["open", "assigned", "in_progress", "pending", "resolved", "closed", "removed"];
+    // Admin/HR can set any status; others can't set closed (only creator can close from resolved)
+    if (role === "admin" || role === "hr") return all;
+    return all.filter(s => s !== "closed"); // non-admin can't directly close
   };
 
   return (
@@ -361,15 +390,27 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                     SLA Breached
                   </Badge>
                 )}
+                {isLocked && (
+                  <Badge variant="outline" className="text-xs text-muted-foreground">
+                    🔒 Read-only
+                  </Badge>
+                )}
               </div>
               <DialogTitle className="text-lg">{ticket.subject}</DialogTitle>
             </div>
-            {canCreatorEdit && !isEditing && (
-              <Button variant="outline" size="sm" onClick={handleStartEdit}>
-                <Pencil className="w-4 h-4 mr-1" />
-                Edit
-              </Button>
-            )}
+            <div className="flex gap-1">
+              {canEditTicket && !isEditing && (
+                <Button variant="outline" size="sm" onClick={handleStartEdit}>
+                  <Pencil className="w-4 h-4 mr-1" />
+                  Edit
+                </Button>
+              )}
+              {canManageActions && !isRemoved && (
+                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={handleRemoveTicket} disabled={updateTicket.isPending}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
           </div>
         </DialogHeader>
 
@@ -566,7 +607,7 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
               )}
 
               {/* Add Attachment to Existing Ticket */}
-              {!isClosed && (
+              {!isLocked && (
                 <div className="space-y-2">
                   {!(ticket.attachment_urls && ticket.attachment_urls.length > 0) && (
                     <Label className="text-muted-foreground text-xs uppercase flex items-center gap-1">
@@ -641,15 +682,15 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                 </div>
               )}
 
-              {/* Actions (for department members) */}
-              {canManage && !isResolved && !isClosed && (
+              {/* Actions - available for creator, assigned user, and managers when not locked */}
+              {canManageActions && (
                 <>
                   <Separator />
-                   <div className="space-y-4">
+                  <div className="space-y-4">
                     <h4 className="font-medium text-sm">Actions</h4>
 
-                    <div className={`grid ${role === "admin" ? "grid-cols-3" : "grid-cols-2"} gap-4`}>
-                      {role === "admin" && (
+                    <div className={`grid ${role === "admin" || role === "hr" ? "grid-cols-3" : "grid-cols-2"} gap-4`}>
+                      {(role === "admin" || role === "hr") && (
                         <div className="space-y-2">
                           <Label>Department</Label>
                           <Select
@@ -694,72 +735,22 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                         <Select
                           value={ticket.status}
                           onValueChange={(value: TicketStatus) => {
-                            if (value === "resolved") {
-                              setShowResolutionForm(true);
-                            } else {
-                              handleStatusChange(value);
-                            }
+                            handleStatusChange(value);
                           }}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {statusFlow.filter(s => s !== "resolved").map((status) => (
+                            {getAvailableStatuses().map((status) => (
                               <SelectItem key={status} value={status}>
-                                {status.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                                {status === "in_progress" ? "In Progress" : status.charAt(0).toUpperCase() + status.slice(1)}
                               </SelectItem>
                             ))}
-                            <SelectItem value="resolved">Resolved</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
-
-                    {showResolutionForm && (
-                      <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
-                        <h4 className="font-medium text-sm flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-green-500" />
-                          Resolve Ticket
-                        </h4>
-                        <div className="space-y-2">
-                          <Label>Resolution Notes <span className="text-destructive">*</span></Label>
-                          <Textarea
-                            value={resolutionNotes}
-                            onChange={(e) => setResolutionNotes(e.target.value)}
-                            placeholder="Describe how the issue was resolved..."
-                            rows={3}
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              e.preventDefault();
-                              if (!resolutionNotes.trim()) return;
-                              await handleStatusChange("resolved");
-                              setShowResolutionForm(false);
-                            }}
-                            disabled={updateTicket.isPending || !resolutionNotes.trim()}
-                          >
-                            {updateTicket.isPending ? (
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            ) : (
-                              <CheckCircle2 className="w-4 h-4 mr-2" />
-                            )}
-                            Submit & Resolve
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowResolutionForm(false)}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </>
               )}
@@ -808,6 +799,7 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
             </TabsContent>
 
             <TabsContent value="comments" className="mt-4 space-y-4 pb-6">
+              {/* Unified Activity Timeline: comments + changes */}
               {comments.length > 0 && (
                 <div className="space-y-3">
                   {comments.map((comment) => (
@@ -824,10 +816,14 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                           {comment.commented_by_name}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                          {format(new Date(comment.created_at), "dd MMM yyyy, HH:mm")}
                         </span>
                       </div>
-                      <p className="whitespace-pre-wrap">{comment.comment}</p>
+                      {/* Render comment with preserved formatting */}
+                      <div
+                        className="whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none"
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(comment.comment) }}
+                      />
 
                       {comment.attachment_urls && comment.attachment_urls.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
@@ -872,26 +868,36 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                 </div>
               )}
 
-              {!isResolved && (
-                <div className="flex gap-2 pt-4 border-t">
-                  <Textarea
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Add a comment..."
-                    rows={2}
-                    className="flex-1"
-                  />
-                  <Button
-                    size="icon"
-                    onClick={handleAddComment}
-                    disabled={!newComment.trim() || addComment.isPending}
-                  >
-                    {addComment.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Send className="w-4 h-4" />
-                    )}
-                  </Button>
+              {canAddComments ? (
+                <div className="space-y-2 pt-4 border-t">
+                  <Label className="text-xs text-muted-foreground">
+                    Add a comment (supports formatting: **bold**, *italic*, - lists)
+                  </Label>
+                  <div className="flex gap-2">
+                    <Textarea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Add a comment..."
+                      rows={3}
+                      className="flex-1"
+                    />
+                    <Button
+                      size="icon"
+                      className="self-end"
+                      onClick={handleAddComment}
+                      disabled={!newComment.trim() || addComment.isPending}
+                    >
+                      {addComment.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-4 border-t text-center text-sm text-muted-foreground">
+                  🔒 This ticket is {isClosed ? "closed" : "removed"} — no further comments allowed.
                 </div>
               )}
             </TabsContent>
@@ -904,4 +910,24 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
       </DialogContent>
     </Dialog>
   );
+}
+
+/**
+ * Basic HTML sanitizer that strips dangerous tags while preserving formatting.
+ * For plain-text comments, just returns as-is (no HTML to strip).
+ */
+function sanitizeHtml(input: string): string {
+  // If no HTML tags detected, return as plain text
+  if (!/<[a-z][\s\S]*>/i.test(input)) {
+    return input.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  // Strip script/style/iframe/object tags
+  let safe = input
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, "")
+    .replace(/<object[\s\S]*?<\/object>/gi, "")
+    .replace(/on\w+="[^"]*"/gi, "")
+    .replace(/on\w+='[^']*'/gi, "");
+  return safe;
 }

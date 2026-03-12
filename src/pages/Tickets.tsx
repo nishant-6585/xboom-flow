@@ -51,7 +51,8 @@ export default function Tickets() {
       ticket.sla_due_at &&
       isPast(new Date(ticket.sla_due_at)) &&
       ticket.status !== "resolved" &&
-      ticket.status !== "closed"
+      ticket.status !== "closed" &&
+      ticket.status !== "removed"
     );
   };
 
@@ -97,10 +98,11 @@ export default function Tickets() {
     });
   }, [tickets, filters]);
 
-  const myTickets = filteredTickets.filter((t) => t.raised_by === user?.id);
-  const assignedToMe = filteredTickets.filter((t) => t.assigned_to === user?.id);
+  // For "My Tickets" and "Assigned to Me", hide removed tickets (soft delete)
+  const myTickets = filteredTickets.filter((t) => t.raised_by === user?.id && t.status !== "removed");
+  const assignedToMe = filteredTickets.filter((t) => t.assigned_to === user?.id && t.status !== "removed");
   const departmentTickets = filteredTickets.filter(
-    (t) => t.assigned_department === role && t.raised_by !== user?.id
+    (t) => t.assigned_department === role && t.raised_by !== user?.id && t.status !== "removed"
   );
 
   // Stats
@@ -296,7 +298,7 @@ export default function Tickets() {
                 </Badge>
               )}
             </TabsTrigger>
-            {role === "admin" && (
+            {(role === "admin" || role === "hr") && (
               <>
                 <TabsTrigger value="all" className="gap-2">
                   All Tickets
@@ -330,7 +332,7 @@ export default function Tickets() {
                 {renderTickets(departmentTickets, "No tickets for your department")}
               </TabsContent>
 
-              {role === "admin" && (
+              {(role === "admin" || role === "hr") && (
                 <>
                   <TabsContent value="all">
                     {renderTickets(filteredTickets, "No tickets found")}
