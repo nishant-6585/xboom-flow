@@ -130,16 +130,21 @@ export function AttendanceSection({
 
   // CSV Export
   const exportCSV = () => {
-    const headers = ['Date', 'Status', 'Check In', 'Check Out', 'Work Hours', 'Break (min)', 'Notes'];
-    const rows = attendanceLogs.map(l => [
-      l.date,
-      l.status,
-      l.check_in_time ? format(new Date(l.check_in_time), 'HH:mm') : '',
-      l.check_out_time ? format(new Date(l.check_out_time), 'HH:mm') : '',
-      l.working_hours?.toFixed(2) || '0',
-      Math.round(l.total_break_minutes || 0).toString(),
-      l.notes || '',
-    ]);
+    const headers = ['Date', 'Status', 'Leave Type', 'Check In', 'Check Out', 'Work Hours', 'Break (min)', 'Notes'];
+    const rows = attendanceLogs.map(l => {
+      const approvedLeave = getApprovedLeave(l.date);
+      const leaveTypeLabel = approvedLeave ? (LEAVE_TYPE_LABELS[approvedLeave.leave_type] || approvedLeave.leave_type) : (l.status === 'on_leave' ? 'On Leave' : '');
+      return [
+        l.date,
+        l.status,
+        leaveTypeLabel,
+        l.check_in_time ? format(new Date(l.check_in_time), 'HH:mm') : '',
+        l.check_out_time ? format(new Date(l.check_out_time), 'HH:mm') : '',
+        l.working_hours?.toFixed(2) || '0',
+        Math.round(l.total_break_minutes || 0).toString(),
+        l.notes || '',
+      ];
+    });
     const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
