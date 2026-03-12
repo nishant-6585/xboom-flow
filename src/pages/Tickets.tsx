@@ -332,7 +332,7 @@ export default function Tickets() {
                 {renderTickets(departmentTickets, "No tickets for your department")}
               </TabsContent>
 
-              {role === "admin" && (
+              {(role === "admin" || role === "hr") && (
                 <>
                   <TabsContent value="all">
                     {renderTickets(filteredTickets, "No tickets found")}
