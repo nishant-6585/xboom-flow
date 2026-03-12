@@ -122,7 +122,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
     try {
       const fieldMap: Record<string, string> = {
         phone: "Phone", personal_email: "Personal Email", xboom_email: "Xboom Email",
-        gender: "Gender", date_of_birth: "Date of Birth", designation: "Designation",
+        gender: "Gender", date_of_birth: "Date of Birth", designation: "Role",
         department: "Department", employee_type: "Employee Type", work_location: "Mode",
         state: "State", city: "City",
         emergency_contact_name: "Emergency Contact Name",
