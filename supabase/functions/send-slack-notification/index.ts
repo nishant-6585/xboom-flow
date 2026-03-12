@@ -839,14 +839,24 @@ serve(async (req) => {
 
     // Handle direct message to user via slack_user_id
     const slackUserId = data.slack_user_id as string;
+    const isTicketNotification = type === 'ticket_assigned' || type === 'ticket_status_change';
+    
     if (slackUserId && envBotToken) {
       try {
         await sendSlackBotMessage(envBotToken, slackUserId, slackMessage);
         console.log(`Slack DM sent to user ${slackUserId}`);
-        // Continue to also send to channel if configured
+        
+        // For ticket notifications, ONLY send DM — do NOT broadcast to channel
+        if (isTicketNotification) {
+          return new Response(
+            JSON.stringify({ success: true, dm_sent: true }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        // For other types, continue to also send to channel if configured
       } catch (error) {
         console.error('Failed to send Slack DM:', error);
-        // Continue to try channel notification
+        // Continue to try channel notification as fallback
       }
     }
 
