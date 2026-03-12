@@ -258,7 +258,8 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
   }, [liveRows, alertCount]);
 
   const exportCSV = () => {
-    const rows: string[][] = [['Employee', 'Department', 'Date', 'Check In', 'Check Out', 'Work Hours', 'Break (min)', 'Status']];
+    const LEAVE_LABELS_CSV: Record<string, string> = { casual: 'Paid (Casual)', sick: 'Sick Leave', paid: 'Paid Leave', unpaid: 'Unpaid', half_day: 'Half Day', half_day_casual: 'Half Day Paid', half_day_sick: 'Half Day Sick', half_day_paid: 'Half Day Paid', half_day_unpaid: 'Half Day Unpaid', wfh: 'WFH' };
+    const rows: string[][] = [['Employee', 'Department', 'Date', 'Check In', 'Check Out', 'Work Hours', 'Break (min)', 'Status', 'Leave Type']];
     for (const emp of employees) {
       const log = todayLogs.find(l => l.employee_id === emp.id) || null;
       const notEmployed = emp.joining_date ? selectedDateStr < emp.joining_date : false;
@@ -266,7 +267,8 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
       const isNotEmployed = notEmployed || hasExited;
       const hasLeave = !!approvedLeaves[emp.id];
       const status = isViewingToday ? getLiveStatus(log, selectedDateIsHoliday, hasLeave, isNotEmployed) : deriveHistoricalStatus(log, selectedDate, policy, selectedDateIsHoliday, hasLeave, isNotEmployed);
-      rows.push([emp.name, emp.department, selectedDateStr, log?.check_in_time ? format(new Date(log.check_in_time), 'HH:mm') : '', log?.check_out_time ? format(new Date(log.check_out_time), 'HH:mm') : '', (log?.working_hours || 0).toFixed(2), Math.round(log?.total_break_minutes || 0).toString(), status]);
+      const leaveType = approvedLeaves[emp.id] ? (LEAVE_LABELS_CSV[approvedLeaves[emp.id].leave_type] || approvedLeaves[emp.id].leave_type) : '';
+      rows.push([emp.name, emp.department, selectedDateStr, log?.check_in_time ? format(new Date(log.check_in_time), 'HH:mm') : '', log?.check_out_time ? format(new Date(log.check_out_time), 'HH:mm') : '', (log?.working_hours || 0).toFixed(2), Math.round(log?.total_break_minutes || 0).toString(), status, leaveType]);
     }
     const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
