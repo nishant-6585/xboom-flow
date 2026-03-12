@@ -408,7 +408,7 @@ export function ChatMessage({ role, content, isStreaming, autoSpeak, onSpeakingD
       ),
     };
 
-    const proseClasses = "max-w-none text-sm leading-relaxed";
+    const proseClasses = "max-w-full text-sm leading-relaxed break-words [word-break:break-word]";
 
     if (!hasChartBlock || isStreaming) {
       return (
