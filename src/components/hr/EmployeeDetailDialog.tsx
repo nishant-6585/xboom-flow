@@ -13,6 +13,7 @@ import { EditHistoryPanel } from "@/components/EditHistoryPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useEditHistory } from "@/hooks/useEditHistory";
+import { useOrgRoles, useOrgDepartments } from "@/hooks/useOrgRolesAndDepartments";
 import { toast } from "sonner";
 
 interface Props {
