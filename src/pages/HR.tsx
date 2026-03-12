@@ -109,7 +109,7 @@ export default function HR() {
               <TabsTrigger value="home" className="gap-1.5 whitespace-nowrap"><Clock className="h-4 w-4 shrink-0" /><span>Home</span></TabsTrigger>
               <TabsTrigger value="attendance" className="gap-1.5 whitespace-nowrap"><Calendar className="h-4 w-4 shrink-0" /><span>Attendance</span></TabsTrigger>
               <TabsTrigger value="leave" className="gap-1.5 whitespace-nowrap"><FileText className="h-4 w-4 shrink-0" /><span>Leave</span></TabsTrigger>
-              <TabsTrigger value="leave_balance" className="gap-1.5 whitespace-nowrap"><Leaf className="h-4 w-4 shrink-0" /><span>Leave Balance</span></TabsTrigger>
+              
               <TabsTrigger value="kpi_management" className="gap-1.5 whitespace-nowrap"><Target className="h-4 w-4 shrink-0" /><span>KPI</span></TabsTrigger>
               <TabsTrigger value="documents" className="gap-1.5 whitespace-nowrap"><FolderOpen className="h-4 w-4 shrink-0" /><span>Documents</span></TabsTrigger>
               <TabsTrigger value="my_financial" className="gap-1.5 whitespace-nowrap"><CreditCard className="h-4 w-4 shrink-0" /><span>My Financial Details</span></TabsTrigger>
@@ -195,10 +195,13 @@ export default function HR() {
                 {pendingLeaves.map((leave) => <LeaveApprovalCard key={leave.id} leave={leave} onApprove={approveLeave} />)}
               </div>
             )}
+            <div className="pt-4 border-t">
+              <LeaveBalancePanel employeeId={myEmployee?.id} />
+            </div>
           </TabsContent>
 
           <TabsContent value="kpi_management" className="space-y-4"><KPIManagementPanel /></TabsContent>
-          <TabsContent value="leave_balance" className="space-y-4"><LeaveBalancePanel employeeId={myEmployee?.id} /></TabsContent>
+          
           <TabsContent value="documents" className="space-y-4"><HRDocumentsPanel /></TabsContent>
           <TabsContent value="my_financial"><MyFinancialDetailsPanel /></TabsContent>
           {isHROrAdmin && <TabsContent value="assets" className="space-y-4"><AssetManagementPanel /></TabsContent>}
