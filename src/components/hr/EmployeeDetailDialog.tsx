@@ -250,8 +250,8 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
             <h4 className="text-sm font-semibold text-primary mb-3">Employment Details</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <ReadOnlyField label="Joining Date" value={formatDate(employee.joining_date)} />
-              <EditableField label="Designation" fieldKey="designation" />
-              <EditableField label="Department" fieldKey="department" />
+              <EditableSelect label="Role" fieldKey="designation" options={orgRoles.map(r => ({ value: r.label || r.name, label: r.label || r.name }))} />
+              <EditableSelect label="Department" fieldKey="department" options={orgDepartments.map(d => ({ value: d.name, label: d.name }))} />
               <EditableSelect label="Employee Type" fieldKey="employee_type" options={TYPE_OPTIONS} />
               <EditableSelect label="Mode" fieldKey="work_location" options={MODE_OPTIONS} />
               <EditableField label="State" fieldKey="state" />
