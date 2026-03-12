@@ -7337,6 +7337,7 @@ export type Database = {
         | "pending"
         | "resolved"
         | "closed"
+        | "removed"
       training_category: "drone_ops" | "software_usage" | "both" | "das" | "ras"
       training_payment_status: "pending" | "partial" | "paid"
       training_status: "requested" | "pending" | "done"
@@ -7646,6 +7647,7 @@ export const Constants = {
         "pending",
         "resolved",
         "closed",
+        "removed",
       ],
       training_category: ["drone_ops", "software_usage", "both", "das", "ras"],
       training_payment_status: ["pending", "partial", "paid"],
