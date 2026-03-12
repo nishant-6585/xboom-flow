@@ -1,0 +1,1 @@
+ALTER TABLE public.orders ALTER COLUMN customer_company DROP NOT NULL;
