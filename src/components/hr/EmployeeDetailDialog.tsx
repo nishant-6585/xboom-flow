@@ -46,6 +46,8 @@ function ReadOnlyField({ label, value }: { label: string; value: string | null |
 export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin, onSaved }: Props) {
   const { profile } = useAuth();
   const { recordChanges } = useEditHistory();
+  const { roles: orgRoles } = useOrgRoles();
+  const { departments: orgDepartments } = useOrgDepartments();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
