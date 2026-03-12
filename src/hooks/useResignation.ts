@@ -60,7 +60,7 @@ export function useResignation() {
       const empIds = [...new Set(typed.map((r) => r.employee_id))];
       const { data: emps } = await supabase
         .from("employees")
-        .select("id, name, department")
+        .select("id, name, department, employee_number")
         .in("id", empIds);
 
       const empMap = new Map((emps || []).map((e: any) => [e.id, e]));
@@ -69,6 +69,7 @@ export function useResignation() {
         if (emp) {
           r.employee_name = emp.name;
           r.employee_department = emp.department;
+          r.employee_number = emp.employee_number;
         }
       });
     }
