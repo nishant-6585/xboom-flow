@@ -186,32 +186,76 @@ export function ResignationPanel() {
         </Card>
       )}
 
-      {/* History */}
-      {isHROrAdmin && processedRequests.length > 0 && (
+      {/* All Resignations Table */}
+      {isHROrAdmin && requests.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Resignation History</CardTitle>
+            <CardTitle className="text-lg">All Resignations</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {processedRequests.map((req) => {
-              const cfg = statusConfig[req.status] || statusConfig.pending;
-              const Icon = cfg.icon;
-              return (
-                <div key={req.id} className="flex items-center justify-between border rounded-lg p-3">
-                  <div className="flex items-center gap-3">
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium text-sm">{req.employee_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        LWD: {format(parseISO(req.approved_lwd || req.proposed_lwd), "dd MMM yyyy")}
-                        {req.reviewed_by_name && ` • By ${req.reviewed_by_name}`}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant={cfg.variant}>{cfg.label}</Badge>
-                </div>
-              );
-            })}
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Resignation Date</TableHead>
+                    <TableHead>Last Working Day</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Created By</TableHead>
+                    <TableHead>Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {requests.map((req) => {
+                    const cfg = statusConfig[req.status] || statusConfig.pending;
+                    return (
+                      <TableRow key={req.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-sm">{req.employee_name || "Unknown"}</p>
+                            <p className="text-xs text-muted-foreground">{req.employee_number}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm">{req.employee_department || "—"}</TableCell>
+                        <TableCell className="text-sm">
+                          {req.resignation_date
+                            ? format(parseISO(req.resignation_date), "dd MMM yyyy")
+                            : format(parseISO(req.created_at), "dd MMM yyyy")}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {format(parseISO(req.approved_lwd || req.proposed_lwd), "dd MMM yyyy")}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {req.created_by_hr_name
+                            ? `${req.created_by_hr_name} (HR)`
+                            : req.employee_name || "Employee"}
+                        </TableCell>
+                        <TableCell>
+                          {req.status === "pending" ? (
+                            <div className="flex gap-1">
+                              <Button size="sm" variant="outline" onClick={() => handleReview(req, "approved")}>
+                                <CheckCircle2 className="h-3 w-3 mr-1" /> Approve
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => handleReview(req, "rejected")}>
+                                <XCircle className="h-3 w-3 mr-1" /> Reject
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              {req.reviewed_by_name && `By ${req.reviewed_by_name}`}
+                            </span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}
