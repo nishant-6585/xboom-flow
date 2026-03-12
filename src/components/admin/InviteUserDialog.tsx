@@ -97,19 +97,53 @@ export function InviteUserDialog({ onUserInvited }: InviteUserDialogProps) {
         return;
       }
 
-      // Create a pending invitation record
-      const { data: invitation, error: inviteError } = await supabase
+      // Check for existing invitation
+      const { data: existingInvitation } = await supabase
         .from("user_invitations")
-        .insert({
-          name: formData.name.trim(),
-          email: formData.email.toLowerCase().trim(),
-          role: formData.role,
-          department: formData.department,
-        })
-        .select()
-        .single();
+        .select("id, status")
+        .eq("email", formData.email.toLowerCase().trim())
+        .maybeSingle();
 
-      if (inviteError) throw inviteError;
+      let invitation;
+
+      if (existingInvitation) {
+        if (existingInvitation.status === "pending") {
+          toast({
+            title: "Invitation Already Pending",
+            description: "An invitation for this email is already pending. It has been updated with the new details.",
+          });
+        }
+        // Update the existing invitation (re-invite scenario or update cancelled one)
+        const { data: updated, error: updateError } = await supabase
+          .from("user_invitations")
+          .update({
+            name: formData.name.trim(),
+            role: formData.role,
+            department: formData.department,
+            status: "pending",
+          })
+          .eq("id", existingInvitation.id)
+          .select()
+          .single();
+
+        if (updateError) throw updateError;
+        invitation = updated;
+      } else {
+        // Create a new invitation record
+        const { data: created, error: inviteError } = await supabase
+          .from("user_invitations")
+          .insert({
+            name: formData.name.trim(),
+            email: formData.email.toLowerCase().trim(),
+            role: formData.role,
+            department: formData.department,
+          })
+          .select()
+          .single();
+
+        if (inviteError) throw inviteError;
+        invitation = created;
+      }
 
       setInviteSent(true);
       onUserInvited();
