@@ -46,7 +46,8 @@ export function TicketTable({ tickets, onView }: TicketTableProps) {
       ticket.sla_due_at &&
       isPast(new Date(ticket.sla_due_at)) &&
       ticket.status !== "resolved" &&
-      ticket.status !== "closed"
+      ticket.status !== "closed" &&
+      ticket.status !== "removed"
     );
   };
 
