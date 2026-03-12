@@ -387,47 +387,49 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       cancelled_by: finalStatus === 'cancelled' && order.status !== 'cancelled' ? user?.id : order.cancelled_by,
     } as Partial<Order>;
 
-    // Track changes for edit history
+    // Track changes for edit history — compare every editable field
     const changes: Record<string, { old: any; new: any }> = {};
-    
-    if (order.status !== finalStatus) changes.status = { old: order.status, new: finalStatus };
-    if (order.payment_status !== paymentStatus) changes.payment_status = { old: order.payment_status, new: paymentStatus };
-    if (order.supplier_name !== (supplierName || null)) changes.supplier_name = { old: order.supplier_name, new: supplierName || null };
-    if (order.procurement_rate !== (procurementRate ? parseFloat(procurementRate) : null)) {
-      changes.procurement_rate = { old: order.procurement_rate, new: procurementRate ? parseFloat(procurementRate) : null };
-    }
-    if (order.selling_price !== (sellingPrice ? parseFloat(sellingPrice) : null)) {
-      changes.selling_price = { old: order.selling_price, new: sellingPrice ? parseFloat(sellingPrice) : null };
-    }
-    if (order.total_sales_amount !== (totalSalesAmount ? parseFloat(totalSalesAmount) : null)) {
-      changes.total_sales_amount = { old: order.total_sales_amount, new: totalSalesAmount ? parseFloat(totalSalesAmount) : null };
-    }
-    if (order.discount_amount !== (discountAmount ? parseFloat(discountAmount) : null)) {
-      changes.discount_amount = { old: order.discount_amount, new: discountAmount ? parseFloat(discountAmount) : null };
-    }
-    if (order.priority !== priority) changes.priority = { old: order.priority, new: priority };
-    if (order.order_outcome !== orderOutcome) changes.order_outcome = { old: order.order_outcome, new: orderOutcome };
-    if (order.internal_notes !== (internalNotes || null)) changes.internal_notes = { old: order.internal_notes, new: internalNotes || null };
-    if (order.sales_notes !== (salesNotes || null)) changes.sales_notes = { old: order.sales_notes, new: salesNotes || null };
-    if (order.customer_notes !== (customerNotes || null)) changes.customer_notes = { old: order.customer_notes, new: customerNotes || null };
-    if (order.is_rto !== isRto) changes.is_rto = { old: order.is_rto, new: isRto };
-    if (order.cancellation_reason !== (cancellationReason || null)) changes.cancellation_reason = { old: order.cancellation_reason, new: cancellationReason || null };
-    // Additional field tracking
-    if (order.shipping_address !== (shippingAddress || null)) changes.shipping_address = { old: order.shipping_address, new: shippingAddress || null };
-    if (order.tracking_number !== (trackingNumber || null)) changes.tracking_number = { old: order.tracking_number, new: trackingNumber || null };
-    if (order.tracking_url !== (trackingUrl || null)) changes.tracking_url = { old: order.tracking_url, new: trackingUrl || null };
-    if (order.committed_timeline !== (committedTimeline || null)) changes.committed_timeline = { old: order.committed_timeline, new: committedTimeline || null };
-    if (order.estimated_delivery !== (estimatedDelivery || null)) changes.estimated_delivery = { old: order.estimated_delivery, new: estimatedDelivery || null };
-    if (order.actual_delivery !== (actualDelivery || null)) changes.actual_delivery = { old: order.actual_delivery, new: actualDelivery || null };
-    if (order.payment_terms !== (paymentTerms || null)) changes.payment_terms = { old: order.payment_terms, new: paymentTerms || null };
-    if (order.payment_due_date !== (paymentDueDate || null)) changes.payment_due_date = { old: order.payment_due_date, new: paymentDueDate || null };
-    if (order.amount_paid !== (amountPaid ? parseFloat(amountPaid) : null)) {
-      changes.amount_paid = { old: order.amount_paid, new: amountPaid ? parseFloat(amountPaid) : null };
-    }
-    if (order.order_type !== orderType) changes.order_type = { old: order.order_type, new: orderType };
-    if (order.customer_type !== customerType) changes.customer_type = { old: order.customer_type, new: customerType };
-    if (order.customer_name !== (customerName || null)) changes.customer_name = { old: order.customer_name, new: customerName || null };
-    if (order.customer_company !== (customerCompany || null)) changes.customer_company = { old: order.customer_company, new: customerCompany || null };
+    const trackField = (field: string, oldVal: any, newVal: any) => {
+      const norm = (v: any) => (v === '' || v === undefined ? null : v);
+      if (norm(oldVal) !== norm(newVal)) changes[field] = { old: oldVal, new: newVal };
+    };
+
+    trackField('status', order.status, finalStatus);
+    trackField('payment_status', order.payment_status, paymentStatus);
+    trackField('order_type', order.order_type, orderType);
+    trackField('customer_type', order.customer_type, customerType);
+    trackField('customer_name', order.customer_name, customerName || null);
+    trackField('customer_company', order.customer_company, customerCompany || null);
+    trackField('shipping_address', order.shipping_address, shippingAddress || null);
+    trackField('supplier_name', order.supplier_name, supplierName || null);
+    trackField('supplier_contact', order.supplier_contact, supplierContact || null);
+    trackField('procurement_rate', order.procurement_rate, procurementRate ? parseFloat(procurementRate) : null);
+    trackField('selling_price', order.selling_price, sellingPrice ? parseFloat(sellingPrice) : null);
+    trackField('total_sales_amount', order.total_sales_amount, totalSalesAmount ? parseFloat(totalSalesAmount) : null);
+    trackField('discount_amount', order.discount_amount, discountAmount ? parseFloat(discountAmount) : null);
+    trackField('amount_paid', order.amount_paid, amountPaid ? parseFloat(amountPaid) : null);
+    trackField('payment_terms', order.payment_terms, paymentTerms || null);
+    trackField('payment_due_date', order.payment_due_date, paymentDueDate || null);
+    trackField('tracking_number', order.tracking_number, trackingNumber || null);
+    trackField('tracking_url', order.tracking_url, trackingUrl || null);
+    trackField('committed_timeline', order.committed_timeline, committedTimeline || null);
+    trackField('estimated_delivery', order.estimated_delivery, estimatedDelivery || null);
+    trackField('actual_delivery', order.actual_delivery, actualDelivery || null);
+    trackField('internal_notes', order.internal_notes, internalNotes || null);
+    trackField('customer_notes', order.customer_notes, customerNotes || null);
+    trackField('sales_notes', order.sales_notes, salesNotes || null);
+    trackField('priority', order.priority, priority);
+    trackField('order_outcome', order.order_outcome, orderOutcome);
+    trackField('lost_reason', order.lost_reason, orderOutcome === 'lost' ? lostReason : null);
+    trackField('lost_reason_notes', order.lost_reason_notes, orderOutcome === 'lost' ? (lostReasonNotes || null) : null);
+    trackField('is_rto', order.is_rto, isRto);
+    trackField('cancellation_reason', order.cancellation_reason, finalStatus === 'cancelled' ? cancellationReason : null);
+    trackField('supplier_payment_terms', (order as any).supplier_payment_terms, supplierPaymentTerms || null);
+    trackField('supplier_payment_due_date', (order as any).supplier_payment_due_date, supplierPaymentDueDate || null);
+    trackField('order_date', order.order_date, orderDate ? format(orderDate, 'yyyy-MM-dd') : null);
+    trackField('is_refund_requested', order.is_refund_requested, isRefundRequested || finalStatus === 'cancelled');
+    trackField('refund_reason', order.refund_reason, isRefundRequested ? (refundReason || null) : (finalStatus === 'cancelled' ? cancellationReason : null));
+    trackField('refund_status', order.refund_status, (isRefundRequested || finalStatus === 'cancelled') ? refundStatus : null);
 
     const success = await onUpdate(order.id, updates);
     
@@ -925,19 +927,20 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                                     throw new Error('No rows updated (insufficient permission or item not found)');
                                   }
                                   
-                                  // Record changes to edit history
-                                  if (user && profile) {
-                                    const changesRecord: Record<string, { old: any; new: any }> = {};
-                                    Object.entries(updates).forEach(([field, newValue]) => {
-                                      changesRecord[`order_item.${field}`] = {
-                                        old: originalItem[field],
-                                        new: newValue
-                                      };
-                                    });
-                                    if (Object.keys(changesRecord).length > 0) {
-                                      await recordChanges('order_items', itemId, changesRecord, profile.name || 'Unknown');
-                                    }
-                                  }
+                                   // Record changes to edit history under the ORDER id for unified view
+                                   if (user && profile && order) {
+                                     const changesRecord: Record<string, { old: any; new: any }> = {};
+                                     Object.entries(updates).forEach(([field, newValue]) => {
+                                       const label = `order_item.${field}`;
+                                       changesRecord[label] = {
+                                         old: originalItem[field],
+                                         new: newValue
+                                       };
+                                     });
+                                     if (Object.keys(changesRecord).length > 0) {
+                                       await recordChanges('orders', order.id, changesRecord, profile.name || 'Unknown');
+                                     }
+                                   }
                                 }
                               }
                             }
