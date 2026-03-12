@@ -443,6 +443,9 @@ function EmployeeDetailDialog({ row, open, onOpenChange }: { row: LiveRow | null
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className={cn('text-xs font-medium gap-1', STATUS_STYLE[liveStatus] || '')}>{liveStatus}</Badge>
             {isLate && <Badge variant="outline" className="text-xs border-amber-300 bg-amber-50 text-amber-700">Late</Badge>}
+            {liveStatus === 'On Leave' && (
+              <Badge variant="outline" className="text-xs border-purple-300 bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400">Leave type shown in table</Badge>
+            )}
             {log?.is_provisional_checkout && (
               <Badge variant="outline" className="text-xs border-yellow-400 bg-yellow-50 text-yellow-700 gap-1"><AlertTriangle className="h-3 w-3" /> Provisional Checkout</Badge>
             )}
