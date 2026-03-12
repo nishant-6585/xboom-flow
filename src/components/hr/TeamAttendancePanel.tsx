@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils';
 import { ProvisionalCorrectionModal } from '@/components/attendance/ProvisionalCorrectionModal';
 import { PendingCorrectionApprovals } from '@/components/attendance/PendingCorrectionApprovals';
 import { AttendanceAlertsPanel, AttendanceAlertIndicator } from '@/components/hr/AttendanceAlertsPanel';
+import { HRAttendanceEditModal } from '@/components/attendance/HRAttendanceEditModal';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
