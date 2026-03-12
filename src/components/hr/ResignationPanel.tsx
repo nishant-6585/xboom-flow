@@ -26,10 +26,11 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 export function ResignationPanel() {
   const {
     requests, myRequest, loading, isHROrAdmin,
-    submitResignation, withdrawResignation, reviewResignation,
+    submitResignation, withdrawResignation, reviewResignation, addResignationByHR,
   } = useResignation();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [hrEntryDialogOpen, setHrEntryDialogOpen] = useState(false);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<ResignationRequest | null>(null);
   const [reviewAction, setReviewAction] = useState<"approved" | "rejected">("approved");
