@@ -1,12 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useLeaveBalances } from '@/hooks/useLeaveBalances';
+import { useLeaveBalances, EmployeeLeaveRow } from '@/hooks/useLeaveBalances';
 import { useAuth } from '@/hooks/useAuth';
+import { LeaveBalanceEditDialog } from '@/components/hr/LeaveBalanceEditDialog';
 import { format } from 'date-fns';
-import { Leaf, History, Users } from 'lucide-react';
+import { Leaf, History, Users, Pencil } from 'lucide-react';
 
 interface LeaveBalancePanelProps {
   employeeId?: string;
@@ -24,8 +26,10 @@ const LEAVE_TYPE_DISPLAY: Record<string, string> = {
 
 export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
   const { role } = useAuth();
-  const { balanceSummaries, transactions, allBalances, loading, fetchAllBalances } = useLeaveBalances(employeeId);
+  const { balanceSummaries, transactions, employeeRows, loading, fetchAllBalances, adjustBalances } = useLeaveBalances(employeeId);
   const isHROrAdmin = role === 'admin' || role === 'hr';
+
+  const [editRow, setEditRow] = useState<EmployeeLeaveRow | null>(null);
 
   useEffect(() => {
     if (isHROrAdmin) fetchAllBalances();
@@ -68,7 +72,7 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
           </TabsTrigger>
           {isHROrAdmin && (
             <TabsTrigger value="team" className="gap-1.5">
-              <Users className="h-4 w-4" /> All Employees
+              <Users className="h-4 w-4" /> Leave Balance Management
             </TabsTrigger>
           )}
         </TabsList>
@@ -101,7 +105,7 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
                         {tx.transaction_type === 'credit' ? '+' : '-'}{tx.amount}
                       </TableCell>
                       <TableCell className="font-medium">{tx.balance_after}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{tx.remarks || '—'}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{tx.remarks || '—'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -112,7 +116,7 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
 
         {isHROrAdmin && (
           <TabsContent value="team" className="mt-4">
-            {allBalances.length === 0 ? (
+            {employeeRows.length === 0 ? (
               <p className="text-center py-8 text-muted-foreground">No leave balances found</p>
             ) : (
               <Card>
@@ -120,26 +124,33 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Employee</TableHead>
-                      <TableHead>Leave Type</TableHead>
-                      <TableHead>Balance</TableHead>
-                      <TableHead>Year</TableHead>
-                      <TableHead>Last Updated</TableHead>
+                      <TableHead className="text-center">Earned Leave</TableHead>
+                      <TableHead className="text-center">Paid Leave</TableHead>
+                      <TableHead className="text-center">Sick Leave</TableHead>
+                      <TableHead className="text-center">Unpaid</TableHead>
+                      <TableHead className="text-center">WFH</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allBalances
-                      .filter(b => b.leave_type !== 'casual' && b.leave_type !== 'half_day_casual')
-                      .map(b => (
-                      <TableRow key={b.id}>
-                        <TableCell className="font-medium">{b.employee_name || '—'}</TableCell>
-                        <TableCell><Badge variant="outline">{LEAVE_TYPE_DISPLAY[b.leave_type] || b.leave_type}</Badge></TableCell>
-                        <TableCell className="font-semibold text-primary">{b.balance}</TableCell>
-                        <TableCell>{b.year}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {format(new Date(b.updated_at), 'dd MMM yyyy')}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {employeeRows.map(row => {
+                      const getBalance = (lt: string) => row.balances.find(b => b.leave_type === lt)?.balance ?? 0;
+                      return (
+                        <TableRow key={row.employee_id}>
+                          <TableCell className="font-medium">{row.employee_name}</TableCell>
+                          <TableCell className="text-center font-semibold text-primary">{getBalance('EL')}</TableCell>
+                          <TableCell className="text-center font-semibold text-primary">{getBalance('paid')}</TableCell>
+                          <TableCell className="text-center font-semibold text-primary">{getBalance('sick')}</TableCell>
+                          <TableCell className="text-center font-semibold text-primary">{getBalance('unpaid')}</TableCell>
+                          <TableCell className="text-center font-semibold text-primary">{getBalance('wfh')}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" onClick={() => setEditRow(row)}>
+                              <Pencil className="h-4 w-4 mr-1" /> Edit
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </Card>
@@ -147,6 +158,27 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
           </TabsContent>
         )}
       </Tabs>
+
+      {editRow && (
+        <LeaveBalanceEditDialog
+          open={!!editRow}
+          onOpenChange={(open) => { if (!open) setEditRow(null); }}
+          employeeName={editRow.employee_name}
+          employeeId={editRow.employee_id}
+          balances={
+            // Ensure all standard types appear
+            ['EL', 'paid', 'sick', 'unpaid', 'wfh'].map(lt => {
+              const existing = editRow.balances.find(b => b.leave_type === lt);
+              return {
+                leave_type: lt,
+                label: LEAVE_TYPE_DISPLAY[lt] || lt,
+                balance: existing?.balance ?? 0,
+              };
+            })
+          }
+          onSave={(adjustments, reason) => adjustBalances(editRow.employee_id, adjustments, reason)}
+        />
+      )}
     </div>
   );
 }
