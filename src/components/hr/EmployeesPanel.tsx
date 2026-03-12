@@ -155,7 +155,7 @@ export function EmployeesPanel() {
                   <TableCell className="font-mono text-xs">{emp.employee_number || "—"}</TableCell>
                   <TableCell className="font-medium">{emp.name}</TableCell>
                   <TableCell className="text-sm">{emp.department}</TableCell>
-                  <TableCell className="hidden md:table-cell text-sm">{emp.designation || "—"}</TableCell>
+                   <TableCell className="hidden md:table-cell text-sm">{emp.designation || "—"}</TableCell>
                   <TableCell className="hidden lg:table-cell">
                     <Badge variant="outline" className="text-xs">{formatType(emp.employee_type)}</Badge>
                   </TableCell>
