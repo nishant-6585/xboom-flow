@@ -17,7 +17,7 @@ import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
 import { HRDocumentsPanel } from "@/components/hr/HRDocumentsPanel";
 import { KPIManagementPanel } from "@/components/kpi/KPIManagementPanel";
 import { ProvisionalCheckoutBanner } from "@/components/attendance/ProvisionalCheckoutBanner";
-import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History, Building2, CreditCard } from "lucide-react";
+import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History, Building2, CreditCard, LogOut } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CandidatesPanel } from "@/components/candidates/CandidatesPanel";
 import { SalarySheetsList } from "@/components/salary/SalarySheetsList";
