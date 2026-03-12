@@ -632,6 +632,18 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
           onCorrected={() => { setCorrectionLog(null); onRefresh?.(); }}
         />
       )}
+
+      {editTarget && (
+        <HRAttendanceEditModal
+          log={editTarget.row.log}
+          employeeName={editTarget.row.employee.name}
+          employeeId={editTarget.row.employee.id}
+          date={editTarget.date}
+          open={!!editTarget}
+          onOpenChange={open => { if (!open) setEditTarget(null); }}
+          onSaved={() => { setEditTarget(null); onRefresh?.(); }}
+        />
+      )}
     </>
   );
 }
