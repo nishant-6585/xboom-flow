@@ -841,22 +841,39 @@ serve(async (req) => {
     const slackUserId = data.slack_user_id as string;
     const isTicketNotification = type === 'ticket_assigned' || type === 'ticket_status_change';
     
-    if (slackUserId && envBotToken) {
-      try {
-        await sendSlackBotMessage(envBotToken, slackUserId, slackMessage);
-        console.log(`Slack DM sent to user ${slackUserId}`);
-        
-        // For ticket notifications, ONLY send DM — do NOT broadcast to channel
-        if (isTicketNotification) {
+    // For ticket notifications, ONLY send DM — NEVER broadcast to channel
+    if (isTicketNotification) {
+      if (slackUserId && envBotToken) {
+        try {
+          await sendSlackBotMessage(envBotToken, slackUserId, slackMessage);
+          console.log(`Slack DM sent to user ${slackUserId} for ticket notification`);
           return new Response(
             JSON.stringify({ success: true, dm_sent: true }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
+        } catch (error) {
+          console.error('Failed to send Slack DM for ticket:', error);
+          return new Response(
+            JSON.stringify({ success: false, error: 'Failed to send ticket DM', no_fallback: true }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+          );
         }
-        // For other types, continue to also send to channel if configured
+      } else {
+        console.log(`Ticket notification skipped: no slack_user_id for recipient`);
+        return new Response(
+          JSON.stringify({ success: true, skipped: true, reason: 'no_slack_user_id' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // For non-ticket notifications, send DM + continue to channel
+    if (slackUserId && envBotToken) {
+      try {
+        await sendSlackBotMessage(envBotToken, slackUserId, slackMessage);
+        console.log(`Slack DM sent to user ${slackUserId}`);
       } catch (error) {
         console.error('Failed to send Slack DM:', error);
-        // Continue to try channel notification as fallback
       }
     }
 
