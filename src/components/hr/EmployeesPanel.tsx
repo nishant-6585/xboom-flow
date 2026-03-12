@@ -34,6 +34,7 @@ export interface EmployeeRecord {
   is_active: boolean | null;
   created_at: string;
   updated_at: string;
+  user_roles?: string[];
 }
 
 export function EmployeesPanel() {
