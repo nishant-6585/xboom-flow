@@ -109,6 +109,7 @@ export default function HR() {
               <TabsTrigger value="home" className="gap-1.5 whitespace-nowrap"><Clock className="h-4 w-4 shrink-0" /><span>Home</span></TabsTrigger>
               <TabsTrigger value="attendance" className="gap-1.5 whitespace-nowrap"><Calendar className="h-4 w-4 shrink-0" /><span>Attendance</span></TabsTrigger>
               <TabsTrigger value="leave" className="gap-1.5 whitespace-nowrap"><FileText className="h-4 w-4 shrink-0" /><span>Leave</span></TabsTrigger>
+              <TabsTrigger value="leave_balance" className="gap-1.5 whitespace-nowrap"><Leaf className="h-4 w-4 shrink-0" /><span>Leave Balance</span></TabsTrigger>
               <TabsTrigger value="kpi_management" className="gap-1.5 whitespace-nowrap"><Target className="h-4 w-4 shrink-0" /><span>KPI</span></TabsTrigger>
               <TabsTrigger value="documents" className="gap-1.5 whitespace-nowrap"><FolderOpen className="h-4 w-4 shrink-0" /><span>Documents</span></TabsTrigger>
               <TabsTrigger value="my_financial" className="gap-1.5 whitespace-nowrap"><CreditCard className="h-4 w-4 shrink-0" /><span>My Financial Details</span></TabsTrigger>
