@@ -12,16 +12,24 @@ interface LeaveBalancePanelProps {
   employeeId?: string;
 }
 
+const LEAVE_TYPE_DISPLAY: Record<string, string> = {
+  EL: 'Earned Leave',
+  paid: 'Paid Leave',
+  sick: 'Sick Leave',
+  unpaid: 'Unpaid Leave',
+  wfh: 'Work from Home',
+  casual: 'Paid Leave (Casual)',
+  half_day_casual: 'Half Day Paid',
+};
+
 export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
   const { role } = useAuth();
-  const { balances, transactions, allBalances, loading, fetchAllBalances } = useLeaveBalances(employeeId);
+  const { balanceSummaries, transactions, allBalances, loading, fetchAllBalances } = useLeaveBalances(employeeId);
   const isHROrAdmin = role === 'admin' || role === 'hr';
 
   useEffect(() => {
     if (isHROrAdmin) fetchAllBalances();
   }, [isHROrAdmin, fetchAllBalances]);
-
-  const elBalance = balances.find(b => b.leave_type === 'EL');
 
   if (loading) {
     return <div className="h-32 bg-muted rounded-lg animate-pulse" />;
@@ -29,22 +37,29 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
 
   return (
     <div className="space-y-4">
-      {/* My Balance Card */}
-      <Card className="border-primary/20">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Leaf className="h-5 w-5 text-primary" />
-            My Earned Leave Balance
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-bold text-primary">{elBalance?.balance ?? 0}</span>
-            <span className="text-muted-foreground">days available ({new Date().getFullYear()})</span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">1.75 EL credited monthly on the 1st</p>
-        </CardContent>
-      </Card>
+      {/* Leave Balance Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {balanceSummaries.map((summary) => (
+          <Card key={summary.leave_type} className="border-primary/20">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                <Leaf className="h-4 w-4 text-primary" />
+                {summary.label}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-bold text-primary">{summary.balance}</span>
+                <span className="text-sm text-muted-foreground">days</span>
+              </div>
+              <div className="flex gap-3 mt-2 text-xs text-muted-foreground">
+                <span className="text-green-600">+{summary.total_credited} credited</span>
+                <span className="text-red-600">-{summary.total_used} used</span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
       <Tabs defaultValue="history">
         <TabsList>
@@ -79,7 +94,7 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
                       <TableCell className="text-xs">{format(new Date(tx.created_at), 'dd MMM yyyy')}</TableCell>
                       <TableCell>
                         <Badge variant={tx.transaction_type === 'credit' ? 'default' : 'destructive'} className="text-xs">
-                          {tx.transaction_type === 'credit' ? '+' : '-'} {tx.leave_type}
+                          {tx.transaction_type === 'credit' ? '+' : '-'} {LEAVE_TYPE_DISPLAY[tx.leave_type] || tx.leave_type}
                         </Badge>
                       </TableCell>
                       <TableCell className={tx.transaction_type === 'credit' ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
@@ -112,10 +127,12 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allBalances.map(b => (
+                    {allBalances
+                      .filter(b => b.leave_type !== 'casual' && b.leave_type !== 'half_day_casual')
+                      .map(b => (
                       <TableRow key={b.id}>
                         <TableCell className="font-medium">{b.employee_name || '—'}</TableCell>
-                        <TableCell><Badge variant="outline">{b.leave_type}</Badge></TableCell>
+                        <TableCell><Badge variant="outline">{LEAVE_TYPE_DISPLAY[b.leave_type] || b.leave_type}</Badge></TableCell>
                         <TableCell className="font-semibold text-primary">{b.balance}</TableCell>
                         <TableCell>{b.year}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">

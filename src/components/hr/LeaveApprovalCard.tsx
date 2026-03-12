@@ -13,12 +13,12 @@ interface LeaveApprovalCardProps {
 }
 
 const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
-  casual: 'Casual',
+  casual: 'Paid (Casual)',
   sick: 'Sick',
   paid: 'Paid',
   unpaid: 'Unpaid',
   half_day: 'Half Day',
-  half_day_casual: 'Half Day Casual',
+  half_day_casual: 'Half Day Paid',
   half_day_sick: 'Half Day Sick',
   half_day_paid: 'Half Day Paid',
   half_day_unpaid: 'Half Day Unpaid',
