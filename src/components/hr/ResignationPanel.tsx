@@ -9,10 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ResignationRequestDialog } from "./ResignationRequestDialog";
+import { HRResignationEntryDialog } from "./HRResignationEntryDialog";
 import { format, parseISO, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
-  CalendarIcon, LogOut, Loader2, Clock, CheckCircle2, XCircle, AlertTriangle, RotateCcw
+  CalendarIcon, LogOut, Loader2, Clock, CheckCircle2, XCircle, AlertTriangle, RotateCcw, UserPlus
 } from "lucide-react";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
