@@ -170,9 +170,9 @@ export function useResignation() {
       return;
     }
 
-    await recordAuditLog(`RESIGNATION_${action.toUpperCase()}`, {
-      request_id: requestId,
-      approved_lwd: data.approved_lwd,
+    await recordAuditLog(user.id, profile.name, {
+      action: `RESIGNATION_${action.toUpperCase()}`,
+      details: { request_id: requestId, approved_lwd: data.approved_lwd },
     });
 
     toast({
