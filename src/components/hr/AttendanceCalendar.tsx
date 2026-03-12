@@ -2,14 +2,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, getDay } from "date-fns";
-import { AttendanceLog, AttendanceStatus } from "@/hooks/useHR";
+import { AttendanceLog, AttendanceStatus, LeaveRequest } from "@/hooks/useHR";
 import { useState } from "react";
 
 interface AttendanceCalendarProps {
   logs: AttendanceLog[];
   month: Date;
   onMonthChange: (month: Date) => void;
+  approvedLeaves?: LeaveRequest[];
 }
 
 const STATUS_COLORS: Record<AttendanceStatus, string> = {
@@ -21,7 +23,20 @@ const STATUS_COLORS: Record<AttendanceStatus, string> = {
   holiday: 'bg-blue-300',
 };
 
-export function AttendanceCalendar({ logs, month, onMonthChange }: AttendanceCalendarProps) {
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+  casual: 'Paid (Casual)',
+  sick: 'Sick Leave',
+  paid: 'Paid Leave',
+  unpaid: 'Unpaid',
+  half_day: 'Half Day',
+  half_day_casual: 'Half Day Paid',
+  half_day_sick: 'Half Day Sick',
+  half_day_paid: 'Half Day Paid',
+  half_day_unpaid: 'Half Day Unpaid',
+  wfh: 'WFH',
+};
+
+export function AttendanceCalendar({ logs, month, onMonthChange, approvedLeaves = [] }: AttendanceCalendarProps) {
   const start = startOfMonth(month);
   const end = endOfMonth(month);
   const days = eachDayOfInterval({ start, end });
@@ -33,6 +48,11 @@ export function AttendanceCalendar({ logs, month, onMonthChange }: AttendanceCal
   const getLogForDate = (date: Date): AttendanceLog | undefined => {
     const dateStr = format(date, 'yyyy-MM-dd');
     return logs.find((log) => log.date === dateStr);
+  };
+
+  const getLeaveForDate = (date: Date): LeaveRequest | undefined => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return approvedLeaves.find(l => dateStr >= l.start_date && dateStr <= l.end_date);
   };
 
   const prevMonth = () => {
@@ -73,9 +93,16 @@ export function AttendanceCalendar({ logs, month, onMonthChange }: AttendanceCal
             }
             
             const log = getLogForDate(day);
+            const leave = getLeaveForDate(day);
             const isWeekend = getDay(day) === 0 || getDay(day) === 6;
+            const isOnLeave = log?.status === 'on_leave' || (!log && leave);
+            const leaveLabel = leave ? (LEAVE_TYPE_LABELS[leave.leave_type] || leave.leave_type) : null;
+
+            const tooltipText = isOnLeave && leaveLabel
+              ? `On Leave — ${leaveLabel}`
+              : log ? (log.status === 'present' ? 'Present' : log.status === 'half_day' ? 'Half Day' : log.status) : isWeekend ? 'Weekend' : null;
             
-            return (
+            const cell = (
               <div
                 key={day.toISOString()}
                 className={`
@@ -85,11 +112,22 @@ export function AttendanceCalendar({ logs, month, onMonthChange }: AttendanceCal
                 `}
               >
                 <span className={isWeekend ? 'text-muted-foreground' : ''}>{format(day, 'd')}</span>
-                {log && (
-                  <div className={`w-2 h-2 rounded-full mt-0.5 ${STATUS_COLORS[log.status]}`} />
+                {(log || isOnLeave) && (
+                  <div className={`w-2 h-2 rounded-full mt-0.5 ${log ? STATUS_COLORS[log.status] : 'bg-purple-500'}`} />
                 )}
               </div>
             );
+
+            if (tooltipText) {
+              return (
+                <Tooltip key={day.toISOString()}>
+                  <TooltipTrigger asChild>{cell}</TooltipTrigger>
+                  <TooltipContent className="text-xs">{tooltipText}</TooltipContent>
+                </Tooltip>
+              );
+            }
+
+            return cell;
           })}
         </div>
 

@@ -258,7 +258,8 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
   }, [liveRows, alertCount]);
 
   const exportCSV = () => {
-    const rows: string[][] = [['Employee', 'Department', 'Date', 'Check In', 'Check Out', 'Work Hours', 'Break (min)', 'Status']];
+    const LEAVE_LABELS_CSV: Record<string, string> = { casual: 'Paid (Casual)', sick: 'Sick Leave', paid: 'Paid Leave', unpaid: 'Unpaid', half_day: 'Half Day', half_day_casual: 'Half Day Paid', half_day_sick: 'Half Day Sick', half_day_paid: 'Half Day Paid', half_day_unpaid: 'Half Day Unpaid', wfh: 'WFH' };
+    const rows: string[][] = [['Employee', 'Department', 'Date', 'Check In', 'Check Out', 'Work Hours', 'Break (min)', 'Status', 'Leave Type']];
     for (const emp of employees) {
       const log = todayLogs.find(l => l.employee_id === emp.id) || null;
       const notEmployed = emp.joining_date ? selectedDateStr < emp.joining_date : false;
@@ -266,7 +267,8 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
       const isNotEmployed = notEmployed || hasExited;
       const hasLeave = !!approvedLeaves[emp.id];
       const status = isViewingToday ? getLiveStatus(log, selectedDateIsHoliday, hasLeave, isNotEmployed) : deriveHistoricalStatus(log, selectedDate, policy, selectedDateIsHoliday, hasLeave, isNotEmployed);
-      rows.push([emp.name, emp.department, selectedDateStr, log?.check_in_time ? format(new Date(log.check_in_time), 'HH:mm') : '', log?.check_out_time ? format(new Date(log.check_out_time), 'HH:mm') : '', (log?.working_hours || 0).toFixed(2), Math.round(log?.total_break_minutes || 0).toString(), status]);
+      const leaveType = approvedLeaves[emp.id] ? (LEAVE_LABELS_CSV[approvedLeaves[emp.id].leave_type] || approvedLeaves[emp.id].leave_type) : '';
+      rows.push([emp.name, emp.department, selectedDateStr, log?.check_in_time ? format(new Date(log.check_in_time), 'HH:mm') : '', log?.check_out_time ? format(new Date(log.check_out_time), 'HH:mm') : '', (log?.working_hours || 0).toFixed(2), Math.round(log?.total_break_minutes || 0).toString(), status, leaveType]);
     }
     const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -394,7 +396,7 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
 
             {/* Employees Tab */}
             <TabsContent value="employees">
-              <LiveStatusTable liveRows={liveRows} loading={loadingToday} onRefresh={fetchToday} isLive={isViewingToday} selectedDate={selectedDate} isHoliday={selectedDateIsHoliday} />
+              <LiveStatusTable liveRows={liveRows} loading={loadingToday} onRefresh={fetchToday} isLive={isViewingToday} selectedDate={selectedDate} isHoliday={selectedDateIsHoliday} approvedLeaves={approvedLeaves} />
             </TabsContent>
 
             {/* Alerts Tab */}
@@ -428,7 +430,7 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
 
 type QuickFilter = 'all' | 'Working' | 'Not Checked In' | 'Late' | 'On Break' | 'Completed' | 'Holiday' | 'On Leave';
 
-function EmployeeDetailDialog({ row, open, onOpenChange }: { row: LiveRow | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+function EmployeeDetailDialog({ row, open, onOpenChange, leaveInfo }: { row: LiveRow | null; open: boolean; onOpenChange: (open: boolean) => void; leaveInfo?: { leave_type: string } }) {
   if (!row) return null;
   const { employee, log, liveStatus, isLate, breakMinutes } = row;
   return (
@@ -441,6 +443,11 @@ function EmployeeDetailDialog({ row, open, onOpenChange }: { row: LiveRow | null
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className={cn('text-xs font-medium gap-1', STATUS_STYLE[liveStatus] || '')}>{liveStatus}</Badge>
             {isLate && <Badge variant="outline" className="text-xs border-amber-300 bg-amber-50 text-amber-700">Late</Badge>}
+            {liveStatus === 'On Leave' && leaveInfo && (
+              <Badge variant="outline" className="text-xs border-purple-300 bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400">
+                {LEAVE_TYPE_LABELS[leaveInfo.leave_type] || leaveInfo.leave_type}
+              </Badge>
+            )}
             {log?.is_provisional_checkout && (
               <Badge variant="outline" className="text-xs border-yellow-400 bg-yellow-50 text-yellow-700 gap-1"><AlertTriangle className="h-3 w-3" /> Provisional Checkout</Badge>
             )}
@@ -465,7 +472,12 @@ function EmployeeDetailDialog({ row, open, onOpenChange }: { row: LiveRow | null
   );
 }
 
-function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selectedDate, isHoliday = false }: { liveRows: LiveRow[]; loading: boolean; onRefresh?: () => void; isLive?: boolean; selectedDate?: Date; isHoliday?: boolean }) {
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+  casual: 'Paid (Casual)', sick: 'Sick Leave', paid: 'Paid Leave', unpaid: 'Unpaid', half_day: 'Half Day',
+  half_day_casual: 'Half Day Paid', half_day_sick: 'Half Day Sick', half_day_paid: 'Half Day Paid', half_day_unpaid: 'Half Day Unpaid', wfh: 'WFH',
+};
+
+function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selectedDate, isHoliday = false, approvedLeaves = {} }: { liveRows: LiveRow[]; loading: boolean; onRefresh?: () => void; isLive?: boolean; selectedDate?: Date; isHoliday?: boolean; approvedLeaves?: Record<string, { leave_type: string; start_date: string; end_date: string }> }) {
   const [filter, setFilter] = useState<QuickFilter>('all');
   const [empFilter, setEmpFilter] = useState('all');
   const [detailRow, setDetailRow] = useState<LiveRow | null>(null);
@@ -573,6 +585,11 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
                               {(liveStatus === 'On Leave' || liveStatus === 'Holiday' || liveStatus === 'Worked on Holiday') && <CalendarCheck className="h-3 w-3" />}
                               {liveStatus}
                             </Badge>
+                            {liveStatus === 'On Leave' && approvedLeaves[employee.id] && (
+                              <Badge variant="outline" className="text-xs w-fit border-purple-300 bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400">
+                                {LEAVE_TYPE_LABELS[approvedLeaves[employee.id].leave_type] || approvedLeaves[employee.id].leave_type}
+                              </Badge>
+                            )}
                             {log?.is_provisional_checkout && (
                               <Badge variant="outline" className="text-xs w-fit border-yellow-400 bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400 gap-1"><AlertTriangle className="h-3 w-3" />Provisional</Badge>
                             )}
@@ -621,7 +638,7 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
         </CardContent>
       </Card>
 
-      <EmployeeDetailDialog row={detailRow} open={!!detailRow} onOpenChange={open => { if (!open) setDetailRow(null); }} />
+      <EmployeeDetailDialog row={detailRow} open={!!detailRow} onOpenChange={open => { if (!open) setDetailRow(null); }} leaveInfo={detailRow ? approvedLeaves[detailRow.employee.id] : undefined} />
 
       {correctionLog && (
         <ProvisionalCorrectionModal
