@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils';
 import { ProvisionalCorrectionModal } from '@/components/attendance/ProvisionalCorrectionModal';
 import { PendingCorrectionApprovals } from '@/components/attendance/PendingCorrectionApprovals';
 import { AttendanceAlertsPanel, AttendanceAlertIndicator } from '@/components/hr/AttendanceAlertsPanel';
+import { HRAttendanceEditModal } from '@/components/attendance/HRAttendanceEditModal';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -469,6 +470,7 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
   const [empFilter, setEmpFilter] = useState('all');
   const [detailRow, setDetailRow] = useState<LiveRow | null>(null);
   const [correctionLog, setCorrectionLog] = useState<AttendanceLog | null>(null);
+  const [editTarget, setEditTarget] = useState<{ row: LiveRow; date: string } | null>(null);
 
   const filtered = liveRows.filter(r => {
     if (empFilter !== 'all' && r.employee.id !== empFilter) return false;
@@ -592,9 +594,18 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
                             <Button variant="ghost" size="icon" className="h-7 w-7" title="View Details" onClick={() => setDetailRow(row)}><Eye className="h-3.5 w-3.5 text-muted-foreground" /></Button>
                             {log?.is_provisional_checkout && (
                               <Button variant="outline" size="sm" className="h-6 px-2 text-xs border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 gap-1" title="Correct Provisional Checkout" onClick={() => setCorrectionLog(log)}>
-                                <Pencil className="h-3 w-3" />Edit
+                                <Pencil className="h-3 w-3" />Fix
                               </Button>
                             )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 px-2 text-xs border-blue-300 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 dark:border-blue-700 dark:text-blue-400 gap-1"
+                              title="Edit Attendance"
+                              onClick={() => setEditTarget({ row, date: format(selectedDate || new Date(), 'yyyy-MM-dd') })}
+                            >
+                              <Pencil className="h-3 w-3" />Edit
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -619,6 +630,18 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
           onOpenChange={open => { if (!open) setCorrectionLog(null); }}
           isAdminCorrection={true}
           onCorrected={() => { setCorrectionLog(null); onRefresh?.(); }}
+        />
+      )}
+
+      {editTarget && (
+        <HRAttendanceEditModal
+          log={editTarget.row.log}
+          employeeName={editTarget.row.employee.name}
+          employeeId={editTarget.row.employee.id}
+          date={editTarget.date}
+          open={!!editTarget}
+          onOpenChange={open => { if (!open) setEditTarget(null); }}
+          onSaved={() => { setEditTarget(null); onRefresh?.(); }}
         />
       )}
     </>
