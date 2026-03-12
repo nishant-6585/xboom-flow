@@ -351,19 +351,27 @@ export function TicketPerformanceDashboard({ tickets }: TicketPerformanceDashboa
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div style={{ height: Math.max(250, resolutionTimeData.length * 40) }}>
+            <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={resolutionTimeData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                  <XAxis type="number" />
-                  <YAxis type="category" dataKey="name" width={80} />
+                <BarChart data={resolutionTimeData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis 
+                    type="category" 
+                    dataKey="name" 
+                    angle={-45} 
+                    textAnchor="end" 
+                    height={60} 
+                    interval={0}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <YAxis type="number" />
                   <Tooltip
                     formatter={(value: number, name: string) => [
                       `${value} hours`,
                       name === "hours" ? "Avg Time" : name,
                     ]}
                   />
-                  <Bar dataKey="hours" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="hours" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
