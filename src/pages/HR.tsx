@@ -201,7 +201,7 @@ export default function HR() {
           </TabsContent>
 
           <TabsContent value="kpi_management" className="space-y-4"><KPIManagementPanel /></TabsContent>
-          <TabsContent value="leave_balance" className="space-y-4"><LeaveBalancePanel employeeId={myEmployee?.id} /></TabsContent>
+          
           <TabsContent value="documents" className="space-y-4"><HRDocumentsPanel /></TabsContent>
           <TabsContent value="my_financial"><MyFinancialDetailsPanel /></TabsContent>
           {isHROrAdmin && <TabsContent value="assets" className="space-y-4"><AssetManagementPanel /></TabsContent>}
