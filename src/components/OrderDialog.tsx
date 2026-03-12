@@ -927,19 +927,20 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                                     throw new Error('No rows updated (insufficient permission or item not found)');
                                   }
                                   
-                                  // Record changes to edit history
-                                  if (user && profile) {
-                                    const changesRecord: Record<string, { old: any; new: any }> = {};
-                                    Object.entries(updates).forEach(([field, newValue]) => {
-                                      changesRecord[`order_item.${field}`] = {
-                                        old: originalItem[field],
-                                        new: newValue
-                                      };
-                                    });
-                                    if (Object.keys(changesRecord).length > 0) {
-                                      await recordChanges('order_items', itemId, changesRecord, profile.name || 'Unknown');
-                                    }
-                                  }
+                                   // Record changes to edit history under the ORDER id for unified view
+                                   if (user && profile && order) {
+                                     const changesRecord: Record<string, { old: any; new: any }> = {};
+                                     Object.entries(updates).forEach(([field, newValue]) => {
+                                       const label = `order_item.${field}`;
+                                       changesRecord[label] = {
+                                         old: originalItem[field],
+                                         new: newValue
+                                       };
+                                     });
+                                     if (Object.keys(changesRecord).length > 0) {
+                                       await recordChanges('orders', order.id, changesRecord, profile.name || 'Unknown');
+                                     }
+                                   }
                                 }
                               }
                             }
