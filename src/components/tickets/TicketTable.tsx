@@ -43,11 +43,12 @@ const departmentLabels: Record<string, string> = {
 export function TicketTable({ tickets, onView }: TicketTableProps) {
   const isOverdue = (ticket: Ticket) => {
     return (
-      ticket.sla_due_at &&
+      ticket.sla_breached ||
+      (ticket.sla_due_at &&
       isPast(new Date(ticket.sla_due_at)) &&
       ticket.status !== "resolved" &&
       ticket.status !== "closed" &&
-      ticket.status !== "removed"
+      ticket.status !== "removed")
     );
   };
 

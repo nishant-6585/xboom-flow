@@ -57,6 +57,7 @@ export interface Ticket {
   enquiry_id: string | null;
   sla_due_at: string | null;
   sla_response_at: string | null;
+  sla_breached: boolean;
   sla_status: string | null;
   resolution_notes: string | null;
   resolved_by: string | null;

@@ -197,7 +197,7 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
 
   if (!ticket) return null;
 
-  const isOverdue = ticket.sla_due_at && isPast(new Date(ticket.sla_due_at)) && ticket.status !== "resolved" && ticket.status !== "closed";
+  const isOverdue = ticket.sla_breached || (ticket.sla_due_at && isPast(new Date(ticket.sla_due_at)) && ticket.status !== "resolved" && ticket.status !== "closed");
   const canManage = role === "admin" || role === "hr" || role === ticket.assigned_department || ticket.assigned_to === user?.id;
   const isClosed = ticket.status === "closed";
   const isRemoved = ticket.status === "removed";
