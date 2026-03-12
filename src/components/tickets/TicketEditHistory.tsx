@@ -23,6 +23,8 @@ const fieldLabels: Record<string, string> = {
   resolution_notes: "Resolution Notes",
   sla_due_at: "SLA Due",
   comment: "Comment Added",
+  comment_edited: "Comment Edited",
+  comment_deleted: "Comment Deleted",
 };
 
 const statusLabels: Record<string, string> = {
