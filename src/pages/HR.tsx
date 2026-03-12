@@ -138,6 +138,12 @@ export default function HR() {
               )}
               <TabsTrigger value="payslips" className="gap-1.5 whitespace-nowrap"><Receipt className="h-4 w-4 shrink-0" /><span>Payslips</span></TabsTrigger>
               <TabsTrigger value="resignation" className="gap-1.5 whitespace-nowrap"><LogOut className="h-4 w-4 shrink-0" /><span>Resignation</span></TabsTrigger>
+              {isHROrAdmin && (
+                <TabsTrigger value="onboarding" className="gap-1.5 whitespace-nowrap"><ClipboardCheck className="h-4 w-4 shrink-0" /><span>Onboarding</span></TabsTrigger>
+              )}
+              {isHROrAdmin && (
+                <TabsTrigger value="offboarding" className="gap-1.5 whitespace-nowrap"><ClipboardX className="h-4 w-4 shrink-0" /><span>Offboarding</span></TabsTrigger>
+              )}
             </TabsList>
           </div>
 
