@@ -298,7 +298,7 @@ export default function Tickets() {
                 </Badge>
               )}
             </TabsTrigger>
-            {role === "admin" && (
+            {(role === "admin" || role === "hr") && (
               <>
                 <TabsTrigger value="all" className="gap-2">
                   All Tickets
