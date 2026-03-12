@@ -465,7 +465,12 @@ function EmployeeDetailDialog({ row, open, onOpenChange }: { row: LiveRow | null
   );
 }
 
-function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selectedDate, isHoliday = false }: { liveRows: LiveRow[]; loading: boolean; onRefresh?: () => void; isLive?: boolean; selectedDate?: Date; isHoliday?: boolean }) {
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+  casual: 'Paid (Casual)', sick: 'Sick Leave', paid: 'Paid Leave', unpaid: 'Unpaid', half_day: 'Half Day',
+  half_day_casual: 'Half Day Paid', half_day_sick: 'Half Day Sick', half_day_paid: 'Half Day Paid', half_day_unpaid: 'Half Day Unpaid', wfh: 'WFH',
+};
+
+function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selectedDate, isHoliday = false, approvedLeaves = {} }: { liveRows: LiveRow[]; loading: boolean; onRefresh?: () => void; isLive?: boolean; selectedDate?: Date; isHoliday?: boolean; approvedLeaves?: Record<string, { leave_type: string; start_date: string; end_date: string }> }) {
   const [filter, setFilter] = useState<QuickFilter>('all');
   const [empFilter, setEmpFilter] = useState('all');
   const [detailRow, setDetailRow] = useState<LiveRow | null>(null);
