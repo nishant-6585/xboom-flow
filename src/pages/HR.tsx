@@ -150,6 +150,8 @@ export default function HR() {
             )}
           </TabsContent>
 
+          {isHROrAdmin && <TabsContent value="employees"><EmployeesPanel /></TabsContent>}
+
           <TabsContent value="attendance" className="space-y-4">
             <Tabs defaultValue="my">
               <TabsList className="w-full grid grid-cols-2">
