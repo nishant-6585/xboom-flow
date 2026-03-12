@@ -168,6 +168,14 @@ export function TicketEditHistory({ ticketId }: TicketEditHistoryProps) {
                         <div className="bg-background/60 p-2 rounded text-sm italic">
                           "{record.new_value}"
                         </div>
+                      ) : record.field_name === "comment_edited" ? (
+                        <div className="bg-background/60 p-2 rounded text-sm italic">
+                          "{record.new_value}"
+                        </div>
+                      ) : record.field_name === "comment_deleted" ? (
+                        <div className="bg-background/60 p-2 rounded text-sm italic text-muted-foreground line-through">
+                          "{record.old_value}"
+                        </div>
                       ) : (
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-muted-foreground line-through">
