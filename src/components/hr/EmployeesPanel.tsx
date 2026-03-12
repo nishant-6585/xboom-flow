@@ -6,11 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Eye, Pencil, Users } from "lucide-react";
+import { Search, Eye, Users } from "lucide-react";
 import { EmployeeDetailDialog } from "./EmployeeDetailDialog";
-import { EmployeeEditDialog } from "./EmployeeEditDialog";
 import { toast } from "sonner";
-import { format } from "date-fns";
 
 export interface EmployeeRecord {
   id: string;
@@ -49,7 +47,6 @@ export function EmployeesPanel() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeRecord | null>(null);
   const [viewOpen, setViewOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
 
   const fetchEmployees = async () => {
     setLoading(true);
@@ -94,6 +91,16 @@ export function EmployeesPanel() {
     return t.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
   };
 
+  const statusBadge = (status: string) => {
+    const variant = status === "active" ? "default" : status === "on_notice" ? "secondary" : "destructive";
+    return <Badge variant={variant} className="text-xs">{formatType(status)}</Badge>;
+  };
+
+  const openEmployee = (emp: EmployeeRecord) => {
+    setSelectedEmployee(emp);
+    setViewOpen(true);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-3">
@@ -134,48 +141,29 @@ export function EmployeesPanel() {
                 <TableHead className="w-12">#</TableHead>
                 <TableHead>Employee ID</TableHead>
                 <TableHead>Name</TableHead>
-                <TableHead className="hidden md:table-cell">DOB</TableHead>
-                <TableHead className="hidden lg:table-cell">Phone</TableHead>
-                <TableHead className="hidden md:table-cell">Gender</TableHead>
-                <TableHead className="hidden xl:table-cell">Email</TableHead>
-                <TableHead className="hidden xl:table-cell">Xboom Email</TableHead>
-                <TableHead className="hidden md:table-cell">Joining Date</TableHead>
-                <TableHead className="hidden lg:table-cell">State</TableHead>
-                <TableHead>Designation</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead className="hidden md:table-cell">Designation</TableHead>
                 <TableHead className="hidden lg:table-cell">Type</TableHead>
-                <TableHead className="hidden xl:table-cell">Mode</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-20">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((emp, idx) => (
-                <TableRow key={emp.id}>
+                <TableRow key={emp.id} className="cursor-pointer" onClick={() => openEmployee(emp)}>
                   <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
                   <TableCell className="font-mono text-xs">{emp.employee_number || "—"}</TableCell>
                   <TableCell className="font-medium">{emp.name}</TableCell>
-                  <TableCell className="hidden md:table-cell text-sm">{emp.date_of_birth ? format(new Date(emp.date_of_birth), "dd MMM yyyy") : "—"}</TableCell>
-                  <TableCell className="hidden lg:table-cell text-sm">{emp.phone || "—"}</TableCell>
-                  <TableCell className="hidden md:table-cell text-sm">{emp.gender || "—"}</TableCell>
-                  <TableCell className="hidden xl:table-cell text-sm">{emp.personal_email || "—"}</TableCell>
-                  <TableCell className="hidden xl:table-cell text-sm">{emp.xboom_email || "—"}</TableCell>
-                  <TableCell className="hidden md:table-cell text-sm">{emp.joining_date ? format(new Date(emp.joining_date), "dd MMM yyyy") : "—"}</TableCell>
-                  <TableCell className="hidden lg:table-cell text-sm">{emp.state || "—"}</TableCell>
-                  <TableCell className="text-sm">{emp.designation || "—"}</TableCell>
+                  <TableCell className="text-sm">{emp.department}</TableCell>
+                  <TableCell className="hidden md:table-cell text-sm">{emp.designation || "—"}</TableCell>
                   <TableCell className="hidden lg:table-cell">
                     <Badge variant="outline" className="text-xs">{formatType(emp.employee_type)}</Badge>
                   </TableCell>
-                  <TableCell className="hidden xl:table-cell text-sm">{emp.work_location || "—"}</TableCell>
+                  <TableCell>{statusBadge(emp.employment_status)}</TableCell>
                   <TableCell>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedEmployee(emp); setViewOpen(true); }}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {isHROrAdmin && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedEmployee(emp); setEditOpen(true); }}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEmployee(emp); }}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -185,17 +173,13 @@ export function EmployeesPanel() {
       )}
 
       {selectedEmployee && (
-        <>
-          <EmployeeDetailDialog open={viewOpen} onOpenChange={setViewOpen} employee={selectedEmployee} />
-          {isHROrAdmin && (
-            <EmployeeEditDialog
-              open={editOpen}
-              onOpenChange={setEditOpen}
-              employee={selectedEmployee}
-              onSaved={() => { fetchEmployees(); setEditOpen(false); }}
-            />
-          )}
-        </>
+        <EmployeeDetailDialog
+          open={viewOpen}
+          onOpenChange={setViewOpen}
+          employee={selectedEmployee}
+          isHROrAdmin={isHROrAdmin}
+          onSaved={fetchEmployees}
+        />
       )}
     </div>
   );
