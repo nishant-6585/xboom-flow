@@ -20,6 +20,7 @@ import { ProvisionalCheckoutBanner } from "@/components/attendance/ProvisionalCh
 import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History, Building2, CreditCard, LogOut, Leaf } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CandidatesPanel } from "@/components/candidates/CandidatesPanel";
+import { EmployeesPanel } from "@/components/hr/EmployeesPanel";
 import { SalarySheetsList } from "@/components/salary/SalarySheetsList";
 import { EmployeePayslipsPanel } from "@/components/salary/EmployeePayslipsPanel";
 import { SalaryHistoryPanel } from "@/components/salary/SalaryHistoryPanel";
