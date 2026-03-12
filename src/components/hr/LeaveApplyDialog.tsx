@@ -67,7 +67,7 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
 
   const resetForm = () => {
     setStep(1);
-    setLeaveType('casual');
+    setLeaveType('paid');
     setStartDate('');
     setEndDate('');
     setReason('');
