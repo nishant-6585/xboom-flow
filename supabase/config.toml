@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.ai-portal-assistant]
 verify_jwt = false
+
+[functions.credit-monthly-el]
+verify_jwt = false

@@ -3183,6 +3183,44 @@ export type Database = {
         }
         Relationships: []
       }
+      leave_balances: {
+        Row: {
+          balance: number
+          created_at: string
+          employee_id: string
+          id: string
+          leave_type: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          employee_id: string
+          id?: string
+          leave_type?: string
+          updated_at?: string
+          year?: number
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          employee_id?: string
+          id?: string
+          leave_type?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_balances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_requests: {
         Row: {
           approved_rejected_at: string | null
@@ -3235,6 +3273,59 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leave_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          created_at: string
+          created_by: string | null
+          credit_date: string
+          credit_month: number | null
+          credit_year: number | null
+          employee_id: string
+          id: string
+          leave_type: string
+          remarks: string | null
+          transaction_type: string
+        }
+        Insert: {
+          amount: number
+          balance_after?: number
+          created_at?: string
+          created_by?: string | null
+          credit_date?: string
+          credit_month?: number | null
+          credit_year?: number | null
+          employee_id: string
+          id?: string
+          leave_type?: string
+          remarks?: string | null
+          transaction_type?: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          created_at?: string
+          created_by?: string | null
+          credit_date?: string
+          credit_month?: number | null
+          credit_year?: number | null
+          employee_id?: string
+          id?: string
+          leave_type?: string
+          remarks?: string | null
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_transactions_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
@@ -6909,6 +7000,10 @@ export type Database = {
         }[]
       }
       count_admins: { Args: never; Returns: number }
+      credit_monthly_el: {
+        Args: { p_credit_amount?: number; p_month: number; p_year: number }
+        Returns: Json
+      }
       fetch_pending_shopify_orders: {
         Args: { batch_size?: number }
         Returns: {
