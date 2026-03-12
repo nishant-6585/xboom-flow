@@ -3850,7 +3850,7 @@ export type Database = {
           committed_timeline: string | null
           created_at: string
           created_by: string
-          customer_company: string
+          customer_company: string | null
           customer_email: string | null
           customer_name: string
           customer_notes: string | null
@@ -3921,7 +3921,7 @@ export type Database = {
           committed_timeline?: string | null
           created_at?: string
           created_by: string
-          customer_company: string
+          customer_company?: string | null
           customer_email?: string | null
           customer_name: string
           customer_notes?: string | null
@@ -3992,7 +3992,7 @@ export type Database = {
           committed_timeline?: string | null
           created_at?: string
           created_by?: string
-          customer_company?: string
+          customer_company?: string | null
           customer_email?: string | null
           customer_name?: string
           customer_notes?: string | null
