@@ -34,6 +34,7 @@ export interface EmployeeRecord {
   is_active: boolean | null;
   created_at: string;
   updated_at: string;
+  user_roles?: string[];
 }
 
 export function EmployeesPanel() {
@@ -59,7 +60,30 @@ export function EmployeesPanel() {
       console.error(error);
       toast.error("Failed to load employees");
     }
-    setEmployees((data as unknown as EmployeeRecord[]) || []);
+
+    const emps = (data as unknown as EmployeeRecord[]) || [];
+
+    // Fetch roles from user_roles for all employees with user_id
+    const userIds = emps.map(e => e.user_id).filter(Boolean) as string[];
+    if (userIds.length > 0) {
+      const { data: rolesData } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .in("user_id", userIds);
+
+      if (rolesData) {
+        const roleMap: Record<string, string[]> = {};
+        for (const r of rolesData) {
+          if (!roleMap[r.user_id]) roleMap[r.user_id] = [];
+          roleMap[r.user_id].push(r.role);
+        }
+        for (const emp of emps) {
+          emp.user_roles = emp.user_id ? roleMap[emp.user_id] || [] : [];
+        }
+      }
+    }
+
+    setEmployees(emps);
     setLoading(false);
   };
 
@@ -155,7 +179,7 @@ export function EmployeesPanel() {
                   <TableCell className="font-mono text-xs">{emp.employee_number || "—"}</TableCell>
                   <TableCell className="font-medium">{emp.name}</TableCell>
                   <TableCell className="text-sm">{emp.department}</TableCell>
-                   <TableCell className="hidden md:table-cell text-sm">{emp.designation || "—"}</TableCell>
+                   <TableCell className="hidden md:table-cell text-sm">{emp.user_roles && emp.user_roles.length > 0 ? emp.user_roles.map(r => formatType(r)).join(", ") : "—"}</TableCell>
                   <TableCell className="hidden lg:table-cell">
                     <Badge variant="outline" className="text-xs">{formatType(emp.employee_type)}</Badge>
                   </TableCell>
