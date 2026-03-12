@@ -343,6 +343,14 @@ export function AttendanceSection({
                             <div className="flex items-center gap-1.5">
                               <div className={cn('w-2 h-2 rounded-full shrink-0', STATUS_COLORS[log.status] || 'bg-muted')} />
                               <span className="text-xs">{STATUS_TEXT[log.status] || log.status}</span>
+                              {log.status === 'on_leave' && (() => {
+                                const approvedLeave = getApprovedLeave(log.date);
+                                return approvedLeave ? (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-purple-300 bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400">
+                                    {LEAVE_TYPE_LABELS[approvedLeave.leave_type] || approvedLeave.leave_type}
+                                  </Badge>
+                                ) : null;
+                              })()}
                               {isProvisional && windowOpen && (
                                 <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-950/30">
                                   <AlertTriangle className="h-2.5 w-2.5" />
