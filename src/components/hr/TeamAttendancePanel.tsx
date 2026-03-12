@@ -638,7 +638,7 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
         </CardContent>
       </Card>
 
-      <EmployeeDetailDialog row={detailRow} open={!!detailRow} onOpenChange={open => { if (!open) setDetailRow(null); }} />
+      <EmployeeDetailDialog row={detailRow} open={!!detailRow} onOpenChange={open => { if (!open) setDetailRow(null); }} leaveInfo={detailRow ? approvedLeaves[detailRow.employee.id] : undefined} />
 
       {correctionLog && (
         <ProvisionalCorrectionModal
