@@ -223,6 +223,8 @@ export default function HR() {
           {isHROrAdmin && <TabsContent value="salary_history"><SalaryHistoryPanel /></TabsContent>}
           <TabsContent value="payslips"><EmployeePayslipsPanel /></TabsContent>
           <TabsContent value="resignation"><ResignationPanel /></TabsContent>
+          {isHROrAdmin && <TabsContent value="onboarding"><ChecklistPanel checklistType="onboarding" /></TabsContent>}
+          {isHROrAdmin && <TabsContent value="offboarding"><ChecklistPanel checklistType="offboarding" /></TabsContent>}
         </Tabs>
       </main>
 
