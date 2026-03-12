@@ -470,6 +470,7 @@ function LiveStatusTable({ liveRows, loading, onRefresh, isLive = true, selected
   const [empFilter, setEmpFilter] = useState('all');
   const [detailRow, setDetailRow] = useState<LiveRow | null>(null);
   const [correctionLog, setCorrectionLog] = useState<AttendanceLog | null>(null);
+  const [editTarget, setEditTarget] = useState<{ row: LiveRow; date: string } | null>(null);
 
   const filtered = liveRows.filter(r => {
     if (empFilter !== 'all' && r.employee.id !== empFilter) return false;
