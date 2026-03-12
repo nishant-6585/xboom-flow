@@ -137,7 +137,10 @@ export function useResignation() {
       return;
     }
 
-    await recordAuditLog("RESIGNATION_WITHDRAWN", { request_id: requestId });
+    await recordAuditLog(user.id, profile?.name || "", {
+      action: "RESIGNATION_WITHDRAWN",
+      details: { request_id: requestId },
+    });
     toast({ title: "Resignation Withdrawn" });
     await fetchRequests();
   };
