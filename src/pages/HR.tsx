@@ -130,6 +130,7 @@ export default function HR() {
                 <TabsTrigger value="salary_history" className="gap-1.5 whitespace-nowrap"><History className="h-4 w-4 shrink-0" /><span>Salary History</span></TabsTrigger>
               )}
               <TabsTrigger value="payslips" className="gap-1.5 whitespace-nowrap"><Receipt className="h-4 w-4 shrink-0" /><span>Payslips</span></TabsTrigger>
+              <TabsTrigger value="resignation" className="gap-1.5 whitespace-nowrap"><LogOut className="h-4 w-4 shrink-0" /><span>Resignation</span></TabsTrigger>
             </TabsList>
           </div>
 
