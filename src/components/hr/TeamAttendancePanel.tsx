@@ -394,7 +394,7 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
 
             {/* Employees Tab */}
             <TabsContent value="employees">
-              <LiveStatusTable liveRows={liveRows} loading={loadingToday} onRefresh={fetchToday} isLive={isViewingToday} selectedDate={selectedDate} isHoliday={selectedDateIsHoliday} />
+              <LiveStatusTable liveRows={liveRows} loading={loadingToday} onRefresh={fetchToday} isLive={isViewingToday} selectedDate={selectedDate} isHoliday={selectedDateIsHoliday} approvedLeaves={approvedLeaves} />
             </TabsContent>
 
             {/* Alerts Tab */}
