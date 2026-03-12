@@ -26,6 +26,7 @@ import { SalaryHistoryPanel } from "@/components/salary/SalaryHistoryPanel";
 import { EmployeeFinancialDetailsPanel } from "@/components/hr/EmployeeFinancialDetailsPanel";
 import { BankUpdateRequestsPanel } from "@/components/hr/BankUpdateRequestsPanel";
 import { MyFinancialDetailsPanel } from "@/components/hr/MyFinancialDetailsPanel";
+import { ResignationPanel } from "@/components/hr/ResignationPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { AttendanceLog } from "@/hooks/useHR";
 
