@@ -67,6 +67,7 @@ const statuses: { value: string; label: string }[] = [
   { value: "pending", label: "Pending" },
   { value: "resolved", label: "Resolved" },
   { value: "closed", label: "Closed" },
+  { value: "removed", label: "Removed" },
 ];
 
 const priorities: { value: string; label: string }[] = [

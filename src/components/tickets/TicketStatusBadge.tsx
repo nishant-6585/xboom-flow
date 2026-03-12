@@ -14,6 +14,7 @@ const statusConfig: Record<TicketStatus, { label: string; variant: "default" | "
   pending: { label: "Pending", variant: "default", className: "bg-orange-500 hover:bg-orange-500" },
   resolved: { label: "Resolved", variant: "default", className: "bg-green-500 hover:bg-green-500" },
   closed: { label: "Closed", variant: "secondary", className: "bg-muted text-muted-foreground" },
+  removed: { label: "Removed", variant: "destructive", className: "bg-destructive/80 hover:bg-destructive/80" },
 };
 
 export function TicketStatusBadge({ status }: TicketStatusBadgeProps) {

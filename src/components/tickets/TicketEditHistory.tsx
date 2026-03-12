@@ -31,6 +31,7 @@ const statusLabels: Record<string, string> = {
   pending: "Pending",
   resolved: "Resolved",
   closed: "Closed",
+  removed: "Removed",
 };
 
 const priorityLabels: Record<string, string> = {
