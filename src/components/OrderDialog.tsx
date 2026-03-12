@@ -27,6 +27,8 @@ import { EditHistoryPanel } from '@/components/EditHistoryPanel';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { ProductSelect } from '@/components/ProductSelect';
+import { PricelistItem } from '@/hooks/usePricelist';
 
 interface OrderDialogProps {
   order: Order | null;
@@ -997,14 +999,23 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                         <TableCell>
                           {editingOrderItems ? (
                             <div className="space-y-1">
-                              <Input
+                              <ProductSelect
                                 value={editedOrderItems[item.id]?.product_name || ''}
-                                onChange={(e) => setEditedOrderItems(prev => ({
-                                  ...prev,
-                                  [item.id]: { ...prev[item.id], product_name: e.target.value }
-                                }))}
+                                onChange={(name, product?: PricelistItem) => {
+                                  setEditedOrderItems(prev => ({
+                                    ...prev,
+                                    [item.id]: {
+                                      ...prev[item.id],
+                                      product_name: name,
+                                      ...(product ? {
+                                        unit_price: product.dealer_price || product.website_price || prev[item.id]?.unit_price,
+                                        product_category: product.product_category,
+                                      } : {}),
+                                    }
+                                  }));
+                                }}
+                                placeholder="Select or type product..."
                                 className="h-8 text-sm"
-                                placeholder="Product name"
                               />
                               <Input
                                 value={editedOrderItems[item.id]?.notes || ''}
