@@ -20,6 +20,7 @@ import { ProvisionalCheckoutBanner } from "@/components/attendance/ProvisionalCh
 import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History, Building2, CreditCard, LogOut, Leaf } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CandidatesPanel } from "@/components/candidates/CandidatesPanel";
+import { EmployeesPanel } from "@/components/hr/EmployeesPanel";
 import { SalarySheetsList } from "@/components/salary/SalarySheetsList";
 import { EmployeePayslipsPanel } from "@/components/salary/EmployeePayslipsPanel";
 import { SalaryHistoryPanel } from "@/components/salary/SalaryHistoryPanel";
@@ -107,6 +108,9 @@ export default function HR() {
           <div className="mb-6">
             <TabsList className="flex flex-wrap h-auto gap-1 p-1">
               <TabsTrigger value="home" className="gap-1.5 whitespace-nowrap"><Clock className="h-4 w-4 shrink-0" /><span>Home</span></TabsTrigger>
+              {isHROrAdmin && (
+                <TabsTrigger value="employees" className="gap-1.5 whitespace-nowrap"><Users className="h-4 w-4 shrink-0" /><span>Employees</span></TabsTrigger>
+              )}
               <TabsTrigger value="attendance" className="gap-1.5 whitespace-nowrap"><Calendar className="h-4 w-4 shrink-0" /><span>Attendance</span></TabsTrigger>
               <TabsTrigger value="leave" className="gap-1.5 whitespace-nowrap"><FileText className="h-4 w-4 shrink-0" /><span>Leave</span></TabsTrigger>
               
@@ -145,6 +149,8 @@ export default function HR() {
               </div>
             )}
           </TabsContent>
+
+          {isHROrAdmin && <TabsContent value="employees"><EmployeesPanel /></TabsContent>}
 
           <TabsContent value="attendance" className="space-y-4">
             <Tabs defaultValue="my">

@@ -1290,11 +1290,19 @@ export type Database = {
       employees: {
         Row: {
           bank_account: string | null
+          city: string | null
           created_at: string
+          date_of_birth: string | null
           department: string
           designation: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          emergency_contact_relation: string | null
+          employee_number: string | null
+          employee_type: string | null
           employment_status: Database["public"]["Enums"]["employment_status"]
           exit_date: string | null
+          gender: string | null
           id: string
           ifsc_code: string | null
           is_active: boolean | null
@@ -1303,22 +1311,34 @@ export type Database = {
           monthly_attendance_target: number | null
           monthly_salary: number | null
           name: string
+          personal_email: string | null
+          phone: string | null
           role: string | null
           shift_end_time: string | null
           shift_start_time: string | null
           shift_type: string | null
+          state: string | null
           updated_at: string
           user_id: string | null
           weekly_hours_target: number | null
           work_location: string | null
+          xboom_email: string | null
         }
         Insert: {
           bank_account?: string | null
+          city?: string | null
           created_at?: string
+          date_of_birth?: string | null
           department?: string
           designation?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
+          employee_number?: string | null
+          employee_type?: string | null
           employment_status?: Database["public"]["Enums"]["employment_status"]
           exit_date?: string | null
+          gender?: string | null
           id?: string
           ifsc_code?: string | null
           is_active?: boolean | null
@@ -1327,22 +1347,34 @@ export type Database = {
           monthly_attendance_target?: number | null
           monthly_salary?: number | null
           name: string
+          personal_email?: string | null
+          phone?: string | null
           role?: string | null
           shift_end_time?: string | null
           shift_start_time?: string | null
           shift_type?: string | null
+          state?: string | null
           updated_at?: string
           user_id?: string | null
           weekly_hours_target?: number | null
           work_location?: string | null
+          xboom_email?: string | null
         }
         Update: {
           bank_account?: string | null
+          city?: string | null
           created_at?: string
+          date_of_birth?: string | null
           department?: string
           designation?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
+          employee_number?: string | null
+          employee_type?: string | null
           employment_status?: Database["public"]["Enums"]["employment_status"]
           exit_date?: string | null
+          gender?: string | null
           id?: string
           ifsc_code?: string | null
           is_active?: boolean | null
@@ -1351,14 +1383,18 @@ export type Database = {
           monthly_attendance_target?: number | null
           monthly_salary?: number | null
           name?: string
+          personal_email?: string | null
+          phone?: string | null
           role?: string | null
           shift_end_time?: string | null
           shift_start_time?: string | null
           shift_type?: string | null
+          state?: string | null
           updated_at?: string
           user_id?: string | null
           weekly_hours_target?: number | null
           work_location?: string | null
+          xboom_email?: string | null
         }
         Relationships: []
       }
