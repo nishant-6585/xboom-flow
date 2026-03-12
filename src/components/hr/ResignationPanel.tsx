@@ -138,51 +138,12 @@ export function ResignationPanel() {
         </CardContent>
       </Card>
 
-      {/* HR/Admin view */}
-      {isHROrAdmin && pendingRequests.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Pending Resignations ({pendingRequests.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {pendingRequests.map((req) => (
-              <div key={req.id} className="border rounded-lg p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{req.employee_name || "Unknown"}</p>
-                    <p className="text-xs text-muted-foreground">{req.employee_department}</p>
-                  </div>
-                  <Badge variant="secondary">Pending</Badge>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-muted-foreground text-xs">Proposed LWD</span>
-                    <p className="font-medium">{format(parseISO(req.proposed_lwd), "dd MMM yyyy")}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Submitted</span>
-                    <p className="font-medium">{format(parseISO(req.created_at), "dd MMM yyyy")}</p>
-                  </div>
-                </div>
-                <p className="text-sm"><span className="text-muted-foreground">Reason:</span> {req.reason}</p>
-                {req.personal_email && (
-                  <p className="text-xs text-muted-foreground">Personal email: {req.personal_email}</p>
-                )}
-                <div className="flex gap-2 pt-1">
-                  <Button size="sm" onClick={() => handleReview(req, "approved")} className="flex-1">
-                    <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
-                  </Button>
-                  <Button size="sm" variant="destructive" onClick={() => handleReview(req, "rejected")} className="flex-1">
-                    <XCircle className="h-4 w-4 mr-1" /> Reject
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+      {/* Pending count banner */}
+      {isHROrAdmin && pendingCount > 0 && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3">
+          <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          <span className="text-sm font-medium">{pendingCount} resignation(s) pending review</span>
+        </div>
       )}
 
       {/* All Resignations Table */}
