@@ -19,9 +19,10 @@ const fieldLabels: Record<string, string> = {
   category: "Category",
   assigned_department: "Department",
   assigned_to: "Assigned To",
-  assigned_to_name: "Assigned To Name",
+  assigned_to_name: "Assigned To",
   resolution_notes: "Resolution Notes",
   sla_due_at: "SLA Due",
+  comment: "Comment Added",
 };
 
 const statusLabels: Record<string, string> = {
