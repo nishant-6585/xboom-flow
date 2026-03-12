@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 export interface LeaveBalance {
   id: string;
@@ -41,11 +43,19 @@ const LEAVE_TYPE_LABELS: Record<string, string> = {
   wfh: 'Work from Home',
 };
 
+export interface EmployeeLeaveRow {
+  employee_id: string;
+  employee_name: string;
+  balances: { leave_type: string; label: string; balance: number; id: string }[];
+}
+
 export function useLeaveBalances(employeeId?: string) {
+  const { user, profile } = useAuth();
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
   const [balanceSummaries, setBalanceSummaries] = useState<LeaveBalanceSummary[]>([]);
   const [transactions, setTransactions] = useState<LeaveTransaction[]>([]);
   const [allBalances, setAllBalances] = useState<(LeaveBalance & { employee_name?: string })[]>([]);
+  const [employeeRows, setEmployeeRows] = useState<EmployeeLeaveRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchBalances = useCallback(async () => {
@@ -81,19 +91,15 @@ export function useLeaveBalances(employeeId?: string) {
       return txDate.getFullYear() === year;
     });
 
-    // Collect all leave types from balances and transactions
     const leaveTypes = new Set<string>();
     balanceData.forEach(b => leaveTypes.add(b.leave_type));
     yearTx.forEach(tx => leaveTypes.add(tx.leave_type));
 
-    // Filter out deprecated types
     const deprecated = new Set(['casual', 'half_day_casual']);
-    
     const summaries: LeaveBalanceSummary[] = [];
-    
+
     leaveTypes.forEach(lt => {
       if (deprecated.has(lt)) return;
-      
       const bal = balanceData.find(b => b.leave_type === lt);
       const credits = yearTx
         .filter(tx => tx.leave_type === lt && tx.transaction_type === 'credit')
@@ -111,7 +117,6 @@ export function useLeaveBalances(employeeId?: string) {
       });
     });
 
-    // Ensure at least EL, paid, sick show up
     ['EL', 'paid', 'sick'].forEach(lt => {
       if (!summaries.find(s => s.leave_type === lt)) {
         summaries.push({
@@ -124,7 +129,6 @@ export function useLeaveBalances(employeeId?: string) {
       }
     });
 
-    // Sort: EL first, then paid, sick, rest
     const order = ['EL', 'paid', 'sick', 'unpaid', 'wfh'];
     summaries.sort((a, b) => {
       const ai = order.indexOf(a.leave_type);
@@ -142,13 +146,105 @@ export function useLeaveBalances(employeeId?: string) {
       .select('*, employees!inner(name)')
       .eq('year', year)
       .order('employee_id');
-    
-    const mapped = (data || []).map((item: any) => ({
+
+    const raw = (data || []).map((item: any) => ({
       ...item,
       employee_name: item.employees?.name,
     }));
-    setAllBalances(mapped);
+    setAllBalances(raw);
+
+    // Group by employee for the management view
+    const grouped = new Map<string, EmployeeLeaveRow>();
+    const deprecated = new Set(['casual', 'half_day_casual']);
+    for (const b of raw) {
+      if (deprecated.has(b.leave_type)) continue;
+      if (!grouped.has(b.employee_id)) {
+        grouped.set(b.employee_id, {
+          employee_id: b.employee_id,
+          employee_name: b.employee_name || '—',
+          balances: [],
+        });
+      }
+      grouped.get(b.employee_id)!.balances.push({
+        leave_type: b.leave_type,
+        label: LEAVE_TYPE_LABELS[b.leave_type] || b.leave_type,
+        balance: b.balance,
+        id: b.id,
+      });
+    }
+
+    // Sort balances within each employee
+    const order = ['EL', 'paid', 'sick', 'unpaid', 'wfh'];
+    grouped.forEach(row => {
+      row.balances.sort((a, b) => {
+        const ai = order.indexOf(a.leave_type);
+        const bi = order.indexOf(b.leave_type);
+        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      });
+    });
+
+    setEmployeeRows(Array.from(grouped.values()).sort((a, b) => a.employee_name.localeCompare(b.employee_name)));
   }, []);
+
+  const adjustBalances = useCallback(async (
+    targetEmployeeId: string,
+    adjustments: { leave_type: string; new_balance: number }[],
+    reason: string,
+  ) => {
+    if (!user || !profile) throw new Error('Not authenticated');
+    const year = new Date().getFullYear();
+
+    for (const adj of adjustments) {
+      // Get current balance
+      const { data: existing } = await supabase
+        .from('leave_balances')
+        .select('balance')
+        .eq('employee_id', targetEmployeeId)
+        .eq('leave_type', adj.leave_type)
+        .eq('year', year)
+        .maybeSingle();
+
+      const oldBalance = existing?.balance ?? 0;
+      const diff = adj.new_balance - oldBalance;
+      if (diff === 0) continue;
+
+      // Upsert balance
+      const { error: balErr } = await supabase
+        .from('leave_balances')
+        .upsert({
+          employee_id: targetEmployeeId,
+          leave_type: adj.leave_type,
+          year,
+          balance: adj.new_balance,
+        }, { onConflict: 'employee_id,leave_type,year' });
+
+      if (balErr) throw balErr;
+
+      // Record transaction for audit
+      const { error: txErr } = await supabase
+        .from('leave_transactions')
+        .insert({
+          employee_id: targetEmployeeId,
+          leave_type: adj.leave_type,
+          transaction_type: diff > 0 ? 'credit' : 'debit',
+          amount: Math.abs(diff),
+          balance_after: adj.new_balance,
+          credit_date: new Date().toISOString().split('T')[0],
+          remarks: `HR Adjustment: ${reason} (${oldBalance} → ${adj.new_balance})`,
+          created_by: user.id,
+        });
+
+      if (txErr) throw txErr;
+    }
+
+    toast.success('Leave balances updated successfully');
+    // Refresh data
+    await fetchAllBalances();
+    if (targetEmployeeId === employeeId) {
+      const [bd, td] = await Promise.all([fetchBalances(), fetchTransactions()]);
+      if (bd && td) computeSummaries(bd, td);
+    }
+  }, [user, profile, employeeId, fetchAllBalances, fetchBalances, fetchTransactions, computeSummaries]);
 
   useEffect(() => {
     setLoading(true);
@@ -159,5 +255,5 @@ export function useLeaveBalances(employeeId?: string) {
     }).finally(() => setLoading(false));
   }, [fetchBalances, fetchTransactions, computeSummaries]);
 
-  return { balances, balanceSummaries, transactions, allBalances, loading, fetchBalances, fetchTransactions, fetchAllBalances };
+  return { balances, balanceSummaries, transactions, allBalances, employeeRows, loading, fetchBalances, fetchTransactions, fetchAllBalances, adjustBalances };
 }
