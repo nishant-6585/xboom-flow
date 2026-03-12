@@ -195,6 +195,9 @@ export default function HR() {
                 {pendingLeaves.map((leave) => <LeaveApprovalCard key={leave.id} leave={leave} onApprove={approveLeave} />)}
               </div>
             )}
+            <div className="pt-4 border-t">
+              <LeaveBalancePanel employeeId={myEmployee?.id} />
+            </div>
           </TabsContent>
 
           <TabsContent value="kpi_management" className="space-y-4"><KPIManagementPanel /></TabsContent>
