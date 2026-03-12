@@ -23,6 +23,8 @@ const fieldLabels: Record<string, string> = {
   resolution_notes: "Resolution Notes",
   sla_due_at: "SLA Due",
   comment: "Comment Added",
+  comment_edited: "Comment Edited",
+  comment_deleted: "Comment Deleted",
 };
 
 const statusLabels: Record<string, string> = {
@@ -165,6 +167,14 @@ export function TicketEditHistory({ ticketId }: TicketEditHistoryProps) {
                       {record.field_name === "comment" ? (
                         <div className="bg-background/60 p-2 rounded text-sm italic">
                           "{record.new_value}"
+                        </div>
+                      ) : record.field_name === "comment_edited" ? (
+                        <div className="bg-background/60 p-2 rounded text-sm italic">
+                          "{record.new_value}"
+                        </div>
+                      ) : record.field_name === "comment_deleted" ? (
+                        <div className="bg-background/60 p-2 rounded text-sm italic text-muted-foreground line-through">
+                          "{record.old_value}"
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 flex-wrap">

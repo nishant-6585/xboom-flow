@@ -447,11 +447,51 @@ export function useTicketComments(ticketId: string | null) {
     },
   });
 
+  const editComment = useMutation({
+    mutationFn: async ({ commentId, comment }: { commentId: string; comment: string }) => {
+      if (!user) throw new Error("Not authenticated");
+      const { error } = await supabase
+        .from("ticket_comments")
+        .update({ comment })
+        .eq("id", commentId)
+        .eq("commented_by", user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ticket-comments", ticketId] });
+      toast.success("Comment updated");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to update comment: ${error.message}`);
+    },
+  });
+
+  const deleteComment = useMutation({
+    mutationFn: async (commentId: string) => {
+      if (!user) throw new Error("Not authenticated");
+      const { error } = await supabase
+        .from("ticket_comments")
+        .delete()
+        .eq("id", commentId)
+        .eq("commented_by", user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ticket-comments", ticketId] });
+      toast.success("Comment deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete comment: ${error.message}`);
+    },
+  });
+
   return {
     comments,
     isLoading,
     error,
     addComment,
+    editComment,
+    deleteComment,
   };
 }
 
