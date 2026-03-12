@@ -70,6 +70,14 @@ export function ResignationPanel() {
 
   return (
     <div className="space-y-6">
+      {/* HR Add Resignation Button */}
+      {isHROrAdmin && (
+        <div className="flex justify-end">
+          <Button onClick={() => setHrEntryDialogOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-2" /> Add Resignation
+          </Button>
+        </div>
+      )}
       {/* Employee's own section */}
       <Card>
         <CardHeader className="pb-3">
