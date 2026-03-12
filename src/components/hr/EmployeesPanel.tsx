@@ -142,7 +142,7 @@ export function EmployeesPanel() {
                 <TableHead>Employee ID</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Department</TableHead>
-                <TableHead className="hidden md:table-cell">Designation</TableHead>
+                <TableHead className="hidden md:table-cell">Role</TableHead>
                 <TableHead className="hidden lg:table-cell">Type</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-20">Action</TableHead>
