@@ -97,10 +97,11 @@ export default function Tickets() {
     });
   }, [tickets, filters]);
 
-  const myTickets = filteredTickets.filter((t) => t.raised_by === user?.id);
-  const assignedToMe = filteredTickets.filter((t) => t.assigned_to === user?.id);
+  // For "My Tickets" and "Assigned to Me", hide removed tickets (soft delete)
+  const myTickets = filteredTickets.filter((t) => t.raised_by === user?.id && t.status !== "removed");
+  const assignedToMe = filteredTickets.filter((t) => t.assigned_to === user?.id && t.status !== "removed");
   const departmentTickets = filteredTickets.filter(
-    (t) => t.assigned_department === role && t.raised_by !== user?.id
+    (t) => t.assigned_department === role && t.raised_by !== user?.id && t.status !== "removed"
   );
 
   // Stats

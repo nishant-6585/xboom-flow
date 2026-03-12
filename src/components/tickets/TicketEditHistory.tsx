@@ -162,15 +162,21 @@ export function TicketEditHistory({ ticketId }: TicketEditHistoryProps) {
                       <span className="text-muted-foreground text-xs uppercase tracking-wide">
                         {fieldLabels[record.field_name] || record.field_name}
                       </span>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-muted-foreground line-through">
-                          {formatValue(record.field_name, record.old_value)}
-                        </span>
-                        <ArrowRight className="w-4 h-4 text-primary" />
-                        <span className="font-medium">
-                          {formatValue(record.field_name, record.new_value)}
-                        </span>
-                      </div>
+                      {record.field_name === "comment" ? (
+                        <div className="bg-background/60 p-2 rounded text-sm italic">
+                          "{record.new_value}"
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-muted-foreground line-through">
+                            {formatValue(record.field_name, record.old_value)}
+                          </span>
+                          <ArrowRight className="w-4 h-4 text-primary" />
+                          <span className="font-medium">
+                            {formatValue(record.field_name, record.new_value)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
