@@ -116,9 +116,9 @@ export function useResignation() {
       return;
     }
 
-    await recordAuditLog("RESIGNATION_SUBMITTED", {
-      employee_id: emp.id,
-      proposed_lwd: data.proposed_lwd,
+    await recordAuditLog(user.id, profile.name, {
+      action: "RESIGNATION_SUBMITTED",
+      details: { employee_id: emp.id, proposed_lwd: data.proposed_lwd },
     });
 
     toast({ title: "Resignation Submitted", description: "Your resignation request has been sent to HR for review." });
