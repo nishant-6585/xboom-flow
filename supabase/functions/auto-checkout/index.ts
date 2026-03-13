@@ -94,9 +94,16 @@ Deno.serve(async (req) => {
     {
 
       for (const log of logs ?? []) {
+        const logDate = (log as any).date;
         const checkInTime = new Date(log.check_in_time);
         const elapsedMs = now.getTime() - checkInTime.getTime();
         const elapsedMinutes = elapsedMs / (1000 * 60);
+
+        // Skip today's logs — employees may still check out manually
+        if (logDate === todayIST) {
+          // For today, only process if elapsed time exceeds threshold (same-day auto-checkout)
+          // This keeps the existing behavior for very long shifts
+        }
 
         // Calculate total break minutes including ongoing breaks
         let totalBreakMinutes = log.total_break_minutes ?? 0;
@@ -110,7 +117,7 @@ Deno.serve(async (req) => {
         const netWorkingMinutes = elapsedMinutes - totalBreakMinutes;
         const netWorkingHours = netWorkingMinutes / 60;
 
-        console.log(`[${dateToProcess}] Log ${log.id}: elapsed=${elapsedMinutes.toFixed(1)}m, breaks=${totalBreakMinutes.toFixed(1)}m, net=${netWorkingHours.toFixed(2)}h`);
+        console.log(`[${logDate}] Log ${log.id}: elapsed=${elapsedMinutes.toFixed(1)}m, breaks=${totalBreakMinutes.toFixed(1)}m, net=${netWorkingHours.toFixed(2)}h`);
 
         if (netWorkingHours >= AUTO_CHECKOUT_HOURS) {
           // Calculate the provisional checkout time = check_in + threshold + breaks
@@ -157,7 +164,7 @@ Deno.serve(async (req) => {
           if (updateError) {
             console.error(`Failed to auto-checkout log ${log.id}:`, updateError);
           } else {
-            console.log(`[${dateToProcess}] Soft auto-checked out log ${log.id} (provisional checkout at ${provisionalCheckoutISO})`);
+            console.log(`[${logDate}] Soft auto-checked out log ${log.id} (provisional checkout at ${provisionalCheckoutISO})`);
             allAutoCheckedOut.push(log.id);
 
             // Write audit log entry
@@ -169,19 +176,18 @@ Deno.serve(async (req) => {
                 event_type: 'AUTO_CHECKOUT_APPLIED',
                 old_checkout_time: null,
                 new_checkout_time: provisionalCheckoutISO,
-                notes: `Auto-checkout applied after ${netWorkingHours.toFixed(2)} net working hours (threshold: ${AUTO_CHECKOUT_HOURS}h). Date: ${dateToProcess}. Checkout set to ${provisionalCheckoutISO} (provisional).`,
+                notes: `Auto-checkout applied after ${netWorkingHours.toFixed(2)} net working hours (threshold: ${AUTO_CHECKOUT_HOURS}h). Date: ${logDate}. Checkout set to ${provisionalCheckoutISO} (provisional).`,
                 metadata: {
                   threshold_hours: AUTO_CHECKOUT_HOURS,
                   net_working_hours: netWorkingHours,
                   is_provisional: true,
-                  log_date: dateToProcess,
-                  sweep_type: dateToProcess === todayIST ? 'same_day' : 'previous_day_sweep',
+                  log_date: logDate,
+                  sweep_type: logDate === todayIST ? 'same_day' : 'historical_sweep',
                 },
               });
           }
         }
       }
-    }
 
     return new Response(
       JSON.stringify({
@@ -189,7 +195,7 @@ Deno.serve(async (req) => {
         autoCheckedOut: allAutoCheckedOut.length,
         ids: allAutoCheckedOut,
         mode: 'soft_provisional',
-        dates_processed: datesToProcess,
+        totalUnclosedFound: logs?.length ?? 0,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
