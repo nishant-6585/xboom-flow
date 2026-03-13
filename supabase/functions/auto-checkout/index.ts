@@ -73,24 +73,25 @@ Deno.serve(async (req) => {
     const AUTO_CHECKOUT_HOURS = policyData?.auto_checkout_hours ?? 9;
     const allAutoCheckedOut: string[] = [];
 
-    // ─── Process BOTH today and yesterday's unclosed logs ───
-    const datesToProcess = [todayIST, yesterdayIST];
+    // ─── Process ALL unclosed logs (any date) ───
+    const { data: logs, error: fetchError } = await supabase
+      .from('attendance_logs')
+      .select('id, employee_id, check_in_time, break_start_time, break_end_time, total_break_minutes, auto_checkout_applied, date')
+      .not('check_in_time', 'is', null)
+      .is('check_out_time', null)
+      .eq('auto_checkout_applied', false)
+      .order('date', { ascending: true });
 
-    for (const dateToProcess of datesToProcess) {
-      const { data: logs, error: fetchError } = await supabase
-        .from('attendance_logs')
-        .select('id, employee_id, check_in_time, break_start_time, break_end_time, total_break_minutes, auto_checkout_applied')
-        .eq('date', dateToProcess)
-        .not('check_in_time', 'is', null)
-        .is('check_out_time', null)
-        .eq('auto_checkout_applied', false);
+    if (fetchError) {
+      console.error('Error fetching unclosed logs:', fetchError);
+      return new Response(JSON.stringify({ error: 'Failed to fetch logs' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-      if (fetchError) {
-        console.error(`Error fetching logs for ${dateToProcess}:`, fetchError);
-        continue;
-      }
+    console.log(`Found ${logs?.length ?? 0} total unclosed attendance logs across all dates.`);
 
-      console.log(`[${dateToProcess}] Found ${logs?.length ?? 0} unclosed attendance logs.`);
+    {
 
       for (const log of logs ?? []) {
         const checkInTime = new Date(log.check_in_time);
