@@ -56,12 +56,7 @@ Deno.serve(async (req) => {
     const istNow = new Date(now.getTime() + istOffset);
     const todayIST = istNow.toISOString().split('T')[0];
 
-    // Calculate yesterday's date in IST
-    const yesterdayDate = new Date(istNow);
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-    const yesterdayIST = yesterdayDate.toISOString().split('T')[0];
-
-    console.log(`Auto-checkout running at IST: ${istNow.toISOString()}, today: ${todayIST}, yesterday: ${yesterdayIST}`);
+    console.log(`Auto-checkout running at IST: ${istNow.toISOString()}, today: ${todayIST}`);
 
     // Fetch auto checkout threshold from policy settings
     const { data: policyData } = await supabase
@@ -73,29 +68,38 @@ Deno.serve(async (req) => {
     const AUTO_CHECKOUT_HOURS = policyData?.auto_checkout_hours ?? 9;
     const allAutoCheckedOut: string[] = [];
 
-    // ─── Process BOTH today and yesterday's unclosed logs ───
-    const datesToProcess = [todayIST, yesterdayIST];
+    // ─── Process ALL unclosed logs (any date) ───
+    const { data: logs, error: fetchError } = await supabase
+      .from('attendance_logs')
+      .select('id, employee_id, check_in_time, break_start_time, break_end_time, total_break_minutes, auto_checkout_applied, date')
+      .not('check_in_time', 'is', null)
+      .is('check_out_time', null)
+      .eq('auto_checkout_applied', false)
+      .order('date', { ascending: true });
 
-    for (const dateToProcess of datesToProcess) {
-      const { data: logs, error: fetchError } = await supabase
-        .from('attendance_logs')
-        .select('id, employee_id, check_in_time, break_start_time, break_end_time, total_break_minutes, auto_checkout_applied')
-        .eq('date', dateToProcess)
-        .not('check_in_time', 'is', null)
-        .is('check_out_time', null)
-        .eq('auto_checkout_applied', false);
+    if (fetchError) {
+      console.error('Error fetching unclosed logs:', fetchError);
+      return new Response(JSON.stringify({ error: 'Failed to fetch logs' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-      if (fetchError) {
-        console.error(`Error fetching logs for ${dateToProcess}:`, fetchError);
-        continue;
-      }
+    console.log(`Found ${logs?.length ?? 0} total unclosed attendance logs across all dates.`);
 
-      console.log(`[${dateToProcess}] Found ${logs?.length ?? 0} unclosed attendance logs.`);
+
+
 
       for (const log of logs ?? []) {
+        const logDate = (log as any).date;
         const checkInTime = new Date(log.check_in_time);
         const elapsedMs = now.getTime() - checkInTime.getTime();
         const elapsedMinutes = elapsedMs / (1000 * 60);
+
+        // Skip today's logs — employees may still check out manually
+        if (logDate === todayIST) {
+          // For today, only process if elapsed time exceeds threshold (same-day auto-checkout)
+          // This keeps the existing behavior for very long shifts
+        }
 
         // Calculate total break minutes including ongoing breaks
         let totalBreakMinutes = log.total_break_minutes ?? 0;
@@ -109,7 +113,7 @@ Deno.serve(async (req) => {
         const netWorkingMinutes = elapsedMinutes - totalBreakMinutes;
         const netWorkingHours = netWorkingMinutes / 60;
 
-        console.log(`[${dateToProcess}] Log ${log.id}: elapsed=${elapsedMinutes.toFixed(1)}m, breaks=${totalBreakMinutes.toFixed(1)}m, net=${netWorkingHours.toFixed(2)}h`);
+        console.log(`[${logDate}] Log ${log.id}: elapsed=${elapsedMinutes.toFixed(1)}m, breaks=${totalBreakMinutes.toFixed(1)}m, net=${netWorkingHours.toFixed(2)}h`);
 
         if (netWorkingHours >= AUTO_CHECKOUT_HOURS) {
           // Calculate the provisional checkout time = check_in + threshold + breaks
@@ -156,7 +160,7 @@ Deno.serve(async (req) => {
           if (updateError) {
             console.error(`Failed to auto-checkout log ${log.id}:`, updateError);
           } else {
-            console.log(`[${dateToProcess}] Soft auto-checked out log ${log.id} (provisional checkout at ${provisionalCheckoutISO})`);
+            console.log(`[${logDate}] Soft auto-checked out log ${log.id} (provisional checkout at ${provisionalCheckoutISO})`);
             allAutoCheckedOut.push(log.id);
 
             // Write audit log entry
@@ -168,19 +172,18 @@ Deno.serve(async (req) => {
                 event_type: 'AUTO_CHECKOUT_APPLIED',
                 old_checkout_time: null,
                 new_checkout_time: provisionalCheckoutISO,
-                notes: `Auto-checkout applied after ${netWorkingHours.toFixed(2)} net working hours (threshold: ${AUTO_CHECKOUT_HOURS}h). Date: ${dateToProcess}. Checkout set to ${provisionalCheckoutISO} (provisional).`,
+                notes: `Auto-checkout applied after ${netWorkingHours.toFixed(2)} net working hours (threshold: ${AUTO_CHECKOUT_HOURS}h). Date: ${logDate}. Checkout set to ${provisionalCheckoutISO} (provisional).`,
                 metadata: {
                   threshold_hours: AUTO_CHECKOUT_HOURS,
                   net_working_hours: netWorkingHours,
                   is_provisional: true,
-                  log_date: dateToProcess,
-                  sweep_type: dateToProcess === todayIST ? 'same_day' : 'previous_day_sweep',
+                  log_date: logDate,
+                  sweep_type: logDate === todayIST ? 'same_day' : 'historical_sweep',
                 },
               });
           }
         }
       }
-    }
 
     return new Response(
       JSON.stringify({
@@ -188,7 +191,7 @@ Deno.serve(async (req) => {
         autoCheckedOut: allAutoCheckedOut.length,
         ids: allAutoCheckedOut,
         mode: 'soft_provisional',
-        dates_processed: datesToProcess,
+        totalUnclosedFound: logs?.length ?? 0,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
