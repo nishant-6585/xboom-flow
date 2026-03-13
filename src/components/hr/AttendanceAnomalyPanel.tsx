@@ -38,8 +38,14 @@ export function AttendanceAnomalyPanel({ logs, employees, selectedDate }: Attend
   const anomalies = useMemo<Anomaly[]>(() => {
     const results: Anomaly[] = [];
 
+    const today = format(new Date(), 'yyyy-MM-dd');
+
     for (const log of logs) {
       const empName = employeeMap[log.employee_id] || 'Unknown';
+      const logDate = log.date;
+
+      // All anomalies only for past days
+      if (logDate >= today) continue;
 
       // Excessive hours (> 12h)
       if (log.working_hours && log.working_hours > 12) {
