@@ -77,18 +77,20 @@ export function AttendanceAlertsPanel({ logs, employees, selectedDate, onViewEmp
       const dept = emp?.department || 'Unknown';
       const logDate = log.date; // 'yyyy-MM-dd' string
 
+      // All alerts only for past days (logDate < today)
+      if (logDate >= today) continue;
+
       if (log.working_hours && log.working_hours > 12) {
         results.push({
           employeeName: empName, employeeId: log.employee_id, department: dept,
           type: 'excessive_hours',
           description: `Worked ${log.working_hours.toFixed(1)}h — exceeds 12h threshold`,
-          severity: log.working_hours > 16 ? 'critical' : 'critical',
+          severity: 'critical',
           log,
         });
       }
 
-      // Missing checkout: only show for past days, never for today
-      if (log.check_in_time && !log.check_out_time && !log.is_provisional_checkout && logDate < today) {
+      if (log.check_in_time && !log.check_out_time && !log.is_provisional_checkout) {
         results.push({
           employeeName: empName, employeeId: log.employee_id, department: dept,
           type: 'missing_checkout',
@@ -121,8 +123,7 @@ export function AttendanceAlertsPanel({ logs, employees, selectedDate, onViewEmp
         }
       }
 
-      // Provisional checkout: only show for past days
-      if (log.is_provisional_checkout && logDate < today) {
+      if (log.is_provisional_checkout) {
         results.push({
           employeeName: empName, employeeId: log.employee_id, department: dept,
           type: 'provisional',
