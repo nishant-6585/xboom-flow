@@ -56,12 +56,7 @@ Deno.serve(async (req) => {
     const istNow = new Date(now.getTime() + istOffset);
     const todayIST = istNow.toISOString().split('T')[0];
 
-    // Calculate yesterday's date in IST
-    const yesterdayDate = new Date(istNow);
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-    const yesterdayIST = yesterdayDate.toISOString().split('T')[0];
-
-    console.log(`Auto-checkout running at IST: ${istNow.toISOString()}, today: ${todayIST}, yesterday: ${yesterdayIST}`);
+    console.log(`Auto-checkout running at IST: ${istNow.toISOString()}, today: ${todayIST}`);
 
     // Fetch auto checkout threshold from policy settings
     const { data: policyData } = await supabase
