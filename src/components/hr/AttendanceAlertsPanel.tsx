@@ -69,10 +69,13 @@ export function AttendanceAlertsPanel({ logs, employees, selectedDate, onViewEmp
 
   const alerts = useMemo<Alert[]>(() => {
     const results: Alert[] = [];
+    const today = format(new Date(), 'yyyy-MM-dd');
+
     for (const log of logs) {
       const emp = employeeMap[log.employee_id];
       const empName = emp?.name || 'Unknown';
       const dept = emp?.department || 'Unknown';
+      const logDate = log.date; // 'yyyy-MM-dd' string
 
       if (log.working_hours && log.working_hours > 12) {
         results.push({
@@ -84,7 +87,8 @@ export function AttendanceAlertsPanel({ logs, employees, selectedDate, onViewEmp
         });
       }
 
-      if (log.check_in_time && !log.check_out_time && !log.is_provisional_checkout) {
+      // Missing checkout: only show for past days, never for today
+      if (log.check_in_time && !log.check_out_time && !log.is_provisional_checkout && logDate < today) {
         results.push({
           employeeName: empName, employeeId: log.employee_id, department: dept,
           type: 'missing_checkout',
@@ -117,7 +121,8 @@ export function AttendanceAlertsPanel({ logs, employees, selectedDate, onViewEmp
         }
       }
 
-      if (log.is_provisional_checkout) {
+      // Provisional checkout: only show for past days
+      if (log.is_provisional_checkout && logDate < today) {
         results.push({
           employeeName: empName, employeeId: log.employee_id, department: dept,
           type: 'provisional',
