@@ -86,7 +86,8 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${logs?.length ?? 0} total unclosed attendance logs across all dates.`);
 
-    {
+
+
 
       for (const log of logs ?? []) {
         const logDate = (log as any).date;
