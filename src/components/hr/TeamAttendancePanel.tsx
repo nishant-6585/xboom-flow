@@ -229,16 +229,18 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
   // Alert count for indicator
   const alertCount = useMemo(() => {
     let count = 0;
+    const today = format(new Date(), 'yyyy-MM-dd');
     for (const log of todayLogs) {
       if (log.working_hours && log.working_hours > 12) count++;
-      if (log.check_in_time && !log.check_out_time && !log.is_provisional_checkout) count++;
+      // Missing checkout & provisional: only for past days, not today
+      if (log.check_in_time && !log.check_out_time && !log.is_provisional_checkout && log.date < today) count++;
       if (log.check_in_time) {
         const h = new Date(log.check_in_time).getHours();
         const m = new Date(log.check_in_time).getMinutes();
         if (h < 5) count++;
         if (h >= 10 || (h === 9 && m > 45)) count++;
       }
-      if (log.is_provisional_checkout) count++;
+      if (log.is_provisional_checkout && log.date < today) count++;
     }
     return count;
   }, [todayLogs]);
