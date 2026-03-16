@@ -47,10 +47,12 @@ export function LeadsPanel() {
   const [importLoading, setImportLoading] = useState(false);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Enquiry | null>(null);
+  const [dateStart, setDateStart] = useState<Date | undefined>();
+  const [dateEnd, setDateEnd] = useState<Date | undefined>();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Check if user can see all leads (admin or supply_chain)
-  const canSeeAllLeads = role === 'admin' || role === 'supply_chain';
+  // Check if user can see all leads (admin, supply_chain, or sales_manager)
+  const canSeeAllLeads = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
 
   // Get unique sales persons for filter dropdown
   const salesPersons = Array.from(new Set(enquiries.map(e => e.sales_person_name))).filter(Boolean).sort();
