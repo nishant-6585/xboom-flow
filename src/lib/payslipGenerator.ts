@@ -137,7 +137,7 @@ export async function generatePayslipPDF(data: PayslipData): Promise<jsPDF> {
   drawWatermark(doc);
 
   // ─── HEADER ───
-  drawLogo(doc);
+  await drawLogo(doc);
 
   // Company name "Xboom Utilities" next to logo area
   doc.setFontSize(14);
