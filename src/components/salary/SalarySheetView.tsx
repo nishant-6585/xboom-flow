@@ -11,7 +11,7 @@ import { SalaryAddEmployeesDialog } from "./SalaryAddEmployeesDialog";
 import { SalaryEntryEditDialog } from "./SalaryEntryEditDialog";
 import { PayrollSummaryPanel } from "./PayrollSummaryPanel";
 import { BankTransferFileGenerator } from "./BankTransferFileGenerator";
-import { downloadPayslipPDF, getPayslipBlob } from "@/lib/payslipGenerator";
+import { downloadPayslipPDF, getPayslipBlob, getPayslipFileName, PayslipData } from "@/lib/payslipGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { recordAuditLog } from "@/lib/auditLog";
@@ -116,15 +116,27 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
     return await updateEntry(entryId, updates, sheet.id);
   };
 
+  const fetchEmployeePayslipData = async (employeeId: string) => {
+    const { data: emp } = await supabase.from("employees").select("designation, department, employee_number, date_of_birth, joining_date").eq("id", employeeId).single();
+    return {
+      department: (emp as any)?.department || undefined,
+      designation: (emp as any)?.designation || undefined,
+      employeeNumber: (emp as any)?.employee_number || undefined,
+      dateOfBirth: (emp as any)?.date_of_birth || undefined,
+      joiningDate: (emp as any)?.joining_date || undefined,
+    };
+  };
+
   const generatePayslip = async (entry: SalarySheetEntry) => {
     setGeneratingId(entry.id);
     try {
-      const { data: emp } = await supabase.from("employees").select("designation, department").eq("id", entry.employee_id).single();
-      const blob = getPayslipBlob({ entry, month: sheet.month, year: sheet.year, department: (emp as any)?.department || undefined, designation: (emp as any)?.designation || undefined });
-      const fileName = `${entry.employee_id}/payslip_${sheet.month}_${sheet.year}.pdf`;
-      const { error: uploadError } = await supabase.storage.from("payslips").upload(fileName, blob, { upsert: true, contentType: "application/pdf" });
+      const empData = await fetchEmployeePayslipData(entry.employee_id);
+      const payslipData: PayslipData = { entry, month: sheet.month, year: sheet.year, ...empData };
+      const blob = getPayslipBlob(payslipData);
+      const storagePath = `${entry.employee_id}/payslip_${sheet.month}_${sheet.year}.pdf`;
+      const { error: uploadError } = await supabase.storage.from("payslips").upload(storagePath, blob, { upsert: true, contentType: "application/pdf" });
       if (uploadError) { toast.error(`Failed to upload payslip for ${entry.employee_name}`); return; }
-      const { data: urlData } = supabase.storage.from("payslips").getPublicUrl(fileName);
+      const { data: urlData } = supabase.storage.from("payslips").getPublicUrl(storagePath);
       await supabase.from("employee_payslips").upsert({ employee_id: entry.employee_id, salary_sheet_id: sheet.id, month: sheet.month, year: sheet.year, pdf_url: urlData.publicUrl, generated_by: user?.id, generated_by_name: profile?.name || "Unknown" } as any, { onConflict: "employee_id,salary_sheet_id" });
       if (user) recordAuditLog(user.id, profile?.name || "", { action: "PAYSLIP_GENERATED", details: { employee_id: entry.employee_id, employee_name: entry.employee_name, month: sheet.month, year: sheet.year } });
       toast.success(`Payslip generated for ${entry.employee_name}`);
@@ -137,11 +149,12 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
     let count = 0;
     for (const entry of entries) {
       try {
-        const { data: emp } = await supabase.from("employees").select("designation, department").eq("id", entry.employee_id).single();
-        const blob = getPayslipBlob({ entry, month: sheet.month, year: sheet.year, department: (emp as any)?.department || undefined, designation: (emp as any)?.designation || undefined });
-        const fileName = `${entry.employee_id}/payslip_${sheet.month}_${sheet.year}.pdf`;
-        await supabase.storage.from("payslips").upload(fileName, blob, { upsert: true, contentType: "application/pdf" });
-        const { data: urlData } = supabase.storage.from("payslips").getPublicUrl(fileName);
+        const empData = await fetchEmployeePayslipData(entry.employee_id);
+        const payslipData: PayslipData = { entry, month: sheet.month, year: sheet.year, ...empData };
+        const blob = getPayslipBlob(payslipData);
+        const storagePath = `${entry.employee_id}/payslip_${sheet.month}_${sheet.year}.pdf`;
+        await supabase.storage.from("payslips").upload(storagePath, blob, { upsert: true, contentType: "application/pdf" });
+        const { data: urlData } = supabase.storage.from("payslips").getPublicUrl(storagePath);
         await supabase.from("employee_payslips").upsert({ employee_id: entry.employee_id, salary_sheet_id: sheet.id, month: sheet.month, year: sheet.year, pdf_url: urlData.publicUrl, generated_by: user?.id, generated_by_name: profile?.name || "Unknown" } as any, { onConflict: "employee_id,salary_sheet_id" });
         count++;
       } catch (e) { console.error("Failed for", entry.employee_name, e); }
@@ -152,8 +165,8 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
   };
 
   const handleDownloadPayslip = async (entry: SalarySheetEntry) => {
-    const { data: emp } = await supabase.from("employees").select("designation, department").eq("id", entry.employee_id).single();
-    downloadPayslipPDF({ entry, month: sheet.month, year: sheet.year, department: (emp as any)?.department || undefined, designation: (emp as any)?.designation || undefined });
+    const empData = await fetchEmployeePayslipData(entry.employee_id);
+    downloadPayslipPDF({ entry, month: sheet.month, year: sheet.year, ...empData });
     if (user) recordAuditLog(user.id, profile?.name || "", { action: "PAYSLIP_DOWNLOADED", details: { employee_id: entry.employee_id, month: sheet.month, year: sheet.year } });
   };
 
