@@ -117,7 +117,7 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
   };
 
   const fetchEmployeePayslipData = async (employeeId: string) => {
-    const { data: emp } = await supabase.from("employees").select("designation, department, employee_number, date_of_birth, joining_date").eq("id", employeeId).single();
+    const { data: emp } = await supabase.from("employees").select("designation, department, employee_number, date_of_birth, joining_date, pan_number, tax_regime").eq("id", employeeId).single();
     return {
       department: (emp as any)?.department || undefined,
       designation: (emp as any)?.designation || undefined,
