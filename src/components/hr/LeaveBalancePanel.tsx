@@ -93,7 +93,7 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactions.map(tx => (
+                  {transactions.filter(tx => tx.leave_type !== 'paid' && tx.leave_type !== 'half_day_paid').map(tx => (
                     <TableRow key={tx.id}>
                       <TableCell className="text-xs">{format(new Date(tx.created_at), 'dd MMM yyyy')}</TableCell>
                       <TableCell>
