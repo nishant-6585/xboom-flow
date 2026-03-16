@@ -302,6 +302,13 @@ export function LeadsPanel() {
                   </SelectContent>
                 </Select>
               )}
+              <DateRangeFilter
+                startDate={dateStart}
+                endDate={dateEnd}
+                onStartDateChange={setDateStart}
+                onEndDateChange={setDateEnd}
+                onClear={() => { setDateStart(undefined); setDateEnd(undefined); }}
+              />
               <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
                 <Upload className="h-4 w-4 mr-2" />
                 Import
