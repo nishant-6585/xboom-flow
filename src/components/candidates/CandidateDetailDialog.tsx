@@ -29,7 +29,7 @@ import {
 import {
   Mail, Phone, MapPin, Briefcase, Building2, IndianRupee,
   Clock, Upload, Download, Trash2, Plus, Star, Edit, FileText,
-  Calendar, UserCheck, ClipboardList
+  Calendar, UserCheck, ClipboardList, Eye
 } from "lucide-react";
 import {
   Candidate,
