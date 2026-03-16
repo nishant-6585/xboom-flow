@@ -284,6 +284,91 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
               </SelectItem>
             </SelectContent>
           </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "justify-start text-left font-normal h-10",
+                  hasClosureDateFilter ? "border-primary text-primary" : "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {hasClosureDateFilter
+                  ? `${closureDateStart ? format(closureDateStart, 'dd MMM') : '...'} – ${closureDateEnd ? format(closureDateEnd, 'dd MMM') : '...'}`
+                  : 'Closure Date'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-4" align="start">
+              <div className="space-y-3">
+                <div className="text-sm font-medium">Quick Presets</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: 'Today', value: 'today' },
+                    { label: 'This Week', value: 'this_week' },
+                    { label: 'This Month', value: 'this_month' },
+                    { label: 'Last Month', value: 'last_month' },
+                    { label: 'Next 30 Days', value: 'next_30' },
+                  ].map((preset) => (
+                    <Button
+                      key={preset.value}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => applyClosureDatePreset(preset.value)}
+                    >
+                      {preset.label}
+                    </Button>
+                  ))}
+                </div>
+                <div className="border-t pt-3 space-y-2">
+                  <div className="text-sm font-medium">Custom Range</div>
+                  <div className="flex items-center gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className={cn("text-xs h-8 w-[120px]", !closureDateStart && "text-muted-foreground")}>
+                          {closureDateStart ? format(closureDateStart, 'dd MMM yyyy') : 'From'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={closureDateStart}
+                          onSelect={setClosureDateStart}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <span className="text-muted-foreground text-xs">to</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className={cn("text-xs h-8 w-[120px]", !closureDateEnd && "text-muted-foreground")}>
+                          {closureDateEnd ? format(closureDateEnd, 'dd MMM yyyy') : 'To'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={closureDateEnd}
+                          onSelect={setClosureDateEnd}
+                          disabled={(date) => closureDateStart ? date < closureDateStart : false}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                {hasClosureDateFilter && (
+                  <Button variant="ghost" size="sm" className="w-full text-xs" onClick={clearClosureDateFilter}>
+                    <X className="h-3 w-3 mr-1" /> Clear Date Filter
+                  </Button>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         <div className="rounded-md border overflow-x-auto">
