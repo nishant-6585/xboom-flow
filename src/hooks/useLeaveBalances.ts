@@ -117,7 +117,7 @@ export function useLeaveBalances(employeeId?: string) {
       });
     });
 
-    ['EL', 'paid', 'sick'].forEach(lt => {
+    ['EL', 'sick'].forEach(lt => {
       if (!summaries.find(s => s.leave_type === lt)) {
         summaries.push({
           leave_type: lt,
