@@ -30,10 +30,10 @@ interface LeaveApplyDialogProps {
 }
 
 const LEAVE_TYPES: { value: LeaveType; label: string }[] = [
-  { value: 'paid', label: 'Paid Leave' },
+  { value: 'EL', label: 'Earned Leave' },
   { value: 'sick', label: 'Sick Leave' },
   { value: 'unpaid', label: 'Unpaid Leave' },
-  { value: 'half_day_paid', label: 'Half Day Paid Leave' },
+  { value: 'half_day_EL', label: 'Half Day Earned Leave' },
   { value: 'half_day_sick', label: 'Half Day Sick Leave' },
   { value: 'half_day_unpaid', label: 'Half Day Unpaid Leave' },
   { value: 'wfh', label: 'Work from Home' },
