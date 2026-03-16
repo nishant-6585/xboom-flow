@@ -165,7 +165,7 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
           employeeId={editRow.employee_id}
           balances={
             // Ensure all standard types appear
-            ['EL', 'paid', 'sick', 'unpaid', 'wfh'].map(lt => {
+            ['EL', 'sick', 'unpaid', 'wfh'].map(lt => {
               const existing = editRow.balances.find(b => b.leave_type === lt);
               return {
                 leave_type: lt,

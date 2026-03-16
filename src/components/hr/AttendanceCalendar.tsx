@@ -24,14 +24,16 @@ const STATUS_COLORS: Record<AttendanceStatus, string> = {
 };
 
 const LEAVE_TYPE_LABELS: Record<string, string> = {
-  casual: 'Paid (Casual)',
+  casual: 'Earned (Casual)',
   sick: 'Sick Leave',
-  paid: 'Paid Leave',
+  paid: 'Earned Leave',
+  EL: 'Earned Leave',
   unpaid: 'Unpaid',
   half_day: 'Half Day',
-  half_day_casual: 'Half Day Paid',
+  half_day_casual: 'Half Day Earned',
   half_day_sick: 'Half Day Sick',
-  half_day_paid: 'Half Day Paid',
+  half_day_paid: 'Half Day Earned',
+  half_day_EL: 'Half Day Earned',
   half_day_unpaid: 'Half Day Unpaid',
   wfh: 'WFH',
 };

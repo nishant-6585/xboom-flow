@@ -41,7 +41,7 @@ const LEAVE_TYPES: { value: LeaveType; label: string }[] = [
 
 export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps>(({ open, onOpenChange, onSubmit }, ref) => {
   const [step, setStep] = useState(1);
-  const [leaveType, setLeaveType] = useState<LeaveType>('paid');
+  const [leaveType, setLeaveType] = useState<LeaveType>('EL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');

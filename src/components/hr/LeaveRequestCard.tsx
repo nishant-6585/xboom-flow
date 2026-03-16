@@ -11,14 +11,16 @@ interface LeaveRequestCardProps {
 }
 
 const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
-  casual: 'Paid (Casual)',
+  casual: 'Earned (Casual)',
   sick: 'Sick',
-  paid: 'Paid',
+  paid: 'Earned Leave',
+  EL: 'Earned Leave',
   unpaid: 'Unpaid',
   half_day: 'Half Day',
-  half_day_casual: 'Half Day Paid',
+  half_day_casual: 'Half Day Earned',
   half_day_sick: 'Half Day Sick',
-  half_day_paid: 'Half Day Paid',
+  half_day_paid: 'Half Day Earned',
+  half_day_EL: 'Half Day Earned',
   half_day_unpaid: 'Half Day Unpaid',
   wfh: 'Work from Home',
 };

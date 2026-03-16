@@ -37,7 +37,7 @@ export interface LeaveBalanceSummary {
 
 const LEAVE_TYPE_LABELS: Record<string, string> = {
   EL: 'Earned Leave',
-  paid: 'Paid Leave',
+  paid: 'Earned Leave',
   sick: 'Sick Leave',
   unpaid: 'Unpaid Leave',
   wfh: 'Work from Home',
