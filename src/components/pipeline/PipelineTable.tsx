@@ -96,6 +96,41 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
     setEditClosureDate(targetOrder.expected_closure_date ? new Date(targetOrder.expected_closure_date) : undefined);
   }, [selectedLeadId, orders]);
 
+  const hasClosureDateFilter = closureDateStart || closureDateEnd;
+
+  const applyClosureDatePreset = (preset: string) => {
+    const today = new Date();
+    switch (preset) {
+      case 'today':
+        setClosureDateStart(today);
+        setClosureDateEnd(today);
+        break;
+      case 'this_week':
+        setClosureDateStart(startOfWeek(today, { weekStartsOn: 1 }));
+        setClosureDateEnd(endOfWeek(today, { weekStartsOn: 1 }));
+        break;
+      case 'this_month':
+        setClosureDateStart(startOfMonth(today));
+        setClosureDateEnd(endOfMonth(today));
+        break;
+      case 'last_month': {
+        const lastMonth = subMonths(today, 1);
+        setClosureDateStart(startOfMonth(lastMonth));
+        setClosureDateEnd(endOfMonth(lastMonth));
+        break;
+      }
+      case 'next_30':
+        setClosureDateStart(today);
+        setClosureDateEnd(addDays(today, 30));
+        break;
+    }
+  };
+
+  const clearClosureDateFilter = () => {
+    setClosureDateStart(undefined);
+    setClosureDateEnd(undefined);
+  };
+
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
       order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -111,9 +146,30 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
     else if (leadFilter === 'warm') matchesLead = order.lead_temperature === 'warm';
     else if (leadFilter === 'cold') matchesLead = order.lead_temperature === 'cold';
     else if (leadFilter === 'mega') matchesLead = order.is_mega_deal === true;
+
+    // Closure date range filter
+    let matchesClosureDate = true;
+    if (closureDateStart || closureDateEnd) {
+      if (!order.expected_closure_date) {
+        matchesClosureDate = false;
+      } else {
+        const closureDate = order.expected_closure_date;
+        if (closureDateStart && closureDate < format(closureDateStart, 'yyyy-MM-dd')) matchesClosureDate = false;
+        if (closureDateEnd && closureDate > format(closureDateEnd, 'yyyy-MM-dd')) matchesClosureDate = false;
+      }
+    }
     
-    return matchesSearch && matchesStatus && matchesCategory && matchesSalesPerson && matchesLead;
+    return matchesSearch && matchesStatus && matchesCategory && matchesSalesPerson && matchesLead && matchesClosureDate;
   });
+
+  // Apply closure date sorting
+  const sortedOrders = closureSortDir
+    ? [...filteredOrders].sort((a, b) => {
+        const dateA = a.expected_closure_date || '';
+        const dateB = b.expected_closure_date || '';
+        return closureSortDir === 'asc' ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
+      })
+    : filteredOrders;
 
   const handleEditClick = (order: PipelineOrder) => {
     setEditOrder(order);
