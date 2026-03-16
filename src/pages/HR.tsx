@@ -178,7 +178,14 @@ export default function HR() {
 
           <TabsContent value="leave" className="space-y-4">
             <LeaveBalancePanel employeeId={myEmployee?.id} />
-            <Button className="w-full" onClick={() => setLeaveDialogOpen(true)}><Plus className="mr-2 h-4 w-4" /> Apply for Leave</Button>
+            <div className="flex gap-2">
+              <Button className="flex-1" onClick={() => setLeaveDialogOpen(true)}><Plus className="mr-2 h-4 w-4" /> Apply for Leave</Button>
+              {isHROrAdmin && (
+                <Button variant="outline" className="flex-1" onClick={() => setHRLeaveDialogOpen(true)}>
+                  <UserPlus className="mr-2 h-4 w-4" /> Apply Leave for Employee
+                </Button>
+              )}
+            </div>
             <div className="space-y-3">
               <h3 className="font-semibold">My Leave Requests</h3>
               {myLeaves.length > 0 && (
