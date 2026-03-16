@@ -44,6 +44,7 @@ import Preferences from "./pages/Preferences";
 import MyActivity from "./pages/MyActivity";
 import MFAVerify from "./pages/MFAVerify";
 import PayrollReconciliation from "./pages/PayrollReconciliation";
+import SamplePayslip from "./pages/SamplePayslip";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
