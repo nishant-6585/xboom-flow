@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
       p_email: invitation.email,
       p_role: invitation.role,
       p_department: invitation.department || "",
-      p_admin_user_id: requestingUser.id,
+      p_admin_user_id: requestingUserId,
       p_admin_name: adminName,
       p_is_existing_user: isExistingUser,
     });
