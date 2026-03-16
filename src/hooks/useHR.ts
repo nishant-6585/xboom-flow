@@ -70,6 +70,9 @@ export interface LeaveRequest {
   approver_name: string | null;
   approved_rejected_at: string | null;
   comments: string | null;
+  applied_by_id: string | null;
+  applied_by_name: string | null;
+  is_hr_applied: boolean;
   created_at: string;
   updated_at: string;
   // Joined
