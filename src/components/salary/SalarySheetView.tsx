@@ -11,7 +11,7 @@ import { SalaryAddEmployeesDialog } from "./SalaryAddEmployeesDialog";
 import { SalaryEntryEditDialog } from "./SalaryEntryEditDialog";
 import { PayrollSummaryPanel } from "./PayrollSummaryPanel";
 import { BankTransferFileGenerator } from "./BankTransferFileGenerator";
-import { downloadPayslipPDF, getPayslipBlob } from "@/lib/payslipGenerator";
+import { downloadPayslipPDF, getPayslipBlob, getPayslipFileName, PayslipData } from "@/lib/payslipGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { recordAuditLog } from "@/lib/auditLog";
