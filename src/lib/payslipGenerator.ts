@@ -117,7 +117,7 @@ async function drawLogo(doc: jsPDF) {
   }
 }
 
-export function generatePayslipPDF(data: PayslipData): jsPDF {
+export async function generatePayslipPDF(data: PayslipData): Promise<jsPDF> {
   const { entry, month, year, department, designation, employeeNumber, dateOfBirth, joiningDate, pan, payableDays, leaveBalance, regimeOpted } = data;
 
   const totalEarnings = calculateEarnings(entry);
