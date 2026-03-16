@@ -57,16 +57,18 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
   const [form, setForm] = useState({
     phone: "", personal_email: "", xboom_email: "", gender: "", date_of_birth: "",
     designation: "", department: "", employee_type: "", work_location: "",
-    state: "", city: "",
+    state: "", city: "", joining_date: "",
     emergency_contact_name: "", emergency_contact_relation: "", emergency_contact_phone: "",
   });
 
+  const [prevOpen, setPrevOpen] = useState(false);
   useEffect(() => {
-    if (open) {
+    if (open && !prevOpen) {
       setEditing(false);
       resetForm();
     }
-  }, [open, employee]);
+    setPrevOpen(open);
+  }, [open]);
 
   const resetForm = () => {
     setForm({
@@ -81,6 +83,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
       work_location: employee.work_location || "",
       state: employee.state || "",
       city: employee.city || "",
+      joining_date: employee.joining_date || "",
       emergency_contact_name: employee.emergency_contact_name || "",
       emergency_contact_relation: employee.emergency_contact_relation || "",
       emergency_contact_phone: employee.emergency_contact_phone || "",
@@ -124,7 +127,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
         phone: "Phone", personal_email: "Personal Email", xboom_email: "Xboom Email",
         gender: "Gender", date_of_birth: "Date of Birth", designation: "Role",
         department: "Department", employee_type: "Employee Type", work_location: "Mode",
-        state: "State", city: "City",
+        state: "State", city: "City", joining_date: "Joining Date",
         emergency_contact_name: "Emergency Contact Name",
         emergency_contact_relation: "Emergency Contact Relation",
         emergency_contact_phone: "Emergency Contact Phone",
@@ -157,6 +160,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
           work_location: form.work_location || null,
           state: form.state || null,
           city: form.city || null,
+          joining_date: form.joining_date || null,
           emergency_contact_name: form.emergency_contact_name || null,
           emergency_contact_relation: form.emergency_contact_relation || null,
           emergency_contact_phone: form.emergency_contact_phone || null,
@@ -249,7 +253,11 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
           <div>
             <h4 className="text-sm font-semibold text-primary mb-3">Employment Details</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <ReadOnlyField label="Joining Date" value={formatDate(employee.joining_date)} />
+              {editing ? (
+                <EditableField label="Joining Date" fieldKey="joining_date" type="date" />
+              ) : (
+                <ReadOnlyField label="Joining Date" value={formatDate(employee.joining_date)} />
+              )}
               <EditableSelect label="Role" fieldKey="designation" options={orgRoles.map(r => ({ value: r.label || r.name, label: r.label || r.name }))} />
               <EditableSelect label="Department" fieldKey="department" options={orgDepartments.map(d => ({ value: d.name, label: d.name }))} />
               <EditableSelect label="Employee Type" fieldKey="employee_type" options={TYPE_OPTIONS} />
@@ -276,7 +284,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
             <>
               <Separator />
               <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
-                <strong>Protected fields:</strong> Employee ID and Joining Date are system-managed and cannot be edited.
+                <strong>Protected fields:</strong> Employee ID is system-managed and cannot be edited.
               </div>
             </>
           )}
