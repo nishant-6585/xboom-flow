@@ -13,10 +13,11 @@ import {
   Upload, FileSpreadsheet, Download, Search, Plus, Users, 
   Package, Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil 
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { LeadFormDialog } from './LeadFormDialog';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
 
 const LEAD_SOURCES = [
   'Website',
@@ -46,10 +47,12 @@ export function LeadsPanel() {
   const [importLoading, setImportLoading] = useState(false);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Enquiry | null>(null);
+  const [dateStart, setDateStart] = useState<Date | undefined>();
+  const [dateEnd, setDateEnd] = useState<Date | undefined>();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Check if user can see all leads (admin or supply_chain)
-  const canSeeAllLeads = role === 'admin' || role === 'supply_chain';
+  // Check if user can see all leads (admin, supply_chain, or sales_manager)
+  const canSeeAllLeads = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
 
   // Get unique sales persons for filter dropdown
   const salesPersons = Array.from(new Set(enquiries.map(e => e.sales_person_name))).filter(Boolean).sort();
@@ -73,8 +76,12 @@ export function LeadsPanel() {
     
     // Filter by sales person (only applicable if user can see all leads)
     const matchesSalesPerson = salesPersonFilter === 'all' || e.sales_person_name === salesPersonFilter;
+
+    // Date filter
+    const leadDate = new Date(e.created_at);
+    const matchesDate = (!dateStart || leadDate >= startOfDay(dateStart)) && (!dateEnd || leadDate <= endOfDay(dateEnd));
     
-    return matchesSearch && matchesCategory && matchesSource && matchesSalesPerson;
+    return matchesSearch && matchesCategory && matchesSource && matchesSalesPerson && matchesDate;
   });
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -295,6 +302,13 @@ export function LeadsPanel() {
                   </SelectContent>
                 </Select>
               )}
+              <DateRangeFilter
+                startDate={dateStart}
+                endDate={dateEnd}
+                onStartDateChange={setDateStart}
+                onEndDateChange={setDateEnd}
+                onClear={() => { setDateStart(undefined); setDateEnd(undefined); }}
+              />
               <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
                 <Upload className="h-4 w-4 mr-2" />
                 Import
