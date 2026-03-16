@@ -127,7 +127,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
         phone: "Phone", personal_email: "Personal Email", xboom_email: "Xboom Email",
         gender: "Gender", date_of_birth: "Date of Birth", designation: "Role",
         department: "Department", employee_type: "Employee Type", work_location: "Mode",
-        state: "State", city: "City",
+        state: "State", city: "City", joining_date: "Joining Date",
         emergency_contact_name: "Emergency Contact Name",
         emergency_contact_relation: "Emergency Contact Relation",
         emergency_contact_phone: "Emergency Contact Phone",
