@@ -76,8 +76,12 @@ export function LeadsPanel() {
     
     // Filter by sales person (only applicable if user can see all leads)
     const matchesSalesPerson = salesPersonFilter === 'all' || e.sales_person_name === salesPersonFilter;
+
+    // Date filter
+    const leadDate = new Date(e.created_at);
+    const matchesDate = (!dateStart || leadDate >= startOfDay(dateStart)) && (!dateEnd || leadDate <= endOfDay(dateEnd));
     
-    return matchesSearch && matchesCategory && matchesSource && matchesSalesPerson;
+    return matchesSearch && matchesCategory && matchesSource && matchesSalesPerson && matchesDate;
   });
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
