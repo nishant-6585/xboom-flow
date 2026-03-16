@@ -123,15 +123,20 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
 
     setSaving(true);
     try {
+      const canEditJoiningDate = !employee.joining_date;
       const fieldMap: Record<string, string> = {
         phone: "Phone", personal_email: "Personal Email", xboom_email: "Xboom Email",
         gender: "Gender", date_of_birth: "Date of Birth", designation: "Role",
         department: "Department", employee_type: "Employee Type", work_location: "Mode",
-        state: "State", city: "City", joining_date: "Joining Date",
+        state: "State", city: "City",
         emergency_contact_name: "Emergency Contact Name",
         emergency_contact_relation: "Emergency Contact Relation",
         emergency_contact_phone: "Emergency Contact Phone",
       };
+
+      if (canEditJoiningDate) {
+        fieldMap.joining_date = "Joining Date";
+      }
 
       const changes: Record<string, { old: any; new: any }> = {};
       for (const [key, label] of Object.entries(fieldMap)) {
@@ -146,25 +151,30 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
         toast.info("No changes detected"); setSaving(false); return;
       }
 
+      const updatePayload: Record<string, string | null> = {
+        phone: form.phone || null,
+        personal_email: form.personal_email || null,
+        xboom_email: form.xboom_email || null,
+        gender: form.gender || null,
+        date_of_birth: form.date_of_birth || null,
+        designation: form.designation || null,
+        department: form.department || "",
+        employee_type: form.employee_type || null,
+        work_location: form.work_location || null,
+        state: form.state || null,
+        city: form.city || null,
+        emergency_contact_name: form.emergency_contact_name || null,
+        emergency_contact_relation: form.emergency_contact_relation || null,
+        emergency_contact_phone: form.emergency_contact_phone || null,
+      };
+
+      if (canEditJoiningDate) {
+        updatePayload.joining_date = form.joining_date || null;
+      }
+
       const { error } = await supabase
         .from("employees")
-        .update({
-          phone: form.phone || null,
-          personal_email: form.personal_email || null,
-          xboom_email: form.xboom_email || null,
-          gender: form.gender || null,
-          date_of_birth: form.date_of_birth || null,
-          designation: form.designation || null,
-          department: form.department || "",
-          employee_type: form.employee_type || null,
-          work_location: form.work_location || null,
-          state: form.state || null,
-          city: form.city || null,
-          joining_date: form.joining_date || null,
-          emergency_contact_name: form.emergency_contact_name || null,
-          emergency_contact_relation: form.emergency_contact_relation || null,
-          emergency_contact_phone: form.emergency_contact_phone || null,
-        })
+        .update(updatePayload)
         .eq("id", employee.id);
 
       if (error) throw error;
