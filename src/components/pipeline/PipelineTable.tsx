@@ -380,7 +380,17 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                 <TableHead>Product</TableHead>
                 <TableHead>Qty</TableHead>
                 <TableHead>Expected Price</TableHead>
-                <TableHead>Closure Date</TableHead>
+                <TableHead>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-auto p-0 font-medium hover:bg-transparent"
+                    onClick={() => setClosureSortDir(prev => prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc')}
+                  >
+                    Closure Date
+                    <ArrowUpDown className={cn("ml-1 h-3.5 w-3.5", closureSortDir && "text-primary")} />
+                  </Button>
+                </TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Priority</TableHead>
                 <TableHead>Sales Person</TableHead>
