@@ -160,6 +160,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
           work_location: form.work_location || null,
           state: form.state || null,
           city: form.city || null,
+          joining_date: form.joining_date || null,
           emergency_contact_name: form.emergency_contact_name || null,
           emergency_contact_relation: form.emergency_contact_relation || null,
           emergency_contact_phone: form.emergency_contact_phone || null,
