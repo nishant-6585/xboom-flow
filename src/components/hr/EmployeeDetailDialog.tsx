@@ -55,6 +55,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
   const formatType = (t: string | null) => t ? t.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : null;
 
   const [form, setForm] = useState({
+    employee_number: "",
     phone: "", personal_email: "", xboom_email: "", gender: "", date_of_birth: "",
     designation: "", department: "", employee_type: "", work_location: "",
     state: "", city: "", joining_date: "",
