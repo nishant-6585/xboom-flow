@@ -261,7 +261,7 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
   }, [liveRows, alertCount]);
 
   const exportCSV = () => {
-    const LEAVE_LABELS_CSV: Record<string, string> = { casual: 'Paid (Casual)', sick: 'Sick Leave', paid: 'Paid Leave', unpaid: 'Unpaid', half_day: 'Half Day', half_day_casual: 'Half Day Paid', half_day_sick: 'Half Day Sick', half_day_paid: 'Half Day Paid', half_day_unpaid: 'Half Day Unpaid', wfh: 'WFH' };
+    const LEAVE_LABELS_CSV: Record<string, string> = { casual: 'Earned (Casual)', sick: 'Sick Leave', paid: 'Earned Leave', EL: 'Earned Leave', unpaid: 'Unpaid', half_day: 'Half Day', half_day_casual: 'Half Day Earned', half_day_sick: 'Half Day Sick', half_day_paid: 'Half Day Earned', half_day_EL: 'Half Day Earned', half_day_unpaid: 'Half Day Unpaid', wfh: 'WFH' };
     const rows: string[][] = [['Employee', 'Department', 'Date', 'Check In', 'Check Out', 'Work Hours', 'Break (min)', 'Status', 'Leave Type']];
     for (const emp of employees) {
       const log = todayLogs.find(l => l.employee_id === emp.id) || null;
