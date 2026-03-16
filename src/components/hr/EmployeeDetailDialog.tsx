@@ -181,31 +181,36 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
     }
   };
 
-  // Editable field helper
-  const EditableField = ({ label, fieldKey, type = "text", placeholder = "" }: { label: string; fieldKey: string; type?: string; placeholder?: string }) => {
+  const renderEditableField = ({ label, fieldKey, type = "text", placeholder = "" }: { label: string; fieldKey: string; type?: string; placeholder?: string }) => {
     if (!editing) return <ReadOnlyField label={label} value={(employee as any)[fieldKey]} />;
     return (
       <div className="space-y-1">
         <Label className="text-xs">{label}</Label>
-        <Input type={type} value={(form as any)[fieldKey]} onChange={e => update(fieldKey, e.target.value)} placeholder={placeholder} className="h-8 text-sm" />
+        <Input
+          type={type}
+          value={(form as any)[fieldKey]}
+          onChange={(e) => update(fieldKey, e.target.value)}
+          placeholder={placeholder}
+          className="h-8 text-sm"
+        />
       </div>
     );
   };
 
-  const EditableSelect = ({ label, fieldKey, options }: { label: string; fieldKey: string; options: string[] | { value: string; label: string }[] }) => {
+  const renderEditableSelect = ({ label, fieldKey, options }: { label: string; fieldKey: string; options: string[] | { value: string; label: string }[] }) => {
     if (!editing) {
       const raw = (employee as any)[fieldKey];
       return <ReadOnlyField label={label} value={formatType(raw)} />;
     }
     const opts = typeof options[0] === "string"
-      ? (options as string[]).map(o => ({ value: o, label: o }))
+      ? (options as string[]).map((o) => ({ value: o, label: o }))
       : (options as { value: string; label: string }[]);
     return (
       <div className="space-y-1">
         <Label className="text-xs">{label}</Label>
-        <Select value={(form as any)[fieldKey]} onValueChange={v => update(fieldKey, v)}>
+        <Select value={(form as any)[fieldKey]} onValueChange={(v) => update(fieldKey, v)}>
           <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
-          <SelectContent>{opts.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+          <SelectContent>{opts.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
         </Select>
       </div>
     );
