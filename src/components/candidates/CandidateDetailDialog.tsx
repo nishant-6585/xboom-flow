@@ -119,7 +119,7 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto [&>button]:top-4 [&>button]:right-4">
           <DialogHeader>
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
@@ -134,7 +134,7 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
                   )}
                 </div>
               </div>
-              <Button variant="outline" size="sm" onClick={onEdit}>
+              <Button variant="outline" size="sm" onClick={onEdit} className="mr-6">
                 <Edit className="w-4 h-4 mr-1" /> Edit
               </Button>
             </div>
