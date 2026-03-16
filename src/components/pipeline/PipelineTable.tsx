@@ -135,7 +135,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
     }).format(amount);
   };
 
-  const isAdminOrSupplyChain = role === 'admin' || role === 'supply_chain';
+  const isAdminOrSupplyChain = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
   const canDelete = role === 'admin' || role === 'sales';
 
   return (
