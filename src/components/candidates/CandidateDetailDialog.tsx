@@ -134,7 +134,7 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
                   )}
                 </div>
               </div>
-              <Button variant="outline" size="sm" onClick={onEdit}>
+              <Button variant="outline" size="sm" onClick={onEdit} className="mr-6">
                 <Edit className="w-4 h-4 mr-1" /> Edit
               </Button>
             </div>
