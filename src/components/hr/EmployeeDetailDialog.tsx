@@ -140,6 +140,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
     try {
       const canEditJoiningDate = !employee.joining_date;
       const fieldMap: Record<string, string> = {
+        employee_number: "Employee ID",
         phone: "Phone", personal_email: "Personal Email", xboom_email: "Xboom Email",
         gender: "Gender", date_of_birth: "Date of Birth", designation: "Role",
         department: "Department", employee_type: "Employee Type", work_location: "Mode",
