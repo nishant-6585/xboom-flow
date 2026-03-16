@@ -29,7 +29,7 @@ import {
 import {
   Mail, Phone, MapPin, Briefcase, Building2, IndianRupee,
   Clock, Upload, Download, Trash2, Plus, Star, Edit, FileText,
-  Calendar, UserCheck, ClipboardList
+  Calendar, UserCheck, ClipboardList, Eye
 } from "lucide-react";
 import {
   Candidate,
@@ -45,7 +45,7 @@ import {
 } from "@/hooks/useCandidates";
 import { CandidateStatusBadge, LifecycleStatusBadge } from "./CandidateStatusBadge";
 import { InterviewRecordDialog } from "./InterviewRecordDialog";
-
+import { DocumentViewer } from "@/components/hr/DocumentViewer";
 import { toast } from "sonner";
 
 const decisionConfig = {
@@ -76,6 +76,14 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
   const { updateCandidate, deleteDocument, uploadCV } = useCandidateMutations();
   const { getSignedUrl, loading: urlLoading } = useSignedCVUrl();
   const [interviewDialogOpen, setInterviewDialogOpen] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
+
+  const handleView = async (fileUrl: string, fileName: string) => {
+    const url = await getSignedUrl(fileUrl);
+    if (url) {
+      setPreviewDoc({ url, name: fileName });
+    }
+  };
 
   const handleLifecycleChange = (newStatus: LifecycleStatus) => {
     updateCandidate.mutate({ id: candidate.id, lifecycle_status: newStatus } as any);
@@ -310,6 +318,17 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7"
+                      title="View"
+                      onClick={() => handleView(doc.file_url, doc.file_name)}
+                      disabled={urlLoading}
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      title="Download"
                       onClick={() => handleDownload(doc.file_url, doc.file_name)}
                       disabled={urlLoading}
                     >
@@ -408,6 +427,13 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
         open={interviewDialogOpen}
         onClose={() => setInterviewDialogOpen(false)}
         candidateId={candidate.id}
+      />
+
+      <DocumentViewer
+        open={!!previewDoc}
+        onOpenChange={(open) => { if (!open) setPreviewDoc(null); }}
+        url={previewDoc?.url ?? null}
+        name={previewDoc?.name ?? ""}
       />
     </>
   );
