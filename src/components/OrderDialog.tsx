@@ -524,7 +524,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   )}
                 </DialogDescription>
               </div>
-              <OrderStatusBadge status={order.status} />
+              <div className="mr-8 shrink-0">
+                <OrderStatusBadge status={order.status} />
+              </div>
             </div>
           </DialogHeader>
 
