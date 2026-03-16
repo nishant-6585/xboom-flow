@@ -11,8 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
-import { CalendarIcon, Edit, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star } from 'lucide-react';
-import { format } from 'date-fns';
+import { CalendarIcon, Edit, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown } from 'lucide-react';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { PipelineOrder, PIPELINE_STATUSES, PipelineStatus, LeadTemperature } from '@/hooks/usePipelineOrders';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
@@ -63,6 +63,9 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
   const [salesTeam, setSalesTeam] = useState<SalesTeamMember[]>([]);
   const [editOrder, setEditOrder] = useState<PipelineOrder | null>(null);
   const [editClosureDate, setEditClosureDate] = useState<Date | undefined>(undefined);
+  const [closureDateStart, setClosureDateStart] = useState<Date | undefined>(undefined);
+  const [closureDateEnd, setClosureDateEnd] = useState<Date | undefined>(undefined);
+  const [closureSortDir, setClosureSortDir] = useState<'asc' | 'desc' | null>(null);
   const lastAutoOpenedId = useRef<string | null>(null);
 
   // Use external filter if provided, otherwise use internal
@@ -93,6 +96,41 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
     setEditClosureDate(targetOrder.expected_closure_date ? new Date(targetOrder.expected_closure_date) : undefined);
   }, [selectedLeadId, orders]);
 
+  const hasClosureDateFilter = closureDateStart || closureDateEnd;
+
+  const applyClosureDatePreset = (preset: string) => {
+    const today = new Date();
+    switch (preset) {
+      case 'today':
+        setClosureDateStart(today);
+        setClosureDateEnd(today);
+        break;
+      case 'this_week':
+        setClosureDateStart(startOfWeek(today, { weekStartsOn: 1 }));
+        setClosureDateEnd(endOfWeek(today, { weekStartsOn: 1 }));
+        break;
+      case 'this_month':
+        setClosureDateStart(startOfMonth(today));
+        setClosureDateEnd(endOfMonth(today));
+        break;
+      case 'last_month': {
+        const lastMonth = subMonths(today, 1);
+        setClosureDateStart(startOfMonth(lastMonth));
+        setClosureDateEnd(endOfMonth(lastMonth));
+        break;
+      }
+      case 'next_30':
+        setClosureDateStart(today);
+        setClosureDateEnd(addDays(today, 30));
+        break;
+    }
+  };
+
+  const clearClosureDateFilter = () => {
+    setClosureDateStart(undefined);
+    setClosureDateEnd(undefined);
+  };
+
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
       order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -108,9 +146,30 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
     else if (leadFilter === 'warm') matchesLead = order.lead_temperature === 'warm';
     else if (leadFilter === 'cold') matchesLead = order.lead_temperature === 'cold';
     else if (leadFilter === 'mega') matchesLead = order.is_mega_deal === true;
+
+    // Closure date range filter
+    let matchesClosureDate = true;
+    if (closureDateStart || closureDateEnd) {
+      if (!order.expected_closure_date) {
+        matchesClosureDate = false;
+      } else {
+        const closureDate = order.expected_closure_date;
+        if (closureDateStart && closureDate < format(closureDateStart, 'yyyy-MM-dd')) matchesClosureDate = false;
+        if (closureDateEnd && closureDate > format(closureDateEnd, 'yyyy-MM-dd')) matchesClosureDate = false;
+      }
+    }
     
-    return matchesSearch && matchesStatus && matchesCategory && matchesSalesPerson && matchesLead;
+    return matchesSearch && matchesStatus && matchesCategory && matchesSalesPerson && matchesLead && matchesClosureDate;
   });
+
+  // Apply closure date sorting
+  const sortedOrders = closureSortDir
+    ? [...filteredOrders].sort((a, b) => {
+        const dateA = a.expected_closure_date || '';
+        const dateB = b.expected_closure_date || '';
+        return closureSortDir === 'asc' ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
+      })
+    : filteredOrders;
 
   const handleEditClick = (order: PipelineOrder) => {
     setEditOrder(order);
@@ -225,6 +284,91 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
               </SelectItem>
             </SelectContent>
           </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "justify-start text-left font-normal h-10",
+                  hasClosureDateFilter ? "border-primary text-primary" : "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {hasClosureDateFilter
+                  ? `${closureDateStart ? format(closureDateStart, 'dd MMM') : '...'} – ${closureDateEnd ? format(closureDateEnd, 'dd MMM') : '...'}`
+                  : 'Closure Date'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-4" align="start">
+              <div className="space-y-3">
+                <div className="text-sm font-medium">Quick Presets</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: 'Today', value: 'today' },
+                    { label: 'This Week', value: 'this_week' },
+                    { label: 'This Month', value: 'this_month' },
+                    { label: 'Last Month', value: 'last_month' },
+                    { label: 'Next 30 Days', value: 'next_30' },
+                  ].map((preset) => (
+                    <Button
+                      key={preset.value}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => applyClosureDatePreset(preset.value)}
+                    >
+                      {preset.label}
+                    </Button>
+                  ))}
+                </div>
+                <div className="border-t pt-3 space-y-2">
+                  <div className="text-sm font-medium">Custom Range</div>
+                  <div className="flex items-center gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className={cn("text-xs h-8 w-[120px]", !closureDateStart && "text-muted-foreground")}>
+                          {closureDateStart ? format(closureDateStart, 'dd MMM yyyy') : 'From'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={closureDateStart}
+                          onSelect={setClosureDateStart}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <span className="text-muted-foreground text-xs">to</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className={cn("text-xs h-8 w-[120px]", !closureDateEnd && "text-muted-foreground")}>
+                          {closureDateEnd ? format(closureDateEnd, 'dd MMM yyyy') : 'To'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={closureDateEnd}
+                          onSelect={setClosureDateEnd}
+                          disabled={(date) => closureDateStart ? date < closureDateStart : false}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                {hasClosureDateFilter && (
+                  <Button variant="ghost" size="sm" className="w-full text-xs" onClick={clearClosureDateFilter}>
+                    <X className="h-3 w-3 mr-1" /> Clear Date Filter
+                  </Button>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         <div className="rounded-md border overflow-x-auto">
@@ -236,7 +380,17 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                 <TableHead>Product</TableHead>
                 <TableHead>Qty</TableHead>
                 <TableHead>Expected Price</TableHead>
-                <TableHead>Closure Date</TableHead>
+                <TableHead>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-auto p-0 font-medium hover:bg-transparent"
+                    onClick={() => setClosureSortDir(prev => prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc')}
+                  >
+                    Closure Date
+                    <ArrowUpDown className={cn("ml-1 h-3.5 w-3.5", closureSortDir && "text-primary")} />
+                  </Button>
+                </TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Priority</TableHead>
                 <TableHead>Sales Person</TableHead>
@@ -244,14 +398,14 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredOrders.length === 0 ? (
+              {sortedOrders.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     No pipeline orders found
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredOrders.map(order => (
+                sortedOrders.map(order => (
                   <TableRow key={order.id}>
                     <TableCell>
                       <LeadTemperatureBadge 
