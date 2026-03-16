@@ -41,7 +41,7 @@ export default function HR() {
   const {
     employees, myEmployee, todayAttendance, weeklyHours, attendanceLogs,
     leaveRequests, pendingLeaves, loading, checkIn, checkOut, startBreak,
-    endBreak, applyLeave, approveLeave, fetchAttendanceLogs,
+    endBreak, applyLeave, applyLeaveForEmployee, approveLeave, fetchAttendanceLogs,
   } = useHR();
 
   const [activeTab, setActiveTab] = useState("home");
