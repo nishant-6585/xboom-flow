@@ -46,6 +46,7 @@ export default function HR() {
 
   const [activeTab, setActiveTab] = useState("home");
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [hrLeaveDialogOpen, setHRLeaveDialogOpen] = useState(false);
   const [leaveFilter, setLeaveFilter] = useState('all');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [yesterdayLog, setYesterdayLog] = useState<AttendanceLog | null>(null);
