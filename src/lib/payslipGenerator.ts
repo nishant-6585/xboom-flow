@@ -292,7 +292,7 @@ export async function generatePayslipPDF(data: PayslipData): Promise<jsPDF> {
     startY: contentY + 4,
     head: [["Earnings", "Monthly", "Total Amount"]],
     body: earningsBody,
-    foot: [["", "Gross Pay", fmtCurrency(totalEarnings)]],
+    foot: [["", { content: "Gross Pay", styles: { halign: "right" } }, { content: fmtCurrency(totalEarnings), styles: { halign: "right" } }]],
     theme: "plain",
     headStyles: { fillColor: [245, 245, 245], textColor: [80, 80, 80], fontSize: 8, fontStyle: "bold", cellPadding: 3 },
     bodyStyles: { fontSize: 8.5, textColor: darkText as any, cellPadding: 3 },
