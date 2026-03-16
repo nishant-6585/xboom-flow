@@ -76,26 +76,45 @@ function drawWatermark(doc: jsPDF) {
   doc.setGState(new (doc as any).GState({ opacity: 1 }));
 }
 
-function drawLogo(doc: jsPDF) {
-  // Draw a stylized XBoom text logo since we can't easily embed the image
-  // Company name with styling
-  doc.setFontSize(22);
-  doc.setFont("helvetica", "bold");
+import xboomLogoUrl from "@/assets/xboom-logo-payslip.png";
 
-  // Draw "X" in orange/red
-  doc.setTextColor(231, 76, 60);
-  doc.text("X", 14, 22);
-  const xWidth = doc.getTextWidth("X");
+async function loadImageAsBase64(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { reject(new Error("No canvas context")); return; }
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
 
-  // Draw "Boom" in dark
-  doc.setTextColor(33, 33, 33);
-  doc.text("Boom", 14 + xWidth, 22);
-
-  // Subtitle
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "italic");
-  doc.setTextColor(120, 120, 120);
-  doc.text("Gadgets Reloaded!", 14, 27);
+async function drawLogo(doc: jsPDF) {
+  try {
+    const logoBase64 = await loadImageAsBase64(xboomLogoUrl);
+    // Logo aspect ratio ~3.5:1, render at ~40x12mm
+    doc.addImage(logoBase64, "PNG", 14, 12, 40, 12);
+  } catch {
+    // Fallback text logo if image fails
+    doc.setFontSize(22);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(231, 76, 60);
+    doc.text("X", 14, 22);
+    const xWidth = doc.getTextWidth("X");
+    doc.setTextColor(33, 33, 33);
+    doc.text("Boom", 14 + xWidth, 22);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(120, 120, 120);
+    doc.text("Gadgets Reloaded!", 14, 27);
+  }
 }
 
 export function generatePayslipPDF(data: PayslipData): jsPDF {
