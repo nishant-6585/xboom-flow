@@ -3393,6 +3393,8 @@ export type Database = {
       }
       leave_requests: {
         Row: {
+          applied_by_id: string | null
+          applied_by_name: string | null
           approved_rejected_at: string | null
           approver_id: string | null
           approver_name: string | null
@@ -3401,6 +3403,7 @@ export type Database = {
           employee_id: string
           end_date: string
           id: string
+          is_hr_applied: boolean | null
           leave_type: string
           reason: string | null
           start_date: string
@@ -3409,6 +3412,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          applied_by_id?: string | null
+          applied_by_name?: string | null
           approved_rejected_at?: string | null
           approver_id?: string | null
           approver_name?: string | null
@@ -3417,6 +3422,7 @@ export type Database = {
           employee_id: string
           end_date: string
           id?: string
+          is_hr_applied?: boolean | null
           leave_type: string
           reason?: string | null
           start_date: string
@@ -3425,6 +3431,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          applied_by_id?: string | null
+          applied_by_name?: string | null
           approved_rejected_at?: string | null
           approver_id?: string | null
           approver_name?: string | null
@@ -3433,6 +3441,7 @@ export type Database = {
           employee_id?: string
           end_date?: string
           id?: string
+          is_hr_applied?: boolean | null
           leave_type?: string
           reason?: string | null
           start_date?: string
