@@ -389,12 +389,12 @@ export function getPayslipFileName(data: PayslipData): string {
   return `${empName}-${empId}-${monthName}-Payslip.pdf`;
 }
 
-export function downloadPayslipPDF(data: PayslipData): void {
-  const doc = generatePayslipPDF(data);
+export async function downloadPayslipPDF(data: PayslipData): Promise<void> {
+  const doc = await generatePayslipPDF(data);
   doc.save(getPayslipFileName(data));
 }
 
-export function getPayslipBlob(data: PayslipData): Blob {
-  const doc = generatePayslipPDF(data);
+export async function getPayslipBlob(data: PayslipData): Promise<Blob> {
+  const doc = await generatePayslipPDF(data);
   return doc.output("blob");
 }
