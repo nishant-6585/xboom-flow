@@ -55,6 +55,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
   const formatType = (t: string | null) => t ? t.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : null;
 
   const [form, setForm] = useState({
+    employee_number: "",
     phone: "", personal_email: "", xboom_email: "", gender: "", date_of_birth: "",
     designation: "", department: "", employee_type: "", work_location: "",
     state: "", city: "", joining_date: "",
@@ -72,6 +73,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
 
   const resetForm = () => {
     setForm({
+      employee_number: employee.employee_number || "",
       phone: employee.phone || "",
       personal_email: employee.personal_email || "",
       xboom_email: employee.xboom_email || "",
@@ -121,10 +123,24 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
       }
     }
 
+    // Check employee_number uniqueness
+    if (form.employee_number && form.employee_number !== (employee.employee_number || "")) {
+      const { data: existingEmpNum } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("employee_number", form.employee_number)
+        .neq("id", employee.id)
+        .limit(1);
+      if (existingEmpNum && existingEmpNum.length > 0) {
+        toast.error("Employee ID already exists. Please use a unique ID."); return;
+      }
+    }
+
     setSaving(true);
     try {
       const canEditJoiningDate = !employee.joining_date;
       const fieldMap: Record<string, string> = {
+        employee_number: "Employee ID",
         phone: "Phone", personal_email: "Personal Email", xboom_email: "Xboom Email",
         gender: "Gender", date_of_birth: "Date of Birth", designation: "Role",
         department: "Department", employee_type: "Employee Type", work_location: "Mode",
@@ -152,6 +168,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
       }
 
       const updatePayload: Record<string, string | null> = {
+        employee_number: form.employee_number || null,
         phone: form.phone || null,
         personal_email: form.personal_email || null,
         xboom_email: form.xboom_email || null,
@@ -248,7 +265,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
           <div>
             <h4 className="text-sm font-semibold text-primary mb-3">Basic Information</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <ReadOnlyField label="Employee ID" value={employee.employee_number} />
+              {renderEditableField({ label: "Employee ID", fieldKey: "employee_number", placeholder: "e.g. 110" })}
               <ReadOnlyField label="Name" value={employee.name} />
               {renderEditableSelect({ label: "Gender", fieldKey: "gender", options: GENDER_OPTIONS })}
               {editing ? (
@@ -299,7 +316,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
             <>
               <Separator />
               <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
-                <strong>Protected fields:</strong> Employee ID is system-managed and cannot be edited.
+                <strong>Note:</strong> Employee ID must be unique. New employees auto-receive sequential IDs starting from 110.
               </div>
             </>
           )}
