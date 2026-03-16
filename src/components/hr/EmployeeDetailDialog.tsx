@@ -316,7 +316,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
             <>
               <Separator />
               <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
-                <strong>Protected fields:</strong> Employee ID is system-managed and cannot be edited.
+                <strong>Note:</strong> Employee ID must be unique. New employees auto-receive sequential IDs starting from 110.
               </div>
             </>
           )}
