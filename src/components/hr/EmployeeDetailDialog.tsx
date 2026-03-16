@@ -73,6 +73,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
 
   const resetForm = () => {
     setForm({
+      employee_number: employee.employee_number || "",
       phone: employee.phone || "",
       personal_email: employee.personal_email || "",
       xboom_email: employee.xboom_email || "",
