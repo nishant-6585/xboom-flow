@@ -146,7 +146,7 @@ export function generatePayslipPDF(data: PayslipData): jsPDF {
   // Section header
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryGreen as any);
+  doc.setTextColor(primaryGreen[0], primaryGreen[1], primaryGreen[2]);
   doc.text("Gross Pay (A)", rightColX, contentY);
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
