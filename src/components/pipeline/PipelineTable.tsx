@@ -63,6 +63,9 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
   const [salesTeam, setSalesTeam] = useState<SalesTeamMember[]>([]);
   const [editOrder, setEditOrder] = useState<PipelineOrder | null>(null);
   const [editClosureDate, setEditClosureDate] = useState<Date | undefined>(undefined);
+  const [closureDateStart, setClosureDateStart] = useState<Date | undefined>(undefined);
+  const [closureDateEnd, setClosureDateEnd] = useState<Date | undefined>(undefined);
+  const [closureSortDir, setClosureSortDir] = useState<'asc' | 'desc' | null>(null);
   const lastAutoOpenedId = useRef<string | null>(null);
 
   // Use external filter if provided, otherwise use internal
