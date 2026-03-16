@@ -76,6 +76,14 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
   const { updateCandidate, deleteDocument, uploadCV } = useCandidateMutations();
   const { getSignedUrl, loading: urlLoading } = useSignedCVUrl();
   const [interviewDialogOpen, setInterviewDialogOpen] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string } | null>(null);
+
+  const handleView = async (fileUrl: string, fileName: string) => {
+    const url = await getSignedUrl(fileUrl);
+    if (url) {
+      setPreviewDoc({ url, name: fileName });
+    }
+  };
 
   const handleLifecycleChange = (newStatus: LifecycleStatus) => {
     updateCandidate.mutate({ id: candidate.id, lifecycle_status: newStatus } as any);
