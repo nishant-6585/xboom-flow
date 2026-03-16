@@ -16,12 +16,12 @@ interface LeaveBalancePanelProps {
 
 const LEAVE_TYPE_DISPLAY: Record<string, string> = {
   EL: 'Earned Leave',
-  paid: 'Paid Leave',
+  paid: 'Earned Leave',
   sick: 'Sick Leave',
   unpaid: 'Unpaid Leave',
   wfh: 'Work from Home',
-  casual: 'Paid Leave (Casual)',
-  half_day_casual: 'Half Day Paid',
+  casual: 'Earned Leave (Casual)',
+  half_day_casual: 'Half Day Earned',
 };
 
 export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
