@@ -428,6 +428,13 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
         onClose={() => setInterviewDialogOpen(false)}
         candidateId={candidate.id}
       />
+
+      <DocumentViewer
+        open={!!previewDoc}
+        onOpenChange={(open) => { if (!open) setPreviewDoc(null); }}
+        url={previewDoc?.url ?? null}
+        name={previewDoc?.name ?? ""}
+      />
     </>
   );
 }
