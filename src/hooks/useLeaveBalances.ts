@@ -37,7 +37,7 @@ export interface LeaveBalanceSummary {
 
 const LEAVE_TYPE_LABELS: Record<string, string> = {
   EL: 'Earned Leave',
-  paid: 'Paid Leave',
+  paid: 'Earned Leave',
   sick: 'Sick Leave',
   unpaid: 'Unpaid Leave',
   wfh: 'Work from Home',
@@ -95,7 +95,7 @@ export function useLeaveBalances(employeeId?: string) {
     balanceData.forEach(b => leaveTypes.add(b.leave_type));
     yearTx.forEach(tx => leaveTypes.add(tx.leave_type));
 
-    const deprecated = new Set(['casual', 'half_day_casual']);
+    const deprecated = new Set(['casual', 'half_day_casual', 'paid', 'half_day_paid']);
     const summaries: LeaveBalanceSummary[] = [];
 
     leaveTypes.forEach(lt => {
@@ -117,7 +117,7 @@ export function useLeaveBalances(employeeId?: string) {
       });
     });
 
-    ['EL', 'paid', 'sick'].forEach(lt => {
+    ['EL', 'sick'].forEach(lt => {
       if (!summaries.find(s => s.leave_type === lt)) {
         summaries.push({
           leave_type: lt,

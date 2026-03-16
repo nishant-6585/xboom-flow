@@ -16,12 +16,12 @@ interface LeaveBalancePanelProps {
 
 const LEAVE_TYPE_DISPLAY: Record<string, string> = {
   EL: 'Earned Leave',
-  paid: 'Paid Leave',
+  paid: 'Earned Leave',
   sick: 'Sick Leave',
   unpaid: 'Unpaid Leave',
   wfh: 'Work from Home',
-  casual: 'Paid Leave (Casual)',
-  half_day_casual: 'Half Day Paid',
+  casual: 'Earned Leave (Casual)',
+  half_day_casual: 'Half Day Earned',
 };
 
 export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
@@ -125,7 +125,6 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
                     <TableRow>
                       <TableHead>Employee</TableHead>
                       <TableHead className="text-center">Earned Leave</TableHead>
-                      <TableHead className="text-center">Paid Leave</TableHead>
                       <TableHead className="text-center">Sick Leave</TableHead>
                       <TableHead className="text-center">Unpaid</TableHead>
                       <TableHead className="text-center">WFH</TableHead>
@@ -139,7 +138,6 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
                         <TableRow key={row.employee_id}>
                           <TableCell className="font-medium">{row.employee_name}</TableCell>
                           <TableCell className="text-center font-semibold text-primary">{getBalance('EL')}</TableCell>
-                          <TableCell className="text-center font-semibold text-primary">{getBalance('paid')}</TableCell>
                           <TableCell className="text-center font-semibold text-primary">{getBalance('sick')}</TableCell>
                           <TableCell className="text-center font-semibold text-primary">{getBalance('unpaid')}</TableCell>
                           <TableCell className="text-center font-semibold text-primary">{getBalance('wfh')}</TableCell>
@@ -167,7 +165,7 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
           employeeId={editRow.employee_id}
           balances={
             // Ensure all standard types appear
-            ['EL', 'paid', 'sick', 'unpaid', 'wfh'].map(lt => {
+            ['EL', 'sick', 'unpaid', 'wfh'].map(lt => {
               const existing = editRow.balances.find(b => b.leave_type === lt);
               return {
                 leave_type: lt,

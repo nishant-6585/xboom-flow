@@ -266,7 +266,7 @@ export async function calculateAttendanceData(
 
     if (lt === "wfh") wfh += countDays;
     else if (lt === "unpaid" || lt === "half_day_unpaid") unpaid += countDays;
-    else if (lt === "paid" || lt === "half_day_paid") el += countDays;
+    else if (lt === "paid" || lt === "half_day_paid" || lt === "el" || lt === "half_day_el") el += countDays;
     else if (lt === "sick" || lt === "half_day_sick") sl += countDays;
   }
 
