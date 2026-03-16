@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Calendar, User } from "lucide-react";
+import { Calendar, User, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import { LeaveRequest, LeaveStatus, LeaveType } from "@/hooks/useHR";
 
@@ -49,13 +49,19 @@ export function LeaveRequestCard({ leave, showEmployee, onView }: LeaveRequestCa
     >
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between">
-          <div>
+          <div className="flex flex-wrap gap-1.5">
             <Badge className={STATUS_COLORS[leave.status]}>
               {STATUS_LABELS[leave.status]}
             </Badge>
-            <Badge variant="outline" className="ml-2">
+            <Badge variant="outline">
               {LEAVE_TYPE_LABELS[leave.leave_type]}
             </Badge>
+            {leave.is_hr_applied && (
+              <Badge variant="outline" className="bg-accent text-accent-foreground border-primary/30 text-xs gap-1">
+                <UserPlus className="h-3 w-3" />
+                Applied by HR{leave.applied_by_name ? ` (${leave.applied_by_name})` : ''}
+              </Badge>
+            )}
           </div>
           <span className="text-sm font-medium">{leave.total_days} day(s)</span>
         </div>

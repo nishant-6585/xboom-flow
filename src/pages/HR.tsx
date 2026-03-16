@@ -12,12 +12,13 @@ import { TeamAttendancePanel } from "@/components/hr/TeamAttendancePanel";
 import { LeaveRequestCard } from "@/components/hr/LeaveRequestCard";
 import { LeaveApplyDialog } from "@/components/hr/LeaveApplyDialog";
 import { LeaveApprovalCard } from "@/components/hr/LeaveApprovalCard";
+import { HRLeaveApplyDialog } from "@/components/hr/HRLeaveApplyDialog";
 
 import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
 import { HRDocumentsPanel } from "@/components/hr/HRDocumentsPanel";
 import { KPIManagementPanel } from "@/components/kpi/KPIManagementPanel";
 import { ProvisionalCheckoutBanner } from "@/components/attendance/ProvisionalCheckoutBanner";
-import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History, Building2, CreditCard, LogOut, ClipboardCheck, ClipboardX } from "lucide-react";
+import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History, Building2, CreditCard, LogOut, ClipboardCheck, ClipboardX, UserPlus } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CandidatesPanel } from "@/components/candidates/CandidatesPanel";
 import { EmployeesPanel } from "@/components/hr/EmployeesPanel";
@@ -40,11 +41,12 @@ export default function HR() {
   const {
     employees, myEmployee, todayAttendance, weeklyHours, attendanceLogs,
     leaveRequests, pendingLeaves, loading, checkIn, checkOut, startBreak,
-    endBreak, applyLeave, approveLeave, fetchAttendanceLogs,
+    endBreak, applyLeave, applyLeaveForEmployee, approveLeave, fetchAttendanceLogs,
   } = useHR();
 
   const [activeTab, setActiveTab] = useState("home");
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [hrLeaveDialogOpen, setHRLeaveDialogOpen] = useState(false);
   const [leaveFilter, setLeaveFilter] = useState('all');
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [yesterdayLog, setYesterdayLog] = useState<AttendanceLog | null>(null);
@@ -176,7 +178,14 @@ export default function HR() {
 
           <TabsContent value="leave" className="space-y-4">
             <LeaveBalancePanel employeeId={myEmployee?.id} />
-            <Button className="w-full" onClick={() => setLeaveDialogOpen(true)}><Plus className="mr-2 h-4 w-4" /> Apply for Leave</Button>
+            <div className="flex gap-2">
+              <Button className="flex-1" onClick={() => setLeaveDialogOpen(true)}><Plus className="mr-2 h-4 w-4" /> Apply for Leave</Button>
+              {isHROrAdmin && (
+                <Button variant="outline" className="flex-1" onClick={() => setHRLeaveDialogOpen(true)}>
+                  <UserPlus className="mr-2 h-4 w-4" /> Apply Leave for Employee
+                </Button>
+              )}
+            </div>
             <div className="space-y-3">
               <h3 className="font-semibold">My Leave Requests</h3>
               {myLeaves.length > 0 && (
@@ -229,6 +238,14 @@ export default function HR() {
       </main>
 
       <LeaveApplyDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen} onSubmit={applyLeave} />
+      {isHROrAdmin && (
+        <HRLeaveApplyDialog
+          open={hrLeaveDialogOpen}
+          onOpenChange={setHRLeaveDialogOpen}
+          employees={employees}
+          onSubmit={applyLeaveForEmployee}
+        />
+      )}
       {isMobile && <MobileBottomNav />}
     </div>
   );

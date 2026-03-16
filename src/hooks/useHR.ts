@@ -70,6 +70,9 @@ export interface LeaveRequest {
   approver_name: string | null;
   approved_rejected_at: string | null;
   comments: string | null;
+  applied_by_id: string | null;
+  applied_by_name: string | null;
+  is_hr_applied: boolean;
   created_at: string;
   updated_at: string;
   // Joined
@@ -583,6 +586,85 @@ export function useHR() {
     }
   };
 
+  const applyLeaveForEmployee = async (data: {
+    employee_id: string;
+    leave_type: LeaveType;
+    start_date: string;
+    end_date: string;
+    reason?: string;
+  }): Promise<boolean> => {
+    if (!user || !profile) {
+      toast.error('You must be logged in');
+      return false;
+    }
+
+    try {
+      // Check for overlapping leave
+      const { data: existingLeaves } = await supabase
+        .from('leave_requests')
+        .select('id, start_date, end_date')
+        .eq('employee_id', data.employee_id)
+        .in('status', ['submitted', 'approved'])
+        .lte('start_date', data.end_date)
+        .gte('end_date', data.start_date);
+
+      if (existingLeaves && existingLeaves.length > 0) {
+        toast.error('Leave dates overlap with an existing leave request');
+        return false;
+      }
+
+      // Insert leave request as auto-approved
+      const { error } = await supabase
+        .from('leave_requests')
+        .insert({
+          employee_id: data.employee_id,
+          leave_type: data.leave_type,
+          start_date: data.start_date,
+          end_date: data.end_date,
+          reason: data.reason,
+          status: 'approved',
+          approver_id: user.id,
+          approver_name: profile.name,
+          approved_rejected_at: new Date().toISOString(),
+          applied_by_id: user.id,
+          applied_by_name: profile.name,
+          is_hr_applied: true,
+          comments: `Leave applied by HR (${profile.name}) on behalf of employee`,
+        } as any);
+
+      if (error) throw error;
+
+      // Update attendance logs for each leave day
+      const start = new Date(data.start_date);
+      const end = new Date(data.end_date);
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split('T')[0];
+        const dayOfWeek = d.getDay();
+        // Skip weekends
+        if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+
+        // Upsert attendance log to mark as on_leave
+        await supabase
+          .from('attendance_logs')
+          .upsert({
+            employee_id: data.employee_id,
+            date: dateStr,
+            status: 'on_leave',
+            notes: `${data.leave_type} - Applied by HR (${profile.name})`,
+            source: 'hr_leave_apply',
+          } as any, { onConflict: 'employee_id,date' });
+      }
+
+      toast.success('Leave applied and approved successfully');
+      fetchLeaveRequests();
+      return true;
+    } catch (error: any) {
+      console.error('Error applying leave for employee:', error);
+      toast.error(error.message || 'Failed to apply leave');
+      return false;
+    }
+  };
+
   const getEmployeeKPI = useCallback(
     async (employeeId: string, month?: Date): Promise<EmployeeKPI | null> => {
       try {
@@ -634,6 +716,7 @@ export function useHR() {
     startBreak,
     endBreak,
     applyLeave,
+    applyLeaveForEmployee,
     approveLeave,
     getEmployeeKPI,
     createEmployee,
