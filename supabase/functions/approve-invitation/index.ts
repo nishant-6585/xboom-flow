@@ -27,13 +27,15 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user: requestingUser }, error: authError } = await anonClient.auth.getUser();
-    if (authError || !requestingUser) {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: authError } = await anonClient.auth.getClaims(token);
+    if (authError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const requestingUserId = claimsData.claims.sub;
 
     // Check if requesting user is admin
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
