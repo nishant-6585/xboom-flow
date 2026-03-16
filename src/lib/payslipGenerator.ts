@@ -15,6 +15,9 @@ export interface PayslipData {
   dateOfBirth?: string;
   joiningDate?: string;
   pan?: string;
+  payableDays?: number;
+  leaveBalance?: number;
+  regimeOpted?: string;
 }
 
 function fmtCurrency(val: number): string {
@@ -25,8 +28,78 @@ function fmtCurrencyWithSymbol(val: number): string {
   return `₹${fmtCurrency(val)}`;
 }
 
+function fmtDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function drawWatermark(doc: jsPDF) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  // Draw large faded X shapes as watermark
+  doc.setGState(new (doc as any).GState({ opacity: 0.04 }));
+  doc.setTextColor(180, 180, 180);
+  doc.setFontSize(120);
+  doc.setFont("helvetica", "bold");
+
+  // Multiple X watermarks scattered
+  const positions = [
+    { x: 30, y: 80 },
+    { x: pageWidth - 60, y: 60 },
+    { x: pageWidth / 2 - 20, y: pageHeight / 2 },
+    { x: 20, y: pageHeight - 80 },
+    { x: pageWidth - 50, y: pageHeight - 60 },
+    { x: pageWidth / 2 + 30, y: pageHeight - 30 },
+  ];
+
+  for (const pos of positions) {
+    doc.text("X", pos.x, pos.y);
+  }
+
+  // Colored accent lines (like the original's gradient stripes)
+  doc.setGState(new (doc as any).GState({ opacity: 0.08 }));
+  // Top-right orange/red diagonal
+  doc.setFillColor(243, 156, 18);
+  doc.triangle(pageWidth - 40, 0, pageWidth, 0, pageWidth, 40, "F");
+  doc.setFillColor(231, 76, 60);
+  doc.triangle(pageWidth - 25, 0, pageWidth, 0, pageWidth, 25, "F");
+
+  // Bottom-left green accent
+  doc.setFillColor(39, 174, 96);
+  doc.triangle(0, pageHeight - 30, 30, pageHeight, 0, pageHeight, "F");
+
+  // Reset opacity
+  doc.setGState(new (doc as any).GState({ opacity: 1 }));
+}
+
+function drawLogo(doc: jsPDF) {
+  // Draw a stylized XBoom text logo since we can't easily embed the image
+  // Company name with styling
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+
+  // Draw "X" in orange/red
+  doc.setTextColor(231, 76, 60);
+  doc.text("X", 14, 22);
+  const xWidth = doc.getTextWidth("X");
+
+  // Draw "Boom" in dark
+  doc.setTextColor(33, 33, 33);
+  doc.text("Boom", 14 + xWidth, 22);
+
+  // Subtitle
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(120, 120, 120);
+  doc.text("Gadgets Reloaded!", 14, 27);
+}
+
 export function generatePayslipPDF(data: PayslipData): jsPDF {
-  const { entry, month, year, department, designation, employeeNumber, dateOfBirth, joiningDate } = data;
+  const { entry, month, year, department, designation, employeeNumber, dateOfBirth, joiningDate, pan, payableDays, leaveBalance, regimeOpted } = data;
 
   const totalEarnings = calculateEarnings(entry);
   const totalDeductions = calculateTotalDeductions(entry);
@@ -41,28 +114,35 @@ export function generatePayslipPDF(data: PayslipData): jsPDF {
   const darkText: [number, number, number] = [33, 33, 33];
   const mutedText: [number, number, number] = [120, 120, 120];
 
-  // ─── HEADER SECTION ───
-  // Company name
-  doc.setFontSize(20);
+  // ─── WATERMARK ───
+  drawWatermark(doc);
+
+  // ─── HEADER ───
+  drawLogo(doc);
+
+  // Company name "Xboom Utilities" next to logo area
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...darkText);
-  doc.text("XBoom Utilities", 14, 20);
+  doc.text("Xboom Utilities", 50, 22);
 
   // Payslip month/year badge (top right)
   const payslipLabel = `Payslip: ${MONTH_SHORT[month]} ${year}`;
   doc.setFillColor(245, 245, 245);
-  doc.roundedRect(pageWidth - 70, 10, 56, 14, 2, 2, "F");
+  doc.roundedRect(pageWidth - 70, 10, 56, 16, 2, 2, "F");
+  doc.setDrawColor(220, 220, 220);
+  doc.roundedRect(pageWidth - 70, 10, 56, 16, 2, 2, "S");
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...darkText);
-  doc.text(payslipLabel, pageWidth - 42, 19, { align: "center" });
+  doc.text(payslipLabel, pageWidth - 42, 20, { align: "center" });
 
   // ─── NET PAY SUMMARY BAR ───
-  const barY = 30;
+  const barY = 34;
   doc.setFillColor(250, 250, 250);
-  doc.roundedRect(14, barY, pageWidth - 28, 20, 3, 3, "F");
+  doc.roundedRect(14, barY, pageWidth - 28, 22, 3, 3, "F");
   doc.setDrawColor(220, 220, 220);
-  doc.roundedRect(14, barY, pageWidth - 28, 20, 3, 3, "S");
+  doc.roundedRect(14, barY, pageWidth - 28, 22, 3, 3, "S");
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
@@ -71,41 +151,41 @@ export function generatePayslipPDF(data: PayslipData): jsPDF {
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...darkText);
-  doc.text(fmtCurrencyWithSymbol(netPay), 20, barY + 16);
+  doc.text(fmtCurrency(netPay), 20, barY + 17);
 
   // = sign
-  doc.setFontSize(14);
+  doc.setFontSize(16);
   doc.setTextColor(...mutedText);
-  doc.text("=", 75, barY + 13);
+  doc.text("=", 68, barY + 14);
 
-  // Gross Pay (A)
+  // Gross Pay (A) - green bar
   doc.setFillColor(...primaryGreen);
-  doc.rect(85, barY + 4, 2, 12, "F");
+  doc.rect(80, barY + 5, 2, 12, "F");
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...mutedText);
-  doc.text("Gross Pay (A)", 90, barY + 8);
-  doc.setFontSize(11);
+  doc.text("Gross Pay (A)", 85, barY + 9);
+  doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...darkText);
-  doc.text(`+ ${fmtCurrencyWithSymbol(totalEarnings)}`, 90, barY + 16);
+  doc.text(`+ ${fmtCurrency(totalEarnings)}`, 85, barY + 17);
 
-  // Deductions (B)
+  // Deductions (B) - red bar
   doc.setFillColor(192, 57, 43);
-  doc.rect(140, barY + 4, 2, 12, "F");
+  doc.rect(135, barY + 5, 2, 12, "F");
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...mutedText);
-  doc.text("Deductions (B)", 145, barY + 8);
-  doc.setFontSize(11);
+  doc.text("Deductions (B)", 140, barY + 9);
+  doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...darkText);
-  doc.text(`- ${fmtCurrencyWithSymbol(totalDeductions)}`, 145, barY + 16);
+  doc.text(`- ${fmtCurrency(totalDeductions)}`, 140, barY + 17);
 
-  // ─── MAIN CONTENT AREA ───
-  const contentY = 58;
-  const leftColWidth = 60;
-  const rightColX = leftColWidth + 18;
+  // ─── MAIN CONTENT ───
+  const contentY = 66;
+  const leftColWidth = 58;
+  const rightColX = leftColWidth + 20;
 
   // ─── LEFT SIDEBAR: Employee Details ───
   const detailItems: [string, string][] = [
@@ -114,16 +194,24 @@ export function generatePayslipPDF(data: PayslipData): jsPDF {
     ["Designation", designation || "—"],
     ["Department", department || "—"],
   ];
+
   if (dateOfBirth) {
-    detailItems.push(["Date of birth", new Date(dateOfBirth).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" })]);
+    detailItems.push(["Date of birth", fmtDate(dateOfBirth)]);
   }
+
+  if (pan) {
+    detailItems.push(["PAN", pan]);
+  }
+
   detailItems.push(["Account no.", entry.bank_account || "—"]);
   detailItems.push(["IFSC code", entry.ifsc_code || "—"]);
+
   if (joiningDate) {
-    detailItems.push(["Date of joining", new Date(joiningDate).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" })]);
+    detailItems.push(["Date of joining", fmtDate(joiningDate)]);
   }
-  if ((entry as any).last_working_date) {
-    detailItems.push(["Last Working Date", new Date((entry as any).last_working_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })]);
+
+  if (entry.last_working_date) {
+    detailItems.push(["Last Working Date", fmtDate(entry.last_working_date)]);
   }
 
   let leftY = contentY;
@@ -136,28 +224,50 @@ export function generatePayslipPDF(data: PayslipData): jsPDF {
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...darkText);
-    // Word wrap for long values
     const lines = doc.splitTextToSize(String(value), leftColWidth - 4);
     doc.text(lines, 14, leftY);
     leftY += lines.length * 4.5 + 4;
   }
 
+  // Extra fields: Payable Days, Leave Balance, Regime Opted
+  leftY += 2;
+  const extraItems: [string, string][] = [];
+  if (payableDays !== undefined) extraItems.push(["Payable Days", String(payableDays)]);
+  if (leaveBalance !== undefined) extraItems.push(["Leave Balance", String(leaveBalance)]);
+  if (regimeOpted) extraItems.push(["Regime Opted", regimeOpted]);
+
+  for (const [label, value] of extraItems) {
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...mutedText);
+    doc.text(label, 14, leftY);
+    leftY += 4;
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...darkText);
+    doc.text(value, 14, leftY);
+    leftY += 8;
+  }
+
   // ─── RIGHT SECTION: GROSS PAY (A) ───
-  // Section header
+  // Orange diamond bullet
+  doc.setFillColor(39, 174, 96);
+  doc.circle(rightColX - 2, contentY - 1.5, 1.5, "F");
+
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(primaryGreen[0], primaryGreen[1], primaryGreen[2]);
-  doc.text("Gross Pay (A)", rightColX, contentY);
+  doc.setTextColor(...primaryGreen);
+  doc.text("Gross Pay (A)", rightColX + 2, contentY);
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...mutedText);
-  doc.text("The total money you earned before the deductions", rightColX + 32, contentY);
+  doc.text("The total money you earned before the deductions", rightColX + 34, contentY);
 
   // Earnings table
   const earningsBody: any[][] = [];
-  if (entry.salary > 0) earningsBody.push(["Basic Salary", fmtCurrency(entry.salary), fmtCurrency(entry.salary)]);
+  if (entry.salary > 0) earningsBody.push(["Basic", fmtCurrency(entry.salary), fmtCurrency(entry.salary)]);
   if (entry.reimbursements > 0) earningsBody.push(["Reimbursements", fmtCurrency(entry.reimbursements), fmtCurrency(entry.reimbursements)]);
-  if (earningsBody.length === 0) earningsBody.push(["Basic Salary", fmtCurrency(entry.salary), fmtCurrency(entry.salary)]);
+  if (earningsBody.length === 0) earningsBody.push(["Basic", fmtCurrency(entry.salary), fmtCurrency(entry.salary)]);
 
   autoTable(doc, {
     startY: contentY + 4,
@@ -182,14 +292,19 @@ export function generatePayslipPDF(data: PayslipData): jsPDF {
 
   // ─── DEDUCTIONS (B) ───
   const deductionsStartY = earningsEndY + 10;
+
+  // Orange diamond bullet
+  doc.setFillColor(243, 156, 18);
+  doc.circle(rightColX - 2, deductionsStartY - 1.5, 1.5, "F");
+
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(primaryOrange[0], primaryOrange[1], primaryOrange[2]);
-  doc.text("Deductions (B)", rightColX, deductionsStartY);
+  doc.setTextColor(...primaryOrange);
+  doc.text("Deductions (B)", rightColX + 2, deductionsStartY);
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...mutedText);
-  doc.text("The amount deducted for taxes and other benefits", rightColX + 34, deductionsStartY);
+  doc.text("The amount deducted for taxes and other benefits", rightColX + 36, deductionsStartY);
 
   const deductionsBody: any[][] = [];
   if (entry.deductions > 0) deductionsBody.push(["Unpaid Leave Deduction", fmtCurrency(entry.deductions), fmtCurrency(entry.deductions)]);
@@ -219,37 +334,25 @@ export function generatePayslipPDF(data: PayslipData): jsPDF {
 
   const deductionsEndY = (doc as any).lastAutoTable?.finalY || deductionsStartY + 50;
 
-  // ─── ATTENDANCE SUMMARY (bottom left, below employee details) ───
-  // Add attendance info below employee details on the left
-  const attendanceY = Math.max(leftY + 4, deductionsEndY - 30);
-  const attendanceItems: [string, string][] = [
-    ["WFH Days", String(entry.wfh_days)],
-    ["Earned Leave", String(entry.el_leaves)],
-    ["Sick Leave", String(entry.sl_leaves)],
-    ["Unpaid Leaves", String(entry.unpaid_leaves)],
-  ];
-
-  for (const [label, value] of attendanceItems) {
-    doc.setFontSize(7.5);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...mutedText);
-    doc.text(label, 14, attendanceY);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...darkText);
-    doc.text(value, 14, attendanceY + 4);
-  }
-
   // ─── NET PAY HIGHLIGHT BOX ───
-  const netPayY = deductionsEndY + 12;
-  doc.setDrawColor(primaryGreen[0], primaryGreen[1], primaryGreen[2]);
+  const netPayY = deductionsEndY + 14;
+  const netPayBoxWidth = pageWidth - rightColX - 14;
+  doc.setDrawColor(...primaryGreen);
+  doc.setLineWidth(0.5);
   doc.setFillColor(235, 250, 240);
-  doc.roundedRect(rightColX, netPayY, pageWidth - rightColX - 14, 16, 3, 3, "FD");
-  doc.setFontSize(12);
+  doc.roundedRect(rightColX, netPayY, netPayBoxWidth, 18, 3, 3, "FD");
+
+  doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(primaryGreen[0], primaryGreen[1], primaryGreen[2]);
-  doc.text("Net Pay", rightColX + 8, netPayY + 10);
-  doc.text(fmtCurrencyWithSymbol(netPay), pageWidth - 18, netPayY + 10, { align: "right" });
+  doc.setTextColor(...primaryGreen);
+  doc.text("Net Pay", rightColX + 8, netPayY + 11);
+
+  // Right-align net pay amount with padding to stay inside box
+  const netPayText = fmtCurrency(netPay);
+  doc.setFontSize(13);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...darkText);
+  doc.text(netPayText, rightColX + netPayBoxWidth - 8, netPayY + 11, { align: "right" });
 
   // ─── FOOTER ───
   doc.setFontSize(7);

@@ -39,6 +39,10 @@ const sampleData: PayslipData = {
   employeeNumber: "109",
   dateOfBirth: "1983-04-25",
   joiningDate: "2026-02-01",
+  pan: "BKCPK4917M",
+  payableDays: 28,
+  leaveBalance: 9.75,
+  regimeOpted: "New Regime",
 };
 
 export default function SamplePayslip() {
