@@ -250,15 +250,15 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <ReadOnlyField label="Employee ID" value={employee.employee_number} />
               <ReadOnlyField label="Name" value={employee.name} />
-              <EditableSelect label="Gender" fieldKey="gender" options={GENDER_OPTIONS} />
+              {renderEditableSelect({ label: "Gender", fieldKey: "gender", options: GENDER_OPTIONS })}
               {editing ? (
-                <EditableField label="Date of Birth" fieldKey="date_of_birth" type="date" />
+                renderEditableField({ label: "Date of Birth", fieldKey: "date_of_birth", type: "date" })
               ) : (
                 <ReadOnlyField label="Date of Birth" value={formatDate(employee.date_of_birth)} />
               )}
-              <EditableField label="Phone" fieldKey="phone" placeholder="+91 9876543210" />
-              <EditableField label="Personal Email" fieldKey="personal_email" type="email" placeholder="user@gmail.com" />
-              <EditableField label="Xboom Email" fieldKey="xboom_email" type="email" placeholder="user@xboom.in" />
+              {renderEditableField({ label: "Phone", fieldKey: "phone", placeholder: "+91 9876543210" })}
+              {renderEditableField({ label: "Personal Email", fieldKey: "personal_email", type: "email", placeholder: "user@gmail.com" })}
+              {renderEditableField({ label: "Xboom Email", fieldKey: "xboom_email", type: "email", placeholder: "user@xboom.in" })}
             </div>
           </div>
 
@@ -268,17 +268,17 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
           <div>
             <h4 className="text-sm font-semibold text-primary mb-3">Employment Details</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {editing ? (
-                <EditableField label="Joining Date" fieldKey="joining_date" type="date" />
+              {editing && !employee.joining_date ? (
+                renderEditableField({ label: "Joining Date", fieldKey: "joining_date", type: "date" })
               ) : (
-                <ReadOnlyField label="Joining Date" value={formatDate(employee.joining_date)} />
+                <ReadOnlyField label="Joining Date" value={formatDate(employee.joining_date || form.joining_date)} />
               )}
-              <EditableSelect label="Role" fieldKey="designation" options={orgRoles.map(r => ({ value: r.label || r.name, label: r.label || r.name }))} />
-              <EditableSelect label="Department" fieldKey="department" options={orgDepartments.map(d => ({ value: d.name, label: d.name }))} />
-              <EditableSelect label="Employee Type" fieldKey="employee_type" options={TYPE_OPTIONS} />
-              <EditableSelect label="Mode" fieldKey="work_location" options={MODE_OPTIONS} />
-              <EditableField label="State" fieldKey="state" />
-              <EditableField label="City" fieldKey="city" />
+              {renderEditableSelect({ label: "Role", fieldKey: "designation", options: orgRoles.map(r => ({ value: r.label || r.name, label: r.label || r.name })) })}
+              {renderEditableSelect({ label: "Department", fieldKey: "department", options: orgDepartments.map(d => ({ value: d.name, label: d.name })) })}
+              {renderEditableSelect({ label: "Employee Type", fieldKey: "employee_type", options: TYPE_OPTIONS })}
+              {renderEditableSelect({ label: "Mode", fieldKey: "work_location", options: MODE_OPTIONS })}
+              {renderEditableField({ label: "State", fieldKey: "state" })}
+              {renderEditableField({ label: "City", fieldKey: "city" })}
               <ReadOnlyField label="Status" value={formatType(employee.employment_status)} />
             </div>
           </div>
@@ -289,9 +289,9 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
           <div>
             <h4 className="text-sm font-semibold text-primary mb-3">Emergency Contact</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <EditableField label="Relative Name" fieldKey="emergency_contact_name" />
-              <EditableSelect label="Relation" fieldKey="emergency_contact_relation" options={RELATION_OPTIONS} />
-              <EditableField label="Contact Details" fieldKey="emergency_contact_phone" placeholder="+91 9876543210" />
+              {renderEditableField({ label: "Relative Name", fieldKey: "emergency_contact_name" })}
+              {renderEditableSelect({ label: "Relation", fieldKey: "emergency_contact_relation", options: RELATION_OPTIONS })}
+              {renderEditableField({ label: "Contact Details", fieldKey: "emergency_contact_phone", placeholder: "+91 9876543210" })}
             </div>
           </div>
 
