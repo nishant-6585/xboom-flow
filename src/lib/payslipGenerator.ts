@@ -242,7 +242,7 @@ export function generatePayslipPDF(data: PayslipData): jsPDF {
 
   // ─── NET PAY HIGHLIGHT BOX ───
   const netPayY = deductionsEndY + 12;
-  doc.setDrawColor(...primaryGreen as any);
+  doc.setDrawColor(primaryGreen[0], primaryGreen[1], primaryGreen[2]);
   doc.setFillColor(235, 250, 240);
   doc.roundedRect(rightColX, netPayY, pageWidth - rightColX - 14, 16, 3, 3, "FD");
   doc.setFontSize(12);
