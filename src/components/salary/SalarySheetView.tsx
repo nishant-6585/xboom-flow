@@ -132,7 +132,7 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
     try {
       const empData = await fetchEmployeePayslipData(entry.employee_id);
       const payslipData: PayslipData = { entry, month: sheet.month, year: sheet.year, ...empData };
-      const blob = getPayslipBlob(payslipData);
+      const blob = await getPayslipBlob(payslipData);
       const storagePath = `${entry.employee_id}/payslip_${sheet.month}_${sheet.year}.pdf`;
       const { error: uploadError } = await supabase.storage.from("payslips").upload(storagePath, blob, { upsert: true, contentType: "application/pdf" });
       if (uploadError) { toast.error(`Failed to upload payslip for ${entry.employee_name}`); return; }
