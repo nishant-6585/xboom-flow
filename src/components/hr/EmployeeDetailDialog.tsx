@@ -168,6 +168,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
       }
 
       const updatePayload: Record<string, string | null> = {
+        employee_number: form.employee_number || null,
         phone: form.phone || null,
         personal_email: form.personal_email || null,
         xboom_email: form.xboom_email || null,
