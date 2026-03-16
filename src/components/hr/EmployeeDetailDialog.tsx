@@ -123,6 +123,19 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
       }
     }
 
+    // Check employee_number uniqueness
+    if (form.employee_number && form.employee_number !== (employee.employee_number || "")) {
+      const { data: existingEmpNum } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("employee_number", form.employee_number)
+        .neq("id", employee.id)
+        .limit(1);
+      if (existingEmpNum && existingEmpNum.length > 0) {
+        toast.error("Employee ID already exists. Please use a unique ID."); return;
+      }
+    }
+
     setSaving(true);
     try {
       const canEditJoiningDate = !employee.joining_date;
