@@ -76,29 +76,48 @@ function drawWatermark(doc: jsPDF) {
   doc.setGState(new (doc as any).GState({ opacity: 1 }));
 }
 
-function drawLogo(doc: jsPDF) {
-  // Draw a stylized XBoom text logo since we can't easily embed the image
-  // Company name with styling
-  doc.setFontSize(22);
-  doc.setFont("helvetica", "bold");
+import xboomLogoUrl from "@/assets/xboom-logo-payslip.png";
 
-  // Draw "X" in orange/red
-  doc.setTextColor(231, 76, 60);
-  doc.text("X", 14, 22);
-  const xWidth = doc.getTextWidth("X");
-
-  // Draw "Boom" in dark
-  doc.setTextColor(33, 33, 33);
-  doc.text("Boom", 14 + xWidth, 22);
-
-  // Subtitle
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "italic");
-  doc.setTextColor(120, 120, 120);
-  doc.text("Gadgets Reloaded!", 14, 27);
+async function loadImageAsBase64(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { reject(new Error("No canvas context")); return; }
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
 }
 
-export function generatePayslipPDF(data: PayslipData): jsPDF {
+async function drawLogo(doc: jsPDF) {
+  try {
+    const logoBase64 = await loadImageAsBase64(xboomLogoUrl);
+    // Logo aspect ratio ~3.5:1, render at ~40x12mm
+    doc.addImage(logoBase64, "PNG", 14, 12, 40, 12);
+  } catch {
+    // Fallback text logo if image fails
+    doc.setFontSize(22);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(231, 76, 60);
+    doc.text("X", 14, 22);
+    const xWidth = doc.getTextWidth("X");
+    doc.setTextColor(33, 33, 33);
+    doc.text("Boom", 14 + xWidth, 22);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(120, 120, 120);
+    doc.text("Gadgets Reloaded!", 14, 27);
+  }
+}
+
+export async function generatePayslipPDF(data: PayslipData): Promise<jsPDF> {
   const { entry, month, year, department, designation, employeeNumber, dateOfBirth, joiningDate, pan, payableDays, leaveBalance, regimeOpted } = data;
 
   const totalEarnings = calculateEarnings(entry);
@@ -118,7 +137,7 @@ export function generatePayslipPDF(data: PayslipData): jsPDF {
   drawWatermark(doc);
 
   // ─── HEADER ───
-  drawLogo(doc);
+  await drawLogo(doc);
 
   // Company name "Xboom Utilities" next to logo area
   doc.setFontSize(14);
@@ -279,9 +298,9 @@ export function generatePayslipPDF(data: PayslipData): jsPDF {
     bodyStyles: { fontSize: 8.5, textColor: darkText as any, cellPadding: 3 },
     footStyles: { fillColor: [235, 250, 240], textColor: darkText as any, fontSize: 9, fontStyle: "bold", cellPadding: 3 },
     columnStyles: {
-      0: { cellWidth: 50 },
-      1: { halign: "right", cellWidth: 30 },
-      2: { halign: "right", cellWidth: 32 },
+      0: { cellWidth: "auto" },
+      1: { halign: "right", cellWidth: 40 },
+      2: { halign: "right", cellWidth: 40 },
     },
     margin: { left: rightColX, right: 14 },
     tableLineColor: [230, 230, 230],
@@ -323,9 +342,9 @@ export function generatePayslipPDF(data: PayslipData): jsPDF {
     bodyStyles: { fontSize: 8.5, textColor: darkText as any, cellPadding: 3 },
     footStyles: { fillColor: [255, 245, 235], textColor: darkText as any, fontSize: 9, fontStyle: "bold", cellPadding: 3 },
     columnStyles: {
-      0: { cellWidth: 50 },
-      1: { halign: "right", cellWidth: 30 },
-      2: { halign: "right", cellWidth: 32 },
+      0: { cellWidth: "auto" },
+      1: { halign: "right", cellWidth: 40 },
+      2: { halign: "right", cellWidth: 40 },
     },
     margin: { left: rightColX, right: 14 },
     tableLineColor: [230, 230, 230],
@@ -370,12 +389,12 @@ export function getPayslipFileName(data: PayslipData): string {
   return `${empName}-${empId}-${monthName}-Payslip.pdf`;
 }
 
-export function downloadPayslipPDF(data: PayslipData): void {
-  const doc = generatePayslipPDF(data);
+export async function downloadPayslipPDF(data: PayslipData): Promise<void> {
+  const doc = await generatePayslipPDF(data);
   doc.save(getPayslipFileName(data));
 }
 
-export function getPayslipBlob(data: PayslipData): Blob {
-  const doc = generatePayslipPDF(data);
+export async function getPayslipBlob(data: PayslipData): Promise<Blob> {
+  const doc = await generatePayslipPDF(data);
   return doc.output("blob");
 }
