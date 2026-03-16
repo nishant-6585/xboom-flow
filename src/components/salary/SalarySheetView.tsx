@@ -166,7 +166,7 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
 
   const handleDownloadPayslip = async (entry: SalarySheetEntry) => {
     const empData = await fetchEmployeePayslipData(entry.employee_id);
-    downloadPayslipPDF({ entry, month: sheet.month, year: sheet.year, ...empData });
+    await downloadPayslipPDF({ entry, month: sheet.month, year: sheet.year, ...empData });
     if (user) recordAuditLog(user.id, profile?.name || "", { action: "PAYSLIP_DOWNLOADED", details: { employee_id: entry.employee_id, month: sheet.month, year: sheet.year } });
   };
 

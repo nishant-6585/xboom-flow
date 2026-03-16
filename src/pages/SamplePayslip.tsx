@@ -46,8 +46,8 @@ const sampleData: PayslipData = {
 };
 
 export default function SamplePayslip() {
-  const handleDownload = () => {
-    downloadPayslipPDF(sampleData);
+  const handleDownload = async () => {
+    await downloadPayslipPDF(sampleData);
   };
 
   return (
