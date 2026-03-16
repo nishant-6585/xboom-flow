@@ -35,3 +35,24 @@ verify_jwt = false
 
 [functions.credit-monthly-el]
 verify_jwt = false
+
+[functions.approve-invitation]
+verify_jwt = false
+
+[functions.send-order-notification]
+verify_jwt = false
+
+[functions.send-ticket-email]
+verify_jwt = false
+
+[functions.attendance-nudge]
+verify_jwt = false
+
+[functions.demand-forecast]
+verify_jwt = false
+
+[functions.payment-risk-scoring]
+verify_jwt = false
+
+[functions.upload-form-attachment]
+verify_jwt = false
