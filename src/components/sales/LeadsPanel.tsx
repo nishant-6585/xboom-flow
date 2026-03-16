@@ -13,10 +13,11 @@ import {
   Upload, FileSpreadsheet, Download, Search, Plus, Users, 
   Package, Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil 
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { LeadFormDialog } from './LeadFormDialog';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
 
 const LEAD_SOURCES = [
   'Website',
