@@ -45,7 +45,7 @@ import {
 } from "@/hooks/useCandidates";
 import { CandidateStatusBadge, LifecycleStatusBadge } from "./CandidateStatusBadge";
 import { InterviewRecordDialog } from "./InterviewRecordDialog";
-
+import { DocumentViewer } from "@/components/hr/DocumentViewer";
 import { toast } from "sonner";
 
 const decisionConfig = {
