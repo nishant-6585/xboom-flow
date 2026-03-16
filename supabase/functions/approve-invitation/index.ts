@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
     const { data: adminProfile } = await adminClient
       .from("profiles")
       .select("name")
-      .eq("user_id", requestingUser.id)
+      .eq("user_id", requestingUserId)
       .single();
     const adminName = adminProfile?.name || "Admin";
 
