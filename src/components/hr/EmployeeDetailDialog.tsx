@@ -83,6 +83,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
       work_location: employee.work_location || "",
       state: employee.state || "",
       city: employee.city || "",
+      joining_date: employee.joining_date || "",
       emergency_contact_name: employee.emergency_contact_name || "",
       emergency_contact_relation: employee.emergency_contact_relation || "",
       emergency_contact_phone: employee.emergency_contact_phone || "",
