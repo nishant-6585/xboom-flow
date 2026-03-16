@@ -398,14 +398,14 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredOrders.length === 0 ? (
+              {sortedOrders.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     No pipeline orders found
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredOrders.map(order => (
+                sortedOrders.map(order => (
                   <TableRow key={order.id}>
                     <TableCell>
                       <LeadTemperatureBadge 
