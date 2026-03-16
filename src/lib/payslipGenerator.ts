@@ -139,11 +139,11 @@ export async function generatePayslipPDF(data: PayslipData): Promise<jsPDF> {
   // ─── HEADER ───
   await drawLogo(doc);
 
-  // Company name "Xboom Utilities" next to logo area
+  // Company name "Xboom Utilities" positioned after logo
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...darkText);
-  doc.text("Xboom Utilities", 50, 22);
+  doc.text("Xboom Utilities", 56, 20);
 
   // Payslip month/year badge (top right)
   const payslipLabel = `Payslip: ${MONTH_SHORT[month]} ${year}`;
