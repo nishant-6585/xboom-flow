@@ -124,6 +124,8 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
       employeeNumber: (emp as any)?.employee_number || undefined,
       dateOfBirth: (emp as any)?.date_of_birth || undefined,
       joiningDate: (emp as any)?.joining_date || undefined,
+      pan: (emp as any)?.pan_number || undefined,
+      regimeOpted: (emp as any)?.tax_regime || undefined,
     };
   };
 
