@@ -298,9 +298,9 @@ export async function generatePayslipPDF(data: PayslipData): Promise<jsPDF> {
     bodyStyles: { fontSize: 8.5, textColor: darkText as any, cellPadding: 3 },
     footStyles: { fillColor: [235, 250, 240], textColor: darkText as any, fontSize: 9, fontStyle: "bold", cellPadding: 3 },
     columnStyles: {
-      0: { cellWidth: 50 },
-      1: { halign: "right", cellWidth: 30 },
-      2: { halign: "right", cellWidth: 32 },
+      0: { cellWidth: "auto" },
+      1: { halign: "right", cellWidth: 40 },
+      2: { halign: "right", cellWidth: 40 },
     },
     margin: { left: rightColX, right: 14 },
     tableLineColor: [230, 230, 230],
