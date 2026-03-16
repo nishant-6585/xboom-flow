@@ -318,6 +318,17 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7"
+                      title="View"
+                      onClick={() => handleView(doc.file_url, doc.file_name)}
+                      disabled={urlLoading}
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      title="Download"
                       onClick={() => handleDownload(doc.file_url, doc.file_name)}
                       disabled={urlLoading}
                     >
