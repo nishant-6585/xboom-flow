@@ -117,13 +117,15 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
   };
 
   const fetchEmployeePayslipData = async (employeeId: string) => {
-    const { data: emp } = await supabase.from("employees").select("designation, department, employee_number, date_of_birth, joining_date").eq("id", employeeId).single();
+    const { data: emp } = await supabase.from("employees").select("designation, department, employee_number, date_of_birth, joining_date, pan_number, tax_regime").eq("id", employeeId).single();
     return {
       department: (emp as any)?.department || undefined,
       designation: (emp as any)?.designation || undefined,
       employeeNumber: (emp as any)?.employee_number || undefined,
       dateOfBirth: (emp as any)?.date_of_birth || undefined,
       joiningDate: (emp as any)?.joining_date || undefined,
+      pan: (emp as any)?.pan_number || undefined,
+      regimeOpted: (emp as any)?.tax_regime || undefined,
     };
   };
 
