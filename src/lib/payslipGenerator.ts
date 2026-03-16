@@ -36,11 +36,10 @@ export function generatePayslipPDF(data: PayslipData): jsPDF {
   const pageWidth = doc.internal.pageSize.getWidth();
 
   // Colors
-  const primaryGreen = [39, 174, 96] as const;
-  const primaryOrange = [243, 156, 18] as const;
-  const darkText = [33, 33, 33] as const;
-  const mutedText = [120, 120, 120] as const;
-  const headerBg = [245, 245, 245] as const;
+  const primaryGreen: [number, number, number] = [39, 174, 96];
+  const primaryOrange: [number, number, number] = [243, 156, 18];
+  const darkText: [number, number, number] = [33, 33, 33];
+  const mutedText: [number, number, number] = [120, 120, 120];
 
   // ─── HEADER SECTION ───
   // Company name
