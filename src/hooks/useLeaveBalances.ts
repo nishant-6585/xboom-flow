@@ -95,7 +95,7 @@ export function useLeaveBalances(employeeId?: string) {
     balanceData.forEach(b => leaveTypes.add(b.leave_type));
     yearTx.forEach(tx => leaveTypes.add(tx.leave_type));
 
-    const deprecated = new Set(['casual', 'half_day_casual']);
+    const deprecated = new Set(['casual', 'half_day_casual', 'paid', 'half_day_paid']);
     const summaries: LeaveBalanceSummary[] = [];
 
     leaveTypes.forEach(lt => {
