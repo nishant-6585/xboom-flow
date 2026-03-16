@@ -125,7 +125,6 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
                     <TableRow>
                       <TableHead>Employee</TableHead>
                       <TableHead className="text-center">Earned Leave</TableHead>
-                      <TableHead className="text-center">Paid Leave</TableHead>
                       <TableHead className="text-center">Sick Leave</TableHead>
                       <TableHead className="text-center">Unpaid</TableHead>
                       <TableHead className="text-center">WFH</TableHead>
