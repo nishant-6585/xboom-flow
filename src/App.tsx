@@ -44,6 +44,7 @@ import Preferences from "./pages/Preferences";
 import MyActivity from "./pages/MyActivity";
 import MFAVerify from "./pages/MFAVerify";
 import PayrollReconciliation from "./pages/PayrollReconciliation";
+import SamplePayslip from "./pages/SamplePayslip";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -81,6 +82,7 @@ function AppInner() {
         <Route path="/trainings" element={<ProtectedRoute><Trainings /></ProtectedRoute>} />
         <Route path="/form-embed/:formId" element={<FormEmbed />} />
         <Route path="/public/drone-repair-enquiry" element={<PublicDroneRepairEnquiry />} />
+        <Route path="/sample-payslip" element={<SamplePayslip />} />
         <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
         <Route path="/tickets" element={<ProtectedRoute><Tickets /></ProtectedRoute>} />
         <Route path="/tally" element={<ProtectedRoute><Tally /></ProtectedRoute>} />
