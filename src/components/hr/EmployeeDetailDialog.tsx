@@ -265,7 +265,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
           <div>
             <h4 className="text-sm font-semibold text-primary mb-3">Basic Information</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <ReadOnlyField label="Employee ID" value={employee.employee_number} />
+              {renderEditableField({ label: "Employee ID", fieldKey: "employee_number", placeholder: "e.g. 110" })}
               <ReadOnlyField label="Name" value={employee.name} />
               {renderEditableSelect({ label: "Gender", fieldKey: "gender", options: GENDER_OPTIONS })}
               {editing ? (
