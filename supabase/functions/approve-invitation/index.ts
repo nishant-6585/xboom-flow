@@ -1,8 +1,8 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -27,20 +27,22 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user: requestingUser }, error: authError } = await anonClient.auth.getUser();
-    if (authError || !requestingUser) {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: authError } = await anonClient.auth.getClaims(token);
+    if (authError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const requestingUserId = claimsData.claims.sub;
 
     // Check if requesting user is admin
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
     const { data: roles } = await adminClient
       .from("user_roles")
       .select("role")
-      .eq("user_id", requestingUser.id)
+      .eq("user_id", requestingUserId)
       .eq("role", "admin");
 
     if (!roles || roles.length === 0) {
@@ -77,7 +79,7 @@ Deno.serve(async (req) => {
     const { data: adminProfile } = await adminClient
       .from("profiles")
       .select("name")
-      .eq("user_id", requestingUser.id)
+      .eq("user_id", requestingUserId)
       .single();
     const adminName = adminProfile?.name || "Admin";
 
@@ -131,7 +133,7 @@ Deno.serve(async (req) => {
       p_email: invitation.email,
       p_role: invitation.role,
       p_department: invitation.department || "",
-      p_admin_user_id: requestingUser.id,
+      p_admin_user_id: requestingUserId,
       p_admin_name: adminName,
       p_is_existing_user: isExistingUser,
     });
