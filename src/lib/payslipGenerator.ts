@@ -184,7 +184,7 @@ export function generatePayslipPDF(data: PayslipData): jsPDF {
   const deductionsStartY = earningsEndY + 10;
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryOrange as any);
+  doc.setTextColor(primaryOrange[0], primaryOrange[1], primaryOrange[2]);
   doc.text("Deductions (B)", rightColX, deductionsStartY);
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
