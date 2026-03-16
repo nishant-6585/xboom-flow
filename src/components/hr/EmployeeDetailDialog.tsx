@@ -57,16 +57,18 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
   const [form, setForm] = useState({
     phone: "", personal_email: "", xboom_email: "", gender: "", date_of_birth: "",
     designation: "", department: "", employee_type: "", work_location: "",
-    state: "", city: "",
+    state: "", city: "", joining_date: "",
     emergency_contact_name: "", emergency_contact_relation: "", emergency_contact_phone: "",
   });
 
+  const [prevOpen, setPrevOpen] = useState(false);
   useEffect(() => {
-    if (open) {
+    if (open && !prevOpen) {
       setEditing(false);
       resetForm();
     }
-  }, [open, employee]);
+    setPrevOpen(open);
+  }, [open]);
 
   const resetForm = () => {
     setForm({
