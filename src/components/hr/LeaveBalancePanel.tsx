@@ -138,7 +138,6 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
                         <TableRow key={row.employee_id}>
                           <TableCell className="font-medium">{row.employee_name}</TableCell>
                           <TableCell className="text-center font-semibold text-primary">{getBalance('EL')}</TableCell>
-                          <TableCell className="text-center font-semibold text-primary">{getBalance('paid')}</TableCell>
                           <TableCell className="text-center font-semibold text-primary">{getBalance('sick')}</TableCell>
                           <TableCell className="text-center font-semibold text-primary">{getBalance('unpaid')}</TableCell>
                           <TableCell className="text-center font-semibold text-primary">{getBalance('wfh')}</TableCell>
