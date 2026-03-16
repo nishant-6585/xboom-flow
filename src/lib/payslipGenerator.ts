@@ -247,7 +247,7 @@ export function generatePayslipPDF(data: PayslipData): jsPDF {
   doc.roundedRect(rightColX, netPayY, pageWidth - rightColX - 14, 16, 3, 3, "FD");
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...primaryGreen as any);
+  doc.setTextColor(primaryGreen[0], primaryGreen[1], primaryGreen[2]);
   doc.text("Net Pay", rightColX + 8, netPayY + 10);
   doc.text(fmtCurrencyWithSymbol(netPay), pageWidth - 18, netPayY + 10, { align: "right" });
 
