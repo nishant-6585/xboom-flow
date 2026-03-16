@@ -1439,6 +1439,7 @@ export type Database = {
           monthly_attendance_target: number | null
           monthly_salary: number | null
           name: string
+          pan_number: string | null
           personal_email: string | null
           phone: string | null
           role: string | null
@@ -1446,6 +1447,7 @@ export type Database = {
           shift_start_time: string | null
           shift_type: string | null
           state: string | null
+          tax_regime: string | null
           updated_at: string
           user_id: string | null
           weekly_hours_target: number | null
@@ -1475,6 +1477,7 @@ export type Database = {
           monthly_attendance_target?: number | null
           monthly_salary?: number | null
           name: string
+          pan_number?: string | null
           personal_email?: string | null
           phone?: string | null
           role?: string | null
@@ -1482,6 +1485,7 @@ export type Database = {
           shift_start_time?: string | null
           shift_type?: string | null
           state?: string | null
+          tax_regime?: string | null
           updated_at?: string
           user_id?: string | null
           weekly_hours_target?: number | null
@@ -1511,6 +1515,7 @@ export type Database = {
           monthly_attendance_target?: number | null
           monthly_salary?: number | null
           name?: string
+          pan_number?: string | null
           personal_email?: string | null
           phone?: string | null
           role?: string | null
@@ -1518,6 +1523,7 @@ export type Database = {
           shift_start_time?: string | null
           shift_type?: string | null
           state?: string | null
+          tax_regime?: string | null
           updated_at?: string
           user_id?: string | null
           weekly_hours_target?: number | null
