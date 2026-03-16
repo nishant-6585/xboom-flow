@@ -725,6 +725,3 @@ export function useHR() {
     refetch: fetchAll,
   };
 }
-    refetch: fetchAll,
-  };
-}
