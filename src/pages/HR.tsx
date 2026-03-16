@@ -238,6 +238,14 @@ export default function HR() {
       </main>
 
       <LeaveApplyDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen} onSubmit={applyLeave} />
+      {isHROrAdmin && (
+        <HRLeaveApplyDialog
+          open={hrLeaveDialogOpen}
+          onOpenChange={setHRLeaveDialogOpen}
+          employees={employees}
+          onSubmit={applyLeaveForEmployee}
+        />
+      )}
       {isMobile && <MobileBottomNav />}
     </div>
   );
