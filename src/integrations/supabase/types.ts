@@ -6682,6 +6682,164 @@ export type Database = {
           },
         ]
       }
+      training_assignments: {
+        Row: {
+          assigned_by: string
+          assigned_by_name: string
+          assigned_date: string
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string
+          employee_id: string
+          id: string
+          last_accessed: string | null
+          priority: string
+          progress_percentage: number
+          status: string
+          training_title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_by: string
+          assigned_by_name: string
+          assigned_date?: string
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date: string
+          employee_id: string
+          id?: string
+          last_accessed?: string | null
+          priority?: string
+          progress_percentage?: number
+          status?: string
+          training_title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_by?: string
+          assigned_by_name?: string
+          assigned_date?: string
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string
+          employee_id?: string
+          id?: string
+          last_accessed?: string | null
+          priority?: string
+          progress_percentage?: number
+          status?: string
+          training_title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_resource_tracking: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          is_viewed: boolean
+          resource_id: string
+          training_assignment_id: string
+          viewed_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          is_viewed?: boolean
+          resource_id: string
+          training_assignment_id: string
+          viewed_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          is_viewed?: boolean
+          resource_id?: string
+          training_assignment_id?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_resource_tracking_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_resource_tracking_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "training_resources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_resource_tracking_training_assignment_id_fkey"
+            columns: ["training_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "training_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_resources: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          resource_order: number
+          resource_type: string
+          thumbnail_url: string | null
+          title: string
+          training_assignment_id: string
+          url_or_file_path: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          resource_order?: number
+          resource_type: string
+          thumbnail_url?: string | null
+          title: string
+          training_assignment_id: string
+          url_or_file_path?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          resource_order?: number
+          resource_type?: string
+          thumbnail_url?: string | null
+          title?: string
+          training_assignment_id?: string
+          url_or_file_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_resources_training_assignment_id_fkey"
+            columns: ["training_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "training_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trainings: {
         Row: {
           amount_paid: number | null

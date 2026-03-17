@@ -1,0 +1,292 @@
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent } from "@/components/ui/card";
+import { Plus, Trash2, Loader2, Youtube, Video, FileText, Link, StickyNote, MonitorPlay } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { AssignTrainingData, TrainingResource } from "@/hooks/useEmployeeTrainings";
+
+interface ResourceInput {
+  resource_type: TrainingResource["resource_type"];
+  title: string;
+  url_or_file_path: string;
+  description: string;
+  file?: File;
+}
+
+const RESOURCE_TYPE_OPTIONS: { value: TrainingResource["resource_type"]; label: string; icon: React.ReactNode }[] = [
+  { value: "youtube", label: "YouTube Video", icon: <Youtube className="h-4 w-4" /> },
+  { value: "zoom", label: "Zoom Recording", icon: <MonitorPlay className="h-4 w-4" /> },
+  { value: "gmeet", label: "Google Meet Recording", icon: <Video className="h-4 w-4" /> },
+  { value: "upload_video", label: "Upload Video", icon: <Video className="h-4 w-4" /> },
+  { value: "document", label: "Document (PDF/PPT)", icon: <FileText className="h-4 w-4" /> },
+  { value: "link", label: "External Link", icon: <Link className="h-4 w-4" /> },
+  { value: "note", label: "Notes", icon: <StickyNote className="h-4 w-4" /> },
+];
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (data: AssignTrainingData, userId: string, userName: string) => Promise<any>;
+  uploadFile: (file: File, assignmentId: string) => Promise<string | null>;
+}
+
+export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile }: Props) {
+  const { user, profile } = useAuth();
+  const [employees, setEmployees] = useState<{ id: string; name: string; department: string }[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  const [employeeId, setEmployeeId] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
+  const [resources, setResources] = useState<ResourceInput[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      supabase
+        .from("employees")
+        .select("id, name, department")
+        .eq("is_active", true)
+        .order("name")
+        .then(({ data }) => setEmployees(data || []));
+    }
+  }, [open]);
+
+  const resetForm = () => {
+    setEmployeeId("");
+    setTitle("");
+    setDescription("");
+    setDueDate("");
+    setPriority("medium");
+    setResources([]);
+  };
+
+  const addResource = () => {
+    setResources([...resources, { resource_type: "youtube", title: "", url_or_file_path: "", description: "" }]);
+  };
+
+  const updateResource = (index: number, field: keyof ResourceInput, value: any) => {
+    const updated = [...resources];
+    (updated[index] as any)[field] = value;
+    setResources(updated);
+  };
+
+  const removeResource = (index: number) => {
+    setResources(resources.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async () => {
+    if (!user || !profile || !employeeId || !title || !dueDate) return;
+    setSaving(true);
+    try {
+      // First create the assignment with resources that have URLs
+      const resourceData = resources
+        .filter(r => r.title)
+        .map(r => ({
+          resource_type: r.resource_type,
+          title: r.title,
+          url_or_file_path: r.resource_type === "upload_video" || r.resource_type === "document" ? "" : r.url_or_file_path,
+          description: r.description,
+        }));
+
+      const assignment = await onSubmit(
+        { employee_id: employeeId, training_title: title, description, due_date: dueDate, priority, resources: resourceData },
+        user.id,
+        profile.name || "Unknown"
+      );
+
+      // Upload files for upload_video/document types
+      if (assignment) {
+        for (let i = 0; i < resources.length; i++) {
+          const r = resources[i];
+          if ((r.resource_type === "upload_video" || r.resource_type === "document") && r.file) {
+            const url = await uploadFile(r.file, assignment.id);
+            if (url) {
+              // Update the resource with the file URL
+              const { data: resData } = await supabase
+                .from("training_resources")
+                .select("id")
+                .eq("training_assignment_id", assignment.id)
+                .eq("resource_order", i)
+                .single();
+
+              if (resData) {
+                await supabase
+                  .from("training_resources")
+                  .update({ url_or_file_path: url })
+                  .eq("id", resData.id);
+              }
+            }
+          }
+        }
+      }
+
+      resetForm();
+      onOpenChange(false);
+    } catch (error) {
+      // handled in hook
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const needsUrl = (type: string) => !["upload_video", "document", "note"].includes(type);
+  const needsFile = (type: string) => ["upload_video", "document"].includes(type);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden">
+        <DialogHeader>
+          <DialogTitle>Assign Training to Employee</DialogTitle>
+        </DialogHeader>
+        <ScrollArea className="max-h-[calc(90vh-100px)] pr-4">
+          <div className="space-y-4 pb-4">
+            {/* Basic Details */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Employee *</Label>
+                <Select value={employeeId} onValueChange={setEmployeeId}>
+                  <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                  <SelectContent>
+                    {employees.map(e => (
+                      <SelectItem key={e.id} value={e.id}>{e.name} ({e.department})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Priority</Label>
+                <Select value={priority} onValueChange={(v: any) => setPriority(v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label>Training Title *</Label>
+              <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Drone Operations Safety Training" />
+            </div>
+
+            <div>
+              <Label>Description</Label>
+              <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe what this training covers..." rows={3} />
+            </div>
+
+            <div>
+              <Label>Due Date *</Label>
+              <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            </div>
+
+            {/* Resources */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-base font-semibold">Training Resources</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addResource}>
+                  <Plus className="h-4 w-4 mr-1" /> Add Resource
+                </Button>
+              </div>
+
+              {resources.length === 0 && (
+                <p className="text-sm text-muted-foreground">No resources added yet. Click "Add Resource" to include learning materials.</p>
+              )}
+
+              <div className="space-y-3">
+                {resources.map((r, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Resource {i + 1}</span>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeResource(i)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <Label>Type</Label>
+                          <Select value={r.resource_type} onValueChange={(v: any) => updateResource(i, "resource_type", v)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {RESOURCE_TYPE_OPTIONS.map(opt => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                  <span className="flex items-center gap-2">{opt.icon} {opt.label}</span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Title</Label>
+                          <Input value={r.title} onChange={e => updateResource(i, "title", e.target.value)} placeholder="Resource title" />
+                        </div>
+                      </div>
+
+                      {needsUrl(r.resource_type) && (
+                        <div>
+                          <Label>URL</Label>
+                          <Input value={r.url_or_file_path} onChange={e => updateResource(i, "url_or_file_path", e.target.value)} placeholder="https://..." />
+                        </div>
+                      )}
+
+                      {needsFile(r.resource_type) && (
+                        <div>
+                          <Label>Upload File</Label>
+                          <Input
+                            type="file"
+                            accept={r.resource_type === "upload_video" ? "video/*" : ".pdf,.ppt,.pptx,.doc,.docx"}
+                            onChange={e => {
+                              const file = e.target.files?.[0];
+                              if (file) updateResource(i, "file", file);
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {r.resource_type === "note" && (
+                        <div>
+                          <Label>Notes Content</Label>
+                          <Textarea
+                            value={r.url_or_file_path}
+                            onChange={e => updateResource(i, "url_or_file_path", e.target.value)}
+                            placeholder="Write training notes here..."
+                            rows={4}
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <Label>Description (optional)</Label>
+                        <Input value={r.description} onChange={e => updateResource(i, "description", e.target.value)} placeholder="Brief description" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end pt-4">
+              <Button variant="outline" onClick={() => { resetForm(); onOpenChange(false); }}>Cancel</Button>
+              <Button onClick={handleSubmit} disabled={saving || !employeeId || !title || !dueDate}>
+                {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Assign Training
+              </Button>
+            </div>
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}

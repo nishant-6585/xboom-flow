@@ -1,0 +1,290 @@
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+
+export interface TrainingAssignment {
+  id: string;
+  employee_id: string;
+  training_title: string;
+  description: string | null;
+  assigned_by: string;
+  assigned_by_name: string;
+  assigned_date: string;
+  due_date: string;
+  priority: "low" | "medium" | "high";
+  status: "assigned" | "in_progress" | "completed" | "overdue";
+  completed_at: string | null;
+  last_accessed: string | null;
+  progress_percentage: number;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  employee_name?: string;
+  employee_department?: string;
+  resources?: TrainingResource[];
+  tracking?: TrainingResourceTracking[];
+}
+
+export interface TrainingResource {
+  id: string;
+  training_assignment_id: string;
+  resource_type: "youtube" | "zoom" | "gmeet" | "upload_video" | "document" | "link" | "note";
+  title: string;
+  url_or_file_path: string | null;
+  description: string | null;
+  thumbnail_url: string | null;
+  resource_order: number;
+  created_at: string;
+}
+
+export interface TrainingResourceTracking {
+  id: string;
+  training_assignment_id: string;
+  resource_id: string;
+  employee_id: string;
+  is_viewed: boolean;
+  viewed_at: string | null;
+}
+
+export interface AssignTrainingData {
+  employee_id: string;
+  training_title: string;
+  description?: string;
+  due_date: string;
+  priority: "low" | "medium" | "high";
+  resources: {
+    resource_type: TrainingResource["resource_type"];
+    title: string;
+    url_or_file_path?: string;
+    description?: string;
+  }[];
+}
+
+export function useEmployeeTrainings() {
+  const [assignments, setAssignments] = useState<TrainingAssignment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+  const { user, role, roles } = useAuth();
+
+  const isHrOrAdmin = roles.includes("hr") || roles.includes("admin");
+
+  const fetchAssignments = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("training_assignments")
+        .select("*, employees!training_assignments_employee_id_fkey(name, department)")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const transformed = (data || []).map((a: any) => ({
+        ...a,
+        employee_name: a.employees?.name,
+        employee_department: a.employees?.department,
+      }));
+
+      setAssignments(transformed);
+    } catch (error: any) {
+      console.error("Error fetching training assignments:", error);
+      toast({ title: "Error", description: "Failed to load training assignments", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAssignments();
+
+    const channel = supabase
+      .channel("training-assignments-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "training_assignments" }, () => fetchAssignments())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchAssignments]);
+
+  const assignTraining = async (data: AssignTrainingData, userId: string, userName: string) => {
+    try {
+      const { data: assignment, error } = await supabase
+        .from("training_assignments")
+        .insert({
+          employee_id: data.employee_id,
+          training_title: data.training_title,
+          description: data.description || null,
+          due_date: data.due_date,
+          priority: data.priority,
+          assigned_by: userId,
+          assigned_by_name: userName,
+          status: "assigned",
+          progress_percentage: 0,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Insert resources
+      if (data.resources.length > 0) {
+        const resourceRows = data.resources.map((r, i) => ({
+          training_assignment_id: assignment.id,
+          resource_type: r.resource_type,
+          title: r.title,
+          url_or_file_path: r.url_or_file_path || null,
+          description: r.description || null,
+          resource_order: i,
+        }));
+
+        const { error: resError } = await supabase
+          .from("training_resources")
+          .insert(resourceRows);
+
+        if (resError) throw resError;
+      }
+
+      toast({ title: "Success", description: "Training assigned successfully" });
+      return assignment;
+    } catch (error: any) {
+      console.error("Error assigning training:", error);
+      toast({ title: "Error", description: error.message || "Failed to assign training", variant: "destructive" });
+      throw error;
+    }
+  };
+
+  const fetchAssignmentDetails = async (assignmentId: string) => {
+    const [resourcesRes, trackingRes] = await Promise.all([
+      supabase.from("training_resources").select("*").eq("training_assignment_id", assignmentId).order("resource_order"),
+      supabase.from("training_resource_tracking").select("*").eq("training_assignment_id", assignmentId),
+    ]);
+
+    return {
+      resources: (resourcesRes.data || []) as TrainingResource[],
+      tracking: (trackingRes.data || []) as TrainingResourceTracking[],
+    };
+  };
+
+  const markResourceViewed = async (assignmentId: string, resourceId: string, employeeId: string) => {
+    try {
+      const { error } = await supabase
+        .from("training_resource_tracking")
+        .upsert({
+          training_assignment_id: assignmentId,
+          resource_id: resourceId,
+          employee_id: employeeId,
+          is_viewed: true,
+          viewed_at: new Date().toISOString(),
+        }, { onConflict: "resource_id,employee_id" });
+
+      if (error) throw error;
+
+      // Recalculate progress
+      const { data: resources } = await supabase
+        .from("training_resources")
+        .select("id")
+        .eq("training_assignment_id", assignmentId);
+
+      const { data: viewed } = await supabase
+        .from("training_resource_tracking")
+        .select("id")
+        .eq("training_assignment_id", assignmentId)
+        .eq("employee_id", employeeId)
+        .eq("is_viewed", true);
+
+      const totalResources = resources?.length || 1;
+      const viewedCount = viewed?.length || 0;
+      const progress = Math.round((viewedCount / totalResources) * 100);
+
+      const updateData: any = {
+        progress_percentage: progress,
+        last_accessed: new Date().toISOString(),
+      };
+
+      // Auto set in_progress
+      const assignment = assignments.find(a => a.id === assignmentId);
+      if (assignment?.status === "assigned") {
+        updateData.status = "in_progress";
+      }
+
+      await supabase
+        .from("training_assignments")
+        .update(updateData)
+        .eq("id", assignmentId);
+
+    } catch (error: any) {
+      console.error("Error marking resource viewed:", error);
+    }
+  };
+
+  const markCompleted = async (assignmentId: string) => {
+    try {
+      const { error } = await supabase
+        .from("training_assignments")
+        .update({
+          status: "completed",
+          completed_at: new Date().toISOString(),
+          progress_percentage: 100,
+        })
+        .eq("id", assignmentId);
+
+      if (error) throw error;
+      toast({ title: "Success", description: "Training marked as completed" });
+    } catch (error: any) {
+      toast({ title: "Error", description: "Failed to mark as completed", variant: "destructive" });
+    }
+  };
+
+  const deleteAssignment = async (assignmentId: string) => {
+    try {
+      const { error } = await supabase
+        .from("training_assignments")
+        .delete()
+        .eq("id", assignmentId);
+
+      if (error) throw error;
+      toast({ title: "Success", description: "Training assignment deleted" });
+    } catch (error: any) {
+      toast({ title: "Error", description: "Failed to delete assignment", variant: "destructive" });
+    }
+  };
+
+  const uploadTrainingFile = async (file: File, assignmentId: string): Promise<string | null> => {
+    const { validateFile } = await import("@/lib/fileValidation");
+    const validation = validateFile(file, "documents");
+    if (!validation.valid) {
+      toast({ title: "Error", description: validation.error, variant: "destructive" });
+      return null;
+    }
+
+    const ext = file.name.split(".").pop();
+    const fileName = `${assignmentId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+
+    const { error } = await supabase.storage
+      .from("training-uploads")
+      .upload(fileName, file);
+
+    if (error) {
+      toast({ title: "Error", description: "File upload failed", variant: "destructive" });
+      return null;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from("training-uploads")
+      .getPublicUrl(fileName);
+
+    return publicUrl;
+  };
+
+  return {
+    assignments,
+    loading,
+    isHrOrAdmin,
+    assignTraining,
+    fetchAssignmentDetails,
+    markResourceViewed,
+    markCompleted,
+    deleteAssignment,
+    uploadTrainingFile,
+    refetch: fetchAssignments,
+  };
+}
