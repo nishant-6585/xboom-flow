@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { LeadPerformanceCharts } from './LeadPerformanceCharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -695,6 +696,12 @@ export function SalesAnalyticsDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Lead Performance Charts */}
+      <LeadPerformanceCharts 
+        enquiries={filteredEnquiries} 
+        pipelineOrders={filteredPipeline} 
+      />
 
       {/* Daily Activity Analytics for Managers */}
       <DailyActivityAnalytics />
