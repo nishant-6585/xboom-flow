@@ -697,6 +697,12 @@ export function SalesAnalyticsDashboard() {
         </CardContent>
       </Card>
 
+      {/* Lead Performance Charts */}
+      <LeadPerformanceCharts 
+        enquiries={filteredEnquiries} 
+        pipelineOrders={filteredPipeline} 
+      />
+
       {/* Daily Activity Analytics for Managers */}
       <DailyActivityAnalytics />
 
