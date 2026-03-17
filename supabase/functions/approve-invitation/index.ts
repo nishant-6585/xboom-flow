@@ -43,10 +43,10 @@ Deno.serve(async (req) => {
       .from("user_roles")
       .select("role")
       .eq("user_id", requestingUserId)
-      .eq("role", "admin");
+      .in("role", ["admin", "hr"]);
 
     if (!roles || roles.length === 0) {
-      return new Response(JSON.stringify({ error: "Only admins can approve invitations" }), {
+      return new Response(JSON.stringify({ error: "Only admins or HR can approve invitations" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
