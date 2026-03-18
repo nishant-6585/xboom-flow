@@ -212,7 +212,7 @@ export function UserApprovalHistoryDialog({ open, onOpenChange, userId, userName
                 <div className="space-y-1">
                   {auditLogs.map((log) => {
                     const IconComp = ACTION_ICONS[log.action] || Clock;
-                    const detailStr = formatDetails(log.details);
+                    const { info, comment } = formatDetails(log.details);
                     return (
                       <div key={log.id} className="flex items-start gap-3 p-2.5 rounded-md hover:bg-secondary/50 transition-colors">
                         <IconComp className={`w-4 h-4 mt-0.5 shrink-0 ${getActionColor(log.action)}`} />
@@ -220,8 +220,14 @@ export function UserApprovalHistoryDialog({ open, onOpenChange, userId, userName
                           <p className="text-sm font-medium">
                             {ACTION_LABELS[log.action] || log.action.replace(/_/g, " ")}
                           </p>
-                          {detailStr && (
-                            <p className="text-xs text-muted-foreground mt-0.5">{detailStr}</p>
+                          {info && (
+                            <p className="text-xs text-muted-foreground mt-0.5">{info}</p>
+                          )}
+                          {comment && (
+                            <div className="flex items-start gap-1.5 mt-1 p-2 rounded bg-secondary/60 border border-border">
+                              <MessageSquare className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
+                              <p className="text-xs text-foreground">{comment}</p>
+                            </div>
                           )}
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {format(new Date(log.performed_at), "dd MMM yyyy, HH:mm")}
