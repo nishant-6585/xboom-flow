@@ -122,8 +122,8 @@ export function UserApprovalHistoryDialog({ open, onOpenChange, userId, userName
     }
   };
 
-  const formatDetails = (details: Record<string, any> | null): string | null => {
-    if (!details) return null;
+  const formatDetails = (details: Record<string, any> | null): { info: string | null; comment: string | null } => {
+    if (!details) return { info: null, comment: null };
     const parts: string[] = [];
     if (details.role) parts.push(`Role: ${details.role}`);
     if (details.new_role) parts.push(`New Role: ${details.new_role}`);
@@ -136,7 +136,11 @@ export function UserApprovalHistoryDialog({ open, onOpenChange, userId, userName
     if (details.approved_by_name) parts.push(`Approved by: ${details.approved_by_name}`);
     if (details.admin_name) parts.push(`By: ${details.admin_name}`);
     if (details.target_name) parts.push(`User: ${details.target_name}`);
-    return parts.length > 0 ? parts.join(" • ") : null;
+    if (details.email) parts.push(`Email: ${details.email}`);
+    return {
+      info: parts.length > 0 ? parts.join(" • ") : null,
+      comment: details.comment || null,
+    };
   };
 
   return (
