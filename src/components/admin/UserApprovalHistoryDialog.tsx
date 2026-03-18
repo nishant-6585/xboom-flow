@@ -87,12 +87,49 @@ export function UserApprovalHistoryDialog({ open, onOpenChange, userId, userName
       // Fetch audit logs for this user (both as actor and target)
       const { data: logs } = await supabase
         .from("security_audit_log")
-        .select("id, action, performed_at, user_name, details")
+        .select("id, action, performed_at, user_id, user_name, target_user_id, details")
         .or(`target_user_id.eq.${userId},user_id.eq.${userId}`)
         .order("performed_at", { ascending: false })
         .limit(50);
 
-      setAuditLogs((logs as unknown as ApprovalHistoryItem[]) || []);
+      // Resolve target user names for logs where target_user_id exists
+      const resolvedLogs = (logs as unknown as ApprovalHistoryItem[]) || [];
+      const targetIds = [...new Set(resolvedLogs.map(l => l.target_user_id).filter(Boolean))] as string[];
+      let targetNameMap = new Map<string, string>();
+      if (targetIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, name")
+          .in("user_id", targetIds);
+        if (profiles) {
+          profiles.forEach(p => targetNameMap.set(p.user_id, p.name));
+        }
+      }
+      // Also resolve the viewed user's name
+      const { data: viewedProfile } = await supabase
+        .from("profiles")
+        .select("user_id, name")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      // Attach resolved target names
+      for (const log of resolvedLogs) {
+        if (log.target_user_id && !log.details?.target_name) {
+          const resolvedName = targetNameMap.get(log.target_user_id);
+          if (resolvedName) {
+            log.details = { ...(log.details || {}), target_name: resolvedName };
+          }
+        }
+        // If the actor is NOT the viewed user, and target IS the viewed user, clarify
+        if (log.user_id !== userId && log.target_user_id === userId) {
+          log.details = { ...(log.details || {}), _direction: "received", _actor: log.user_name };
+        } else if (log.user_id === userId && log.target_user_id && log.target_user_id !== userId) {
+          const tName = targetNameMap.get(log.target_user_id) || log.details?.target_name;
+          log.details = { ...(log.details || {}), _direction: "performed", _targetDisplay: tName };
+        }
+      }
+
+      setAuditLogs(resolvedLogs);
 
       // Fetch invitation record
       const { data: inv } = await supabase
