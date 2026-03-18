@@ -84,6 +84,14 @@ export function EmployeesPanel() {
     }
 
     setEmployees(emps);
+
+    // Update selectedEmployee with fresh data so the detail dialog reflects changes
+    setSelectedEmployee(prev => {
+      if (!prev) return prev;
+      const updated = emps.find(e => e.id === prev.id);
+      return updated || prev;
+    });
+
     setLoading(false);
   };
 
