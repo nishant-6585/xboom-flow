@@ -115,6 +115,11 @@ Deno.serve(async (req) => {
     const allContacts: InteraktUser[] = [];
 
     while (hasNextPage) {
+      const requestBody: Record<string, unknown> = {};
+      if (filters.length > 0) {
+        requestBody.filters = filters;
+      }
+
       const interaktRes = await fetch(
         `${INTERAKT_API_URL}?offset=${offset}&limit=${PAGE_LIMIT}`,
         {
@@ -123,7 +128,7 @@ Deno.serve(async (req) => {
             Authorization: `Basic ${interaktApiKey}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ filters }),
+          body: JSON.stringify(requestBody),
         }
       );
 
