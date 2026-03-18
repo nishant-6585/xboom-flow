@@ -204,6 +204,7 @@ export function UserApprovalHistoryDialog({ open, onOpenChange, userId, userName
     if (details.admin_name) parts.push(`By: ${details.admin_name}`);
     if (details.target_name) parts.push(`User: ${details.target_name}`);
     if (details.employee_name && !details.target_name) parts.push(`Employee: ${details.employee_name}`);
+    if (details.deleted_user) parts.push(`Deleted User: ${details.deleted_user}`);
     if (details.email) parts.push(`Email: ${details.email}`);
     if (details.old_salary && details.new_salary) parts.push(`₹${details.old_salary} → ₹${details.new_salary}`);
     if (details.effective_from) parts.push(`Effective: ${details.effective_from}`);
