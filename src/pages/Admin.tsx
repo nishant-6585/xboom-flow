@@ -176,7 +176,7 @@ const Admin = () => {
     }
   };
 
-  const handleApproveInvitation = async (invitationId: string, name: string, email: string) => {
+  const handleApproveInvitation = async (invitationId: string, name: string, email: string, comment: string) => {
     setActionLoading(invitationId);
     try {
       const { data, error } = await supabase.functions.invoke("approve-invitation", {
@@ -185,6 +185,15 @@ const Admin = () => {
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+
+      // Log audit with comment
+      if (user) {
+        await recordAuditLog(user.id, profile?.name || "Admin", {
+          action: "invitation_approved",
+          targetUserId: data?.user_id || undefined,
+          details: { target_name: name, email, comment, role: data?.role },
+        });
+      }
 
       toast({
         title: "Invitation Approved",
@@ -207,7 +216,7 @@ const Admin = () => {
     }
   };
 
-  const handleCancelInvitation = async (invitationId: string, email: string) => {
+  const handleCancelInvitation = async (invitationId: string, email: string, comment: string) => {
     setActionLoading(invitationId);
     try {
       const { error } = await supabase
@@ -216,6 +225,14 @@ const Admin = () => {
         .eq("id", invitationId);
 
       if (error) throw error;
+
+      // Log audit with comment
+      if (user) {
+        await recordAuditLog(user.id, profile?.name || "Admin", {
+          action: "invitation_cancelled",
+          details: { email, comment },
+        });
+      }
 
       toast({
         title: "Invitation Cancelled",
