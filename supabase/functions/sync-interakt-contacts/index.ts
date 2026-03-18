@@ -194,10 +194,27 @@ Deno.serve(async (req) => {
       }
 
       const data = await interaktRes.json();
-      const users = data?.users || data?.results || [];
+      const users = extractContactsFromResponse(data);
       allContacts.push(...users);
 
-      hasNextPage = data?.has_next_page === true;
+      console.log(
+        JSON.stringify({
+          event: "interakt_sync_page",
+          offset,
+          batch_size: users.length,
+          has_next_page: extractHasNextPage(data, users.length),
+          response_keys: data && typeof data === "object" ? Object.keys(data as Record<string, unknown>) : [],
+          nested_data_keys:
+            data &&
+            typeof data === "object" &&
+            (data as Record<string, unknown>).data &&
+            typeof (data as Record<string, unknown>).data === "object"
+              ? Object.keys((data as Record<string, unknown>).data as Record<string, unknown>)
+              : [],
+        })
+      );
+
+      hasNextPage = extractHasNextPage(data, users.length);
       offset += PAGE_LIMIT;
 
       // Safety: max 10 pages (1000 contacts per sync)
