@@ -992,6 +992,16 @@ const Admin = () => {
                             </SelectContent>
                           </Select>
 
+                          {/* Approval History */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setHistoryUser({ userId: user.user_id, name: user.name, email: user.email })}
+                            title="View approval history"
+                          >
+                            <History className="w-4 h-4" />
+                          </Button>
+
                           {/* Reset Password */}
                           <Button
                             size="sm"
