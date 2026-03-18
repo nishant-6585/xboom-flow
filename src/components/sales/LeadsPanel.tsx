@@ -6,12 +6,15 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEnquiries, PRODUCT_CATEGORIES, Enquiry } from '@/hooks/useEnquiries';
+import { useInteraktLeads } from '@/hooks/useInteraktLeads';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Upload, FileSpreadsheet, Download, Search, Plus, Users, 
-  Package, Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil 
+  Package, Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil,
+  RefreshCw, Phone, MessageCircle
 } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
 import { toast } from 'sonner';
@@ -29,6 +32,7 @@ const LEAD_SOURCES = [
   'Instagram',
   'LinkedIn',
   'WhatsApp',
+  'Interakt',
   'Referral',
   'Cold Call',
   'Exhibition',
