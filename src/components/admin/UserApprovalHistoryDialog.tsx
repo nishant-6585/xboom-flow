@@ -43,10 +43,18 @@ const ACTION_ICONS: Record<string, typeof CheckCircle> = {
   registration_denied: Trash2,
   user_invited: UserPlus,
   role_changed: Shield,
+  role_added: Shield,
+  role_removed: Shield,
   password_reset: KeyRound,
   user_deleted: Trash2,
   manager_changed: UserCog,
   department_changed: UserCog,
+  SALARY_UPDATED: UserCog,
+  BANK_DETAILS_UPDATED: UserCog,
+  RESIGNATION_ADDED_BY_HR: UserCog,
+  SESSION_IDLE_TIMEOUT: Clock,
+  SESSION_MISSING_FORCED_LOGOUT: Clock,
+  SALARY_AUTO_CALCULATED: UserCog,
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -56,18 +64,28 @@ const ACTION_LABELS: Record<string, string> = {
   registration_denied: "Registration Denied",
   user_invited: "User Invited",
   role_changed: "Role Changed",
+  role_added: "Role Added",
+  role_removed: "Role Removed",
   password_reset: "Password Reset",
   user_deleted: "User Deleted",
   manager_changed: "Manager Changed",
   department_changed: "Department Changed",
   login: "Login",
   mfa_enabled: "MFA Enabled",
+  SALARY_UPDATED: "Salary Updated",
+  BANK_DETAILS_UPDATED: "Bank Details Updated",
+  RESIGNATION_ADDED_BY_HR: "Resignation Added by HR",
+  RESIGNATION_REJECTED: "Resignation Rejected",
+  SESSION_IDLE_TIMEOUT: "Session Idle Timeout",
+  SESSION_MISSING_FORCED_LOGOUT: "Session Forced Logout",
+  SALARY_AUTO_CALCULATED: "Salary Auto Calculated",
 };
 
 function getActionColor(action: string): string {
-  if (action.includes("approved") || action.includes("login")) return "text-green-400";
-  if (action.includes("deleted")) return "text-destructive";
-  if (action.includes("changed") || action.includes("reset")) return "text-yellow-400";
+  if (action.includes("approved") || action.includes("login") || action.includes("ADDED")) return "text-green-400";
+  if (action.includes("deleted") || action.includes("denied") || action.includes("REJECTED") || action.includes("removed")) return "text-destructive";
+  if (action.includes("changed") || action.includes("reset") || action.includes("UPDATED")) return "text-yellow-400";
+  if (action.includes("TIMEOUT") || action.includes("LOGOUT")) return "text-muted-foreground";
   return "text-primary";
 }
 
