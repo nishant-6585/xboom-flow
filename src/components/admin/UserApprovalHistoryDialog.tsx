@@ -9,7 +9,9 @@ interface ApprovalHistoryItem {
   id: string;
   action: string;
   performed_at: string;
+  user_id: string;
   user_name: string | null;
+  target_user_id: string | null;
   details: Record<string, any> | null;
 }
 
