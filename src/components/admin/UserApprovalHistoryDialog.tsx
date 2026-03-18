@@ -43,10 +43,18 @@ const ACTION_ICONS: Record<string, typeof CheckCircle> = {
   registration_denied: Trash2,
   user_invited: UserPlus,
   role_changed: Shield,
+  role_added: Shield,
+  role_removed: Shield,
   password_reset: KeyRound,
   user_deleted: Trash2,
   manager_changed: UserCog,
   department_changed: UserCog,
+  SALARY_UPDATED: UserCog,
+  BANK_DETAILS_UPDATED: UserCog,
+  RESIGNATION_ADDED_BY_HR: UserCog,
+  SESSION_IDLE_TIMEOUT: Clock,
+  SESSION_MISSING_FORCED_LOGOUT: Clock,
+  SALARY_AUTO_CALCULATED: UserCog,
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -56,18 +64,28 @@ const ACTION_LABELS: Record<string, string> = {
   registration_denied: "Registration Denied",
   user_invited: "User Invited",
   role_changed: "Role Changed",
+  role_added: "Role Added",
+  role_removed: "Role Removed",
   password_reset: "Password Reset",
   user_deleted: "User Deleted",
   manager_changed: "Manager Changed",
   department_changed: "Department Changed",
   login: "Login",
   mfa_enabled: "MFA Enabled",
+  SALARY_UPDATED: "Salary Updated",
+  BANK_DETAILS_UPDATED: "Bank Details Updated",
+  RESIGNATION_ADDED_BY_HR: "Resignation Added by HR",
+  RESIGNATION_REJECTED: "Resignation Rejected",
+  SESSION_IDLE_TIMEOUT: "Session Idle Timeout",
+  SESSION_MISSING_FORCED_LOGOUT: "Session Forced Logout",
+  SALARY_AUTO_CALCULATED: "Salary Auto Calculated",
 };
 
 function getActionColor(action: string): string {
-  if (action.includes("approved") || action.includes("login")) return "text-green-400";
-  if (action.includes("deleted")) return "text-destructive";
-  if (action.includes("changed") || action.includes("reset")) return "text-yellow-400";
+  if (action.includes("approved") || action.includes("login") || action.includes("ADDED")) return "text-green-400";
+  if (action.includes("deleted") || action.includes("denied") || action.includes("REJECTED") || action.includes("removed")) return "text-destructive";
+  if (action.includes("changed") || action.includes("reset") || action.includes("UPDATED")) return "text-yellow-400";
+  if (action.includes("TIMEOUT") || action.includes("LOGOUT")) return "text-muted-foreground";
   return "text-primary";
 }
 
@@ -112,7 +130,7 @@ export function UserApprovalHistoryDialog({ open, onOpenChange, userId, userName
         .eq("user_id", userId)
         .maybeSingle();
 
-      // Attach resolved target names
+      // Attach resolved target names and direction context
       for (const log of resolvedLogs) {
         if (log.target_user_id && !log.details?.target_name) {
           const resolvedName = targetNameMap.get(log.target_user_id);
@@ -120,12 +138,22 @@ export function UserApprovalHistoryDialog({ open, onOpenChange, userId, userName
             log.details = { ...(log.details || {}), target_name: resolvedName };
           }
         }
+
+        // Determine the target display name from multiple possible sources
+        const targetDisplayName = 
+          log.details?.target_name || 
+          log.details?.employee_name || 
+          (log.target_user_id ? targetNameMap.get(log.target_user_id) : null);
+
         // If the actor is NOT the viewed user, and target IS the viewed user, clarify
         if (log.user_id !== userId && log.target_user_id === userId) {
           log.details = { ...(log.details || {}), _direction: "received", _actor: log.user_name };
-        } else if (log.user_id === userId && log.target_user_id && log.target_user_id !== userId) {
-          const tName = targetNameMap.get(log.target_user_id) || log.details?.target_name;
-          log.details = { ...(log.details || {}), _direction: "performed", _targetDisplay: tName };
+        } else if (log.target_user_id && log.target_user_id !== userId) {
+          // Actor performed action on someone else
+          log.details = { ...(log.details || {}), _direction: "performed", _targetDisplay: targetDisplayName };
+        } else if (!log.target_user_id && targetDisplayName && log.user_id === userId) {
+          // No target_user_id but has employee_name in details — HR action on an employee
+          log.details = { ...(log.details || {}), _direction: "performed", _targetDisplay: targetDisplayName };
         }
       }
 
@@ -175,7 +203,12 @@ export function UserApprovalHistoryDialog({ open, onOpenChange, userId, userName
     if (details.approved_by_name) parts.push(`Approved by: ${details.approved_by_name}`);
     if (details.admin_name) parts.push(`By: ${details.admin_name}`);
     if (details.target_name) parts.push(`User: ${details.target_name}`);
+    if (details.employee_name && !details.target_name) parts.push(`Employee: ${details.employee_name}`);
     if (details.email) parts.push(`Email: ${details.email}`);
+    if (details.old_salary && details.new_salary) parts.push(`₹${details.old_salary} → ₹${details.new_salary}`);
+    if (details.effective_from) parts.push(`Effective: ${details.effective_from}`);
+    if (details.field) parts.push(`Field: ${details.field}`);
+    if (details.reason) parts.push(`Reason: ${details.reason}`);
     return {
       info: parts.length > 0 ? parts.join(" • ") : null,
       comment: details.comment || null,
