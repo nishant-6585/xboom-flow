@@ -192,6 +192,22 @@ export function LeadsPanel() {
     return match ? match[1].trim() : 'Unknown';
   };
 
+  const getSourceBadge = (source: string) => {
+    if (source.toLowerCase() === 'interakt') {
+      return (
+        <Badge className="bg-emerald-500/20 text-emerald-700 border-emerald-500/30 text-xs gap-1">
+          <MessageCircle className="h-3 w-3" />
+          Interakt
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="secondary" className="text-xs">
+        {source}
+      </Badge>
+    );
+  };
+
   // Stats
   const totalLeads = leads.length;
   const pendingLeads = leads.filter(l => l.status === 'pending').length;
