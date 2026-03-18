@@ -858,32 +858,33 @@ const Admin = () => {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDeny(user.user_id, user.name)}
-                            disabled={actionLoading === user.user_id}
-                          >
-                            {actionLoading === user.user_id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <X className="w-4 h-4" />
-                            )}
-                            <span className="ml-1 hidden sm:inline">Deny</span>
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleApprove(user.user_id, user.name)}
-                            disabled={actionLoading === user.user_id}
-                          >
-                            {actionLoading === user.user_id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Check className="w-4 h-4" />
-                            )}
-                            <span className="ml-1 hidden sm:inline">Approve</span>
-                          </Button>
+                          <ActionWithCommentDialog
+                            trigger={
+                              <Button size="sm" variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10" disabled={actionLoading === user.user_id}>
+                                {actionLoading === user.user_id ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                                <span className="ml-1 hidden sm:inline">Deny</span>
+                              </Button>
+                            }
+                            title="Deny Registration"
+                            description={`You are about to deny the registration for ${user.name}.`}
+                            confirmLabel="Deny"
+                            confirmVariant="destructive"
+                            loading={actionLoading === user.user_id}
+                            onConfirm={(comment) => handleDeny(user.user_id, user.name, comment)}
+                          />
+                          <ActionWithCommentDialog
+                            trigger={
+                              <Button size="sm" disabled={actionLoading === user.user_id}>
+                                {actionLoading === user.user_id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                <span className="ml-1 hidden sm:inline">Approve</span>
+                              </Button>
+                            }
+                            title="Approve User"
+                            description={`You are about to approve ${user.name}. They will gain access to the system.`}
+                            confirmLabel="Approve"
+                            loading={actionLoading === user.user_id}
+                            onConfirm={(comment) => handleApprove(user.user_id, user.name, comment)}
+                          />
                         </div>
                       </div>
                     ))}
