@@ -37,14 +37,35 @@ export function ChecklistDetailDialog({ open, onOpenChange, checklist, checklist
     if (open && checklist) loadItems();
   }, [open, checklist, loadItems]);
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   const handleToggle = async (item: ChecklistItem, checked: boolean) => {
+    // Capture scroll position
+    const scrollTop = scrollContainerRef.current?.scrollTop ?? 0;
+
+    // Optimistic update
+    setItems(prev => prev.map(i =>
+      i.id === item.id ? { ...i, is_completed: checked, completed_at: checked ? new Date().toISOString() : null } : i
+    ));
+    toast.success(`${item.item_name} ${checked ? 'completed' : 'unchecked'}`);
+
+    // Restore scroll after render
+    requestAnimationFrame(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollTop;
+      }
+    });
+
+    // Sync to API in background
     const success = await toggleItem(item, checked);
     if (success) {
-      setItems(prev => prev.map(i =>
-        i.id === item.id ? { ...i, is_completed: checked, completed_at: checked ? new Date().toISOString() : null } : i
-      ));
       onUpdated();
-      toast.success(`${item.item_name} ${checked ? 'completed' : 'unchecked'}`);
+    } else {
+      // Rollback on failure
+      setItems(prev => prev.map(i =>
+        i.id === item.id ? { ...i, is_completed: !checked, completed_at: !checked ? item.completed_at : null } : i
+      ));
+      toast.error('Failed to update item');
     }
   };
 
