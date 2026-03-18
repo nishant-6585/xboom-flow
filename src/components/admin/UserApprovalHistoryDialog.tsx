@@ -112,7 +112,7 @@ export function UserApprovalHistoryDialog({ open, onOpenChange, userId, userName
         .eq("user_id", userId)
         .maybeSingle();
 
-      // Attach resolved target names
+      // Attach resolved target names and direction context
       for (const log of resolvedLogs) {
         if (log.target_user_id && !log.details?.target_name) {
           const resolvedName = targetNameMap.get(log.target_user_id);
@@ -120,12 +120,22 @@ export function UserApprovalHistoryDialog({ open, onOpenChange, userId, userName
             log.details = { ...(log.details || {}), target_name: resolvedName };
           }
         }
+
+        // Determine the target display name from multiple possible sources
+        const targetDisplayName = 
+          log.details?.target_name || 
+          log.details?.employee_name || 
+          (log.target_user_id ? targetNameMap.get(log.target_user_id) : null);
+
         // If the actor is NOT the viewed user, and target IS the viewed user, clarify
         if (log.user_id !== userId && log.target_user_id === userId) {
           log.details = { ...(log.details || {}), _direction: "received", _actor: log.user_name };
-        } else if (log.user_id === userId && log.target_user_id && log.target_user_id !== userId) {
-          const tName = targetNameMap.get(log.target_user_id) || log.details?.target_name;
-          log.details = { ...(log.details || {}), _direction: "performed", _targetDisplay: tName };
+        } else if (log.target_user_id && log.target_user_id !== userId) {
+          // Actor performed action on someone else
+          log.details = { ...(log.details || {}), _direction: "performed", _targetDisplay: targetDisplayName };
+        } else if (!log.target_user_id && targetDisplayName && log.user_id === userId) {
+          // No target_user_id but has employee_name in details — HR action on an employee
+          log.details = { ...(log.details || {}), _direction: "performed", _targetDisplay: targetDisplayName };
         }
       }
 
