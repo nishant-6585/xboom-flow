@@ -244,7 +244,7 @@ export function useTasks() {
 
       if (error) throw error;
       toast.success('Task deleted successfully');
-      await refetch();
+      await fetchTasks();
       return true;
     } catch (error: any) {
       console.error('Error deleting task:', error);
