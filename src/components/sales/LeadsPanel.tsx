@@ -42,6 +42,7 @@ const LEAD_SOURCES = [
 
 export function LeadsPanel() {
   const { enquiries, loading, refetch } = useEnquiries();
+  const { leads: interaktLeads, loading: interaktLoading, syncFromInterakt, syncing } = useInteraktLeads();
   const { user, profile, role } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
