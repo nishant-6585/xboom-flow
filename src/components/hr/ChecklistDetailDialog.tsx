@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Circle, User, Calendar, MessageSquare, Save } from "lucide-react";
+import { CheckCircle2, User, Calendar, MessageSquare, Save, Loader2, RotateCcw, AlertCircle } from "lucide-react";
 import { EmployeeChecklist, ChecklistItem, useEmployeeChecklists } from "@/hooks/useEmployeeChecklists";
 import { toast } from "sonner";
 
@@ -24,6 +24,8 @@ export function ChecklistDetailDialog({ open, onOpenChange, checklist, checklist
   const [loading, setLoading] = useState(false);
   const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
   const [savingNotes, setSavingNotes] = useState<string | null>(null);
+  const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
+  const [errorMap, setErrorMap] = useState<Record<string, { checked: boolean; item: ChecklistItem } | null>>({});
 
   const loadItems = useCallback(async () => {
     if (!checklist) return;
@@ -39,15 +41,23 @@ export function ChecklistDetailDialog({ open, onOpenChange, checklist, checklist
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const handleToggle = async (item: ChecklistItem, checked: boolean) => {
-    // Capture scroll position
+  const executeToggle = useCallback(async (item: ChecklistItem, checked: boolean, isRetry = false) => {
     const scrollTop = scrollContainerRef.current?.scrollTop ?? 0;
+    const startTime = performance.now();
+
+    // Clear error for this item
+    setErrorMap(prev => ({ ...prev, [item.id]: null }));
+    // Set loading for this specific item
+    setLoadingMap(prev => ({ ...prev, [item.id]: true }));
 
     // Optimistic update
     setItems(prev => prev.map(i =>
       i.id === item.id ? { ...i, is_completed: checked, completed_at: checked ? new Date().toISOString() : null } : i
     ));
-    toast.success(`${item.item_name} ${checked ? 'completed' : 'unchecked'}`);
+
+    if (!isRetry) {
+      toast.success(`${item.item_name} ${checked ? 'completed' : 'unchecked'}`);
+    }
 
     // Restore scroll after render
     requestAnimationFrame(() => {
@@ -56,8 +66,22 @@ export function ChecklistDetailDialog({ open, onOpenChange, checklist, checklist
       }
     });
 
-    // Sync to API in background
+    // Sync to API
     const success = await toggleItem(item, checked);
+    const latency = performance.now() - startTime;
+
+    // Log interaction metrics
+    console.info(JSON.stringify({
+      event: "offboarding_checklist_interaction",
+      itemId: item.id,
+      action: checked ? "check" : "uncheck",
+      latency_ms: Math.round(latency),
+      status: success ? "success" : "failure",
+      isRetry,
+    }));
+
+    setLoadingMap(prev => ({ ...prev, [item.id]: false }));
+
     if (success) {
       onUpdated();
     } else {
@@ -65,9 +89,20 @@ export function ChecklistDetailDialog({ open, onOpenChange, checklist, checklist
       setItems(prev => prev.map(i =>
         i.id === item.id ? { ...i, is_completed: !checked, completed_at: !checked ? item.completed_at : null } : i
       ));
-      toast.error('Failed to update item');
+      setErrorMap(prev => ({ ...prev, [item.id]: { checked, item } }));
+      toast.error(`Failed to update "${item.item_name}"`);
     }
-  };
+  }, [toggleItem, onUpdated]);
+
+  const handleToggle = useCallback((item: ChecklistItem, checked: boolean) => {
+    executeToggle(item, checked);
+  }, [executeToggle]);
+
+  const handleRetry = useCallback((itemId: string) => {
+    const err = errorMap[itemId];
+    if (!err) return;
+    executeToggle(err.item, err.checked, true);
+  }, [errorMap, executeToggle]);
 
   const handleSaveNotes = async (itemId: string) => {
     setSavingNotes(itemId);
@@ -122,22 +157,46 @@ export function ChecklistDetailDialog({ open, onOpenChange, checklist, checklist
             <div className="space-y-2">
               {items.map((item, idx) => {
                 const isEditingNotes = editingNotes[item.id] !== undefined;
+                const isItemLoading = !!loadingMap[item.id];
+                const hasError = !!errorMap[item.id];
                 return (
-                  <div key={item.id} className={`p-3 rounded-lg border ${item.is_completed ? 'bg-muted/30 border-primary/20' : 'bg-background'}`}>
+                  <div key={item.id} className={`p-3 rounded-lg border ${hasError ? 'border-destructive/40 bg-destructive/5' : item.is_completed ? 'bg-muted/30 border-primary/20' : 'bg-background'}`}>
                     <div className="flex items-start gap-3">
-                      <Checkbox
-                        checked={item.is_completed}
-                        onCheckedChange={(checked) => handleToggle(item, !!checked)}
-                        className="mt-0.5"
-                      />
+                      <div className="relative mt-0.5">
+                        {isItemLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        ) : (
+                          <Checkbox
+                            checked={item.is_completed}
+                            onCheckedChange={(checked) => handleToggle(item, !!checked)}
+                            disabled={isItemLoading}
+                            className="mt-0"
+                          />
+                        )}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <span className={`text-sm font-medium ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
                             {idx + 1}. {item.item_name}
                           </span>
-                          {item.is_completed && (
-                            <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                          )}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {hasError && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                                onClick={() => handleRetry(item.id)}
+                              >
+                                <RotateCcw className="h-3 w-3 mr-1" /> Retry
+                              </Button>
+                            )}
+                            {item.is_completed && !hasError && (
+                              <CheckCircle2 className="h-4 w-4 text-primary" />
+                            )}
+                            {hasError && (
+                              <AlertCircle className="h-4 w-4 text-destructive" />
+                            )}
+                          </div>
                         </div>
                         {item.is_completed && item.completed_by_name && (
                           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
