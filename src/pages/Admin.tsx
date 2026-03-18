@@ -19,7 +19,8 @@ import { PaymentRemindersCard } from "@/components/PaymentRemindersCard";
 import { PendingPaymentApprovals } from "@/components/PendingPaymentApprovals";
 import { InviteUserDialog } from "@/components/admin/InviteUserDialog";
 import { NoticesPanel } from "@/components/notices/NoticesPanel";
-import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity, Building2, CalendarClock, Shield, CalendarDays } from "lucide-react";
+import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity, Building2, CalendarClock, Shield, CalendarDays, History } from "lucide-react";
+import { UserApprovalHistoryDialog } from "@/components/admin/UserApprovalHistoryDialog";
 import UserActivityTracker from "@/components/admin/UserActivityTracker";
 import {
   Select,
@@ -101,7 +102,7 @@ const Admin = () => {
   const [activeTab, setActiveTab] = useState("analytics");
   const [orgRoles, setOrgRoles] = useState<{ id: string; name: string; label: string; is_active: boolean }[]>([]);
   const [orgDepartments, setOrgDepartments] = useState<{ id: string; name: string; is_active: boolean }[]>([]);
-
+  const [historyUser, setHistoryUser] = useState<{ userId: string; name: string; email: string } | null>(null);
   const fetchOrgData = async () => {
     const [rolesRes, deptsRes] = await Promise.all([
       supabase.from("org_roles").select("id, name, label, is_active").eq("is_active", true).order("name"),
@@ -991,6 +992,16 @@ const Admin = () => {
                             </SelectContent>
                           </Select>
 
+                          {/* Approval History */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setHistoryUser({ userId: user.user_id, name: user.name, email: user.email })}
+                            title="View approval history"
+                          >
+                            <History className="w-4 h-4" />
+                          </Button>
+
                           {/* Reset Password */}
                           <Button
                             size="sm"
@@ -1096,6 +1107,15 @@ const Admin = () => {
         description={reAuthState.description}
         onConfirmed={reAuthState.onConfirmed}
       />
+      {historyUser && (
+        <UserApprovalHistoryDialog
+          open={!!historyUser}
+          onOpenChange={(open) => !open && setHistoryUser(null)}
+          userId={historyUser.userId}
+          userName={historyUser.name}
+          userEmail={historyUser.email}
+        />
+      )}
     </div>
   );
 };
