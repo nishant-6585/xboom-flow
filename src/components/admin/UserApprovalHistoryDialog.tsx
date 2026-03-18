@@ -262,6 +262,11 @@ export function UserApprovalHistoryDialog({ open, onOpenChange, userId, userName
                           {info && (
                             <p className="text-xs text-muted-foreground mt-0.5">{info}</p>
                           )}
+                          {log.details?._direction === "performed" && log.details?._targetDisplay && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              For: <span className="text-foreground font-medium">{log.details._targetDisplay}</span>
+                            </p>
+                          )}
                           {comment && (
                             <div className="flex items-start gap-1.5 mt-1 p-2 rounded bg-secondary/60 border border-border">
                               <MessageSquare className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
@@ -271,6 +276,9 @@ export function UserApprovalHistoryDialog({ open, onOpenChange, userId, userName
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {format(new Date(log.performed_at), "dd MMM yyyy, HH:mm")}
                             {log.user_name && ` • by ${log.user_name}`}
+                            {log.details?._direction === "received" && log.details?._actor && (
+                              <> • action by <span className="text-foreground">{log.details._actor}</span></>
+                            )}
                           </p>
                         </div>
                       </div>
