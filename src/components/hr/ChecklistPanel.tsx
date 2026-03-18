@@ -147,10 +147,13 @@ export function ChecklistPanel({ checklistType }: Props) {
 
       <ChecklistDetailDialog
         open={detailOpen}
-        onOpenChange={setDetailOpen}
+        onOpenChange={(open) => {
+          setDetailOpen(open);
+          if (!open) fetchChecklists(); // refresh list only when dialog closes
+        }}
         checklist={selectedChecklist}
         checklistType={checklistType}
-        onUpdated={fetchChecklists}
+        onUpdated={() => {}} // no-op: avoid parent re-render during interaction
       />
     </div>
   );
