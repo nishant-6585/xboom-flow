@@ -36,29 +36,23 @@ export function useInteraktLeads() {
 
   const syncMutation = useMutation({
     mutationFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
+      const { data, error } = await supabase.functions.invoke('sync-interakt-contacts', {
+        body: {},
+      });
 
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/sync-interakt-contacts`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({}),
-        }
-      );
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error || 'Sync failed');
+      if (error) {
+        const message =
+          typeof error.message === 'string' && error.message.trim().length > 0
+            ? error.message
+            : 'Sync failed';
+        throw new Error(message);
       }
 
-      return res.json();
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['interakt-leads'] });

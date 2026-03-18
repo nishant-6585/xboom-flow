@@ -130,10 +130,20 @@ Deno.serve(async (req) => {
       if (!interaktRes.ok) {
         const errText = await interaktRes.text();
         console.error(`Interakt API error [${interaktRes.status}]:`, errText);
+
+        let interaktMessage = "Failed to fetch contacts from Interakt";
+        try {
+          const parsed = JSON.parse(errText);
+          interaktMessage =
+            parsed?.message || parsed?.error || parsed?.errors?.[0]?.message || interaktMessage;
+        } catch {
+          if (errText?.trim()) interaktMessage = errText.trim();
+        }
+
         return new Response(
-          JSON.stringify({ error: "Failed to fetch contacts from Interakt" }),
+          JSON.stringify({ error: interaktMessage }),
           {
-            status: 502,
+            status: interaktRes.status >= 400 && interaktRes.status < 500 ? 400 : 502,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
