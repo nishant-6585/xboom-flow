@@ -257,7 +257,12 @@ Deno.serve(async (req) => {
     const newLeads: Array<Record<string, unknown>> = [];
 
     for (const contact of allContacts) {
-      const rawPhone = contact.phoneNumber || contact.phone_number || "";
+      const rawPhone =
+        contact.phoneNumber ||
+        contact.phone_number ||
+        contact.fullPhoneNumber ||
+        contact.full_phone_number ||
+        "";
       if (!rawPhone) {
         skipped++;
         continue;
