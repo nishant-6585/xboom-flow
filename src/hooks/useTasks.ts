@@ -229,6 +229,14 @@ export function useTasks() {
 
   const deleteTask = async (id: string): Promise<boolean> => {
     try {
+      // Delete child tasks first (tasks that reference this as parent)
+      const { error: childError } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('parent_task_id', id);
+
+      if (childError) throw childError;
+
       const { error } = await supabase
         .from('tasks')
         .delete()
@@ -236,6 +244,7 @@ export function useTasks() {
 
       if (error) throw error;
       toast.success('Task deleted successfully');
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error deleting task:', error);
