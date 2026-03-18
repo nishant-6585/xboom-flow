@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Clock, CheckCircle, UserPlus, Shield, KeyRound, Trash2, UserCog } from "lucide-react";
+import { Loader2, Clock, CheckCircle, UserPlus, Shield, KeyRound, Trash2, UserCog, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 
 interface ApprovalHistoryItem {
@@ -36,6 +36,9 @@ interface Props {
 
 const ACTION_ICONS: Record<string, typeof CheckCircle> = {
   invitation_approved: CheckCircle,
+  invitation_cancelled: Trash2,
+  user_approved: CheckCircle,
+  registration_denied: Trash2,
   user_invited: UserPlus,
   role_changed: Shield,
   password_reset: KeyRound,
@@ -46,6 +49,9 @@ const ACTION_ICONS: Record<string, typeof CheckCircle> = {
 
 const ACTION_LABELS: Record<string, string> = {
   invitation_approved: "Invitation Approved",
+  invitation_cancelled: "Invitation Cancelled",
+  user_approved: "User Approved",
+  registration_denied: "Registration Denied",
   user_invited: "User Invited",
   role_changed: "Role Changed",
   password_reset: "Password Reset",
@@ -116,8 +122,8 @@ export function UserApprovalHistoryDialog({ open, onOpenChange, userId, userName
     }
   };
 
-  const formatDetails = (details: Record<string, any> | null): string | null => {
-    if (!details) return null;
+  const formatDetails = (details: Record<string, any> | null): { info: string | null; comment: string | null } => {
+    if (!details) return { info: null, comment: null };
     const parts: string[] = [];
     if (details.role) parts.push(`Role: ${details.role}`);
     if (details.new_role) parts.push(`New Role: ${details.new_role}`);
@@ -130,7 +136,11 @@ export function UserApprovalHistoryDialog({ open, onOpenChange, userId, userName
     if (details.approved_by_name) parts.push(`Approved by: ${details.approved_by_name}`);
     if (details.admin_name) parts.push(`By: ${details.admin_name}`);
     if (details.target_name) parts.push(`User: ${details.target_name}`);
-    return parts.length > 0 ? parts.join(" • ") : null;
+    if (details.email) parts.push(`Email: ${details.email}`);
+    return {
+      info: parts.length > 0 ? parts.join(" • ") : null,
+      comment: details.comment || null,
+    };
   };
 
   return (
@@ -202,7 +212,7 @@ export function UserApprovalHistoryDialog({ open, onOpenChange, userId, userName
                 <div className="space-y-1">
                   {auditLogs.map((log) => {
                     const IconComp = ACTION_ICONS[log.action] || Clock;
-                    const detailStr = formatDetails(log.details);
+                    const { info, comment } = formatDetails(log.details);
                     return (
                       <div key={log.id} className="flex items-start gap-3 p-2.5 rounded-md hover:bg-secondary/50 transition-colors">
                         <IconComp className={`w-4 h-4 mt-0.5 shrink-0 ${getActionColor(log.action)}`} />
@@ -210,8 +220,14 @@ export function UserApprovalHistoryDialog({ open, onOpenChange, userId, userName
                           <p className="text-sm font-medium">
                             {ACTION_LABELS[log.action] || log.action.replace(/_/g, " ")}
                           </p>
-                          {detailStr && (
-                            <p className="text-xs text-muted-foreground mt-0.5">{detailStr}</p>
+                          {info && (
+                            <p className="text-xs text-muted-foreground mt-0.5">{info}</p>
+                          )}
+                          {comment && (
+                            <div className="flex items-start gap-1.5 mt-1 p-2 rounded bg-secondary/60 border border-border">
+                              <MessageSquare className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
+                              <p className="text-xs text-foreground">{comment}</p>
+                            </div>
                           )}
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {format(new Date(log.performed_at), "dd MMM yyyy, HH:mm")}

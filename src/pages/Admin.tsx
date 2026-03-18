@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +21,7 @@ import { InviteUserDialog } from "@/components/admin/InviteUserDialog";
 import { NoticesPanel } from "@/components/notices/NoticesPanel";
 import { Check, X, Users, ShieldCheck, Clock, Loader2, BarChart3, CreditCard, Receipt, KeyRound, Trash2, UserCog, MessageSquare, ClipboardList, Mail, Bell, Activity, Building2, CalendarClock, Shield, CalendarDays, History } from "lucide-react";
 import { UserApprovalHistoryDialog } from "@/components/admin/UserApprovalHistoryDialog";
+import { ActionWithCommentDialog } from "@/components/admin/ActionWithCommentDialog";
 import UserActivityTracker from "@/components/admin/UserActivityTracker";
 import {
   Select,
@@ -29,6 +30,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -174,7 +177,7 @@ const Admin = () => {
     }
   };
 
-  const handleApproveInvitation = async (invitationId: string, name: string, email: string) => {
+  const handleApproveInvitation = async (invitationId: string, name: string, email: string, comment: string) => {
     setActionLoading(invitationId);
     try {
       const { data, error } = await supabase.functions.invoke("approve-invitation", {
@@ -183,6 +186,15 @@ const Admin = () => {
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+
+      // Log audit with comment
+      if (user) {
+        await recordAuditLog(user.id, profile?.name || "Admin", {
+          action: "invitation_approved",
+          targetUserId: data?.user_id || undefined,
+          details: { target_name: name, email, comment, role: data?.role },
+        });
+      }
 
       toast({
         title: "Invitation Approved",
@@ -205,7 +217,7 @@ const Admin = () => {
     }
   };
 
-  const handleCancelInvitation = async (invitationId: string, email: string) => {
+  const handleCancelInvitation = async (invitationId: string, email: string, comment: string) => {
     setActionLoading(invitationId);
     try {
       const { error } = await supabase
@@ -214,6 +226,14 @@ const Admin = () => {
         .eq("id", invitationId);
 
       if (error) throw error;
+
+      // Log audit with comment
+      if (user) {
+        await recordAuditLog(user.id, profile?.name || "Admin", {
+          action: "invitation_cancelled",
+          details: { email, comment },
+        });
+      }
 
       toast({
         title: "Invitation Cancelled",
@@ -290,7 +310,7 @@ const Admin = () => {
     }
   };
 
-  const handleApprove = async (userId: string, userName: string) => {
+  const handleApprove = async (userId: string, userName: string, comment: string) => {
     setActionLoading(userId);
     try {
       const { error } = await supabase
@@ -299,6 +319,14 @@ const Admin = () => {
         .eq("user_id", userId);
 
       if (error) throw error;
+
+      if (user) {
+        await recordAuditLog(user.id, profile?.name || "Admin", {
+          action: "user_approved",
+          targetUserId: userId,
+          details: { target_name: userName, comment },
+        });
+      }
 
       toast({
         title: "User Approved",
@@ -318,16 +346,23 @@ const Admin = () => {
     }
   };
 
-  const handleDeny = async (userId: string, userName: string) => {
+  const handleDeny = async (userId: string, userName: string, comment: string) => {
     setActionLoading(userId);
     try {
-      // Delete the user's profile and role (cascade will handle cleanup)
       const { error } = await supabase
         .from("profiles")
         .delete()
         .eq("user_id", userId);
 
       if (error) throw error;
+
+      if (user) {
+        await recordAuditLog(user.id, profile?.name || "Admin", {
+          action: "registration_denied",
+          targetUserId: userId,
+          details: { target_name: userName, comment },
+        });
+      }
 
       toast({
         title: "Registration Denied",
@@ -750,32 +785,33 @@ const Admin = () => {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleApproveInvitation(invitation.id, invitation.name, invitation.email)}
-                            disabled={actionLoading === invitation.id}
-                          >
-                            {actionLoading === invitation.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Check className="w-4 h-4" />
-                            )}
-                            <span className="ml-1 hidden sm:inline">Approve</span>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleCancelInvitation(invitation.id, invitation.email)}
-                            disabled={actionLoading === invitation.id}
-                          >
-                            {actionLoading === invitation.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <X className="w-4 h-4" />
-                            )}
-                            <span className="ml-1 hidden sm:inline">Cancel</span>
-                          </Button>
+                          <ActionWithCommentDialog
+                            trigger={
+                              <Button size="sm" disabled={actionLoading === invitation.id}>
+                                {actionLoading === invitation.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                <span className="ml-1 hidden sm:inline">Approve</span>
+                              </Button>
+                            }
+                            title="Approve Invitation"
+                            description={`You are about to approve the invitation for ${invitation.name} (${invitation.email}).`}
+                            confirmLabel="Approve"
+                            loading={actionLoading === invitation.id}
+                            onConfirm={(comment) => handleApproveInvitation(invitation.id, invitation.name, invitation.email, comment)}
+                          />
+                          <ActionWithCommentDialog
+                            trigger={
+                              <Button size="sm" variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10" disabled={actionLoading === invitation.id}>
+                                {actionLoading === invitation.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                                <span className="ml-1 hidden sm:inline">Cancel</span>
+                              </Button>
+                            }
+                            title="Cancel Invitation"
+                            description={`You are about to cancel the invitation for ${invitation.email}.`}
+                            confirmLabel="Cancel Invitation"
+                            confirmVariant="destructive"
+                            loading={actionLoading === invitation.id}
+                            onConfirm={(comment) => handleCancelInvitation(invitation.id, invitation.email, comment)}
+                          />
                         </div>
                       </div>
                     ))}
@@ -822,32 +858,33 @@ const Admin = () => {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDeny(user.user_id, user.name)}
-                            disabled={actionLoading === user.user_id}
-                          >
-                            {actionLoading === user.user_id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <X className="w-4 h-4" />
-                            )}
-                            <span className="ml-1 hidden sm:inline">Deny</span>
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleApprove(user.user_id, user.name)}
-                            disabled={actionLoading === user.user_id}
-                          >
-                            {actionLoading === user.user_id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Check className="w-4 h-4" />
-                            )}
-                            <span className="ml-1 hidden sm:inline">Approve</span>
-                          </Button>
+                          <ActionWithCommentDialog
+                            trigger={
+                              <Button size="sm" variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10" disabled={actionLoading === user.user_id}>
+                                {actionLoading === user.user_id ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                                <span className="ml-1 hidden sm:inline">Deny</span>
+                              </Button>
+                            }
+                            title="Deny Registration"
+                            description={`You are about to deny the registration for ${user.name}.`}
+                            confirmLabel="Deny"
+                            confirmVariant="destructive"
+                            loading={actionLoading === user.user_id}
+                            onConfirm={(comment) => handleDeny(user.user_id, user.name, comment)}
+                          />
+                          <ActionWithCommentDialog
+                            trigger={
+                              <Button size="sm" disabled={actionLoading === user.user_id}>
+                                {actionLoading === user.user_id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                <span className="ml-1 hidden sm:inline">Approve</span>
+                              </Button>
+                            }
+                            title="Approve User"
+                            description={`You are about to approve ${user.name}. They will gain access to the system.`}
+                            confirmLabel="Approve"
+                            loading={actionLoading === user.user_id}
+                            onConfirm={(comment) => handleApprove(user.user_id, user.name, comment)}
+                          />
                         </div>
                       </div>
                     ))}
