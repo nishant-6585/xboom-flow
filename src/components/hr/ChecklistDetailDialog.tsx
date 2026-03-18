@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { CheckCircle2, Circle, User, Calendar, MessageSquare, Save } from "lucide-react";
 import { EmployeeChecklist, ChecklistItem, useEmployeeChecklists } from "@/hooks/useEmployeeChecklists";
 import { toast } from "sonner";
@@ -38,14 +37,35 @@ export function ChecklistDetailDialog({ open, onOpenChange, checklist, checklist
     if (open && checklist) loadItems();
   }, [open, checklist, loadItems]);
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   const handleToggle = async (item: ChecklistItem, checked: boolean) => {
+    // Capture scroll position
+    const scrollTop = scrollContainerRef.current?.scrollTop ?? 0;
+
+    // Optimistic update
+    setItems(prev => prev.map(i =>
+      i.id === item.id ? { ...i, is_completed: checked, completed_at: checked ? new Date().toISOString() : null } : i
+    ));
+    toast.success(`${item.item_name} ${checked ? 'completed' : 'unchecked'}`);
+
+    // Restore scroll after render
+    requestAnimationFrame(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollTop;
+      }
+    });
+
+    // Sync to API in background
     const success = await toggleItem(item, checked);
     if (success) {
-      setItems(prev => prev.map(i =>
-        i.id === item.id ? { ...i, is_completed: checked, completed_at: checked ? new Date().toISOString() : null } : i
-      ));
       onUpdated();
-      toast.success(`${item.item_name} ${checked ? 'completed' : 'unchecked'}`);
+    } else {
+      // Rollback on failure
+      setItems(prev => prev.map(i =>
+        i.id === item.id ? { ...i, is_completed: !checked, completed_at: !checked ? item.completed_at : null } : i
+      ));
+      toast.error('Failed to update item');
     }
   };
 
@@ -95,7 +115,7 @@ export function ChecklistDetailDialog({ open, onOpenChange, checklist, checklist
           </div>
         </div>
 
-        <ScrollArea className="max-h-[55vh] pr-2">
+        <div ref={scrollContainerRef} className="max-h-[55vh] pr-2 overflow-y-auto">
           {loading ? (
             <div className="py-8 text-center text-muted-foreground text-sm">Loading...</div>
           ) : (
@@ -161,7 +181,7 @@ export function ChecklistDetailDialog({ open, onOpenChange, checklist, checklist
               })}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
