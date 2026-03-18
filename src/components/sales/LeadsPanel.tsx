@@ -415,9 +415,8 @@ export function LeadsPanel() {
                           <span className="font-medium">{lead.quantity}</span>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary" className="text-xs">
-                            {extractLeadSource(lead.notes)}
-                          </Badge>
+                          {getSourceBadge(extractLeadSource(lead.notes))}
+                        </TableCell>
                         </TableCell>
                         {canSeeAllLeads && (
                           <TableCell>
