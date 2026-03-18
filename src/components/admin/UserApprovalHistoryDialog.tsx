@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Clock, CheckCircle, UserPlus, Shield, KeyRound, Trash2, UserCog } from "lucide-react";
+import { Loader2, Clock, CheckCircle, UserPlus, Shield, KeyRound, Trash2, UserCog, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 
 interface ApprovalHistoryItem {
