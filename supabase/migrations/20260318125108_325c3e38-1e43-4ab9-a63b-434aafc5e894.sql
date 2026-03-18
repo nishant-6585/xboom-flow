@@ -1,0 +1,2 @@
+ALTER TABLE public.employees DROP CONSTRAINT employees_work_location_check;
+ALTER TABLE public.employees ADD CONSTRAINT employees_work_location_check CHECK (work_location = ANY (ARRAY['Office'::text, 'Remote'::text, 'Field'::text, 'Hybrid'::text]));
