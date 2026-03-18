@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.upload-form-attachment]
 verify_jwt = false
+
+[functions.sync-interakt-contacts]
+verify_jwt = false
