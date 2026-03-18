@@ -785,32 +785,33 @@ const Admin = () => {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleApproveInvitation(invitation.id, invitation.name, invitation.email)}
-                            disabled={actionLoading === invitation.id}
-                          >
-                            {actionLoading === invitation.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Check className="w-4 h-4" />
-                            )}
-                            <span className="ml-1 hidden sm:inline">Approve</span>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleCancelInvitation(invitation.id, invitation.email)}
-                            disabled={actionLoading === invitation.id}
-                          >
-                            {actionLoading === invitation.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <X className="w-4 h-4" />
-                            )}
-                            <span className="ml-1 hidden sm:inline">Cancel</span>
-                          </Button>
+                          <ActionWithCommentDialog
+                            trigger={
+                              <Button size="sm" disabled={actionLoading === invitation.id}>
+                                {actionLoading === invitation.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                <span className="ml-1 hidden sm:inline">Approve</span>
+                              </Button>
+                            }
+                            title="Approve Invitation"
+                            description={`You are about to approve the invitation for ${invitation.name} (${invitation.email}).`}
+                            confirmLabel="Approve"
+                            loading={actionLoading === invitation.id}
+                            onConfirm={(comment) => handleApproveInvitation(invitation.id, invitation.name, invitation.email, comment)}
+                          />
+                          <ActionWithCommentDialog
+                            trigger={
+                              <Button size="sm" variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10" disabled={actionLoading === invitation.id}>
+                                {actionLoading === invitation.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                                <span className="ml-1 hidden sm:inline">Cancel</span>
+                              </Button>
+                            }
+                            title="Cancel Invitation"
+                            description={`You are about to cancel the invitation for ${invitation.email}.`}
+                            confirmLabel="Cancel Invitation"
+                            confirmVariant="destructive"
+                            loading={actionLoading === invitation.id}
+                            onConfirm={(comment) => handleCancelInvitation(invitation.id, invitation.email, comment)}
+                          />
                         </div>
                       </div>
                     ))}
