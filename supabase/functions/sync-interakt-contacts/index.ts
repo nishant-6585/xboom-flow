@@ -44,14 +44,19 @@ function extractContactsFromResponse(payload: unknown): InteraktUser[] {
   if (!payload || typeof payload !== "object") return [];
 
   const record = payload as Record<string, unknown>;
+  const nestedData =
+    record.data && typeof record.data === "object"
+      ? (record.data as Record<string, unknown>)
+      : undefined;
+
   const candidates = [
     record.users,
     record.results,
     record.contacts,
-    record.data,
-    (record.data as Record<string, unknown> | undefined)?.users,
-    (record.data as Record<string, unknown> | undefined)?.results,
-    (record.data as Record<string, unknown> | undefined)?.contacts,
+    nestedData?.users,
+    nestedData?.results,
+    nestedData?.contacts,
+    nestedData?.customers,
   ];
 
   for (const candidate of candidates) {
@@ -252,7 +257,12 @@ Deno.serve(async (req) => {
     const newLeads: Array<Record<string, unknown>> = [];
 
     for (const contact of allContacts) {
-      const rawPhone = contact.phoneNumber || contact.phone_number || "";
+      const rawPhone =
+        contact.phoneNumber ||
+        contact.phone_number ||
+        contact.fullPhoneNumber ||
+        contact.full_phone_number ||
+        "";
       if (!rawPhone) {
         skipped++;
         continue;
