@@ -2626,6 +2626,54 @@ export type Database = {
           },
         ]
       }
+      interakt_leads: {
+        Row: {
+          country_code: string
+          created_at: string
+          customer_name: string
+          email: string | null
+          id: string
+          interakt_traits: Json | null
+          interakt_user_id: string | null
+          phone_number: string
+          source: string
+          status: string
+          synced_at: string
+          synced_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          country_code?: string
+          created_at?: string
+          customer_name: string
+          email?: string | null
+          id?: string
+          interakt_traits?: Json | null
+          interakt_user_id?: string | null
+          phone_number: string
+          source?: string
+          status?: string
+          synced_at?: string
+          synced_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          country_code?: string
+          created_at?: string
+          customer_name?: string
+          email?: string | null
+          id?: string
+          interakt_traits?: Json | null
+          interakt_user_id?: string | null
+          phone_number?: string
+          source?: string
+          status?: string
+          synced_at?: string
+          synced_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       interview_records: {
         Row: {
           candidate_id: string

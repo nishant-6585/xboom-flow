@@ -6,12 +6,15 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEnquiries, PRODUCT_CATEGORIES, Enquiry } from '@/hooks/useEnquiries';
+import { useInteraktLeads } from '@/hooks/useInteraktLeads';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Upload, FileSpreadsheet, Download, Search, Plus, Users, 
-  Package, Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil 
+  Package, Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil,
+  RefreshCw, Phone, MessageCircle
 } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
 import { toast } from 'sonner';
@@ -29,6 +32,7 @@ const LEAD_SOURCES = [
   'Instagram',
   'LinkedIn',
   'WhatsApp',
+  'Interakt',
   'Referral',
   'Cold Call',
   'Exhibition',
@@ -38,6 +42,7 @@ const LEAD_SOURCES = [
 
 export function LeadsPanel() {
   const { enquiries, loading, refetch } = useEnquiries();
+  const { leads: interaktLeads, loading: interaktLoading, syncFromInterakt, syncing } = useInteraktLeads();
   const { user, profile, role } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
@@ -187,6 +192,22 @@ export function LeadsPanel() {
     return match ? match[1].trim() : 'Unknown';
   };
 
+  const getSourceBadge = (source: string) => {
+    if (source.toLowerCase() === 'interakt') {
+      return (
+        <Badge className="bg-emerald-500/20 text-emerald-700 border-emerald-500/30 text-xs gap-1">
+          <MessageCircle className="h-3 w-3" />
+          Interakt
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="secondary" className="text-xs">
+        {source}
+      </Badge>
+    );
+  };
+
   // Stats
   const totalLeads = leads.length;
   const pendingLeads = leads.filter(l => l.status === 'pending').length;
@@ -194,6 +215,19 @@ export function LeadsPanel() {
   const convertedLeads = leads.filter(l => l.status === 'order_won' || l.status === 'moved_to_pipeline').length;
 
   return (
+    <Tabs defaultValue="leads" className="space-y-6">
+      <TabsList>
+        <TabsTrigger value="leads">All Leads</TabsTrigger>
+        <TabsTrigger value="interakt" className="gap-1.5">
+          <MessageCircle className="h-3.5 w-3.5" />
+          Interakt
+          {interaktLeads.length > 0 && (
+            <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">{interaktLeads.length}</Badge>
+          )}
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="leads" className="space-y-6">
     <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -394,9 +428,7 @@ export function LeadsPanel() {
                           <span className="font-medium">{lead.quantity}</span>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary" className="text-xs">
-                            {extractLeadSource(lead.notes)}
-                          </Badge>
+                          {getSourceBadge(extractLeadSource(lead.notes))}
                         </TableCell>
                         {canSeeAllLeads && (
                           <TableCell>
@@ -505,5 +537,158 @@ export function LeadsPanel() {
         onSuccess={refetch}
       />
     </div>
+      </TabsContent>
+
+      {/* Interakt Tab */}
+      <TabsContent value="interakt" className="space-y-6">
+        <div className="space-y-6">
+          {/* Interakt Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20">
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-emerald-500/20">
+                    <MessageCircle className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{interaktLeads.length}</p>
+                    <p className="text-xs text-muted-foreground">Total Interakt Leads</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-500/20">
+                    <Users className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{interaktLeads.filter(l => l.status === 'new').length}</p>
+                    <p className="text-xs text-muted-foreground">New</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Sync Button */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium">Interakt Contact Sync</h3>
+                  <p className="text-sm text-muted-foreground">Fetch latest contacts from Interakt and create leads</p>
+                </div>
+                <Button 
+                  onClick={() => syncFromInterakt()} 
+                  disabled={syncing}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  {syncing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Sync from Interakt
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Interakt Leads Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageCircle className="h-5 w-5 text-emerald-600" />
+                Interakt Leads ({interaktLeads.length})
+              </CardTitle>
+              <CardDescription>
+                Leads synced from Interakt WhatsApp platform
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {interaktLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : interaktLeads.length === 0 ? (
+                <div className="text-center py-12">
+                  <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                  <h3 className="text-lg font-medium mb-2">No Interakt leads yet</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Click "Sync from Interakt" to fetch your WhatsApp contacts
+                  </p>
+                  <Button 
+                    onClick={() => syncFromInterakt()} 
+                    disabled={syncing}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Sync from Interakt
+                  </Button>
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="w-[180px]">Customer Name</TableHead>
+                          <TableHead className="w-[150px]">Phone Number</TableHead>
+                          <TableHead className="w-[180px]">Email</TableHead>
+                          <TableHead className="w-[100px]">Source</TableHead>
+                          <TableHead className="w-[80px]">Status</TableHead>
+                          <TableHead className="w-[100px]">Synced</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {interaktLeads.map((lead) => (
+                          <TableRow key={lead.id} className="hover:bg-muted/50">
+                            <TableCell>
+                              <p className="font-medium">{lead.customer_name}</p>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1.5">
+                                <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="text-sm font-mono">{lead.phone_number}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm text-muted-foreground">{lead.email || '—'}</span>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className="bg-emerald-500/20 text-emerald-700 border-emerald-500/30 text-xs gap-1">
+                                <MessageCircle className="h-3 w-3" />
+                                Interakt
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className="capitalize text-xs">
+                                {lead.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(lead.synced_at), 'dd MMM')}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </TabsContent>
+    </Tabs>
   );
 }
