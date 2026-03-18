@@ -115,7 +115,7 @@ export function ChecklistDetailDialog({ open, onOpenChange, checklist, checklist
           </div>
         </div>
 
-        <ScrollArea className="max-h-[55vh] pr-2">
+        <div ref={scrollContainerRef} className="max-h-[55vh] pr-2 overflow-y-auto">
           {loading ? (
             <div className="py-8 text-center text-muted-foreground text-sm">Loading...</div>
           ) : (
