@@ -215,6 +215,19 @@ export function LeadsPanel() {
   const convertedLeads = leads.filter(l => l.status === 'order_won' || l.status === 'moved_to_pipeline').length;
 
   return (
+    <Tabs defaultValue="leads" className="space-y-6">
+      <TabsList>
+        <TabsTrigger value="leads">All Leads</TabsTrigger>
+        <TabsTrigger value="interakt" className="gap-1.5">
+          <MessageCircle className="h-3.5 w-3.5" />
+          Interakt
+          {interaktLeads.length > 0 && (
+            <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">{interaktLeads.length}</Badge>
+          )}
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="leads" className="space-y-6">
     <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
