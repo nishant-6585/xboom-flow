@@ -153,7 +153,6 @@ Deno.serve(async (req) => {
 
       return new Response(JSON.stringify({ 
         error: "Failed to complete invitation approval. All changes have been rolled back.",
-        detail: txError.message,
       }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
