@@ -430,7 +430,6 @@ export function LeadsPanel() {
                         <TableCell>
                           {getSourceBadge(extractLeadSource(lead.notes))}
                         </TableCell>
-                        </TableCell>
                         {canSeeAllLeads && (
                           <TableCell>
                             <span className="text-sm">{lead.sales_person_name}</span>
