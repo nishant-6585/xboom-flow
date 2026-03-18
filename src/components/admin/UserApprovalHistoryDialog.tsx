@@ -36,6 +36,9 @@ interface Props {
 
 const ACTION_ICONS: Record<string, typeof CheckCircle> = {
   invitation_approved: CheckCircle,
+  invitation_cancelled: Trash2,
+  user_approved: CheckCircle,
+  registration_denied: Trash2,
   user_invited: UserPlus,
   role_changed: Shield,
   password_reset: KeyRound,
@@ -46,6 +49,9 @@ const ACTION_ICONS: Record<string, typeof CheckCircle> = {
 
 const ACTION_LABELS: Record<string, string> = {
   invitation_approved: "Invitation Approved",
+  invitation_cancelled: "Invitation Cancelled",
+  user_approved: "User Approved",
+  registration_denied: "Registration Denied",
   user_invited: "User Invited",
   role_changed: "Role Changed",
   password_reset: "Password Reset",
