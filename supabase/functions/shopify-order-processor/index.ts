@@ -226,7 +226,7 @@ serve(async (req) => {
   if (fetchError) {
     console.error("Failed to fetch pending orders:", fetchError.message);
     return new Response(
-      JSON.stringify({ error: "Fetch error", details: fetchError.message }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
