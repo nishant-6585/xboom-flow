@@ -309,7 +309,7 @@ const Admin = () => {
     }
   };
 
-  const handleApprove = async (userId: string, userName: string) => {
+  const handleApprove = async (userId: string, userName: string, comment: string) => {
     setActionLoading(userId);
     try {
       const { error } = await supabase
@@ -318,6 +318,14 @@ const Admin = () => {
         .eq("user_id", userId);
 
       if (error) throw error;
+
+      if (user) {
+        await recordAuditLog(user.id, profile?.name || "Admin", {
+          action: "user_approved",
+          targetUserId: userId,
+          details: { target_name: userName, comment },
+        });
+      }
 
       toast({
         title: "User Approved",
@@ -337,16 +345,23 @@ const Admin = () => {
     }
   };
 
-  const handleDeny = async (userId: string, userName: string) => {
+  const handleDeny = async (userId: string, userName: string, comment: string) => {
     setActionLoading(userId);
     try {
-      // Delete the user's profile and role (cascade will handle cleanup)
       const { error } = await supabase
         .from("profiles")
         .delete()
         .eq("user_id", userId);
 
       if (error) throw error;
+
+      if (user) {
+        await recordAuditLog(user.id, profile?.name || "Admin", {
+          action: "registration_denied",
+          targetUserId: userId,
+          details: { target_name: userName, comment },
+        });
+      }
 
       toast({
         title: "Registration Denied",
