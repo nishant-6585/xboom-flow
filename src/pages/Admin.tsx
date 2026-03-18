@@ -102,7 +102,7 @@ const Admin = () => {
   const [activeTab, setActiveTab] = useState("analytics");
   const [orgRoles, setOrgRoles] = useState<{ id: string; name: string; label: string; is_active: boolean }[]>([]);
   const [orgDepartments, setOrgDepartments] = useState<{ id: string; name: string; is_active: boolean }[]>([]);
-
+  const [historyUser, setHistoryUser] = useState<{ userId: string; name: string; email: string } | null>(null);
   const fetchOrgData = async () => {
     const [rolesRes, deptsRes] = await Promise.all([
       supabase.from("org_roles").select("id, name, label, is_active").eq("is_active", true).order("name"),
