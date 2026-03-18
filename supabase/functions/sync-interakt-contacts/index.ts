@@ -96,8 +96,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Parse optional body for last_synced_at filter
-    let filters: Array<Record<string, string>> = [];
+    // Interakt requires a non-empty filters array.
+    // For full syncs, use a broad created_at_utc lower bound instead of sending [] or omitting filters.
+    let filters: Array<Record<string, string>> = [
+      { trait: "created_at_utc", op: "gt", val: "1970-01-01T00:00:00.000Z" },
+    ];
     try {
       const body = await req.json();
       if (body?.last_synced_at) {
@@ -106,7 +109,7 @@ Deno.serve(async (req) => {
         ];
       }
     } catch {
-      // No body or invalid JSON - fetch all
+      // No body or invalid JSON - use default full-sync filter
     }
 
     // Fetch contacts from Interakt with pagination
@@ -115,11 +118,6 @@ Deno.serve(async (req) => {
     const allContacts: InteraktUser[] = [];
 
     while (hasNextPage) {
-      const requestBody: Record<string, unknown> = {};
-      if (filters.length > 0) {
-        requestBody.filters = filters;
-      }
-
       const interaktRes = await fetch(
         `${INTERAKT_API_URL}?offset=${offset}&limit=${PAGE_LIMIT}`,
         {
@@ -128,7 +126,7 @@ Deno.serve(async (req) => {
             Authorization: `Basic ${interaktApiKey}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(requestBody),
+          body: JSON.stringify({ filters }),
         }
       );
 
