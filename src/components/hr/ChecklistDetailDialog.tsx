@@ -181,7 +181,7 @@ export function ChecklistDetailDialog({ open, onOpenChange, checklist, checklist
               })}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
