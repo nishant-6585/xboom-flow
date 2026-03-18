@@ -1107,6 +1107,15 @@ const Admin = () => {
         description={reAuthState.description}
         onConfirmed={reAuthState.onConfirmed}
       />
+      {historyUser && (
+        <UserApprovalHistoryDialog
+          open={!!historyUser}
+          onOpenChange={(open) => !open && setHistoryUser(null)}
+          userId={historyUser.userId}
+          userName={historyUser.name}
+          userEmail={historyUser.email}
+        />
+      )}
     </div>
   );
 };
