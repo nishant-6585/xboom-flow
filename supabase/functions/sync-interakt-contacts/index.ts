@@ -44,14 +44,19 @@ function extractContactsFromResponse(payload: unknown): InteraktUser[] {
   if (!payload || typeof payload !== "object") return [];
 
   const record = payload as Record<string, unknown>;
+  const nestedData =
+    record.data && typeof record.data === "object"
+      ? (record.data as Record<string, unknown>)
+      : undefined;
+
   const candidates = [
     record.users,
     record.results,
     record.contacts,
-    record.data,
-    (record.data as Record<string, unknown> | undefined)?.users,
-    (record.data as Record<string, unknown> | undefined)?.results,
-    (record.data as Record<string, unknown> | undefined)?.contacts,
+    nestedData?.users,
+    nestedData?.results,
+    nestedData?.contacts,
+    nestedData?.customers,
   ];
 
   for (const candidate of candidates) {
