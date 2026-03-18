@@ -30,11 +30,52 @@ function normalizePhone(phone: string, countryCode?: string): string {
 
 interface InteraktUser {
   id?: string;
+  userId?: string;
   phoneNumber?: string;
   phone_number?: string;
+  fullPhoneNumber?: string;
+  full_phone_number?: string;
   countryCode?: string;
   country_code?: string;
   traits?: Record<string, unknown>;
+}
+
+function extractContactsFromResponse(payload: unknown): InteraktUser[] {
+  if (!payload || typeof payload !== "object") return [];
+
+  const record = payload as Record<string, unknown>;
+  const candidates = [
+    record.users,
+    record.results,
+    record.contacts,
+    record.data,
+    (record.data as Record<string, unknown> | undefined)?.users,
+    (record.data as Record<string, unknown> | undefined)?.results,
+    (record.data as Record<string, unknown> | undefined)?.contacts,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate as InteraktUser[];
+    }
+  }
+
+  return [];
+}
+
+function extractHasNextPage(payload: unknown, currentBatchSize: number): boolean {
+  if (!payload || typeof payload !== "object") {
+    return currentBatchSize === PAGE_LIMIT;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const directFlag = record.has_next_page;
+  const nestedFlag = (record.data as Record<string, unknown> | undefined)?.has_next_page;
+
+  if (typeof directFlag === "boolean") return directFlag;
+  if (typeof nestedFlag === "boolean") return nestedFlag;
+
+  return currentBatchSize === PAGE_LIMIT;
 }
 
 Deno.serve(async (req) => {
