@@ -258,6 +258,7 @@ Deno.serve(async (req) => {
     let created = 0;
     let skipped = 0;
     const newLeads: Array<Record<string, unknown>> = [];
+    const leadsToBackfill: Array<{ phone: string; created_at: string }> = [];
 
     for (const contact of allContacts) {
       const rawPhone =
@@ -275,6 +276,22 @@ Deno.serve(async (req) => {
       const normalizedPhone = normalizePhone(rawPhone, countryCode);
 
       if (existingPhones.has(normalizedPhone)) {
+        // Backfill interakt_created_at for existing leads that are missing it
+        const interaktCreatedAtBackfill =
+          contact.created_at_utc ||
+          contact.created_at ||
+          contact.createdAt ||
+          (traits.created_at_utc as string) ||
+          (traits.created_at as string) ||
+          null;
+
+        if (interaktCreatedAtBackfill) {
+          leadsToBackfill.push({
+            phone: normalizedPhone,
+            created_at: interaktCreatedAtBackfill,
+          });
+        }
+
         skipped++;
         continue;
       }
@@ -323,8 +340,19 @@ Deno.serve(async (req) => {
 
       if (insertError) {
         console.error("Insert error for chunk:", insertError.message);
-        // Continue with remaining chunks
       }
+    }
+
+    // Backfill interakt_created_at for existing leads missing the date
+    let backfilled = 0;
+    for (const item of leadsToBackfill) {
+      const { error: updateError } = await serviceClient
+        .from("interakt_leads")
+        .update({ interakt_created_at: item.created_at })
+        .eq("phone_number", item.phone)
+        .is("interakt_created_at", null);
+
+      if (!updateError) backfilled++;
     }
 
     console.log(
