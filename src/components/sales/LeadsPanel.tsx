@@ -8,19 +8,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEnquiries, PRODUCT_CATEGORIES, Enquiry } from '@/hooks/useEnquiries';
-import { useInteraktLeads } from '@/hooks/useInteraktLeads';
+import { useInteraktLeads, InteraktLead } from '@/hooks/useInteraktLeads';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Upload, FileSpreadsheet, Download, Search, Plus, Users, 
   Package, Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil,
-  RefreshCw, Phone, MessageCircle
+  RefreshCw, Phone, MessageCircle, MapPin
 } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { LeadFormDialog } from './LeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
+import { InteraktLeadEditDialog } from '@/components/interakt/InteraktLeadEditDialog';
 
 const LEAD_SOURCES = [
   'Website',
@@ -42,7 +43,7 @@ const LEAD_SOURCES = [
 
 export function LeadsPanel() {
   const { enquiries, loading, refetch } = useEnquiries();
-  const { leads: interaktLeads, loading: interaktLoading, syncFromInterakt, syncing } = useInteraktLeads();
+  const { leads: interaktLeads, loading: interaktLoading, syncFromInterakt, syncing, updateLead, updating } = useInteraktLeads();
   const { user, profile, role } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
@@ -58,13 +59,25 @@ export function LeadsPanel() {
   const [interaktSearch, setInteraktSearch] = useState('');
   const [interaktStatusFilter, setInteraktStatusFilter] = useState('all');
   const [interaktDateFilter, setInteraktDateFilter] = useState('all');
+  const [interaktDateStart, setInteraktDateStart] = useState<Date | undefined>();
+  const [interaktDateEnd, setInteraktDateEnd] = useState<Date | undefined>();
+  const [editingInteraktLead, setEditingInteraktLead] = useState<InteraktLead | null>(null);
+  const [interaktEditOpen, setInteraktEditOpen] = useState(false);
+
+  // Check edit permission for Interakt leads
+  const canEditInteraktLeads = role === 'admin' || role === 'sales' || role === 'sales_manager';
 
   // Filter Interakt leads
   const filteredInteraktLeads = interaktLeads.filter((lead) => {
     const matchesSearch = !interaktSearch || 
       lead.customer_name.toLowerCase().includes(interaktSearch.toLowerCase()) ||
-      lead.phone_number.includes(interaktSearch);
+      lead.phone_number.includes(interaktSearch) ||
+      (lead.city && lead.city.toLowerCase().includes(interaktSearch.toLowerCase())) ||
+      (lead.product_name && lead.product_name.toLowerCase().includes(interaktSearch.toLowerCase())) ||
+      (lead.company && lead.company.toLowerCase().includes(interaktSearch.toLowerCase()));
     const matchesStatus = interaktStatusFilter === 'all' || lead.status === interaktStatusFilter;
+    
+    // Preset date filter
     let matchesDate = true;
     if (interaktDateFilter !== 'all') {
       const dateStr = lead.interakt_created_at || lead.created_at;
@@ -75,6 +88,15 @@ export function LeadsPanel() {
       else if (interaktDateFilter === 'this_month') matchesDate = d >= startOfMonth(now) && d <= endOfMonth(now);
       else if (interaktDateFilter === 'last_month') { const lm = subMonths(now, 1); matchesDate = d >= startOfMonth(lm) && d <= endOfMonth(lm); }
     }
+
+    // Custom date range filter
+    if (interaktDateStart || interaktDateEnd) {
+      const dateStr = lead.interakt_created_at || lead.created_at;
+      const d = new Date(dateStr);
+      if (interaktDateStart && d < startOfDay(interaktDateStart)) matchesDate = false;
+      if (interaktDateEnd && d > endOfDay(interaktDateEnd)) matchesDate = false;
+    }
+
     return matchesSearch && matchesStatus && matchesDate;
   });
 
@@ -636,11 +658,11 @@ export function LeadsPanel() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Filters */}
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-3 items-end">
                 <div className="relative flex-1 min-w-[200px] max-w-xs">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search name or phone..."
+                    placeholder="Search name, phone, city, product..."
                     value={interaktSearch}
                     onChange={(e) => setInteraktSearch(e.target.value)}
                     className="pl-9"
@@ -656,9 +678,10 @@ export function LeadsPanel() {
                     <SelectItem value="contacted">Contacted</SelectItem>
                     <SelectItem value="qualified">Qualified</SelectItem>
                     <SelectItem value="converted">Converted</SelectItem>
+                    <SelectItem value="lost">Lost</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={interaktDateFilter} onValueChange={setInteraktDateFilter}>
+                <Select value={interaktDateFilter} onValueChange={(v) => { setInteraktDateFilter(v); if (v !== 'all') { setInteraktDateStart(undefined); setInteraktDateEnd(undefined); } }}>
                   <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder="Date range" />
                   </SelectTrigger>
@@ -670,8 +693,15 @@ export function LeadsPanel() {
                     <SelectItem value="last_month">Last Month</SelectItem>
                   </SelectContent>
                 </Select>
-                {(interaktSearch || interaktStatusFilter !== 'all' || interaktDateFilter !== 'all') && (
-                  <Button variant="ghost" size="sm" onClick={() => { setInteraktSearch(''); setInteraktStatusFilter('all'); setInteraktDateFilter('all'); }}>
+                <DateRangeFilter
+                  startDate={interaktDateStart}
+                  endDate={interaktDateEnd}
+                  onStartDateChange={(d) => { setInteraktDateStart(d); setInteraktDateFilter('all'); }}
+                  onEndDateChange={(d) => { setInteraktDateEnd(d); setInteraktDateFilter('all'); }}
+                  onClear={() => { setInteraktDateStart(undefined); setInteraktDateEnd(undefined); }}
+                />
+                {(interaktSearch || interaktStatusFilter !== 'all' || interaktDateFilter !== 'all' || interaktDateStart || interaktDateEnd) && (
+                  <Button variant="ghost" size="sm" onClick={() => { setInteraktSearch(''); setInteraktStatusFilter('all'); setInteraktDateFilter('all'); setInteraktDateStart(undefined); setInteraktDateEnd(undefined); }}>
                     Clear filters
                   </Button>
                 )}
@@ -709,13 +739,15 @@ export function LeadsPanel() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50">
-                          <TableHead className="w-[180px]">Customer Name</TableHead>
-                          <TableHead className="w-[150px]">Phone Number</TableHead>
-                          <TableHead className="w-[180px]">Email</TableHead>
-                          <TableHead className="w-[100px]">Source</TableHead>
+                          <TableHead className="w-[160px]">Customer Name</TableHead>
+                          <TableHead className="w-[140px]">Phone Number</TableHead>
+                          <TableHead className="w-[120px]">Company</TableHead>
+                          <TableHead className="w-[100px]">City</TableHead>
+                          <TableHead className="w-[120px]">Product</TableHead>
+                          <TableHead className="w-[150px]">Email</TableHead>
                           <TableHead className="w-[80px]">Status</TableHead>
                           <TableHead className="w-[100px]">Created On</TableHead>
-                          <TableHead className="w-[100px]">Synced</TableHead>
+                          {canEditInteraktLeads && <TableHead className="w-[60px]">Action</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -731,13 +763,23 @@ export function LeadsPanel() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <span className="text-sm text-muted-foreground">{lead.email || '—'}</span>
+                              <span className="text-sm">{lead.company || '—'}</span>
                             </TableCell>
                             <TableCell>
-                              <Badge className="bg-emerald-500/20 text-emerald-700 border-emerald-500/30 text-xs gap-1">
-                                <MessageCircle className="h-3 w-3" />
-                                Interakt
-                              </Badge>
+                              {lead.city ? (
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-sm">{lead.city}</span>
+                                </div>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm">{lead.product_name || '—'}</span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm text-muted-foreground">{lead.email || '—'}</span>
                             </TableCell>
                             <TableCell>
                               <Badge variant="secondary" className="capitalize text-xs">
@@ -751,11 +793,22 @@ export function LeadsPanel() {
                                   : '—'}
                               </span>
                             </TableCell>
-                            <TableCell>
-                              <span className="text-xs text-muted-foreground">
-                                {format(new Date(lead.synced_at), 'dd MMM')}
-                              </span>
-                            </TableCell>
+                            {canEditInteraktLeads && (
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => {
+                                    setEditingInteraktLead(lead);
+                                    setInteraktEditOpen(true);
+                                  }}
+                                  title="Edit Lead"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))}
                       </TableBody>
@@ -766,6 +819,17 @@ export function LeadsPanel() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Interakt Edit Dialog */}
+        <InteraktLeadEditDialog
+          open={interaktEditOpen}
+          onOpenChange={setInteraktEditOpen}
+          lead={editingInteraktLead}
+          onSave={async (data) => {
+            await updateLead({ ...data, updated_by: user?.id || null });
+          }}
+          saving={updating}
+        />
       </TabsContent>
     </Tabs>
   );

@@ -1,0 +1,188 @@
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, Pencil } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import type { InteraktLead } from '@/hooks/useInteraktLeads';
+
+interface InteraktLeadEditDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  lead: InteraktLead | null;
+  onSave: (lead: Partial<InteraktLead> & { id: string }) => Promise<void>;
+  saving: boolean;
+}
+
+const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'converted', 'lost'];
+
+export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, saving }: InteraktLeadEditDialogProps) {
+  const [form, setForm] = useState({
+    customer_name: '',
+    phone_number: '',
+    email: '',
+    city: '',
+    product_name: '',
+    company: '',
+    status: 'new',
+    notes: '',
+  });
+
+  useEffect(() => {
+    if (lead) {
+      setForm({
+        customer_name: lead.customer_name || '',
+        phone_number: lead.phone_number || '',
+        email: lead.email || '',
+        city: lead.city || '',
+        product_name: lead.product_name || '',
+        company: lead.company || '',
+        status: lead.status || 'new',
+        notes: lead.notes || '',
+      });
+    }
+  }, [lead]);
+
+  const handleSave = async () => {
+    if (!lead) return;
+    await onSave({
+      id: lead.id,
+      customer_name: form.customer_name.trim(),
+      phone_number: form.phone_number.trim(),
+      email: form.email.trim() || null,
+      city: form.city.trim() || null,
+      product_name: form.product_name.trim() || null,
+      company: form.company.trim() || null,
+      status: form.status,
+      notes: form.notes.trim() || null,
+    });
+    onOpenChange(false);
+  };
+
+  // Extract dynamic traits that aren't already mapped to explicit fields
+  const dynamicTraits = lead?.interakt_traits
+    ? Object.entries(lead.interakt_traits).filter(
+        ([key]) => !['name', 'Name', 'email', 'Email', 'city', 'City', 'product', 'Product', 'company', 'Company'].includes(key)
+      )
+    : [];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Pencil className="h-4 w-4" />
+            Edit Interakt Lead
+          </DialogTitle>
+        </DialogHeader>
+        <ScrollArea className="max-h-[60vh] pr-4">
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Customer Name *</Label>
+                <Input
+                  value={form.customer_name}
+                  onChange={(e) => setForm(f => ({ ...f, customer_name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Phone Number</Label>
+                <Input
+                  value={form.phone_number}
+                  onChange={(e) => setForm(f => ({ ...f, phone_number: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Company</Label>
+                <Input
+                  value={form.company}
+                  onChange={(e) => setForm(f => ({ ...f, company: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>City</Label>
+                <Input
+                  value={form.city}
+                  onChange={(e) => setForm(f => ({ ...f, city: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Product Name</Label>
+                <Input
+                  value={form.product_name}
+                  onChange={(e) => setForm(f => ({ ...f, product_name: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(v) => setForm(f => ({ ...f, status: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map(s => (
+                    <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea
+                value={form.notes}
+                onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
+                rows={3}
+              />
+            </div>
+
+            {/* Dynamic Interakt Traits (read-only display) */}
+            {dynamicTraits.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-muted-foreground">Interakt Traits</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {dynamicTraits.map(([key, value]) => (
+                      <div key={key} className="bg-muted/50 rounded-md p-2">
+                        <p className="text-xs text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</p>
+                        <p className="text-sm font-medium truncate">{String(value ?? '—')}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </ScrollArea>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving || !form.customer_name.trim()}>
+            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+            Save Changes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
