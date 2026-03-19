@@ -10,11 +10,16 @@ export interface InteraktLead {
   email: string | null;
   source: string;
   status: string;
+  city: string | null;
+  product_name: string | null;
+  company: string | null;
+  notes: string | null;
   interakt_user_id: string | null;
   interakt_traits: Record<string, unknown> | null;
   interakt_created_at: string | null;
   synced_at: string;
   synced_by: string | null;
+  updated_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -66,11 +71,32 @@ export function useInteraktLeads() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async (lead: Partial<InteraktLead> & { id: string }) => {
+      const { id, ...updates } = lead;
+      const { error } = await supabase
+        .from('interakt_leads')
+        .update(updates as Record<string, unknown>)
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['interakt-leads'] });
+      toast.success('Lead updated successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(`Update failed: ${error.message}`);
+    },
+  });
+
   return {
     leads,
     loading,
     refetch,
     syncFromInterakt: syncMutation.mutate,
     syncing: syncMutation.isPending,
+    updateLead: updateMutation.mutateAsync,
+    updating: updateMutation.isPending,
   };
 }

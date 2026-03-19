@@ -297,12 +297,21 @@ Deno.serve(async (req) => {
         `Contact ${normalizedPhone}`;
       const email =
         (traits.email as string) || (traits.Email as string) || null;
+      const city =
+        (traits.city as string) || (traits.City as string) || (traits.location as string) || null;
+      const productName =
+        (traits.product as string) || (traits.Product as string) || (traits.product_name as string) || null;
+      const company =
+        (traits.company as string) || (traits.Company as string) || (traits.organization as string) || null;
 
       newLeads.push({
         customer_name: name,
         phone_number: normalizedPhone,
         country_code: countryCode.startsWith("+") ? countryCode : `+${countryCode}`,
         email,
+        city,
+        product_name: productName,
+        company,
         source: "Interakt",
         status: "new",
         interakt_user_id: contact.id || contact.userId || null,
