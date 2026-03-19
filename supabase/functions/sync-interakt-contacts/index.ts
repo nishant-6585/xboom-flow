@@ -92,15 +92,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Validate auth
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const interaktApiKey = Deno.env.get("INTERAKT_API_KEY");
@@ -115,35 +106,45 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify user with their JWT
-    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: userData, error: authError } = await userClient.auth.getUser();
-    if (authError || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Determine if this is a cron (automated) call or a user-initiated call
+    let syncedByUserId: string | null = null;
+    const authHeader = req.headers.get("Authorization");
+
+    if (authHeader && !authHeader.includes(Deno.env.get("SUPABASE_ANON_KEY")!.slice(-20))) {
+      // User-initiated call — verify JWT
+      const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
       });
+      const { data: userData, error: authError } = await userClient.auth.getUser();
+      if (authError || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      syncedByUserId = userData.user.id;
+
+      // Use service client for DB operations
+      const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
+
+      // Check user has appropriate role
+      const { data: roles } = await serviceClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userData.user.id);
+
+      const allowedRoles = ["admin", "sales_manager", "sales"];
+      const hasAccess = roles?.some((r: { role: string }) => allowedRoles.includes(r.role));
+      if (!hasAccess) {
+        return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Use service client for DB operations
     const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Check user has appropriate role
-    const { data: roles } = await serviceClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userData.user.id);
-
-    const allowedRoles = ["admin", "sales_manager", "sales"];
-    const hasAccess = roles?.some((r: { role: string }) => allowedRoles.includes(r.role));
-    if (!hasAccess) {
-      return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     // Interakt requires a non-empty filters array.
     // For full syncs, use a broad created_at_utc lower bound instead of sending [] or omitting filters.
@@ -260,6 +261,9 @@ Deno.serve(async (req) => {
     const newLeads: Array<Record<string, unknown>> = [];
     const leadsToBackfill: Array<{ phone: string; created_at: string }> = [];
 
+    // Current sync timestamp — used as "Created On" for all new leads
+    const syncTimestamp = new Date().toISOString();
+
     for (const contact of allContacts) {
       const rawPhone =
         contact.phoneNumber ||
@@ -277,20 +281,10 @@ Deno.serve(async (req) => {
 
       if (existingPhones.has(normalizedPhone)) {
         // Backfill interakt_created_at for existing leads that are missing it
-        const interaktCreatedAtBackfill =
-          contact.created_at_utc ||
-          contact.created_at ||
-          contact.createdAt ||
-          (traits.created_at_utc as string) ||
-          (traits.created_at as string) ||
-          null;
-
-        if (interaktCreatedAtBackfill) {
-          leadsToBackfill.push({
-            phone: normalizedPhone,
-            created_at: interaktCreatedAtBackfill,
-          });
-        }
+        leadsToBackfill.push({
+          phone: normalizedPhone,
+          created_at: syncTimestamp,
+        });
 
         skipped++;
         continue;
@@ -304,15 +298,6 @@ Deno.serve(async (req) => {
       const email =
         (traits.email as string) || (traits.Email as string) || null;
 
-      // Extract Interakt created date
-      const interaktCreatedAt =
-        contact.created_at_utc ||
-        contact.created_at ||
-        contact.createdAt ||
-        (traits.created_at_utc as string) ||
-        (traits.created_at as string) ||
-        null;
-
       newLeads.push({
         customer_name: name,
         phone_number: normalizedPhone,
@@ -322,8 +307,8 @@ Deno.serve(async (req) => {
         status: "new",
         interakt_user_id: contact.id || contact.userId || null,
         interakt_traits: traits,
-        interakt_created_at: interaktCreatedAt,
-        synced_by: userData.user.id,
+        interakt_created_at: syncTimestamp,
+        synced_by: syncedByUserId,
       });
 
       existingPhones.add(normalizedPhone);
