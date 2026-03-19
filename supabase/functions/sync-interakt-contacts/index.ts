@@ -92,15 +92,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Validate auth
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const interaktApiKey = Deno.env.get("INTERAKT_API_KEY");
@@ -115,35 +106,45 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify user with their JWT
-    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: userData, error: authError } = await userClient.auth.getUser();
-    if (authError || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Determine if this is a cron (automated) call or a user-initiated call
+    let syncedByUserId: string | null = null;
+    const authHeader = req.headers.get("Authorization");
+
+    if (authHeader && !authHeader.includes(Deno.env.get("SUPABASE_ANON_KEY")!.slice(-20))) {
+      // User-initiated call — verify JWT
+      const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
       });
+      const { data: userData, error: authError } = await userClient.auth.getUser();
+      if (authError || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      syncedByUserId = userData.user.id;
+
+      // Use service client for DB operations
+      const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
+
+      // Check user has appropriate role
+      const { data: roles } = await serviceClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userData.user.id);
+
+      const allowedRoles = ["admin", "sales_manager", "sales"];
+      const hasAccess = roles?.some((r: { role: string }) => allowedRoles.includes(r.role));
+      if (!hasAccess) {
+        return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Use service client for DB operations
     const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Check user has appropriate role
-    const { data: roles } = await serviceClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userData.user.id);
-
-    const allowedRoles = ["admin", "sales_manager", "sales"];
-    const hasAccess = roles?.some((r: { role: string }) => allowedRoles.includes(r.role));
-    if (!hasAccess) {
-      return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     // Interakt requires a non-empty filters array.
     // For full syncs, use a broad created_at_utc lower bound instead of sending [] or omitting filters.
