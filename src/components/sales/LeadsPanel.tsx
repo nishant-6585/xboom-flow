@@ -606,32 +606,80 @@ export function LeadsPanel() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MessageCircle className="h-5 w-5 text-emerald-600" />
-                Interakt Leads ({interaktLeads.length})
+                Interakt Leads ({filteredInteraktLeads.length})
               </CardTitle>
               <CardDescription>
                 Leads synced from Interakt WhatsApp platform
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {/* Filters */}
+              <div className="flex flex-wrap gap-3">
+                <div className="relative flex-1 min-w-[200px] max-w-xs">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search name or phone..."
+                    value={interaktSearch}
+                    onChange={(e) => setInteraktSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <Select value={interaktStatusFilter} onValueChange={setInteraktStatusFilter}>
+                  <SelectTrigger className="w-[130px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="new">New</SelectItem>
+                    <SelectItem value="contacted">Contacted</SelectItem>
+                    <SelectItem value="qualified">Qualified</SelectItem>
+                    <SelectItem value="converted">Converted</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={interaktDateFilter} onValueChange={setInteraktDateFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Date range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="this_week">This Week</SelectItem>
+                    <SelectItem value="this_month">This Month</SelectItem>
+                    <SelectItem value="last_month">Last Month</SelectItem>
+                  </SelectContent>
+                </Select>
+                {(interaktSearch || interaktStatusFilter !== 'all' || interaktDateFilter !== 'all') && (
+                  <Button variant="ghost" size="sm" onClick={() => { setInteraktSearch(''); setInteraktStatusFilter('all'); setInteraktDateFilter('all'); }}>
+                    Clear filters
+                  </Button>
+                )}
+              </div>
+
               {interaktLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-              ) : interaktLeads.length === 0 ? (
+              ) : filteredInteraktLeads.length === 0 ? (
                 <div className="text-center py-12">
                   <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-medium mb-2">No Interakt leads yet</h3>
+                  <h3 className="text-lg font-medium mb-2">
+                    {interaktLeads.length === 0 ? 'No Interakt leads yet' : 'No leads match filters'}
+                  </h3>
                   <p className="text-muted-foreground mb-4">
-                    Click "Sync from Interakt" to fetch your WhatsApp contacts
+                    {interaktLeads.length === 0
+                      ? 'Click "Sync from Interakt" to fetch your WhatsApp contacts'
+                      : 'Try adjusting your search or filter criteria'}
                   </p>
-                  <Button 
-                    onClick={() => syncFromInterakt()} 
-                    disabled={syncing}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Sync from Interakt
-                  </Button>
+                  {interaktLeads.length === 0 && (
+                    <Button 
+                      onClick={() => syncFromInterakt()} 
+                      disabled={syncing}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Sync from Interakt
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="border rounded-lg overflow-hidden">
@@ -644,11 +692,12 @@ export function LeadsPanel() {
                           <TableHead className="w-[180px]">Email</TableHead>
                           <TableHead className="w-[100px]">Source</TableHead>
                           <TableHead className="w-[80px]">Status</TableHead>
+                          <TableHead className="w-[100px]">Created On</TableHead>
                           <TableHead className="w-[100px]">Synced</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {interaktLeads.map((lead) => (
+                        {filteredInteraktLeads.map((lead) => (
                           <TableRow key={lead.id} className="hover:bg-muted/50">
                             <TableCell>
                               <p className="font-medium">{lead.customer_name}</p>
@@ -672,6 +721,11 @@ export function LeadsPanel() {
                               <Badge variant="secondary" className="capitalize text-xs">
                                 {lead.status}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(lead.created_at), 'dd MMM yyyy')}
+                              </span>
                             </TableCell>
                             <TableCell>
                               <span className="text-xs text-muted-foreground">
