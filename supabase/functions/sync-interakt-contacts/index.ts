@@ -275,6 +275,22 @@ Deno.serve(async (req) => {
       const normalizedPhone = normalizePhone(rawPhone, countryCode);
 
       if (existingPhones.has(normalizedPhone)) {
+        // Backfill interakt_created_at for existing leads that are missing it
+        const interaktCreatedAtBackfill =
+          contact.created_at_utc ||
+          contact.created_at ||
+          contact.createdAt ||
+          (traits.created_at_utc as string) ||
+          (traits.created_at as string) ||
+          null;
+
+        if (interaktCreatedAtBackfill) {
+          leadsToBackfill.push({
+            phone: normalizedPhone,
+            created_at: interaktCreatedAtBackfill,
+          });
+        }
+
         skipped++;
         continue;
       }
