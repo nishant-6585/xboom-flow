@@ -12,6 +12,7 @@ export interface InteraktLead {
   status: string;
   interakt_user_id: string | null;
   interakt_traits: Record<string, unknown> | null;
+  interakt_created_at: string | null;
   synced_at: string;
   synced_by: string | null;
   created_at: string;
