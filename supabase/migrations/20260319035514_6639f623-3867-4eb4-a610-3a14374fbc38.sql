@@ -1,0 +1,1 @@
+ALTER TABLE public.interakt_leads ADD COLUMN IF NOT EXISTS interakt_created_at timestamptz;

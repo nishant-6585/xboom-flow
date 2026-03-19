@@ -2633,6 +2633,7 @@ export type Database = {
           customer_name: string
           email: string | null
           id: string
+          interakt_created_at: string | null
           interakt_traits: Json | null
           interakt_user_id: string | null
           phone_number: string
@@ -2648,6 +2649,7 @@ export type Database = {
           customer_name: string
           email?: string | null
           id?: string
+          interakt_created_at?: string | null
           interakt_traits?: Json | null
           interakt_user_id?: string | null
           phone_number: string
@@ -2663,6 +2665,7 @@ export type Database = {
           customer_name?: string
           email?: string | null
           id?: string
+          interakt_created_at?: string | null
           interakt_traits?: Json | null
           interakt_user_id?: string | null
           phone_number?: string
