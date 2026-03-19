@@ -258,6 +258,7 @@ Deno.serve(async (req) => {
     let created = 0;
     let skipped = 0;
     const newLeads: Array<Record<string, unknown>> = [];
+    const leadsToBackfill: Array<{ phone: string; created_at: string }> = [];
 
     for (const contact of allContacts) {
       const rawPhone =
