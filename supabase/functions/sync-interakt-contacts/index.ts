@@ -261,6 +261,9 @@ Deno.serve(async (req) => {
     const newLeads: Array<Record<string, unknown>> = [];
     const leadsToBackfill: Array<{ phone: string; created_at: string }> = [];
 
+    // Current sync timestamp — used as "Created On" for all new leads
+    const syncTimestamp = new Date().toISOString();
+
     for (const contact of allContacts) {
       const rawPhone =
         contact.phoneNumber ||
@@ -278,20 +281,10 @@ Deno.serve(async (req) => {
 
       if (existingPhones.has(normalizedPhone)) {
         // Backfill interakt_created_at for existing leads that are missing it
-        const interaktCreatedAtBackfill =
-          contact.created_at_utc ||
-          contact.created_at ||
-          contact.createdAt ||
-          (traits.created_at_utc as string) ||
-          (traits.created_at as string) ||
-          null;
-
-        if (interaktCreatedAtBackfill) {
-          leadsToBackfill.push({
-            phone: normalizedPhone,
-            created_at: interaktCreatedAtBackfill,
-          });
-        }
+        leadsToBackfill.push({
+          phone: normalizedPhone,
+          created_at: syncTimestamp,
+        });
 
         skipped++;
         continue;
@@ -305,15 +298,6 @@ Deno.serve(async (req) => {
       const email =
         (traits.email as string) || (traits.Email as string) || null;
 
-      // Extract Interakt created date
-      const interaktCreatedAt =
-        contact.created_at_utc ||
-        contact.created_at ||
-        contact.createdAt ||
-        (traits.created_at_utc as string) ||
-        (traits.created_at as string) ||
-        null;
-
       newLeads.push({
         customer_name: name,
         phone_number: normalizedPhone,
@@ -323,8 +307,8 @@ Deno.serve(async (req) => {
         status: "new",
         interakt_user_id: contact.id || contact.userId || null,
         interakt_traits: traits,
-        interakt_created_at: interaktCreatedAt,
-        synced_by: userData.user.id,
+        interakt_created_at: syncTimestamp,
+        synced_by: syncedByUserId,
       });
 
       existingPhones.add(normalizedPhone);
