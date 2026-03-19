@@ -8,19 +8,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEnquiries, PRODUCT_CATEGORIES, Enquiry } from '@/hooks/useEnquiries';
-import { useInteraktLeads } from '@/hooks/useInteraktLeads';
+import { useInteraktLeads, InteraktLead } from '@/hooks/useInteraktLeads';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Upload, FileSpreadsheet, Download, Search, Plus, Users, 
   Package, Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil,
-  RefreshCw, Phone, MessageCircle
+  RefreshCw, Phone, MessageCircle, MapPin
 } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { LeadFormDialog } from './LeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
+import { InteraktLeadEditDialog } from '@/components/interakt/InteraktLeadEditDialog';
 
 const LEAD_SOURCES = [
   'Website',
