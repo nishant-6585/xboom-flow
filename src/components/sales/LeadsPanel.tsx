@@ -71,8 +71,13 @@ export function LeadsPanel() {
   const filteredInteraktLeads = interaktLeads.filter((lead) => {
     const matchesSearch = !interaktSearch || 
       lead.customer_name.toLowerCase().includes(interaktSearch.toLowerCase()) ||
-      lead.phone_number.includes(interaktSearch);
+      lead.phone_number.includes(interaktSearch) ||
+      (lead.city && lead.city.toLowerCase().includes(interaktSearch.toLowerCase())) ||
+      (lead.product_name && lead.product_name.toLowerCase().includes(interaktSearch.toLowerCase())) ||
+      (lead.company && lead.company.toLowerCase().includes(interaktSearch.toLowerCase()));
     const matchesStatus = interaktStatusFilter === 'all' || lead.status === interaktStatusFilter;
+    
+    // Preset date filter
     let matchesDate = true;
     if (interaktDateFilter !== 'all') {
       const dateStr = lead.interakt_created_at || lead.created_at;
@@ -83,6 +88,15 @@ export function LeadsPanel() {
       else if (interaktDateFilter === 'this_month') matchesDate = d >= startOfMonth(now) && d <= endOfMonth(now);
       else if (interaktDateFilter === 'last_month') { const lm = subMonths(now, 1); matchesDate = d >= startOfMonth(lm) && d <= endOfMonth(lm); }
     }
+
+    // Custom date range filter
+    if (interaktDateStart || interaktDateEnd) {
+      const dateStr = lead.interakt_created_at || lead.created_at;
+      const d = new Date(dateStr);
+      if (interaktDateStart && d < startOfDay(interaktDateStart)) matchesDate = false;
+      if (interaktDateEnd && d > endOfDay(interaktDateEnd)) matchesDate = false;
+    }
+
     return matchesSearch && matchesStatus && matchesDate;
   });
 
