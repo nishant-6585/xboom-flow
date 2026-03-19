@@ -745,7 +745,9 @@ export function LeadsPanel() {
                             </TableCell>
                             <TableCell>
                               <span className="text-xs text-muted-foreground">
-                                {format(new Date(lead.created_at), 'dd MMM yyyy')}
+                                {lead.interakt_created_at
+                                  ? format(new Date(lead.interakt_created_at), 'dd/MM/yyyy')
+                                  : '—'}
                               </span>
                             </TableCell>
                             <TableCell>
