@@ -2628,6 +2628,8 @@ export type Database = {
       }
       interakt_leads: {
         Row: {
+          city: string | null
+          company: string | null
           country_code: string
           created_at: string
           customer_name: string
@@ -2636,14 +2638,19 @@ export type Database = {
           interakt_created_at: string | null
           interakt_traits: Json | null
           interakt_user_id: string | null
+          notes: string | null
           phone_number: string
+          product_name: string | null
           source: string
           status: string
           synced_at: string
           synced_by: string | null
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
+          city?: string | null
+          company?: string | null
           country_code?: string
           created_at?: string
           customer_name: string
@@ -2652,14 +2659,19 @@ export type Database = {
           interakt_created_at?: string | null
           interakt_traits?: Json | null
           interakt_user_id?: string | null
+          notes?: string | null
           phone_number: string
+          product_name?: string | null
           source?: string
           status?: string
           synced_at?: string
           synced_by?: string | null
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
+          city?: string | null
+          company?: string | null
           country_code?: string
           created_at?: string
           customer_name?: string
@@ -2668,12 +2680,15 @@ export type Database = {
           interakt_created_at?: string | null
           interakt_traits?: Json | null
           interakt_user_id?: string | null
+          notes?: string | null
           phone_number?: string
+          product_name?: string | null
           source?: string
           status?: string
           synced_at?: string
           synced_by?: string | null
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
