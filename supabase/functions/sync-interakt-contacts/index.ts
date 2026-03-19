@@ -38,6 +38,9 @@ interface InteraktUser {
   countryCode?: string;
   country_code?: string;
   traits?: Record<string, unknown>;
+  created_at?: string;
+  created_at_utc?: string;
+  createdAt?: string;
 }
 
 function extractContactsFromResponse(payload: unknown): InteraktUser[] {
