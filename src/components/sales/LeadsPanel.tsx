@@ -43,7 +43,7 @@ const LEAD_SOURCES = [
 
 export function LeadsPanel() {
   const { enquiries, loading, refetch } = useEnquiries();
-  const { leads: interaktLeads, loading: interaktLoading, syncFromInterakt, syncing } = useInteraktLeads();
+  const { leads: interaktLeads, loading: interaktLoading, syncFromInterakt, syncing, updateLead, updating } = useInteraktLeads();
   const { user, profile, role } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
@@ -59,6 +59,13 @@ export function LeadsPanel() {
   const [interaktSearch, setInteraktSearch] = useState('');
   const [interaktStatusFilter, setInteraktStatusFilter] = useState('all');
   const [interaktDateFilter, setInteraktDateFilter] = useState('all');
+  const [interaktDateStart, setInteraktDateStart] = useState<Date | undefined>();
+  const [interaktDateEnd, setInteraktDateEnd] = useState<Date | undefined>();
+  const [editingInteraktLead, setEditingInteraktLead] = useState<InteraktLead | null>(null);
+  const [interaktEditOpen, setInteraktEditOpen] = useState(false);
+
+  // Check edit permission for Interakt leads
+  const canEditInteraktLeads = role === 'admin' || role === 'sales' || role === 'sales_manager';
 
   // Filter Interakt leads
   const filteredInteraktLeads = interaktLeads.filter((lead) => {
