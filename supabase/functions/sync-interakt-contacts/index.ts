@@ -340,8 +340,19 @@ Deno.serve(async (req) => {
 
       if (insertError) {
         console.error("Insert error for chunk:", insertError.message);
-        // Continue with remaining chunks
       }
+    }
+
+    // Backfill interakt_created_at for existing leads missing the date
+    let backfilled = 0;
+    for (const item of leadsToBackfill) {
+      const { error: updateError } = await serviceClient
+        .from("interakt_leads")
+        .update({ interakt_created_at: item.created_at })
+        .eq("phone_number", item.phone)
+        .is("interakt_created_at", null);
+
+      if (!updateError) backfilled++;
     }
 
     console.log(
