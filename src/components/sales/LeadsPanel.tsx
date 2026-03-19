@@ -67,7 +67,8 @@ export function LeadsPanel() {
     const matchesStatus = interaktStatusFilter === 'all' || lead.status === interaktStatusFilter;
     let matchesDate = true;
     if (interaktDateFilter !== 'all') {
-      const d = new Date(lead.created_at);
+      const dateStr = lead.interakt_created_at || lead.created_at;
+      const d = new Date(dateStr);
       const now = new Date();
       if (interaktDateFilter === 'today') matchesDate = d >= startOfDay(now) && d <= endOfDay(now);
       else if (interaktDateFilter === 'this_week') matchesDate = d >= startOfWeek(now) && d <= endOfWeek(now);
@@ -745,7 +746,9 @@ export function LeadsPanel() {
                             </TableCell>
                             <TableCell>
                               <span className="text-xs text-muted-foreground">
-                                {format(new Date(lead.created_at), 'dd MMM yyyy')}
+                                {lead.interakt_created_at
+                                  ? format(new Date(lead.interakt_created_at), 'dd/MM/yyyy')
+                                  : '—'}
                               </span>
                             </TableCell>
                             <TableCell>

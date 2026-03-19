@@ -38,6 +38,9 @@ interface InteraktUser {
   countryCode?: string;
   country_code?: string;
   traits?: Record<string, unknown>;
+  created_at?: string;
+  created_at_utc?: string;
+  createdAt?: string;
 }
 
 function extractContactsFromResponse(payload: unknown): InteraktUser[] {
@@ -284,6 +287,15 @@ Deno.serve(async (req) => {
       const email =
         (traits.email as string) || (traits.Email as string) || null;
 
+      // Extract Interakt created date
+      const interaktCreatedAt =
+        contact.created_at_utc ||
+        contact.created_at ||
+        contact.createdAt ||
+        (traits.created_at_utc as string) ||
+        (traits.created_at as string) ||
+        null;
+
       newLeads.push({
         customer_name: name,
         phone_number: normalizedPhone,
@@ -291,8 +303,9 @@ Deno.serve(async (req) => {
         email,
         source: "Interakt",
         status: "new",
-        interakt_user_id: contact.id || null,
+        interakt_user_id: contact.id || contact.userId || null,
         interakt_traits: traits,
+        interakt_created_at: interaktCreatedAt,
         synced_by: userData.user.id,
       });
 
