@@ -55,6 +55,27 @@ export function LeadsPanel() {
   const [dateStart, setDateStart] = useState<Date | undefined>();
   const [dateEnd, setDateEnd] = useState<Date | undefined>();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [interaktSearch, setInteraktSearch] = useState('');
+  const [interaktStatusFilter, setInteraktStatusFilter] = useState('all');
+  const [interaktDateFilter, setInteraktDateFilter] = useState('all');
+
+  // Filter Interakt leads
+  const filteredInteraktLeads = interaktLeads.filter((lead) => {
+    const matchesSearch = !interaktSearch || 
+      lead.customer_name.toLowerCase().includes(interaktSearch.toLowerCase()) ||
+      lead.phone_number.includes(interaktSearch);
+    const matchesStatus = interaktStatusFilter === 'all' || lead.status === interaktStatusFilter;
+    let matchesDate = true;
+    if (interaktDateFilter !== 'all') {
+      const d = new Date(lead.created_at);
+      const now = new Date();
+      if (interaktDateFilter === 'today') matchesDate = d >= startOfDay(now) && d <= endOfDay(now);
+      else if (interaktDateFilter === 'this_week') matchesDate = d >= startOfWeek(now) && d <= endOfWeek(now);
+      else if (interaktDateFilter === 'this_month') matchesDate = d >= startOfMonth(now) && d <= endOfMonth(now);
+      else if (interaktDateFilter === 'last_month') { const lm = subMonths(now, 1); matchesDate = d >= startOfMonth(lm) && d <= endOfMonth(lm); }
+    }
+    return matchesSearch && matchesStatus && matchesDate;
+  });
 
   // Check if user can see all leads (admin, supply_chain, or sales_manager)
   const canSeeAllLeads = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
