@@ -97,6 +97,9 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
   const handleCancel = () => { setEditing(false); resetForm(); };
 
   const handleSave = async () => {
+    if (!form.employee_number.trim()) {
+      toast.error("Employee ID is required"); return;
+    }
     if (form.personal_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.personal_email)) {
       toast.error("Invalid personal email format"); return;
     }
