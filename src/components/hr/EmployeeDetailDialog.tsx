@@ -99,6 +99,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
 
   const update = (key: string, value: string) => setForm(f => ({ ...f, [key]: value }));
 
+  const startEditing = () => { resetForm(); setEditing(true); };
   const handleCancel = () => { setEditing(false); resetForm(); };
 
   const handleSave = async () => {
