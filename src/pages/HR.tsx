@@ -26,6 +26,7 @@ import { SalarySheetsList } from "@/components/salary/SalarySheetsList";
 import { EmployeePayslipsPanel } from "@/components/salary/EmployeePayslipsPanel";
 import { SalaryHistoryPanel } from "@/components/salary/SalaryHistoryPanel";
 import { EmployeeFinancialDetailsPanel } from "@/components/hr/EmployeeFinancialDetailsPanel";
+import { EmployeeFinancialDetailsList } from "@/components/hr/EmployeeFinancialDetailsList";
 import { BankUpdateRequestsPanel } from "@/components/hr/BankUpdateRequestsPanel";
 import { MyFinancialDetailsPanel } from "@/components/hr/MyFinancialDetailsPanel";
 import { ResignationPanel } from "@/components/hr/ResignationPanel";
@@ -130,6 +131,9 @@ export default function HR() {
                 <TabsTrigger value="financial_details" className="gap-1.5 whitespace-nowrap"><Wallet className="h-4 w-4 shrink-0" /><span>Financial Details</span></TabsTrigger>
               )}
               {isHROrAdmin && (
+                <TabsTrigger value="financial_list" className="gap-1.5 whitespace-nowrap"><Users className="h-4 w-4 shrink-0" /><span>Financial List</span></TabsTrigger>
+              )}
+              {isHROrAdmin && (
                 <TabsTrigger value="bank_requests" className="gap-1.5 whitespace-nowrap"><Building2 className="h-4 w-4 shrink-0" /><span>Bank Requests</span></TabsTrigger>
               )}
               {(isHROrAdmin || isFinance) && (
@@ -227,6 +231,7 @@ export default function HR() {
           {isHROrAdmin && <TabsContent value="assets" className="space-y-4"><AssetManagementPanel /></TabsContent>}
           {isHROrAdmin && <TabsContent value="candidates"><CandidatesPanel /></TabsContent>}
           {isHROrAdmin && <TabsContent value="financial_details"><EmployeeFinancialDetailsPanel /></TabsContent>}
+          {isHROrAdmin && <TabsContent value="financial_list"><EmployeeFinancialDetailsList /></TabsContent>}
           {isHROrAdmin && <TabsContent value="bank_requests"><BankUpdateRequestsPanel /></TabsContent>}
           {(isHROrAdmin || isFinance) && <TabsContent value="salary"><SalarySheetsList /></TabsContent>}
           {isHROrAdmin && <TabsContent value="salary_history"><SalaryHistoryPanel /></TabsContent>}
