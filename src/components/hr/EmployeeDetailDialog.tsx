@@ -107,8 +107,8 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
       toast.error("Employee ID is required"); return;
     }
     const empNum = form.employee_number.trim();
-    if (!/^\d+$/.test(empNum) || parseInt(empNum, 10) < 110) {
-      toast.error("Employee ID must be a number ≥ 110"); return;
+    if (!/^\d+$/.test(empNum) || parseInt(empNum, 10) < 1) {
+      toast.error("Employee ID must be a number ≥ 1"); return;
     }
     if (form.personal_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.personal_email)) {
       toast.error("Invalid personal email format"); return;
