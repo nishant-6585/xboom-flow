@@ -97,6 +97,9 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
   const handleCancel = () => { setEditing(false); resetForm(); };
 
   const handleSave = async () => {
+    if (!form.employee_number.trim()) {
+      toast.error("Employee ID is required"); return;
+    }
     if (form.personal_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.personal_email)) {
       toast.error("Invalid personal email format"); return;
     }
@@ -265,7 +268,10 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
           <div>
             <h4 className="text-sm font-semibold text-primary mb-3">Basic Information</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <ReadOnlyField label="Employee ID" value={employee.employee_number || "—"} />
+              {editing
+                ? renderEditableField({ label: "Employee ID", fieldKey: "employee_number", placeholder: "e.g. 110" })
+                : <ReadOnlyField label="Employee ID" value={employee.employee_number || "—"} />
+              }
               <ReadOnlyField label="Name" value={employee.name} />
               {renderEditableSelect({ label: "Gender", fieldKey: "gender", options: GENDER_OPTIONS })}
               {editing ? (
