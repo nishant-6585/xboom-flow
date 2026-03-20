@@ -336,7 +336,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
             <>
               <Separator />
               <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
-                <strong>Note:</strong> Employee ID must be unique. New employees auto-receive sequential IDs starting from 110.
+                <strong>Note:</strong> Employee ID must be unique. New employees auto-receive sequential IDs starting from 1.
               </div>
             </>
           )}
