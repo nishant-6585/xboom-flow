@@ -26,6 +26,7 @@ import { SalarySheetsList } from "@/components/salary/SalarySheetsList";
 import { EmployeePayslipsPanel } from "@/components/salary/EmployeePayslipsPanel";
 import { SalaryHistoryPanel } from "@/components/salary/SalaryHistoryPanel";
 import { EmployeeFinancialDetailsPanel } from "@/components/hr/EmployeeFinancialDetailsPanel";
+import { EmployeeFinancialDetailsList } from "@/components/hr/EmployeeFinancialDetailsList";
 import { BankUpdateRequestsPanel } from "@/components/hr/BankUpdateRequestsPanel";
 import { MyFinancialDetailsPanel } from "@/components/hr/MyFinancialDetailsPanel";
 import { ResignationPanel } from "@/components/hr/ResignationPanel";
