@@ -128,10 +128,7 @@ export default function HR() {
                 <TabsTrigger value="candidates" className="gap-1.5 whitespace-nowrap"><UserSearch className="h-4 w-4 shrink-0" /><span>Candidates</span></TabsTrigger>
               )}
               {isHROrAdmin && (
-                <TabsTrigger value="financial_details" className="gap-1.5 whitespace-nowrap"><Wallet className="h-4 w-4 shrink-0" /><span>Financial Details</span></TabsTrigger>
-              )}
-              {isHROrAdmin && (
-                <TabsTrigger value="financial_list" className="gap-1.5 whitespace-nowrap"><Users className="h-4 w-4 shrink-0" /><span>Financial List</span></TabsTrigger>
+                <TabsTrigger value="financial_list" className="gap-1.5 whitespace-nowrap"><Wallet className="h-4 w-4 shrink-0" /><span>Financial Details</span></TabsTrigger>
               )}
               {isHROrAdmin && (
                 <TabsTrigger value="bank_requests" className="gap-1.5 whitespace-nowrap"><Building2 className="h-4 w-4 shrink-0" /><span>Bank Requests</span></TabsTrigger>
