@@ -66,10 +66,15 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
   useEffect(() => {
     if (open && !prevOpen) {
       setEditing(false);
-      resetForm();
     }
     setPrevOpen(open);
   }, [open]);
+
+  // Always sync form state when the employee prop changes (e.g. after refetch)
+  useEffect(() => {
+    resetForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employee.id, employee.updated_at]);
 
   const resetForm = () => {
     setForm({
@@ -94,6 +99,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
 
   const update = (key: string, value: string) => setForm(f => ({ ...f, [key]: value }));
 
+  const startEditing = () => { resetForm(); setEditing(true); };
   const handleCancel = () => { setEditing(false); resetForm(); };
 
   const handleSave = async () => {
@@ -196,12 +202,16 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
         updatePayload.joining_date = form.joining_date || null;
       }
 
-      const { error } = await supabase
+      const { data: updatedRows, error } = await supabase
         .from("employees")
         .update(updatePayload)
-        .eq("id", employee.id);
+        .eq("id", employee.id)
+        .select("id");
 
       if (error) throw error;
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error("Update failed — no rows were affected. You may not have permission.");
+      }
 
       await recordChanges("employees", employee.id, changes, profile?.name || "HR");
       toast.success("Employee updated successfully");
@@ -260,7 +270,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
               <Badge variant="outline" className="text-xs font-mono">{employee.employee_number}</Badge>
             </DialogTitle>
             {isHROrAdmin && !editing && (
-              <Button variant="outline" size="sm" className="ml-4 gap-1.5" onClick={() => setEditing(true)}>
+              <Button variant="outline" size="sm" className="ml-4 gap-1.5" onClick={startEditing}>
                 <Pencil className="h-3.5 w-3.5" /> Edit
               </Button>
             )}
