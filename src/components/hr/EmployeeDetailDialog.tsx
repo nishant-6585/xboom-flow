@@ -107,8 +107,8 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
       toast.error("Employee ID is required"); return;
     }
     const empNum = form.employee_number.trim();
-    if (!/^\d+$/.test(empNum) || parseInt(empNum, 10) < 110) {
-      toast.error("Employee ID must be a number ≥ 110"); return;
+    if (!/^\d+$/.test(empNum) || parseInt(empNum, 10) < 1) {
+      toast.error("Employee ID must be a number ≥ 1"); return;
     }
     if (form.personal_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.personal_email)) {
       toast.error("Invalid personal email format"); return;
@@ -283,7 +283,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
             <h4 className="text-sm font-semibold text-primary mb-3">Basic Information</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {editing && (!employee.employee_number || employee.employee_number.startsWith("EMP-"))
-                ? renderEditableField({ label: "Employee ID", fieldKey: "employee_number", placeholder: "e.g. 110" })
+                ? renderEditableField({ label: "Employee ID", fieldKey: "employee_number", placeholder: "e.g. 1" })
                 : <ReadOnlyField label="Employee ID" value={employee.employee_number || "—"} />
               }
               <ReadOnlyField label="Name" value={employee.name} />
@@ -336,7 +336,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
             <>
               <Separator />
               <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
-                <strong>Note:</strong> Employee ID must be unique. New employees auto-receive sequential IDs starting from 110.
+                <strong>Note:</strong> Employee ID must be unique. New employees auto-receive sequential IDs starting from 1.
               </div>
             </>
           )}
