@@ -66,10 +66,15 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
   useEffect(() => {
     if (open && !prevOpen) {
       setEditing(false);
-      resetForm();
     }
     setPrevOpen(open);
   }, [open]);
+
+  // Always sync form state when the employee prop changes (e.g. after refetch)
+  useEffect(() => {
+    resetForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employee.id, employee.updated_at]);
 
   const resetForm = () => {
     setForm({
