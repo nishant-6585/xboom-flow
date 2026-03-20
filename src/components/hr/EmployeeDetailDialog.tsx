@@ -202,12 +202,16 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
         updatePayload.joining_date = form.joining_date || null;
       }
 
-      const { error } = await supabase
+      const { data: updatedRows, error } = await supabase
         .from("employees")
         .update(updatePayload)
-        .eq("id", employee.id);
+        .eq("id", employee.id)
+        .select("id");
 
       if (error) throw error;
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error("Update failed — no rows were affected. You may not have permission.");
+      }
 
       await recordChanges("employees", employee.id, changes, profile?.name || "HR");
       toast.success("Employee updated successfully");
