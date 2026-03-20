@@ -270,7 +270,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
               <Badge variant="outline" className="text-xs font-mono">{employee.employee_number}</Badge>
             </DialogTitle>
             {isHROrAdmin && !editing && (
-              <Button variant="outline" size="sm" className="ml-4 gap-1.5" onClick={() => setEditing(true)}>
+              <Button variant="outline" size="sm" className="ml-4 gap-1.5" onClick={startEditing}>
                 <Pencil className="h-3.5 w-3.5" /> Edit
               </Button>
             )}
