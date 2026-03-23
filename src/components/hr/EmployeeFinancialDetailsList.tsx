@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Users, ArrowUpDown, Wallet } from "lucide-react";
+import { Loader2, Search, Users, ArrowUpDown, Wallet, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { FinancialDetailEditDialog } from "./FinancialDetailEditDialog";
@@ -43,6 +44,7 @@ export function EmployeeFinancialDetailsList() {
   // Dialog state
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const isHROrAdmin = roles?.some((r: string) => r === "admin" || r === "hr") ?? false;
 
@@ -105,13 +107,17 @@ export function EmployeeFinancialDetailsList() {
   };
 
   const handleSaved = (updatedEmp: any) => {
-    // Optimistic row update without full refetch
     setEmployees(prev => prev.map(e =>
-      e.id === updatedEmp.id
-        ? { ...e, ...updatedEmp }
-        : e
+      e.id === updatedEmp.id ? { ...e, ...updatedEmp } : e
     ));
   };
+
+  const handleCreated = (newEmp: any) => {
+    // Optimistically add the new row
+    setEmployees(prev => [...prev, { ...newEmp, is_active: true }]);
+  };
+
+  const existingEmployeeIds = useMemo(() => employees.map(e => e.id), [employees]);
 
   const SortButton = ({ field, label }: { field: SortField; label: string }) => (
     <button
@@ -127,10 +133,19 @@ export function EmployeeFinancialDetailsList() {
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Wallet className="h-5 w-5" /> Employee Financial Details — All
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">Click any row to view or edit details</p>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Wallet className="h-5 w-5" /> Employee Financial Details — All
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">Click any row to view or edit details</p>
+            </div>
+            {isHROrAdmin && (
+              <Button onClick={() => setCreateDialogOpen(true)} size="sm">
+                <Plus className="h-4 w-4 mr-1" /> Add Financial Details
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Filters */}
@@ -174,6 +189,11 @@ export function EmployeeFinancialDetailsList() {
                   ? "Financial details will appear here once entered in employee profiles."
                   : "Try adjusting your search or clearing the department filter."}
               </p>
+              {employees.length === 0 && isHROrAdmin && (
+                <Button variant="outline" size="sm" onClick={() => setCreateDialogOpen(true)} className="mt-2">
+                  <Plus className="h-4 w-4 mr-1" /> Add Financial Details
+                </Button>
+              )}
             </div>
           ) : (
             <>
@@ -234,12 +254,24 @@ export function EmployeeFinancialDetailsList() {
         </CardContent>
       </Card>
 
+      {/* Edit dialog */}
       <FinancialDetailEditDialog
         employeeId={selectedEmployeeId}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onSaved={handleSaved}
         canEdit={isHROrAdmin}
+      />
+
+      {/* Create dialog */}
+      <FinancialDetailEditDialog
+        employeeId={null}
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onCreated={handleCreated}
+        canEdit={isHROrAdmin}
+        createMode={true}
+        existingEmployeeIds={existingEmployeeIds}
       />
     </>
   );
