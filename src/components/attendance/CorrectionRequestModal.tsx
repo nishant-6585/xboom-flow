@@ -17,7 +17,7 @@ interface CorrectionRequestModalProps {
   log: AttendanceLog;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmitted: () => void;
+  onSubmitted: () => void | Promise<void>;
   mode?: CorrectionMode;
 }
 
@@ -114,7 +114,7 @@ export function CorrectionRequestModal({
       });
 
       toast.success('Correction request sent to HR for approval ✅');
-      onSubmitted();
+      await onSubmitted();
       onOpenChange(false);
     } catch (e: any) {
       const msg = e.message || 'Failed to submit correction request';

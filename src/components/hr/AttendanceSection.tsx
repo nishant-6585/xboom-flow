@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -75,6 +75,7 @@ export function AttendanceSection({
   const [stubLogId, setStubLogId] = useState<string | null>(null);
   const [shouldCleanupStub, setShouldCleanupStub] = useState(false);
   const [creatingStub, setCreatingStub] = useState(false);
+  const submittedStubRef = useRef(false);
   const { getHoliday } = useHolidays(calendarMonth.getFullYear());
 
   // Fetch approved leave requests for the current month
@@ -311,6 +312,7 @@ export function AttendanceSection({
                                             .select()
                                             .single();
                                           if (error) throw error;
+                                           submittedStubRef.current = false;
                                           setStubLogId(data.id);
                                           setShouldCleanupStub(true);
                                           setCorrectionLog(data as AttendanceLog);
@@ -427,10 +429,11 @@ export function AttendanceSection({
           onOpenChange={async (open) => {
             if (!open) {
               // If dismissed without submitting & this was a stub, delete the stub
-              if (shouldCleanupStub && stubLogId && correctionLog && correctionLog.id === stubLogId) {
+              if (!submittedStubRef.current && shouldCleanupStub && stubLogId && correctionLog && correctionLog.id === stubLogId) {
                 await supabase.from('attendance_logs').delete().eq('id', stubLogId);
                 onRefresh?.();
               }
+              submittedStubRef.current = false;
               setCorrectionLog(null);
               setStubLogId(null);
               setShouldCleanupStub(false);
@@ -438,6 +441,7 @@ export function AttendanceSection({
           }}
           mode="both"
           onSubmitted={() => {
+            submittedStubRef.current = true;
             setShouldCleanupStub(false);
             setCorrectionLog(null);
             setStubLogId(null);
