@@ -227,7 +227,7 @@ export default function HR() {
           <TabsContent value="my_financial"><MyFinancialDetailsPanel /></TabsContent>
           {isHROrAdmin && <TabsContent value="assets" className="space-y-4"><AssetManagementPanel /></TabsContent>}
           {isHROrAdmin && <TabsContent value="candidates"><CandidatesPanel /></TabsContent>}
-          {isHROrAdmin && <TabsContent value="financial_list"><EmployeeFinancialDetailsList /></TabsContent>}
+          {isHROrAdmin && <TabsContent value="financial_list" className="space-y-6"><EmployeeFinancialDetailsPanel /><EmployeeFinancialDetailsList /></TabsContent>}
           {isHROrAdmin && <TabsContent value="bank_requests"><BankUpdateRequestsPanel /></TabsContent>}
           {(isHROrAdmin || isFinance) && <TabsContent value="salary"><SalarySheetsList /></TabsContent>}
           {isHROrAdmin && <TabsContent value="salary_history"><SalaryHistoryPanel /></TabsContent>}
