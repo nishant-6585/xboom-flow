@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import { Check, X, Clock, User, FileText, LogIn, LogOut } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,7 +35,8 @@ export function PendingCorrectionApprovals({ employeeLookup }: PendingCorrection
   const [submitting, setSubmitting] = useState(false);
   const [employeeNames, setEmployeeNames] = useState<EmployeeLookup>(employeeLookup || {});
 
-  useState(() => {
+  // Fixed: was incorrectly using useState callback for async side-effect
+  useEffect(() => {
     if (!employeeLookup && pendingRequests.length > 0) {
       const ids = [...new Set(pendingRequests.map(r => r.employee_id))];
       supabase
@@ -50,7 +51,7 @@ export function PendingCorrectionApprovals({ employeeLookup }: PendingCorrection
           }
         });
     }
-  });
+  }, [employeeLookup, pendingRequests]);
 
   const handleReview = async () => {
     if (!reviewingRequest) return;
