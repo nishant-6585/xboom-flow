@@ -50,6 +50,7 @@ import { AdminSignatureSettings } from "@/components/admin/AdminSignatureSetting
 import OrgSettingsPanel from "@/components/admin/OrgSettingsPanel";
 import { AttendancePolicySettings } from "@/components/admin/AttendancePolicySettings";
 import { HolidayManagementPanel } from "@/components/admin/HolidayManagementPanel";
+import AdminEmployeeActivity from "@/components/admin/AdminEmployeeActivity";
 
 interface PendingUser {
   id: string;
@@ -671,6 +672,10 @@ const Admin = () => {
               <CalendarDays className="w-4 h-4" />
               Holidays
             </TabsTrigger>
+            <TabsTrigger value="employee-activity" className="flex items-center gap-2">
+              <History className="w-4 h-4" />
+              Employee Activity
+            </TabsTrigger>
             <TabsTrigger value="audit-logs" className="flex items-center gap-2" onClick={() => navigate("/admin/audit-logs")}>
               <Shield className="w-4 h-4" />
               Audit Logs
@@ -1134,6 +1139,10 @@ const Admin = () => {
 
           <TabsContent value="holidays">
             <HolidayManagementPanel />
+          </TabsContent>
+
+          <TabsContent value="employee-activity">
+            <AdminEmployeeActivity />
           </TabsContent>
         </Tabs>
       </main>
