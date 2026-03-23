@@ -427,16 +427,18 @@ export function AttendanceSection({
           onOpenChange={async (open) => {
             if (!open) {
               // If dismissed without submitting & this was a stub, delete the stub
-              if (stubLogId && correctionLog && correctionLog.id === stubLogId) {
+              if (shouldCleanupStub && stubLogId && correctionLog && correctionLog.id === stubLogId) {
                 await supabase.from('attendance_logs').delete().eq('id', stubLogId);
                 onRefresh?.();
               }
               setCorrectionLog(null);
               setStubLogId(null);
+              setShouldCleanupStub(false);
             }
           }}
           mode="both"
           onSubmitted={() => {
+            setShouldCleanupStub(false);
             setCorrectionLog(null);
             setStubLogId(null);
             onRefresh?.();
