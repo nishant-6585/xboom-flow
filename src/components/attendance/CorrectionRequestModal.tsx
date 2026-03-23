@@ -115,7 +115,6 @@ export function CorrectionRequestModal({
 
       toast.success('Correction request sent to HR for approval ✅');
       await onSubmitted();
-      onOpenChange(false);
     } catch (e: any) {
       const msg = e.message || 'Failed to submit correction request';
       if (msg.includes('idx_unique_pending_correction_per_log') || msg.includes('duplicate key')) {
