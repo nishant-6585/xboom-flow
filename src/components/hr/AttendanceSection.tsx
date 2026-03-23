@@ -429,9 +429,17 @@ export function AttendanceSection({
           onOpenChange={async (open) => {
             if (!open) {
               // If dismissed without submitting & this was a stub, delete the stub
-              if (!submittedStubRef.current && shouldCleanupStub && stubLogId && correctionLog && correctionLog.id === stubLogId) {
-                await supabase.from('attendance_logs').delete().eq('id', stubLogId);
-                onRefresh?.();
+              if (shouldCleanupStub && stubLogId && correctionLog && correctionLog.id === stubLogId) {
+                const { data: existingRequest } = await supabase
+                  .from('attendance_correction_requests')
+                  .select('id')
+                  .eq('attendance_log_id', stubLogId)
+                  .maybeSingle();
+
+                if (!existingRequest && !submittedStubRef.current) {
+                  await supabase.from('attendance_logs').delete().eq('id', stubLogId);
+                  onRefresh?.();
+                }
               }
               submittedStubRef.current = false;
               setCorrectionLog(null);
