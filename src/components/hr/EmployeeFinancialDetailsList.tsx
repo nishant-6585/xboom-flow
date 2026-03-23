@@ -44,7 +44,7 @@ export function EmployeeFinancialDetailsList() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const isHROrAdmin = userRoles?.some((r: string) => r === "admin" || r === "hr") ?? false;
+  const isHROrAdmin = roles?.some((r: string) => r === "admin" || r === "hr") ?? false;
 
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
