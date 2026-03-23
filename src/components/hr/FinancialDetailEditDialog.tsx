@@ -281,7 +281,11 @@ export function FinancialDetailEditDialog({
       name: selectedEmp?.name || "",
       department: selectedEmp?.department || "",
       designation: null,
-      ...updates,
+      bank_account: updates.bank_account || null,
+      ifsc_code: updates.ifsc_code || null,
+      pan_number: updates.pan_number || null,
+      monthly_salary: updates.monthly_salary || null,
+      tax_regime: updates.tax_regime || null,
     };
 
     toast.success("Financial details created successfully");
