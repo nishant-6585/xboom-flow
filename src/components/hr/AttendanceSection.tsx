@@ -312,6 +312,7 @@ export function AttendanceSection({
                                             .single();
                                           if (error) throw error;
                                           setStubLogId(data.id);
+                                          setShouldCleanupStub(true);
                                           setCorrectionLog(data as AttendanceLog);
                                         } catch (e: any) {
                                           toast.error(e.message || 'Failed to create attendance record');
