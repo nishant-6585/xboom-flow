@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Loader2, Search, Users, ExternalLink, ArrowUpDown, Wallet } from "lucide-react";
+import { Loader2, Search, Users, ArrowUpDown, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { FinancialDetailEditDialog } from "./FinancialDetailEditDialog";
 
 interface FinancialEmployee {
   id: string;
@@ -30,7 +31,8 @@ function maskAccount(val: string | null): string {
   return "••••" + val.slice(-4);
 }
 
-export function EmployeeFinancialDetailsList({ onOpenProfile }: { onOpenProfile?: (id: string) => void }) {
+export function EmployeeFinancialDetailsList() {
+  const { userRoles } = useAuth();
   const [employees, setEmployees] = useState<FinancialEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -38,25 +40,30 @@ export function EmployeeFinancialDetailsList({ onOpenProfile }: { onOpenProfile?
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("employees")
-        .select("id, employee_number, name, department, designation, bank_account, ifsc_code, pan_number, monthly_salary, tax_regime, is_active")
-        .eq("is_active", true)
-        .order("name");
+  // Dialog state
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-      if (!error && data) {
-        // Filter: keep only employees with at least one financial field populated
-        const filtered = (data as unknown as FinancialEmployee[]).filter(
-          (e) => e.bank_account || e.ifsc_code || e.pan_number || (e.monthly_salary != null && e.monthly_salary > 0)
-        );
-        setEmployees(filtered);
-      }
-      setLoading(false);
-    })();
+  const isHROrAdmin = userRoles?.some((r: string) => r === "admin" || r === "hr") ?? false;
+
+  const fetchEmployees = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("employees")
+      .select("id, employee_number, name, department, designation, bank_account, ifsc_code, pan_number, monthly_salary, tax_regime, is_active")
+      .eq("is_active", true)
+      .order("name");
+
+    if (!error && data) {
+      const filtered = (data as unknown as FinancialEmployee[]).filter(
+        (e) => e.bank_account || e.ifsc_code || e.pan_number || (e.monthly_salary != null && e.monthly_salary > 0)
+      );
+      setEmployees(filtered);
+    }
+    setLoading(false);
   }, []);
+
+  useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
 
   const departments = useMemo(() => {
     const set = new Set(employees.map((e) => e.department));
@@ -70,9 +77,7 @@ export function EmployeeFinancialDetailsList({ onOpenProfile }: { onOpenProfile?
 
   const filtered = useMemo(() => {
     let list = employees;
-
     if (deptFilter !== "all") list = list.filter((e) => e.department === deptFilter);
-
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(
@@ -82,7 +87,6 @@ export function EmployeeFinancialDetailsList({ onOpenProfile }: { onOpenProfile?
           (e.department && e.department.toLowerCase().includes(q))
       );
     }
-
     list = [...list].sort((a, b) => {
       let av: string | number = "";
       let bv: string | number = "";
@@ -92,9 +96,22 @@ export function EmployeeFinancialDetailsList({ onOpenProfile }: { onOpenProfile?
       if (av > bv) return sortDir === "asc" ? 1 : -1;
       return 0;
     });
-
     return list;
   }, [employees, search, deptFilter, sortField, sortDir]);
+
+  const handleRowClick = (empId: string) => {
+    setSelectedEmployeeId(empId);
+    setDialogOpen(true);
+  };
+
+  const handleSaved = (updatedEmp: any) => {
+    // Optimistic row update without full refetch
+    setEmployees(prev => prev.map(e =>
+      e.id === updatedEmp.id
+        ? { ...e, ...updatedEmp }
+        : e
+    ));
+  };
 
   const SortButton = ({ field, label }: { field: SortField; label: string }) => (
     <button
@@ -107,122 +124,123 @@ export function EmployeeFinancialDetailsList({ onOpenProfile }: { onOpenProfile?
   );
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Wallet className="h-5 w-5" /> Employee Financial Details — All
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, ID, or department…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Wallet className="h-5 w-5" /> Employee Financial Details — All
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">Click any row to view or edit details</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, ID, or department…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={deptFilter} onValueChange={setDeptFilter}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="All Departments" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                {departments.map((d) => (
+                  <SelectItem key={d} value={d}>{d}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <Select value={deptFilter} onValueChange={setDeptFilter}>
-            <SelectTrigger className="w-full sm:w-[200px]">
-              <SelectValue placeholder="All Departments" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Departments</SelectItem>
-              {departments.map((d) => (
-                <SelectItem key={d} value={d}>{d}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
 
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-12 space-y-2">
-            <Users className="h-10 w-10 mx-auto text-muted-foreground" />
-            <p className="text-muted-foreground font-medium">
-              {employees.length === 0
-                ? "No employees with financial details found"
-                : "No results match your search or filter"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {employees.length === 0
-                ? "Financial details will appear here once entered in employee profiles."
-                : "Try adjusting your search or clearing the department filter."}
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="text-xs text-muted-foreground">
-              Showing {filtered.length} of {employees.length} employee{employees.length !== 1 ? "s" : ""}
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-            <div className="rounded-md border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="whitespace-nowrap"><SortButton field="employee_number" label="Emp ID" /></TableHead>
-                    <TableHead className="whitespace-nowrap"><SortButton field="name" label="Name" /></TableHead>
-                    <TableHead className="whitespace-nowrap"><SortButton field="department" label="Dept / Designation" /></TableHead>
-                    <TableHead className="whitespace-nowrap">Account No.</TableHead>
-                    <TableHead className="whitespace-nowrap">IFSC</TableHead>
-                    <TableHead className="whitespace-nowrap">PAN</TableHead>
-                    <TableHead className="whitespace-nowrap"><SortButton field="monthly_salary" label="Monthly Salary" /></TableHead>
-                    <TableHead className="whitespace-nowrap">Tax Regime</TableHead>
-                    {onOpenProfile && <TableHead className="w-10" />}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((emp) => (
-                    <TableRow key={emp.id} className="group">
-                      <TableCell className="font-medium tabular-nums">
-                        {emp.employee_number || "—"}
-                      </TableCell>
-                      <TableCell className="font-medium whitespace-nowrap">{emp.name}</TableCell>
-                      <TableCell>
-                        <span>{emp.department}</span>
-                        {emp.designation && (
-                          <span className="block text-xs text-muted-foreground">{emp.designation}</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs tabular-nums">{maskAccount(emp.bank_account)}</TableCell>
-                      <TableCell className="font-mono text-xs">{emp.ifsc_code || "—"}</TableCell>
-                      <TableCell className="font-mono text-xs">{emp.pan_number || "—"}</TableCell>
-                      <TableCell className="tabular-nums">
-                        {emp.monthly_salary != null
-                          ? `₹${Number(emp.monthly_salary).toLocaleString("en-IN")}`
-                          : "—"}
-                      </TableCell>
-                      <TableCell>
-                        {emp.tax_regime ? (
-                          <Badge variant="outline" className="text-xs capitalize">{emp.tax_regime}</Badge>
-                        ) : "—"}
-                      </TableCell>
-                      {onOpenProfile && (
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => onOpenProfile(emp.id)}
-                            title="Open Profile"
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </Button>
-                        </TableCell>
-                      )}
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-12 space-y-2">
+              <Users className="h-10 w-10 mx-auto text-muted-foreground" />
+              <p className="text-muted-foreground font-medium">
+                {employees.length === 0
+                  ? "No employees with financial details found"
+                  : "No results match your search or filter"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {employees.length === 0
+                  ? "Financial details will appear here once entered in employee profiles."
+                  : "Try adjusting your search or clearing the department filter."}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="text-xs text-muted-foreground">
+                Showing {filtered.length} of {employees.length} employee{employees.length !== 1 ? "s" : ""}
+              </div>
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap"><SortButton field="employee_number" label="Emp ID" /></TableHead>
+                      <TableHead className="whitespace-nowrap"><SortButton field="name" label="Name" /></TableHead>
+                      <TableHead className="whitespace-nowrap"><SortButton field="department" label="Dept / Designation" /></TableHead>
+                      <TableHead className="whitespace-nowrap">Account No.</TableHead>
+                      <TableHead className="whitespace-nowrap">IFSC</TableHead>
+                      <TableHead className="whitespace-nowrap">PAN</TableHead>
+                      <TableHead className="whitespace-nowrap"><SortButton field="monthly_salary" label="Monthly Salary" /></TableHead>
+                      <TableHead className="whitespace-nowrap">Tax Regime</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((emp) => (
+                      <TableRow
+                        key={emp.id}
+                        className="group cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleRowClick(emp.id)}
+                      >
+                        <TableCell className="font-medium tabular-nums">
+                          {emp.employee_number || "—"}
+                        </TableCell>
+                        <TableCell className="font-medium whitespace-nowrap">{emp.name}</TableCell>
+                        <TableCell>
+                          <span>{emp.department}</span>
+                          {emp.designation && (
+                            <span className="block text-xs text-muted-foreground">{emp.designation}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs tabular-nums">{maskAccount(emp.bank_account)}</TableCell>
+                        <TableCell className="font-mono text-xs">{emp.ifsc_code || "—"}</TableCell>
+                        <TableCell className="font-mono text-xs">{emp.pan_number || "—"}</TableCell>
+                        <TableCell className="tabular-nums">
+                          {emp.monthly_salary != null
+                            ? `₹${Number(emp.monthly_salary).toLocaleString("en-IN")}`
+                            : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {emp.tax_regime ? (
+                            <Badge variant="outline" className="text-xs capitalize">{emp.tax_regime}</Badge>
+                          ) : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <FinancialDetailEditDialog
+        employeeId={selectedEmployeeId}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSaved={handleSaved}
+        canEdit={isHROrAdmin}
+      />
+    </>
   );
 }
