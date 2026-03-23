@@ -73,6 +73,7 @@ export function AttendanceSection({
   const { role } = useAuth();
   const [correctionLog, setCorrectionLog] = useState<AttendanceLog | null>(null);
   const [stubLogId, setStubLogId] = useState<string | null>(null);
+  const [shouldCleanupStub, setShouldCleanupStub] = useState(false);
   const [creatingStub, setCreatingStub] = useState(false);
   const { getHoliday } = useHolidays(calendarMonth.getFullYear());
 
