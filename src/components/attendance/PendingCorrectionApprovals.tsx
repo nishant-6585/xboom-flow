@@ -72,7 +72,33 @@ export function PendingCorrectionApprovals({ employeeLookup }: PendingCorrection
     }
   };
 
-  if (pendingRequests.length === 0) return null;
+  if (loading) {
+    return (
+      <Card className="border-muted">
+        <CardContent className="py-6 text-center text-muted-foreground text-sm">
+          Loading correction requests…
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (pendingRequests.length === 0) {
+    return (
+      <Card className="border-muted">
+        <CardHeader className="pb-2 pt-3 px-4">
+          <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Pending Attendance Corrections
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-3">
+          <p className="text-sm text-muted-foreground text-center py-4">
+            No pending correction requests at this time.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <>

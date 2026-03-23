@@ -35,11 +35,37 @@ export function useAttendanceCorrectionRequests() {
       .from('attendance_correction_requests')
       .select('*')
       .order('created_at', { ascending: false });
+    if (error) {
+      console.error('Error fetching correction requests:', error);
+    }
     if (!error) setRequests((data as CorrectionRequest[]) || []);
     setLoading(false);
   }, [user]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
+
+  // Real-time subscription so HR sees new requests instantly
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('correction-requests-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'attendance_correction_requests',
+        },
+        () => {
+          fetchRequests();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchRequests]);
 
   const submitRequest = async (params: {
     attendance_log_id: string;
