@@ -32,7 +32,7 @@ function maskAccount(val: string | null): string {
 }
 
 export function EmployeeFinancialDetailsList() {
-  const { userRoles } = useAuth();
+  const { roles } = useAuth();
   const [employees, setEmployees] = useState<FinancialEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
