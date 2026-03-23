@@ -1140,6 +1140,10 @@ const Admin = () => {
           <TabsContent value="holidays">
             <HolidayManagementPanel />
           </TabsContent>
+
+          <TabsContent value="employee-activity">
+            <AdminEmployeeActivity />
+          </TabsContent>
         </Tabs>
       </main>
       <ReAuthDialog
