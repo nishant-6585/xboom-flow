@@ -50,6 +50,7 @@ import { AdminSignatureSettings } from "@/components/admin/AdminSignatureSetting
 import OrgSettingsPanel from "@/components/admin/OrgSettingsPanel";
 import { AttendancePolicySettings } from "@/components/admin/AttendancePolicySettings";
 import { HolidayManagementPanel } from "@/components/admin/HolidayManagementPanel";
+import AdminEmployeeActivity from "@/components/admin/AdminEmployeeActivity";
 
 interface PendingUser {
   id: string;
