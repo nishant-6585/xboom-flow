@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Navigate, useNavigate } from "react-router-dom";
 import { SlackSettingsPanel } from "@/components/admin/SlackSettingsPanel";
+import { MyOperatorSettingsPanel } from "@/components/admin/MyOperatorSettingsPanel";
 import { FormPermissionsPanel } from "@/components/admin/FormPermissionsPanel";
 import { AdminSignatureSettings } from "@/components/admin/AdminSignatureSettings";
 import OrgSettingsPanel from "@/components/admin/OrgSettingsPanel";
