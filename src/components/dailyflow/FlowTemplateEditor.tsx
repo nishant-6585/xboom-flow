@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -83,7 +82,7 @@ function SortableRow({ row, index, updateRow, toggleDay, removeRow, duplicateRow
   };
 
   return (
-    <tr ref={setNodeRef} style={style} className={`border-b ${row.is_break ? 'bg-green-500/10' : ''}`}>
+    <tr ref={setNodeRef} style={style} className="border-b">
       <td className="p-1">
         <div className="flex items-center gap-1">
           <button type="button" className="cursor-grab touch-none text-muted-foreground hover:text-foreground" {...attributes} {...listeners}>
@@ -113,8 +112,7 @@ function SortableRow({ row, index, updateRow, toggleDay, removeRow, duplicateRow
           min={0}
           value={row.target_value}
           onChange={e => updateRow(index, 'target_value', Number(e.target.value))}
-          className={`h-8 text-sm text-center ${row.is_break ? 'opacity-50' : 'border-primary/30 focus:border-primary'}`}
-          disabled={row.is_break}
+          className="h-8 text-sm text-center border-primary/30 focus:border-primary"
           placeholder="Set target"
         />
       </td>
@@ -149,9 +147,6 @@ function SortableRow({ row, index, updateRow, toggleDay, removeRow, duplicateRow
             </div>
           )}
         </div>
-      </td>
-      <td className="p-1 text-center">
-        <Checkbox checked={row.is_break} onCheckedChange={v => updateRow(index, 'is_break', !!v)} />
       </td>
       <td className="p-1">
         <div className="flex gap-0.5">
@@ -351,7 +346,6 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
                   <th className="p-2 text-center w-16">Mins</th>
                   <th className="p-2 text-center w-20">Target</th>
                   <th className="p-2 text-center min-w-[140px]">Frequency</th>
-                  <th className="p-2 text-center w-14">Break</th>
                   <th className="p-2 w-16"></th>
                 </tr>
               </thead>
@@ -375,7 +369,7 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
                   <td className="p-2" colSpan={5}>Total</td>
                   <td className="p-2 text-center">{totalDuration} min</td>
                   <td className="p-2 text-center">{totalTarget}</td>
-                  <td colSpan={3}></td>
+                  <td colSpan={2}></td>
                 </tr>
               </tfoot>
             </table>
