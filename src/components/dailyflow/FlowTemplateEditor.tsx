@@ -5,9 +5,26 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Save } from 'lucide-react';
+import { Plus, Trash2, Save, GripVertical, Copy } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import type { DailyFlowTemplate } from '@/hooks/useDailyFlow';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface FlowTemplateEditorProps {
   employeeId: string;
@@ -48,11 +65,118 @@ const DEFAULT_ROWS: RowData[] = [
   { key: '13', sl_no: 13, description: 'Others Miscellaneous', sub_items: '', time_from: '18:00', time_to: '18:30', duration_mins: 30, target_value: 0, is_break: false, frequency: 'daily', frequency_days: [] },
 ];
 
+// Sortable row component
+function SortableRow({ row, index, updateRow, toggleDay, removeRow, duplicateRow }: {
+  row: RowData;
+  index: number;
+  updateRow: (i: number, field: keyof RowData, value: any) => void;
+  toggleDay: (i: number, day: string) => void;
+  removeRow: (i: number) => void;
+  duplicateRow: (i: number) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: row.key });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style} className={`border-b ${row.is_break ? 'bg-green-500/10' : ''}`}>
+      <td className="p-1">
+        <div className="flex items-center gap-1">
+          <button type="button" className="cursor-grab touch-none text-muted-foreground hover:text-foreground" {...attributes} {...listeners}>
+            <GripVertical className="h-4 w-4" />
+          </button>
+          <span className="text-muted-foreground font-medium text-xs">{row.sl_no}</span>
+        </div>
+      </td>
+      <td className="p-1">
+        <Input value={row.description} onChange={e => updateRow(index, 'description', e.target.value)} className="h-8 text-sm" />
+      </td>
+      <td className="p-1">
+        <Input value={row.sub_items} onChange={e => updateRow(index, 'sub_items', e.target.value)} placeholder="comma separated" className="h-8 text-sm" />
+      </td>
+      <td className="p-1">
+        <Input type="time" value={row.time_from} onChange={e => updateRow(index, 'time_from', e.target.value)} className="h-8 text-sm text-center" />
+      </td>
+      <td className="p-1">
+        <Input type="time" value={row.time_to} onChange={e => updateRow(index, 'time_to', e.target.value)} className="h-8 text-sm text-center" />
+      </td>
+      <td className="p-1 text-center">
+        <span className="font-medium">{row.duration_mins}</span>
+      </td>
+      <td className="p-1">
+        <Input
+          type="number"
+          min={0}
+          value={row.target_value}
+          onChange={e => updateRow(index, 'target_value', Number(e.target.value))}
+          className={`h-8 text-sm text-center ${row.is_break ? 'opacity-50' : 'border-primary/30 focus:border-primary'}`}
+          disabled={row.is_break}
+          placeholder="Set target"
+        />
+      </td>
+      <td className="p-1">
+        <div className="space-y-1">
+          <Select value={row.frequency} onValueChange={v => updateRow(index, 'frequency', v)}>
+            <SelectTrigger className="h-7 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="daily">Daily</SelectItem>
+              <SelectItem value="weekly">Weekly</SelectItem>
+              <SelectItem value="custom">Custom Days</SelectItem>
+            </SelectContent>
+          </Select>
+          {(row.frequency === 'weekly' || row.frequency === 'custom') && (
+            <div className="flex flex-wrap gap-0.5">
+              {DAYS_OF_WEEK.map(day => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => toggleDay(index, day)}
+                  className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                    (row.frequency_days || []).includes(day)
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted'
+                  }`}
+                >
+                  {day.slice(0, 3)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </td>
+      <td className="p-1 text-center">
+        <Checkbox checked={row.is_break} onCheckedChange={v => updateRow(index, 'is_break', !!v)} />
+      </td>
+      <td className="p-1">
+        <div className="flex gap-0.5">
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => duplicateRow(index)} title="Duplicate row">
+            <Copy className="h-3 w-3 text-muted-foreground" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeRow(index)}>
+            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+          </Button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave }: FlowTemplateEditorProps) {
   const { user, profile } = useAuth();
   const [templateName, setTemplateName] = useState('Default Template');
   const [rows, setRows] = useState<RowData[]>([]);
   const [saving, setSaving] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   useEffect(() => {
     if (templates.length > 0) {
@@ -126,8 +250,33 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
     }]);
   };
 
+  const duplicateRow = (index: number) => {
+    setRows(prev => {
+      const source = prev[index];
+      const newRow: RowData = {
+        ...source,
+        key: `dup-${Date.now()}`,
+        sl_no: prev.length + 1,
+      };
+      const updated = [...prev];
+      updated.splice(index + 1, 0, newRow);
+      return updated.map((r, i) => ({ ...r, sl_no: i + 1 }));
+    });
+  };
+
   const removeRow = (index: number) => {
     setRows(prev => prev.filter((_, i) => i !== index).map((r, i) => ({ ...r, sl_no: i + 1 })));
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setRows(prev => {
+        const oldIndex = prev.findIndex(r => r.key === active.id);
+        const newIndex = prev.findIndex(r => r.key === over.id);
+        return arrayMove(prev, oldIndex, newIndex).map((r, i) => ({ ...r, sl_no: i + 1 }));
+      });
+    }
   };
 
   const handleSave = async () => {
@@ -190,105 +339,47 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="p-2 text-left w-12">Sl#</th>
-                <th className="p-2 text-left min-w-[160px]">Description</th>
-                <th className="p-2 text-left min-w-[100px]">Sub Items</th>
-                <th className="p-2 text-center w-24">From</th>
-                <th className="p-2 text-center w-24">To</th>
-                <th className="p-2 text-center w-16">Mins</th>
-                <th className="p-2 text-center w-20">Target</th>
-                <th className="p-2 text-center min-w-[140px]">Frequency</th>
-                <th className="p-2 text-center w-14">Break</th>
-                <th className="p-2 w-10"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, i) => (
-                <tr key={row.key} className={`border-b ${row.is_break ? 'bg-green-500/10' : ''}`}>
-                  <td className="p-1">
-                    <span className="text-muted-foreground font-medium">{row.sl_no}</span>
-                  </td>
-                  <td className="p-1">
-                    <Input value={row.description} onChange={e => updateRow(i, 'description', e.target.value)} className="h-8 text-sm" />
-                  </td>
-                  <td className="p-1">
-                    <Input value={row.sub_items} onChange={e => updateRow(i, 'sub_items', e.target.value)} placeholder="comma separated" className="h-8 text-sm" />
-                  </td>
-                  <td className="p-1">
-                    <Input type="time" value={row.time_from} onChange={e => updateRow(i, 'time_from', e.target.value)} className="h-8 text-sm text-center" />
-                  </td>
-                  <td className="p-1">
-                    <Input type="time" value={row.time_to} onChange={e => updateRow(i, 'time_to', e.target.value)} className="h-8 text-sm text-center" />
-                  </td>
-                  <td className="p-1 text-center">
-                    <span className="font-medium">{row.duration_mins}</span>
-                  </td>
-                  <td className="p-1">
-                    <Input
-                      type="number"
-                      min={0}
-                      value={row.target_value}
-                      onChange={e => updateRow(i, 'target_value', Number(e.target.value))}
-                      className={`h-8 text-sm text-center ${row.is_break ? 'opacity-50' : 'border-primary/30 focus:border-primary'}`}
-                      disabled={row.is_break}
-                      placeholder="Set target"
-                    />
-                  </td>
-                  <td className="p-1">
-                    <div className="space-y-1">
-                      <Select value={row.frequency} onValueChange={v => updateRow(i, 'frequency', v)}>
-                        <SelectTrigger className="h-7 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="daily">Daily</SelectItem>
-                          <SelectItem value="weekly">Weekly</SelectItem>
-                          <SelectItem value="custom">Custom Days</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {(row.frequency === 'weekly' || row.frequency === 'custom') && (
-                        <div className="flex flex-wrap gap-0.5">
-                          {DAYS_OF_WEEK.map(day => (
-                            <button
-                              key={day}
-                              type="button"
-                              onClick={() => toggleDay(i, day)}
-                              className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
-                                (row.frequency_days || []).includes(day)
-                                  ? 'bg-primary text-primary-foreground border-primary'
-                                  : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted'
-                              }`}
-                            >
-                              {day.slice(0, 3)}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="p-1 text-center">
-                    <Checkbox checked={row.is_break} onCheckedChange={v => updateRow(i, 'is_break', !!v)} />
-                  </td>
-                  <td className="p-1">
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeRow(i)}>
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
-                  </td>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="p-2 text-left w-16">Sl#</th>
+                  <th className="p-2 text-left min-w-[160px]">Description</th>
+                  <th className="p-2 text-left min-w-[100px]">Sub Items</th>
+                  <th className="p-2 text-center w-24">From</th>
+                  <th className="p-2 text-center w-24">To</th>
+                  <th className="p-2 text-center w-16">Mins</th>
+                  <th className="p-2 text-center w-20">Target</th>
+                  <th className="p-2 text-center min-w-[140px]">Frequency</th>
+                  <th className="p-2 text-center w-14">Break</th>
+                  <th className="p-2 w-16"></th>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t-2 font-semibold bg-muted/30">
-                <td className="p-2" colSpan={5}>Total</td>
-                <td className="p-2 text-center">{totalDuration} min</td>
-                <td className="p-2 text-center">{totalTarget}</td>
-                <td colSpan={3}></td>
-              </tr>
-            </tfoot>
-          </table>
+              </thead>
+              <SortableContext items={rows.map(r => r.key)} strategy={verticalListSortingStrategy}>
+                <tbody>
+                  {rows.map((row, i) => (
+                    <SortableRow
+                      key={row.key}
+                      row={row}
+                      index={i}
+                      updateRow={updateRow}
+                      toggleDay={toggleDay}
+                      removeRow={removeRow}
+                      duplicateRow={duplicateRow}
+                    />
+                  ))}
+                </tbody>
+              </SortableContext>
+              <tfoot>
+                <tr className="border-t-2 font-semibold bg-muted/30">
+                  <td className="p-2" colSpan={5}>Total</td>
+                  <td className="p-2 text-center">{totalDuration} min</td>
+                  <td className="p-2 text-center">{totalTarget}</td>
+                  <td colSpan={3}></td>
+                </tr>
+              </tfoot>
+            </table>
+          </DndContext>
         </div>
       </CardContent>
     </Card>

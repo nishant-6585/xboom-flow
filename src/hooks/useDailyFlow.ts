@@ -81,7 +81,10 @@ export function useDailyFlow() {
   const saveTemplate = useCallback(async (items: Omit<DailyFlowTemplate, 'id' | 'created_at'>[]) => {
     if (!items.length) return false;
     const employeeId = items[0].employee_id;
-    await supabase.from('daily_flow_templates').delete().eq('employee_id', employeeId);
+    // Nullify FK references in entries before deleting old templates
+    await supabase.from('daily_flow_entries').update({ template_id: null } as any).eq('employee_id', employeeId);
+    const { error: delError } = await supabase.from('daily_flow_templates').delete().eq('employee_id', employeeId);
+    if (delError) { toast.error('Failed to clear old template'); console.error(delError); return false; }
     const { error } = await supabase.from('daily_flow_templates').insert(items as any);
     if (error) { toast.error('Failed to save template'); console.error(error); return false; }
     toast.success('Flow template saved');
