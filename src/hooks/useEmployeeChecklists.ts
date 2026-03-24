@@ -10,6 +10,7 @@ export interface ChecklistItem {
   item_name: string;
   item_order: number;
   is_completed: boolean;
+  is_applicable: boolean;
   completed_by: string | null;
   completed_by_name: string | null;
   completed_at: string | null;
