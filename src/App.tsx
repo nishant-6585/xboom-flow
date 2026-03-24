@@ -45,6 +45,7 @@ import MyActivity from "./pages/MyActivity";
 import MFAVerify from "./pages/MFAVerify";
 import PayrollReconciliation from "./pages/PayrollReconciliation";
 import SamplePayslip from "./pages/SamplePayslip";
+import DailyFlow from "./pages/DailyFlow";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -96,6 +97,7 @@ function AppInner() {
         <Route path="/profile/activity" element={<ProtectedRoute><MyActivity /></ProtectedRoute>} />
         <Route path="/admin/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
         <Route path="/payroll-reconciliation" element={<ProtectedRoute><PayrollReconciliation /></ProtectedRoute>} />
+        <Route path="/daily-flow" element={<ProtectedRoute><DailyFlow /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <AuthGuardedWidgets isMobile={isMobile} />
