@@ -270,6 +270,10 @@ export function LeadsPanel() {
             <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">{interaktLeads.length}</Badge>
           )}
         </TabsTrigger>
+        <TabsTrigger value="myoperator" className="gap-1.5">
+          <Phone className="h-3.5 w-3.5" />
+          MyOperator
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="leads" className="space-y-6">
