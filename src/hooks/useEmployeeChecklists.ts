@@ -10,6 +10,7 @@ export interface ChecklistItem {
   item_name: string;
   item_order: number;
   is_completed: boolean;
+  is_applicable: boolean;
   completed_by: string | null;
   completed_by_name: string | null;
   completed_at: string | null;
@@ -147,6 +148,45 @@ export function useEmployeeChecklists(checklistType: 'onboarding' | 'offboarding
     return true;
   }, []);
 
+  const toggleApplicable = useCallback(async (itemId: string, isApplicable: boolean) => {
+    const updateData: any = {
+      is_applicable: isApplicable,
+      updated_at: new Date().toISOString(),
+    };
+    // If marking as not applicable, also uncheck it
+    if (!isApplicable) {
+      updateData.is_completed = false;
+      updateData.completed_by = null;
+      updateData.completed_by_name = null;
+      updateData.completed_at = null;
+    }
+
+    const { error } = await supabase
+      .from('employee_checklist_items')
+      .update(updateData)
+      .eq('id', itemId);
+
+    if (error) {
+      toast.error('Failed to update applicability');
+      return false;
+    }
+
+    // Record audit
+    if (user && profile) {
+      await supabase.from('edit_history').insert({
+        table_name: 'employee_checklist_items',
+        record_id: itemId,
+        field_name: 'is_applicable',
+        old_value: isApplicable ? 'Not Applicable' : 'Applicable',
+        new_value: isApplicable ? 'Applicable' : 'Not Applicable',
+        edited_by: user.id,
+        edited_by_name: profile.name || user.email || 'Unknown',
+      });
+    }
+
+    return true;
+  }, [user, profile]);
+
   return {
     checklists,
     loading,
@@ -154,5 +194,6 @@ export function useEmployeeChecklists(checklistType: 'onboarding' | 'offboarding
     fetchChecklistItems,
     toggleItem,
     updateItemNotes,
+    toggleApplicable,
   };
 }
