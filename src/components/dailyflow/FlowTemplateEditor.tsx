@@ -347,7 +347,6 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
                   <th className="p-2 text-center w-16">Mins</th>
                   <th className="p-2 text-center w-20">Target</th>
                   <th className="p-2 text-center min-w-[140px]">Frequency</th>
-                  <th className="p-2 text-center w-14">Break</th>
                   <th className="p-2 w-16"></th>
                 </tr>
               </thead>
@@ -371,7 +370,7 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
                   <td className="p-2" colSpan={5}>Total</td>
                   <td className="p-2 text-center">{totalDuration} min</td>
                   <td className="p-2 text-center">{totalTarget}</td>
-                  <td colSpan={3}></td>
+                  <td colSpan={2}></td>
                 </tr>
               </tfoot>
             </table>
