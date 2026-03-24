@@ -194,5 +194,6 @@ export function useEmployeeChecklists(checklistType: 'onboarding' | 'offboarding
     fetchChecklistItems,
     toggleItem,
     updateItemNotes,
+    toggleApplicable,
   };
 }
