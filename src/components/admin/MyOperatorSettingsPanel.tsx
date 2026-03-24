@@ -92,8 +92,8 @@ export const MyOperatorSettingsPanel = () => {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
-              <Phone className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Phone className="w-5 h-5 text-primary" />
             </div>
             <div>
               <CardTitle className="text-lg">MyOperator Integration</CardTitle>
