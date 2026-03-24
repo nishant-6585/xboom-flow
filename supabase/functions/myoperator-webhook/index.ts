@@ -10,12 +10,7 @@ Deno.serve(async (req) => {
   const headers = Object.fromEntries(req.headers.entries());
   const rawBody = req.method === 'POST' ? await req.text() : '';
 
-  console.log('Webhook hit:', {
-    timestamp,
-    method: req.method,
-    headers,
-    body: rawBody,
-  });
+  console.log('Webhook hit:', { timestamp, method: req.method, headers, body: rawBody });
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -34,20 +29,18 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     if (req.method === 'POST') {
-      let payload: unknown = rawBody;
-      let payloadObject: Record<string, unknown> | null = null;
+      let body: Record<string, unknown> = {};
       let parseError: string | null = null;
 
       if (rawBody) {
         try {
           const parsed = JSON.parse(rawBody);
-          payload = parsed;
-          payloadObject = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
-            ? parsed as Record<string, unknown>
-            : null;
-        } catch (error) {
-          parseError = error instanceof Error ? error.message : 'Unknown JSON parse error';
-          console.error('Failed to parse webhook payload:', parseError);
+          body = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+            ? parsed
+            : {};
+        } catch (e) {
+          parseError = e instanceof Error ? e.message : 'Unknown JSON parse error';
+          console.error('Invalid JSON:', rawBody);
         }
       }
 
@@ -61,23 +54,49 @@ Deno.serve(async (req) => {
         });
       }
 
-      console.log('MyOperator webhook received');
+      console.log('MyOperator webhook received, parsed body keys:', Object.keys(body));
 
-      // Extract fields from standard MyOperator webhook payload
-      const callId = getStringValue(payloadObject, ['call_id', 'uid', 'id']) || crypto.randomUUID();
-      const callerNumberRaw = getStringValue(payloadObject, ['caller_number', 'caller', 'from']);
-      const callerNumber = normalizePhone(callerNumberRaw);
-      const storedCallerNumber = callerNumber || `unknown:${callId}`;
-      const agentNumber = getStringValue(payloadObject, ['agent_number', 'agent', 'to']);
-      const agentName = getStringValue(payloadObject, ['agent_name', 'agent_display_name']);
-      const callStatus = mapCallStatus(getStringValue(payloadObject, ['status', 'call_status', 'event']) || 'unknown');
-      const callDuration = parseIntegerValue(payloadObject, ['duration', 'call_duration']);
-      const callType = getStringValue(payloadObject, ['direction', 'call_type']) || 'incoming';
-      const recordingUrl = getStringValue(payloadObject, ['recording_url', 'recording']);
-      const ivrInput = getStringValue(payloadObject, ['ivr_input', 'dtmf', 'ivr']);
+      // Extract fields from actual MyOperator payload structure
+      const callerNumber = getString(body, '_cr') || getString(body, '_cl') || null;
+      const fullNumber = getString(body, '_cl') || null;
+      const duration = getNumber(body, '_dr');
+      const recordingUrl = getString(body, '_fu') || null;
+      const callType = getString(body, '_ty') || null;
+      const department = getString(body, '_dn') || null;
+      const startTime = getString(body, '_st') || null;
+      const endTime = getString(body, '_et') || null;
+
+      // Extract assigned agent from _ld array
+      let assignedAgentName: string | null = null;
+      let assignedAgentPhone: string | null = null;
+
+      if (body._ld && Array.isArray(body._ld)) {
+        const answeredCall = (body._ld as Record<string, unknown>[]).find(
+          (item) => item._ac === 'received'
+        );
+        if (answeredCall) {
+          const receivers = answeredCall._rr;
+          if (Array.isArray(receivers) && receivers.length > 0) {
+            const firstReceiver = receivers[0] as Record<string, unknown>;
+            assignedAgentName = getString(firstReceiver, '_na') || null;
+            assignedAgentPhone = getString(firstReceiver, '_ct') || null;
+          }
+        }
+      }
+
+      // Normalize caller number
+      const normalizedCaller = normalizePhone(callerNumber || '');
+      const storedCallerNumber = normalizedCaller || `unknown:${crypto.randomUUID()}`;
+
+      // Determine call status from payload
+      const callStatus = mapCallStatus(getString(body, '_ac') || getString(body, 'status') || 'unknown');
+
+      // Use a unique call ID if available, fallback to random
+      const callId = getString(body, '_id') || getString(body, 'call_id') || getString(body, 'uid') || crypto.randomUUID();
+
       const rawPayloadForStorage = parseError
         ? { raw_body: rawBody, parse_error: parseError }
-        : payload;
+        : body;
 
       // Idempotency: check if call_id already exists
       const { data: existing } = await supabase
@@ -87,13 +106,20 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (existing) {
-        // Update existing call log
         const { error: updateError } = await supabase
           .from('call_logs')
           .update({
             call_status: callStatus,
-            call_duration: callDuration,
+            call_duration: duration,
             recording_url: recordingUrl,
+            agent_name: assignedAgentName,
+            agent_number: assignedAgentPhone,
+            assigned_agent_name: assignedAgentName,
+            assigned_agent_phone: assignedAgentPhone,
+            department,
+            start_time: startTime,
+            end_time: endTime,
+            full_number: fullNumber,
             raw_payload: rawPayloadForStorage,
           })
           .eq('call_id', callId);
@@ -101,11 +127,8 @@ Deno.serve(async (req) => {
         if (updateError) {
           console.error('Error updating call log:', updateError.message);
           await insertDebugLog(supabase, {
-            raw_payload: rawBody,
-            headers,
-            request_method: req.method,
-            processing_stage: 'call_log_update_failed',
-            error_message: updateError.message,
+            raw_payload: rawBody, headers, request_method: req.method,
+            processing_stage: 'call_log_update_failed', error_message: updateError.message,
           });
         }
 
@@ -121,13 +144,18 @@ Deno.serve(async (req) => {
         .insert({
           call_id: callId,
           caller_number: storedCallerNumber,
-          agent_number: agentNumber,
-          agent_name: agentName,
+          full_number: fullNumber,
+          agent_number: assignedAgentPhone,
+          agent_name: assignedAgentName,
+          assigned_agent_name: assignedAgentName,
+          assigned_agent_phone: assignedAgentPhone,
           call_status: callStatus,
-          call_duration: callDuration,
+          call_duration: duration,
           call_type: callType,
           recording_url: recordingUrl,
-          ivr_input: ivrInput,
+          department,
+          start_time: startTime,
+          end_time: endTime,
           raw_payload: rawPayloadForStorage,
         })
         .select('id')
@@ -136,11 +164,8 @@ Deno.serve(async (req) => {
       if (callError) {
         console.error('Error inserting call log:', callError.message);
         await insertDebugLog(supabase, {
-          raw_payload: rawBody,
-          headers,
-          request_method: req.method,
-          processing_stage: 'call_log_insert_failed',
-          error_message: callError.message,
+          raw_payload: rawBody, headers, request_method: req.method,
+          processing_stage: 'call_log_insert_failed', error_message: callError.message,
         });
 
         return new Response(JSON.stringify({ success: true, action: 'debug_logged' }), {
@@ -149,34 +174,42 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Auto lead creation: check if lead exists by phone
+      // Auto lead creation using normalized caller number
       let leadCreated = false;
       let leadId: string | null = null;
 
-      if (callerNumber) {
-        // Search in enquiries by customer name matching phone
+      if (normalizedCaller) {
+        const last10 = normalizedCaller.replace(/^\+91/, '').slice(-10);
+
         const { data: existingEnquiry } = await supabase
           .from('enquiries')
           .select('id')
-          .or(`customer_name.ilike.%${callerNumber.slice(-10)}%,notes.ilike.%${callerNumber.slice(-10)}%`)
+          .or(`customer_name.ilike.%${last10}%,notes.ilike.%${last10}%`)
           .limit(1)
           .maybeSingle();
 
         if (!existingEnquiry) {
-          // Create new enquiry from call
           const { data: newEnquiry, error: enquiryError } = await supabase
             .from('enquiries')
             .insert({
-              customer_name: callerNumber,
+              customer_name: normalizedCaller,
               customer_company: 'MyOperator Call',
               product_name: 'Incoming Call',
               product_code: 'CALL',
               product_category: 'General',
               quantity: 1,
               urgency: 'normal',
-              sales_person_name: agentName || 'Unassigned',
+              sales_person_name: assignedAgentName || 'Unassigned',
               status: 'new',
-              notes: `Auto-created from MyOperator call.\nCaller: ${callerNumber}\nStatus: ${callStatus}\nDuration: ${callDuration}s${recordingUrl ? `\nRecording: ${recordingUrl}` : ''}`,
+              notes: [
+                'Auto-created from MyOperator call.',
+                `Caller: ${normalizedCaller}`,
+                `Status: ${callStatus}`,
+                `Duration: ${duration}s`,
+                department ? `Department: ${department}` : null,
+                assignedAgentName ? `Agent: ${assignedAgentName}` : null,
+                recordingUrl ? `Recording: ${recordingUrl}` : null,
+              ].filter(Boolean).join('\n'),
             })
             .select('id')
             .single();
@@ -187,76 +220,50 @@ Deno.serve(async (req) => {
           }
         } else {
           leadId = existingEnquiry.id;
-          // Update last activity
-          const { error: enquiryUpdateError } = await supabase
+          await supabase
             .from('enquiries')
             .update({
-              notes: `Last call: ${new Date().toISOString()}\nStatus: ${callStatus}\nDuration: ${callDuration}s`,
+              notes: [
+                `Last call: ${new Date().toISOString()}`,
+                `Status: ${callStatus}`,
+                `Duration: ${duration}s`,
+                assignedAgentName ? `Agent: ${assignedAgentName}` : null,
+                recordingUrl ? `Recording: ${recordingUrl}` : null,
+              ].filter(Boolean).join('\n'),
             })
             .eq('id', existingEnquiry.id);
-
-          if (enquiryUpdateError) {
-            console.error('Error updating enquiry:', enquiryUpdateError.message);
-            await insertDebugLog(supabase, {
-              raw_payload: rawBody,
-              headers,
-              request_method: req.method,
-              processing_stage: 'enquiry_update_failed',
-              error_message: enquiryUpdateError.message,
-            });
-          }
         }
       } else {
         await insertDebugLog(supabase, {
-          raw_payload: rawBody,
-          headers,
-          request_method: req.method,
-          processing_stage: 'missing_caller_number',
-          error_message: 'No caller number found in payload',
+          raw_payload: rawBody, headers, request_method: req.method,
+          processing_stage: 'missing_caller_number', error_message: 'No caller number found in payload',
         });
       }
 
       // Update call log with lead info
       if (leadId) {
-        const { error: leadUpdateError } = await supabase
+        await supabase
           .from('call_logs')
           .update({ lead_created: leadCreated, lead_id: leadId })
           .eq('id', callLog.id);
-
-        if (leadUpdateError) {
-          console.error('Error updating call log with lead info:', leadUpdateError.message);
-          await insertDebugLog(supabase, {
-            raw_payload: rawBody,
-            headers,
-            request_method: req.method,
-            processing_stage: 'lead_update_failed',
-            error_message: leadUpdateError.message,
-          });
-        }
       }
 
       return new Response(JSON.stringify({
-        success: true,
-        action: 'created',
-        call_log_id: callLog.id,
-        lead_created: leadCreated,
-        lead_id: leadId,
+        success: true, action: 'created',
+        call_log_id: callLog.id, lead_created: leadCreated, lead_id: leadId,
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    return new Response(JSON.stringify({ success: true, message: 'Method acknowledged' }), {
+    return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Webhook error:', error);
-    return new Response(JSON.stringify({ success: true, message: 'Webhook received with processing error' }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response('OK', { status: 200, headers: corsHeaders });
   }
 });
 
@@ -264,15 +271,17 @@ function normalizePhone(phone: string): string {
   if (!phone) return '';
   const digits = phone.replace(/[^0-9]/g, '');
   if (!digits) return '';
-  if (digits.length === 10) return `+91${digits}`;
-  if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`;
-  if (digits.length === 13 && digits.startsWith('91')) return `+${digits}`;
+  // Remove leading 91 country code if present
+  const normalized = digits.startsWith('91') && digits.length > 10
+    ? digits.substring(digits.length - 10)
+    : digits;
+  if (normalized.length === 10) return `+91${normalized}`;
   return phone.startsWith('+') ? phone : `+${digits}`;
 }
 
 function mapCallStatus(status: string): string {
   const s = status.toLowerCase();
-  if (s.includes('answer') || s === 'completed' || s === 'connected') return 'answered';
+  if (s === 'received' || s.includes('answer') || s === 'completed' || s === 'connected') return 'answered';
   if (s.includes('miss') || s === 'no-answer' || s === 'noanswer') return 'missed';
   if (s.includes('busy')) return 'busy';
   if (s.includes('ring')) return 'ringing';
@@ -280,24 +289,21 @@ function mapCallStatus(status: string): string {
   return s;
 }
 
-function getStringValue(payload: Record<string, unknown> | null, keys: string[]): string | null {
-  if (!payload) return null;
-
-  for (const key of keys) {
-    const value = payload[key];
-    if (typeof value === 'string' && value.trim()) return value.trim();
-    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
-  }
-
+function getString(obj: Record<string, unknown>, key: string): string | null {
+  const val = obj?.[key];
+  if (typeof val === 'string' && val.trim()) return val.trim();
+  if (typeof val === 'number' && Number.isFinite(val)) return String(val);
   return null;
 }
 
-function parseIntegerValue(payload: Record<string, unknown> | null, keys: string[]): number {
-  const value = getStringValue(payload, keys);
-  if (!value) return 0;
-
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : 0;
+function getNumber(obj: Record<string, unknown>, key: string): number {
+  const val = obj?.[key];
+  if (typeof val === 'number' && Number.isFinite(val)) return val;
+  if (typeof val === 'string') {
+    const parsed = Number.parseInt(val, 10);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
 }
 
 async function insertDebugLog(
@@ -310,11 +316,6 @@ async function insertDebugLog(
     error_message: string;
   },
 ) {
-  const { error } = await supabase
-    .from('webhook_debug_logs')
-    .insert(entry);
-
-  if (error) {
-    console.error('Failed to insert webhook debug log:', error.message);
-  }
+  const { error } = await supabase.from('webhook_debug_logs').insert(entry);
+  if (error) console.error('Failed to insert debug log:', error.message);
 }

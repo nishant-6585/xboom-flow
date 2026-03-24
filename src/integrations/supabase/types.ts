@@ -495,52 +495,70 @@ export type Database = {
         Row: {
           agent_name: string | null
           agent_number: string | null
+          assigned_agent_name: string | null
+          assigned_agent_phone: string | null
           call_duration: number | null
           call_id: string | null
           call_status: string
           call_type: string | null
           caller_number: string
           created_at: string
+          department: string | null
+          end_time: string | null
+          full_number: string | null
           id: string
           ivr_input: string | null
           lead_created: boolean
           lead_id: string | null
           raw_payload: Json | null
           recording_url: string | null
+          start_time: string | null
           updated_at: string
         }
         Insert: {
           agent_name?: string | null
           agent_number?: string | null
+          assigned_agent_name?: string | null
+          assigned_agent_phone?: string | null
           call_duration?: number | null
           call_id?: string | null
           call_status?: string
           call_type?: string | null
           caller_number: string
           created_at?: string
+          department?: string | null
+          end_time?: string | null
+          full_number?: string | null
           id?: string
           ivr_input?: string | null
           lead_created?: boolean
           lead_id?: string | null
           raw_payload?: Json | null
           recording_url?: string | null
+          start_time?: string | null
           updated_at?: string
         }
         Update: {
           agent_name?: string | null
           agent_number?: string | null
+          assigned_agent_name?: string | null
+          assigned_agent_phone?: string | null
           call_duration?: number | null
           call_id?: string | null
           call_status?: string
           call_type?: string | null
           caller_number?: string
           created_at?: string
+          department?: string | null
+          end_time?: string | null
+          full_number?: string | null
           id?: string
           ivr_input?: string | null
           lead_created?: boolean
           lead_id?: string | null
           raw_payload?: Json | null
           recording_url?: string | null
+          start_time?: string | null
           updated_at?: string
         }
         Relationships: []
