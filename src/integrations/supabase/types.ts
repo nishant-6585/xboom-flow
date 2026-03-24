@@ -844,6 +844,8 @@ export type Database = {
           employee_id: string
           employee_name: string
           flow_date: string
+          frequency: string | null
+          frequency_days: string[] | null
           id: string
           is_break: boolean | null
           links: string[] | null
@@ -869,6 +871,8 @@ export type Database = {
           employee_id: string
           employee_name: string
           flow_date?: string
+          frequency?: string | null
+          frequency_days?: string[] | null
           id?: string
           is_break?: boolean | null
           links?: string[] | null
@@ -894,6 +898,8 @@ export type Database = {
           employee_id?: string
           employee_name?: string
           flow_date?: string
+          frequency?: string | null
+          frequency_days?: string[] | null
           id?: string
           is_break?: boolean | null
           links?: string[] | null
@@ -935,6 +941,8 @@ export type Database = {
           duration_mins: number
           employee_id: string
           employee_name: string
+          frequency: string
+          frequency_days: string[] | null
           id: string
           is_break: boolean | null
           sl_no: number
@@ -953,6 +961,8 @@ export type Database = {
           duration_mins: number
           employee_id: string
           employee_name: string
+          frequency?: string
+          frequency_days?: string[] | null
           id?: string
           is_break?: boolean | null
           sl_no: number
@@ -971,6 +981,8 @@ export type Database = {
           duration_mins?: number
           employee_id?: string
           employee_name?: string
+          frequency?: string
+          frequency_days?: string[] | null
           id?: string
           is_break?: boolean | null
           sl_no?: number

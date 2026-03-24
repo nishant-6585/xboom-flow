@@ -153,6 +153,7 @@ export function DailyFlowEntryTable({ entries, date, employeeName, onUpdateEntry
                 <th className="p-2 text-center w-20">From</th>
                 <th className="p-2 text-center w-20">To</th>
                 <th className="p-2 text-center w-16">Mins</th>
+                <th className="p-2 text-center w-16">Freq</th>
                 <th className="p-2 text-center w-16">Target</th>
                 <th className="p-2 text-center w-24">Actual</th>
                 <th className="p-2 text-center w-10"></th>
@@ -217,6 +218,15 @@ export function DailyFlowEntryTable({ entries, date, employeeName, onUpdateEntry
                         )}
                       </td>
                       <td className="p-2 text-center">{entry.duration_mins}</td>
+                      <td className="p-2 text-center">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                          (entry.frequency || 'daily') === 'daily' 
+                            ? 'bg-primary/10 text-primary' 
+                            : 'bg-accent text-accent-foreground'
+                        }`}>
+                          {(entry.frequency || 'daily') === 'daily' ? 'Daily' : (entry.frequency || 'daily') === 'weekly' ? 'Weekly' : 'Custom'}
+                        </span>
+                      </td>
                       <td className="p-2 text-center font-medium">{entry.target_value || '—'}</td>
                       <td className="p-2">
                         {entry.is_break ? (

@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2, Save } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import type { DailyFlowTemplate } from '@/hooks/useDailyFlow';
@@ -25,22 +26,26 @@ interface RowData {
   duration_mins: number;
   target_value: number;
   is_break: boolean;
+  frequency: string;
+  frequency_days: string[];
 }
 
+const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
 const DEFAULT_ROWS: RowData[] = [
-  { key: '1', sl_no: 1, description: 'Emails', sub_items: '', time_from: '10:00', time_to: '10:30', duration_mins: 30, target_value: 10, is_break: false },
-  { key: '2', sl_no: 2, description: 'Meetings', sub_items: '', time_from: '10:30', time_to: '11:00', duration_mins: 30, target_value: 2, is_break: false },
-  { key: '3', sl_no: 3, description: 'Follow-ups', sub_items: 'Mails,Messages', time_from: '11:00', time_to: '11:30', duration_mins: 30, target_value: 5, is_break: false },
-  { key: '4', sl_no: 4, description: 'Analysis', sub_items: '', time_from: '11:30', time_to: '12:30', duration_mins: 60, target_value: 3, is_break: false },
-  { key: '5', sl_no: 5, description: 'Miscellaneous', sub_items: '', time_from: '12:30', time_to: '13:00', duration_mins: 30, target_value: 0, is_break: false },
-  { key: '6', sl_no: 6, description: 'Lunch', sub_items: '', time_from: '13:00', time_to: '13:45', duration_mins: 45, target_value: 0, is_break: true },
-  { key: '7', sl_no: 7, description: 'Outbound - Lead Generation', sub_items: '', time_from: '14:00', time_to: '14:30', duration_mins: 30, target_value: 8, is_break: false },
-  { key: '8', sl_no: 8, description: 'Outbound - Emails', sub_items: '', time_from: '14:30', time_to: '15:00', duration_mins: 30, target_value: 15, is_break: false },
-  { key: '9', sl_no: 9, description: 'Emails + Calls', sub_items: '', time_from: '16:00', time_to: '16:30', duration_mins: 60, target_value: 10, is_break: false },
-  { key: '10', sl_no: 10, description: 'Follow Ups & Meetings', sub_items: '', time_from: '16:30', time_to: '17:00', duration_mins: 15, target_value: 4, is_break: false },
-  { key: '11', sl_no: 11, description: 'Break', sub_items: '', time_from: '17:00', time_to: '17:15', duration_mins: 15, target_value: 0, is_break: true },
-  { key: '12', sl_no: 12, description: 'CRM + Tools', sub_items: '', time_from: '17:15', time_to: '18:00', duration_mins: 45, target_value: 5, is_break: false },
-  { key: '13', sl_no: 13, description: 'Others Miscellaneous', sub_items: '', time_from: '18:00', time_to: '18:30', duration_mins: 30, target_value: 0, is_break: false },
+  { key: '1', sl_no: 1, description: 'Emails', sub_items: '', time_from: '10:00', time_to: '10:30', duration_mins: 30, target_value: 10, is_break: false, frequency: 'daily', frequency_days: [] },
+  { key: '2', sl_no: 2, description: 'Meetings', sub_items: '', time_from: '10:30', time_to: '11:00', duration_mins: 30, target_value: 2, is_break: false, frequency: 'daily', frequency_days: [] },
+  { key: '3', sl_no: 3, description: 'Follow-ups', sub_items: 'Mails,Messages', time_from: '11:00', time_to: '11:30', duration_mins: 30, target_value: 5, is_break: false, frequency: 'daily', frequency_days: [] },
+  { key: '4', sl_no: 4, description: 'Analysis', sub_items: '', time_from: '11:30', time_to: '12:30', duration_mins: 60, target_value: 3, is_break: false, frequency: 'daily', frequency_days: [] },
+  { key: '5', sl_no: 5, description: 'Miscellaneous', sub_items: '', time_from: '12:30', time_to: '13:00', duration_mins: 30, target_value: 0, is_break: false, frequency: 'daily', frequency_days: [] },
+  { key: '6', sl_no: 6, description: 'Lunch', sub_items: '', time_from: '13:00', time_to: '13:45', duration_mins: 45, target_value: 0, is_break: true, frequency: 'daily', frequency_days: [] },
+  { key: '7', sl_no: 7, description: 'Outbound - Lead Generation', sub_items: '', time_from: '14:00', time_to: '14:30', duration_mins: 30, target_value: 8, is_break: false, frequency: 'daily', frequency_days: [] },
+  { key: '8', sl_no: 8, description: 'Outbound - Emails', sub_items: '', time_from: '14:30', time_to: '15:00', duration_mins: 30, target_value: 15, is_break: false, frequency: 'daily', frequency_days: [] },
+  { key: '9', sl_no: 9, description: 'Emails + Calls', sub_items: '', time_from: '16:00', time_to: '16:30', duration_mins: 60, target_value: 10, is_break: false, frequency: 'daily', frequency_days: [] },
+  { key: '10', sl_no: 10, description: 'Follow Ups & Meetings', sub_items: '', time_from: '16:30', time_to: '17:00', duration_mins: 15, target_value: 4, is_break: false, frequency: 'daily', frequency_days: [] },
+  { key: '11', sl_no: 11, description: 'Break', sub_items: '', time_from: '17:00', time_to: '17:15', duration_mins: 15, target_value: 0, is_break: true, frequency: 'daily', frequency_days: [] },
+  { key: '12', sl_no: 12, description: 'CRM + Tools', sub_items: '', time_from: '17:15', time_to: '18:00', duration_mins: 45, target_value: 5, is_break: false, frequency: 'daily', frequency_days: [] },
+  { key: '13', sl_no: 13, description: 'Others Miscellaneous', sub_items: '', time_from: '18:00', time_to: '18:30', duration_mins: 30, target_value: 0, is_break: false, frequency: 'daily', frequency_days: [] },
 ];
 
 export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave }: FlowTemplateEditorProps) {
@@ -52,7 +57,7 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
   useEffect(() => {
     if (templates.length > 0) {
       setTemplateName((templates[0] as any).template_name || 'Default Template');
-      setRows(templates.map((t, i) => ({
+      setRows(templates.map((t) => ({
         key: t.id,
         sl_no: t.sl_no,
         description: t.description,
@@ -62,6 +67,8 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
         duration_mins: t.duration_mins,
         target_value: t.target_value || 0,
         is_break: t.is_break || false,
+        frequency: t.frequency || 'daily',
+        frequency_days: t.frequency_days || [],
       })));
     } else {
       setTemplateName('Default Template');
@@ -83,6 +90,21 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
           updated[index].duration_mins = diff > 0 ? diff : 0;
         }
       }
+      if (field === 'frequency' && value === 'daily') {
+        updated[index].frequency_days = [];
+      }
+      return updated;
+    });
+  };
+
+  const toggleDay = (index: number, day: string) => {
+    setRows(prev => {
+      const updated = [...prev];
+      const days = [...(updated[index].frequency_days || [])];
+      const idx = days.indexOf(day);
+      if (idx >= 0) days.splice(idx, 1);
+      else days.push(day);
+      updated[index] = { ...updated[index], frequency_days: days };
       return updated;
     });
   };
@@ -99,6 +121,8 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
       duration_mins: 0,
       target_value: 0,
       is_break: false,
+      frequency: 'daily',
+      frequency_days: [],
     }]);
   };
 
@@ -108,9 +132,7 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
 
   const handleSave = async () => {
     if (!user || !profile) return;
-    if (!templateName.trim()) {
-      return;
-    }
+    if (!templateName.trim()) return;
     setSaving(true);
     const items = rows.map(r => ({
       employee_id: employeeId,
@@ -124,6 +146,8 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
       duration_mins: r.duration_mins,
       target_value: r.target_value,
       is_break: r.is_break,
+      frequency: r.frequency,
+      frequency_days: r.frequency === 'daily' ? null : r.frequency_days,
       created_by: user.id,
       created_by_name: profile.name || 'Unknown',
     }));
@@ -170,13 +194,14 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="p-2 text-left w-12">Sl#</th>
-                <th className="p-2 text-left min-w-[180px]">Description</th>
-                <th className="p-2 text-left min-w-[120px]">Sub Items</th>
+                <th className="p-2 text-left min-w-[160px]">Description</th>
+                <th className="p-2 text-left min-w-[100px]">Sub Items</th>
                 <th className="p-2 text-center w-24">From</th>
                 <th className="p-2 text-center w-24">To</th>
-                <th className="p-2 text-center w-20">Mins</th>
-                <th className="p-2 text-center w-24">Target KPI</th>
-                <th className="p-2 text-center w-16">Break</th>
+                <th className="p-2 text-center w-16">Mins</th>
+                <th className="p-2 text-center w-20">Target</th>
+                <th className="p-2 text-center min-w-[140px]">Frequency</th>
+                <th className="p-2 text-center w-14">Break</th>
                 <th className="p-2 w-10"></th>
               </tr>
             </thead>
@@ -212,6 +237,38 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
                       placeholder="Set target"
                     />
                   </td>
+                  <td className="p-1">
+                    <div className="space-y-1">
+                      <Select value={row.frequency} onValueChange={v => updateRow(i, 'frequency', v)}>
+                        <SelectTrigger className="h-7 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="custom">Custom Days</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {(row.frequency === 'weekly' || row.frequency === 'custom') && (
+                        <div className="flex flex-wrap gap-0.5">
+                          {DAYS_OF_WEEK.map(day => (
+                            <button
+                              key={day}
+                              type="button"
+                              onClick={() => toggleDay(i, day)}
+                              className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                                (row.frequency_days || []).includes(day)
+                                  ? 'bg-primary text-primary-foreground border-primary'
+                                  : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted'
+                              }`}
+                            >
+                              {day.slice(0, 3)}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </td>
                   <td className="p-1 text-center">
                     <Checkbox checked={row.is_break} onCheckedChange={v => updateRow(i, 'is_break', !!v)} />
                   </td>
@@ -228,7 +285,7 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
                 <td className="p-2" colSpan={5}>Total</td>
                 <td className="p-2 text-center">{totalDuration} min</td>
                 <td className="p-2 text-center">{totalTarget}</td>
-                <td colSpan={2}></td>
+                <td colSpan={3}></td>
               </tr>
             </tfoot>
           </table>
