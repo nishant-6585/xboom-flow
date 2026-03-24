@@ -1108,7 +1108,6 @@ const Admin = () => {
             <div className="space-y-6">
               <SlackSettingsPanel />
               <MyOperatorSettingsPanel />
-              <CallLogsPanel />
             </div>
           </TabsContent>
 
