@@ -26,6 +26,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag } from 'lucide-react';
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth } from 'date-fns';
 import { Link } from 'react-router-dom';
+import { OrdersDashboardStats } from '@/components/orders/OrdersDashboardStats';
 
 export default function Orders() {
   const { role, user } = useAuth();
@@ -237,15 +238,8 @@ export default function Orders() {
   };
 
   const [filtersOpen, setFiltersOpen] = useState(false);
-  
-  // Calculate quick stats
-  const stats = {
-    total: manualOrders.length,
-    poReceived: manualOrders.filter(o => ['po_received', 'payment_received', 'partial_payment_received'].includes(o.status)).length,
-    inProgress: manualOrders.filter(o => ['procurement_to_plan', 'procurement_in_process', 'to_ship', 'in_transit'].includes(o.status)).length,
-    completed: manualOrders.filter(o => ['delivery_done', 'procurement_done'].includes(o.status)).length,
-    paymentPending: manualOrders.filter(o => o.payment_status === 'pending').length,
-  };
+  const [dashTimePeriod, setDashTimePeriod] = useState<"this_week" | "this_month" | "prev_month">("this_month");
+  const [dashSalesPersonFilter, setDashSalesPersonFilter] = useState<string>("all");
 
   const hasActiveFilters = statusFilter !== 'all' || paymentStatusFilter !== 'all' || 
     orderTypeFilter !== 'all' || outcomeFilter !== 'all' || 
