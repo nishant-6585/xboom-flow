@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Save, GripVertical, Copy } from 'lucide-react';
+import { Plus, Trash2, Save, GripVertical, Copy, AlertTriangle, Clock } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import type { DailyFlowTemplate } from '@/hooks/useDailyFlow';
 import {
@@ -25,7 +25,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { toast } from 'sonner';
-import { calculateDurationMinutes, normalizeFlexibleTimeInput } from './timeUtils';
+import { calculateDurationMinutes, normalizeFlexibleTimeInput, isValidNormalizedTime } from './timeUtils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface FlowTemplateEditorProps {
   employeeId: string;
@@ -66,12 +67,79 @@ const DEFAULT_ROWS: RowData[] = [
   { key: '13', sl_no: 13, description: 'Others Miscellaneous', sub_items: '', time_from: '18:00', time_to: '18:30', duration_mins: 30, target_value: 0, is_break: false, frequency: 'daily', frequency_days: [] },
 ];
 
-function SortableRow({ row, updateRow, toggleDay, removeRow, duplicateRow }: {
+
+interface TimeIssue {
+  type: 'overlap' | 'gap';
+  message: string;
+}
+
+function toMinutes(time: string): number | null {
+  const normalized = normalizeFlexibleTimeInput(time);
+  if (!normalized) return null;
+  const [h, m] = normalized.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function formatMinutesAsTime(mins: number): string {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function detectTimeIssues(rows: RowData[]): Map<string, TimeIssue[]> {
+  const issues = new Map<string, TimeIssue[]>();
+  const parsed = rows
+    .map(r => ({ key: r.key, sl_no: r.sl_no, desc: r.description, from: toMinutes(r.time_from), to: toMinutes(r.time_to) }))
+    .filter(r => r.from !== null && r.to !== null && r.to! > r.from!) as
+    { key: string; sl_no: number; desc: string; from: number; to: number }[];
+
+  for (let i = 0; i < parsed.length; i++) {
+    for (let j = i + 1; j < parsed.length; j++) {
+      const a = parsed[i], b = parsed[j];
+      if (a.from < b.to && b.from < a.to) {
+        const msg = `Overlaps with #${b.sl_no} "${b.desc}"`;
+        const msgB = `Overlaps with #${a.sl_no} "${a.desc}"`;
+        issues.set(a.key, [...(issues.get(a.key) || []), { type: 'overlap', message: msg }]);
+        issues.set(b.key, [...(issues.get(b.key) || []), { type: 'overlap', message: msgB }]);
+      }
+    }
+  }
+  return issues;
+}
+
+function detectGaps(rows: RowData[]): { afterKey: string; fromTime: string; toTime: string; durationMins: number }[] {
+  const parsed = rows
+    .map(r => ({ key: r.key, from: toMinutes(r.time_from), to: toMinutes(r.time_to) }))
+    .filter(r => r.from !== null && r.to !== null && r.to! > r.from!) as
+    { key: string; from: number; to: number }[];
+
+  if (parsed.length < 2) return [];
+  const sorted = [...parsed].sort((a, b) => a.from - b.from);
+  const gaps: { afterKey: string; fromTime: string; toTime: string; durationMins: number }[] = [];
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const gapStart = sorted[i].to;
+    const gapEnd = sorted[i + 1].from;
+    if (gapEnd > gapStart + 5) {
+      gaps.push({
+        afterKey: sorted[i].key,
+        fromTime: formatMinutesAsTime(gapStart),
+        toTime: formatMinutesAsTime(gapEnd),
+        durationMins: gapEnd - gapStart,
+      });
+    }
+  }
+  return gaps;
+}
+
+function SortableRow({ row, updateRow, normalizeRowTime, toggleDay, removeRow, duplicateRow, issues }: {
   row: RowData;
   updateRow: (rowKey: string, field: keyof RowData, value: any) => void;
+  normalizeRowTime: (rowKey: string, field: 'time_from' | 'time_to') => void;
   toggleDay: (rowKey: string, day: string) => void;
   removeRow: (rowKey: string) => void;
   duplicateRow: (rowKey: string) => void;
+  issues: TimeIssue[];
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: row.key });
 
@@ -81,14 +149,30 @@ function SortableRow({ row, updateRow, toggleDay, removeRow, duplicateRow }: {
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const hasOverlap = issues.some(i => i.type === 'overlap');
+
   return (
-    <tr ref={setNodeRef} style={style} className="border-b">
+    <tr ref={setNodeRef} style={style} className={`border-b ${hasOverlap ? 'bg-destructive/10' : ''}`}>
       <td className="p-1">
         <div className="flex items-center gap-1">
           <button type="button" className="cursor-grab touch-none text-muted-foreground hover:text-foreground" {...attributes} {...listeners}>
             <GripVertical className="h-4 w-4" />
           </button>
           <span className="text-muted-foreground font-medium text-xs">{row.sl_no}</span>
+          {hasOverlap && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-[200px]">
+                  {issues.map((issue, idx) => (
+                    <p key={idx} className="text-xs">{issue.message}</p>
+                  ))}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </td>
       <td className="p-1">
@@ -356,6 +440,9 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
 
   const totalTarget = rows.reduce((s, r) => s + (r.target_value || 0), 0);
   const totalDuration = rows.reduce((s, r) => s + r.duration_mins, 0);
+  const timeIssues = detectTimeIssues(rows);
+  const gaps = detectGaps(rows);
+  const overlapCount = new Set([...timeIssues.entries()].filter(([, v]) => v.some(i => i.type === 'overlap')).map(([k]) => k)).size;
 
   return (
     <Card>
@@ -381,6 +468,18 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
               className="max-w-sm h-9 text-sm"
             />
             <div className="ml-auto flex gap-4 text-xs text-muted-foreground">
+              {overlapCount > 0 && (
+                <span className="text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  {overlapCount} overlap{overlapCount > 1 ? 's' : ''}
+                </span>
+              )}
+              {gaps.length > 0 && (
+                <span className="text-amber-500 flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5" />
+                  {gaps.length} gap{gaps.length > 1 ? 's' : ''}
+                </span>
+              )}
               <span>Total Duration: <strong className="text-foreground">{totalDuration} min</strong></span>
               <span>Total Target: <strong className="text-foreground">{totalTarget}</strong></span>
             </div>
@@ -406,16 +505,35 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
               </thead>
               <SortableContext items={rows.map(r => r.key)} strategy={verticalListSortingStrategy}>
                 <tbody>
-                  {rows.map((row) => (
-                    <SortableRow
-                      key={row.key}
-                      row={row}
-                      updateRow={updateRow}
-                      toggleDay={toggleDay}
-                      removeRow={removeRow}
-                      duplicateRow={duplicateRow}
-                    />
-                  ))}
+                  {rows.map((row) => {
+                    const rowIssues = timeIssues.get(row.key) || [];
+                    const gapAfter = gaps.find(g => g.afterKey === row.key);
+                    return (
+                      <React.Fragment key={row.key}>
+                        <SortableRow
+                          row={row}
+                          updateRow={updateRow}
+                          normalizeRowTime={normalizeRowTime}
+                          toggleDay={toggleDay}
+                          removeRow={removeRow}
+                          duplicateRow={duplicateRow}
+                          issues={rowIssues}
+                        />
+                        {gapAfter && (
+                          <tr className="border-b bg-muted/20">
+                            <td colSpan={9} className="p-1">
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground px-2 py-1">
+                                <Clock className="h-3.5 w-3.5 text-amber-500" />
+                                <span className="font-medium text-amber-500">
+                                  Gap: {gapAfter.fromTime} – {gapAfter.toTime} ({gapAfter.durationMins} min unassigned)
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </SortableContext>
               <tfoot>
