@@ -59,21 +59,35 @@ Deno.serve(async (req) => {
       // Extract fields from actual MyOperator payload structure
       const callerNumber = getString(body, '_cr') || getString(body, '_cl') || null;
       const fullNumber = getString(body, '_cl') || null;
-      const duration = getNumber(body, '_dr');
+      const durationStr = getString(body, '_dr') || null;
+      const duration = parseDuration(durationStr);
       const recordingUrl = getString(body, '_fu') || null;
-      const callType = getString(body, '_ty') || null;
+      const callTypeRaw = body._ty;
+      const callType = mapCallType(callTypeRaw);
       const department = getString(body, '_dn') || null;
       const startTime = getString(body, '_st') || null;
       const endTime = getString(body, '_et') || null;
 
-      // Extract assigned agent from _ld array
+      // Extract ALL agents from _ld array (not just "received")
       let assignedAgentName: string | null = null;
       let assignedAgentPhone: string | null = null;
+      const allAgents: string[] = [];
 
       if (body._ld && Array.isArray(body._ld)) {
+        for (const leg of body._ld as Record<string, unknown>[]) {
+          const receivers = leg._rr;
+          if (Array.isArray(receivers)) {
+            for (const r of receivers as Record<string, unknown>[]) {
+              const name = getString(r, '_na');
+              if (name) allAgents.push(name);
+            }
+          }
+        }
+        // Try to find "received" leg first, fallback to first leg
         const answeredCall = (body._ld as Record<string, unknown>[]).find(
           (item) => item._ac === 'received'
-        );
+        ) || (body._ld as Record<string, unknown>[])[0];
+        
         if (answeredCall) {
           const receivers = answeredCall._rr;
           if (Array.isArray(receivers) && receivers.length > 0) {
@@ -88,11 +102,23 @@ Deno.serve(async (req) => {
       const normalizedCaller = normalizePhone(callerNumber || '');
       const storedCallerNumber = normalizedCaller || `unknown:${crypto.randomUUID()}`;
 
-      // Determine call status from payload
-      const callStatus = mapCallStatus(getString(body, '_ac') || getString(body, 'status') || 'unknown');
+      // Determine call status: check _ld legs for overall status
+      let callStatus = 'unknown';
+      if (body._ld && Array.isArray(body._ld)) {
+        const hasReceived = (body._ld as Record<string, unknown>[]).some((l) => l._ac === 'received');
+        const allMissed = (body._ld as Record<string, unknown>[]).every((l) => l._ac === 'missed');
+        if (hasReceived) callStatus = 'answered';
+        else if (allMissed) callStatus = 'missed';
+        else callStatus = mapCallStatus(getString(body, '_ac') || 'unknown');
+      } else {
+        callStatus = mapCallStatus(getString(body, '_ac') || getString(body, 'status') || 'unknown');
+      }
 
-      // Use a unique call ID if available, fallback to random
-      const callId = getString(body, '_id') || getString(body, 'call_id') || getString(body, 'uid') || crypto.randomUUID();
+      // Use _ai as unique call ID (MyOperator's unique identifier)
+      const callId = getString(body, '_ai') || getString(body, '_id') || getString(body, 'call_id') || crypto.randomUUID();
+      
+      // Build agent display string
+      const agentDisplay = allAgents.length > 0 ? allAgents.join(', ') : assignedAgentName;
 
       const rawPayloadForStorage = parseError
         ? { raw_body: rawBody, parse_error: parseError }
