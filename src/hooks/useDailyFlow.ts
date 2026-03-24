@@ -81,12 +81,38 @@ export function useDailyFlow() {
   const saveTemplate = useCallback(async (items: Omit<DailyFlowTemplate, 'id' | 'created_at'>[]) => {
     if (!items.length) return false;
     const employeeId = items[0].employee_id;
+    
     // Nullify FK references in entries before deleting old templates
-    await supabase.from('daily_flow_entries').update({ template_id: null } as any).eq('employee_id', employeeId);
-    const { error: delError } = await supabase.from('daily_flow_templates').delete().eq('employee_id', employeeId);
-    if (delError) { toast.error('Failed to clear old template'); console.error(delError); return false; }
-    const { error } = await supabase.from('daily_flow_templates').insert(items as any);
-    if (error) { toast.error('Failed to save template'); console.error(error); return false; }
+    const { error: unlinkError } = await supabase
+      .from('daily_flow_entries')
+      .update({ template_id: null } as any)
+      .eq('employee_id', employeeId);
+    if (unlinkError) {
+      console.error('Unlink error:', unlinkError);
+      // Continue anyway - entries may not exist
+    }
+    
+    const { error: delError } = await supabase
+      .from('daily_flow_templates')
+      .delete()
+      .eq('employee_id', employeeId);
+    if (delError) {
+      console.error('Delete error:', delError);
+      toast.error('Failed to clear old template: ' + delError.message);
+      return false;
+    }
+    
+    const { error, data } = await supabase
+      .from('daily_flow_templates')
+      .insert(items as any)
+      .select();
+    if (error) {
+      console.error('Insert error:', error);
+      toast.error('Failed to save template: ' + error.message);
+      return false;
+    }
+    
+    console.log('Template saved successfully, rows:', data?.length);
     toast.success('Flow template saved');
     await fetchTemplates(employeeId);
     return true;
