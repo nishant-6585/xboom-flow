@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { calculateDurationMinutes, isValidNormalizedTime } from '@/components/dailyflow/timeUtils';
 
 export interface DailyFlowTemplate {
   id: string;
@@ -82,6 +83,27 @@ export function useDailyFlow() {
     if (!items.length) return false;
     const employeeId = items[0].employee_id;
 
+    const normalizedItems = items.map((item) => ({
+      ...item,
+      time_from: item.time_from.trim(),
+      time_to: item.time_to.trim(),
+      duration_mins: calculateDurationMinutes(item.time_from, item.time_to),
+    }));
+
+    const invalidTimeRow = normalizedItems.find(
+      (item) => !isValidNormalizedTime(item.time_from) || !isValidNormalizedTime(item.time_to)
+    );
+    if (invalidTimeRow) {
+      toast.error(`Invalid time format on row ${invalidTimeRow.sl_no}`);
+      return false;
+    }
+
+    const invalidDurationRow = normalizedItems.find((item) => item.duration_mins <= 0);
+    if (invalidDurationRow) {
+      toast.error(`End time must be after start time on row ${invalidDurationRow.sl_no}`);
+      return false;
+    }
+
     const { data: existingTemplates, error: existingError } = await supabase
       .from('daily_flow_templates')
       .select('id')
@@ -119,7 +141,7 @@ export function useDailyFlow() {
       return false;
     }
 
-    const { error } = await supabase.from('daily_flow_templates').insert(items as any);
+    const { error } = await supabase.from('daily_flow_templates').insert(normalizedItems as any);
     if (error) {
       console.error(error);
       toast.error('Failed to save template');
