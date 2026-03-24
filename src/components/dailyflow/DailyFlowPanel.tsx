@@ -156,6 +156,7 @@ export function DailyFlowPanel() {
           <TabsList>
             <TabsTrigger value="daily">Daily Report</TabsTrigger>
             {isManager && <TabsTrigger value="template">Template & Targets</TabsTrigger>}
+            {isManager && <TabsTrigger value="browse">Browse Templates</TabsTrigger>}
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
@@ -178,6 +179,17 @@ export function DailyFlowPanel() {
                 employeeName={selectedEmployeeName}
                 templates={templates}
                 onSave={saveTemplate}
+              />
+            </TabsContent>
+          )}
+
+          {isManager && (
+            <TabsContent value="browse" className="mt-4">
+              <TemplateBrowser
+                onSelectTemplate={(empId, empName) => {
+                  handleEmployeeChange(empId);
+                  setTab('template');
+                }}
               />
             </TabsContent>
           )}
