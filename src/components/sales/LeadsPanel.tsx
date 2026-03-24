@@ -22,6 +22,7 @@ import * as XLSX from 'xlsx';
 import { LeadFormDialog } from './LeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { InteraktLeadEditDialog } from '@/components/interakt/InteraktLeadEditDialog';
+import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
 
 const LEAD_SOURCES = [
   'Website',
@@ -268,6 +269,10 @@ export function LeadsPanel() {
           {interaktLeads.length > 0 && (
             <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">{interaktLeads.length}</Badge>
           )}
+        </TabsTrigger>
+        <TabsTrigger value="myoperator" className="gap-1.5">
+          <Phone className="h-3.5 w-3.5" />
+          MyOperator
         </TabsTrigger>
       </TabsList>
 
@@ -830,6 +835,10 @@ export function LeadsPanel() {
           }}
           saving={updating}
         />
+      </TabsContent>
+
+      <TabsContent value="myoperator">
+        <CallLogsPanel />
       </TabsContent>
     </Tabs>
   );
