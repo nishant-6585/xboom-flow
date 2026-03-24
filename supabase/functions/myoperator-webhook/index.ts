@@ -137,10 +137,10 @@ Deno.serve(async (req) => {
           .update({
             call_status: callStatus,
             call_duration: duration,
-            recording_url: recordingUrl,
-            agent_name: assignedAgentName,
+            recording_url: recordingUrl || null,
+            agent_name: agentDisplay,
             agent_number: assignedAgentPhone,
-            assigned_agent_name: assignedAgentName,
+            assigned_agent_name: agentDisplay,
             assigned_agent_phone: assignedAgentPhone,
             department,
             start_time: startTime,
