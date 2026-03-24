@@ -188,7 +188,7 @@ function SortableRow({ row, updateRow, normalizeRowTime, toggleDay, removeRow, d
           value={row.time_from}
           onChange={e => updateRow(row.key, 'time_from', e.target.value)}
           onBlur={() => normalizeRowTime(row.key, 'time_from')}
-          placeholder="3 PM / 15:00"
+          placeholder="HH:MM"
           className="h-8 text-sm text-center"
         />
       </td>
@@ -199,7 +199,7 @@ function SortableRow({ row, updateRow, normalizeRowTime, toggleDay, removeRow, d
           value={row.time_to}
           onChange={e => updateRow(row.key, 'time_to', e.target.value)}
           onBlur={() => normalizeRowTime(row.key, 'time_to')}
-          placeholder="4 PM / 16:00"
+          placeholder="HH:MM"
           className="h-8 text-sm text-center"
         />
       </td>
