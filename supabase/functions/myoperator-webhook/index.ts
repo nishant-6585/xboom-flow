@@ -253,7 +253,7 @@ Deno.serve(async (req) => {
                 `Last call: ${new Date().toISOString()}`,
                 `Status: ${callStatus}`,
                 `Duration: ${duration}s`,
-                assignedAgentName ? `Agent: ${assignedAgentName}` : null,
+                agentDisplay ? `Agent: ${agentDisplay}` : null,
                 recordingUrl ? `Recording: ${recordingUrl}` : null,
               ].filter(Boolean).join('\n'),
             })
