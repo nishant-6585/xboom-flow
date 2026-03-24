@@ -836,6 +836,10 @@ export function LeadsPanel() {
           saving={updating}
         />
       </TabsContent>
+
+      <TabsContent value="myoperator">
+        <CallLogsPanel />
+      </TabsContent>
     </Tabs>
   );
 }
