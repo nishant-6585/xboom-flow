@@ -833,6 +833,155 @@ export type Database = {
           },
         ]
       }
+      daily_flow_entries: {
+        Row: {
+          actual_value: number | null
+          created_at: string | null
+          created_by: string
+          created_by_name: string
+          description: string
+          duration_mins: number
+          employee_id: string
+          employee_name: string
+          flow_date: string
+          id: string
+          is_break: boolean | null
+          notes: string | null
+          sl_no: number
+          sub_items: string[] | null
+          target_value: number | null
+          template_id: string | null
+          time_from: string
+          time_to: string
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_name: string | null
+        }
+        Insert: {
+          actual_value?: number | null
+          created_at?: string | null
+          created_by: string
+          created_by_name: string
+          description: string
+          duration_mins: number
+          employee_id: string
+          employee_name: string
+          flow_date?: string
+          id?: string
+          is_break?: boolean | null
+          notes?: string | null
+          sl_no: number
+          sub_items?: string[] | null
+          target_value?: number | null
+          template_id?: string | null
+          time_from: string
+          time_to: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Update: {
+          actual_value?: number | null
+          created_at?: string | null
+          created_by?: string
+          created_by_name?: string
+          description?: string
+          duration_mins?: number
+          employee_id?: string
+          employee_name?: string
+          flow_date?: string
+          id?: string
+          is_break?: boolean | null
+          notes?: string | null
+          sl_no?: number
+          sub_items?: string[] | null
+          target_value?: number | null
+          template_id?: string | null
+          time_from?: string
+          time_to?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_flow_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_flow_entries_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "daily_flow_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_flow_templates: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          created_by_name: string
+          description: string
+          duration_mins: number
+          employee_id: string
+          employee_name: string
+          id: string
+          is_break: boolean | null
+          sl_no: number
+          sub_items: string[] | null
+          target_value: number | null
+          time_from: string
+          time_to: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          created_by_name: string
+          description: string
+          duration_mins: number
+          employee_id: string
+          employee_name: string
+          id?: string
+          is_break?: boolean | null
+          sl_no: number
+          sub_items?: string[] | null
+          target_value?: number | null
+          time_from: string
+          time_to: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          created_by_name?: string
+          description?: string
+          duration_mins?: number
+          employee_id?: string
+          employee_name?: string
+          id?: string
+          is_break?: boolean | null
+          sl_no?: number
+          sub_items?: string[] | null
+          target_value?: number | null
+          time_from?: string
+          time_to?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_flow_templates_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       demand_forecasts: {
         Row: {
           avg_consumption_30d: number | null
