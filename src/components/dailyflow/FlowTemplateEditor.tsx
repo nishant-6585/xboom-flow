@@ -400,21 +400,33 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
       };
     });
 
-    const invalidRow = normalizedRows.find((row) => !row.time_from || !row.time_to);
+    // Filter out completely empty rows (no description and no times)
+    const filledRows = normalizedRows.filter(
+      (row) => row.description.trim() || row.time_from || row.time_to
+    );
+
+    if (filledRows.length === 0) {
+      toast.error('Please add at least one row with a description and times');
+      return;
+    }
+
+    const invalidRow = filledRows.find((row) => !row.time_from || !row.time_to);
     if (invalidRow) {
       toast.error(`Please enter valid start and end times for row ${invalidRow.sl_no}`);
       return;
     }
 
-    const invalidDurationRow = normalizedRows.find((row) => row.duration_mins <= 0);
+    const invalidDurationRow = filledRows.find((row) => row.duration_mins <= 0);
     if (invalidDurationRow) {
       toast.error(`End time must be after start time for row ${invalidDurationRow.sl_no}`);
       return;
     }
 
-    setRows(normalizedRows);
+    // Re-number filled rows sequentially
+    const renumberedRows = filledRows.map((row, idx) => ({ ...row, sl_no: idx + 1 }));
+    setRows(renumberedRows);
     setSaving(true);
-    const items = normalizedRows.map(r => ({
+    const items = renumberedRows.map(r => ({
       employee_id: employeeId,
       employee_name: employeeName,
       template_name: templateName.trim(),
