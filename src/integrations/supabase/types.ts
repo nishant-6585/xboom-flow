@@ -1103,6 +1103,7 @@ export type Database = {
           completed_by_name: string | null
           created_at: string
           id: string
+          is_applicable: boolean
           is_completed: boolean
           item_name: string
           item_order: number
@@ -1117,6 +1118,7 @@ export type Database = {
           completed_by_name?: string | null
           created_at?: string
           id?: string
+          is_applicable?: boolean
           is_completed?: boolean
           item_name: string
           item_order?: number
@@ -1131,6 +1133,7 @@ export type Database = {
           completed_by_name?: string | null
           created_at?: string
           id?: string
+          is_applicable?: boolean
           is_completed?: boolean
           item_name?: string
           item_order?: number
