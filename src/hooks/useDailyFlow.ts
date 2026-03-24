@@ -7,6 +7,7 @@ export interface DailyFlowTemplate {
   id: string;
   employee_id: string;
   employee_name: string;
+  template_name: string;
   sl_no: number;
   description: string;
   sub_items: string[];
@@ -73,7 +74,6 @@ export function useDailyFlow() {
 
   const saveTemplate = useCallback(async (items: Omit<DailyFlowTemplate, 'id' | 'created_at'>[]) => {
     if (!items.length) return false;
-    // Delete existing templates for this employee then reinsert
     const employeeId = items[0].employee_id;
     await supabase.from('daily_flow_templates').delete().eq('employee_id', employeeId);
     const { error } = await supabase.from('daily_flow_templates').insert(items as any);
@@ -85,7 +85,6 @@ export function useDailyFlow() {
 
   const generateEntriesFromTemplate = useCallback(async (employeeId: string, employeeName: string, date: string) => {
     if (!user || !profile) return false;
-    // Check if entries already exist
     const { data: existing } = await supabase
       .from('daily_flow_entries')
       .select('id')

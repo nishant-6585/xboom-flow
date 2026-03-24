@@ -1,0 +1,1 @@
+ALTER TABLE public.daily_flow_templates ADD COLUMN IF NOT EXISTS template_name TEXT DEFAULT 'Default Template';
