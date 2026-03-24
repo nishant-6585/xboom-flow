@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2, Save } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import type { DailyFlowTemplate } from '@/hooks/useDailyFlow';
@@ -25,7 +26,11 @@ interface RowData {
   duration_mins: number;
   target_value: number;
   is_break: boolean;
+  frequency: string;
+  frequency_days: string[];
 }
+
+const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const DEFAULT_ROWS: RowData[] = [
   { key: '1', sl_no: 1, description: 'Emails', sub_items: '', time_from: '10:00', time_to: '10:30', duration_mins: 30, target_value: 10, is_break: false },
