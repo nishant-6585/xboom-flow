@@ -400,7 +400,17 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
       };
     });
 
-    const invalidRow = normalizedRows.find((row) => !row.time_from || !row.time_to);
+    // Filter out completely empty rows (no description and no times)
+    const filledRows = normalizedRows.filter(
+      (row) => row.description.trim() || row.time_from || row.time_to
+    );
+
+    if (filledRows.length === 0) {
+      toast.error('Please add at least one row with a description and times');
+      return;
+    }
+
+    const invalidRow = filledRows.find((row) => !row.time_from || !row.time_to);
     if (invalidRow) {
       toast.error(`Please enter valid start and end times for row ${invalidRow.sl_no}`);
       return;
