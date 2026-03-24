@@ -59,21 +59,35 @@ Deno.serve(async (req) => {
       // Extract fields from actual MyOperator payload structure
       const callerNumber = getString(body, '_cr') || getString(body, '_cl') || null;
       const fullNumber = getString(body, '_cl') || null;
-      const duration = getNumber(body, '_dr');
+      const durationStr = getString(body, '_dr') || null;
+      const duration = parseDuration(durationStr);
       const recordingUrl = getString(body, '_fu') || null;
-      const callType = getString(body, '_ty') || null;
+      const callTypeRaw = body._ty;
+      const callType = mapCallType(callTypeRaw);
       const department = getString(body, '_dn') || null;
       const startTime = getString(body, '_st') || null;
       const endTime = getString(body, '_et') || null;
 
-      // Extract assigned agent from _ld array
+      // Extract ALL agents from _ld array (not just "received")
       let assignedAgentName: string | null = null;
       let assignedAgentPhone: string | null = null;
+      const allAgents: string[] = [];
 
       if (body._ld && Array.isArray(body._ld)) {
+        for (const leg of body._ld as Record<string, unknown>[]) {
+          const receivers = leg._rr;
+          if (Array.isArray(receivers)) {
+            for (const r of receivers as Record<string, unknown>[]) {
+              const name = getString(r, '_na');
+              if (name) allAgents.push(name);
+            }
+          }
+        }
+        // Try to find "received" leg first, fallback to first leg
         const answeredCall = (body._ld as Record<string, unknown>[]).find(
           (item) => item._ac === 'received'
-        );
+        ) || (body._ld as Record<string, unknown>[])[0];
+        
         if (answeredCall) {
           const receivers = answeredCall._rr;
           if (Array.isArray(receivers) && receivers.length > 0) {
@@ -88,11 +102,23 @@ Deno.serve(async (req) => {
       const normalizedCaller = normalizePhone(callerNumber || '');
       const storedCallerNumber = normalizedCaller || `unknown:${crypto.randomUUID()}`;
 
-      // Determine call status from payload
-      const callStatus = mapCallStatus(getString(body, '_ac') || getString(body, 'status') || 'unknown');
+      // Determine call status: check _ld legs for overall status
+      let callStatus = 'unknown';
+      if (body._ld && Array.isArray(body._ld)) {
+        const hasReceived = (body._ld as Record<string, unknown>[]).some((l) => l._ac === 'received');
+        const allMissed = (body._ld as Record<string, unknown>[]).every((l) => l._ac === 'missed');
+        if (hasReceived) callStatus = 'answered';
+        else if (allMissed) callStatus = 'missed';
+        else callStatus = mapCallStatus(getString(body, '_ac') || 'unknown');
+      } else {
+        callStatus = mapCallStatus(getString(body, '_ac') || getString(body, 'status') || 'unknown');
+      }
 
-      // Use a unique call ID if available, fallback to random
-      const callId = getString(body, '_id') || getString(body, 'call_id') || getString(body, 'uid') || crypto.randomUUID();
+      // Use _ai as unique call ID (MyOperator's unique identifier)
+      const callId = getString(body, '_ai') || getString(body, '_id') || getString(body, 'call_id') || crypto.randomUUID();
+      
+      // Build agent display string
+      const agentDisplay = allAgents.length > 0 ? allAgents.join(', ') : assignedAgentName;
 
       const rawPayloadForStorage = parseError
         ? { raw_body: rawBody, parse_error: parseError }
@@ -111,10 +137,10 @@ Deno.serve(async (req) => {
           .update({
             call_status: callStatus,
             call_duration: duration,
-            recording_url: recordingUrl,
-            agent_name: assignedAgentName,
+            recording_url: recordingUrl || null,
+            agent_name: agentDisplay,
             agent_number: assignedAgentPhone,
-            assigned_agent_name: assignedAgentName,
+            assigned_agent_name: agentDisplay,
             assigned_agent_phone: assignedAgentPhone,
             department,
             start_time: startTime,
@@ -146,13 +172,13 @@ Deno.serve(async (req) => {
           caller_number: storedCallerNumber,
           full_number: fullNumber,
           agent_number: assignedAgentPhone,
-          agent_name: assignedAgentName,
-          assigned_agent_name: assignedAgentName,
+          agent_name: agentDisplay,
+          assigned_agent_name: agentDisplay,
           assigned_agent_phone: assignedAgentPhone,
           call_status: callStatus,
           call_duration: duration,
           call_type: callType,
-          recording_url: recordingUrl,
+          recording_url: recordingUrl || null,
           department,
           start_time: startTime,
           end_time: endTime,
@@ -199,7 +225,7 @@ Deno.serve(async (req) => {
               product_category: 'General',
               quantity: 1,
               urgency: 'normal',
-              sales_person_name: assignedAgentName || 'Unassigned',
+              sales_person_name: agentDisplay || 'Unassigned',
               status: 'new',
               notes: [
                 'Auto-created from MyOperator call.',
@@ -207,7 +233,7 @@ Deno.serve(async (req) => {
                 `Status: ${callStatus}`,
                 `Duration: ${duration}s`,
                 department ? `Department: ${department}` : null,
-                assignedAgentName ? `Agent: ${assignedAgentName}` : null,
+                agentDisplay ? `Agent: ${agentDisplay}` : null,
                 recordingUrl ? `Recording: ${recordingUrl}` : null,
               ].filter(Boolean).join('\n'),
             })
@@ -227,7 +253,7 @@ Deno.serve(async (req) => {
                 `Last call: ${new Date().toISOString()}`,
                 `Status: ${callStatus}`,
                 `Duration: ${duration}s`,
-                assignedAgentName ? `Agent: ${assignedAgentName}` : null,
+                agentDisplay ? `Agent: ${agentDisplay}` : null,
                 recordingUrl ? `Recording: ${recordingUrl}` : null,
               ].filter(Boolean).join('\n'),
             })
@@ -294,6 +320,29 @@ function getString(obj: Record<string, unknown>, key: string): string | null {
   if (typeof val === 'string' && val.trim()) return val.trim();
   if (typeof val === 'number' && Number.isFinite(val)) return String(val);
   return null;
+}
+
+function parseDuration(dur: string | null): number {
+  if (!dur) return 0;
+  // Handle "HH:MM:SS" format
+  const parts = dur.split(':');
+  if (parts.length === 3) {
+    const h = parseInt(parts[0], 10) || 0;
+    const m = parseInt(parts[1], 10) || 0;
+    const s = parseInt(parts[2], 10) || 0;
+    return h * 3600 + m * 60 + s;
+  }
+  // Handle plain number
+  const parsed = parseInt(dur, 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function mapCallType(raw: unknown): string {
+  // MyOperator sends _ty as number: 1=incoming, 2=outgoing
+  if (raw === 1 || raw === '1') return 'incoming';
+  if (raw === 2 || raw === '2') return 'outgoing';
+  if (typeof raw === 'string' && raw.trim()) return raw.trim();
+  return 'incoming';
 }
 
 function getNumber(obj: Record<string, unknown>, key: string): number {

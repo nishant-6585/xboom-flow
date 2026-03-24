@@ -190,93 +190,86 @@ export function CallLogsPanel() {
           <div className="rounded-md border overflow-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Caller</TableHead>
-                  <TableHead>Full Number</TableHead>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="w-12"></TableHead>
+                  <TableHead>Who</TableHead>
+                  <TableHead>What</TableHead>
+                  <TableHead>When</TableHead>
                   <TableHead>Duration</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Agent</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Time</TableHead>
                   <TableHead>Recording</TableHead>
-                  <TableHead>Lead</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {logs.map((log) => (
-                  <TableRow
-                    key={log.id}
-                    className={newIds.has(log.id)
-                      ? "bg-primary/10 animate-pulse border-l-4 border-l-primary"
-                      : ""
-                    }
-                  >
-                    <TableCell className="font-mono text-sm">
-                      {log.caller_number}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm text-muted-foreground">
-                      {log.full_number || "—"}
-                    </TableCell>
-                    <TableCell>
-                      {log.call_duration ? `${log.call_duration}s` : "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {log.call_type || "unknown"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {log.department || "—"}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {log.assigned_agent_name || log.agent_name || "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(log.call_status)} className="gap-1">
+                {logs.map((log) => {
+                  const agent = log.assigned_agent_name || log.agent_name;
+                  const dept = log.department;
+                  const whatParts: string[] = [];
+                  if (log.call_status === 'answered') {
+                    whatParts.push(`Call received by ${agent || 'Unknown'}`);
+                  } else if (log.call_status === 'missed') {
+                    whatParts.push(`Call missed by ${agent || 'Unknown'}`);
+                  } else if (log.call_status === 'busy') {
+                    whatParts.push(`Call busy`);
+                  } else {
+                    whatParts.push(`Call ${log.call_status}`);
+                  }
+                  const whatText = whatParts[0] + (dept ? ` at (${dept})` : '');
+
+                  return (
+                    <TableRow
+                      key={log.id}
+                      className={newIds.has(log.id)
+                        ? "bg-primary/10 animate-pulse border-l-4 border-l-primary"
+                        : ""
+                      }
+                    >
+                      <TableCell>
                         {statusIcon(log.call_status)}
-                        {log.call_status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                      {format(new Date(log.created_at), "dd MMM, HH:mm:ss")}
-                    </TableCell>
-                    <TableCell>
-                      {log.recording_url ? (
+                      </TableCell>
+                      <TableCell className="font-mono text-sm font-medium text-primary">
+                        {log.full_number || log.caller_number}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {whatText}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {format(new Date(log.created_at), "hh:mma")}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {log.call_duration ? formatDuration(log.call_duration) : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {log.recording_url ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => toggleAudio(log.recording_url!)}
+                          >
+                            {playingAudio === log.recording_url ? (
+                              <Pause className="w-4 h-4" />
+                            ) : (
+                              <Play className="w-4 h-4" />
+                            )}
+                          </Button>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <Button
                           variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => toggleAudio(log.recording_url!)}
+                          size="sm"
+                          onClick={() => setSelectedLog(log)}
                         >
-                          {playingAudio === log.recording_url ? (
-                            <Pause className="w-4 h-4" />
-                          ) : (
-                            <Play className="w-4 h-4" />
-                          )}
+                          <Eye className="w-4 h-4 mr-1" />
+                          Details
                         </Button>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {log.lead_created && (
-                        <Badge variant="secondary" className="text-xs">New Lead</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedLog(log)}
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        Details
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
@@ -337,4 +330,11 @@ function Detail({ label, value }: { label: string; value: string | null | undefi
       <p className="font-medium">{value || "—"}</p>
     </div>
   );
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
