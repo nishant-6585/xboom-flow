@@ -416,15 +416,17 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
       return;
     }
 
-    const invalidDurationRow = normalizedRows.find((row) => row.duration_mins <= 0);
+    const invalidDurationRow = filledRows.find((row) => row.duration_mins <= 0);
     if (invalidDurationRow) {
       toast.error(`End time must be after start time for row ${invalidDurationRow.sl_no}`);
       return;
     }
 
-    setRows(normalizedRows);
+    // Re-number filled rows sequentially
+    const renumberedRows = filledRows.map((row, idx) => ({ ...row, sl_no: idx + 1 }));
+    setRows(renumberedRows);
     setSaving(true);
-    const items = normalizedRows.map(r => ({
+    const items = renumberedRows.map(r => ({
       employee_id: employeeId,
       employee_name: employeeName,
       template_name: templateName.trim(),
