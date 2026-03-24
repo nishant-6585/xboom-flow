@@ -328,83 +328,13 @@ export default function Orders() {
 
             {/* Quick Stats Cards - Enhanced */}
             {activeTab === 'list' && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <Card 
-                  className="group relative overflow-hidden bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border-blue-200/30 dark:border-blue-800/30 cursor-pointer hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-0.5 transition-all duration-300" 
-                  onClick={() => { setStatusFilter('all'); clearFilters(); }}
-                >
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
-                  <CardContent className="p-5">
-                    <div className="flex items-center justify-between relative">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">Total Orders</p>
-                        <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">{stats.total}</p>
-                        <p className="text-xs text-muted-foreground mt-1">All time</p>
-                      </div>
-                      <div className="p-3 rounded-xl bg-blue-500/15 group-hover:scale-110 transition-transform">
-                        <Package className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card 
-                  className="group relative overflow-hidden bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border-amber-200/30 dark:border-amber-800/30 cursor-pointer hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-0.5 transition-all duration-300" 
-                  onClick={() => setStatusFilter('po_received')}
-                >
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-amber-500/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
-                  <CardContent className="p-5">
-                    <div className="flex items-center justify-between relative">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">PO Received</p>
-                        <p className="text-3xl font-bold text-amber-700 dark:text-amber-300">{stats.poReceived}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Awaiting action</p>
-                      </div>
-                      <div className="p-3 rounded-xl bg-amber-500/15 group-hover:scale-110 transition-transform">
-                        <Clock className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card 
-                  className="group relative overflow-hidden bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent border-purple-200/30 dark:border-purple-800/30 cursor-pointer hover:shadow-xl hover:shadow-purple-500/10 hover:-translate-y-0.5 transition-all duration-300" 
-                  onClick={() => setStatusFilter('in_transit')}
-                >
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-500/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
-                  <CardContent className="p-5">
-                    <div className="flex items-center justify-between relative">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider text-purple-600 dark:text-purple-400 mb-1">In Progress</p>
-                        <p className="text-3xl font-bold text-purple-700 dark:text-purple-300">{stats.inProgress}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Processing</p>
-                      </div>
-                      <div className="p-3 rounded-xl bg-purple-500/15 group-hover:scale-110 transition-transform">
-                        <TrendingUp className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card 
-                  className="group relative overflow-hidden bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-200/30 dark:border-emerald-800/30 cursor-pointer hover:shadow-xl hover:shadow-emerald-500/10 hover:-translate-y-0.5 transition-all duration-300" 
-                  onClick={() => setStatusFilter('delivery_done')}
-                >
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-500/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
-                  <CardContent className="p-5">
-                    <div className="flex items-center justify-between relative">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">Delivered</p>
-                        <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-300">{stats.completed}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Completed</p>
-                      </div>
-                      <div className="p-3 rounded-xl bg-emerald-500/15 group-hover:scale-110 transition-transform">
-                        <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              <OrdersDashboardStats
+                orders={manualOrders}
+                timePeriod={dashTimePeriod}
+                onTimePeriodChange={setDashTimePeriod}
+                salesPersonFilter={dashSalesPersonFilter}
+                onSalesPersonFilterChange={setDashSalesPersonFilter}
+              />
             )}
           </div>
 
