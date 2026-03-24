@@ -24,6 +24,8 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { toast } from 'sonner';
+import { calculateDurationMinutes, normalizeFlexibleTimeInput } from './timeUtils';
 
 interface FlowTemplateEditorProps {
   employeeId: string;
@@ -96,10 +98,26 @@ function SortableRow({ row, updateRow, toggleDay, removeRow, duplicateRow }: {
         <Input value={row.sub_items} onChange={e => updateRow(row.key, 'sub_items', e.target.value)} placeholder="comma separated" className="h-8 text-sm" />
       </td>
       <td className="p-1">
-        <Input type="time" value={row.time_from} onChange={e => updateRow(row.key, 'time_from', e.target.value)} className="h-8 text-sm text-center" />
+        <Input
+          type="text"
+          inputMode="text"
+          value={row.time_from}
+          onChange={e => updateRow(row.key, 'time_from', e.target.value)}
+          onBlur={() => normalizeRowTime(row.key, 'time_from')}
+          placeholder="3 PM / 15:00"
+          className="h-8 text-sm text-center"
+        />
       </td>
       <td className="p-1">
-        <Input type="time" value={row.time_to} onChange={e => updateRow(row.key, 'time_to', e.target.value)} className="h-8 text-sm text-center" />
+        <Input
+          type="text"
+          inputMode="text"
+          value={row.time_to}
+          onChange={e => updateRow(row.key, 'time_to', e.target.value)}
+          onBlur={() => normalizeRowTime(row.key, 'time_to')}
+          placeholder="4 PM / 16:00"
+          className="h-8 text-sm text-center"
+        />
       </td>
       <td className="p-1 text-center">
         <span className="font-medium">{row.duration_mins}</span>
@@ -199,16 +217,7 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
       const updatedRow = { ...row, [field]: value } as RowData;
 
       if (field === 'time_from' || field === 'time_to') {
-        const from = field === 'time_from' ? value : updatedRow.time_from;
-        const to = field === 'time_to' ? value : updatedRow.time_to;
-        if (from && to) {
-          const [fh, fm] = from.split(':').map(Number);
-          const [th, tm] = to.split(':').map(Number);
-          const diff = (th * 60 + tm) - (fh * 60 + fm);
-          updatedRow.duration_mins = diff > 0 ? diff : 0;
-        } else {
-          updatedRow.duration_mins = 0;
-        }
+        updatedRow.duration_mins = calculateDurationMinutes(updatedRow.time_from, updatedRow.time_to);
       }
 
       if (field === 'frequency' && value === 'daily') {
@@ -216,6 +225,21 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
       }
 
       return updatedRow;
+    }));
+  };
+
+  const normalizeRowTime = (rowKey: string, field: 'time_from' | 'time_to') => {
+    setRows(prev => prev.map(row => {
+      if (row.key !== rowKey) return row;
+
+      const normalized = normalizeFlexibleTimeInput(row[field]);
+      if (!normalized) return row;
+
+      const updatedRow = { ...row, [field]: normalized };
+      return {
+        ...updatedRow,
+        duration_mins: calculateDurationMinutes(updatedRow.time_from, updatedRow.time_to),
+      };
     }));
   };
 
@@ -280,8 +304,33 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
   const handleSave = async () => {
     if (!user || !profile) return;
     if (!templateName.trim()) return;
+    const normalizedRows = rows.map((row) => {
+      const timeFrom = normalizeFlexibleTimeInput(row.time_from);
+      const timeTo = normalizeFlexibleTimeInput(row.time_to);
+
+      return {
+        ...row,
+        time_from: timeFrom ?? row.time_from.trim(),
+        time_to: timeTo ?? row.time_to.trim(),
+        duration_mins: timeFrom && timeTo ? calculateDurationMinutes(timeFrom, timeTo) : 0,
+      };
+    });
+
+    const invalidRow = normalizedRows.find((row) => !row.time_from || !row.time_to);
+    if (invalidRow) {
+      toast.error(`Please enter valid start and end times for row ${invalidRow.sl_no}`);
+      return;
+    }
+
+    const invalidDurationRow = normalizedRows.find((row) => row.duration_mins <= 0);
+    if (invalidDurationRow) {
+      toast.error(`End time must be after start time for row ${invalidDurationRow.sl_no}`);
+      return;
+    }
+
+    setRows(normalizedRows);
     setSaving(true);
-    const items = rows.map(r => ({
+    const items = normalizedRows.map(r => ({
       employee_id: employeeId,
       employee_name: employeeName,
       template_name: templateName.trim(),
@@ -298,8 +347,11 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
       created_by: user.id,
       created_by_name: profile.name || 'Unknown',
     }));
-    await onSave(items as any);
-    setSaving(false);
+    try {
+      await onSave(items as any);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const totalTarget = rows.reduce((s, r) => s + (r.target_value || 0), 0);
