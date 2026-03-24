@@ -83,7 +83,7 @@ function SortableRow({ row, index, updateRow, toggleDay, removeRow, duplicateRow
   };
 
   return (
-    <tr ref={setNodeRef} style={style} className={`border-b ${row.is_break ? 'bg-green-500/10' : ''}`}>
+    <tr ref={setNodeRef} style={style} className="border-b">
       <td className="p-1">
         <div className="flex items-center gap-1">
           <button type="button" className="cursor-grab touch-none text-muted-foreground hover:text-foreground" {...attributes} {...listeners}>
@@ -113,8 +113,7 @@ function SortableRow({ row, index, updateRow, toggleDay, removeRow, duplicateRow
           min={0}
           value={row.target_value}
           onChange={e => updateRow(index, 'target_value', Number(e.target.value))}
-          className={`h-8 text-sm text-center ${row.is_break ? 'opacity-50' : 'border-primary/30 focus:border-primary'}`}
-          disabled={row.is_break}
+          className="h-8 text-sm text-center border-primary/30 focus:border-primary"
           placeholder="Set target"
         />
       </td>
@@ -149,9 +148,6 @@ function SortableRow({ row, index, updateRow, toggleDay, removeRow, duplicateRow
             </div>
           )}
         </div>
-      </td>
-      <td className="p-1 text-center">
-        <Checkbox checked={row.is_break} onCheckedChange={v => updateRow(index, 'is_break', !!v)} />
       </td>
       <td className="p-1">
         <div className="flex gap-0.5">
