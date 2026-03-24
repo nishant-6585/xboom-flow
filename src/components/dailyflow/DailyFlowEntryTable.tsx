@@ -153,6 +153,7 @@ export function DailyFlowEntryTable({ entries, date, employeeName, onUpdateEntry
                 <th className="p-2 text-center w-20">From</th>
                 <th className="p-2 text-center w-20">To</th>
                 <th className="p-2 text-center w-16">Mins</th>
+                <th className="p-2 text-center w-16">Freq</th>
                 <th className="p-2 text-center w-16">Target</th>
                 <th className="p-2 text-center w-24">Actual</th>
                 <th className="p-2 text-center w-10"></th>
