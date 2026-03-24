@@ -1104,7 +1104,10 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="integrations">
-            <SlackSettingsPanel />
+            <div className="space-y-6">
+              <SlackSettingsPanel />
+              <MyOperatorSettingsPanel />
+            </div>
           </TabsContent>
 
           <TabsContent value="form-access">
