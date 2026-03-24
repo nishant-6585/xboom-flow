@@ -36,6 +36,8 @@ export interface DailyFlowEntry {
   target_value: number;
   actual_value: number;
   notes: string;
+  task_description: string;
+  links: string[];
   is_break: boolean;
   created_by: string;
   created_by_name: string;
@@ -133,7 +135,7 @@ export function useDailyFlow() {
     return true;
   }, [user, profile, fetchEntries]);
 
-  const updateEntry = useCallback(async (entryId: string, updates: { actual_value?: number; notes?: string }) => {
+  const updateEntry = useCallback(async (entryId: string, updates: { actual_value?: number; notes?: string; task_description?: string; links?: string[]; description?: string; time_from?: string; time_to?: string; duration_mins?: number }) => {
     if (!user || !profile) return false;
     const { error } = await supabase
       .from('daily_flow_entries')
