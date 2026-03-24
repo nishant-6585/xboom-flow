@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useDailyFlow } from '@/hooks/useDailyFlow';
 import { supabase } from '@/integrations/supabase/client';
 import { FlowTemplateEditor } from './FlowTemplateEditor';
+import { TemplateBrowser } from './TemplateBrowser';
 import { DailyFlowEntryTable } from './DailyFlowEntryTable';
 import { DailyFlowAnalytics } from './DailyFlowAnalytics';
 import { format, startOfMonth, subDays, addDays } from 'date-fns';
