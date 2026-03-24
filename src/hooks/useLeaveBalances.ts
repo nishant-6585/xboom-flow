@@ -143,8 +143,10 @@ export function useLeaveBalances(employeeId?: string) {
     const year = new Date().getFullYear();
     const { data } = await supabase
       .from('leave_balances')
-      .select('*, employees!inner(name)')
+      .select('*, employees!inner(name, is_active, employment_status)')
       .eq('year', year)
+      .eq('employees.is_active', true)
+      .eq('employees.employment_status', 'active')
       .order('employee_id');
 
     const raw = (data || []).map((item: any) => ({
