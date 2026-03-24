@@ -491,6 +491,60 @@ export type Database = {
         }
         Relationships: []
       }
+      call_logs: {
+        Row: {
+          agent_name: string | null
+          agent_number: string | null
+          call_duration: number | null
+          call_id: string | null
+          call_status: string
+          call_type: string | null
+          caller_number: string
+          created_at: string
+          id: string
+          ivr_input: string | null
+          lead_created: boolean
+          lead_id: string | null
+          raw_payload: Json | null
+          recording_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_name?: string | null
+          agent_number?: string | null
+          call_duration?: number | null
+          call_id?: string | null
+          call_status?: string
+          call_type?: string | null
+          caller_number: string
+          created_at?: string
+          id?: string
+          ivr_input?: string | null
+          lead_created?: boolean
+          lead_id?: string | null
+          raw_payload?: Json | null
+          recording_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_name?: string | null
+          agent_number?: string | null
+          call_duration?: number | null
+          call_id?: string | null
+          call_status?: string
+          call_type?: string | null
+          caller_number?: string
+          created_at?: string
+          id?: string
+          ivr_input?: string | null
+          lead_created?: boolean
+          lead_id?: string | null
+          raw_payload?: Json | null
+          recording_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       candidate_documents: {
         Row: {
           candidate_id: string
@@ -3797,6 +3851,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      myoperator_config: {
+        Row: {
+          api_token: string
+          company_id: string
+          created_at: string
+          id: string
+          is_connected: boolean
+          secret_key: string
+          updated_at: string
+          x_api_key: string
+        }
+        Insert: {
+          api_token?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_connected?: boolean
+          secret_key?: string
+          updated_at?: string
+          x_api_key?: string
+        }
+        Update: {
+          api_token?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_connected?: boolean
+          secret_key?: string
+          updated_at?: string
+          x_api_key?: string
+        }
+        Relationships: []
       }
       notice_reads: {
         Row: {
