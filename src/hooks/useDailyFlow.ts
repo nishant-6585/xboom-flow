@@ -81,38 +81,51 @@ export function useDailyFlow() {
   const saveTemplate = useCallback(async (items: Omit<DailyFlowTemplate, 'id' | 'created_at'>[]) => {
     if (!items.length) return false;
     const employeeId = items[0].employee_id;
-    
-    // Nullify FK references in entries before deleting old templates
-    const { error: unlinkError } = await supabase
-      .from('daily_flow_entries')
-      .update({ template_id: null } as any)
+
+    const { data: existingTemplates, error: existingError } = await supabase
+      .from('daily_flow_templates')
+      .select('id')
       .eq('employee_id', employeeId);
-    if (unlinkError) {
-      console.error('Unlink error:', unlinkError);
-      // Continue anyway - entries may not exist
+
+    if (existingError) {
+      console.error(existingError);
+      toast.error('Failed to load current template');
+      return false;
     }
-    
+
+    const existingTemplateIds = (existingTemplates || []).map(template => template.id);
+
+    if (existingTemplateIds.length > 0) {
+      const { error: unlinkError } = await supabase
+        .from('daily_flow_entries')
+        .update({ template_id: null } as any)
+        .in('template_id', existingTemplateIds);
+
+      if (unlinkError) {
+        console.error(unlinkError);
+        toast.error('Failed to update linked daily reports');
+        return false;
+      }
+    }
+
     const { error: delError } = await supabase
       .from('daily_flow_templates')
       .delete()
       .eq('employee_id', employeeId);
+
     if (delError) {
-      console.error('Delete error:', delError);
-      toast.error('Failed to clear old template: ' + delError.message);
+      console.error(delError);
+      toast.error('Failed to clear old template');
       return false;
     }
-    
-    const { error, data } = await supabase
-      .from('daily_flow_templates')
-      .insert(items as any)
-      .select();
+
+    const { error } = await supabase.from('daily_flow_templates').insert(items as any);
     if (error) {
-      console.error('Insert error:', error);
-      toast.error('Failed to save template: ' + error.message);
+      console.error(error);
+      toast.error('Failed to save template');
       return false;
     }
-    
-    console.log('Template saved successfully, rows:', data?.length);
+
     toast.success('Flow template saved');
     await fetchTemplates(employeeId);
     return true;

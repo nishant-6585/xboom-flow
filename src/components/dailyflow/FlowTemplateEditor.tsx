@@ -54,24 +54,22 @@ const DEFAULT_ROWS: RowData[] = [
   { key: '3', sl_no: 3, description: 'Follow-ups', sub_items: 'Mails,Messages', time_from: '11:00', time_to: '11:30', duration_mins: 30, target_value: 5, is_break: false, frequency: 'daily', frequency_days: [] },
   { key: '4', sl_no: 4, description: 'Analysis', sub_items: '', time_from: '11:30', time_to: '12:30', duration_mins: 60, target_value: 3, is_break: false, frequency: 'daily', frequency_days: [] },
   { key: '5', sl_no: 5, description: 'Miscellaneous', sub_items: '', time_from: '12:30', time_to: '13:00', duration_mins: 30, target_value: 0, is_break: false, frequency: 'daily', frequency_days: [] },
-  { key: '6', sl_no: 6, description: 'Lunch', sub_items: '', time_from: '13:00', time_to: '13:45', duration_mins: 45, target_value: 0, is_break: true, frequency: 'daily', frequency_days: [] },
+  { key: '6', sl_no: 6, description: 'Lunch', sub_items: '', time_from: '13:00', time_to: '13:45', duration_mins: 45, target_value: 0, is_break: false, frequency: 'daily', frequency_days: [] },
   { key: '7', sl_no: 7, description: 'Outbound - Lead Generation', sub_items: '', time_from: '14:00', time_to: '14:30', duration_mins: 30, target_value: 8, is_break: false, frequency: 'daily', frequency_days: [] },
   { key: '8', sl_no: 8, description: 'Outbound - Emails', sub_items: '', time_from: '14:30', time_to: '15:00', duration_mins: 30, target_value: 15, is_break: false, frequency: 'daily', frequency_days: [] },
   { key: '9', sl_no: 9, description: 'Emails + Calls', sub_items: '', time_from: '16:00', time_to: '16:30', duration_mins: 60, target_value: 10, is_break: false, frequency: 'daily', frequency_days: [] },
   { key: '10', sl_no: 10, description: 'Follow Ups & Meetings', sub_items: '', time_from: '16:30', time_to: '17:00', duration_mins: 15, target_value: 4, is_break: false, frequency: 'daily', frequency_days: [] },
-  { key: '11', sl_no: 11, description: 'Break', sub_items: '', time_from: '17:00', time_to: '17:15', duration_mins: 15, target_value: 0, is_break: true, frequency: 'daily', frequency_days: [] },
+  { key: '11', sl_no: 11, description: 'Break', sub_items: '', time_from: '17:00', time_to: '17:15', duration_mins: 15, target_value: 0, is_break: false, frequency: 'daily', frequency_days: [] },
   { key: '12', sl_no: 12, description: 'CRM + Tools', sub_items: '', time_from: '17:15', time_to: '18:00', duration_mins: 45, target_value: 5, is_break: false, frequency: 'daily', frequency_days: [] },
   { key: '13', sl_no: 13, description: 'Others Miscellaneous', sub_items: '', time_from: '18:00', time_to: '18:30', duration_mins: 30, target_value: 0, is_break: false, frequency: 'daily', frequency_days: [] },
 ];
 
-// Sortable row component
-function SortableRow({ row, index, updateRow, toggleDay, removeRow, duplicateRow }: {
+function SortableRow({ row, updateRow, toggleDay, removeRow, duplicateRow }: {
   row: RowData;
-  index: number;
-  updateRow: (i: number, field: keyof RowData, value: any) => void;
-  toggleDay: (i: number, day: string) => void;
-  removeRow: (i: number) => void;
-  duplicateRow: (i: number) => void;
+  updateRow: (rowKey: string, field: keyof RowData, value: any) => void;
+  toggleDay: (rowKey: string, day: string) => void;
+  removeRow: (rowKey: string) => void;
+  duplicateRow: (rowKey: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: row.key });
 
@@ -92,16 +90,16 @@ function SortableRow({ row, index, updateRow, toggleDay, removeRow, duplicateRow
         </div>
       </td>
       <td className="p-1">
-        <Input value={row.description} onChange={e => updateRow(index, 'description', e.target.value)} className="h-8 text-sm" />
+        <Input value={row.description} onChange={e => updateRow(row.key, 'description', e.target.value)} className="h-8 text-sm" />
       </td>
       <td className="p-1">
-        <Input value={row.sub_items} onChange={e => updateRow(index, 'sub_items', e.target.value)} placeholder="comma separated" className="h-8 text-sm" />
+        <Input value={row.sub_items} onChange={e => updateRow(row.key, 'sub_items', e.target.value)} placeholder="comma separated" className="h-8 text-sm" />
       </td>
       <td className="p-1">
-        <Input type="time" value={row.time_from} onChange={e => updateRow(index, 'time_from', e.target.value)} className="h-8 text-sm text-center" />
+        <Input type="time" value={row.time_from} onChange={e => updateRow(row.key, 'time_from', e.target.value)} className="h-8 text-sm text-center" />
       </td>
       <td className="p-1">
-        <Input type="time" value={row.time_to} onChange={e => updateRow(index, 'time_to', e.target.value)} className="h-8 text-sm text-center" />
+        <Input type="time" value={row.time_to} onChange={e => updateRow(row.key, 'time_to', e.target.value)} className="h-8 text-sm text-center" />
       </td>
       <td className="p-1 text-center">
         <span className="font-medium">{row.duration_mins}</span>
@@ -111,14 +109,14 @@ function SortableRow({ row, index, updateRow, toggleDay, removeRow, duplicateRow
           type="number"
           min={0}
           value={row.target_value}
-          onChange={e => updateRow(index, 'target_value', Number(e.target.value))}
+          onChange={e => updateRow(row.key, 'target_value', Number(e.target.value))}
           className="h-8 text-sm text-center border-primary/30 focus:border-primary"
           placeholder="Set target"
         />
       </td>
       <td className="p-1">
         <div className="space-y-1">
-          <Select value={row.frequency} onValueChange={v => updateRow(index, 'frequency', v)}>
+          <Select value={row.frequency} onValueChange={v => updateRow(row.key, 'frequency', v)}>
             <SelectTrigger className="h-7 text-xs">
               <SelectValue />
             </SelectTrigger>
@@ -134,7 +132,7 @@ function SortableRow({ row, index, updateRow, toggleDay, removeRow, duplicateRow
                 <button
                   key={day}
                   type="button"
-                  onClick={() => toggleDay(index, day)}
+                  onClick={() => toggleDay(row.key, day)}
                   className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
                     (row.frequency_days || []).includes(day)
                       ? 'bg-primary text-primary-foreground border-primary'
@@ -150,10 +148,10 @@ function SortableRow({ row, index, updateRow, toggleDay, removeRow, duplicateRow
       </td>
       <td className="p-1">
         <div className="flex gap-0.5">
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => duplicateRow(index)} title="Duplicate row">
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => duplicateRow(row.key)} title="Duplicate row">
             <Copy className="h-3 w-3 text-muted-foreground" />
           </Button>
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeRow(index)}>
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeRow(row.key)}>
             <Trash2 className="h-3.5 w-3.5 text-destructive" />
           </Button>
         </div>
@@ -195,43 +193,47 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
     }
   }, [templates]);
 
-  const updateRow = (index: number, field: keyof RowData, value: any) => {
-    setRows(prev => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
+  const updateRow = (rowKey: string, field: keyof RowData, value: any) => {
+    setRows(prev => prev.map(row => {
+      if (row.key !== rowKey) return row;
+      const updatedRow = { ...row, [field]: value } as RowData;
+
       if (field === 'time_from' || field === 'time_to') {
-        const from = field === 'time_from' ? value : updated[index].time_from;
-        const to = field === 'time_to' ? value : updated[index].time_to;
+        const from = field === 'time_from' ? value : updatedRow.time_from;
+        const to = field === 'time_to' ? value : updatedRow.time_to;
         if (from && to) {
           const [fh, fm] = from.split(':').map(Number);
           const [th, tm] = to.split(':').map(Number);
           const diff = (th * 60 + tm) - (fh * 60 + fm);
-          updated[index].duration_mins = diff > 0 ? diff : 0;
+          updatedRow.duration_mins = diff > 0 ? diff : 0;
+        } else {
+          updatedRow.duration_mins = 0;
         }
       }
+
       if (field === 'frequency' && value === 'daily') {
-        updated[index].frequency_days = [];
+        updatedRow.frequency_days = [];
       }
-      return updated;
-    });
+
+      return updatedRow;
+    }));
   };
 
-  const toggleDay = (index: number, day: string) => {
-    setRows(prev => {
-      const updated = [...prev];
-      const days = [...(updated[index].frequency_days || [])];
+  const toggleDay = (rowKey: string, day: string) => {
+    setRows(prev => prev.map(row => {
+      if (row.key !== rowKey) return row;
+      const days = [...(row.frequency_days || [])];
       const idx = days.indexOf(day);
       if (idx >= 0) days.splice(idx, 1);
       else days.push(day);
-      updated[index] = { ...updated[index], frequency_days: days };
-      return updated;
-    });
+      return { ...row, frequency_days: days };
+    }));
   };
 
   const addRow = () => {
     const nextSl = rows.length > 0 ? Math.max(...rows.map(r => r.sl_no)) + 1 : 1;
     setRows(prev => [...prev, {
-      key: `new-${Date.now()}`,
+      key: `new-${crypto.randomUUID()}`,
       sl_no: nextSl,
       description: '',
       sub_items: '',
@@ -245,22 +247,23 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
     }]);
   };
 
-  const duplicateRow = (index: number) => {
+  const duplicateRow = (rowKey: string) => {
     setRows(prev => {
-      const source = prev[index];
+      const sourceIndex = prev.findIndex(row => row.key === rowKey);
+      if (sourceIndex === -1) return prev;
+      const source = prev[sourceIndex];
       const newRow: RowData = {
         ...source,
-        key: `dup-${Date.now()}`,
-        sl_no: prev.length + 1,
+        key: `dup-${crypto.randomUUID()}`,
       };
       const updated = [...prev];
-      updated.splice(index + 1, 0, newRow);
+      updated.splice(sourceIndex + 1, 0, newRow);
       return updated.map((r, i) => ({ ...r, sl_no: i + 1 }));
     });
   };
 
-  const removeRow = (index: number) => {
-    setRows(prev => prev.filter((_, i) => i !== index).map((r, i) => ({ ...r, sl_no: i + 1 })));
+  const removeRow = (rowKey: string) => {
+    setRows(prev => prev.filter(row => row.key !== rowKey).map((r, i) => ({ ...r, sl_no: i + 1 })));
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -299,7 +302,7 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
     setSaving(false);
   };
 
-  const totalTarget = rows.filter(r => !r.is_break).reduce((s, r) => s + (r.target_value || 0), 0);
+  const totalTarget = rows.reduce((s, r) => s + (r.target_value || 0), 0);
   const totalDuration = rows.reduce((s, r) => s + r.duration_mins, 0);
 
   return (
@@ -351,11 +354,10 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
               </thead>
               <SortableContext items={rows.map(r => r.key)} strategy={verticalListSortingStrategy}>
                 <tbody>
-                  {rows.map((row, i) => (
+                  {rows.map((row) => (
                     <SortableRow
                       key={row.key}
                       row={row}
-                      index={i}
                       updateRow={updateRow}
                       toggleDay={toggleDay}
                       removeRow={removeRow}
