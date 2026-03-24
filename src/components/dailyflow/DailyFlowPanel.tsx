@@ -3,13 +3,15 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useDailyFlow } from '@/hooks/useDailyFlow';
 import { supabase } from '@/integrations/supabase/client';
 import { FlowTemplateEditor } from './FlowTemplateEditor';
 import { DailyFlowEntryTable } from './DailyFlowEntryTable';
 import { DailyFlowAnalytics } from './DailyFlowAnalytics';
-import { format, startOfMonth, subDays } from 'date-fns';
+import { format, startOfMonth, subDays, addDays } from 'date-fns';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Employee {
   id: string;
@@ -41,7 +43,6 @@ export function DailyFlowPanel() {
         .order('name');
       if (data) {
         setEmployees(data);
-        // If not manager, auto-select own employee profile
         if (!isManager && user) {
           const own = data.find((e: any) => e.id === user.id);
           if (own) {
@@ -91,6 +92,20 @@ export function DailyFlowPanel() {
     }
   };
 
+  const goToPrevDay = () => {
+    setSelectedDate(format(subDays(new Date(selectedDate), 1), 'yyyy-MM-dd'));
+  };
+
+  const goToNextDay = () => {
+    setSelectedDate(format(addDays(new Date(selectedDate), 1), 'yyyy-MM-dd'));
+  };
+
+  const goToToday = () => {
+    setSelectedDate(format(new Date(), 'yyyy-MM-dd'));
+  };
+
+  const templateName = templates.length > 0 ? (templates[0] as any).template_name || 'Default Template' : null;
+
   return (
     <div className="space-y-4">
       {/* Controls */}
@@ -110,20 +125,36 @@ export function DailyFlowPanel() {
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Date</Label>
-          <Input
-            type="date"
-            value={selectedDate}
-            onChange={e => setSelectedDate(e.target.value)}
-            className="w-[160px]"
-          />
+          <div className="flex items-center gap-1">
+            <Button size="icon" variant="outline" className="h-10 w-8" onClick={goToPrevDay}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={e => setSelectedDate(e.target.value)}
+              className="w-[160px]"
+            />
+            <Button size="icon" variant="outline" className="h-10 w-8" onClick={goToNextDay}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button size="sm" variant="ghost" onClick={goToToday} className="text-xs">
+              Today
+            </Button>
+          </div>
         </div>
+        {templateName && selectedEmployee && (
+          <div className="ml-auto text-sm text-muted-foreground">
+            Template: <span className="font-medium text-foreground">{templateName}</span>
+          </div>
+        )}
       </div>
 
       {selectedEmployee ? (
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
-            <TabsTrigger value="daily">Daily Flow</TabsTrigger>
-            {isManager && <TabsTrigger value="template">Template</TabsTrigger>}
+            <TabsTrigger value="daily">Daily Report</TabsTrigger>
+            {isManager && <TabsTrigger value="template">Template & Targets</TabsTrigger>}
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
