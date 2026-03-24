@@ -322,6 +322,29 @@ function getString(obj: Record<string, unknown>, key: string): string | null {
   return null;
 }
 
+function parseDuration(dur: string | null): number {
+  if (!dur) return 0;
+  // Handle "HH:MM:SS" format
+  const parts = dur.split(':');
+  if (parts.length === 3) {
+    const h = parseInt(parts[0], 10) || 0;
+    const m = parseInt(parts[1], 10) || 0;
+    const s = parseInt(parts[2], 10) || 0;
+    return h * 3600 + m * 60 + s;
+  }
+  // Handle plain number
+  const parsed = parseInt(dur, 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function mapCallType(raw: unknown): string {
+  // MyOperator sends _ty as number: 1=incoming, 2=outgoing
+  if (raw === 1 || raw === '1') return 'incoming';
+  if (raw === 2 || raw === '2') return 'outgoing';
+  if (typeof raw === 'string' && raw.trim()) return raw.trim();
+  return 'incoming';
+}
+
 function getNumber(obj: Record<string, unknown>, key: string): number {
   const val = obj?.[key];
   if (typeof val === 'number' && Number.isFinite(val)) return val;
