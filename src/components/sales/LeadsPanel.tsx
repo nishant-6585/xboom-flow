@@ -22,6 +22,7 @@ import * as XLSX from 'xlsx';
 import { LeadFormDialog } from './LeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { InteraktLeadEditDialog } from '@/components/interakt/InteraktLeadEditDialog';
+import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
 
 const LEAD_SOURCES = [
   'Website',
