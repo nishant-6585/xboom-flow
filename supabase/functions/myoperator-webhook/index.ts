@@ -225,7 +225,7 @@ Deno.serve(async (req) => {
               product_category: 'General',
               quantity: 1,
               urgency: 'normal',
-              sales_person_name: assignedAgentName || 'Unassigned',
+              sales_person_name: agentDisplay || 'Unassigned',
               status: 'new',
               notes: [
                 'Auto-created from MyOperator call.',
@@ -233,7 +233,7 @@ Deno.serve(async (req) => {
                 `Status: ${callStatus}`,
                 `Duration: ${duration}s`,
                 department ? `Department: ${department}` : null,
-                assignedAgentName ? `Agent: ${assignedAgentName}` : null,
+                agentDisplay ? `Agent: ${agentDisplay}` : null,
                 recordingUrl ? `Recording: ${recordingUrl}` : null,
               ].filter(Boolean).join('\n'),
             })
