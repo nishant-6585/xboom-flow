@@ -934,6 +934,7 @@ export type Database = {
           sl_no: number
           sub_items: string[] | null
           target_value: number | null
+          template_name: string | null
           time_from: string
           time_to: string
           updated_at: string | null
@@ -951,6 +952,7 @@ export type Database = {
           sl_no: number
           sub_items?: string[] | null
           target_value?: number | null
+          template_name?: string | null
           time_from: string
           time_to: string
           updated_at?: string | null
@@ -968,6 +970,7 @@ export type Database = {
           sl_no?: number
           sub_items?: string[] | null
           target_value?: number | null
+          template_name?: string | null
           time_from?: string
           time_to?: string
           updated_at?: string | null
