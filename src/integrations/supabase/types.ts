@@ -846,10 +846,12 @@ export type Database = {
           flow_date: string
           id: string
           is_break: boolean | null
+          links: string[] | null
           notes: string | null
           sl_no: number
           sub_items: string[] | null
           target_value: number | null
+          task_description: string | null
           template_id: string | null
           time_from: string
           time_to: string
@@ -869,10 +871,12 @@ export type Database = {
           flow_date?: string
           id?: string
           is_break?: boolean | null
+          links?: string[] | null
           notes?: string | null
           sl_no: number
           sub_items?: string[] | null
           target_value?: number | null
+          task_description?: string | null
           template_id?: string | null
           time_from: string
           time_to: string
@@ -892,10 +896,12 @@ export type Database = {
           flow_date?: string
           id?: string
           is_break?: boolean | null
+          links?: string[] | null
           notes?: string | null
           sl_no?: number
           sub_items?: string[] | null
           target_value?: number | null
+          task_description?: string | null
           template_id?: string | null
           time_from?: string
           time_to?: string
