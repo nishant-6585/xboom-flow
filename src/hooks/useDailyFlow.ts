@@ -16,6 +16,8 @@ export interface DailyFlowTemplate {
   duration_mins: number;
   target_value: number;
   is_break: boolean;
+  frequency: string;
+  frequency_days: string[] | null;
   created_by: string;
   created_by_name: string;
   created_at: string;
@@ -39,6 +41,8 @@ export interface DailyFlowEntry {
   task_description: string;
   links: string[];
   is_break: boolean;
+  frequency: string;
+  frequency_days: string[] | null;
   created_by: string;
   created_by_name: string;
   updated_by: string | null;
@@ -109,12 +113,29 @@ export function useDailyFlow() {
       return false;
     }
 
-    const newEntries = tmpl.map((t: any) => ({
+    // Filter tasks based on frequency and day of week
+    const dayOfWeek = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+    const filteredTmpl = tmpl.filter((t: any) => {
+      const freq = t.frequency || 'daily';
+      if (freq === 'daily') return true;
+      if (freq === 'weekly' || freq === 'custom') {
+        const days: string[] = t.frequency_days || [];
+        return days.includes(dayOfWeek);
+      }
+      return true;
+    });
+
+    if (filteredTmpl.length === 0) {
+      toast.info('No tasks scheduled for this day based on frequency settings');
+      return true;
+    }
+
+    const newEntries = filteredTmpl.map((t: any, idx: number) => ({
       template_id: t.id,
       employee_id: employeeId,
       employee_name: employeeName,
       flow_date: date,
-      sl_no: t.sl_no,
+      sl_no: idx + 1,
       description: t.description,
       sub_items: t.sub_items || [],
       time_from: t.time_from,
@@ -124,6 +145,8 @@ export function useDailyFlow() {
       actual_value: 0,
       notes: '',
       is_break: t.is_break || false,
+      frequency: t.frequency || 'daily',
+      frequency_days: t.frequency_days,
       created_by: user.id,
       created_by_name: profile.name || 'Unknown',
     }));
