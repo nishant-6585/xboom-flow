@@ -530,11 +530,11 @@ function InlineAudioPlayer({ recordingFile, duration }: { recordingFile: string;
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
     };
-  }, [url, streamUrl, loading]);
+  }, [streamUrl, loading]);
 
   const togglePlay = async () => {
     // Lazy-load recording via API on first play
-    if (!streamUrl && url.includes('myoperator.com') && !error) {
+    if (!streamUrl && !error) {
       await fetchRecording();
       return; // Will auto-play after streamUrl is set
     }
@@ -566,7 +566,7 @@ function InlineAudioPlayer({ recordingFile, duration }: { recordingFile: string;
     );
   }
 
-  const audioSrc = streamUrl || (url.includes('myoperator.com') ? undefined : url);
+  const audioSrc = streamUrl || undefined;
 
   return (
     <div className="flex items-center gap-3 bg-muted/50 rounded-lg px-4 py-2.5">
@@ -639,11 +639,11 @@ function CallLogDetails({ log }: { log: CallLog }) {
       )}
 
       {/* Recording Section */}
-      {info.recording ? (
+      {info.recordingFile ? (
         <div>
           <p className="text-sm font-semibold mb-2">Recording</p>
           <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-            <InlineAudioPlayer url={info.recording} duration={info.duration} />
+            <InlineAudioPlayer recordingFile={info.recordingFile} duration={info.duration} />
             {info.duration && (
               <p className="text-xs text-muted-foreground text-right">Duration: {formatDuration(info.duration)}</p>
             )}
