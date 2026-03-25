@@ -43,26 +43,11 @@ function parseRawPayload(raw: unknown): Record<string, unknown> | null {
   return raw as Record<string, unknown>;
 }
 
-function sanitizeRecordingUrl(url: string | null | undefined): string | null {
-  if (!url || typeof url !== 'string') return null;
-  const clean = url.replace(/\\\//g, '/').trim();
-  if (!clean.startsWith('http')) return null;
-  return clean;
-}
-
-/** Extract the recording filename from a MyOperator _fu URL path (e.g. /audio/abc123.mp3 → abc123.mp3) */
-function extractRecordingFile(url: string): string | null {
-  try {
-    const parsed = new URL(url.replace(/\\\//g, '/').trim());
-    if (parsed.hostname.includes('myoperator.com') && parsed.pathname.startsWith('/audio/')) {
-      const filename = parsed.pathname.replace('/audio/', '');
-      // Ensure it has an extension
-      if (!/\.(mp3|wav|m4a|aac|ogg)$/i.test(filename)) {
-        return `${filename}.mp3`;
-      }
-      return filename;
-    }
-  } catch { /* ignore */ }
+/** Extract the _fn (filename) directly from the raw payload */
+function extractRecordingFilename(payload: Record<string, unknown> | null): string | null {
+  if (!payload) return null;
+  const fn = payload._fn;
+  if (fn && typeof fn === 'string' && fn.trim().length > 0) return fn.trim();
   return null;
 }
 
@@ -99,7 +84,8 @@ function deriveCallInfo(log: CallLog) {
     duration = parseDurationFromPayload(String(payload._dr));
   }
 
-  const recording = sanitizeRecordingUrl((payload?._fu as string) || log.recording_url);
+  // Use _fn (filename) from payload for recording
+  const recordingFile = extractRecordingFilename(payload);
   const startTime = payload?._st != null ? String(payload._st) : log.start_time;
 
   let whatText = '';
@@ -120,7 +106,7 @@ function deriveCallInfo(log: CallLog) {
     }
   }
 
-  return { status, agentDisplay, finalAgent, department, duration, recording, startTime, whatText, missedAttempts, legs };
+  return { status, agentDisplay, finalAgent, department, duration, recordingFile, startTime, whatText, missedAttempts, legs };
 }
 
 function parseDurationFromPayload(dur: string): number {
@@ -186,11 +172,11 @@ function groupLogsByCallId(logs: CallLog[]): CallLog[] {
       const existingLegs = existingPayload?._ld && Array.isArray(existingPayload._ld) ? existingPayload._ld.length : 0;
       const newLegs = newPayload?._ld && Array.isArray(newPayload._ld) ? newPayload._ld.length : 0;
       
-      const existingRecording = sanitizeRecordingUrl((existingPayload?._fu as string) || existing.recording_url);
-      const newRecording = sanitizeRecordingUrl((newPayload?._fu as string) || log.recording_url);
+      const existingFile = extractRecordingFilename(existingPayload);
+      const newFile = extractRecordingFilename(newPayload);
       
       // Prefer: has recording > more legs > newer
-      if ((!existingRecording && newRecording) || (newLegs > existingLegs)) {
+      if ((!existingFile && newFile) || (newLegs > existingLegs)) {
         grouped.set(key, log);
       }
     }
@@ -418,7 +404,7 @@ export function CallLogsPanel() {
                           {info.duration ? formatDuration(info.duration) : "—"}
                         </TableCell>
                         <TableCell>
-                          {info.recording ? (
+                          {info.recordingFile ? (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -442,10 +428,10 @@ export function CallLogsPanel() {
                         </TableCell>
                       </TableRow>
                       {/* Inline audio player row */}
-                      {expandedAudio === logKey && info.recording && (
+                      {expandedAudio === logKey && info.recordingFile && (
                         <TableRow key={`${log.id}-audio`}>
                           <TableCell colSpan={7} className="py-2 px-4">
-                            <InlineAudioPlayer url={info.recording} duration={info.duration} />
+                            <InlineAudioPlayer recordingFile={info.recordingFile} duration={info.duration} />
                           </TableCell>
                         </TableRow>
                       )}
@@ -478,7 +464,7 @@ export function CallLogsPanel() {
 }
 
 /* ─── Inline Audio Player ─── */
-function InlineAudioPlayer({ url, duration }: { url: string; duration: number | null }) {
+function InlineAudioPlayer({ recordingFile, duration }: { recordingFile: string; duration: number | null }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -487,61 +473,34 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
   const [loading, setLoading] = useState(false);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
 
-  // Fetch recording via MyOperator API (extracts filename, calls get-myoperator-recording)
+  // Fetch recording via MyOperator recordings/link API
   const fetchRecording = useCallback(async () => {
-    const isMyOperator = url.includes('myoperator.com');
-    if (!isMyOperator) return;
-
-    const file = extractRecordingFile(url);
-    if (!file) {
-      console.warn('Could not extract recording filename from:', url);
-      setError(true);
-      return;
-    }
-
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const endpoint = `${supabaseUrl}/functions/v1/get-myoperator-recording?file=${encodeURIComponent(file)}`;
+      const endpoint = `${supabaseUrl}/functions/v1/get-myoperator-recording?file=${encodeURIComponent(recordingFile)}`;
 
       const resp = await fetch(endpoint, {
         headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
       });
 
-      if (!resp.ok) {
-        const errorBody = await resp.text().catch(() => '');
-        console.warn('Recording API response:', resp.status, errorBody);
-        setError(true);
+      const data = await resp.json();
+      
+      if (data.recording_url) {
+        setStreamUrl(data.recording_url);
         return;
       }
-
-      const contentType = resp.headers.get('content-type') || '';
-
-      // If API returned JSON, either use the URL or mark as unavailable
-      if (contentType.includes('application/json')) {
-        const data = await resp.json();
-        if (data.recording_url) {
-          setStreamUrl(data.recording_url);
-          return;
-        }
-        console.warn('Recording unavailable:', data);
-        setError(true);
-        return;
-      }
-
-      // If API streamed audio directly, create a blob URL
-      const blob = await resp.blob();
-      if (blob.size === 0) throw new Error('Empty recording response');
-      const objUrl = URL.createObjectURL(blob);
-      setStreamUrl(objUrl);
+      
+      console.warn('Recording unavailable:', data);
+      setError(true);
     } catch (err) {
-      console.warn('Recording fetch failed:', url, err);
+      console.warn('Recording fetch failed:', err);
       setError(true);
     } finally {
       setLoading(false);
     }
-  }, [url]);
+  }, [recordingFile]);
 
   useEffect(() => {
     return () => {
@@ -557,7 +516,7 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
     const onLoaded = () => { if (audio.duration && isFinite(audio.duration)) setAudioDuration(Math.floor(audio.duration)); };
     const onEnded = () => setIsPlaying(false);
     const onError = () => { 
-      if (!streamUrl && !loading) { setError(true); console.warn("Recording URL failed:", url); }
+      if (!streamUrl && !loading) { setError(true); }
     };
     
     audio.addEventListener('timeupdate', onTimeUpdate);
@@ -571,11 +530,11 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
     };
-  }, [url, streamUrl, loading]);
+  }, [streamUrl, loading]);
 
   const togglePlay = async () => {
     // Lazy-load recording via API on first play
-    if (!streamUrl && url.includes('myoperator.com') && !error) {
+    if (!streamUrl && !error) {
       await fetchRecording();
       return; // Will auto-play after streamUrl is set
     }
@@ -607,7 +566,7 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
     );
   }
 
-  const audioSrc = streamUrl || (url.includes('myoperator.com') ? undefined : url);
+  const audioSrc = streamUrl || undefined;
 
   return (
     <div className="flex items-center gap-3 bg-muted/50 rounded-lg px-4 py-2.5">
@@ -680,11 +639,11 @@ function CallLogDetails({ log }: { log: CallLog }) {
       )}
 
       {/* Recording Section */}
-      {info.recording ? (
+      {info.recordingFile ? (
         <div>
           <p className="text-sm font-semibold mb-2">Recording</p>
           <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-            <InlineAudioPlayer url={info.recording} duration={info.duration} />
+            <InlineAudioPlayer recordingFile={info.recordingFile} duration={info.duration} />
             {info.duration && (
               <p className="text-xs text-muted-foreground text-right">Duration: {formatDuration(info.duration)}</p>
             )}
