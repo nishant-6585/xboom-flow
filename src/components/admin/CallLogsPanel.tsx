@@ -599,7 +599,7 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
     return (
       <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
         <AlertTriangle className="w-4 h-4" />
-        <span>Recording not available</span>
+        <span>Recording not available — check MyOperator credentials in Admin settings</span>
       </div>
     );
   }
