@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -42,45 +43,49 @@ function parseRawPayload(raw: unknown): Record<string, unknown> | null {
   return raw as Record<string, unknown>;
 }
 
+function sanitizeRecordingUrl(url: string | null | undefined): string | null {
+  if (!url || typeof url !== 'string') return null;
+  let clean = url.replace(/\\\//g, '/').trim();
+  if (!clean.startsWith('http')) return null;
+  return clean;
+}
+
 function deriveCallInfo(log: CallLog) {
   const payload = parseRawPayload(log.raw_payload);
   const legs: LegDetail[] = payload?._ld && Array.isArray(payload._ld) ? payload._ld as LegDetail[] : [];
 
-  // Derive status from _ld legs
   let status = log.call_status;
   if (legs.length > 0) {
     const hasReceived = legs.some(l => l._ac === 'received');
     status = hasReceived ? 'answered' : 'missed';
   }
 
-  // Extract all agent names from _ld[x]._rr[x]._na
   const agentNames: string[] = [];
+  let finalAgent: string | null = null;
   for (const leg of legs) {
     if (Array.isArray(leg._rr)) {
       for (const r of leg._rr) {
         if (r._na) agentNames.push(r._na);
       }
     }
+    if (leg._ac === 'received' && Array.isArray(leg._rr)) {
+      const received = leg._rr.filter(r => r._na).map(r => r._na!);
+      if (received.length > 0) finalAgent = received[received.length - 1];
+    }
   }
   const uniqueAgents = [...new Set(agentNames)];
   const agentDisplay = uniqueAgents.length > 0 ? uniqueAgents.join(', ') : (log.assigned_agent_name || log.agent_name || 'Unknown');
 
-  // Department from _dn
   const department = (payload?._dn as string) || log.department;
 
-  // Duration from _dr
   let duration = log.call_duration;
   if (payload?._dr) {
     duration = parseDurationFromPayload(String(payload._dr));
   }
 
-  // Recording from _fu
-  const recording = (payload?._fu as string) || log.recording_url;
-
-  // Start time from _st
+  const recording = sanitizeRecordingUrl((payload?._fu as string) || log.recording_url);
   const startTime = (payload?._st as string) || log.start_time;
 
-  // Build "What" text
   let whatText = '';
   if (status === 'answered') {
     whatText = `Call received by ${agentDisplay}`;
@@ -91,19 +96,15 @@ function deriveCallInfo(log: CallLog) {
     whatText += ` at (${department})`;
   }
 
-  // Build missed attempts info from _ld
   const missedAttempts: string[] = [];
-  const answeredAttempt: string | null = null;
   for (const leg of legs) {
     const legAgents = Array.isArray(leg._rr) ? leg._rr.map(r => r._na).filter(Boolean).join(', ') : '';
-    if (leg._ac === 'received') {
-      // answered
-    } else if (leg._ac === 'missed' && legAgents) {
+    if (leg._ac !== 'received' && legAgents) {
       missedAttempts.push(legAgents);
     }
   }
 
-  return { status, agentDisplay, department, duration, recording, startTime, whatText, missedAttempts };
+  return { status, agentDisplay, finalAgent, department, duration, recording, startTime, whatText, missedAttempts, legs };
 }
 
 function parseDurationFromPayload(dur: string): number {
@@ -121,13 +122,11 @@ function parseDurationFromPayload(dur: string): number {
 
 function formatCallTime(startTime: string | null, createdAt: string): string {
   if (startTime) {
-    // Handle epoch timestamp (MyOperator sends epoch seconds)
     const num = Number(startTime);
     if (!isNaN(num) && num > 1000000000) {
       const d = new Date(num * 1000);
       if (!isNaN(d.getTime())) return format(d, "hh:mm a");
     }
-    // Try ISO date
     const d = new Date(startTime);
     if (!isNaN(d.getTime())) return format(d, "hh:mm a");
   }
@@ -147,6 +146,43 @@ function formatCallDate(startTime: string | null, createdAt: string): string {
   return format(new Date(createdAt), "dd MMM yyyy");
 }
 
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
+
+/** Group logs by call_id (_ai), keeping the most complete record per call session */
+function groupLogsByCallId(logs: CallLog[]): CallLog[] {
+  const grouped = new Map<string, CallLog>();
+  
+  for (const log of logs) {
+    const key = log.call_id || log.id; // fallback to id if no call_id
+    
+    if (!grouped.has(key)) {
+      grouped.set(key, log);
+    } else {
+      const existing = grouped.get(key)!;
+      // Keep the one with more data (prefer one with recording, longer duration, or raw_payload with _ld)
+      const existingPayload = parseRawPayload(existing.raw_payload);
+      const newPayload = parseRawPayload(log.raw_payload);
+      const existingLegs = existingPayload?._ld && Array.isArray(existingPayload._ld) ? existingPayload._ld.length : 0;
+      const newLegs = newPayload?._ld && Array.isArray(newPayload._ld) ? newPayload._ld.length : 0;
+      
+      const existingRecording = sanitizeRecordingUrl((existingPayload?._fu as string) || existing.recording_url);
+      const newRecording = sanitizeRecordingUrl((newPayload?._fu as string) || log.recording_url);
+      
+      // Prefer: has recording > more legs > newer
+      if ((!existingRecording && newRecording) || (newLegs > existingLegs)) {
+        grouped.set(key, log);
+      }
+    }
+  }
+  
+  return Array.from(grouped.values());
+}
+
 export function CallLogsPanel() {
   const [logs, setLogs] = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -155,8 +191,7 @@ export function CallLogsPanel() {
   const [searchPhone, setSearchPhone] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedLog, setSelectedLog] = useState<CallLog | null>(null);
-  const [playingAudio, setPlayingAudio] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [expandedAudio, setExpandedAudio] = useState<string | null>(null);
   const prevIdsRef = useRef<Set<string>>(new Set());
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
 
@@ -166,7 +201,7 @@ export function CallLogsPanel() {
       .select("*")
       .order("start_time", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
-      .limit(100);
+      .limit(200);
 
     if (searchPhone.trim()) {
       query = query.or(`caller_number.ilike.%${searchPhone.trim()}%,full_number.ilike.%${searchPhone.trim()}%`);
@@ -174,17 +209,29 @@ export function CallLogsPanel() {
 
     const { data, error } = await query;
     if (!error && data) {
-      let filtered = data as CallLog[];
+      let allLogs = data as CallLog[];
+      
+      // Group by call_id to remove duplicates
+      let grouped = groupLogsByCallId(allLogs);
 
-      // Client-side status filter (derived from raw_payload)
+      // Client-side status filter
       if (statusFilter !== "all") {
-        filtered = filtered.filter(log => {
+        grouped = grouped.filter(log => {
           const info = deriveCallInfo(log);
           return info.status === statusFilter;
         });
       }
 
-      const currentIds = new Set(filtered.map((l) => l.id));
+      // Sort by start_time desc
+      grouped.sort((a, b) => {
+        const aInfo = deriveCallInfo(a);
+        const bInfo = deriveCallInfo(b);
+        const aTime = aInfo.startTime || a.created_at;
+        const bTime = bInfo.startTime || b.created_at;
+        return bTime.localeCompare(aTime);
+      });
+
+      const currentIds = new Set(grouped.map((l) => l.id));
       if (prevIdsRef.current.size > 0) {
         const fresh = new Set<string>();
         currentIds.forEach((id) => {
@@ -196,14 +243,12 @@ export function CallLogsPanel() {
         }
       }
       prevIdsRef.current = currentIds;
-      setLogs(filtered);
+      setLogs(grouped);
     }
     setLoading(false);
   }, [searchPhone, statusFilter]);
 
-  useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+  useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
   useEffect(() => {
     if (!autoRefresh) return;
@@ -214,9 +259,7 @@ export function CallLogsPanel() {
   const triggerSync = async () => {
     setSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('sync-myoperator-logs', {
-        method: 'POST',
-      });
+      const { data, error } = await supabase.functions.invoke('sync-myoperator-logs', { method: 'POST' });
       if (error) throw error;
       toast.success(`Sync complete: ${data?.inserted || 0} new, ${data?.updated || 0} updated`);
       fetchLogs();
@@ -224,20 +267,6 @@ export function CallLogsPanel() {
       toast.error(err.message || 'Sync failed');
     } finally {
       setSyncing(false);
-    }
-  };
-
-  const toggleAudio = (url: string) => {
-    if (playingAudio === url) {
-      audioRef.current?.pause();
-      setPlayingAudio(null);
-    } else {
-      if (audioRef.current) audioRef.current.pause();
-      const audio = new Audio(url);
-      audio.play();
-      audio.onended = () => setPlayingAudio(null);
-      audioRef.current = audio;
-      setPlayingAudio(url);
     }
   };
 
@@ -264,24 +293,15 @@ export function CallLogsPanel() {
               MyOperator Call Logs
             </CardTitle>
             <CardDescription>
-              Real-time call logs via webhook + API sync ({logs.length} records)
+              Real-time call logs via webhook + API sync ({logs.length} calls)
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={triggerSync}
-              disabled={syncing}
-            >
+            <Button variant="outline" size="sm" onClick={triggerSync} disabled={syncing}>
               <Download className={`w-4 h-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
               {syncing ? "Syncing..." : "Backfill Now"}
             </Button>
-            <Button
-              variant={autoRefresh ? "default" : "outline"}
-              size="sm"
-              onClick={() => setAutoRefresh(!autoRefresh)}
-            >
+            <Button variant={autoRefresh ? "default" : "outline"} size="sm" onClick={() => setAutoRefresh(!autoRefresh)}>
               {autoRefresh ? "Auto-Refresh ON" : "Auto-Refresh OFF"}
             </Button>
             <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading}>
@@ -296,17 +316,10 @@ export function CallLogsPanel() {
         <div className="flex gap-3">
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search phone number..."
-              value={searchPhone}
-              onChange={(e) => setSearchPhone(e.target.value)}
-              className="pl-8"
-            />
+            <Input placeholder="Search phone number..." value={searchPhone} onChange={(e) => setSearchPhone(e.target.value)} className="pl-8" />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
+            <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="answered">Received</SelectItem>
@@ -343,65 +356,84 @@ export function CallLogsPanel() {
               <TableBody>
                 {logs.map((log) => {
                   const info = deriveCallInfo(log);
+                  const logKey = log.call_id || log.id;
 
                   return (
-                    <TableRow
-                      key={log.id}
-                      className={newIds.has(log.id)
-                        ? "bg-primary/10 animate-pulse border-l-4 border-l-primary"
-                        : ""
-                      }
-                    >
-                      <TableCell className="pr-0">
-                        {statusIcon(info.status)}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm font-medium text-primary">
-                        {log.full_number || log.caller_number}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        <div>{info.whatText}</div>
-                        {info.missedAttempts.length > 0 && (
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            Missed by: {info.missedAttempts.join(' → ')} before received
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                        <div>{formatCallTime(info.startTime, log.created_at)}</div>
-                        <div className="text-xs">{formatCallDate(info.startTime, log.created_at)}</div>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {info.duration ? formatDuration(info.duration) : "—"}
-                      </TableCell>
-                      <TableCell>
-                        {info.recording ? (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => toggleAudio(info.recording!)}
-                          >
-                            {playingAudio === info.recording ? (
-                              <Pause className="w-4 h-4" />
-                            ) : (
-                              <Play className="w-4 h-4" />
-                            )}
+                    <>
+                      <TableRow
+                        key={log.id}
+                        className={newIds.has(log.id) ? "bg-primary/10 animate-pulse border-l-4 border-l-primary" : ""}
+                      >
+                        <TableCell className="pr-0">{statusIcon(info.status)}</TableCell>
+                        <TableCell className="font-mono text-sm font-medium text-primary">
+                          {log.full_number || log.caller_number}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          <div>{info.whatText}</div>
+                          {info.finalAgent && info.status === 'answered' && (
+                            <div className="text-xs text-green-600 font-medium mt-0.5">
+                              Final Agent: {info.finalAgent}
+                            </div>
+                          )}
+                          {info.missedAttempts.length > 0 && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5 flex-wrap">
+                              {info.missedAttempts.map((name, i) => (
+                                <span key={i} className="flex items-center gap-0.5">
+                                  <XCircle className="w-3 h-3 text-red-400" />
+                                  <span>{name}</span>
+                                  {i < info.missedAttempts.length - 1 && <ArrowRight className="w-3 h-3 text-muted-foreground" />}
+                                </span>
+                              ))}
+                              {info.status === 'answered' && (
+                                <>
+                                  <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                                  <CheckCircle2 className="w-3 h-3 text-green-500" />
+                                  <span className="text-green-600">Received</span>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          <div>{formatCallTime(info.startTime, log.created_at)}</div>
+                          <div className="text-xs">{formatCallDate(info.startTime, log.created_at)}</div>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {info.duration ? formatDuration(info.duration) : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {info.recording ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 hover:bg-primary/10"
+                              onClick={() => setExpandedAudio(expandedAudio === logKey ? null : logKey)}
+                            >
+                              {expandedAudio === logKey ? (
+                                <Pause className="w-4 h-4 text-primary" />
+                              ) : (
+                                <Play className="w-4 h-4 text-primary" />
+                              )}
+                            </Button>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
+                            <Eye className="w-4 h-4 mr-1" /> Details
                           </Button>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedLog(log)}
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          Details
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                      </TableRow>
+                      {/* Inline audio player row */}
+                      {expandedAudio === logKey && info.recording && (
+                        <TableRow key={`${log.id}-audio`}>
+                          <TableCell colSpan={7} className="py-2 px-4">
+                            <InlineAudioPlayer url={info.recording} duration={info.duration} />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
                   );
                 })}
               </TableBody>
@@ -418,6 +450,9 @@ export function CallLogsPanel() {
               <Phone className="w-5 h-5" />
               Call Log Details
             </DialogTitle>
+            <DialogDescription>
+              Detailed view of the call session
+            </DialogDescription>
           </DialogHeader>
           {selectedLog && <CallLogDetails log={selectedLog} />}
         </DialogContent>
@@ -426,73 +461,157 @@ export function CallLogsPanel() {
   );
 }
 
-function CallLogDetails({ log }: { log: CallLog }) {
-  const info = deriveCallInfo(log);
-  const payload = parseRawPayload(log.raw_payload);
-  const legs: LegDetail[] = payload?._ld && Array.isArray(payload._ld) ? payload._ld as LegDetail[] : [];
+/* ─── Inline Audio Player ─── */
+function InlineAudioPlayer({ url, duration }: { url: string; duration: number | null }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(duration || 0);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    const onTimeUpdate = () => setCurrentTime(Math.floor(audio.currentTime));
+    const onLoaded = () => { if (audio.duration && isFinite(audio.duration)) setAudioDuration(Math.floor(audio.duration)); };
+    const onEnded = () => setIsPlaying(false);
+    const onError = () => { setError(true); console.warn("Recording URL failed:", url); };
+    
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('loadedmetadata', onLoaded);
+    audio.addEventListener('ended', onEnded);
+    audio.addEventListener('error', onError);
+    
+    return () => {
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('loadedmetadata', onLoaded);
+      audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener('error', onError);
+    };
+  }, [url]);
+
+  const togglePlay = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isPlaying) { audio.pause(); } else { audio.play().catch(() => setError(true)); }
+    setIsPlaying(!isPlaying);
+  };
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  if (error) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-yellow-600 bg-yellow-500/10 rounded-lg px-3 py-2">
+        <AlertTriangle className="w-4 h-4" />
+        <span>Unable to load recording</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
+    <div className="flex items-center gap-3 bg-muted/50 rounded-lg px-4 py-2.5">
+      <audio ref={audioRef} preload="none" src={url} />
+      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={togglePlay}>
+        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+      </Button>
+      <span className="text-xs font-mono text-muted-foreground w-10 shrink-0">{formatTime(currentTime)}</span>
+      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div
+          className="h-full bg-primary rounded-full transition-all duration-300"
+          style={{ width: audioDuration > 0 ? `${(currentTime / audioDuration) * 100}%` : '0%' }}
+        />
+      </div>
+      <span className="text-xs font-mono text-muted-foreground w-10 shrink-0">{formatTime(audioDuration)}</span>
+      <Volume2 className="w-4 h-4 text-muted-foreground shrink-0" />
+    </div>
+  );
+}
+
+/* ─── Call Log Details ─── */
+function CallLogDetails({ log }: { log: CallLog }) {
+  const info = deriveCallInfo(log);
+
+  return (
+    <div className="space-y-5">
+      {/* Info Grid */}
       <div className="grid grid-cols-2 gap-3 text-sm">
         <Detail label="Caller Number" value={log.full_number || log.caller_number} />
         <Detail label="Call ID" value={log.call_id} />
-        <Detail label="Status" value={info.status === 'answered' ? 'Call Received' : 'Call Missed'} />
+        <Detail label="Status" value={
+          <Badge variant={info.status === 'answered' ? 'default' : 'destructive'} className={info.status === 'answered' ? 'bg-green-600' : ''}>
+            {info.status === 'answered' ? 'Call Received' : 'Call Missed'}
+          </Badge>
+        } />
         <Detail label="Call Type" value={log.call_type} />
         <Detail label="Duration" value={info.duration ? formatDuration(info.duration) : null} />
         <Detail label="Department" value={info.department} />
         <Detail label="Agent(s)" value={info.agentDisplay} />
+        {info.finalAgent && <Detail label="Final Agent" value={<span className="text-green-600 font-semibold">{info.finalAgent}</span>} />}
         <Detail label="Time" value={formatCallTime(info.startTime, log.created_at) + ' · ' + formatCallDate(info.startTime, log.created_at)} />
         <Detail label="Lead Created" value={log.lead_created ? "Yes" : "No"} />
-        <Detail label="Lead ID" value={log.lead_id} />
       </div>
 
-      {/* Call Attempts Timeline */}
-      {legs.length > 1 && (
+      {/* Call Routing Timeline */}
+      {info.legs.length > 0 ? (
         <div>
-          <p className="text-sm font-medium mb-2">Call Routing Timeline</p>
-          <div className="space-y-1">
-            {legs.map((leg, idx) => {
+          <p className="text-sm font-semibold mb-2">Call Routing Timeline</p>
+          <div className="flex items-center gap-1 flex-wrap">
+            {info.legs.map((leg, idx) => {
               const agents = Array.isArray(leg._rr) ? leg._rr.map(r => r._na).filter(Boolean).join(', ') : 'Unknown';
               const isReceived = leg._ac === 'received';
               return (
-                <div key={idx} className={`flex items-center gap-2 text-sm px-2 py-1 rounded ${isReceived ? 'bg-green-500/10 text-green-700' : 'bg-red-500/10 text-red-700'}`}>
-                  {isReceived ? <PhoneIncoming className="w-3 h-3" /> : <PhoneMissed className="w-3 h-3" />}
-                  <span>{isReceived ? 'Received' : 'Missed'} by {agents}</span>
+                <div key={idx} className="flex items-center gap-1">
+                  {idx > 0 && <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />}
+                  <div className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full ${isReceived ? 'bg-green-500/15 text-green-700 border border-green-500/30' : 'bg-red-500/10 text-red-600 border border-red-500/20'}`}>
+                    {isReceived ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                    <span className="font-medium">{isReceived ? 'Received' : 'Missed'}</span>
+                    <span className="text-xs opacity-75">({agents})</span>
+                  </div>
                 </div>
               );
             })}
           </div>
         </div>
-      )}
-
-      {info.recording && (
-        <div>
-          <p className="text-sm font-medium mb-1">Recording</p>
-          <audio controls src={info.recording} className="w-full" />
+      ) : (
+        <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg px-4 py-3">
+          No routing data available
         </div>
       )}
-      <div>
-        <p className="text-sm font-medium mb-1">Raw Payload</p>
-        <pre className="bg-muted p-3 rounded-md text-xs overflow-auto max-h-60 whitespace-pre-wrap">
+
+      {/* Recording Section */}
+      {info.recording ? (
+        <div>
+          <p className="text-sm font-semibold mb-2">Recording</p>
+          <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+            <InlineAudioPlayer url={info.recording} duration={info.duration} />
+            {info.duration && (
+              <p className="text-xs text-muted-foreground text-right">Duration: {formatDuration(info.duration)}</p>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Raw Payload (collapsed by default) */}
+      <details className="text-sm">
+        <summary className="font-semibold cursor-pointer text-muted-foreground hover:text-foreground">Raw Payload</summary>
+        <pre className="bg-muted p-3 rounded-md text-xs overflow-auto max-h-60 whitespace-pre-wrap mt-2">
           {JSON.stringify(log.raw_payload, null, 2)}
         </pre>
-      </div>
+      </details>
     </div>
   );
 }
 
-function Detail({ label, value }: { label: string; value: string | null | undefined }) {
+function Detail({ label, value }: { label: string; value: React.ReactNode | string | null | undefined }) {
   return (
     <div>
-      <span className="text-muted-foreground">{label}</span>
-      <p className="font-medium">{value || "—"}</p>
+      <span className="text-muted-foreground text-xs">{label}</span>
+      <div className="font-medium mt-0.5">{value || "—"}</div>
     </div>
   );
-}
-
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
