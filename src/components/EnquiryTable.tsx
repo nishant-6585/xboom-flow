@@ -88,6 +88,7 @@ export function EnquiryTable({
   const [lostReasonNotes, setLostReasonNotes] = useState("");
   const [updating, setUpdating] = useState(false);
   const [relatedRecords, setRelatedRecords] = useState<RelatedRecords>({});
+  const [followupEnquiry, setFollowupEnquiry] = useState<Enquiry | null>(null);
 
   const canUpdateStatus = role === "sales" || role === "admin";
 
@@ -395,6 +396,14 @@ export function EnquiryTable({
                                 {enquiry.is_mega_deal ? "Remove Mega Deal" : "Mark as Mega Deal"}
                               </DropdownMenuItem>
                             )}
+
+                            <DropdownMenuSeparator />
+
+                            {/* AI Follow-up Drafter */}
+                            <DropdownMenuItem onClick={() => setFollowupEnquiry(enquiry)}>
+                              <Sparkles className="w-4 h-4 mr-2 text-primary" />
+                              ✨ Generate Follow-up
+                            </DropdownMenuItem>
 
                             <DropdownMenuSeparator />
 
