@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get file parameter (the recording filename from _fu URL path)
+    // Get file parameter
     const reqUrl = new URL(req.url);
     const file = reqUrl.searchParams.get('file');
     if (!file) {
@@ -46,83 +46,104 @@ Deno.serve(async (req) => {
     // Fetch MyOperator config
     const { data: config, error: configError } = await supabase
       .from('myoperator_config')
-      .select('api_token, x_api_key')
+      .select('api_token, x_api_key, secret_key')
       .limit(1)
       .maybeSingle();
 
-    if (configError || !config?.api_token) {
+    if (configError || !config) {
       return new Response(JSON.stringify({ error: 'MyOperator not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Call MyOperator Recordings Link API
-    const apiUrl = `https://developers.myoperator.co/recordings/link?token=${encodeURIComponent(config.api_token)}&file=${encodeURIComponent(file)}`;
-    console.log('Calling MyOperator recordings API for file:', file);
+    // Try multiple auth strategies since MyOperator has different token types
+    const tokens = [config.api_token, config.x_api_key, config.secret_key].filter(Boolean);
+    
+    for (const tryToken of tokens) {
+      // Strategy 1: token in query string (documented approach)
+      const apiUrl = `https://developers.myoperator.co/recordings/link?token=${encodeURIComponent(tryToken)}&file=${encodeURIComponent(file)}`;
+      console.log('Trying recordings API with token prefix:', tryToken.substring(0, 6) + '...');
 
-    const apiResponse = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'X-API-Key': config.x_api_key || '',
-        'Accept': 'application/json',
-      },
-    });
-
-    console.log('MyOperator API status:', apiResponse.status);
-
-    if (!apiResponse.ok) {
-      const errorText = await apiResponse.text().catch(() => '');
-      console.error('MyOperator API error:', apiResponse.status, errorText);
-      return new Response(JSON.stringify({ error: 'Failed to fetch recording link', status: apiResponse.status }), {
-        status: 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      const apiResponse = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'X-API-Key': config.x_api_key || '',
+          'Accept': 'application/json,audio/*,*/*',
+          'User-Agent': 'Mozilla/5.0',
+        },
       });
-    }
 
-    const contentType = apiResponse.headers.get('content-type') || '';
+      const contentType = apiResponse.headers.get('content-type') || '';
+      console.log('Response status:', apiResponse.status, 'content-type:', contentType);
 
-    // If API returns JSON with a recording URL
-    if (contentType.includes('application/json')) {
-      const data = await apiResponse.json();
-      console.log('MyOperator API response keys:', Object.keys(data));
-
-      // The API may return a direct URL or a link object
-      const recordingUrl = data?.link || data?.url || data?.recording_url || data?.data?.link || data?.data?.url;
-
-      if (recordingUrl) {
-        return new Response(JSON.stringify({ recording_url: recordingUrl }), {
+      // If we got audio back directly, stream it
+      if (contentType.includes('audio') || contentType.includes('octet-stream')) {
+        console.log('Got audio stream directly');
+        return new Response(apiResponse.body, {
           status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: {
+            ...corsHeaders,
+            'Content-Type': contentType || 'audio/mpeg',
+            'Cache-Control': 'private, max-age=3600',
+          },
         });
       }
 
-      // If no URL found in response, return the raw response for debugging
-      console.warn('No recording URL found in API response:', JSON.stringify(data));
-      return new Response(JSON.stringify({ error: 'Recording not available', debug: data }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      // Parse JSON response
+      if (contentType.includes('json') || contentType.includes('text')) {
+        const data = await apiResponse.json().catch(() => null);
+        console.log('API response:', JSON.stringify(data));
+
+        if (data?.status === 'error') {
+          // This token didn't work, try next one
+          console.warn('Token failed:', data.message);
+          continue;
+        }
+
+        // Look for recording URL in various response shapes
+        const recordingUrl = data?.link || data?.url || data?.recording_url || data?.data?.link || data?.data?.url;
+        if (recordingUrl) {
+          return new Response(JSON.stringify({ recording_url: recordingUrl }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
     }
 
-    // If API returns audio directly (stream it through)
-    if (contentType.includes('audio') || contentType.includes('octet-stream')) {
-      console.log('API returned audio directly, streaming through');
-      return new Response(apiResponse.body, {
+    // All tokens failed — fall back to direct URL fetch with browser headers
+    console.log('All API tokens failed, trying direct URL fetch as fallback');
+    const directUrl = `https://app.myoperator.com/audio/${file}`;
+    const directResponse = await fetch(directUrl, {
+      method: 'GET',
+      redirect: 'follow',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'audio/mpeg,audio/*,*/*',
+      },
+    });
+
+    const directContentType = directResponse.headers.get('content-type') || '';
+    console.log('Direct fetch status:', directResponse.status, 'content-type:', directContentType);
+
+    if (directContentType.includes('audio') || directContentType.includes('octet-stream')) {
+      return new Response(directResponse.body, {
         status: 200,
         headers: {
           ...corsHeaders,
-          'Content-Type': contentType || 'audio/mpeg',
+          'Content-Type': directContentType || 'audio/mpeg',
           'Cache-Control': 'private, max-age=3600',
         },
       });
     }
 
-    // Unexpected response type
-    const bodyText = await apiResponse.text().catch(() => '');
-    console.warn('Unexpected response type:', contentType, bodyText.substring(0, 200));
-    return new Response(JSON.stringify({ error: 'Unexpected API response', contentType }), {
-      status: 502,
+    // Nothing worked
+    return new Response(JSON.stringify({ 
+      error: 'Recording not available - MyOperator credentials may need to be updated',
+      hint: 'Please verify your API Token in Admin → MyOperator Settings'
+    }), {
+      status: 404,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
