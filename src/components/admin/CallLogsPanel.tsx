@@ -172,11 +172,11 @@ function groupLogsByCallId(logs: CallLog[]): CallLog[] {
       const existingLegs = existingPayload?._ld && Array.isArray(existingPayload._ld) ? existingPayload._ld.length : 0;
       const newLegs = newPayload?._ld && Array.isArray(newPayload._ld) ? newPayload._ld.length : 0;
       
-      const existingRecording = sanitizeRecordingUrl((existingPayload?._fu as string) || existing.recording_url);
-      const newRecording = sanitizeRecordingUrl((newPayload?._fu as string) || log.recording_url);
+      const existingFile = extractRecordingFilename(existingPayload);
+      const newFile = extractRecordingFilename(newPayload);
       
       // Prefer: has recording > more legs > newer
-      if ((!existingRecording && newRecording) || (newLegs > existingLegs)) {
+      if ((!existingFile && newFile) || (newLegs > existingLegs)) {
         grouped.set(key, log);
       }
     }
@@ -404,7 +404,7 @@ export function CallLogsPanel() {
                           {info.duration ? formatDuration(info.duration) : "—"}
                         </TableCell>
                         <TableCell>
-                          {info.recording ? (
+                          {info.recordingFile ? (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -428,10 +428,10 @@ export function CallLogsPanel() {
                         </TableCell>
                       </TableRow>
                       {/* Inline audio player row */}
-                      {expandedAudio === logKey && info.recording && (
+                      {expandedAudio === logKey && info.recordingFile && (
                         <TableRow key={`${log.id}-audio`}>
                           <TableCell colSpan={7} className="py-2 px-4">
-                            <InlineAudioPlayer url={info.recording} duration={info.duration} />
+                            <InlineAudioPlayer recordingFile={info.recordingFile} duration={info.duration} />
                           </TableCell>
                         </TableRow>
                       )}
@@ -464,7 +464,7 @@ export function CallLogsPanel() {
 }
 
 /* ─── Inline Audio Player ─── */
-function InlineAudioPlayer({ url, duration }: { url: string; duration: number | null }) {
+function InlineAudioPlayer({ recordingFile, duration }: { recordingFile: string; duration: number | null }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -473,61 +473,34 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
   const [loading, setLoading] = useState(false);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
 
-  // Fetch recording via MyOperator API (extracts filename, calls get-myoperator-recording)
+  // Fetch recording via MyOperator recordings/link API
   const fetchRecording = useCallback(async () => {
-    const isMyOperator = url.includes('myoperator.com');
-    if (!isMyOperator) return;
-
-    const file = extractRecordingFile(url);
-    if (!file) {
-      console.warn('Could not extract recording filename from:', url);
-      setError(true);
-      return;
-    }
-
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const endpoint = `${supabaseUrl}/functions/v1/get-myoperator-recording?file=${encodeURIComponent(file)}`;
+      const endpoint = `${supabaseUrl}/functions/v1/get-myoperator-recording?file=${encodeURIComponent(recordingFile)}`;
 
       const resp = await fetch(endpoint, {
         headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
       });
 
-      if (!resp.ok) {
-        const errorBody = await resp.text().catch(() => '');
-        console.warn('Recording API response:', resp.status, errorBody);
-        setError(true);
+      const data = await resp.json();
+      
+      if (data.recording_url) {
+        setStreamUrl(data.recording_url);
         return;
       }
-
-      const contentType = resp.headers.get('content-type') || '';
-
-      // If API returned JSON, either use the URL or mark as unavailable
-      if (contentType.includes('application/json')) {
-        const data = await resp.json();
-        if (data.recording_url) {
-          setStreamUrl(data.recording_url);
-          return;
-        }
-        console.warn('Recording unavailable:', data);
-        setError(true);
-        return;
-      }
-
-      // If API streamed audio directly, create a blob URL
-      const blob = await resp.blob();
-      if (blob.size === 0) throw new Error('Empty recording response');
-      const objUrl = URL.createObjectURL(blob);
-      setStreamUrl(objUrl);
+      
+      console.warn('Recording unavailable:', data);
+      setError(true);
     } catch (err) {
-      console.warn('Recording fetch failed:', url, err);
+      console.warn('Recording fetch failed:', err);
       setError(true);
     } finally {
       setLoading(false);
     }
-  }, [url]);
+  }, [recordingFile]);
 
   useEffect(() => {
     return () => {
@@ -543,7 +516,7 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
     const onLoaded = () => { if (audio.duration && isFinite(audio.duration)) setAudioDuration(Math.floor(audio.duration)); };
     const onEnded = () => setIsPlaying(false);
     const onError = () => { 
-      if (!streamUrl && !loading) { setError(true); console.warn("Recording URL failed:", url); }
+      if (!streamUrl && !loading) { setError(true); }
     };
     
     audio.addEventListener('timeupdate', onTimeUpdate);
