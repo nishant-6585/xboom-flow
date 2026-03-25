@@ -511,6 +511,8 @@ export type Database = {
           lead_created: boolean
           lead_id: string | null
           raw_payload: Json | null
+          recording_fetched_at: string | null
+          recording_stream_url: string | null
           recording_url: string | null
           start_time: string | null
           updated_at: string
@@ -534,6 +536,8 @@ export type Database = {
           lead_created?: boolean
           lead_id?: string | null
           raw_payload?: Json | null
+          recording_fetched_at?: string | null
+          recording_stream_url?: string | null
           recording_url?: string | null
           start_time?: string | null
           updated_at?: string
@@ -557,6 +561,8 @@ export type Database = {
           lead_created?: boolean
           lead_id?: string | null
           raw_payload?: Json | null
+          recording_fetched_at?: string | null
+          recording_stream_url?: string | null
           recording_url?: string | null
           start_time?: string | null
           updated_at?: string
