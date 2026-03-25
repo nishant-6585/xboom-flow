@@ -138,19 +138,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Nothing worked
-    return new Response(JSON.stringify({ 
-      error: 'Recording not available - MyOperator credentials may need to be updated',
+    // Nothing worked — return a soft failure payload so the UI can handle it gracefully
+    return new Response(JSON.stringify({
+      available: false,
+      recording_url: null,
+      error: 'Recording not available',
       hint: 'Please verify your API Token in Admin → MyOperator Settings'
     }), {
-      status: 404,
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (err) {
     console.error('Recording fetch error:', err);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
+    return new Response(JSON.stringify({
+      available: false,
+      recording_url: null,
+      error: 'Recording not available'
+    }), {
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
