@@ -4,11 +4,8 @@ import { toast } from 'sonner';
 
 export interface MyOperatorConfig {
   id: string;
-  api_token: string;
-  secret_key: string;
-  x_api_key: string;
-  company_id: string;
   is_connected: boolean;
+  company_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -19,17 +16,15 @@ export const useMyOperatorConfig = () => {
 
   const fetchConfig = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('myoperator_config')
-        .select('*')
-        .limit(1)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('manage-myoperator-config', {
+        body: { action: 'status' },
+      });
 
       if (error) {
         console.error('Error fetching MyOperator config:', error);
         return;
       }
-      setConfig(data as MyOperatorConfig | null);
+      setConfig(data?.config as MyOperatorConfig | null);
     } catch (err) {
       console.error('Error:', err);
     } finally {
@@ -48,18 +43,13 @@ export const useMyOperatorConfig = () => {
     company_id: string;
   }) => {
     try {
-      if (config) {
-        const { error } = await supabase
-          .from('myoperator_config')
-          .update({ ...values, is_connected: true })
-          .eq('id', config.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('myoperator_config')
-          .insert({ ...values, is_connected: true });
-        if (error) throw error;
-      }
+      const { data, error } = await supabase.functions.invoke('manage-myoperator-config', {
+        body: { action: 'save', ...values },
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Failed to save configuration');
+
       toast.success('MyOperator configuration saved');
       await fetchConfig();
     } catch (err: any) {
@@ -69,13 +59,14 @@ export const useMyOperatorConfig = () => {
   };
 
   const disconnect = async () => {
-    if (!config) return;
     try {
-      const { error } = await supabase
-        .from('myoperator_config')
-        .update({ is_connected: false, api_token: '', secret_key: '', x_api_key: '', company_id: '' })
-        .eq('id', config.id);
+      const { data, error } = await supabase.functions.invoke('manage-myoperator-config', {
+        body: { action: 'disconnect' },
+      });
+
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Failed to disconnect');
+
       toast.success('MyOperator disconnected');
       await fetchConfig();
     } catch (err: any) {
@@ -88,14 +79,29 @@ export const useMyOperatorConfig = () => {
     x_api_key: string;
     company_id: string;
   }): Promise<boolean> => {
-    // Basic validation test - verify fields are filled
     if (!values.api_token || !values.x_api_key || !values.company_id) {
       toast.error('Please fill in all required fields');
       return false;
     }
-    // In production, this would call MyOperator API to validate credentials
-    toast.success('Connection test passed (fields validated)');
-    return true;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('manage-myoperator-config', {
+        body: { action: 'test', ...values },
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success('Connection test passed');
+        return true;
+      } else {
+        toast.error(data?.error || 'Connection test failed');
+        return false;
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Connection test failed');
+      return false;
+    }
   };
 
   return { config, loading, saveConfig, disconnect, testConnection, refetch: fetchConfig };

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Phone, Check, X, Copy, ExternalLink } from 'lucide-react';
+import { Loader2, Phone, Check, X, Copy } from 'lucide-react';
 import { useMyOperatorConfig } from '@/hooks/useMyOperatorConfig';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
@@ -19,37 +19,26 @@ export const MyOperatorSettingsPanel = () => {
   const [companyId, setCompanyId] = useState('');
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
 
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/myoperator-webhook`;
 
+  // Only populate company_id from config (credentials are never sent to client)
   useEffect(() => {
     if (config) {
-      setApiToken(config.api_token);
-      setSecretKey(config.secret_key);
-      setXApiKey(config.x_api_key);
-      setCompanyId(config.company_id);
+      setCompanyId(config.company_id || '');
     }
   }, [config]);
 
-  useEffect(() => {
-    if (config) {
-      setHasChanges(
-        apiToken !== config.api_token ||
-        secretKey !== config.secret_key ||
-        xApiKey !== config.x_api_key ||
-        companyId !== config.company_id
-      );
-    } else {
-      setHasChanges(!!(apiToken || secretKey || xApiKey || companyId));
-    }
-  }, [apiToken, secretKey, xApiKey, companyId, config]);
+  const hasRequiredFields = !!(apiToken && xApiKey && companyId);
 
   const handleSave = async () => {
     setSaving(true);
     try {
       await saveConfig({ api_token: apiToken, secret_key: secretKey, x_api_key: xApiKey, company_id: companyId });
-      setHasChanges(false);
+      // Clear credential fields after save (they're stored server-side now)
+      setApiToken('');
+      setSecretKey('');
+      setXApiKey('');
     } finally {
       setSaving(false);
     }
@@ -129,6 +118,11 @@ export const MyOperatorSettingsPanel = () => {
         {/* API Credentials */}
         <div className="space-y-4">
           <h4 className="text-sm font-semibold">API Credentials</h4>
+          {config?.is_connected && (
+            <p className="text-xs text-muted-foreground">
+              Credentials are stored securely server-side. Enter new values below to update them.
+            </p>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
@@ -136,7 +130,7 @@ export const MyOperatorSettingsPanel = () => {
               <Input
                 id="mo-api-token"
                 type="password"
-                placeholder="Enter API Token"
+                placeholder={config?.is_connected ? '••••••••' : 'Enter API Token'}
                 value={apiToken}
                 onChange={(e) => setApiToken(e.target.value)}
               />
@@ -146,7 +140,7 @@ export const MyOperatorSettingsPanel = () => {
               <Input
                 id="mo-secret-key"
                 type="password"
-                placeholder="Enter Secret Key"
+                placeholder={config?.is_connected ? '••••••••' : 'Enter Secret Key'}
                 value={secretKey}
                 onChange={(e) => setSecretKey(e.target.value)}
               />
@@ -156,7 +150,7 @@ export const MyOperatorSettingsPanel = () => {
               <Input
                 id="mo-x-api-key"
                 type="password"
-                placeholder="Enter X-API-Key"
+                placeholder={config?.is_connected ? '••••••••' : 'Enter X-API-Key'}
                 value={xApiKey}
                 onChange={(e) => setXApiKey(e.target.value)}
               />
@@ -177,11 +171,11 @@ export const MyOperatorSettingsPanel = () => {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-3">
-          <Button onClick={handleSave} disabled={saving || !hasChanges}>
+          <Button onClick={handleSave} disabled={saving || !hasRequiredFields}>
             {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             {config?.is_connected ? 'Update Configuration' : 'Connect & Save'}
           </Button>
-          <Button variant="outline" onClick={handleTest} disabled={testing}>
+          <Button variant="outline" onClick={handleTest} disabled={testing || !hasRequiredFields}>
             {testing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Test Connection
           </Button>
@@ -198,6 +192,7 @@ export const MyOperatorSettingsPanel = () => {
           <AlertDescription>
             Once connected, incoming calls will automatically create leads in the Enquiries panel. 
             Configure the webhook URL above in your MyOperator dashboard to start receiving call events.
+            Credentials are stored securely and never exposed to the browser.
           </AlertDescription>
         </Alert>
       </CardContent>
