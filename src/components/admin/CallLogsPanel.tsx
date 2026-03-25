@@ -47,11 +47,16 @@ function sanitizeRecordingUrl(url: string | null | undefined, filename?: string 
   if (!url || typeof url !== 'string') return null;
   let clean = url.replace(/\\\//g, '/').trim();
   if (!clean.startsWith('http')) return null;
-  // MyOperator _fu URLs often lack .mp3 extension - append it for proper audio serving
-  if (clean.includes('myoperator.com/audio/') && !clean.match(/\.\w{2,4}$/)) {
-    clean += '.mp3';
-  }
   return clean;
+}
+
+function getProxiedRecordingUrl(url: string): string {
+  // Proxy MyOperator recordings through our edge function to handle auth/CORS
+  if (url.includes('myoperator.com')) {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    return `${supabaseUrl}/functions/v1/myoperator-audio-proxy?url=${encodeURIComponent(url)}`;
+  }
+  return url;
 }
 
 function deriveCallInfo(log: CallLog) {
