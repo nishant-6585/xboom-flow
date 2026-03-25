@@ -43,34 +43,27 @@ function parseRawPayload(raw: unknown): Record<string, unknown> | null {
   return raw as Record<string, unknown>;
 }
 
-function sanitizeRecordingUrl(url: string | null | undefined, filename?: string | null): string | null {
+function sanitizeRecordingUrl(url: string | null | undefined): string | null {
   if (!url || typeof url !== 'string') return null;
-
   const clean = url.replace(/\\\//g, '/').trim();
   if (!clean.startsWith('http')) return null;
-
-  try {
-    const parsed = new URL(clean);
-    const isMyOperatorAudio = parsed.hostname.includes('myoperator.com') && parsed.pathname.startsWith('/audio/');
-    const hasAudioExtension = /\.(mp3|wav|m4a|aac|ogg)$/i.test(parsed.pathname);
-
-    if (isMyOperatorAudio && !hasAudioExtension) {
-      parsed.pathname = `${parsed.pathname}.mp3`;
-    }
-
-    return parsed.toString();
-  } catch {
-    return clean;
-  }
+  return clean;
 }
 
-function getProxiedRecordingUrl(url: string): string {
-  // Proxy MyOperator recordings through our edge function to handle auth/CORS
-  if (url.includes('myoperator.com')) {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    return `${supabaseUrl}/functions/v1/myoperator-audio-proxy?url=${encodeURIComponent(url)}`;
-  }
-  return url;
+/** Extract the recording filename from a MyOperator _fu URL path (e.g. /audio/abc123.mp3 → abc123.mp3) */
+function extractRecordingFile(url: string): string | null {
+  try {
+    const parsed = new URL(url.replace(/\\\//g, '/').trim());
+    if (parsed.hostname.includes('myoperator.com') && parsed.pathname.startsWith('/audio/')) {
+      const filename = parsed.pathname.replace('/audio/', '');
+      // Ensure it has an extension
+      if (!/\.(mp3|wav|m4a|aac|ogg)$/i.test(filename)) {
+        return `${filename}.mp3`;
+      }
+      return filename;
+    }
+  } catch { /* ignore */ }
+  return null;
 }
 
 function deriveCallInfo(log: CallLog) {
@@ -492,36 +485,55 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
   const [audioDuration, setAudioDuration] = useState(duration || 0);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [streamUrl, setStreamUrl] = useState<string | null>(null);
 
-  // Fetch audio through proxy for MyOperator URLs
-  const fetchAudio = useCallback(async () => {
-    const proxiedUrl = getProxiedRecordingUrl(url);
-    if (!proxiedUrl.includes('myoperator-audio-proxy')) {
+  // Fetch recording via MyOperator API (extracts filename, calls get-myoperator-recording)
+  const fetchRecording = useCallback(async () => {
+    const isMyOperator = url.includes('myoperator.com');
+    if (!isMyOperator) return;
+
+    const file = extractRecordingFile(url);
+    if (!file) {
+      console.warn('Could not extract recording filename from:', url);
+      setError(true);
       return;
     }
+
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const resp = await fetch(proxiedUrl, {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const endpoint = `${supabaseUrl}/functions/v1/get-myoperator-recording?file=${encodeURIComponent(file)}`;
+
+      const resp = await fetch(endpoint, {
         headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
       });
+
       if (!resp.ok) {
         const errorBody = await resp.text().catch(() => '');
-        console.warn('Proxy response:', resp.status, errorBody);
+        console.warn('Recording API response:', resp.status, errorBody);
         throw new Error(`HTTP ${resp.status}`);
       }
 
-      const blob = await resp.blob();
-      // Accept any content type - don't reject based on MIME since proxy may not set it correctly
-      if (blob.size === 0) {
-        throw new Error('Empty recording response');
+      const contentType = resp.headers.get('content-type') || '';
+
+      // If API returned JSON with a recording URL
+      if (contentType.includes('application/json')) {
+        const data = await resp.json();
+        if (data.recording_url) {
+          setStreamUrl(data.recording_url);
+          return;
+        }
+        throw new Error(data.error || 'No recording URL returned');
       }
 
+      // If API streamed audio directly, create a blob URL
+      const blob = await resp.blob();
+      if (blob.size === 0) throw new Error('Empty recording response');
       const objUrl = URL.createObjectURL(blob);
-      setBlobUrl(objUrl);
+      setStreamUrl(objUrl);
     } catch (err) {
-      console.warn('Recording proxy failed:', url, err);
+      console.warn('Recording fetch failed:', url, err);
       setError(true);
     } finally {
       setLoading(false);
@@ -529,8 +541,10 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
   }, [url]);
 
   useEffect(() => {
-    return () => { if (blobUrl) URL.revokeObjectURL(blobUrl); };
-  }, [blobUrl]);
+    return () => {
+      if (streamUrl?.startsWith('blob:')) URL.revokeObjectURL(streamUrl);
+    };
+  }, [streamUrl]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -540,7 +554,7 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
     const onLoaded = () => { if (audio.duration && isFinite(audio.duration)) setAudioDuration(Math.floor(audio.duration)); };
     const onEnded = () => setIsPlaying(false);
     const onError = () => { 
-      if (!blobUrl && !loading) { setError(true); console.warn("Recording URL failed:", url); }
+      if (!streamUrl && !loading) { setError(true); console.warn("Recording URL failed:", url); }
     };
     
     audio.addEventListener('timeupdate', onTimeUpdate);
@@ -554,13 +568,13 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
     };
-  }, [url, blobUrl, loading]);
+  }, [url, streamUrl, loading]);
 
   const togglePlay = async () => {
-    // Lazy-load audio through proxy on first play
-    if (!blobUrl && url.includes('myoperator.com') && !error) {
-      await fetchAudio();
-      return; // Will auto-play after blob is set
+    // Lazy-load recording via API on first play
+    if (!streamUrl && url.includes('myoperator.com') && !error) {
+      await fetchRecording();
+      return; // Will auto-play after streamUrl is set
     }
     const audio = audioRef.current;
     if (!audio) return;
@@ -568,12 +582,12 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
     setIsPlaying(!isPlaying);
   };
 
-  // Auto-play once blob is ready
+  // Auto-play once stream URL is ready
   useEffect(() => {
-    if (blobUrl && audioRef.current) {
+    if (streamUrl && audioRef.current) {
       audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setError(true));
     }
-  }, [blobUrl]);
+  }, [streamUrl]);
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -585,12 +599,12 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
     return (
       <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
         <AlertTriangle className="w-4 h-4" />
-        <span>Unable to load recording</span>
+        <span>Recording not available</span>
       </div>
     );
   }
 
-  const audioSrc = blobUrl || (url.includes('myoperator.com') ? undefined : url);
+  const audioSrc = streamUrl || (url.includes('myoperator.com') ? undefined : url);
 
   return (
     <div className="flex items-center gap-3 bg-muted/50 rounded-lg px-4 py-2.5">
