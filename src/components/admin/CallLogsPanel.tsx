@@ -512,19 +512,22 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
       if (!resp.ok) {
         const errorBody = await resp.text().catch(() => '');
         console.warn('Recording API response:', resp.status, errorBody);
-        throw new Error(`HTTP ${resp.status}`);
+        setError(true);
+        return;
       }
 
       const contentType = resp.headers.get('content-type') || '';
 
-      // If API returned JSON with a recording URL
+      // If API returned JSON, either use the URL or mark as unavailable
       if (contentType.includes('application/json')) {
         const data = await resp.json();
         if (data.recording_url) {
           setStreamUrl(data.recording_url);
           return;
         }
-        throw new Error(data.error || 'No recording URL returned');
+        console.warn('Recording unavailable:', data);
+        setError(true);
+        return;
       }
 
       // If API streamed audio directly, create a blob URL
