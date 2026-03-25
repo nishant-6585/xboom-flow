@@ -84,7 +84,7 @@ function deriveCallInfo(log: CallLog) {
   }
 
   const recording = sanitizeRecordingUrl((payload?._fu as string) || log.recording_url);
-  const startTime = (payload?._st as string) || log.start_time;
+  const startTime = payload?._st != null ? String(payload._st) : log.start_time;
 
   let whatText = '';
   if (status === 'answered') {
