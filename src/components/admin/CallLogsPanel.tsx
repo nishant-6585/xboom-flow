@@ -43,26 +43,11 @@ function parseRawPayload(raw: unknown): Record<string, unknown> | null {
   return raw as Record<string, unknown>;
 }
 
-function sanitizeRecordingUrl(url: string | null | undefined): string | null {
-  if (!url || typeof url !== 'string') return null;
-  const clean = url.replace(/\\\//g, '/').trim();
-  if (!clean.startsWith('http')) return null;
-  return clean;
-}
-
-/** Extract the recording filename from a MyOperator _fu URL path (e.g. /audio/abc123.mp3 → abc123.mp3) */
-function extractRecordingFile(url: string): string | null {
-  try {
-    const parsed = new URL(url.replace(/\\\//g, '/').trim());
-    if (parsed.hostname.includes('myoperator.com') && parsed.pathname.startsWith('/audio/')) {
-      const filename = parsed.pathname.replace('/audio/', '');
-      // Ensure it has an extension
-      if (!/\.(mp3|wav|m4a|aac|ogg)$/i.test(filename)) {
-        return `${filename}.mp3`;
-      }
-      return filename;
-    }
-  } catch { /* ignore */ }
+/** Extract the _fn (filename) directly from the raw payload */
+function extractRecordingFilename(payload: Record<string, unknown> | null): string | null {
+  if (!payload) return null;
+  const fn = payload._fn;
+  if (fn && typeof fn === 'string' && fn.trim().length > 0) return fn.trim();
   return null;
 }
 
