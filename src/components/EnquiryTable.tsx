@@ -48,6 +48,7 @@ import { format, differenceInMinutes, differenceInHours, differenceInDays } from
 import { MoreHorizontal, Trophy, XCircle, Clock, GitBranch, Timer, CheckCircle2, AlertTriangle, Flame, Thermometer, Snowflake, Star, Sparkles } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { LeadTemperatureBadge, LEAD_TEMPERATURES } from "./LeadTemperatureBadge";
+import { FollowupDrafterDialog } from "./sales/FollowupDrafterDialog";
 import { useNavigate } from "react-router-dom";
 import { getSlaStatus, SLA_HOURS, UrgencyLevel } from "@/lib/sla";
 import { toast } from "sonner";
