@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -84,7 +84,7 @@ function deriveCallInfo(log: CallLog) {
   }
 
   const recording = sanitizeRecordingUrl((payload?._fu as string) || log.recording_url);
-  const startTime = (payload?._st as string) || log.start_time;
+  const startTime = payload?._st != null ? String(payload._st) : log.start_time;
 
   let whatText = '';
   if (status === 'answered') {
@@ -226,8 +226,8 @@ export function CallLogsPanel() {
       grouped.sort((a, b) => {
         const aInfo = deriveCallInfo(a);
         const bInfo = deriveCallInfo(b);
-        const aTime = aInfo.startTime || a.created_at;
-        const bTime = bInfo.startTime || b.created_at;
+        const aTime = String(aInfo.startTime || a.created_at);
+        const bTime = String(bInfo.startTime || b.created_at);
         return bTime.localeCompare(aTime);
       });
 
@@ -359,7 +359,7 @@ export function CallLogsPanel() {
                   const logKey = log.call_id || log.id;
 
                   return (
-                    <>
+                    <React.Fragment key={log.id}>
                       <TableRow
                         key={log.id}
                         className={newIds.has(log.id) ? "bg-primary/10 animate-pulse border-l-4 border-l-primary" : ""}
@@ -433,7 +433,7 @@ export function CallLogsPanel() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })}
               </TableBody>
