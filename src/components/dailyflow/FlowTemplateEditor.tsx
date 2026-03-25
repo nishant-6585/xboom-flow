@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Save, GripVertical, Copy, AlertTriangle, Clock } from 'lucide-react';
+import { Plus, Trash2, Save, GripVertical, Copy, AlertTriangle, Clock, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import type { DailyFlowTemplate } from '@/hooks/useDailyFlow';
 import {
@@ -26,6 +26,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { toast } from 'sonner';
 import { calculateDurationMinutes, normalizeFlexibleTimeInput, isValidNormalizedTime } from './timeUtils';
+import { TimePickerSelect, QuickAdjustButtons, formatDurationDisplay } from './TimePickerSelect';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface FlowTemplateEditorProps {
@@ -60,13 +61,12 @@ const DEFAULT_ROWS: RowData[] = [
   { key: '6', sl_no: 6, description: 'Lunch', sub_items: '', time_from: '13:00', time_to: '13:45', duration_mins: 45, target_value: 0, is_break: false, frequency: 'daily', frequency_days: [] },
   { key: '7', sl_no: 7, description: 'Outbound - Lead Generation', sub_items: '', time_from: '14:00', time_to: '14:30', duration_mins: 30, target_value: 8, is_break: false, frequency: 'daily', frequency_days: [] },
   { key: '8', sl_no: 8, description: 'Outbound - Emails', sub_items: '', time_from: '14:30', time_to: '15:00', duration_mins: 30, target_value: 15, is_break: false, frequency: 'daily', frequency_days: [] },
-  { key: '9', sl_no: 9, description: 'Emails + Calls', sub_items: '', time_from: '16:00', time_to: '16:30', duration_mins: 60, target_value: 10, is_break: false, frequency: 'daily', frequency_days: [] },
-  { key: '10', sl_no: 10, description: 'Follow Ups & Meetings', sub_items: '', time_from: '16:30', time_to: '17:00', duration_mins: 15, target_value: 4, is_break: false, frequency: 'daily', frequency_days: [] },
+  { key: '9', sl_no: 9, description: 'Emails + Calls', sub_items: '', time_from: '16:00', time_to: '16:30', duration_mins: 30, target_value: 10, is_break: false, frequency: 'daily', frequency_days: [] },
+  { key: '10', sl_no: 10, description: 'Follow Ups & Meetings', sub_items: '', time_from: '16:30', time_to: '17:00', duration_mins: 30, target_value: 4, is_break: false, frequency: 'daily', frequency_days: [] },
   { key: '11', sl_no: 11, description: 'Break', sub_items: '', time_from: '17:00', time_to: '17:15', duration_mins: 15, target_value: 0, is_break: false, frequency: 'daily', frequency_days: [] },
   { key: '12', sl_no: 12, description: 'CRM + Tools', sub_items: '', time_from: '17:15', time_to: '18:00', duration_mins: 45, target_value: 5, is_break: false, frequency: 'daily', frequency_days: [] },
   { key: '13', sl_no: 13, description: 'Others Miscellaneous', sub_items: '', time_from: '18:00', time_to: '18:30', duration_mins: 30, target_value: 0, is_break: false, frequency: 'daily', frequency_days: [] },
 ];
-
 
 interface TimeIssue {
   type: 'overlap' | 'gap';
@@ -132,10 +132,9 @@ function detectGaps(rows: RowData[]): { afterKey: string; fromTime: string; toTi
   return gaps;
 }
 
-function SortableRow({ row, updateRow, normalizeRowTime, toggleDay, removeRow, duplicateRow, issues }: {
+function SortableRow({ row, updateRow, toggleDay, removeRow, duplicateRow, issues }: {
   row: RowData;
   updateRow: (rowKey: string, field: keyof RowData, value: any) => void;
-  normalizeRowTime: (rowKey: string, field: 'time_from' | 'time_to') => void;
   toggleDay: (rowKey: string, day: string) => void;
   removeRow: (rowKey: string) => void;
   duplicateRow: (rowKey: string) => void;
@@ -182,29 +181,31 @@ function SortableRow({ row, updateRow, normalizeRowTime, toggleDay, removeRow, d
         <Input value={row.sub_items} onChange={e => updateRow(row.key, 'sub_items', e.target.value)} placeholder="comma separated" className="h-8 text-sm" />
       </td>
       <td className="p-1">
-        <Input
-          type="text"
-          inputMode="text"
-          value={row.time_from}
-          onChange={e => updateRow(row.key, 'time_from', e.target.value)}
-          onBlur={() => normalizeRowTime(row.key, 'time_from')}
-          placeholder="HH:MM"
-          className="h-8 text-sm text-center"
-        />
-      </td>
-      <td className="p-1">
-        <Input
-          type="text"
-          inputMode="text"
-          value={row.time_to}
-          onChange={e => updateRow(row.key, 'time_to', e.target.value)}
-          onBlur={() => normalizeRowTime(row.key, 'time_to')}
-          placeholder="HH:MM"
-          className="h-8 text-sm text-center"
-        />
-      </td>
-      <td className="p-1 text-center">
-        <span className="font-medium">{row.duration_mins}</span>
+        <div className="flex flex-col items-center gap-0.5">
+          <div className="flex items-center gap-1">
+            <TimePickerSelect
+              value={row.time_from}
+              onChange={v => updateRow(row.key, 'time_from', v)}
+            />
+            <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+            <TimePickerSelect
+              value={row.time_to}
+              onChange={v => updateRow(row.key, 'time_to', v)}
+              minTime={row.time_from}
+            />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+              row.duration_mins > 0 ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'
+            }`}>
+              {formatDurationDisplay(row.duration_mins)}
+            </span>
+            <QuickAdjustButtons
+              time={row.time_to}
+              onChange={v => updateRow(row.key, 'time_to', v)}
+            />
+          </div>
+        </div>
       </td>
       <td className="p-1">
         <Input
@@ -312,21 +313,6 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
     }));
   };
 
-  const normalizeRowTime = (rowKey: string, field: 'time_from' | 'time_to') => {
-    setRows(prev => prev.map(row => {
-      if (row.key !== rowKey) return row;
-
-      const normalized = normalizeFlexibleTimeInput(row[field]);
-      if (!normalized) return row;
-
-      const updatedRow = { ...row, [field]: normalized };
-      return {
-        ...updatedRow,
-        duration_mins: calculateDurationMinutes(updatedRow.time_from, updatedRow.time_to),
-      };
-    }));
-  };
-
   const toggleDay = (rowKey: string, day: string) => {
     setRows(prev => prev.map(row => {
       if (row.key !== rowKey) return row;
@@ -339,20 +325,72 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
   };
 
   const addRow = () => {
+    const lastRow = rows.length > 0 ? rows[rows.length - 1] : null;
+    const lastEndMins = lastRow ? toMinutes(lastRow.time_to) : null;
+
+    let newFrom = '';
+    let newTo = '';
+    let newDuration = 0;
+
+    if (lastEndMins !== null && lastEndMins !== null) {
+      newFrom = formatMinutesAsTime(lastEndMins);
+      const endMins = Math.min(23 * 60 + 45, lastEndMins + 30);
+      newTo = formatMinutesAsTime(endMins);
+      newDuration = endMins - lastEndMins;
+    }
+
     const nextSl = rows.length > 0 ? Math.max(...rows.map(r => r.sl_no)) + 1 : 1;
     setRows(prev => [...prev, {
       key: `new-${crypto.randomUUID()}`,
       sl_no: nextSl,
       description: '',
       sub_items: '',
-      time_from: '',
-      time_to: '',
-      duration_mins: 0,
+      time_from: newFrom,
+      time_to: newTo,
+      duration_mins: newDuration,
       target_value: 0,
       is_break: false,
       frequency: 'daily',
       frequency_days: [],
     }]);
+  };
+
+  const fillGap = (fromTime: string, toTime: string) => {
+    const nextSl = rows.length > 0 ? Math.max(...rows.map(r => r.sl_no)) + 1 : 1;
+    const duration = calculateDurationMinutes(fromTime, toTime);
+
+    setRows(prev => {
+      // Find the position to insert: after the row whose end = gap start
+      const insertIdx = prev.findIndex(r => {
+        const endMins = toMinutes(r.time_to);
+        const gapStartMins = toMinutes(fromTime);
+        return endMins !== null && gapStartMins !== null && endMins === gapStartMins;
+      });
+
+      const newRow: RowData = {
+        key: `fill-${crypto.randomUUID()}`,
+        sl_no: nextSl,
+        description: '',
+        sub_items: '',
+        time_from: fromTime,
+        time_to: toTime,
+        duration_mins: duration,
+        target_value: 0,
+        is_break: false,
+        frequency: 'daily',
+        frequency_days: [],
+      };
+
+      const updated = [...prev];
+      if (insertIdx >= 0) {
+        updated.splice(insertIdx + 1, 0, newRow);
+      } else {
+        updated.push(newRow);
+      }
+      return updated.map((r, i) => ({ ...r, sl_no: i + 1 }));
+    });
+
+    toast.success(`Gap filled: ${fromTime} – ${toTime}`);
   };
 
   const duplicateRow = (rowKey: string) => {
@@ -400,7 +438,6 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
       };
     });
 
-    // Filter out completely empty rows (no description and no times)
     const filledRows = normalizedRows.filter(
       (row) => row.description.trim() || row.time_from || row.time_to
     );
@@ -422,7 +459,6 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
       return;
     }
 
-    // Re-number filled rows sequentially
     const renumberedRows = filledRows.map((row, idx) => ({ ...row, sl_no: idx + 1 }));
     setRows(renumberedRows);
     setSaving(true);
@@ -492,7 +528,7 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
                   {gaps.length} gap{gaps.length > 1 ? 's' : ''}
                 </span>
               )}
-              <span>Total Duration: <strong className="text-foreground">{totalDuration} min</strong></span>
+              <span>Total Duration: <strong className="text-foreground">{formatDurationDisplay(totalDuration)}</strong></span>
               <span>Total Target: <strong className="text-foreground">{totalTarget}</strong></span>
             </div>
           </div>
@@ -507,9 +543,7 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
                   <th className="p-2 text-left w-16">Sl#</th>
                   <th className="p-2 text-left min-w-[160px]">Description</th>
                   <th className="p-2 text-left min-w-[100px]">Sub Items</th>
-                  <th className="p-2 text-center w-24">From</th>
-                  <th className="p-2 text-center w-24">To</th>
-                  <th className="p-2 text-center w-16">Mins</th>
+                  <th className="p-2 text-center min-w-[280px]">Time</th>
                   <th className="p-2 text-center w-20">Target</th>
                   <th className="p-2 text-center min-w-[140px]">Frequency</th>
                   <th className="p-2 w-16"></th>
@@ -525,20 +559,27 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
                         <SortableRow
                           row={row}
                           updateRow={updateRow}
-                          normalizeRowTime={normalizeRowTime}
                           toggleDay={toggleDay}
                           removeRow={removeRow}
                           duplicateRow={duplicateRow}
                           issues={rowIssues}
                         />
                         {gapAfter && (
-                          <tr className="border-b bg-muted/20">
-                            <td colSpan={9} className="p-1">
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground px-2 py-1">
+                          <tr className="border-b bg-amber-500/5">
+                            <td colSpan={7} className="p-1">
+                              <div className="flex items-center gap-2 text-xs px-2 py-1">
                                 <Clock className="h-3.5 w-3.5 text-amber-500" />
-                                <span className="font-medium text-amber-500">
-                                  Gap: {gapAfter.fromTime} – {gapAfter.toTime} ({gapAfter.durationMins} min unassigned)
+                                <span className="font-medium text-amber-600">
+                                  Gap: {gapAfter.fromTime} – {gapAfter.toTime} ({formatDurationDisplay(gapAfter.durationMins)} unassigned)
                                 </span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 text-[10px] px-2 ml-2 border-amber-400 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                                  onClick={() => fillGap(gapAfter.fromTime, gapAfter.toTime)}
+                                >
+                                  <Plus className="h-3 w-3 mr-0.5" /> Fill Gap
+                                </Button>
                               </div>
                             </td>
                           </tr>
@@ -550,8 +591,8 @@ export function FlowTemplateEditor({ employeeId, employeeName, templates, onSave
               </SortableContext>
               <tfoot>
                 <tr className="border-t-2 font-semibold bg-muted/30">
-                  <td className="p-2" colSpan={5}>Total</td>
-                  <td className="p-2 text-center">{totalDuration} min</td>
+                  <td className="p-2" colSpan={3}>Total</td>
+                  <td className="p-2 text-center">{formatDurationDisplay(totalDuration)}</td>
                   <td className="p-2 text-center">{totalTarget}</td>
                   <td colSpan={2}></td>
                 </tr>
