@@ -494,6 +494,15 @@ export function EnquiryTable({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AI Follow-up Drafter Dialog */}
+      {followupEnquiry && (
+        <FollowupDrafterDialog
+          open={!!followupEnquiry}
+          onOpenChange={(open) => !open && setFollowupEnquiry(null)}
+          enquiry={followupEnquiry}
+        />
+      )}
     </>
   );
 }
