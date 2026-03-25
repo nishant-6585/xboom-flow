@@ -226,8 +226,8 @@ export function CallLogsPanel() {
       grouped.sort((a, b) => {
         const aInfo = deriveCallInfo(a);
         const bInfo = deriveCallInfo(b);
-        const aTime = aInfo.startTime || a.created_at;
-        const bTime = bInfo.startTime || b.created_at;
+        const aTime = String(aInfo.startTime || a.created_at);
+        const bTime = String(bInfo.startTime || b.created_at);
         return bTime.localeCompare(aTime);
       });
 
