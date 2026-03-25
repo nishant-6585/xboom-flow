@@ -5,21 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-function normalizeRecordingUrl(url: string): string {
-  const parsed = new URL(url.replace(/\\\//g, '/').trim());
-  const isMyOperatorAudio = parsed.hostname.includes('myoperator.com') && parsed.pathname.startsWith('/audio/');
-  const hasAudioExtension = /\.(mp3|wav|m4a|aac|ogg)$/i.test(parsed.pathname);
-
-  if (isMyOperatorAudio && !hasAudioExtension) {
-    parsed.pathname = `${parsed.pathname}.mp3`;
-  }
-
-  return parsed.toString();
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-      return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -46,8 +34,8 @@ Deno.serve(async (req) => {
     }
 
     // Get recording URL from query params
-    const url = new URL(req.url);
-    const recordingUrl = url.searchParams.get('url');
+    const reqUrl = new URL(req.url);
+    const recordingUrl = reqUrl.searchParams.get('url');
     if (!recordingUrl) {
       return new Response(JSON.stringify({ error: 'Missing url parameter' }), {
         status: 400,
@@ -55,73 +43,44 @@ Deno.serve(async (req) => {
       });
     }
 
-    const normalizedRecordingUrl = normalizeRecordingUrl(recordingUrl);
+    // Clean up the URL
+    const cleanUrl = recordingUrl.replace(/\\\//g, '/').trim();
+    console.log('Fetching recording:', cleanUrl);
 
-    // Fetch MyOperator config for auth headers
-    const { data: config } = await supabase
-      .from('myoperator_config')
-      .select('api_token, x_api_key, company_id')
-      .limit(1)
-      .maybeSingle();
+    // Fetch with browser-like headers and follow redirects
+    const response = await fetch(cleanUrl, {
+      method: 'GET',
+      redirect: 'follow',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'audio/mpeg,audio/*,*/*',
+      },
+    });
 
-    // Build headers for MyOperator API
-    const fetchHeaders: Record<string, string> = {};
-    if (config?.api_token) {
-      fetchHeaders['Authorization'] = `Bearer ${config.api_token}`;
-    }
-    if (config?.x_api_key) {
-      fetchHeaders['x-api-key'] = config.x_api_key;
-    }
+    const finalUrl = response.url;
+    console.log('Final resolved URL:', finalUrl);
+    console.log('Status:', response.status);
+    console.log('Headers:', JSON.stringify(Object.fromEntries(response.headers)));
 
-    // Fetch the audio file from MyOperator
-    const audioResponse = await fetch(normalizedRecordingUrl, { headers: fetchHeaders });
-    
-    if (!audioResponse.ok) {
-      // Try without auth headers as fallback (some URLs may be public)
-      const fallbackResponse = await fetch(normalizedRecordingUrl);
-      if (!fallbackResponse.ok) {
-        return new Response(JSON.stringify({ error: 'Failed to fetch recording', status: fallbackResponse.status }), {
-          status: 502,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const fallbackContentType = fallbackResponse.headers.get('Content-Type') || '';
-      if (fallbackContentType.includes('text/html')) {
-        return new Response(JSON.stringify({ error: 'Recording URL resolved to HTML instead of audio', url: normalizedRecordingUrl }), {
-          status: 502,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const fallbackBody = await fallbackResponse.arrayBuffer();
-      return new Response(fallbackBody, {
-        status: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': fallbackResponse.headers.get('Content-Type') || 'audio/mpeg',
-          'Content-Length': String(fallbackBody.byteLength),
-          'Cache-Control': 'private, max-age=3600',
-        },
-      });
-    }
-
-    const contentType = audioResponse.headers.get('Content-Type') || '';
-    if (contentType.includes('text/html')) {
-      return new Response(JSON.stringify({ error: 'Recording URL resolved to HTML instead of audio', url: normalizedRecordingUrl }), {
-        status: 502,
+    if (!response.ok) {
+      return new Response(JSON.stringify({ error: 'Recording not accessible', status: response.status, url: cleanUrl }), {
+        status: response.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const audioBody = await audioResponse.arrayBuffer();
-    return new Response(audioBody, {
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('audio')) {
+      console.warn('Non-audio content-type:', contentType);
+    }
+
+    // Stream the response body directly instead of buffering
+    return new Response(response.body, {
       status: 200,
       headers: {
         ...corsHeaders,
         'Content-Type': contentType || 'audio/mpeg',
-        'Content-Length': String(audioBody.byteLength),
-        'Cache-Control': 'private, max-age=3600',
+        'Cache-Control': 'public, max-age=3600',
       },
     });
   } catch (err) {

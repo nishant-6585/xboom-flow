@@ -498,7 +498,6 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
   const fetchAudio = useCallback(async () => {
     const proxiedUrl = getProxiedRecordingUrl(url);
     if (!proxiedUrl.includes('myoperator-audio-proxy')) {
-      // Non-proxied URL, use directly
       return;
     }
     setLoading(true);
@@ -507,15 +506,16 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
       const resp = await fetch(proxiedUrl, {
         headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
       });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const contentType = resp.headers.get('content-type') || '';
-      if (contentType.includes('text/html')) {
-        throw new Error('Recording endpoint returned HTML instead of audio');
+      if (!resp.ok) {
+        const errorBody = await resp.text().catch(() => '');
+        console.warn('Proxy response:', resp.status, errorBody);
+        throw new Error(`HTTP ${resp.status}`);
       }
 
       const blob = await resp.blob();
-      if (!blob.type.startsWith('audio/') && blob.type !== 'application/octet-stream') {
-        throw new Error(`Unexpected recording content type: ${blob.type || 'unknown'}`);
+      // Accept any content type - don't reject based on MIME since proxy may not set it correctly
+      if (blob.size === 0) {
+        throw new Error('Empty recording response');
       }
 
       const objUrl = URL.createObjectURL(blob);
