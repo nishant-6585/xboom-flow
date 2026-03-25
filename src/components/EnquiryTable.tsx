@@ -45,9 +45,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { format, differenceInMinutes, differenceInHours, differenceInDays } from "date-fns";
-import { MoreHorizontal, Trophy, XCircle, Clock, GitBranch, Timer, CheckCircle2, AlertTriangle, Flame, Thermometer, Snowflake, Star } from "lucide-react";
+import { MoreHorizontal, Trophy, XCircle, Clock, GitBranch, Timer, CheckCircle2, AlertTriangle, Flame, Thermometer, Snowflake, Star, Sparkles } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { LeadTemperatureBadge, LEAD_TEMPERATURES } from "./LeadTemperatureBadge";
+import { FollowupDrafterDialog } from "./sales/FollowupDrafterDialog";
 import { useNavigate } from "react-router-dom";
 import { getSlaStatus, SLA_HOURS, UrgencyLevel } from "@/lib/sla";
 import { toast } from "sonner";
@@ -87,6 +88,7 @@ export function EnquiryTable({
   const [lostReasonNotes, setLostReasonNotes] = useState("");
   const [updating, setUpdating] = useState(false);
   const [relatedRecords, setRelatedRecords] = useState<RelatedRecords>({});
+  const [followupEnquiry, setFollowupEnquiry] = useState<Enquiry | null>(null);
 
   const canUpdateStatus = role === "sales" || role === "admin";
 
@@ -397,6 +399,14 @@ export function EnquiryTable({
 
                             <DropdownMenuSeparator />
 
+                            {/* AI Follow-up Drafter */}
+                            <DropdownMenuItem onClick={() => setFollowupEnquiry(enquiry)}>
+                              <Sparkles className="w-4 h-4 mr-2 text-primary" />
+                              ✨ Generate Follow-up
+                            </DropdownMenuItem>
+
+                            <DropdownMenuSeparator />
+
                             {enquiry.status !== "order_won" && (
                               <DropdownMenuItem onClick={() => handleStatusChange(enquiry, "order_won")}>
                                 <Trophy className="w-4 h-4 mr-2 text-green-600" />
@@ -484,6 +494,15 @@ export function EnquiryTable({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AI Follow-up Drafter Dialog */}
+      {followupEnquiry && (
+        <FollowupDrafterDialog
+          open={!!followupEnquiry}
+          onOpenChange={(open) => !open && setFollowupEnquiry(null)}
+          enquiry={followupEnquiry}
+        />
+      )}
     </>
   );
 }
