@@ -84,7 +84,8 @@ function deriveCallInfo(log: CallLog) {
     duration = parseDurationFromPayload(String(payload._dr));
   }
 
-  const recording = sanitizeRecordingUrl((payload?._fu as string) || log.recording_url);
+  // Use _fn (filename) from payload for recording
+  const recordingFile = extractRecordingFilename(payload);
   const startTime = payload?._st != null ? String(payload._st) : log.start_time;
 
   let whatText = '';
@@ -105,7 +106,7 @@ function deriveCallInfo(log: CallLog) {
     }
   }
 
-  return { status, agentDisplay, finalAgent, department, duration, recording, startTime, whatText, missedAttempts, legs };
+  return { status, agentDisplay, finalAgent, department, duration, recordingFile, startTime, whatText, missedAttempts, legs };
 }
 
 function parseDurationFromPayload(dur: string): number {
