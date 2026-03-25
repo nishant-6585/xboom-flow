@@ -43,10 +43,14 @@ function parseRawPayload(raw: unknown): Record<string, unknown> | null {
   return raw as Record<string, unknown>;
 }
 
-function sanitizeRecordingUrl(url: string | null | undefined): string | null {
+function sanitizeRecordingUrl(url: string | null | undefined, filename?: string | null): string | null {
   if (!url || typeof url !== 'string') return null;
   let clean = url.replace(/\\\//g, '/').trim();
   if (!clean.startsWith('http')) return null;
+  // MyOperator _fu URLs often lack .mp3 extension - append it for proper audio serving
+  if (clean.includes('myoperator.com/audio/') && !clean.match(/\.\w{2,4}$/)) {
+    clean += '.mp3';
+  }
   return clean;
 }
 
