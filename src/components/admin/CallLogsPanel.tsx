@@ -47,11 +47,16 @@ function sanitizeRecordingUrl(url: string | null | undefined, filename?: string 
   if (!url || typeof url !== 'string') return null;
   let clean = url.replace(/\\\//g, '/').trim();
   if (!clean.startsWith('http')) return null;
-  // MyOperator _fu URLs often lack .mp3 extension - append it for proper audio serving
-  if (clean.includes('myoperator.com/audio/') && !clean.match(/\.\w{2,4}$/)) {
-    clean += '.mp3';
-  }
   return clean;
+}
+
+function getProxiedRecordingUrl(url: string): string {
+  // Proxy MyOperator recordings through our edge function to handle auth/CORS
+  if (url.includes('myoperator.com')) {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    return `${supabaseUrl}/functions/v1/myoperator-audio-proxy?url=${encodeURIComponent(url)}`;
+  }
+  return url;
 }
 
 function deriveCallInfo(log: CallLog) {
@@ -472,6 +477,37 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
   const [currentTime, setCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(duration || 0);
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  // Fetch audio through proxy for MyOperator URLs
+  const fetchAudio = useCallback(async () => {
+    const proxiedUrl = getProxiedRecordingUrl(url);
+    if (!proxiedUrl.includes('myoperator-audio-proxy')) {
+      // Non-proxied URL, use directly
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await fetch(proxiedUrl, {
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const blob = await resp.blob();
+      const objUrl = URL.createObjectURL(blob);
+      setBlobUrl(objUrl);
+    } catch (err) {
+      console.warn('Recording proxy failed:', url, err);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [url]);
+
+  useEffect(() => {
+    return () => { if (blobUrl) URL.revokeObjectURL(blobUrl); };
+  }, [blobUrl]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -480,7 +516,9 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
     const onTimeUpdate = () => setCurrentTime(Math.floor(audio.currentTime));
     const onLoaded = () => { if (audio.duration && isFinite(audio.duration)) setAudioDuration(Math.floor(audio.duration)); };
     const onEnded = () => setIsPlaying(false);
-    const onError = () => { setError(true); console.warn("Recording URL failed:", url); };
+    const onError = () => { 
+      if (!blobUrl && !loading) { setError(true); console.warn("Recording URL failed:", url); }
+    };
     
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('loadedmetadata', onLoaded);
@@ -493,14 +531,26 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
     };
-  }, [url]);
+  }, [url, blobUrl, loading]);
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
+    // Lazy-load audio through proxy on first play
+    if (!blobUrl && url.includes('myoperator.com') && !error) {
+      await fetchAudio();
+      return; // Will auto-play after blob is set
+    }
     const audio = audioRef.current;
     if (!audio) return;
     if (isPlaying) { audio.pause(); } else { audio.play().catch(() => setError(true)); }
     setIsPlaying(!isPlaying);
   };
+
+  // Auto-play once blob is ready
+  useEffect(() => {
+    if (blobUrl && audioRef.current) {
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setError(true));
+    }
+  }, [blobUrl]);
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -510,18 +560,20 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
 
   if (error) {
     return (
-      <div className="flex items-center gap-2 text-sm text-yellow-600 bg-yellow-500/10 rounded-lg px-3 py-2">
+      <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
         <AlertTriangle className="w-4 h-4" />
         <span>Unable to load recording</span>
       </div>
     );
   }
 
+  const audioSrc = blobUrl || (url.includes('myoperator.com') ? undefined : url);
+
   return (
     <div className="flex items-center gap-3 bg-muted/50 rounded-lg px-4 py-2.5">
-      <audio ref={audioRef} preload="none" src={url} />
-      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={togglePlay}>
-        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+      <audio ref={audioRef} preload="none" src={audioSrc} />
+      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={togglePlay} disabled={loading}>
+        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
       </Button>
       <span className="text-xs font-mono text-muted-foreground w-10 shrink-0">{formatTime(currentTime)}</span>
       <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
