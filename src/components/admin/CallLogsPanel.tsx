@@ -45,9 +45,23 @@ function parseRawPayload(raw: unknown): Record<string, unknown> | null {
 
 function sanitizeRecordingUrl(url: string | null | undefined, filename?: string | null): string | null {
   if (!url || typeof url !== 'string') return null;
-  let clean = url.replace(/\\\//g, '/').trim();
+
+  const clean = url.replace(/\\\//g, '/').trim();
   if (!clean.startsWith('http')) return null;
-  return clean;
+
+  try {
+    const parsed = new URL(clean);
+    const isMyOperatorAudio = parsed.hostname.includes('myoperator.com') && parsed.pathname.startsWith('/audio/');
+    const hasAudioExtension = /\.(mp3|wav|m4a|aac|ogg)$/i.test(parsed.pathname);
+
+    if (isMyOperatorAudio && !hasAudioExtension) {
+      parsed.pathname = `${parsed.pathname}.mp3`;
+    }
+
+    return parsed.toString();
+  } catch {
+    return clean;
+  }
 }
 
 function getProxiedRecordingUrl(url: string): string {
@@ -494,7 +508,16 @@ function InlineAudioPlayer({ url, duration }: { url: string; duration: number | 
         headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const contentType = resp.headers.get('content-type') || '';
+      if (contentType.includes('text/html')) {
+        throw new Error('Recording endpoint returned HTML instead of audio');
+      }
+
       const blob = await resp.blob();
+      if (!blob.type.startsWith('audio/') && blob.type !== 'application/octet-stream') {
+        throw new Error(`Unexpected recording content type: ${blob.type || 'unknown'}`);
+      }
+
       const objUrl = URL.createObjectURL(blob);
       setBlobUrl(objUrl);
     } catch (err) {

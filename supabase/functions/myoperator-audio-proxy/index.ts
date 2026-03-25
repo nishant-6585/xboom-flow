@@ -2,12 +2,24 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+
+function normalizeRecordingUrl(url: string): string {
+  const parsed = new URL(url.replace(/\\\//g, '/').trim());
+  const isMyOperatorAudio = parsed.hostname.includes('myoperator.com') && parsed.pathname.startsWith('/audio/');
+  const hasAudioExtension = /\.(mp3|wav|m4a|aac|ogg)$/i.test(parsed.pathname);
+
+  if (isMyOperatorAudio && !hasAudioExtension) {
+    parsed.pathname = `${parsed.pathname}.mp3`;
+  }
+
+  return parsed.toString();
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+      return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -43,6 +55,8 @@ Deno.serve(async (req) => {
       });
     }
 
+    const normalizedRecordingUrl = normalizeRecordingUrl(recordingUrl);
+
     // Fetch MyOperator config for auth headers
     const { data: config } = await supabase
       .from('myoperator_config')
@@ -60,17 +74,26 @@ Deno.serve(async (req) => {
     }
 
     // Fetch the audio file from MyOperator
-    const audioResponse = await fetch(recordingUrl, { headers: fetchHeaders });
+    const audioResponse = await fetch(normalizedRecordingUrl, { headers: fetchHeaders });
     
     if (!audioResponse.ok) {
       // Try without auth headers as fallback (some URLs may be public)
-      const fallbackResponse = await fetch(recordingUrl);
+      const fallbackResponse = await fetch(normalizedRecordingUrl);
       if (!fallbackResponse.ok) {
         return new Response(JSON.stringify({ error: 'Failed to fetch recording', status: fallbackResponse.status }), {
           status: 502,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+
+      const fallbackContentType = fallbackResponse.headers.get('Content-Type') || '';
+      if (fallbackContentType.includes('text/html')) {
+        return new Response(JSON.stringify({ error: 'Recording URL resolved to HTML instead of audio', url: normalizedRecordingUrl }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       const fallbackBody = await fallbackResponse.arrayBuffer();
       return new Response(fallbackBody, {
         status: 200,
@@ -83,12 +106,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    const contentType = audioResponse.headers.get('Content-Type') || '';
+    if (contentType.includes('text/html')) {
+      return new Response(JSON.stringify({ error: 'Recording URL resolved to HTML instead of audio', url: normalizedRecordingUrl }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const audioBody = await audioResponse.arrayBuffer();
     return new Response(audioBody, {
       status: 200,
       headers: {
         ...corsHeaders,
-        'Content-Type': audioResponse.headers.get('Content-Type') || 'audio/mpeg',
+        'Content-Type': contentType || 'audio/mpeg',
         'Content-Length': String(audioBody.byteLength),
         'Cache-Control': 'private, max-age=3600',
       },
