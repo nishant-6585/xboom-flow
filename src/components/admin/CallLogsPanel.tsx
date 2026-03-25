@@ -359,7 +359,7 @@ export function CallLogsPanel() {
                   const logKey = log.call_id || log.id;
 
                   return (
-                    <>
+                    <React.Fragment key={log.id}>
                       <TableRow
                         key={log.id}
                         className={newIds.has(log.id) ? "bg-primary/10 animate-pulse border-l-4 border-l-primary" : ""}
