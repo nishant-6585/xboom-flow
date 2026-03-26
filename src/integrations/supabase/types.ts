@@ -7797,6 +7797,15 @@ export type Database = {
           safety_stock: number
         }[]
       }
+      get_order_profits: {
+        Args: { p_order_ids: string[] }
+        Returns: {
+          order_id: string
+          profit: number
+          total_cost: number
+          total_sales: number
+        }[]
+      }
       get_pending_registrations: {
         Args: never
         Returns: {
