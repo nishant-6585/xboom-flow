@@ -54,6 +54,7 @@ export function ProcurementOrderDialog({
   const [procurementDate, setProcurementDate] = useState<Date | undefined>(undefined);
   const [supplierPaymentStatus, setSupplierPaymentStatus] = useState<string>("pending");
   const [internalNotes, setInternalNotes] = useState<string>("");
+  const [additionalDetails, setAdditionalDetails] = useState<string>("");
   const [poFile, setPoFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -94,6 +95,7 @@ export function ProcurementOrderDialog({
       setProcurementCurrency(order.procurement_currency || "INR");
       setProcurementDate(order.procurement_date ? parseISO(order.procurement_date) : undefined);
       setInternalNotes(order.internal_notes || "");
+      setAdditionalDetails((order as any).additional_details || "");
       setCustomerName(order.customer_name || "");
       setCustomerCompany(order.customer_company || "");
       setEditingCustomer(false);
@@ -190,13 +192,14 @@ export function ProcurementOrderDialog({
       setSaving(true);
       const supplier = suppliers.find(s => s.id === selectedSupplierId);
       
-      const updates: Partial<Order> = {
+      const updates: Record<string, any> = {
         supplier_name: supplier?.name || null,
         supplier_contact: supplier?.phone || null,
         procurement_rate: procurementRate ? parseFloat(procurementRate) : null,
         procurement_currency: procurementCurrency,
         procurement_date: procurementDate ? format(procurementDate, 'yyyy-MM-dd') : null,
         internal_notes: internalNotes || null,
+        additional_details: additionalDetails || null,
       };
 
       // Track changes for edit history
@@ -217,6 +220,9 @@ export function ProcurementOrderDialog({
       }
       if (order.internal_notes !== (internalNotes || null)) {
         changes.internal_notes = { old: order.internal_notes, new: internalNotes || null };
+      }
+      if ((order as any).additional_details !== (additionalDetails || null)) {
+        changes.additional_details = { old: (order as any).additional_details, new: additionalDetails || null };
       }
 
       // Also update supplier_id
@@ -707,6 +713,23 @@ export function ProcurementOrderDialog({
               rows={3}
               disabled={!canEdit}
             />
+          </div>
+
+          {/* Additional Details */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Additional Details
+            </Label>
+            <Textarea
+              value={additionalDetails}
+              onChange={(e) => setAdditionalDetails(e.target.value.slice(0, 1000))}
+              placeholder="Add any additional instructions, supplier notes, delivery info..."
+              rows={3}
+              maxLength={1000}
+              disabled={!canEdit}
+            />
+            <p className="text-xs text-muted-foreground text-right">{additionalDetails.length}/1000</p>
           </div>
 
           {/* Edit History */}
