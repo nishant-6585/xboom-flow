@@ -577,7 +577,7 @@ function ProductItemCard({ item, index, orders, inventory, onUpdate, onRemove, c
 
 export function MultiProductProcurementForm({ open, onOpenChange }: MultiProductProcurementFormProps) {
   const { createProcurement } = useInventoryProcurements();
-  const { suppliers } = useSuppliers();
+  const { suppliers, refetch: refetchSuppliers } = useSuppliers();
   const { inventory, fulfillFromStock: fulfillFromInventory } = useInventory();
   const { orders } = useOrders();
   const [loading, setLoading] = useState(false);
@@ -599,6 +599,68 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
   const [paymentMode, setPaymentMode] = useState('bank_transfer');
   const [paymentReferenceNumber, setPaymentReferenceNumber] = useState('');
   const screenshotInputRef = useRef<HTMLInputElement>(null);
+
+  // New supplier inline form state
+  const [showNewSupplierForm, setShowNewSupplierForm] = useState(false);
+  const [newSupplierLoading, setNewSupplierLoading] = useState(false);
+  const [newSupplier, setNewSupplier] = useState({
+    name: '', phone: '', email: '', gst_number: '', address: '', city: '', state: '', notes: ''
+  });
+
+  const handleCreateNewSupplier = async () => {
+    if (!newSupplier.name.trim()) {
+      toast.error('Supplier name is required');
+      return;
+    }
+
+    // Check duplicates by phone or GST
+    if (newSupplier.phone.trim()) {
+      const existing = suppliers.find(s => s.phone === newSupplier.phone.trim() || s.mobile === newSupplier.phone.trim());
+      if (existing) {
+        toast.error(`Supplier with this phone already exists: ${existing.name}`);
+        return;
+      }
+    }
+    if (newSupplier.gst_number.trim()) {
+      const existing = suppliers.find(s => s.gst_number === newSupplier.gst_number.trim());
+      if (existing) {
+        toast.error(`Supplier with this GST already exists: ${existing.name}`);
+        return;
+      }
+    }
+
+    setNewSupplierLoading(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const { data, error } = await supabase.from('suppliers').insert({
+        name: newSupplier.name.trim(),
+        contact_name: newSupplier.name.trim(),
+        phone: newSupplier.phone.trim() || null,
+        email: newSupplier.email.trim() || null,
+        gst_number: newSupplier.gst_number.trim() || null,
+        address: newSupplier.address.trim() || null,
+        city: newSupplier.city.trim() || null,
+        notes: newSupplier.notes.trim() || null,
+        product_category: 'Consumer Drones',
+        preference: 'medium' as const,
+        is_active: true,
+        created_by: userData?.user?.id || null,
+      }).select('id').single();
+
+      if (error) throw error;
+
+      toast.success('Supplier added successfully');
+      await refetchSuppliers();
+      if (data?.id) setSupplierId(data.id);
+      setShowNewSupplierForm(false);
+      setNewSupplier({ name: '', phone: '', email: '', gst_number: '', address: '', city: '', state: '', notes: '' });
+    } catch (error: any) {
+      console.error('Error creating supplier:', error);
+      toast.error(error.message || 'Failed to create supplier');
+    } finally {
+      setNewSupplierLoading(false);
+    }
+  };
 
   const selectedSupplier = suppliers.find(s => s.id === supplierId);
   
