@@ -56,6 +56,7 @@ export function ProcurementOrderDialog({
   const [internalNotes, setInternalNotes] = useState<string>("");
   const [additionalDetails, setAdditionalDetails] = useState<string>("");
   const [poFile, setPoFile] = useState<File | null>(null);
+  const [poNumber, setPoNumber] = useState<string>("");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showPlanningDialog, setShowPlanningDialog] = useState(false);
@@ -96,6 +97,7 @@ export function ProcurementOrderDialog({
       setProcurementDate(order.procurement_date ? parseISO(order.procurement_date) : undefined);
       setInternalNotes(order.internal_notes || "");
       setAdditionalDetails((order as any).additional_details || "");
+      setPoNumber((order as any).po_number || "");
       setCustomerName(order.customer_name || "");
       setCustomerCompany(order.customer_company || "");
       setEditingCustomer(false);
@@ -200,6 +202,7 @@ export function ProcurementOrderDialog({
         procurement_date: procurementDate ? format(procurementDate, 'yyyy-MM-dd') : null,
         internal_notes: internalNotes || null,
         additional_details: additionalDetails || null,
+        po_number: poNumber || null,
       };
 
       // Track changes for edit history
@@ -223,6 +226,9 @@ export function ProcurementOrderDialog({
       }
       if ((order as any).additional_details !== (additionalDetails || null)) {
         changes.additional_details = { old: (order as any).additional_details, new: additionalDetails || null };
+      }
+      if ((order as any).po_number !== (poNumber || null)) {
+        changes.po_number = { old: (order as any).po_number, new: poNumber || null };
       }
 
       // Also update supplier_id
@@ -427,24 +433,40 @@ export function ProcurementOrderDialog({
               <h3 className="font-medium">Purchase Order</h3>
             </div>
 
-            <div className="flex items-center gap-4">
-              <Input
-                type="file"
-                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                onChange={(e) => setPoFile(e.target.files?.[0] || null)}
-                className="flex-1"
-              />
-              <Button 
-                onClick={handleUploadPO} 
-                disabled={!poFile || uploading}
-                size="sm"
-              >
-                {uploading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  'Upload'
-                )}
-              </Button>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm text-muted-foreground mb-1.5 block">PO Number</Label>
+                <Input
+                  value={poNumber}
+                  onChange={(e) => setPoNumber(e.target.value)}
+                  placeholder="Enter purchase order number..."
+                  disabled={!canEdit}
+                  maxLength={50}
+                />
+              </div>
+
+              <div>
+                <Label className="text-sm text-muted-foreground mb-1.5 block">Upload PO Document</Label>
+                <div className="flex items-center gap-4">
+                  <Input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                    onChange={(e) => setPoFile(e.target.files?.[0] || null)}
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={handleUploadPO} 
+                    disabled={!poFile || uploading}
+                    size="sm"
+                  >
+                    {uploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      'Upload'
+                    )}
+                  </Button>
+                </div>
+              </div>
             </div>
 
             {(order as any).po_url && (

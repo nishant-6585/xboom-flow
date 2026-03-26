@@ -1,0 +1,1 @@
+ALTER TABLE public.inventory_procurements ADD COLUMN IF NOT EXISTS po_number TEXT;

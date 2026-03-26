@@ -3099,6 +3099,7 @@ export type Database = {
           payment_due_date: string | null
           payment_status: string
           payment_terms: string | null
+          po_number: string | null
           procurement_date: string
           procurement_number: string | null
           product_category: string
@@ -3121,6 +3122,7 @@ export type Database = {
           payment_due_date?: string | null
           payment_status?: string
           payment_terms?: string | null
+          po_number?: string | null
           procurement_date?: string
           procurement_number?: string | null
           product_category?: string
@@ -3143,6 +3145,7 @@ export type Database = {
           payment_due_date?: string | null
           payment_status?: string
           payment_terms?: string | null
+          po_number?: string | null
           procurement_date?: string
           procurement_number?: string | null
           product_category?: string
@@ -4411,6 +4414,7 @@ export type Database = {
           payment_due_date: string | null
           payment_status: string | null
           payment_terms: string | null
+          po_number: string | null
           po_url: string | null
           priority: number | null
           procurement_currency: string | null
@@ -4483,6 +4487,7 @@ export type Database = {
           payment_due_date?: string | null
           payment_status?: string | null
           payment_terms?: string | null
+          po_number?: string | null
           po_url?: string | null
           priority?: number | null
           procurement_currency?: string | null
@@ -4555,6 +4560,7 @@ export type Database = {
           payment_due_date?: string | null
           payment_status?: string | null
           payment_terms?: string | null
+          po_number?: string | null
           po_url?: string | null
           priority?: number | null
           procurement_currency?: string | null
