@@ -87,7 +87,8 @@ interface UserInvitation {
 }
 
 const Admin = () => {
-  const { user, profile, role, isApproved } = useAuth();
+  const { user, profile, role, roles, isApproved } = useAuth();
+  const isFinanceOnly = !roles.includes("admin") && roles.includes("finance");
   const { toast } = useToast();
   const { reAuthState, requireReAuth, setReAuthOpen } = useReAuth();
   const { enquiries } = useEnquiries();
@@ -105,7 +106,10 @@ const Admin = () => {
   const [roleChangeLoading, setRoleChangeLoading] = useState<string | null>(null);
   const [managerChangeLoading, setManagerChangeLoading] = useState<string | null>(null);
   const [deptChangeLoading, setDeptChangeLoading] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("analytics");
+  const [activeTab, setActiveTab] = useState(() => {
+    // Finance-only users default to approvals tab
+    return "analytics";
+  });
   const [orgRoles, setOrgRoles] = useState<{ id: string; name: string; label: string; is_active: boolean }[]>([]);
   const [orgDepartments, setOrgDepartments] = useState<{ id: string; name: string; is_active: boolean }[]>([]);
   const [historyUser, setHistoryUser] = useState<{ userId: string; name: string; email: string } | null>(null);
@@ -138,8 +142,9 @@ const Admin = () => {
     navigate(`/?${params.toString()}`);
   };
 
-  // Redirect if not admin or not approved
-  if (role !== "admin" || !isApproved) {
+   // Redirect if not admin/finance or not approved
+  const hasAdminAccess = role === "admin" || roles.includes("finance");
+  if (!hasAdminAccess || !isApproved) {
     return <Navigate to="/" replace />;
   }
 
