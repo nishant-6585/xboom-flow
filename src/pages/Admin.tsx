@@ -119,6 +119,13 @@ const Admin = () => {
     if (deptsRes.data) setOrgDepartments(deptsRes.data);
   };
 
+  // Set default tab for finance-only users
+  useEffect(() => {
+    if (isFinanceOnly) {
+      setActiveTab("approvals");
+    }
+  }, [isFinanceOnly]);
+
   // Move useEffect before any conditional returns to follow React Hooks rules
   useEffect(() => {
     if (role === "admin" && isApproved) {
