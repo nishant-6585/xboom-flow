@@ -73,6 +73,7 @@ export function useProcurementPaymentRequests(orderId?: string) {
 
   const requests = requestsQuery.data ?? [];
   const loading = requestsQuery.isLoading;
+  const refetch = useCallback(() => requestsQuery.refetch(), [requestsQuery]);
 
   const createRequest = async (orderId: string, notes?: string) => {
     if (!user || !profile) {
@@ -93,7 +94,7 @@ export function useProcurementPaymentRequests(orderId?: string) {
       if (error) throw error;
 
       toast.success('Payment status request submitted');
-      await requestsQuery.refetch();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error creating payment request:', error);
@@ -122,7 +123,7 @@ export function useProcurementPaymentRequests(orderId?: string) {
       if (error) throw error;
 
       toast.success('Request approved');
-      await requestsQuery.refetch();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error approving request:', error);
@@ -152,7 +153,7 @@ export function useProcurementPaymentRequests(orderId?: string) {
       if (error) throw error;
 
       toast.success('Request rejected');
-      await requestsQuery.refetch();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error rejecting request:', error);
@@ -171,7 +172,7 @@ export function useProcurementPaymentRequests(orderId?: string) {
       if (error) throw error;
 
       toast.success('Request deleted');
-      await requestsQuery.refetch();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error deleting request:', error);
@@ -185,7 +186,7 @@ export function useProcurementPaymentRequests(orderId?: string) {
   return {
     requests,
     loading,
-    refetch: requestsQuery.refetch,
+    refetch,
     createRequest,
     approveRequest,
     rejectRequest,

@@ -40,6 +40,7 @@ export function useInventoryProcurementPayments() {
 
   const payments = paymentsQuery.data ?? [];
   const loading = paymentsQuery.isLoading;
+  const refetch = useCallback(() => paymentsQuery.refetch(), [paymentsQuery]);
 
   const getPaymentsForProcurement = useCallback((procurementId: string) => {
     return payments.filter(p => p.inventory_procurement_id === procurementId);
@@ -71,6 +72,6 @@ export function useInventoryProcurementPayments() {
     getPaymentsForProcurement,
     getTotalPaidForProcurement,
     getPaymentsByProcurementMap,
-    refetch: paymentsQuery.refetch,
+    refetch,
   };
 }

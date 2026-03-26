@@ -125,6 +125,7 @@ export function useImports() {
 
   const imports = importsQuery.data ?? [];
   const loading = importsQuery.isLoading;
+  const refetch = useCallback(() => importsQuery.refetch(), [importsQuery]);
 
   const createImport = async (
     importData: Omit<Import, 'id' | 'created_at' | 'updated_at'>, 
@@ -184,7 +185,7 @@ export function useImports() {
       }
       
       toast.success('Import created successfully');
-      await importsQuery.refetch();
+      await refetch();
       return data as Import;
     } catch (error: any) {
       console.error('Error creating import:', error);
@@ -248,7 +249,7 @@ export function useImports() {
       }
       
       toast.success('Import updated successfully');
-      await importsQuery.refetch();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error updating import:', error);
@@ -267,7 +268,7 @@ export function useImports() {
       if (error) throw error;
       
       toast.success('Import deleted successfully');
-      await importsQuery.refetch();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error deleting import:', error);
@@ -319,12 +320,12 @@ export function useImports() {
   return {
     imports,
     loading,
-    fetchImports: importsQuery.refetch,
+    fetchImports: refetch,
     createImport,
     updateImport,
     deleteImport,
     uploadDocument,
     getSignedUrl,
-    refetch: importsQuery.refetch,
+    refetch,
   };
 }

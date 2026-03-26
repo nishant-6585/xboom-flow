@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -194,20 +195,15 @@ export const ORDER_PRIORITIES: { value: number; label: string; color: string }[]
 ];
 
 export function useOrders() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
   const { user, role } = useAuth();
+  const queryClient = useQueryClient();
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (): Promise<Order[]> => {
     if (!user) {
-      setOrders([]);
-      setLoading(false);
-      return;
+      return [];
     }
 
     try {
-      setLoading(true);
-      
       // For sales users, we only fetch limited columns (procurement details are hidden)
       if (role === 'sales') {
         const { data, error } = await supabase
@@ -305,7 +301,7 @@ export function useOrders() {
           cancelled_by: null,
         }));
         
-        setOrders(mappedOrders);
+        return mappedOrders;
       } else {
         // Supply chain and admin get all fields
         const { data, error } = await supabase
@@ -335,19 +331,28 @@ export function useOrders() {
           cancelled_by: order.cancelled_by || null,
         }));
         
-        setOrders(mappedOrders);
+        return mappedOrders;
       }
     } catch (error: any) {
       console.error('Error fetching orders:', error);
       toast.error('Failed to fetch orders');
-    } finally {
-      setLoading(false);
+      return [];
     }
   }, [user, role]);
 
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+  const ordersQuery = useQuery({
+    queryKey: ['orders', user?.id, role],
+    queryFn: fetchOrders,
+    enabled: !!user,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  const orders = ordersQuery.data ?? [];
+  const loading = ordersQuery.isLoading;
+  const refetch = useCallback(() => ordersQuery.refetch(), [ordersQuery]);
 
   // Set up realtime subscription
   useEffect(() => {
@@ -359,7 +364,7 @@ export function useOrders() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
         () => {
-          fetchOrders();
+          queryClient.invalidateQueries({ queryKey: ['orders', user?.id, role] });
         }
       )
       .subscribe();
@@ -367,7 +372,7 @@ export function useOrders() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, fetchOrders]);
+  }, [user, role, queryClient]);
 
   const createOrder = async (
     formData: OrderFormData, 
@@ -705,6 +710,6 @@ export function useOrders() {
     updateOrder,
     deleteOrder,
     escalateOrder,
-    refetch: fetchOrders,
+    refetch,
   };
 }

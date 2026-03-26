@@ -63,6 +63,7 @@ export function useInventoryProcurements() {
 
   const procurements = procurementsQuery.data ?? [];
   const loading = procurementsQuery.isLoading;
+  const refetch = useCallback(() => procurementsQuery.refetch(), [procurementsQuery]);
 
   const createProcurement = async (
     procurement: Omit<InventoryProcurement, 'id' | 'created_at' | 'updated_at' | 'created_by'>,
@@ -133,7 +134,7 @@ export function useInventoryProcurements() {
       }
 
       toast.success('Procurement created successfully');
-      await procurementsQuery.refetch();
+      await refetch();
 
       // Send Slack notification for new procurement
       sendSlackNotification('new_procurement', {
@@ -175,7 +176,7 @@ export function useInventoryProcurements() {
       }
 
       toast.success('Procurement updated successfully');
-      await procurementsQuery.refetch();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error updating procurement:', error);
@@ -194,7 +195,7 @@ export function useInventoryProcurements() {
       if (error) throw error;
 
       toast.success('Procurement deleted successfully');
-      await procurementsQuery.refetch();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error deleting procurement:', error);
@@ -209,6 +210,6 @@ export function useInventoryProcurements() {
     createProcurement,
     updateProcurement,
     deleteProcurement,
-    refetch: procurementsQuery.refetch,
+    refetch,
   };
 }

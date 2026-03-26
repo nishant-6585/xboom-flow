@@ -142,6 +142,7 @@ export function useOrderProcurementLinks() {
   const procurementsWithOrders = linksQuery.data?.procurementsWithOrders ?? [];
   const links = linksQuery.data?.links ?? [];
   const loading = linksQuery.isLoading;
+  const refetch = useCallback(() => linksQuery.refetch(), [linksQuery]);
 
   // These functions are kept for backward compatibility but may not be used
   const createLink = async (
@@ -161,7 +162,7 @@ export function useOrderProcurementLinks() {
       if (error) throw error;
 
       toast.success('Procurement linked to order successfully');
-      await linksQuery.refetch();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error linking procurement:', error);
@@ -181,7 +182,7 @@ export function useOrderProcurementLinks() {
       if (error) throw error;
 
       toast.success('Link removed successfully');
-      await linksQuery.refetch();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error unlinking procurement:', error);
@@ -206,6 +207,6 @@ export function useOrderProcurementLinks() {
     deleteLink,
     getLinksForOrder,
     getLinksForProcurement,
-    refetch: linksQuery.refetch,
+    refetch,
   };
 }
