@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,6 +12,7 @@ import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, format, isWithinInterval, startOfDay,
 } from "date-fns";
 import { Order } from "@/hooks/useOrders";
+import { supabase } from "@/integrations/supabase/client";
 
 type TimePeriod = "this_week" | "this_month" | "prev_month";
 
@@ -68,17 +69,45 @@ export function OrdersDashboardStats({
     });
   }, [orders, timePeriod, salesPersonFilter]);
 
+  // Fetch profit data from order_items via DB function
+  const [profitData, setProfitData] = useState<Record<string, { profit: number; total_sales: number }>>({});
+  
+  useEffect(() => {
+    const orderIds = filteredOrders.map(o => o.id);
+    if (orderIds.length === 0) {
+      setProfitData({});
+      return;
+    }
+    
+    const fetchProfits = async () => {
+      const { data, error } = await supabase.rpc('get_order_profits', { p_order_ids: orderIds });
+      if (!error && data) {
+        const map: Record<string, { profit: number; total_sales: number }> = {};
+        (data as any[]).forEach((row: any) => {
+          map[row.order_id] = { profit: Number(row.profit) || 0, total_sales: Number(row.total_sales) || 0 };
+        });
+        setProfitData(map);
+      }
+    };
+    fetchProfits();
+  }, [filteredOrders]);
+
   const totals = useMemo(() => {
     const totalOrders = filteredOrders.length;
     const totalOrderValue = filteredOrders.reduce((s, o) => s + (o.total_sales_amount || 0), 0);
     const totalReceived = filteredOrders.reduce((s, o) => s + (o.amount_paid || 0), 0);
     const totalPending = totalOrderValue - totalReceived;
-    const ordersWithProfit = filteredOrders.filter(o => o.selling_price != null && o.procurement_rate != null);
-    const totalProfit = ordersWithProfit.reduce((s, o) => s + ((o.selling_price || 0) - (o.procurement_rate || 0)) * o.quantity, 0);
-    const totalRevenue = ordersWithProfit.reduce((s, o) => s + (o.selling_price || 0) * o.quantity, 0);
+    
+    // Calculate profit from order_items data
+    let totalProfit = 0;
+    let totalRevenue = 0;
+    Object.values(profitData).forEach(({ profit, total_sales }) => {
+      totalProfit += profit;
+      totalRevenue += total_sales;
+    });
     const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
     return { totalOrders, totalOrderValue, totalReceived, totalPending, totalProfit, avgMargin };
-  }, [filteredOrders]);
+  }, [filteredOrders, profitData]);
 
   // Comparison chart data
   const comparisonData = useMemo(() => {
