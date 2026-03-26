@@ -192,7 +192,7 @@ export function ProcurementOrderDialog({
       setSaving(true);
       const supplier = suppliers.find(s => s.id === selectedSupplierId);
       
-      const updates: Partial<Order> = {
+      const updates: Record<string, any> = {
         supplier_name: supplier?.name || null,
         supplier_contact: supplier?.phone || null,
         procurement_rate: procurementRate ? parseFloat(procurementRate) : null,
