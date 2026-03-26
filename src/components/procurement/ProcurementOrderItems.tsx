@@ -187,6 +187,29 @@ export function ProcurementOrderItems({
     return sum + (rateWithGst * qtyProcured);
   }, 0);
 
+  // Calculate total sales value and profit (excl. GST)
+  const totalSalesValue = items.reduce((sum, item) => {
+    const salesPrice = item.unit_price || 0;
+    const salesGst = (item as any).sales_gst_amount || 0;
+    const salesIncludesGst = (item as any).sales_price_includes_gst;
+    const baseSalesPrice = salesIncludesGst ? salesPrice - salesGst : salesPrice;
+    const qty = parseInt(editedItems[item.id]?.quantity_procured) || item.quantity;
+    return sum + (baseSalesPrice * qty);
+  }, 0);
+
+  const totalCostValue = items.reduce((sum, item) => {
+    const procRate = parseFloat(editedItems[item.id]?.procurement_rate) || 0;
+    const procGst = parseFloat(editedItems[item.id]?.procurement_gst_amount) || 0;
+    const procIncludesGst = editedItems[item.id]?.procurement_price_includes_gst;
+    const baseProcRate = procIncludesGst ? procRate - procGst : procRate;
+    const qty = parseInt(editedItems[item.id]?.quantity_procured) || item.quantity;
+    return sum + (baseProcRate * qty);
+  }, 0);
+
+  const totalProfit = totalSalesValue - totalCostValue;
+  const profitPercent = totalSalesValue > 0 ? ((totalProfit / totalSalesValue) * 100) : 0;
+  const hasPricingData = items.some(item => item.unit_price && (parseFloat(editedItems[item.id]?.procurement_rate) || 0) > 0);
+
   const hasChanges = items.some(item => {
     const original = {
       procurement_rate: item.procurement_rate?.toString() || '',
