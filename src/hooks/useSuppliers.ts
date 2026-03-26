@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -71,8 +72,6 @@ export interface SupplierLedger {
 }
 
 export function useSuppliers() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
   const requireValidSession = useCallback(async (): Promise<boolean> => {
@@ -85,20 +84,12 @@ export function useSuppliers() {
     return true;
   }, []);
 
-  const initialLoadDoneRef = useRef(false);
-
-  const fetchSuppliers = useCallback(async () => {
+  const fetchSuppliers = useCallback(async (): Promise<Supplier[]> => {
     if (!user) {
-      setSuppliers([]);
-      setLoading(false);
-      return;
+      return [];
     }
 
     try {
-      if (!initialLoadDoneRef.current) {
-        setLoading(true);
-      }
-
       // Fetch user role to determine if bank details should be included
       const { data: roleData } = await supabase
         .from('user_roles')
@@ -130,19 +121,27 @@ export function useSuppliers() {
         bank_account_holder: canSeeBankDetails ? s.bank_account_holder : null,
       })) as Supplier[];
 
-      setSuppliers(sanitized);
+      return sanitized;
     } catch (error: any) {
       console.error('Error fetching suppliers:', error);
       toast.error('Failed to fetch suppliers');
-    } finally {
-      setLoading(false);
-      initialLoadDoneRef.current = true;
+      return [];
     }
   }, [user]);
 
-  useEffect(() => {
-    fetchSuppliers();
-  }, [fetchSuppliers]);
+  const suppliersQuery = useQuery({
+    queryKey: ['suppliers', user?.id],
+    queryFn: fetchSuppliers,
+    enabled: !!user,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  const suppliers = suppliersQuery.data ?? [];
+  const loading = suppliersQuery.isLoading;
+  const refetch = useCallback(() => suppliersQuery.refetch(), [suppliersQuery]);
 
   const createSupplier = async (
     supplierData: Omit<Supplier, 'id' | 'created_at' | 'updated_at' | 'created_by'>
@@ -165,7 +164,7 @@ export function useSuppliers() {
       if (error) throw error;
 
       toast.success('Supplier created successfully');
-      await fetchSuppliers();
+      await refetch();
 
       // Send Slack notification for new supplier
       sendSlackNotification('new_supplier', {
@@ -210,7 +209,7 @@ export function useSuppliers() {
       if (error) throw error;
 
       toast.success(`Successfully imported ${suppliersData.length} suppliers`);
-      await fetchSuppliers();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error importing suppliers:', error);
@@ -245,7 +244,7 @@ export function useSuppliers() {
       }
 
       toast.success('Supplier updated successfully');
-      await fetchSuppliers();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error updating supplier:', error);
@@ -266,7 +265,7 @@ export function useSuppliers() {
       if (error) throw error;
 
       toast.success('Supplier deleted successfully');
-      await fetchSuppliers();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error deleting supplier:', error);
@@ -282,24 +281,19 @@ export function useSuppliers() {
     bulkImportSuppliers,
     updateSupplier,
     deleteSupplier,
-    refetch: fetchSuppliers,
+    refetch,
   };
 }
 
 export function useSupplierPayments(supplierId?: string) {
-  const [payments, setPayments] = useState<SupplierPayment[]>([]);
-  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
-  const fetchPayments = useCallback(async () => {
+  const fetchPayments = useCallback(async (): Promise<SupplierPayment[]> => {
     if (!user) {
-      setPayments([]);
-      setLoading(false);
-      return;
+      return [];
     }
 
     try {
-      setLoading(true);
       let query = supabase
         .from('supplier_payments')
         .select('*')
@@ -313,17 +307,26 @@ export function useSupplierPayments(supplierId?: string) {
 
       if (error) throw error;
 
-      setPayments((data || []) as SupplierPayment[]);
+      return (data || []) as SupplierPayment[];
     } catch (error: any) {
       console.error('Error fetching supplier payments:', error);
-    } finally {
-      setLoading(false);
+      return [];
     }
   }, [user, supplierId]);
 
-  useEffect(() => {
-    fetchPayments();
-  }, [fetchPayments]);
+  const paymentsQuery = useQuery({
+    queryKey: ['supplier-payments', user?.id, supplierId ?? 'all'],
+    queryFn: fetchPayments,
+    enabled: !!user,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  const payments = paymentsQuery.data ?? [];
+  const loading = paymentsQuery.isLoading;
+  const refetch = useCallback(() => paymentsQuery.refetch(), [paymentsQuery]);
 
   const uploadScreenshots = async (files: File[]): Promise<string[]> => {
     const { validateFile } = await import('@/lib/fileValidation');
@@ -391,7 +394,7 @@ export function useSupplierPayments(supplierId?: string) {
       if (error) throw error;
 
       toast.success('Payment recorded successfully');
-      await fetchPayments();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error creating payment:', error);
@@ -412,7 +415,7 @@ export function useSupplierPayments(supplierId?: string) {
       if (error) throw error;
 
       toast.success('Payment deleted');
-      await fetchPayments();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error deleting payment:', error);
@@ -445,7 +448,7 @@ export function useSupplierPayments(supplierId?: string) {
       if (error) throw error;
 
       toast.success('Payment request submitted');
-      await fetchPayments();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error creating payment request:', error);
@@ -474,7 +477,7 @@ export function useSupplierPayments(supplierId?: string) {
       if (error) throw error;
 
       toast.success('Payment request approved');
-      await fetchPayments();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error approving payment request:', error);
@@ -560,7 +563,7 @@ export function useSupplierPayments(supplierId?: string) {
       }
 
       toast.success('Payment marked as done');
-      await fetchPayments();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error marking payment done:', error);
@@ -581,7 +584,7 @@ export function useSupplierPayments(supplierId?: string) {
       if (error) throw error;
 
       toast.success('Payment request rejected');
-      await fetchPayments();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error rejecting payment request:', error);
@@ -601,7 +604,7 @@ export function useSupplierPayments(supplierId?: string) {
     approvePaymentRequest,
     markPaymentDone,
     rejectPaymentRequest,
-    refetch: fetchPayments,
+    refetch,
   };
 }
 

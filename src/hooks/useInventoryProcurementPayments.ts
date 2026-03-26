@@ -1,22 +1,18 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { SupplierPayment } from './useSuppliers';
 
 export function useInventoryProcurementPayments() {
-  const [payments, setPayments] = useState<SupplierPayment[]>([]);
-  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
-  const fetchPayments = useCallback(async () => {
+  const fetchPayments = useCallback(async (): Promise<SupplierPayment[]> => {
     if (!user) {
-      setPayments([]);
-      setLoading(false);
-      return;
+      return [];
     }
 
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('supplier_payments')
         .select('*')
@@ -25,17 +21,26 @@ export function useInventoryProcurementPayments() {
 
       if (error) throw error;
 
-      setPayments((data || []) as SupplierPayment[]);
+      return (data || []) as SupplierPayment[];
     } catch (error: any) {
       console.error('Error fetching inventory procurement payments:', error);
-    } finally {
-      setLoading(false);
+      return [];
     }
   }, [user]);
 
-  useEffect(() => {
-    fetchPayments();
-  }, [fetchPayments]);
+  const paymentsQuery = useQuery({
+    queryKey: ['inventory-procurement-payments', user?.id],
+    queryFn: fetchPayments,
+    enabled: !!user,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  const payments = paymentsQuery.data ?? [];
+  const loading = paymentsQuery.isLoading;
+  const refetch = useCallback(() => paymentsQuery.refetch(), [paymentsQuery]);
 
   const getPaymentsForProcurement = useCallback((procurementId: string) => {
     return payments.filter(p => p.inventory_procurement_id === procurementId);
@@ -67,6 +72,6 @@ export function useInventoryProcurementPayments() {
     getPaymentsForProcurement,
     getTotalPaidForProcurement,
     getPaymentsByProcurementMap,
-    refetch: fetchPayments,
+    refetch,
   };
 }

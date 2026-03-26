@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from './useAuth';
@@ -62,22 +63,14 @@ export interface OrderProcurementLinkWithDetails extends OrderProcurementLink {
 }
 
 export function useOrderProcurementLinks() {
-  const [procurementsWithOrders, setProcurementsWithOrders] = useState<ProcurementWithOrder[]>([]);
-  const [links, setLinks] = useState<OrderProcurementLinkWithDetails[]>([]);
-  const [loading, setLoading] = useState(true);
   const { user, role } = useAuth();
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (): Promise<{ procurementsWithOrders: ProcurementWithOrder[]; links: OrderProcurementLinkWithDetails[] }> => {
     if (!user) {
-      setProcurementsWithOrders([]);
-      setLinks([]);
-      setLoading(false);
-      return;
+      return { procurementsWithOrders: [], links: [] };
     }
 
     try {
-      setLoading(true);
-      
       // Fetch procurements that have order_id set (the main data source now)
       const { data: procurementsData, error: procurementsError } = await supabase
         .from('inventory_procurements')
@@ -108,8 +101,6 @@ export function useOrderProcurementLinks() {
         order: ordersMap.get(proc.order_id),
       }));
 
-      setProcurementsWithOrders(enrichedProcurements);
-
       // Also create backward-compatible links format
       const backwardCompatibleLinks: OrderProcurementLinkWithDetails[] = enrichedProcurements.map(proc => ({
         id: proc.id,
@@ -131,17 +122,27 @@ export function useOrderProcurementLinks() {
         },
       }));
 
-      setLinks(backwardCompatibleLinks);
+      return { procurementsWithOrders: enrichedProcurements, links: backwardCompatibleLinks };
     } catch (error: any) {
       console.error('Error fetching procurement-order data:', error);
-    } finally {
-      setLoading(false);
+      return { procurementsWithOrders: [], links: [] };
     }
   }, [user]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const linksQuery = useQuery({
+    queryKey: ['order-procurement-links', user?.id, role],
+    queryFn: fetchData,
+    enabled: !!user,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  const procurementsWithOrders = linksQuery.data?.procurementsWithOrders ?? [];
+  const links = linksQuery.data?.links ?? [];
+  const loading = linksQuery.isLoading;
+  const refetch = useCallback(() => linksQuery.refetch(), [linksQuery]);
 
   // These functions are kept for backward compatibility but may not be used
   const createLink = async (
@@ -161,7 +162,7 @@ export function useOrderProcurementLinks() {
       if (error) throw error;
 
       toast.success('Procurement linked to order successfully');
-      fetchData();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error linking procurement:', error);
@@ -181,7 +182,7 @@ export function useOrderProcurementLinks() {
       if (error) throw error;
 
       toast.success('Link removed successfully');
-      fetchData();
+      await refetch();
       return true;
     } catch (error: any) {
       console.error('Error unlinking procurement:', error);
@@ -206,6 +207,6 @@ export function useOrderProcurementLinks() {
     deleteLink,
     getLinksForOrder,
     getLinksForProcurement,
-    refetch: fetchData,
+    refetch,
   };
 }
