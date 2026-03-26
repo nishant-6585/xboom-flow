@@ -4372,6 +4372,7 @@ export type Database = {
       orders: {
         Row: {
           actual_delivery: string | null
+          additional_details: string | null
           amount_paid: number | null
           cancellation_reason: string | null
           cancelled_at: string | null
@@ -4443,6 +4444,7 @@ export type Database = {
         }
         Insert: {
           actual_delivery?: string | null
+          additional_details?: string | null
           amount_paid?: number | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -4514,6 +4516,7 @@ export type Database = {
         }
         Update: {
           actual_delivery?: string | null
+          additional_details?: string | null
           amount_paid?: number | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
