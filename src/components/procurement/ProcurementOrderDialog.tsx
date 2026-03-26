@@ -54,6 +54,7 @@ export function ProcurementOrderDialog({
   const [procurementDate, setProcurementDate] = useState<Date | undefined>(undefined);
   const [supplierPaymentStatus, setSupplierPaymentStatus] = useState<string>("pending");
   const [internalNotes, setInternalNotes] = useState<string>("");
+  const [additionalDetails, setAdditionalDetails] = useState<string>("");
   const [poFile, setPoFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
