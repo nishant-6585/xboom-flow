@@ -433,24 +433,40 @@ export function ProcurementOrderDialog({
               <h3 className="font-medium">Purchase Order</h3>
             </div>
 
-            <div className="flex items-center gap-4">
-              <Input
-                type="file"
-                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                onChange={(e) => setPoFile(e.target.files?.[0] || null)}
-                className="flex-1"
-              />
-              <Button 
-                onClick={handleUploadPO} 
-                disabled={!poFile || uploading}
-                size="sm"
-              >
-                {uploading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  'Upload'
-                )}
-              </Button>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm text-muted-foreground mb-1.5 block">PO Number</Label>
+                <Input
+                  value={poNumber}
+                  onChange={(e) => setPoNumber(e.target.value)}
+                  placeholder="Enter purchase order number..."
+                  disabled={!canEdit}
+                  maxLength={50}
+                />
+              </div>
+
+              <div>
+                <Label className="text-sm text-muted-foreground mb-1.5 block">Upload PO Document</Label>
+                <div className="flex items-center gap-4">
+                  <Input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                    onChange={(e) => setPoFile(e.target.files?.[0] || null)}
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={handleUploadPO} 
+                    disabled={!poFile || uploading}
+                    size="sm"
+                  >
+                    {uploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      'Upload'
+                    )}
+                  </Button>
+                </div>
+              </div>
             </div>
 
             {(order as any).po_url && (
