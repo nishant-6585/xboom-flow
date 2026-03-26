@@ -95,6 +95,7 @@ export function ProcurementOrderDialog({
       setProcurementCurrency(order.procurement_currency || "INR");
       setProcurementDate(order.procurement_date ? parseISO(order.procurement_date) : undefined);
       setInternalNotes(order.internal_notes || "");
+      setAdditionalDetails((order as any).additional_details || "");
       setCustomerName(order.customer_name || "");
       setCustomerCompany(order.customer_company || "");
       setEditingCustomer(false);
@@ -198,6 +199,7 @@ export function ProcurementOrderDialog({
         procurement_currency: procurementCurrency,
         procurement_date: procurementDate ? format(procurementDate, 'yyyy-MM-dd') : null,
         internal_notes: internalNotes || null,
+        additional_details: additionalDetails || null,
       };
 
       // Track changes for edit history
@@ -218,6 +220,9 @@ export function ProcurementOrderDialog({
       }
       if (order.internal_notes !== (internalNotes || null)) {
         changes.internal_notes = { old: order.internal_notes, new: internalNotes || null };
+      }
+      if ((order as any).additional_details !== (additionalDetails || null)) {
+        changes.additional_details = { old: (order as any).additional_details, new: additionalDetails || null };
       }
 
       // Also update supplier_id
