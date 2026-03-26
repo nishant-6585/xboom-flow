@@ -715,6 +715,23 @@ export function ProcurementOrderDialog({
             />
           </div>
 
+          {/* Additional Details */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Additional Details
+            </Label>
+            <Textarea
+              value={additionalDetails}
+              onChange={(e) => setAdditionalDetails(e.target.value.slice(0, 1000))}
+              placeholder="Add any additional instructions, supplier notes, delivery info..."
+              rows={3}
+              maxLength={1000}
+              disabled={!canEdit}
+            />
+            <p className="text-xs text-muted-foreground text-right">{additionalDetails.length}/1000</p>
+          </div>
+
           {/* Edit History */}
           {order && (
             <EditHistoryPanel tableName="orders" recordId={order.id} />
