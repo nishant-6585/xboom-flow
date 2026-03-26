@@ -622,9 +622,9 @@ const Admin = () => {
 
       <main className="container mx-auto px-4 py-4 sm:py-8 flex-1 overflow-x-hidden">
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-2">Admin Panel</h2>
+          <h2 className="text-2xl font-bold mb-2">{isFinanceOnly ? "Payment Approvals" : "Admin Panel"}</h2>
           <p className="text-muted-foreground">
-            Analytics dashboard and user management
+            {isFinanceOnly ? "Review and manage payment approvals" : "Analytics dashboard and user management"}
           </p>
         </div>
 
