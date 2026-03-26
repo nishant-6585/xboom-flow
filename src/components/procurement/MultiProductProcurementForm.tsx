@@ -695,6 +695,8 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Only allow submission from the final review step (step 4)
+    if (currentStep !== 4) return;
     if (!canGoNext()) return;
 
     setLoading(true);
