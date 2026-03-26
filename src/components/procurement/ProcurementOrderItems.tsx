@@ -187,6 +187,29 @@ export function ProcurementOrderItems({
     return sum + (rateWithGst * qtyProcured);
   }, 0);
 
+  // Calculate total sales value and profit (excl. GST)
+  const totalSalesValue = items.reduce((sum, item) => {
+    const salesPrice = item.unit_price || 0;
+    const salesGst = (item as any).sales_gst_amount || 0;
+    const salesIncludesGst = (item as any).sales_price_includes_gst;
+    const baseSalesPrice = salesIncludesGst ? salesPrice - salesGst : salesPrice;
+    const qty = parseInt(editedItems[item.id]?.quantity_procured) || item.quantity;
+    return sum + (baseSalesPrice * qty);
+  }, 0);
+
+  const totalCostValue = items.reduce((sum, item) => {
+    const procRate = parseFloat(editedItems[item.id]?.procurement_rate) || 0;
+    const procGst = parseFloat(editedItems[item.id]?.procurement_gst_amount) || 0;
+    const procIncludesGst = editedItems[item.id]?.procurement_price_includes_gst;
+    const baseProcRate = procIncludesGst ? procRate - procGst : procRate;
+    const qty = parseInt(editedItems[item.id]?.quantity_procured) || item.quantity;
+    return sum + (baseProcRate * qty);
+  }, 0);
+
+  const totalProfit = totalSalesValue - totalCostValue;
+  const profitPercent = totalSalesValue > 0 ? ((totalProfit / totalSalesValue) * 100) : 0;
+  const hasPricingData = items.some(item => item.unit_price && (parseFloat(editedItems[item.id]?.procurement_rate) || 0) > 0);
+
   const hasChanges = items.some(item => {
     const original = {
       procurement_rate: item.procurement_rate?.toString() || '',
@@ -579,13 +602,36 @@ export function ProcurementOrderItems({
         })}
 
         {/* Totals Summary */}
-        <div className="pt-3 border-t">
+        <div className="pt-3 border-t space-y-2">
           <div className="flex justify-between items-center text-sm">
             <span className="font-medium">Total Procurement Value</span>
             <span className="font-bold text-lg">
               {currencySymbol}{totalProcurementValue.toLocaleString()}
             </span>
           </div>
+          {hasPricingData && (
+            <>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Total Sales Value (excl. GST)</span>
+                <span className="font-medium">
+                  {currencySymbol}{totalSalesValue.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Total Cost (excl. GST)</span>
+                <span className="font-medium">
+                  {currencySymbol}{totalCostValue.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm pt-1 border-t">
+                <span className="font-semibold">Profit (excl. GST)</span>
+                <span className={`font-bold text-lg ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {currencySymbol}{totalProfit.toLocaleString()}
+                  <span className="text-xs font-normal ml-1">({profitPercent.toFixed(1)}%)</span>
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </CardContent>
 
