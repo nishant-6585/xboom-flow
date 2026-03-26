@@ -1127,6 +1127,28 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
                       </div>
                     </CardContent>
                   </Card>
+
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Additional Details
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Textarea
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value.slice(0, 1000))}
+                        placeholder="Add any additional instructions, supplier notes, delivery info..."
+                        rows={3}
+                        maxLength={1000}
+                        className="text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1 text-right">
+                        {notes.length}/1000
+                      </p>
+                    </CardContent>
+                  </Card>
                 </div>
               )}
 
