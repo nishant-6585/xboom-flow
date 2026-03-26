@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -83,12 +84,8 @@ export const SHIPPING_METHODS = [
 ];
 
 export function useImports() {
-  const [imports, setImports] = useState<Import[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchImports = useCallback(async () => {
+  const fetchImports = useCallback(async (): Promise<Import[]> => {
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('imports')
         .select('*')
@@ -109,14 +106,25 @@ export function useImports() {
         })
       );
       
-      setImports(importsWithItems);
+      return importsWithItems;
     } catch (error: any) {
       console.error('Error fetching imports:', error);
       toast.error('Failed to fetch imports');
-    } finally {
-      setLoading(false);
+      return [];
     }
   }, []);
+
+  const importsQuery = useQuery({
+    queryKey: ['imports'],
+    queryFn: fetchImports,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  const imports = importsQuery.data ?? [];
+  const loading = importsQuery.isLoading;
 
   const createImport = async (
     importData: Omit<Import, 'id' | 'created_at' | 'updated_at'>, 
@@ -176,7 +184,7 @@ export function useImports() {
       }
       
       toast.success('Import created successfully');
-      await fetchImports();
+      await importsQuery.refetch();
       return data as Import;
     } catch (error: any) {
       console.error('Error creating import:', error);
@@ -240,7 +248,7 @@ export function useImports() {
       }
       
       toast.success('Import updated successfully');
-      await fetchImports();
+      await importsQuery.refetch();
       return true;
     } catch (error: any) {
       console.error('Error updating import:', error);
@@ -259,7 +267,7 @@ export function useImports() {
       if (error) throw error;
       
       toast.success('Import deleted successfully');
-      await fetchImports();
+      await importsQuery.refetch();
       return true;
     } catch (error: any) {
       console.error('Error deleting import:', error);
@@ -308,19 +316,15 @@ export function useImports() {
     }
   };
 
-  useEffect(() => {
-    fetchImports();
-  }, [fetchImports]);
-
   return {
     imports,
     loading,
-    fetchImports,
+    fetchImports: importsQuery.refetch,
     createImport,
     updateImport,
     deleteImport,
     uploadDocument,
     getSignedUrl,
-    refetch: fetchImports,
+    refetch: importsQuery.refetch,
   };
 }

@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from './useAuth';
@@ -28,11 +29,13 @@ export interface InventoryProcurement {
 }
 
 export function useInventoryProcurements() {
-  const [procurements, setProcurements] = useState<InventoryProcurement[]>([]);
-  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
-  const fetchProcurements = useCallback(async () => {
+  const fetchProcurements = useCallback(async (): Promise<InventoryProcurement[]> => {
+    if (!user) {
+      return [];
+    }
+
     try {
       const { data, error } = await supabase
         .from('inventory_procurements')
@@ -40,18 +43,26 @@ export function useInventoryProcurements() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setProcurements(data || []);
+      return (data || []) as InventoryProcurement[];
     } catch (error: any) {
       console.error('Error fetching inventory procurements:', error);
       toast.error('Failed to load inventory procurements');
-    } finally {
-      setLoading(false);
+      return [];
     }
-  }, []);
+  }, [user]);
 
-  useEffect(() => {
-    fetchProcurements();
-  }, [fetchProcurements]);
+  const procurementsQuery = useQuery({
+    queryKey: ['inventory-procurements', user?.id],
+    queryFn: fetchProcurements,
+    enabled: !!user,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  const procurements = procurementsQuery.data ?? [];
+  const loading = procurementsQuery.isLoading;
 
   const createProcurement = async (
     procurement: Omit<InventoryProcurement, 'id' | 'created_at' | 'updated_at' | 'created_by'>,
@@ -122,7 +133,7 @@ export function useInventoryProcurements() {
       }
 
       toast.success('Procurement created successfully');
-      fetchProcurements();
+      await procurementsQuery.refetch();
 
       // Send Slack notification for new procurement
       sendSlackNotification('new_procurement', {
@@ -164,7 +175,7 @@ export function useInventoryProcurements() {
       }
 
       toast.success('Procurement updated successfully');
-      await fetchProcurements();
+      await procurementsQuery.refetch();
       return true;
     } catch (error: any) {
       console.error('Error updating procurement:', error);
@@ -183,7 +194,7 @@ export function useInventoryProcurements() {
       if (error) throw error;
 
       toast.success('Procurement deleted successfully');
-      fetchProcurements();
+      await procurementsQuery.refetch();
       return true;
     } catch (error: any) {
       console.error('Error deleting procurement:', error);
@@ -198,6 +209,6 @@ export function useInventoryProcurements() {
     createProcurement,
     updateProcurement,
     deleteProcurement,
-    refetch: fetchProcurements,
+    refetch: procurementsQuery.refetch,
   };
 }

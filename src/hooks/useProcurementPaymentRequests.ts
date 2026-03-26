@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
@@ -30,12 +31,13 @@ export interface ProcurementPaymentRequestWithOrder extends ProcurementPaymentRe
 
 export function useProcurementPaymentRequests(orderId?: string) {
   const { user, profile } = useAuth();
-  const [requests, setRequests] = useState<ProcurementPaymentRequestWithOrder[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  const fetchRequests = useCallback(async () => {
+  const fetchRequests = useCallback(async (): Promise<ProcurementPaymentRequestWithOrder[]> => {
+    if (!user) {
+      return [];
+    }
+
     try {
-      setLoading(true);
       let query = supabase
         .from('procurement_payment_requests')
         .select(`
@@ -51,18 +53,26 @@ export function useProcurementPaymentRequests(orderId?: string) {
       const { data, error } = await query;
 
       if (error) throw error;
-      setRequests((data as any[]) || []);
+      return ((data as any[]) || []) as ProcurementPaymentRequestWithOrder[];
     } catch (error: any) {
       console.error('Error fetching payment requests:', error);
       toast.error('Failed to load payment requests');
-    } finally {
-      setLoading(false);
+      return [];
     }
-  }, [orderId]);
+  }, [orderId, user]);
 
-  useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
+  const requestsQuery = useQuery({
+    queryKey: ['procurement-payment-requests', user?.id, orderId ?? 'all'],
+    queryFn: fetchRequests,
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  const requests = requestsQuery.data ?? [];
+  const loading = requestsQuery.isLoading;
 
   const createRequest = async (orderId: string, notes?: string) => {
     if (!user || !profile) {
@@ -83,7 +93,7 @@ export function useProcurementPaymentRequests(orderId?: string) {
       if (error) throw error;
 
       toast.success('Payment status request submitted');
-      await fetchRequests();
+      await requestsQuery.refetch();
       return true;
     } catch (error: any) {
       console.error('Error creating payment request:', error);
@@ -112,7 +122,7 @@ export function useProcurementPaymentRequests(orderId?: string) {
       if (error) throw error;
 
       toast.success('Request approved');
-      await fetchRequests();
+      await requestsQuery.refetch();
       return true;
     } catch (error: any) {
       console.error('Error approving request:', error);
@@ -142,7 +152,7 @@ export function useProcurementPaymentRequests(orderId?: string) {
       if (error) throw error;
 
       toast.success('Request rejected');
-      await fetchRequests();
+      await requestsQuery.refetch();
       return true;
     } catch (error: any) {
       console.error('Error rejecting request:', error);
@@ -161,7 +171,7 @@ export function useProcurementPaymentRequests(orderId?: string) {
       if (error) throw error;
 
       toast.success('Request deleted');
-      await fetchRequests();
+      await requestsQuery.refetch();
       return true;
     } catch (error: any) {
       console.error('Error deleting request:', error);
@@ -175,7 +185,7 @@ export function useProcurementPaymentRequests(orderId?: string) {
   return {
     requests,
     loading,
-    refetch: fetchRequests,
+    refetch: requestsQuery.refetch,
     createRequest,
     approveRequest,
     rejectRequest,
