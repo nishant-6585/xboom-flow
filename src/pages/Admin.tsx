@@ -87,7 +87,8 @@ interface UserInvitation {
 }
 
 const Admin = () => {
-  const { user, profile, role, isApproved } = useAuth();
+  const { user, profile, role, roles, isApproved } = useAuth();
+  const isFinanceOnly = !roles.includes("admin") && roles.includes("finance");
   const { toast } = useToast();
   const { reAuthState, requireReAuth, setReAuthOpen } = useReAuth();
   const { enquiries } = useEnquiries();
@@ -118,6 +119,13 @@ const Admin = () => {
     if (deptsRes.data) setOrgDepartments(deptsRes.data);
   };
 
+  // Set default tab for finance-only users
+  useEffect(() => {
+    if (isFinanceOnly) {
+      setActiveTab("approvals");
+    }
+  }, [isFinanceOnly]);
+
   // Move useEffect before any conditional returns to follow React Hooks rules
   useEffect(() => {
     if (role === "admin" && isApproved) {
@@ -138,8 +146,9 @@ const Admin = () => {
     navigate(`/?${params.toString()}`);
   };
 
-  // Redirect if not admin or not approved
-  if (role !== "admin" || !isApproved) {
+   // Redirect if not admin/finance or not approved
+  const hasAdminAccess = role === "admin" || roles.includes("finance");
+  if (!hasAdminAccess || !isApproved) {
     return <Navigate to="/" replace />;
   }
 
@@ -613,75 +622,83 @@ const Admin = () => {
 
       <main className="container mx-auto px-4 py-4 sm:py-8 flex-1 overflow-x-hidden">
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-2">Admin Panel</h2>
+          <h2 className="text-2xl font-bold mb-2">{isFinanceOnly ? "Payment Approvals" : "Admin Panel"}</h2>
           <p className="text-muted-foreground">
-            Analytics dashboard and user management
+            {isFinanceOnly ? "Review and manage payment approvals" : "Analytics dashboard and user management"}
           </p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6 h-auto flex-wrap justify-start">
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Analytics
-            </TabsTrigger>
-            <TabsTrigger value="payments" className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4" />
-              Payment Reminders
-            </TabsTrigger>
+            {!isFinanceOnly && (
+              <>
+                <TabsTrigger value="analytics" className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4" />
+                  Analytics
+                </TabsTrigger>
+                <TabsTrigger value="payments" className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4" />
+                  Payment Reminders
+                </TabsTrigger>
+              </>
+            )}
             <TabsTrigger value="approvals" className="flex items-center gap-2">
               <Receipt className="w-4 h-4" />
               Payment Approvals
             </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              User Management
-              {pendingUsers.length > 0 && (
-                <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                  {pendingUsers.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="integrations" className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              Integrations
-            </TabsTrigger>
-            <TabsTrigger value="form-access" className="flex items-center gap-2">
-              <ClipboardList className="w-4 h-4" />
-              Form Access
-            </TabsTrigger>
-            <TabsTrigger value="notices" className="flex items-center gap-2">
-              <Bell className="w-4 h-4" />
-              Notices
-            </TabsTrigger>
-            <TabsTrigger value="signature" className="flex items-center gap-2">
-              <KeyRound className="w-4 h-4" />
-              Signature
-            </TabsTrigger>
-            <TabsTrigger value="activity" className="flex items-center gap-2">
-              <Activity className="w-4 h-4" />
-              Activity
-            </TabsTrigger>
-            <TabsTrigger value="organization" className="flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              Organization
-            </TabsTrigger>
-            <TabsTrigger value="attendance-policy" className="flex items-center gap-2">
-              <CalendarClock className="w-4 h-4" />
-              Attendance Policy
-            </TabsTrigger>
-            <TabsTrigger value="holidays" className="flex items-center gap-2">
-              <CalendarDays className="w-4 h-4" />
-              Holidays
-            </TabsTrigger>
-            <TabsTrigger value="employee-activity" className="flex items-center gap-2">
-              <History className="w-4 h-4" />
-              Employee Activity
-            </TabsTrigger>
-            <TabsTrigger value="audit-logs" className="flex items-center gap-2" onClick={() => navigate("/admin/audit-logs")}>
-              <Shield className="w-4 h-4" />
-              Audit Logs
-            </TabsTrigger>
+            {!isFinanceOnly && (
+              <>
+                <TabsTrigger value="users" className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  User Management
+                  {pendingUsers.length > 0 && (
+                    <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                      {pendingUsers.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="integrations" className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4" />
+                  Integrations
+                </TabsTrigger>
+                <TabsTrigger value="form-access" className="flex items-center gap-2">
+                  <ClipboardList className="w-4 h-4" />
+                  Form Access
+                </TabsTrigger>
+                <TabsTrigger value="notices" className="flex items-center gap-2">
+                  <Bell className="w-4 h-4" />
+                  Notices
+                </TabsTrigger>
+                <TabsTrigger value="signature" className="flex items-center gap-2">
+                  <KeyRound className="w-4 h-4" />
+                  Signature
+                </TabsTrigger>
+                <TabsTrigger value="activity" className="flex items-center gap-2">
+                  <Activity className="w-4 h-4" />
+                  Activity
+                </TabsTrigger>
+                <TabsTrigger value="organization" className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  Organization
+                </TabsTrigger>
+                <TabsTrigger value="attendance-policy" className="flex items-center gap-2">
+                  <CalendarClock className="w-4 h-4" />
+                  Attendance Policy
+                </TabsTrigger>
+                <TabsTrigger value="holidays" className="flex items-center gap-2">
+                  <CalendarDays className="w-4 h-4" />
+                  Holidays
+                </TabsTrigger>
+                <TabsTrigger value="employee-activity" className="flex items-center gap-2">
+                  <History className="w-4 h-4" />
+                  Employee Activity
+                </TabsTrigger>
+                <TabsTrigger value="audit-logs" className="flex items-center gap-2" onClick={() => navigate("/admin/audit-logs")}>
+                  <Shield className="w-4 h-4" />
+                  Audit Logs
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           <TabsContent value="analytics">
