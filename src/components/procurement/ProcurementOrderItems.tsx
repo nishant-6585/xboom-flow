@@ -602,13 +602,36 @@ export function ProcurementOrderItems({
         })}
 
         {/* Totals Summary */}
-        <div className="pt-3 border-t">
+        <div className="pt-3 border-t space-y-2">
           <div className="flex justify-between items-center text-sm">
             <span className="font-medium">Total Procurement Value</span>
             <span className="font-bold text-lg">
               {currencySymbol}{totalProcurementValue.toLocaleString()}
             </span>
           </div>
+          {hasPricingData && (
+            <>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Total Sales Value (excl. GST)</span>
+                <span className="font-medium">
+                  {currencySymbol}{totalSalesValue.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Total Cost (excl. GST)</span>
+                <span className="font-medium">
+                  {currencySymbol}{totalCostValue.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm pt-1 border-t">
+                <span className="font-semibold">Profit (excl. GST)</span>
+                <span className={`font-bold text-lg ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {currencySymbol}{totalProfit.toLocaleString()}
+                  <span className="text-xs font-normal ml-1">({profitPercent.toFixed(1)}%)</span>
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </CardContent>
 
