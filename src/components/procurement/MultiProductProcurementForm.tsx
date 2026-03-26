@@ -695,6 +695,8 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Only allow submission from the final review step (step 4)
+    if (currentStep !== 4) return;
     if (!canGoNext()) return;
 
     setLoading(true);
@@ -783,7 +785,7 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
           <StepIndicator currentStep={currentStep} steps={STEPS} onStepClick={goToStep} />
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
+        <form onSubmit={handleSubmit} onKeyDown={(e) => { if (e.key === 'Enter' && currentStep !== 4) e.preventDefault(); }} className="flex-1 overflow-hidden flex flex-col">
           <ScrollArea className="flex-1">
             <div className="p-6 space-y-6">
               {/* Step 1: Products */}
