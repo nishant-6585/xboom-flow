@@ -202,6 +202,7 @@ export function ProcurementOrderDialog({
         procurement_date: procurementDate ? format(procurementDate, 'yyyy-MM-dd') : null,
         internal_notes: internalNotes || null,
         additional_details: additionalDetails || null,
+        po_number: poNumber || null,
       };
 
       // Track changes for edit history
@@ -225,6 +226,9 @@ export function ProcurementOrderDialog({
       }
       if ((order as any).additional_details !== (additionalDetails || null)) {
         changes.additional_details = { old: (order as any).additional_details, new: additionalDetails || null };
+      }
+      if ((order as any).po_number !== (poNumber || null)) {
+        changes.po_number = { old: (order as any).po_number, new: poNumber || null };
       }
 
       // Also update supplier_id
