@@ -56,6 +56,7 @@ export function ProcurementOrderDialog({
   const [internalNotes, setInternalNotes] = useState<string>("");
   const [additionalDetails, setAdditionalDetails] = useState<string>("");
   const [poFile, setPoFile] = useState<File | null>(null);
+  const [poNumber, setPoNumber] = useState<string>("");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showPlanningDialog, setShowPlanningDialog] = useState(false);
