@@ -38,7 +38,6 @@ import {
   Trash2,
   ShoppingCart,
   Warehouse,
-  UserPlus
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -1366,15 +1365,15 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
                     </div>
                   </Card>
 
-                  <div className="space-y-2">
-                    <Label>Notes (Optional)</Label>
-                    <Textarea
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Any additional notes..."
-                      rows={2}
-                    />
-                  </div>
+                  {notes && (
+                    <Card className="p-4">
+                      <h4 className="font-medium text-sm flex items-center gap-2 mb-2">
+                        <FileText className="h-4 w-4" />
+                        Additional Details
+                      </h4>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{notes}</p>
+                    </Card>
+                  )}
                 </div>
               )}
             </div>
