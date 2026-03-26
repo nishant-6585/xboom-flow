@@ -187,6 +187,12 @@ export function useInventoryProcurements() {
 
   const deleteProcurement = async (id: string): Promise<boolean> => {
     try {
+      // Delete related inventory transactions first to avoid FK constraint
+      await supabase
+        .from('inventory_transactions')
+        .delete()
+        .eq('inventory_procurement_id', id);
+
       const { error } = await supabase
         .from('inventory_procurements')
         .delete()
