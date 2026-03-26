@@ -38,7 +38,6 @@ import {
   Trash2,
   ShoppingCart,
   Warehouse,
-  UserPlus
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -577,7 +576,7 @@ function ProductItemCard({ item, index, orders, inventory, onUpdate, onRemove, c
 
 export function MultiProductProcurementForm({ open, onOpenChange }: MultiProductProcurementFormProps) {
   const { createProcurement } = useInventoryProcurements();
-  const { suppliers, refetch: refetchSuppliers } = useSuppliers();
+  const { suppliers } = useSuppliers();
   const { inventory, fulfillFromStock: fulfillFromInventory } = useInventory();
   const { orders } = useOrders();
   const [loading, setLoading] = useState(false);
@@ -600,67 +599,6 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
   const [paymentReferenceNumber, setPaymentReferenceNumber] = useState('');
   const screenshotInputRef = useRef<HTMLInputElement>(null);
 
-  // New supplier inline form state
-  const [showNewSupplierForm, setShowNewSupplierForm] = useState(false);
-  const [newSupplierLoading, setNewSupplierLoading] = useState(false);
-  const [newSupplier, setNewSupplier] = useState({
-    name: '', phone: '', email: '', gst_number: '', address: '', city: '', state: '', notes: ''
-  });
-
-  const handleCreateNewSupplier = async () => {
-    if (!newSupplier.name.trim()) {
-      toast.error('Supplier name is required');
-      return;
-    }
-
-    // Check duplicates by phone or GST
-    if (newSupplier.phone.trim()) {
-      const existing = suppliers.find(s => s.phone === newSupplier.phone.trim() || s.mobile === newSupplier.phone.trim());
-      if (existing) {
-        toast.error(`Supplier with this phone already exists: ${existing.name}`);
-        return;
-      }
-    }
-    if (newSupplier.gst_number.trim()) {
-      const existing = suppliers.find(s => s.gst_number === newSupplier.gst_number.trim());
-      if (existing) {
-        toast.error(`Supplier with this GST already exists: ${existing.name}`);
-        return;
-      }
-    }
-
-    setNewSupplierLoading(true);
-    try {
-      const { data: userData } = await supabase.auth.getUser();
-      const { data, error } = await supabase.from('suppliers').insert({
-        name: newSupplier.name.trim(),
-        contact_name: newSupplier.name.trim(),
-        phone: newSupplier.phone.trim() || null,
-        email: newSupplier.email.trim() || null,
-        gst_number: newSupplier.gst_number.trim() || null,
-        address: newSupplier.address.trim() || null,
-        city: newSupplier.city.trim() || null,
-        notes: newSupplier.notes.trim() || null,
-        product_category: 'Consumer Drones',
-        preference: 'medium' as const,
-        is_active: true,
-        created_by: userData?.user?.id || null,
-      }).select('id').single();
-
-      if (error) throw error;
-
-      toast.success('Supplier added successfully');
-      await refetchSuppliers();
-      if (data?.id) setSupplierId(data.id);
-      setShowNewSupplierForm(false);
-      setNewSupplier({ name: '', phone: '', email: '', gst_number: '', address: '', city: '', state: '', notes: '' });
-    } catch (error: any) {
-      console.error('Error creating supplier:', error);
-      toast.error(error.message || 'Failed to create supplier');
-    } finally {
-      setNewSupplierLoading(false);
-    }
-  };
 
   const selectedSupplier = suppliers.find(s => s.id === supplierId);
   
@@ -901,139 +839,24 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div className="flex gap-2">
-                        <div className="flex-1">
-                          <Select value={supplierId} onValueChange={setSupplierId}>
-                            <SelectTrigger className="h-12">
-                              <SelectValue placeholder="Choose a supplier" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {suppliers.filter(s => s.is_active).map((supplier) => (
-                                <SelectItem key={supplier.id} value={supplier.id}>
-                                  <div className="flex items-center gap-2">
-                                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                                    <span>{supplier.name}</span>
-                                    {supplier.brand_name && (
-                                      <Badge variant="outline" className="text-xs">{supplier.brand_name}</Badge>
-                                    )}
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-12 gap-2 shrink-0"
-                          onClick={() => setShowNewSupplierForm(true)}
-                        >
-                          <UserPlus className="h-4 w-4" />
-                          <span className="hidden sm:inline">Add New</span>
-                        </Button>
-                      </div>
-
-                      {/* Inline New Supplier Form */}
-                      {showNewSupplierForm && (
-                        <Card className="border-primary/30 bg-primary/5">
-                          <CardHeader className="pb-3">
-                            <CardTitle className="text-sm font-medium flex items-center gap-2">
-                              <UserPlus className="h-4 w-4 text-primary" />
-                              New Supplier
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-3">
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="space-y-1 col-span-2">
-                                <Label className="text-xs">Supplier Name *</Label>
-                                <Input
-                                  value={newSupplier.name}
-                                  onChange={(e) => setNewSupplier(prev => ({ ...prev, name: e.target.value }))}
-                                  placeholder="Enter supplier name"
-                                  className="h-9 text-sm"
-                                />
+                      <Select value={supplierId} onValueChange={setSupplierId}>
+                        <SelectTrigger className="h-12">
+                          <SelectValue placeholder="Choose a supplier" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {suppliers.filter(s => s.is_active).map((supplier) => (
+                            <SelectItem key={supplier.id} value={supplier.id}>
+                              <div className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4 text-muted-foreground" />
+                                <span>{supplier.name}</span>
+                                {supplier.brand_name && (
+                                  <Badge variant="outline" className="text-xs">{supplier.brand_name}</Badge>
+                                )}
                               </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs">Phone Number</Label>
-                                <Input
-                                  value={newSupplier.phone}
-                                  onChange={(e) => setNewSupplier(prev => ({ ...prev, phone: e.target.value }))}
-                                  placeholder="Phone number"
-                                  className="h-9 text-sm"
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs">Email</Label>
-                                <Input
-                                  type="email"
-                                  value={newSupplier.email}
-                                  onChange={(e) => setNewSupplier(prev => ({ ...prev, email: e.target.value }))}
-                                  placeholder="Email address"
-                                  className="h-9 text-sm"
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs">GST Number</Label>
-                                <Input
-                                  value={newSupplier.gst_number}
-                                  onChange={(e) => setNewSupplier(prev => ({ ...prev, gst_number: e.target.value }))}
-                                  placeholder="GST number"
-                                  className="h-9 text-sm"
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs">City</Label>
-                                <Input
-                                  value={newSupplier.city}
-                                  onChange={(e) => setNewSupplier(prev => ({ ...prev, city: e.target.value }))}
-                                  placeholder="City"
-                                  className="h-9 text-sm"
-                                />
-                              </div>
-                              <div className="space-y-1 col-span-2">
-                                <Label className="text-xs">Address</Label>
-                                <Input
-                                  value={newSupplier.address}
-                                  onChange={(e) => setNewSupplier(prev => ({ ...prev, address: e.target.value }))}
-                                  placeholder="Full address"
-                                  className="h-9 text-sm"
-                                />
-                              </div>
-                              <div className="space-y-1 col-span-2">
-                                <Label className="text-xs">Notes</Label>
-                                <Textarea
-                                  value={newSupplier.notes}
-                                  onChange={(e) => setNewSupplier(prev => ({ ...prev, notes: e.target.value }))}
-                                  placeholder="Optional notes"
-                                  className="text-sm min-h-[60px]"
-                                />
-                              </div>
-                            </div>
-                            <div className="flex justify-end gap-2 pt-2">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setShowNewSupplierForm(false);
-                                  setNewSupplier({ name: '', phone: '', email: '', gst_number: '', address: '', city: '', state: '', notes: '' });
-                                }}
-                              >
-                                Cancel
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                onClick={handleCreateNewSupplier}
-                                disabled={newSupplierLoading || !newSupplier.name.trim()}
-                              >
-                                {newSupplierLoading && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                                Save Supplier
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
                       {selectedSupplier && (
                         <div className="p-4 rounded-lg bg-muted/50 space-y-2">
@@ -1243,6 +1066,28 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
                       </div>
                     </CardContent>
                   </Card>
+
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Additional Details
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Textarea
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value.slice(0, 1000))}
+                        placeholder="Add any additional instructions, supplier notes, delivery info..."
+                        rows={3}
+                        maxLength={1000}
+                        className="text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1 text-right">
+                        {notes.length}/1000
+                      </p>
+                    </CardContent>
+                  </Card>
                 </div>
               )}
 
@@ -1366,15 +1211,15 @@ export function MultiProductProcurementForm({ open, onOpenChange }: MultiProduct
                     </div>
                   </Card>
 
-                  <div className="space-y-2">
-                    <Label>Notes (Optional)</Label>
-                    <Textarea
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Any additional notes..."
-                      rows={2}
-                    />
-                  </div>
+                  {notes && (
+                    <Card className="p-4">
+                      <h4 className="font-medium text-sm flex items-center gap-2 mb-2">
+                        <FileText className="h-4 w-4" />
+                        Additional Details
+                      </h4>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{notes}</p>
+                    </Card>
+                  )}
                 </div>
               )}
             </div>
