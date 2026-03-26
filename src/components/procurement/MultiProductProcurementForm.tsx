@@ -16,6 +16,7 @@ import { useSuppliers } from '@/hooks/useSuppliers';
 import { useInventory } from '@/hooks/useInventory';
 import { useOrders } from '@/hooks/useOrders';
 import { calculatePaymentDueDate } from '@/lib/paymentTerms';
+import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { 
@@ -36,7 +37,8 @@ import {
   IndianRupee,
   Trash2,
   ShoppingCart,
-  Warehouse
+  Warehouse,
+  UserPlus
 } from 'lucide-react';
 import { toast } from 'sonner';
 

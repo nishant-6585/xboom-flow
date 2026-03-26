@@ -100,36 +100,52 @@ export default function Procurement() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="orders" className="mt-6">
-            <ProcurementOrders />
+          <TabsContent value="orders" className="mt-6" forceMount>
+            <div className={activeTab !== "orders" ? "hidden" : undefined}>
+              <ProcurementOrders />
+            </div>
           </TabsContent>
 
-          <TabsContent value="imports" className="mt-6">
-            <ImportsList />
+          <TabsContent value="imports" className="mt-6" forceMount>
+            <div className={activeTab !== "imports" ? "hidden" : undefined}>
+              <ImportsList />
+            </div>
           </TabsContent>
 
-          <TabsContent value="inventory" className="mt-6">
-            <InventoryProcurementsList />
+          <TabsContent value="inventory" className="mt-6" forceMount>
+            <div className={activeTab !== "inventory" ? "hidden" : undefined}>
+              <InventoryProcurementsList />
+            </div>
           </TabsContent>
 
-          <TabsContent value="tracker" className="mt-6">
-            <OrderProcurementTracker />
+          <TabsContent value="tracker" className="mt-6" forceMount>
+            <div className={activeTab !== "tracker" ? "hidden" : undefined}>
+              <OrderProcurementTracker />
+            </div>
           </TabsContent>
 
-          <TabsContent value="requests" className="mt-6">
-            <PendingPaymentStatusRequests />
+          <TabsContent value="requests" className="mt-6" forceMount>
+            <div className={activeTab !== "requests" ? "hidden" : undefined}>
+              <PendingPaymentStatusRequests />
+            </div>
           </TabsContent>
 
-          <TabsContent value="ledger" className="mt-6">
-            <ProcurementLedger />
+          <TabsContent value="ledger" className="mt-6" forceMount>
+            <div className={activeTab !== "ledger" ? "hidden" : undefined}>
+              <ProcurementLedger />
+            </div>
           </TabsContent>
 
-          <TabsContent value="payments" className="mt-6">
-            <SupplierPaymentAnalytics />
+          <TabsContent value="payments" className="mt-6" forceMount>
+            <div className={activeTab !== "payments" ? "hidden" : undefined}>
+              <SupplierPaymentAnalytics />
+            </div>
           </TabsContent>
 
-          <TabsContent value="dashboard" className="mt-6">
-            <ProcurementDashboard />
+          <TabsContent value="dashboard" className="mt-6" forceMount>
+            <div className={activeTab !== "dashboard" ? "hidden" : undefined}>
+              <ProcurementDashboard />
+            </div>
           </TabsContent>
         </Tabs>
       </main>
