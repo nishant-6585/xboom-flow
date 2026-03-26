@@ -21,10 +21,11 @@ import { toast } from "sonner";
 import { ProcurementOrderDialog } from "./ProcurementOrderDialog";
 import { PaymentStatusRequestDialog } from "./PaymentStatusRequestDialog";
 import { OrderNumberBadge } from "@/components/OrderNumberBadge";
+import { InlineSupplierAssignment } from "./InlineSupplierAssignment";
 
 export function ProcurementOrders() {
   const { orders, loading: ordersLoading, updateOrder, refetch } = useOrders();
-  const { suppliers, loading: suppliersLoading } = useSuppliers();
+  const { suppliers, loading: suppliersLoading, refetch: refetchSuppliers } = useSuppliers();
   const { requests: paymentRequests, refetch: refetchRequests } = useProcurementPaymentRequests();
   const { procurements } = useInventoryProcurements();
   const { getPaymentsByProcurementMap } = useInventoryProcurementPayments();
@@ -135,6 +136,15 @@ export function ProcurementOrders() {
     e.stopPropagation();
     setPaymentRequestOrder(order);
     setPaymentRequestDialogOpen(true);
+  };
+
+  const handleQuickAssignSupplier = async (orderId: string, updates: { supplier_id: string; supplier_name: string; supplier_contact: string }) => {
+    try {
+      await updateOrder(orderId, updates);
+      toast.success(`Supplier assigned: ${updates.supplier_name}`);
+    } catch (error) {
+      toast.error("Failed to assign supplier");
+    }
   };
 
   const handleQuickSetProcurementDate = async (order: Order, date: Date | undefined, e: React.MouseEvent) => {
@@ -364,16 +374,16 @@ export function ProcurementOrders() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {order.supplier_name ? (
-                          <div>
-                            <p className="font-medium">{order.supplier_name}</p>
-                            <p className="text-xs text-muted-foreground">{order.supplier_contact}</p>
-                          </div>
-                        ) : (
-                          <Badge variant="outline" className="text-muted-foreground">
-                            Unassigned
-                          </Badge>
-                        )}
+                        <InlineSupplierAssignment
+                          currentSupplierName={order.supplier_name}
+                          currentSupplierContact={order.supplier_contact}
+                          suppliers={suppliers}
+                          productName={order.product_name}
+                          productCategory={order.product_category}
+                          orderId={order.id}
+                          onAssign={handleQuickAssignSupplier}
+                          onSupplierCreated={refetchSuppliers}
+                        />
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <Popover>
