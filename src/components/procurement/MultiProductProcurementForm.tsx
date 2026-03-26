@@ -576,7 +576,7 @@ function ProductItemCard({ item, index, orders, inventory, onUpdate, onRemove, c
 
 export function MultiProductProcurementForm({ open, onOpenChange }: MultiProductProcurementFormProps) {
   const { createProcurement } = useInventoryProcurements();
-  const { suppliers, refetch: refetchSuppliers } = useSuppliers();
+  const { suppliers } = useSuppliers();
   const { inventory, fulfillFromStock: fulfillFromInventory } = useInventory();
   const { orders } = useOrders();
   const [loading, setLoading] = useState(false);
