@@ -97,6 +97,7 @@ export function ProcurementOrderDialog({
       setProcurementDate(order.procurement_date ? parseISO(order.procurement_date) : undefined);
       setInternalNotes(order.internal_notes || "");
       setAdditionalDetails((order as any).additional_details || "");
+      setPoNumber((order as any).po_number || "");
       setCustomerName(order.customer_name || "");
       setCustomerCompany(order.customer_company || "");
       setEditingCustomer(false);
