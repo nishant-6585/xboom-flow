@@ -106,10 +106,7 @@ const Admin = () => {
   const [roleChangeLoading, setRoleChangeLoading] = useState<string | null>(null);
   const [managerChangeLoading, setManagerChangeLoading] = useState<string | null>(null);
   const [deptChangeLoading, setDeptChangeLoading] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState(() => {
-    // Finance-only users default to approvals tab
-    return "analytics";
-  });
+  const [activeTab, setActiveTab] = useState("analytics");
   const [orgRoles, setOrgRoles] = useState<{ id: string; name: string; label: string; is_active: boolean }[]>([]);
   const [orgDepartments, setOrgDepartments] = useState<{ id: string; name: string; is_active: boolean }[]>([]);
   const [historyUser, setHistoryUser] = useState<{ userId: string; name: string; email: string } | null>(null);
