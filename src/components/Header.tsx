@@ -72,7 +72,7 @@ export function Header() {
     { path: "/suppliers", label: "Suppliers", icon: Building2, roles: ["admin", "supply_chain", "finance"] },
     { path: "/finance", label: "Finance", icon: IndianRupee, roles: ["admin", "finance"] },
     { path: "/tally", label: "Tally", icon: BookCheck, roles: ["admin"] },
-    { path: "/admin", label: "Admin", icon: Shield, roles: ["admin"] },
+    { path: "/admin", label: "Admin", icon: Shield, roles: ["admin", "finance"] },
   ];
 
   // Secondary navigation items (Tasks, HR, Expenses, Forms, Repairs, Trainings, Tickets)
