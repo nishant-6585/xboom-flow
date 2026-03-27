@@ -108,6 +108,10 @@ export default function Sales() {
                 <Phone className="w-4 h-4" />
                 Outbound
               </TabsTrigger>
+              <TabsTrigger value="emails" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
+                <Mail className="w-4 h-4" />
+                Emails
+              </TabsTrigger>
             </TabsList>
             
             {/* Secondary Navigation Row */}
@@ -190,6 +194,10 @@ export default function Sales() {
 
           <TabsContent value="outbound" className="space-y-6">
             <OutboundSalesPanel />
+          </TabsContent>
+
+          <TabsContent value="emails" className="space-y-6">
+            <EmailLeadsPanel />
           </TabsContent>
 
           <TabsContent value="testimonials" className="space-y-6">
