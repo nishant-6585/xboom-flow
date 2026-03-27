@@ -464,7 +464,7 @@ export function CallLogsPanel() {
 }
 
 /* ─── Inline Audio Player ─── */
-function InlineAudioPlayer({ recordingFile, duration }: { recordingFile: string; duration: number | null }) {
+function InlineAudioPlayer({ recordingFile, duration, autoPlay = false }: { recordingFile: string; duration: number | null; autoPlay?: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -472,6 +472,15 @@ function InlineAudioPlayer({ recordingFile, duration }: { recordingFile: string;
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  const hasAutoStarted = useRef(false);
+
+  // Auto-start loading on mount when autoPlay is true
+  useEffect(() => {
+    if (autoPlay && !hasAutoStarted.current && !streamUrl && !error && !loading) {
+      hasAutoStarted.current = true;
+      fetchRecording();
+    }
+  }, [autoPlay]);
 
   // Fetch recording via MyOperator recordings/link API
   const fetchRecording = useCallback(async () => {
