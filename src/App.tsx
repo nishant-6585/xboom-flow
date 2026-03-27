@@ -108,6 +108,11 @@ function AppInner() {
 /** Renders global widgets only when user is fully authenticated (including MFA) */
 function AuthGuardedWidgets({ isMobile }: { isMobile: boolean }) {
   const { user, mfaStatus, isApproved, loading } = useAuth();
+  const location = useLocation();
+  // Hide widgets on public/auth pages
+  const publicPaths = ['/auth', '/mfa-verify', '/form-embed', '/public'];
+  const isPublicPage = publicPaths.some(p => location.pathname.startsWith(p));
+  if (isPublicPage) return null;
   // Do not render any protected UI until authentication and MFA state are fully resolved
   if (loading) return null;
   if (!user) return null;
