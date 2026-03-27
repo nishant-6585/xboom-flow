@@ -378,12 +378,12 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
               </div>
               <div className="min-w-0">
                 <h3 className="text-xs font-bold text-foreground leading-none truncate">
-                  {voiceMode ? 'Voice Assistant' : (activeChatId ? (chats.find(c => c.id === activeChatId)?.title || 'Chat') : 'XBoom AI')}
+                  {voiceMode ? 'Voice Assistant' : (activeChatId ? (chats.find(c => c.id === activeChatId)?.title || 'Chat') : getRoleAITitle(roles))}
                 </h3>
                 <p className="text-[9px] mt-0.5 text-muted-foreground truncate">
                   {voiceMode
                     ? (isListening ? '🎤 Listening...' : aiSpeaking ? '🔊 Speaking...' : isLoading ? '⚡ Processing...' : '🎙️ Ready')
-                    : 'Intelligent Portal Assistant'
+                    : getRoleSubtitle(roles)
                   }
                 </p>
               </div>
@@ -495,30 +495,37 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                 </div>
               </div>
 
-              <h3 className="text-sm font-bold text-foreground mb-1">What can I help with?</h3>
+              <h3 className="text-sm font-bold text-foreground mb-1">{getRoleAITitle(roles)}</h3>
               <p className="text-[11px] text-muted-foreground mb-4 max-w-[280px] leading-relaxed">
-                Query, analyze, or take action on orders, leads, inventory & more — powered by AI.
+                {getRoleSubtitle(roles)} — powered by AI.
               </p>
 
               <DailyBriefingWidget onPrompt={(p) => !isLoading && streamChat(p)} />
 
               <div className="grid grid-cols-2 gap-2 w-full max-w-[340px]">
-                {QUICK_PROMPTS.map(({ icon: Icon, label, prompt }, i) => (
-                  <button
-                    key={i}
-                    onClick={() => !isLoading && streamChat(prompt)}
-                    className={cn(
-                      "flex items-center gap-2 p-2.5 rounded-xl text-left",
-                    "bg-card border border-border/50 hover:border-primary/30 dark:border-border/30 dark:hover:border-primary/40",
-                      "hover:bg-primary/5 dark:hover:bg-primary/10 transition-all duration-200",
-                      "group cursor-pointer",
-                      i === 4 && "col-span-2"
-                    )}
-                  >
-                    <div className="p-1.5 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors shrink-0">
-                      <Icon className="w-3.5 h-3.5 text-primary" />
-                    </div>
-                    <span className="text-[11px] font-medium text-foreground leading-tight">{label}</span>
+                {(() => {
+                  const primaryRole = ['admin', 'hr', 'finance', 'supply_chain', 'sales_manager', 'sales']
+                    .find(r => roles.includes(r as any)) || 'default';
+                  const prompts = ROLE_QUICK_PROMPTS[primaryRole] || DEFAULT_QUICK_PROMPTS;
+                  return prompts.map(({ icon: Icon, label, prompt }, i) => (
+                    <button
+                      key={i}
+                      onClick={() => !isLoading && streamChat(prompt)}
+                      className={cn(
+                        "flex items-center gap-2 p-2.5 rounded-xl text-left",
+                        "bg-card border border-border/50 hover:border-primary/30 dark:border-border/30 dark:hover:border-primary/40",
+                        "hover:bg-primary/5 dark:hover:bg-primary/10 transition-all duration-200",
+                        "group cursor-pointer",
+                        i === prompts.length - 1 && prompts.length % 2 === 1 && "col-span-2"
+                      )}
+                    >
+                      <div className="p-1.5 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors shrink-0">
+                        <Icon className="w-3.5 h-3.5 text-primary" />
+                      </div>
+                      <span className="text-[11px] font-medium text-foreground leading-tight">{label}</span>
+                    </button>
+                  ));
+                })()}
                   </button>
                 ))}
               </div>
