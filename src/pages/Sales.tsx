@@ -87,6 +87,10 @@ export default function Sales() {
                 <TrendingUp className="w-4 h-4" />
                 Pipeline
               </TabsTrigger>
+              <TabsTrigger value="prospects" className="gap-2 data-[state=active]:bg-amber-600 data-[state=active]:text-white rounded-lg px-3 py-2">
+                <Target className="w-4 h-4" />
+                Prospects
+              </TabsTrigger>
               <TabsTrigger value="activity" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <Rocket className="w-4 h-4" />
                 Activity
@@ -168,6 +172,10 @@ export default function Sales() {
 
           <TabsContent value="pipeline" className="space-y-6">
             <PipelineOrders selectedLeadId={urlLeadId} />
+          </TabsContent>
+
+          <TabsContent value="prospects" className="space-y-6">
+            <ProspectsPanel />
           </TabsContent>
 
           <TabsContent value="leaderboard" className="space-y-6">
