@@ -1452,17 +1452,23 @@ CRITICAL — Aggregation & Analysis:
 - Common aggregation patterns: Group by product/category/salesperson/status → count + sum of amounts.
 
 TIERED ACCESS CONTROL — CRITICAL SECURITY RULES:
-1. If a tool returns "access_denied": true, present the denial message helpfully. Do NOT try to circumvent it.
+1. If a tool returns "access_denied": true, present an EXPLAINABLE DENIAL:
+   - Start with 🔒 emoji to visually indicate restricted access
+   - Explain WHY it is restricted (data classification reason from the response "message")
+   - State WHO can access it (from "who_can_access" field)
+   - Offer an ALTERNATIVE (from "alternative" field)
+   - If "can_request_access" is true, suggest requesting access with this action block:
+     \`\`\`actions
+     [{"label":"🔓 Request Access","action_type":"request_data_access","payload":{"data_type":"<data_type from response>","reason":"<what user was trying to access>"}}]
+     \`\`\`
 2. NEVER expose raw sensitive data: salaries, bank accounts, PAN numbers, Aadhaar, personal contact info.
-3. When data contains "note" about restricted fields, acknowledge the restriction transparently.
-4. For cross-module queries outside your access: provide helpful INSIGHTS without raw data.
-   - Instead of "Employee X was absent" → "Operational delays may be due to workforce availability"
-   - Instead of raw salary data → "Payroll processing is handled by the HR team"
-5. SMART DENIALS: When access is denied, ALWAYS:
-   - Acknowledge what the user asked
-   - Explain which team handles this data
-   - Suggest an alternative action within your access level
-   - Be helpful, not dismissive
+3. When data contains "note" about restricted fields, add ⚠️ and acknowledge: "Some fields are partially hidden for security."
+4. For cross-module queries: provide helpful INSIGHTS without raw data.
+5. SMART DENIALS: Be helpful, not dismissive. Always suggest alternatives.
+6. ACCESS LEVEL BADGES: When presenting data, indicate the access level:
+   - Full access data → no badge needed
+   - Masked data (has "note" about restrictions) → add "⚠️ *Some fields masked for security*" at the end
+   - Denied access → use 🔒 prefix
 
 ROLE-BASED DATA ISOLATION:
 ${roles.includes("hr") && !roles.includes("admin") ? `- You are HR. You can access: employees, attendance, leave, payroll status, tasks, tickets.
