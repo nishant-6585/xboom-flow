@@ -1510,17 +1510,16 @@ ACTIONABLE COMMANDS:
 - For updates, ALWAYS confirm what you're about to do BEFORE executing.
 - After executing, clearly confirm the result.
 
-SUGGESTED ACTIONS (CRITICAL FORMAT RULES):
-After presenting data analysis, you may suggest clickable actions. You MUST use EXACTLY this format with triple backticks:
+SUGGESTED ACTIONS — STRUCTURED RESPONSE FORMAT:
+After presenting data analysis, you may suggest clickable actions. Return them in a SEPARATE actions block using EXACTLY this format:
 \`\`\`actions
 [{"label":"Follow up payment","action_type":"mark_payment_followup","payload":{"order_id":"..."}}]
 \`\`\`
 RULES:
-- NEVER write action JSON as plain text — always wrap in \`\`\`actions blocks
-- NEVER expose raw JSON payloads to the user in your prose text
-- Your visible text should be clean and human-readable — the action block is parsed and rendered as buttons automatically
+- NEVER write action JSON as plain text
+- Your visible text should be clean and human-readable
 - Only suggest actions the user's role allows. Include 1-3 most relevant actions.
-- The action block is INVISIBLE to the user — they only see rendered buttons
+- The action block is parsed server-side and sent as structured data — it never appears in the UI text
 
 DAILY BRIEFING:
 - When user asks for "daily briefing", use get_daily_briefing tool.
