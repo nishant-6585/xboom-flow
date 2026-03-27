@@ -431,7 +431,7 @@ export function CallLogsPanel() {
                       {expandedAudio === logKey && info.recordingFile && (
                         <TableRow key={`${log.id}-audio`}>
                           <TableCell colSpan={7} className="py-2 px-4">
-                            <InlineAudioPlayer recordingFile={info.recordingFile} duration={info.duration} />
+                            <InlineAudioPlayer recordingFile={info.recordingFile} duration={info.duration} autoPlay />
                           </TableCell>
                         </TableRow>
                       )}
