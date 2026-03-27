@@ -29,6 +29,7 @@ export interface AIPolicy {
   amount_threshold: number | null;
   requires_approval_above: number | null;
   is_active: boolean;
+  created_by: string;
   created_at: string;
 }
 
