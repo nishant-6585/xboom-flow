@@ -27,21 +27,24 @@ export function ProspectAnalyticsCards({
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const monthStart = startOfMonth(now);
 
+  const getField = (item: AnalyticsItem, field: string): boolean => {
+    return !!(item as any)[field];
+  };
+
   const countByPeriod = (field: string, start: Date) => {
     return items.filter(item => {
-      const val = (item as Record<string, unknown>)[field];
-      if (!val) return false;
+      if (!getField(item, field)) return false;
       const d = new Date(item.created_at);
       return d >= start && d <= endOfDay(now);
     }).length;
   };
 
-  const totalProspects = items.filter(i => (i as Record<string, unknown>)[prospectField]).length;
+  const totalProspects = items.filter(i => getField(i, prospectField)).length;
   const todayProspects = countByPeriod(prospectField, todayStart);
   const weekProspects = countByPeriod(prospectField, weekStart);
   const monthProspects = countByPeriod(prospectField, monthStart);
 
-  const totalA = items.filter(i => (i as Record<string, unknown>)[aCategoryField]).length;
+  const totalA = items.filter(i => getField(i, aCategoryField)).length;
   const todayA = countByPeriod(aCategoryField, todayStart);
   const weekA = countByPeriod(aCategoryField, weekStart);
   const monthA = countByPeriod(aCategoryField, monthStart);

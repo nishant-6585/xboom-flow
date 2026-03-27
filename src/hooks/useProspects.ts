@@ -42,7 +42,7 @@ export function useProspects() {
     mutationFn: async (prospect: Omit<Prospect, 'id' | 'created_at' | 'updated_at' | 'a_category_marked_at' | 'a_category_marked_by'>) => {
       const { data, error } = await supabase
         .from('prospects')
-        .insert(prospect as Record<string, unknown>)
+        .insert([prospect as any])
         .select()
         .single();
       if (error) {
