@@ -10,18 +10,17 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { ProductSelect } from '@/components/ProductSelect';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
-import type { InteraktLead } from '@/hooks/useInteraktLeads';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
-interface InteraktLeadEditDialogProps {
+interface CallLogEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  lead: InteraktLead | null;
-  onSave: (lead: Partial<InteraktLead> & { id: string }) => Promise<void>;
-  saving: boolean;
+  callLog: any;
+  onSuccess: () => void;
 }
 
-const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'converted', 'lost'];
-const LEAD_SOURCES = ['Website', 'IndiaMART', 'Trade India', 'Just Dial', 'Google Ads', 'Facebook', 'Instagram', 'LinkedIn', 'WhatsApp', 'Referral', 'Cold Call', 'Exhibition', 'Email Campaign', 'Interakt', 'Other'];
+const LEAD_SOURCES = ['Website', 'IndiaMART', 'Trade India', 'Just Dial', 'Google Ads', 'Facebook', 'Instagram', 'LinkedIn', 'WhatsApp', 'Referral', 'Cold Call', 'Exhibition', 'Email Campaign', 'MyOperator', 'Other'];
 const URGENCY_LEVELS = [
   { value: 'low', label: 'Low' },
   { value: 'medium', label: 'Medium' },
@@ -30,78 +29,77 @@ const URGENCY_LEVELS = [
 ];
 const PURPOSE_OF_PURCHASE = ['Personal Use', 'Business Operations', 'Government Project', 'Research & Development', 'Training & Education', 'Survey & Mapping', 'Agriculture', 'Inspection & Maintenance', 'Photography & Videography', 'Security & Surveillance', 'Delivery & Logistics', 'Entertainment & Events', 'Other'];
 
-export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, saving }: InteraktLeadEditDialogProps) {
+export function CallLogEditDialog({ open, onOpenChange, callLog, onSuccess }: CallLogEditDialogProps) {
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     customer_name: '',
-    phone_number: '',
-    email: '',
     customer_company: '',
-    company: '',
+    email: '',
     city: '',
     product_name: '',
     product_category: 'Consumer Drones',
     product_code: '',
     quantity: 1,
-    lead_source: '',
+    lead_source: 'MyOperator',
     urgency: 'medium',
     requested_timeline: '',
     purpose_of_purchase: '',
-    status: 'new',
     notes: '',
   });
 
   useEffect(() => {
-    if (lead) {
+    if (callLog) {
       setForm({
-        customer_name: lead.customer_name || '',
-        phone_number: lead.phone_number || '',
-        email: lead.email || '',
-        customer_company: (lead as any).customer_company || '',
-        company: lead.company || '',
-        city: lead.city || '',
-        product_name: lead.product_name || '',
-        product_category: (lead as any).product_category || 'Consumer Drones',
-        product_code: (lead as any).product_code || '',
-        quantity: (lead as any).quantity || 1,
-        lead_source: (lead as any).lead_source || '',
-        urgency: (lead as any).urgency || 'medium',
-        requested_timeline: (lead as any).requested_timeline || '',
-        purpose_of_purchase: (lead as any).purpose_of_purchase || '',
-        status: lead.status || 'new',
-        notes: lead.notes || '',
+        customer_name: callLog.customer_name || '',
+        customer_company: callLog.customer_company || '',
+        email: callLog.email || '',
+        city: callLog.city || '',
+        product_name: callLog.product_name || '',
+        product_category: callLog.product_category || 'Consumer Drones',
+        product_code: callLog.product_code || '',
+        quantity: callLog.quantity || 1,
+        lead_source: callLog.lead_source || 'MyOperator',
+        urgency: callLog.urgency || 'medium',
+        requested_timeline: callLog.requested_timeline || '',
+        purpose_of_purchase: callLog.purpose_of_purchase || '',
+        notes: callLog.notes || '',
       });
     }
-  }, [lead]);
+  }, [callLog]);
 
   const handleSave = async () => {
-    if (!lead) return;
-    await onSave({
-      id: lead.id,
-      customer_name: form.customer_name.trim(),
-      phone_number: form.phone_number.trim(),
-      email: form.email.trim() || null,
-      customer_company: form.customer_company.trim() || null,
-      company: form.company.trim() || null,
-      city: form.city.trim() || null,
-      product_name: form.product_name.trim() || null,
-      product_category: form.product_category,
-      product_code: form.product_code.trim() || null,
-      quantity: form.quantity,
-      lead_source: form.lead_source || null,
-      urgency: form.urgency,
-      requested_timeline: form.requested_timeline.trim() || null,
-      purpose_of_purchase: form.purpose_of_purchase || null,
-      status: form.status,
-      notes: form.notes.trim() || null,
-    } as any);
-    onOpenChange(false);
-  };
+    if (!callLog) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('call_logs')
+        .update({
+          customer_name: form.customer_name.trim() || null,
+          customer_company: form.customer_company.trim() || null,
+          email: form.email.trim() || null,
+          city: form.city.trim() || null,
+          product_name: form.product_name.trim() || null,
+          product_category: form.product_category,
+          product_code: form.product_code.trim() || null,
+          quantity: form.quantity,
+          lead_source: form.lead_source || null,
+          urgency: form.urgency,
+          requested_timeline: form.requested_timeline.trim() || null,
+          purpose_of_purchase: form.purpose_of_purchase || null,
+          notes: form.notes.trim() || null,
+        } as Record<string, unknown>)
+        .eq('id', callLog.id);
 
-  const dynamicTraits = lead?.interakt_traits
-    ? Object.entries(lead.interakt_traits).filter(
-        ([key]) => !['name', 'Name', 'email', 'Email', 'city', 'City', 'product', 'Product', 'company', 'Company'].includes(key)
-      )
-    : [];
+      if (error) throw error;
+      toast.success('Call log updated successfully');
+      onSuccess();
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(`Update failed: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -109,27 +107,15 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Pencil className="h-4 w-4" />
-            Edit Interakt Lead
+            Edit Call Log Details
           </DialogTitle>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-4 py-2">
-            {/* Customer Info */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Customer Name *</Label>
-                <Input value={form.customer_name} onChange={(e) => setForm(f => ({ ...f, customer_name: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Phone Number</Label>
-                <Input value={form.phone_number} onChange={(e) => setForm(f => ({ ...f, phone_number: e.target.value }))} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input type="email" value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} />
+                <Label>Customer Name</Label>
+                <Input value={form.customer_name} onChange={(e) => setForm(f => ({ ...f, customer_name: e.target.value }))} placeholder="Enter customer name" />
               </div>
               <div className="space-y-2">
                 <Label>Customer Company</Label>
@@ -139,24 +125,28 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
+                <Label>Email</Label>
+                <Input type="email" value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
                 <Label>City</Label>
                 <Input value={form.city} onChange={(e) => setForm(f => ({ ...f, city: e.target.value }))} />
               </div>
-              <div className="space-y-2">
-                <Label>Lead Source</Label>
-                <Select value={form.lead_source || 'none'} onValueChange={(v) => setForm(f => ({ ...f, lead_source: v === 'none' ? '' : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">-- None --</SelectItem>
-                    {LEAD_SOURCES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Lead Source</Label>
+              <Select value={form.lead_source || 'none'} onValueChange={(v) => setForm(f => ({ ...f, lead_source: v === 'none' ? '' : v }))}>
+                <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">-- None --</SelectItem>
+                  {LEAD_SOURCES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
 
             <Separator />
 
-            {/* Product Info */}
             <div className="space-y-2">
               <Label>Product Name</Label>
               <ProductSelect
@@ -203,17 +193,7 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
 
             <Separator />
 
-            {/* Details */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select value={form.status} onValueChange={(v) => setForm(f => ({ ...f, status: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
               <div className="space-y-2">
                 <Label>Urgency</Label>
                 <Select value={form.urgency} onValueChange={(v) => setForm(f => ({ ...f, urgency: v }))}>
@@ -223,40 +203,21 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Requested Timeline</Label>
-              <Input value={form.requested_timeline} onChange={(e) => setForm(f => ({ ...f, requested_timeline: e.target.value }))} placeholder="e.g., 2 weeks, Urgent" />
+              <div className="space-y-2">
+                <Label>Requested Timeline</Label>
+                <Input value={form.requested_timeline} onChange={(e) => setForm(f => ({ ...f, requested_timeline: e.target.value }))} placeholder="e.g., 2 weeks" />
+              </div>
             </div>
 
             <div className="space-y-2">
               <Label>Notes</Label>
               <Textarea value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} />
             </div>
-
-            {/* Dynamic Interakt Traits */}
-            {dynamicTraits.length > 0 && (
-              <>
-                <Separator />
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-muted-foreground">Interakt Traits</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {dynamicTraits.map(([key, value]) => (
-                      <div key={key} className="bg-muted/50 rounded-md p-2">
-                        <p className="text-xs text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</p>
-                        <p className="text-sm font-medium truncate">{String(value ?? '—')}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
           </div>
         </ScrollArea>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || !form.customer_name.trim()}>
+          <Button onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             Save Changes
           </Button>

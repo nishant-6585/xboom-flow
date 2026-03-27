@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle } from "lucide-react";
+import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle, Pencil } from "lucide-react";
+import { CallLogEditDialog } from './CallLogEditDialog';
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { ProspectButton } from "@/components/sales/ProspectButton";
@@ -203,6 +204,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set() }:
   const [expandedAudio, setExpandedAudio] = useState<string | null>(null);
   const prevIdsRef = useRef<Set<string>>(new Set());
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
+  const [editingLog, setEditingLog] = useState<CallLog | null>(null);
 
   const fetchLogs = useCallback(async () => {
     let query = supabase
@@ -440,9 +442,14 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set() }:
                           )}
                         </TableCell>
                         <TableCell>
-                          <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
-                            <Eye className="w-4 h-4 mr-1" /> Details
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingLog(log)}>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
+                              <Eye className="w-4 h-4 mr-1" /> Details
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                       {/* Inline audio player row */}
@@ -477,6 +484,13 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set() }:
           {selectedLog && <CallLogDetails log={selectedLog} />}
         </DialogContent>
       </Dialog>
+
+      <CallLogEditDialog
+        open={!!editingLog}
+        onOpenChange={(open) => { if (!open) setEditingLog(null); }}
+        callLog={editingLog}
+        onSuccess={fetchLogs}
+      />
     </Card>
   );
 }

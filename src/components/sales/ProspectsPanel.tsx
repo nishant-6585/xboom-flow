@@ -7,11 +7,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProspects } from '@/hooks/useProspects';
 import { useAuth } from '@/hooks/useAuth';
-import { Target, Search, Loader2, Star, Filter, TrendingUp, Calendar, Users, Phone, MessageCircle, Package } from 'lucide-react';
+import { Target, Search, Loader2, Star, Filter, TrendingUp, Calendar, Users, Phone, MessageCircle, Package, Pencil } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfWeek, startOfMonth, endOfWeek, endOfMonth } from 'date-fns';
 import { ACategoryButton } from './ProspectButton';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { ProspectEditDialog } from './ProspectEditDialog';
 
 const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'negotiation', 'converted', 'lost'];
 
@@ -39,7 +40,7 @@ const STATUS_COLORS: Record<string, string> = {
 const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
 export function ProspectsPanel() {
-  const { prospects, loading, toggleACategory, updateStatus } = useProspects();
+  const { prospects, loading, toggleACategory, updateStatus, refetch } = useProspects();
   const { user, role } = useAuth();
   const [search, setSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState('all');
@@ -47,6 +48,7 @@ export function ProspectsPanel() {
   const [aCategoryFilter, setACategoryFilter] = useState('all');
   const [dateStart, setDateStart] = useState<Date | undefined>();
   const [dateEnd, setDateEnd] = useState<Date | undefined>();
+  const [editingProspect, setEditingProspect] = useState<any>(null);
 
   const filtered = prospects.filter(p => {
     const matchesSearch = !search ||
@@ -265,6 +267,7 @@ export function ProspectsPanel() {
                       <TableHead className="w-[90px]">Status</TableHead>
                       <TableHead className="w-[90px]">Date</TableHead>
                       <TableHead className="w-[100px]">By</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -301,6 +304,11 @@ export function ProspectsPanel() {
                         </TableCell>
                         <TableCell><span className="text-xs text-muted-foreground">{format(new Date(p.created_at), 'dd MMM')}</span></TableCell>
                         <TableCell><span className="text-xs text-muted-foreground">{p.created_by_name}</span></TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingProspect(p)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -310,6 +318,13 @@ export function ProspectsPanel() {
           )}
         </CardContent>
       </Card>
+
+      <ProspectEditDialog
+        open={!!editingProspect}
+        onOpenChange={(open) => { if (!open) setEditingProspect(null); }}
+        prospect={editingProspect}
+        onSuccess={() => { setEditingProspect(null); refetch(); }}
+      />
     </div>
   );
 }

@@ -22,6 +22,15 @@ export interface InteraktLead {
   updated_by: string | null;
   created_at: string;
   updated_at: string;
+  // New lead-form fields
+  customer_company: string | null;
+  product_category: string | null;
+  product_code: string | null;
+  quantity: number | null;
+  lead_source: string | null;
+  urgency: string | null;
+  requested_timeline: string | null;
+  purpose_of_purchase: string | null;
 }
 
 export function useInteraktLeads() {
