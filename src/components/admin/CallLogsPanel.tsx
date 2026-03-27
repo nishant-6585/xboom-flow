@@ -474,14 +474,6 @@ function InlineAudioPlayer({ recordingFile, duration, autoPlay = false }: { reco
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const hasAutoStarted = useRef(false);
 
-  // Auto-start loading on mount when autoPlay is true
-  useEffect(() => {
-    if (autoPlay && !hasAutoStarted.current && !streamUrl && !error && !loading) {
-      hasAutoStarted.current = true;
-      fetchRecording();
-    }
-  }, [autoPlay]);
-
   // Fetch recording via MyOperator recordings/link API
   const fetchRecording = useCallback(async () => {
     setLoading(true);
