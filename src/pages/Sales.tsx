@@ -22,6 +22,7 @@ import { SalesAnalyticsDashboard } from "@/components/sales/SalesAnalyticsDashbo
 import { TasksPanel } from "@/components/tasks/TasksPanel";
 import { PipelineOrders } from "@/components/pipeline/PipelineOrders";
 import { EnquiriesPanel } from "@/components/sales/EnquiriesPanel";
+import { ProspectsPanel } from "@/components/sales/ProspectsPanel";
 
 export default function Sales() {
   const { role } = useAuth();
