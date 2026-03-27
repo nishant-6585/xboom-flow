@@ -5,7 +5,7 @@ import { Prospect } from '@/hooks/useProspects';
 
 interface ProspectAnalyticsCardsProps {
   prospects: Prospect[];
-  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'all';
+  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'all';
 }
 
 export function ProspectAnalyticsCards({ prospects, sourceType }: ProspectAnalyticsCardsProps) {

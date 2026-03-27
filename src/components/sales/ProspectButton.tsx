@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 
 interface ProspectButtonProps {
-  sourceType: 'enquiry' | 'interakt' | 'myoperator';
+  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email';
   sourceId: string;
   customerName: string;
   phoneNumber?: string | null;
@@ -90,7 +90,7 @@ export function ProspectButton({
 }
 
 interface ACategoryButtonProps {
-  sourceType: 'enquiry' | 'interakt' | 'myoperator';
+  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email';
   sourceId: string;
   isACategory: boolean;
   onToggle?: () => void;
