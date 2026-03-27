@@ -56,6 +56,42 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_access_logs: {
+        Row: {
+          access_type: string
+          created_at: string
+          denied_reason: string | null
+          id: string
+          masked_fields: string[] | null
+          query_text: string
+          tool_name: string
+          user_id: string
+          user_role: string
+        }
+        Insert: {
+          access_type?: string
+          created_at?: string
+          denied_reason?: string | null
+          id?: string
+          masked_fields?: string[] | null
+          query_text: string
+          tool_name: string
+          user_id: string
+          user_role: string
+        }
+        Update: {
+          access_type?: string
+          created_at?: string
+          denied_reason?: string | null
+          id?: string
+          masked_fields?: string[] | null
+          query_text?: string
+          tool_name?: string
+          user_id?: string
+          user_role?: string
+        }
+        Relationships: []
+      }
       ai_action_logs: {
         Row: {
           action_type: string
