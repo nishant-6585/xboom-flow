@@ -11,21 +11,22 @@ import { useAuth } from '@/hooks/useAuth';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { Search, Plus, Mail, Loader2, Filter, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
-import { ProspectButton } from './ProspectButton';
+import { ProspectButton, ACategoryButton } from './ProspectButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadFormDialog } from './EmailLeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 
 export function EmailLeadsPanel() {
   const { leads, loading, refetch } = useEmailLeads();
-  const { markAsProspect, markAsACategory } = useProspects();
+  const { prospects } = useProspects();
   const { role } = useAuth();
   const [search, setSearch] = useState('');
   const [mailSourceFilter, setMailSourceFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [formOpen, setFormOpen] = useState(false);
   const [editLead, setEditLead] = useState<EmailLead | null>(null);
-  const [dateRange, setDateRange] = useState<{ from: Date | null; to: Date | null }>({ from: null, to: null });
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
 
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {
@@ -37,11 +38,11 @@ export function EmailLeadsPanel() {
         lead.customer_company?.toLowerCase().includes(search.toLowerCase());
       const matchesMail = mailSourceFilter === 'all' || lead.mail_source === mailSourceFilter;
       const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
-      const matchesDate = (!dateRange.from || new Date(lead.created_at) >= dateRange.from) &&
-        (!dateRange.to || new Date(lead.created_at) <= dateRange.to);
+      const matchesDate = (!startDate || new Date(lead.created_at) >= startDate) &&
+        (!endDate || new Date(lead.created_at) <= endDate);
       return matchesSearch && matchesMail && matchesStatus && matchesDate;
     });
-  }, [leads, search, mailSourceFilter, statusFilter, dateRange]);
+  }, [leads, search, mailSourceFilter, statusFilter, startDate, endDate]);
 
   const statusColor = (status: string) => {
     switch (status) {
@@ -62,9 +63,11 @@ export function EmailLeadsPanel() {
     }
   };
 
+  const isProspect = (leadId: string) => prospects.some(p => p.source_id === leadId && p.source_type === 'email');
+
   return (
     <div className="space-y-6">
-      <ProspectAnalyticsCards sourceType="email" />
+      <ProspectAnalyticsCards prospects={prospects} sourceType="email" />
 
       <Card>
         <CardHeader>
@@ -84,7 +87,6 @@ export function EmailLeadsPanel() {
             </div>
           </div>
 
-          {/* Filters */}
           <div className="flex flex-wrap items-center gap-3 mt-4">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -112,7 +114,13 @@ export function EmailLeadsPanel() {
                 <SelectItem value="moved_to_pipeline">Pipeline</SelectItem>
               </SelectContent>
             </Select>
-            <DateRangeFilter dateRange={dateRange} onDateRangeChange={setDateRange} />
+            <DateRangeFilter
+              startDate={startDate}
+              endDate={endDate}
+              onStartDateChange={setStartDate}
+              onEndDateChange={setEndDate}
+              onClear={() => { setStartDate(undefined); setEndDate(undefined); }}
+            />
           </div>
         </CardHeader>
 
@@ -131,7 +139,7 @@ export function EmailLeadsPanel() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[50px]">P / A</TableHead>
+                    <TableHead className="w-[70px]">P / A</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Company</TableHead>
                     <TableHead>Email</TableHead>
@@ -150,38 +158,21 @@ export function EmailLeadsPanel() {
                       <TableCell>
                         <div className="flex gap-1">
                           <ProspectButton
-                            type="prospect"
-                            isActive={lead.is_prospect}
-                            onClick={() => markAsProspect({
-                              source_type: 'email',
-                              source_id: lead.id,
-                              customer_name: lead.customer_name,
-                              customer_company: lead.customer_company || '',
-                              phone_number: lead.phone_number || '',
-                              email: lead.email || '',
-                              city: lead.city || '',
-                              product_name: lead.product_name || '',
-                              product_category: lead.product_category || '',
-                              quantity: lead.quantity || 1,
-                              notes: lead.notes || '',
-                            })}
+                            sourceType="email"
+                            sourceId={lead.id}
+                            customerName={lead.customer_name}
+                            phoneNumber={lead.phone_number}
+                            email={lead.email}
+                            company={lead.customer_company}
+                            city={lead.city}
+                            productName={lead.product_name}
+                            notes={lead.notes}
+                            isAlreadyProspect={isProspect(lead.id)}
                           />
-                          <ProspectButton
-                            type="a_category"
-                            isActive={lead.is_a_category}
-                            onClick={() => markAsACategory({
-                              source_type: 'email',
-                              source_id: lead.id,
-                              customer_name: lead.customer_name,
-                              customer_company: lead.customer_company || '',
-                              phone_number: lead.phone_number || '',
-                              email: lead.email || '',
-                              city: lead.city || '',
-                              product_name: lead.product_name || '',
-                              product_category: lead.product_category || '',
-                              quantity: lead.quantity || 1,
-                              notes: lead.notes || '',
-                            })}
+                          <ACategoryButton
+                            sourceType="email"
+                            sourceId={lead.id}
+                            isACategory={lead.is_a_category}
                           />
                         </div>
                       </TableCell>

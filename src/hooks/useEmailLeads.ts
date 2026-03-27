@@ -59,7 +59,7 @@ export function useEmailLeads() {
     mutationFn: async (lead: Partial<EmailLead>) => {
       const { error } = await supabase
         .from('email_leads')
-        .insert(lead as Record<string, unknown>);
+        .insert([lead as any]);
       if (error) throw error;
     },
     onSuccess: () => {

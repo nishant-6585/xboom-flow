@@ -10,6 +10,7 @@ import { useEmailLeads, MAIL_SOURCES, EmailLead } from '@/hooks/useEmailLeads';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 import { ProductSelect } from '@/components/ProductSelect';
+import { PricelistItem } from '@/hooks/usePricelist';
 
 const LEAD_SOURCES = [
   'Website', 'IndiaMART', 'Trade India', 'Just Dial', 'Google Ads',
@@ -40,9 +41,10 @@ interface Props {
 
 export function EmailLeadFormDialog({ open, onOpenChange, lead, onSuccess }: Props) {
   const { createLead, creating, updateLead, updating } = useEmailLeads();
-  const { userName, userId } = useAuth();
+  const { user, profile } = useAuth();
   const isEdit = !!lead;
 
+  const [selectedProduct, setSelectedProduct] = useState('');
   const [form, setForm] = useState({
     customer_name: '',
     customer_company: '',
@@ -102,32 +104,36 @@ export function EmailLeadFormDialog({ open, onOpenChange, lead, onSuccess }: Pro
         purpose_of_purchase: '',
         notes: '',
         status: 'pending',
-        sales_person_name: userName || '',
+        sales_person_name: profile?.name || '',
       });
+      setSelectedProduct('');
     }
-  }, [lead, open, userName]);
+  }, [lead, open, profile]);
 
   const handleSubmit = async () => {
     if (!form.customer_name.trim()) return;
     try {
       if (isEdit && lead) {
-        await updateLead({ id: lead.id, ...form, updated_by: userId });
+        await updateLead({ id: lead.id, ...form, updated_by: user?.id });
       } else {
-        await createLead({ ...form, created_by: userId, created_by_name: userName || '' });
+        await createLead({ ...form, created_by: user?.id, created_by_name: profile?.name || '' });
       }
       onSuccess();
-    } catch (e) {
+    } catch {
       // handled by hook
     }
   };
 
-  const handleProductSelect = (product: { product_name: string; product_code: string; category: string }) => {
-    setForm(f => ({
-      ...f,
-      product_name: product.product_name,
-      product_code: product.product_code,
-      product_category: product.category,
-    }));
+  const handleProductChange = (value: string, product?: PricelistItem) => {
+    setSelectedProduct(value);
+    if (product) {
+      setForm(f => ({
+        ...f,
+        product_name: product.product_name,
+        product_code: product.product_code || '',
+        product_category: product.category || f.product_category,
+      }));
+    }
   };
 
   const busy = creating || updating;
@@ -140,20 +146,16 @@ export function EmailLeadFormDialog({ open, onOpenChange, lead, onSuccess }: Pro
         </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Mail Source */}
           <div className="md:col-span-2">
             <Label>Mail Source *</Label>
             <Select value={form.mail_source} onValueChange={(v) => setForm(f => ({ ...f, mail_source: v }))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {MAIL_SOURCES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Customer Info */}
           <div>
             <Label>Customer Name *</Label>
             <Input value={form.customer_name} onChange={(e) => setForm(f => ({ ...f, customer_name: e.target.value }))} />
@@ -179,10 +181,9 @@ export function EmailLeadFormDialog({ open, onOpenChange, lead, onSuccess }: Pro
             <Input value={form.sales_person_name} onChange={(e) => setForm(f => ({ ...f, sales_person_name: e.target.value }))} />
           </div>
 
-          {/* Product Info */}
           <div className="md:col-span-2">
             <Label>Product (from Pricelist)</Label>
-            <ProductSelect onSelect={handleProductSelect} />
+            <ProductSelect value={selectedProduct} onChange={handleProductChange} />
           </div>
           <div>
             <Label>Product Name</Label>
@@ -206,7 +207,6 @@ export function EmailLeadFormDialog({ open, onOpenChange, lead, onSuccess }: Pro
             <Input type="number" min={1} value={form.quantity} onChange={(e) => setForm(f => ({ ...f, quantity: parseInt(e.target.value) || 1 }))} />
           </div>
 
-          {/* Details */}
           <div>
             <Label>Lead Source</Label>
             <Select value={form.lead_source} onValueChange={(v) => setForm(f => ({ ...f, lead_source: v }))}>
