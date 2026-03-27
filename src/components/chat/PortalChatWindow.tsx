@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, Send, X, Loader2, Sparkles, Zap, BarChart3, Package, ClipboardList, BrainCircuit, Volume2, VolumeX, Mic, PanelLeftClose, PanelLeft, Plus, RefreshCw } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Bot, Send, X, Loader2, Sparkles, Zap, BarChart3, Package, ClipboardList, BrainCircuit, Volume2, VolumeX, Mic, PanelLeftClose, PanelLeft, Plus, RefreshCw, Users, DollarSign, Truck, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +10,7 @@ import { VoiceVisualizer } from './VoiceVisualizer';
 import { AIChatSidebar } from './AIChatSidebar';
 import { DailyBriefingWidget } from './DailyBriefingWidget';
 import { useAIChats, type AIMessage } from '@/hooks/useAIChats';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -18,19 +19,82 @@ interface Message {
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-portal-assistant`;
 
-const QUICK_PROMPTS = [
+const ROLE_QUICK_PROMPTS: Record<string, { icon: React.ElementType; label: string; prompt: string }[]> = {
+  hr: [
+    { icon: Users, label: "Attendance today", prompt: "Show today's attendance summary — who's absent, late, or missing checkout" },
+    { icon: Calendar, label: "Leave requests", prompt: "Show pending leave requests" },
+    { icon: ClipboardList, label: "My tasks", prompt: "What tasks are assigned to me?" },
+    { icon: BrainCircuit, label: "People briefing", prompt: "Give me my daily briefing — attendance anomalies, pending leaves, and payroll status" },
+  ],
+  sales: [
+    { icon: Zap, label: "Hot leads", prompt: "Show me all hot leads" },
+    { icon: BarChart3, label: "My pipeline", prompt: "Show my active pipeline deals" },
+    { icon: ClipboardList, label: "My tasks", prompt: "What tasks are assigned to me?" },
+    { icon: BrainCircuit, label: "Sales briefing", prompt: "Give me my daily briefing — hot leads, stalled deals, and follow-ups needed" },
+  ],
+  sales_manager: [
+    { icon: BarChart3, label: "Team performance", prompt: "Show sales team performance this month — orders and pipeline by salesperson" },
+    { icon: Zap, label: "Hot leads", prompt: "Show all hot leads across the team" },
+    { icon: DollarSign, label: "Overdue payments", prompt: "Show overdue payments" },
+    { icon: BrainCircuit, label: "Revenue briefing", prompt: "Give me my daily briefing — pipeline health, overdue payments, and hot leads" },
+  ],
+  finance: [
+    { icon: DollarSign, label: "Overdue payments", prompt: "Show all overdue payments with aging analysis" },
+    { icon: BarChart3, label: "Cashflow", prompt: "Show expected payments and cashflow this week" },
+    { icon: Package, label: "Pending expenses", prompt: "Show pending expense approvals" },
+    { icon: BrainCircuit, label: "Finance briefing", prompt: "Give me my daily briefing — overdue payments, cashflow gaps, and high-risk customers" },
+  ],
+  supply_chain: [
+    { icon: Package, label: "Low stock", prompt: "Show low stock inventory items" },
+    { icon: Truck, label: "Delayed procurement", prompt: "Show delayed procurement orders" },
+    { icon: BarChart3, label: "Order status", prompt: "Show orders pending dispatch" },
+    { icon: BrainCircuit, label: "Supply briefing", prompt: "Give me my daily briefing — low stock, delayed procurements, and pending orders" },
+  ],
+  admin: [
+    { icon: BarChart3, label: "Dashboard summary", prompt: "Show me today's dashboard summary" },
+    { icon: Package, label: "Pending orders", prompt: "What are the pending orders?" },
+    { icon: Zap, label: "Hot leads", prompt: "Show me all hot leads" },
+    { icon: ClipboardList, label: "My tasks", prompt: "What tasks are assigned to me?" },
+    { icon: BrainCircuit, label: "Daily briefing", prompt: "Give me my daily briefing — overdue payments, stalled deals, pending approvals, and any anomalies" },
+  ],
+};
+
+const DEFAULT_QUICK_PROMPTS = [
   { icon: BarChart3, label: "Dashboard summary", prompt: "Show me today's dashboard summary" },
-  { icon: Package, label: "Pending orders", prompt: "What are the pending orders?" },
-  { icon: Zap, label: "Hot leads", prompt: "Show me all hot leads" },
   { icon: ClipboardList, label: "My tasks", prompt: "What tasks are assigned to me?" },
-  { icon: BrainCircuit, label: "Daily briefing", prompt: "Give me my daily briefing — overdue payments, stalled deals, pending approvals, and any anomalies" },
+  { icon: BrainCircuit, label: "Daily briefing", prompt: "Give me my daily briefing" },
 ];
+
+function getRoleAITitle(roles: string[]): string {
+  if (roles.includes('admin')) return 'Command Center';
+  if (roles.includes('hr')) return 'People Insights';
+  if (roles.includes('finance')) return 'Cashflow Insights';
+  if (roles.includes('sales_manager')) return 'Revenue Insights';
+  if (roles.includes('sales')) return 'Revenue Insights';
+  if (roles.includes('supply_chain')) return 'Supply Insights';
+  if (roles.includes('it')) return 'IT Operations';
+  if (roles.includes('marketing')) return 'Market Insights';
+  return 'XBoom AI';
+}
+
+function getRoleSubtitle(roles: string[]): string {
+  if (roles.includes('admin')) return 'Full organizational intelligence';
+  if (roles.includes('hr')) return 'Workforce analytics & operations';
+  if (roles.includes('finance')) return 'Payment tracking & risk analysis';
+  if (roles.includes('sales_manager')) return 'Team performance & pipeline health';
+  if (roles.includes('sales')) return 'Leads, deals & follow-ups';
+  if (roles.includes('supply_chain')) return 'Inventory & procurement intelligence';
+  if (roles.includes('it')) return 'Ticket management & system health';
+  if (roles.includes('marketing')) return 'Lead quality & market trends';
+  return 'Intelligent Portal Assistant';
+}
 
 interface PortalChatWindowProps {
   onClose: () => void;
 }
 
 export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
+  const { roles } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -314,12 +378,12 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
               </div>
               <div className="min-w-0">
                 <h3 className="text-xs font-bold text-foreground leading-none truncate">
-                  {voiceMode ? 'Voice Assistant' : (activeChatId ? (chats.find(c => c.id === activeChatId)?.title || 'Chat') : 'XBoom AI')}
+                  {voiceMode ? 'Voice Assistant' : (activeChatId ? (chats.find(c => c.id === activeChatId)?.title || 'Chat') : getRoleAITitle(roles))}
                 </h3>
                 <p className="text-[9px] mt-0.5 text-muted-foreground truncate">
                   {voiceMode
                     ? (isListening ? '🎤 Listening...' : aiSpeaking ? '🔊 Speaking...' : isLoading ? '⚡ Processing...' : '🎙️ Ready')
-                    : 'Intelligent Portal Assistant'
+                    : getRoleSubtitle(roles)
                   }
                 </p>
               </div>
@@ -431,32 +495,37 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                 </div>
               </div>
 
-              <h3 className="text-sm font-bold text-foreground mb-1">What can I help with?</h3>
+              <h3 className="text-sm font-bold text-foreground mb-1">{getRoleAITitle(roles)}</h3>
               <p className="text-[11px] text-muted-foreground mb-4 max-w-[280px] leading-relaxed">
-                Query, analyze, or take action on orders, leads, inventory & more — powered by AI.
+                {getRoleSubtitle(roles)} — powered by AI.
               </p>
 
               <DailyBriefingWidget onPrompt={(p) => !isLoading && streamChat(p)} />
 
               <div className="grid grid-cols-2 gap-2 w-full max-w-[340px]">
-                {QUICK_PROMPTS.map(({ icon: Icon, label, prompt }, i) => (
-                  <button
-                    key={i}
-                    onClick={() => !isLoading && streamChat(prompt)}
-                    className={cn(
-                      "flex items-center gap-2 p-2.5 rounded-xl text-left",
-                    "bg-card border border-border/50 hover:border-primary/30 dark:border-border/30 dark:hover:border-primary/40",
-                      "hover:bg-primary/5 dark:hover:bg-primary/10 transition-all duration-200",
-                      "group cursor-pointer",
-                      i === 4 && "col-span-2"
-                    )}
-                  >
-                    <div className="p-1.5 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors shrink-0">
-                      <Icon className="w-3.5 h-3.5 text-primary" />
-                    </div>
-                    <span className="text-[11px] font-medium text-foreground leading-tight">{label}</span>
-                  </button>
-                ))}
+                {(() => {
+                  const primaryRole = ['admin', 'hr', 'finance', 'supply_chain', 'sales_manager', 'sales']
+                    .find(r => roles.includes(r as any)) || 'default';
+                  const prompts = ROLE_QUICK_PROMPTS[primaryRole] || DEFAULT_QUICK_PROMPTS;
+                  return prompts.map(({ icon: Icon, label, prompt }, i) => (
+                    <button
+                      key={i}
+                      onClick={() => !isLoading && streamChat(prompt)}
+                      className={cn(
+                        "flex items-center gap-2 p-2.5 rounded-xl text-left",
+                        "bg-card border border-border/50 hover:border-primary/30 dark:border-border/30 dark:hover:border-primary/40",
+                        "hover:bg-primary/5 dark:hover:bg-primary/10 transition-all duration-200",
+                        "group cursor-pointer",
+                        i === prompts.length - 1 && prompts.length % 2 === 1 && "col-span-2"
+                      )}
+                    >
+                      <div className="p-1.5 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors shrink-0">
+                        <Icon className="w-3.5 h-3.5 text-primary" />
+                      </div>
+                      <span className="text-[11px] font-medium text-foreground leading-tight">{label}</span>
+                    </button>
+                  ));
+                })()}
               </div>
             </div>
           ) : (
