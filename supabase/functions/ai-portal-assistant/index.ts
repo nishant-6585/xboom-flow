@@ -566,6 +566,7 @@ async function executeToolCall(
         }
         const { error: updateErr } = await client.from("orders").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", orderMatch[0].id);
         if (updateErr) throw updateErr;
+        await client.from("ai_action_logs").insert({ user_id: userId, action_type: "update_order_status", payload: { order_number: orderNum, old_status: orderMatch[0].status, new_status: newStatus }, status: "executed" }).catch(() => {});
         return JSON.stringify({ success: true, message: `Order ${orderNum} status updated from "${orderMatch[0].status}" to "${newStatus}"` });
       }
 
@@ -584,6 +585,7 @@ async function executeToolCall(
         }
         const { error: updateErr } = await client.from("enquiries").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", enquiryId);
         if (updateErr) throw updateErr;
+        await client.from("ai_action_logs").insert({ user_id: userId, action_type: "update_enquiry_status", payload: { enquiry_id: enquiryId, old_status: enqMatch[0].status, new_status: newStatus }, status: "executed" }).catch(() => {});
         return JSON.stringify({ success: true, message: `Enquiry status updated from "${enqMatch[0].status}" to "${newStatus}"` });
       }
 
@@ -604,6 +606,7 @@ async function executeToolCall(
         if (newStatus === "completed") updateData.completed_at = new Date().toISOString();
         const { error: updateErr } = await client.from("tasks").update(updateData).eq("id", taskId);
         if (updateErr) throw updateErr;
+        await client.from("ai_action_logs").insert({ user_id: userId, action_type: "update_task_status", payload: { task_id: taskId, old_status: taskMatch[0].status, new_status: newStatus, task_title: taskMatch[0].title }, status: "executed" }).catch(() => {});
         return JSON.stringify({ success: true, message: `Task "${taskMatch[0].title}" updated to "${newStatus}"` });
       }
 
