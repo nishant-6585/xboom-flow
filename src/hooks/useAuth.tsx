@@ -47,6 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [mfaStatus, setMfaStatus] = useState<MfaStatus>("not_required");
   const lastHydratedUserIdRef = useRef<string | null>(null);
   const isBootstrappedRef = useRef(false);
+  const profileRef = useRef<Profile | null>(null);
 
   const fetchUserData = async (userId: string) => {
     try {
@@ -58,9 +59,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .maybeSingle();
 
       if (profileData) {
-        setProfile(profileData as Profile);
+        const p = profileData as Profile;
+        setProfile(p);
+        profileRef.current = p;
       } else {
         setProfile(null);
+        profileRef.current = null;
       }
 
       // Fetch all roles (user may have multiple)
@@ -155,7 +159,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Skip full loading state, but still ensure profile is hydrated
         if (event === "TOKEN_REFRESHED" || (event === "SIGNED_IN" && isSameHydratedUser)) {
           // If profile was lost from state (race condition), silently re-fetch
-          if (incomingUserId && !profile) {
+          if (incomingUserId && !profileRef.current) {
             console.warn("[Auth] Profile missing during", event, "— re-fetching silently");
             fetchUserData(incomingUserId);
           }
@@ -215,7 +219,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => subscription.unsubscribe();
-  }, [profile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const signUp = async (email: string, password: string, name: string, team: AppRole) => {
     const normalizedEmail = email.toLowerCase().trim();
@@ -433,6 +438,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     await supabase.auth.signOut();
     setProfile(null);
+    profileRef.current = null;
     setRole(null);
     setRoles([]);
     setMfaStatus("not_required");
