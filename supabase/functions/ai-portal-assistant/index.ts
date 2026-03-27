@@ -1646,7 +1646,7 @@ Available modules: ${Array.from(allAllowedTools).map(t => t.replace("query_", ""
       toolResults.push({ role: "tool", tool_call_id: toolCall.id, content: result });
     }
 
-    // Step 3: Send tool results back to AI
+    // Step 3: Send tool results back to AI (NON-STREAMING to extract actions server-side)
     const step3Messages = [
       { role: "system", content: systemPrompt },
       ...messages,
@@ -1660,7 +1660,7 @@ Available modules: ${Array.from(allAllowedTools).map(t => t.replace("query_", ""
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: step3Messages,
-        stream: true,
+        stream: false,
       }),
     });
 
@@ -1671,7 +1671,62 @@ Available modules: ${Array.from(allAllowedTools).map(t => t.replace("query_", ""
       });
     }
 
-    return new Response(finalResponse.body, {
+    const finalData = await finalResponse.json();
+    let finalContent = finalData.choices?.[0]?.message?.content || "";
+
+    // Server-side action extraction — parse and strip ```actions blocks
+    const extractedActions: { label: string; action_type: string; payload: Record<string, unknown> }[] = [];
+
+    // 1. Standard ```actions ... ``` blocks
+    finalContent = finalContent.replace(/```actions\s*\n?([\s\S]*?)```/g, (_: string, json: string) => {
+      try {
+        const parsed = JSON.parse(json.trim());
+        if (Array.isArray(parsed)) extractedActions.push(...parsed);
+      } catch { /* skip malformed */ }
+      return "";
+    });
+
+    // 2. Loose "actions [...]" patterns
+    finalContent = finalContent.replace(/\bactions\s*\n?\s*(\[[\s\S]*?\])\s*$/gm, (_: string, json: string) => {
+      try {
+        const parsed = JSON.parse(json.trim());
+        if (Array.isArray(parsed) && parsed.every((a: Record<string, unknown>) => a.label && a.action_type)) {
+          extractedActions.push(...parsed);
+          return "";
+        }
+      } catch { /* skip */ }
+      return _;
+    });
+
+    // 3. Standalone JSON arrays matching action signature
+    finalContent = finalContent.replace(/\n\s*(\[\s*\{\s*"label"\s*:\s*"[^"]+"\s*,\s*"action_type"\s*:\s*"[^"]+"[\s\S]*?\}\s*\])\s*$/g, (_: string, json: string) => {
+      try {
+        const parsed = JSON.parse(json.trim());
+        if (Array.isArray(parsed) && parsed.every((a: Record<string, unknown>) => a.label && a.action_type)) {
+          extractedActions.push(...parsed);
+          return "";
+        }
+      } catch { /* skip */ }
+      return _;
+    });
+
+    // Clean up residual whitespace
+    finalContent = finalContent.replace(/\n{3,}/g, "\n\n").trim();
+
+    // Build structured SSE response: text content + separate actions event
+    const encoder = new TextEncoder();
+    let ssePayload = `data: ${JSON.stringify({
+      choices: [{ delta: { content: finalContent, role: "assistant" }, finish_reason: "stop" }]
+    })}\n\n`;
+
+    // Send extracted actions as a separate structured event
+    if (extractedActions.length > 0) {
+      ssePayload += `data: ${JSON.stringify({ __actions__: extractedActions })}\n\n`;
+    }
+
+    ssePayload += `data: [DONE]\n\n`;
+
+    return new Response(encoder.encode(ssePayload), {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
 
