@@ -148,6 +148,11 @@ export function AIChatSidebar({
           )}
         </div>
       </ScrollArea>
+
+      {/* Access Requests Panel */}
+      <div className="border-t border-border/40 p-2 max-h-[200px] overflow-y-auto">
+        <AccessRequestsPanel />
+      </div>
     </div>
   );
 }
