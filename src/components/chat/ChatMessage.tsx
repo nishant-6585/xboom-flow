@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 import { parseChartBlocks, ChatChart } from './ChatChart';
+import { parseActionBlocks, ChatActionButtons } from './ChatActionButtons';
 import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -360,7 +361,9 @@ export function ChatMessage({ role, content, isStreaming, autoSpeak, onSpeakingD
       return isStreaming ? <span className="text-muted-foreground">•••</span> : null;
     }
 
-    const hasChartBlock = content.includes('```chart');
+    // Parse action blocks
+    const { cleanContent, actions } = parseActionBlocks(content);
+    const hasChartBlock = cleanContent.includes('```chart');
 
     const markdownComponents = {
       table: ({ children, ...props }: any) => (
@@ -410,26 +413,34 @@ export function ChatMessage({ role, content, isStreaming, autoSpeak, onSpeakingD
 
     const proseClasses = "max-w-full text-sm leading-relaxed break-words [word-break:break-word]";
 
-    if (!hasChartBlock || isStreaming) {
+    const renderMarkdown = (text: string) => {
+      if (!text.includes('```chart') || isStreaming) {
+        return (
+          <div className={proseClasses}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{text}</ReactMarkdown>
+          </div>
+        );
+      }
+      const parts = parseChartBlocks(text);
       return (
-        <div className={proseClasses}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{content}</ReactMarkdown>
+        <div>
+          {parts.map((part, i) =>
+            part.type === 'chart' ? (
+              <ChatChart key={i} spec={part.spec} />
+            ) : (
+              <div key={i} className={proseClasses}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{part.value}</ReactMarkdown>
+              </div>
+            )
+          )}
         </div>
       );
-    }
+    };
 
-    const parts = parseChartBlocks(content);
     return (
       <div>
-        {parts.map((part, i) =>
-          part.type === 'chart' ? (
-            <ChatChart key={i} spec={part.spec} />
-          ) : (
-            <div key={i} className={proseClasses}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{part.value}</ReactMarkdown>
-            </div>
-          )
-        )}
+        {renderMarkdown(cleanContent)}
+        {!isStreaming && actions.length > 0 && <ChatActionButtons actions={actions} />}
       </div>
     );
   };
