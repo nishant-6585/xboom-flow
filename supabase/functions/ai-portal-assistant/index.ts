@@ -92,16 +92,73 @@ function getAccessLevel(toolName: string, roles: string[]): AccessLevel {
   return "full";
 }
 
-// Smart denial messages instead of hard blocks
-const SMART_DENIALS: Record<string, string> = {
-  query_salary_sheets: "I don't have access to payroll data for your role. The payroll module is managed by HR. Please contact the HR team for salary-related queries.",
-  query_leave_balances: "Leave balance details are managed by the HR team. I can tell you that the leave system is operational. Please reach out to HR for specific balance inquiries.",
-  query_leave_requests: "Leave request data is restricted to HR and Admin roles. For leave-related queries, please contact your HR representative.",
-  query_attendance: "Attendance data is restricted to HR and Admin roles. I can help you with modules relevant to your role instead.",
-  query_expected_payments: "Expected payment data is restricted to Finance and Admin roles. Please contact the Finance team for payment schedule inquiries.",
-  query_expenses: "Expense data is restricted to Finance and Admin roles. Please contact the Finance team for expense-related queries.",
-  query_employees: "Employee details are restricted to HR and Admin roles. I can share high-level team information if needed.",
+// Smart denial messages with explainable access
+const SMART_DENIALS: Record<string, { message: string; who_can_access: string; alternative: string; data_type: string }> = {
+  query_salary_sheets: {
+    message: "Salary/payroll data is classified as **sensitive HR information** and is restricted to HR and Admin roles.",
+    who_can_access: "HR Team or Admin",
+    alternative: "I can tell you the payroll processing status (draft/finalized) without revealing amounts.",
+    data_type: "salary",
+  },
+  query_leave_balances: {
+    message: "Leave balance details are classified as **personal HR data** and managed by the HR team.",
+    who_can_access: "HR Team or Admin",
+    alternative: "I can confirm the leave system is operational. For specific balances, please contact HR.",
+    data_type: "leave",
+  },
+  query_leave_requests: {
+    message: "Leave request data is classified as **personal HR information** and restricted to HR and Admin roles.",
+    who_can_access: "HR Team or Admin",
+    alternative: "I can help with modules relevant to your role. For leave queries, please contact your HR representative.",
+    data_type: "leave",
+  },
+  query_attendance: {
+    message: "Attendance data is classified as **employee personal information** and restricted to HR and Admin roles.",
+    who_can_access: "HR Team or Admin",
+    alternative: "I can help with workforce availability insights at a high level without revealing individual attendance records.",
+    data_type: "attendance",
+  },
+  query_expected_payments: {
+    message: "Expected payment schedules are classified as **financial data** and restricted to Finance and Admin roles.",
+    who_can_access: "Finance Team or Admin",
+    alternative: "I can share order payment status (paid/pending) without revealing specific payment schedules.",
+    data_type: "payment",
+  },
+  query_expenses: {
+    message: "Expense data is classified as **financial information** and restricted to Finance and Admin roles.",
+    who_can_access: "Finance Team or Admin",
+    alternative: "I can help with other modules. For expense-related queries, please contact the Finance team.",
+    data_type: "expense",
+  },
+  query_employees: {
+    message: "Detailed employee information is classified as **personal HR data** and restricted to HR and Admin roles.",
+    who_can_access: "HR Team or Admin",
+    alternative: "I can share high-level team structure and department-wise headcount information.",
+    data_type: "employee_personal",
+  },
 };
+
+// Check for temporary permissions
+async function checkTempPermission(
+  client: ReturnType<typeof createClient>,
+  userId: string,
+  dataType: string,
+  targetEntityId?: string
+): Promise<boolean> {
+  const now = new Date().toISOString();
+  let query = client.from("ai_temp_permissions")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("data_type", dataType)
+    .gt("expires_at", now);
+  
+  if (targetEntityId) {
+    query = query.or(`target_entity_id.eq.${targetEntityId},target_entity_id.is.null`);
+  }
+  
+  const { data } = await query.limit(1);
+  return (data?.length || 0) > 0;
+}
 
 // Strip sensitive fields from records based on roles
 function stripSensitiveFields(
@@ -111,7 +168,6 @@ function stripSensitiveFields(
 ): { cleaned: Record<string, unknown>[]; maskedFields: string[] } {
   const isAdmin = roles.includes("admin");
   if (isAdmin || accessLevel === "full") {
-    // Even full access strips hard-blocked fields for non-admin
     if (isAdmin) return { cleaned: records, maskedFields: [] };
   }
 
@@ -120,18 +176,15 @@ function stripSensitiveFields(
   const cleaned = records.map(record => {
     const cleanedRecord: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(record)) {
-      // Check if field is hard-blocked
       if (HARD_BLOCKED_FIELDS.includes(key)) {
-        // Check if this role has access
         const fieldAccess = SENSITIVE_FIELD_ACCESS[key];
         const hasAccess = fieldAccess && roles.some(r => fieldAccess[r]);
         if (!hasAccess) {
           maskedFields.add(key);
-          continue; // Strip entirely
+          continue;
         }
       }
 
-      // Partial masking for phone numbers in masked access
       if (accessLevel === "masked" && PARTIAL_MASK_FIELDS.includes(key) && typeof value === "string" && value.length > 4) {
         cleanedRecord[key] = "XXXXX" + value.slice(-4);
         maskedFields.add(key);
@@ -155,17 +208,19 @@ async function logAccess(
   toolName: string,
   accessType: AccessLevel,
   maskedFields: string[] = [],
-  deniedReason?: string
+  deniedReason?: string,
+  approvalRefId?: string
 ) {
   try {
     await client.from("ai_access_logs").insert({
       user_id: userId,
       user_role: roles.join(","),
-      query_text: queryText.substring(0, 500), // Truncate for storage
+      query_text: queryText.substring(0, 500),
       tool_name: toolName,
       access_type: accessType,
       masked_fields: maskedFields,
       denied_reason: deniedReason || null,
+      approval_reference_id: approvalRefId || null,
     });
   } catch (e) {
     console.error("Failed to log AI access:", e);
