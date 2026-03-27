@@ -599,6 +599,8 @@ export type Database = {
           end_time: string | null
           full_number: string | null
           id: string
+          is_a_category: boolean | null
+          is_prospect: boolean | null
           ivr_input: string | null
           lead_created: boolean
           lead_id: string | null
@@ -624,6 +626,8 @@ export type Database = {
           end_time?: string | null
           full_number?: string | null
           id?: string
+          is_a_category?: boolean | null
+          is_prospect?: boolean | null
           ivr_input?: string | null
           lead_created?: boolean
           lead_id?: string | null
@@ -649,6 +653,8 @@ export type Database = {
           end_time?: string | null
           full_number?: string | null
           id?: string
+          is_a_category?: boolean | null
+          is_prospect?: boolean | null
           ivr_input?: string | null
           lead_created?: boolean
           lead_id?: string | null
@@ -1896,6 +1902,7 @@ export type Database = {
           id: string
           is_escalated: boolean
           is_mega_deal: boolean | null
+          is_prospect: boolean | null
           lead_temperature: string | null
           lost_reason: string | null
           lost_reason_notes: string | null
@@ -1942,6 +1949,7 @@ export type Database = {
           id?: string
           is_escalated?: boolean
           is_mega_deal?: boolean | null
+          is_prospect?: boolean | null
           lead_temperature?: string | null
           lost_reason?: string | null
           lost_reason_notes?: string | null
@@ -1988,6 +1996,7 @@ export type Database = {
           id?: string
           is_escalated?: boolean
           is_mega_deal?: boolean | null
+          is_prospect?: boolean | null
           lead_temperature?: string | null
           lost_reason?: string | null
           lost_reason_notes?: string | null
@@ -2981,6 +2990,8 @@ export type Database = {
           interakt_created_at: string | null
           interakt_traits: Json | null
           interakt_user_id: string | null
+          is_a_category: boolean | null
+          is_prospect: boolean | null
           notes: string | null
           phone_number: string
           product_name: string | null
@@ -3002,6 +3013,8 @@ export type Database = {
           interakt_created_at?: string | null
           interakt_traits?: Json | null
           interakt_user_id?: string | null
+          is_a_category?: boolean | null
+          is_prospect?: boolean | null
           notes?: string | null
           phone_number: string
           product_name?: string | null
@@ -3023,6 +3036,8 @@ export type Database = {
           interakt_created_at?: string | null
           interakt_traits?: Json | null
           interakt_user_id?: string | null
+          is_a_category?: boolean | null
+          is_prospect?: boolean | null
           notes?: string | null
           phone_number?: string
           product_name?: string | null
@@ -5466,6 +5481,69 @@ export type Database = {
           slack_user_id?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      prospects: {
+        Row: {
+          a_category_marked_at: string | null
+          a_category_marked_by: string | null
+          city: string | null
+          company: string | null
+          created_at: string
+          created_by: string
+          created_by_name: string
+          customer_name: string
+          email: string | null
+          id: string
+          is_a_category: boolean
+          notes: string | null
+          phone_number: string | null
+          product_name: string | null
+          source_id: string
+          source_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          a_category_marked_at?: string | null
+          a_category_marked_by?: string | null
+          city?: string | null
+          company?: string | null
+          created_at?: string
+          created_by: string
+          created_by_name: string
+          customer_name: string
+          email?: string | null
+          id?: string
+          is_a_category?: boolean
+          notes?: string | null
+          phone_number?: string | null
+          product_name?: string | null
+          source_id: string
+          source_type: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          a_category_marked_at?: string | null
+          a_category_marked_by?: string | null
+          city?: string | null
+          company?: string | null
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          customer_name?: string
+          email?: string | null
+          id?: string
+          is_a_category?: boolean
+          notes?: string | null
+          phone_number?: string | null
+          product_name?: string | null
+          source_id?: string
+          source_type?: string
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
