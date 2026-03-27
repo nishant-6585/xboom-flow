@@ -354,6 +354,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set() }:
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead className="w-10"></TableHead>
+                  <TableHead className="w-[40px]">P</TableHead>
                   <TableHead>Who</TableHead>
                   <TableHead>What</TableHead>
                   <TableHead>When</TableHead>
@@ -374,6 +375,16 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set() }:
                         className={newIds.has(log.id) ? "bg-primary/10 animate-pulse border-l-4 border-l-primary" : ""}
                       >
                         <TableCell className="pr-0">{statusIcon(info.status)}</TableCell>
+                        <TableCell>
+                          <ProspectButton
+                            sourceType="myoperator"
+                            sourceId={log.id}
+                            customerName={log.full_number || log.caller_number}
+                            phoneNumber={log.full_number || log.caller_number}
+                            notes={info.whatText}
+                            isAlreadyProspect={prospectSourceIds.has(`myoperator:${log.id}`)}
+                          />
+                        </TableCell>
                         <TableCell className="font-mono text-sm font-medium text-primary">
                           {log.full_number || log.caller_number}
                         </TableCell>
@@ -437,7 +448,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set() }:
                       {/* Inline audio player row */}
                       {expandedAudio === logKey && info.recordingFile && (
                         <TableRow key={`${log.id}-audio`}>
-                          <TableCell colSpan={7} className="py-2 px-4">
+                          <TableCell colSpan={8} className="py-2 px-4">
                             <InlineAudioPlayer recordingFile={info.recordingFile} duration={info.duration} autoPlay />
                           </TableCell>
                         </TableRow>
