@@ -94,6 +94,7 @@ interface PortalChatWindowProps {
 }
 
 export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
+  const { roles } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
