@@ -152,22 +152,24 @@ export function FinancialDetailEditDialog({
   };
 
   useEffect(() => {
-    if (open && createMode) {
+    if (!open) {
+      setEditing(false);
+      setHasChanges(false);
+      setSelectedCreateEmpId("");
+      return;
+    }
+    if (createMode) {
       setEditing(true);
       setEmployee(null);
       setHistory([]);
       resetCreateForm();
       loadAvailableEmployees();
-    } else if (open && employeeId) {
+    } else if (employeeId) {
       setEditing(false);
       loadEmployee(employeeId);
     }
-    if (!open) {
-      setEditing(false);
-      setHasChanges(false);
-      setSelectedCreateEmpId("");
-    }
-  }, [open, employeeId, createMode, loadEmployee, loadAvailableEmployees]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, employeeId, createMode]);
 
   // Track changes
   useEffect(() => {
