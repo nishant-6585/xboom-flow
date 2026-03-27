@@ -364,23 +364,23 @@ export function ChatMessage({ role, content, isStreaming, autoSpeak, onSpeakingD
 
     const markdownComponents = {
       table: ({ children, ...props }: any) => (
-        <div className="my-2.5 rounded-lg border border-border/40 overflow-hidden">
+        <div className="my-2.5 rounded-lg border border-border/50 dark:border-primary/20 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse" {...props}>{children}</table>
           </div>
         </div>
       ),
       thead: ({ children, ...props }: any) => (
-        <thead className="bg-primary/10" {...props}>{children}</thead>
+        <thead className="bg-primary/15 dark:bg-primary/20" {...props}>{children}</thead>
       ),
       th: ({ children, ...props }: any) => (
-        <th className="px-3 py-2 text-left font-semibold text-foreground text-[11px] uppercase tracking-wider border-b border-border/50" {...props}>{children}</th>
+        <th className="px-3 py-2 text-left font-semibold text-foreground text-[11px] uppercase tracking-wider border-b border-border/50 dark:border-primary/30" {...props}>{children}</th>
       ),
       td: ({ children, ...props }: any) => (
-        <td className="px-3 py-2 border-b border-border/20 text-foreground/85" {...props}>{children}</td>
+        <td className="px-3 py-2 border-b border-border/20 dark:border-border/40 text-foreground/90" {...props}>{children}</td>
       ),
       tr: ({ children, ...props }: any) => (
-        <tr className="hover:bg-muted/40 transition-colors" {...props}>{children}</tr>
+        <tr className="hover:bg-muted/40 dark:hover:bg-primary/5 transition-colors even:bg-muted/20 dark:even:bg-primary/[0.03]" {...props}>{children}</tr>
       ),
       h2: ({ children, ...props }: any) => (
         <h2 className="text-sm font-semibold text-foreground mt-3 mb-1.5 flex items-center gap-1.5" {...props}>{children}</h2>
@@ -447,7 +447,7 @@ export function ChatMessage({ role, content, isStreaming, autoSpeak, onSpeakingD
             'rounded-xl px-3 py-2 text-sm leading-relaxed overflow-hidden break-words',
             isUser
               ? 'bg-primary text-primary-foreground rounded-br-sm'
-              : 'bg-muted rounded-bl-sm'
+              : 'bg-muted dark:bg-card dark:border dark:border-border/40 rounded-bl-sm'
           )}
         >
           {isUser ? (

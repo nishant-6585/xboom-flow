@@ -256,7 +256,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
   return (
     <div className={cn(
       "fixed z-50 flex animate-scale-in",
-      "bg-background/95 backdrop-blur-xl border border-border/60 shadow-2xl",
+      "bg-background/98 backdrop-blur-xl border border-border/50 shadow-2xl dark:border-border/30 dark:shadow-[0_0_60px_rgba(0,0,0,0.5)]",
       "bottom-4 left-4 w-[720px] h-[650px] rounded-2xl overflow-hidden",
       "max-sm:inset-0 max-sm:w-full max-sm:h-full max-sm:rounded-none max-sm:bottom-0 max-sm:left-0",
       "max-md:w-[480px]"
@@ -445,8 +445,8 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                     onClick={() => !isLoading && streamChat(prompt)}
                     className={cn(
                       "flex items-center gap-2 p-2.5 rounded-xl text-left",
-                      "bg-card border border-border/50 hover:border-primary/30",
-                      "hover:bg-primary/5 transition-all duration-200",
+                    "bg-card border border-border/50 hover:border-primary/30 dark:border-border/30 dark:hover:border-primary/40",
+                      "hover:bg-primary/5 dark:hover:bg-primary/10 transition-all duration-200",
                       "group cursor-pointer",
                       i === 4 && "col-span-2"
                     )}
@@ -480,7 +480,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                   <div className="shrink-0 w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
                     <Bot className="w-3.5 h-3.5 text-primary" />
                   </div>
-                  <div className="bg-muted rounded-xl rounded-bl-sm px-3 py-2.5">
+                  <div className="bg-muted dark:bg-card dark:border dark:border-border/40 rounded-xl rounded-bl-sm px-3 py-2.5">
                     <div className="flex items-center gap-1.5">
                       <div className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-pulse" />
                       <div className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-pulse [animation-delay:150ms]" />

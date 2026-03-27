@@ -65,7 +65,7 @@ export function AIChatSidebar({
   const groups = groupChatsByDate(chats);
 
   return (
-    <div className="flex flex-col h-full bg-muted/30 border-r border-border/40">
+    <div className="flex flex-col h-full bg-muted/30 dark:bg-card/50 border-r border-border/40">
       <div className="p-3 border-b border-border/40">
         <Button
           onClick={onNewChat}
