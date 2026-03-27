@@ -368,8 +368,9 @@ export function ChatMessage({ role, content, actions: structuredActions, isStrea
       return isStreaming ? <span className="text-muted-foreground">•••</span> : null;
     }
 
-    // Parse action blocks
-    const { cleanContent, actions } = parseActionBlocks(content);
+    // Use structured actions from prop (no text parsing needed)
+    const actions = structuredActions || [];
+    const cleanContent = content;
     const hasChartBlock = cleanContent.includes('```chart');
 
     const markdownComponents = {
