@@ -10,18 +10,19 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { ProductSelect } from '@/components/ProductSelect';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
-import type { InteraktLead } from '@/hooks/useInteraktLeads';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import type { Prospect } from '@/hooks/useProspects';
 
-interface InteraktLeadEditDialogProps {
+interface ProspectEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  lead: InteraktLead | null;
-  onSave: (lead: Partial<InteraktLead> & { id: string }) => Promise<void>;
-  saving: boolean;
+  prospect: Prospect | null;
+  onSuccess: () => void;
 }
 
-const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'converted', 'lost'];
-const LEAD_SOURCES = ['Website', 'IndiaMART', 'Trade India', 'Just Dial', 'Google Ads', 'Facebook', 'Instagram', 'LinkedIn', 'WhatsApp', 'Referral', 'Cold Call', 'Exhibition', 'Email Campaign', 'Interakt', 'Other'];
+const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'negotiation', 'converted', 'lost'];
+const LEAD_SOURCES = ['Website', 'IndiaMART', 'Trade India', 'Just Dial', 'Google Ads', 'Facebook', 'Instagram', 'LinkedIn', 'WhatsApp', 'Referral', 'Cold Call', 'Exhibition', 'Email Campaign', 'Interakt', 'MyOperator', 'Other'];
 const URGENCY_LEVELS = [
   { value: 'low', label: 'Low' },
   { value: 'medium', label: 'Medium' },
@@ -30,7 +31,8 @@ const URGENCY_LEVELS = [
 ];
 const PURPOSE_OF_PURCHASE = ['Personal Use', 'Business Operations', 'Government Project', 'Research & Development', 'Training & Education', 'Survey & Mapping', 'Agriculture', 'Inspection & Maintenance', 'Photography & Videography', 'Security & Surveillance', 'Delivery & Logistics', 'Entertainment & Events', 'Other'];
 
-export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, saving }: InteraktLeadEditDialogProps) {
+export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: ProspectEditDialogProps) {
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     customer_name: '',
     phone_number: '',
@@ -51,57 +53,64 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
   });
 
   useEffect(() => {
-    if (lead) {
+    if (prospect) {
       setForm({
-        customer_name: lead.customer_name || '',
-        phone_number: lead.phone_number || '',
-        email: lead.email || '',
-        customer_company: (lead as any).customer_company || '',
-        company: lead.company || '',
-        city: lead.city || '',
-        product_name: lead.product_name || '',
-        product_category: (lead as any).product_category || 'Consumer Drones',
-        product_code: (lead as any).product_code || '',
-        quantity: (lead as any).quantity || 1,
-        lead_source: (lead as any).lead_source || '',
-        urgency: (lead as any).urgency || 'medium',
-        requested_timeline: (lead as any).requested_timeline || '',
-        purpose_of_purchase: (lead as any).purpose_of_purchase || '',
-        status: lead.status || 'new',
-        notes: lead.notes || '',
+        customer_name: prospect.customer_name || '',
+        phone_number: prospect.phone_number || '',
+        email: prospect.email || '',
+        customer_company: (prospect as any).customer_company || '',
+        company: prospect.company || '',
+        city: prospect.city || '',
+        product_name: prospect.product_name || '',
+        product_category: (prospect as any).product_category || 'Consumer Drones',
+        product_code: (prospect as any).product_code || '',
+        quantity: (prospect as any).quantity || 1,
+        lead_source: (prospect as any).lead_source || '',
+        urgency: (prospect as any).urgency || 'medium',
+        requested_timeline: (prospect as any).requested_timeline || '',
+        purpose_of_purchase: (prospect as any).purpose_of_purchase || '',
+        status: prospect.status || 'new',
+        notes: prospect.notes || '',
       });
     }
-  }, [lead]);
+  }, [prospect]);
 
   const handleSave = async () => {
-    if (!lead) return;
-    await onSave({
-      id: lead.id,
-      customer_name: form.customer_name.trim(),
-      phone_number: form.phone_number.trim(),
-      email: form.email.trim() || null,
-      customer_company: form.customer_company.trim() || null,
-      company: form.company.trim() || null,
-      city: form.city.trim() || null,
-      product_name: form.product_name.trim() || null,
-      product_category: form.product_category,
-      product_code: form.product_code.trim() || null,
-      quantity: form.quantity,
-      lead_source: form.lead_source || null,
-      urgency: form.urgency,
-      requested_timeline: form.requested_timeline.trim() || null,
-      purpose_of_purchase: form.purpose_of_purchase || null,
-      status: form.status,
-      notes: form.notes.trim() || null,
-    } as any);
-    onOpenChange(false);
-  };
+    if (!prospect) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('prospects')
+        .update({
+          customer_name: form.customer_name.trim(),
+          phone_number: form.phone_number.trim() || null,
+          email: form.email.trim() || null,
+          customer_company: form.customer_company.trim() || null,
+          company: form.company.trim() || null,
+          city: form.city.trim() || null,
+          product_name: form.product_name.trim() || null,
+          product_category: form.product_category,
+          product_code: form.product_code.trim() || null,
+          quantity: form.quantity,
+          lead_source: form.lead_source || null,
+          urgency: form.urgency,
+          requested_timeline: form.requested_timeline.trim() || null,
+          purpose_of_purchase: form.purpose_of_purchase || null,
+          status: form.status,
+          notes: form.notes.trim() || null,
+        } as Record<string, unknown>)
+        .eq('id', prospect.id);
 
-  const dynamicTraits = lead?.interakt_traits
-    ? Object.entries(lead.interakt_traits).filter(
-        ([key]) => !['name', 'Name', 'email', 'Email', 'city', 'City', 'product', 'Product', 'company', 'Company'].includes(key)
-      )
-    : [];
+      if (error) throw error;
+      toast.success('Prospect updated successfully');
+      onSuccess();
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(`Update failed: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -109,12 +118,11 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Pencil className="h-4 w-4" />
-            Edit Interakt Lead
+            Edit Prospect
           </DialogTitle>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-4 py-2">
-            {/* Customer Info */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Customer Name *</Label>
@@ -156,7 +164,6 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
 
             <Separator />
 
-            {/* Product Info */}
             <div className="space-y-2">
               <Label>Product Name</Label>
               <ProductSelect
@@ -173,7 +180,7 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Product Code</Label>
-                <Input value={form.product_code} onChange={(e) => setForm(f => ({ ...f, product_code: e.target.value }))} placeholder="e.g., DJI-M3-001" />
+                <Input value={form.product_code} onChange={(e) => setForm(f => ({ ...f, product_code: e.target.value }))} />
               </div>
               <div className="space-y-2">
                 <Label>Quantity</Label>
@@ -203,7 +210,6 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
 
             <Separator />
 
-            {/* Details */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Status</Label>
@@ -234,24 +240,6 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
               <Label>Notes</Label>
               <Textarea value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} />
             </div>
-
-            {/* Dynamic Interakt Traits */}
-            {dynamicTraits.length > 0 && (
-              <>
-                <Separator />
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-muted-foreground">Interakt Traits</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {dynamicTraits.map(([key, value]) => (
-                      <div key={key} className="bg-muted/50 rounded-md p-2">
-                        <p className="text-xs text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</p>
-                        <p className="text-sm font-medium truncate">{String(value ?? '—')}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
           </div>
         </ScrollArea>
         <DialogFooter>
