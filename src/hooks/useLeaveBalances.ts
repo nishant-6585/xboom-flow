@@ -141,39 +141,63 @@ export function useLeaveBalances(employeeId?: string) {
 
   const fetchAllBalances = useCallback(async () => {
     const year = new Date().getFullYear();
-    const { data } = await supabase
+
+    // Fetch ALL active employees first
+    const { data: employees } = await supabase
+      .from('employees')
+      .select('id, name')
+      .eq('is_active', true)
+      .eq('employment_status', 'active')
+      .order('name');
+
+    // Fetch leave balances for current year
+    const { data: balanceData } = await supabase
       .from('leave_balances')
-      .select('*, employees!inner(name, is_active, employment_status)')
-      .eq('year', year)
-      .eq('employees.is_active', true)
-      .eq('employees.employment_status', 'active')
-      .order('employee_id');
+      .select('*')
+      .eq('year', year);
 
-    const raw = (data || []).map((item: any) => ({
-      ...item,
-      employee_name: item.employees?.name,
-    }));
-    setAllBalances(raw);
+    const balancesByEmployee = new Map<string, any[]>();
+    for (const b of (balanceData || [])) {
+      if (!balancesByEmployee.has(b.employee_id)) {
+        balancesByEmployee.set(b.employee_id, []);
+      }
+      balancesByEmployee.get(b.employee_id)!.push(b);
+    }
 
-    // Group by employee for the management view
+    // Build rows for ALL active employees
     const grouped = new Map<string, EmployeeLeaveRow>();
     const deprecated = new Set(['casual', 'half_day_casual']);
-    for (const b of raw) {
-      if (deprecated.has(b.leave_type)) continue;
-      if (!grouped.has(b.employee_id)) {
-        grouped.set(b.employee_id, {
-          employee_id: b.employee_id,
-          employee_name: b.employee_name || '—',
-          balances: [],
+
+    for (const emp of (employees || [])) {
+      grouped.set(emp.id, {
+        employee_id: emp.id,
+        employee_name: emp.name || '—',
+        balances: [],
+      });
+
+      const empBalances = balancesByEmployee.get(emp.id) || [];
+      for (const b of empBalances) {
+        if (deprecated.has(b.leave_type)) continue;
+        grouped.get(emp.id)!.balances.push({
+          leave_type: b.leave_type,
+          label: LEAVE_TYPE_LABELS[b.leave_type] || b.leave_type,
+          balance: b.balance,
+          id: b.id,
         });
       }
-      grouped.get(b.employee_id)!.balances.push({
-        leave_type: b.leave_type,
-        label: LEAVE_TYPE_LABELS[b.leave_type] || b.leave_type,
-        balance: b.balance,
-        id: b.id,
-      });
     }
+
+    // Also set allBalances for backward compat
+    const raw = (balanceData || [])
+      .filter((b: any) => {
+        const emp = (employees || []).find((e: any) => e.id === b.employee_id);
+        return !!emp;
+      })
+      .map((item: any) => {
+        const emp = (employees || []).find((e: any) => e.id === item.employee_id);
+        return { ...item, employee_name: emp?.name };
+      });
+    setAllBalances(raw);
 
     // Sort balances within each employee
     const order = ['EL', 'paid', 'sick', 'unpaid', 'wfh'];
