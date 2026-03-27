@@ -232,6 +232,9 @@ export function Header() {
                     <DropdownMenuItem onClick={() => navigate("/admin/audit-logs")}>
                       <ClipboardList className="w-4 h-4 mr-2" /> Audit Logs
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/admin/ai-automation")}>
+                      <Zap className="w-4 h-4 mr-2" /> AI Automation
+                    </DropdownMenuItem>
                   </>
                 )}
                 <DropdownMenuSeparator />
