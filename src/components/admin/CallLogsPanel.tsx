@@ -584,12 +584,19 @@ function InlineAudioPlayer({ recordingFile, duration, autoPlay = false }: { reco
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
       </Button>
       <span className="text-xs font-mono text-muted-foreground w-10 shrink-0">{formatTime(currentTime)}</span>
-      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-        <div
-          className="h-full bg-primary rounded-full transition-all duration-300"
-          style={{ width: audioDuration > 0 ? `${(currentTime / audioDuration) * 100}%` : '0%' }}
-        />
-      </div>
+      <input
+        type="range"
+        min={0}
+        max={audioDuration || 0}
+        value={currentTime}
+        onChange={(e) => {
+          const time = Number(e.target.value);
+          setCurrentTime(time);
+          if (audioRef.current) audioRef.current.currentTime = time;
+        }}
+        className="flex-1 h-1.5 accent-primary cursor-pointer"
+        disabled={!streamUrl}
+      />
       <span className="text-xs font-mono text-muted-foreground w-10 shrink-0">{formatTime(audioDuration)}</span>
       <Volume2 className="w-4 h-4 text-muted-foreground shrink-0" />
     </div>
