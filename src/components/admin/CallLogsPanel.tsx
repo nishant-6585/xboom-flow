@@ -503,6 +503,14 @@ function InlineAudioPlayer({ recordingFile, duration, autoPlay = false }: { reco
     }
   }, [recordingFile]);
 
+  // Auto-start loading on mount when autoPlay is true
+  useEffect(() => {
+    if (autoPlay && !hasAutoStarted.current && !streamUrl && !error && !loading) {
+      hasAutoStarted.current = true;
+      fetchRecording();
+    }
+  }, [autoPlay, fetchRecording]);
+
   useEffect(() => {
     return () => {
       if (streamUrl?.startsWith('blob:')) URL.revokeObjectURL(streamUrl);
