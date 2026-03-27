@@ -1754,6 +1754,93 @@ export type Database = {
         }
         Relationships: []
       }
+      email_leads: {
+        Row: {
+          city: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          customer_company: string | null
+          customer_name: string
+          email: string | null
+          id: string
+          is_a_category: boolean | null
+          is_prospect: boolean | null
+          lead_source: string | null
+          mail_source: string
+          notes: string | null
+          phone_number: string | null
+          product_category: string | null
+          product_code: string | null
+          product_name: string | null
+          purpose_of_purchase: string | null
+          quantity: number | null
+          requested_timeline: string | null
+          sales_person_id: string | null
+          sales_person_name: string | null
+          status: string | null
+          updated_at: string
+          updated_by: string | null
+          urgency: string | null
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          customer_company?: string | null
+          customer_name: string
+          email?: string | null
+          id?: string
+          is_a_category?: boolean | null
+          is_prospect?: boolean | null
+          lead_source?: string | null
+          mail_source?: string
+          notes?: string | null
+          phone_number?: string | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name?: string | null
+          purpose_of_purchase?: string | null
+          quantity?: number | null
+          requested_timeline?: string | null
+          sales_person_id?: string | null
+          sales_person_name?: string | null
+          status?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          urgency?: string | null
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          customer_company?: string | null
+          customer_name?: string
+          email?: string | null
+          id?: string
+          is_a_category?: boolean | null
+          is_prospect?: boolean | null
+          lead_source?: string | null
+          mail_source?: string
+          notes?: string | null
+          phone_number?: string | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name?: string | null
+          purpose_of_purchase?: string | null
+          quantity?: number | null
+          requested_timeline?: string | null
+          sales_person_id?: string | null
+          sales_person_name?: string | null
+          status?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          urgency?: string | null
+        }
+        Relationships: []
+      }
       employee_assets: {
         Row: {
           asset_name: string
