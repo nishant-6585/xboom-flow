@@ -11,17 +11,47 @@ interface AIAction {
   payload: Record<string, unknown>;
 }
 
-/** Parse ```actions [...] ``` blocks from content */
+/** Parse action blocks from content - handles multiple formats AI might use */
 export function parseActionBlocks(content: string): { cleanContent: string; actions: AIAction[] } {
-  const actionRegex = /```actions\s*\n?([\s\S]*?)```/g;
   let actions: AIAction[] = [];
-  const cleanContent = content.replace(actionRegex, (_, json) => {
+  let cleanContent = content;
+
+  // 1. Standard ```actions ... ``` blocks
+  cleanContent = cleanContent.replace(/```actions\s*\n?([\s\S]*?)```/g, (_, json) => {
     try {
       const parsed = JSON.parse(json.trim());
-      if (Array.isArray(parsed)) actions = parsed;
-    } catch { /* ignore parse errors */ }
+      if (Array.isArray(parsed)) actions = [...actions, ...parsed];
+    } catch { /* ignore */ }
     return '';
-  }).trim();
+  });
+
+  // 2. Loose "actions [...]" or "actions\n[...]" patterns (AI sometimes skips backticks)
+  cleanContent = cleanContent.replace(/\bactions\s*\n?\s*(\[[\s\S]*?\])\s*$/gm, (_, json) => {
+    try {
+      const parsed = JSON.parse(json.trim());
+      if (Array.isArray(parsed) && parsed.every(a => a.label && a.action_type)) {
+        actions = [...actions, ...parsed];
+        return '';
+      }
+    } catch { /* ignore */ }
+    return _;
+  });
+
+  // 3. Standalone JSON arrays that look like action blocks
+  cleanContent = cleanContent.replace(/\n\s*(\[\s*\{\s*"label"\s*:\s*"[^"]+"\s*,\s*"action_type"\s*:\s*"[^"]+"[\s\S]*?\}\s*\])\s*$/g, (_, json) => {
+    try {
+      const parsed = JSON.parse(json.trim());
+      if (Array.isArray(parsed) && parsed.every(a => a.label && a.action_type)) {
+        actions = [...actions, ...parsed];
+        return '';
+      }
+    } catch { /* ignore */ }
+    return _;
+  });
+
+  // 4. Clean up residual empty lines and whitespace
+  cleanContent = cleanContent.replace(/\n{3,}/g, '\n\n').trim();
+
   return { cleanContent, actions };
 }
 
