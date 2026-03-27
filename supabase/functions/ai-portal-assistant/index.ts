@@ -13,7 +13,169 @@ interface Message {
 
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-// Tool definitions for querying different modules
+// =====================================================
+// SENSITIVE FIELD DEFINITIONS & MASKING ENGINE
+// =====================================================
+
+// Fields that are ALWAYS blocked (never sent to AI for non-admin)
+const HARD_BLOCKED_FIELDS = [
+  "bank_account", "ifsc_code", "pan_number", "personal_email",
+  "emergency_contact_phone", "emergency_contact_name", "emergency_contact_relation",
+  "date_of_birth", "monthly_salary", "tax_regime",
+];
+
+// Fields that get partial masking (show last 4 chars)
+const PARTIAL_MASK_FIELDS = ["phone", "caller_number", "customer_phone"];
+
+// Module-level sensitive field map: which roles can see which sensitive fields
+const SENSITIVE_FIELD_ACCESS: Record<string, Record<string, boolean>> = {
+  // salary-related: only HR + Admin
+  monthly_salary: { admin: true, hr: true },
+  tax_regime: { admin: true, hr: true },
+  // bank details: only HR + Admin + Finance (masked for finance)
+  bank_account: { admin: true, hr: true },
+  ifsc_code: { admin: true, hr: true },
+  pan_number: { admin: true, hr: true },
+  // personal info: only HR + Admin
+  personal_email: { admin: true, hr: true },
+  date_of_birth: { admin: true, hr: true },
+  emergency_contact_phone: { admin: true, hr: true },
+  emergency_contact_name: { admin: true, hr: true },
+  emergency_contact_relation: { admin: true, hr: true },
+};
+
+// Access level types
+type AccessLevel = "full" | "masked" | "denied";
+
+// Determine access level for a tool given user roles
+function getAccessLevel(toolName: string, roles: string[]): AccessLevel {
+  const isAdmin = roles.includes("admin");
+  if (isAdmin) return "full";
+
+  // Cross-module access rules
+  const DENIED_TOOLS: Record<string, string[]> = {
+    // Sales cannot access HR/Finance sensitive tools
+    sales: ["query_salary_sheets", "query_leave_balances"],
+    sales_manager: ["query_salary_sheets"],
+    // Finance cannot access HR personal data tools
+    finance: ["query_salary_sheets", "query_leave_requests", "query_leave_balances", "query_attendance"],
+    // HR cannot access financial detail tools
+    hr: ["query_expected_payments"],
+    // Supply chain restricted
+    supply_chain: ["query_salary_sheets", "query_leave_requests", "query_leave_balances", "query_attendance"],
+    // IT restricted
+    it: ["query_salary_sheets", "query_leave_requests", "query_leave_balances", "query_attendance", "query_expected_payments", "query_expenses"],
+    // Marketing restricted
+    marketing: ["query_salary_sheets", "query_leave_requests", "query_leave_balances", "query_attendance", "query_expected_payments", "query_expenses", "query_employees"],
+  };
+
+  for (const role of roles) {
+    if (DENIED_TOOLS[role]?.includes(toolName)) {
+      return "denied";
+    }
+  }
+
+  // Cross-module queries get masked data
+  const MASKED_TOOLS: Record<string, string[]> = {
+    sales: ["query_employees", "query_expenses", "query_procurements"],
+    finance: ["query_employees"],
+    supply_chain: ["query_employees"],
+    marketing: ["query_employees"],
+  };
+
+  for (const role of roles) {
+    if (MASKED_TOOLS[role]?.includes(toolName)) {
+      return "masked";
+    }
+  }
+
+  return "full";
+}
+
+// Smart denial messages instead of hard blocks
+const SMART_DENIALS: Record<string, string> = {
+  query_salary_sheets: "I don't have access to payroll data for your role. The payroll module is managed by HR. Please contact the HR team for salary-related queries.",
+  query_leave_balances: "Leave balance details are managed by the HR team. I can tell you that the leave system is operational. Please reach out to HR for specific balance inquiries.",
+  query_leave_requests: "Leave request data is restricted to HR and Admin roles. For leave-related queries, please contact your HR representative.",
+  query_attendance: "Attendance data is restricted to HR and Admin roles. I can help you with modules relevant to your role instead.",
+  query_expected_payments: "Expected payment data is restricted to Finance and Admin roles. Please contact the Finance team for payment schedule inquiries.",
+  query_expenses: "Expense data is restricted to Finance and Admin roles. Please contact the Finance team for expense-related queries.",
+  query_employees: "Employee details are restricted to HR and Admin roles. I can share high-level team information if needed.",
+};
+
+// Strip sensitive fields from records based on roles
+function stripSensitiveFields(
+  records: Record<string, unknown>[],
+  roles: string[],
+  accessLevel: AccessLevel
+): { cleaned: Record<string, unknown>[]; maskedFields: string[] } {
+  const isAdmin = roles.includes("admin");
+  if (isAdmin || accessLevel === "full") {
+    // Even full access strips hard-blocked fields for non-admin
+    if (isAdmin) return { cleaned: records, maskedFields: [] };
+  }
+
+  const maskedFields: Set<string> = new Set();
+  
+  const cleaned = records.map(record => {
+    const cleanedRecord: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(record)) {
+      // Check if field is hard-blocked
+      if (HARD_BLOCKED_FIELDS.includes(key)) {
+        // Check if this role has access
+        const fieldAccess = SENSITIVE_FIELD_ACCESS[key];
+        const hasAccess = fieldAccess && roles.some(r => fieldAccess[r]);
+        if (!hasAccess) {
+          maskedFields.add(key);
+          continue; // Strip entirely
+        }
+      }
+
+      // Partial masking for phone numbers in masked access
+      if (accessLevel === "masked" && PARTIAL_MASK_FIELDS.includes(key) && typeof value === "string" && value.length > 4) {
+        cleanedRecord[key] = "XXXXX" + value.slice(-4);
+        maskedFields.add(key);
+        continue;
+      }
+
+      cleanedRecord[key] = value;
+    }
+    return cleanedRecord;
+  });
+
+  return { cleaned, maskedFields: Array.from(maskedFields) };
+}
+
+// Log access to ai_access_logs
+async function logAccess(
+  client: ReturnType<typeof createClient>,
+  userId: string,
+  roles: string[],
+  queryText: string,
+  toolName: string,
+  accessType: AccessLevel,
+  maskedFields: string[] = [],
+  deniedReason?: string
+) {
+  try {
+    await client.from("ai_access_logs").insert({
+      user_id: userId,
+      user_role: roles.join(","),
+      query_text: queryText.substring(0, 500), // Truncate for storage
+      tool_name: toolName,
+      access_type: accessType,
+      masked_fields: maskedFields,
+      denied_reason: deniedReason || null,
+    });
+  } catch (e) {
+    console.error("Failed to log AI access:", e);
+  }
+}
+
+// =====================================================
+// TOOL DEFINITIONS
+// =====================================================
+
 const DATA_TOOLS = [
   {
     type: "function" as const,
@@ -432,7 +594,10 @@ const DATA_TOOLS = [
   },
 ];
 
-// Role-based module access map
+// =====================================================
+// ROLE-BASED MODULE ACCESS MAP
+// =====================================================
+
 const ROLE_MODULE_ACCESS: Record<string, string[]> = {
   admin: ["query_orders", "query_enquiries", "query_pipeline", "query_inventory", "query_employees", "query_tasks", "query_tickets", "query_procurements", "query_suppliers", "query_expenses", "query_repairs", "query_attendance", "query_leave_requests", "query_leave_balances", "query_salary_sheets", "query_expected_payments", "get_dashboard_stats", "update_order_status", "update_enquiry_status", "update_task_status", "create_task", "create_payment_followup", "get_daily_briefing"],
   sales: ["query_orders", "query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats", "update_enquiry_status", "update_task_status", "create_task", "get_daily_briefing"],
@@ -445,37 +610,39 @@ const ROLE_MODULE_ACCESS: Record<string, string[]> = {
   employee: ["query_tasks", "query_tickets", "get_dashboard_stats", "update_task_status", "create_task", "get_daily_briefing"],
 };
 
-// Role-specific system prompt personalities
+// =====================================================
+// ROLE-SPECIFIC SYSTEM PROMPT PERSONALITIES
+// =====================================================
+
 function getRolePersonality(roles: string[]): string {
   const isAdmin = roles.includes("admin");
   if (isAdmin) {
     return `You are the EXECUTIVE COMMAND CENTER assistant. You have full visibility across all departments — Sales, Finance, HR, Operations, IT. You provide strategic oversight, cross-department intelligence, and help the admin make data-driven decisions. Surface anomalies, risks, and opportunities proactively.`;
   }
   if (roles.includes("hr")) {
-    return `You are a PEOPLE OPERATIONS assistant specialized in HR management. Your primary focus is workforce analytics — attendance patterns, leave management, employee engagement, payroll status, and hiring pipeline. You help HR make informed decisions about people, identify attendance anomalies, and track workforce health. You do NOT have access to financial data (revenue, order amounts, cost prices) or sales pipeline details. Focus on employee well-being and operational efficiency.`;
+    return `You are a PEOPLE OPERATIONS assistant specialized in HR management. Your primary focus is workforce analytics — attendance patterns, leave management, employee engagement, payroll status, and hiring pipeline. You help HR make informed decisions about people, identify attendance anomalies, and track workforce health. You do NOT have access to financial data (revenue, order amounts, cost prices) or sales pipeline details.`;
   }
   if (roles.includes("finance")) {
-    return `You are a CASHFLOW & RECOVERY assistant specialized in financial operations. Your primary focus is payment tracking, overdue recovery, expense management, cashflow forecasting, and financial risk assessment. You help Finance teams prioritize collections, identify payment risks, and manage cash positions. You do NOT have access to HR personal data (salaries, attendance, leave details) or detailed employee information. Focus on revenue realization and financial health.`;
+    return `You are a CASHFLOW & RECOVERY assistant specialized in financial operations. Your primary focus is payment tracking, overdue recovery, expense management, cashflow forecasting, and financial risk assessment. You do NOT have access to HR personal data (salaries, attendance, leave details) or detailed employee information.`;
   }
   if (roles.includes("sales_manager")) {
-    return `You are a REVENUE INTELLIGENCE assistant for sales leadership. Your focus is team performance, pipeline health, conversion analytics, and deal velocity. You help sales managers monitor their team's performance, identify coaching opportunities, and forecast revenue. You have visibility into all sales team members' data.`;
+    return `You are a REVENUE INTELLIGENCE assistant for sales leadership. Your focus is team performance, pipeline health, conversion analytics, and deal velocity.`;
   }
   if (roles.includes("sales")) {
-    return `You are a DEAL CLOSING assistant for the sales team. Your focus is personal pipeline management, lead prioritization, follow-up scheduling, and closing strategies. You help individual salespeople stay on top of their deals, identify hot leads, and never miss a follow-up. You can only see your own leads and orders.`;
+    return `You are a DEAL CLOSING assistant for the sales team. Your focus is personal pipeline management, lead prioritization, follow-up scheduling, and closing strategies. You can only see your own leads and orders.`;
   }
   if (roles.includes("supply_chain")) {
-    return `You are a SUPPLY CHAIN INTELLIGENCE assistant. Your focus is procurement optimization, inventory management, supplier performance, and order fulfillment. You help operations teams maintain optimal stock levels, track supplier reliability, and prevent stockouts. Focus on operational efficiency and supply chain health.`;
+    return `You are a SUPPLY CHAIN INTELLIGENCE assistant. Your focus is procurement optimization, inventory management, supplier performance, and order fulfillment.`;
   }
   if (roles.includes("it")) {
-    return `You are an IT OPERATIONS assistant. Your focus is ticket management, system health, and technical issue resolution. You help the IT team prioritize tickets, track SLA compliance, and identify recurring issues.`;
+    return `You are an IT OPERATIONS assistant. Your focus is ticket management, system health, and technical issue resolution.`;
   }
   if (roles.includes("marketing")) {
-    return `You are a MARKET INTELLIGENCE assistant. Your focus is lead quality analysis, campaign effectiveness, and market trends from enquiry data. You help marketing teams understand which channels and products generate the most interest.`;
+    return `You are a MARKET INTELLIGENCE assistant. Your focus is lead quality analysis, campaign effectiveness, and market trends from enquiry data.`;
   }
   return `You are a helpful workspace assistant. You can help with tasks and basic queries.`;
 }
 
-// Role-specific title for the AI panel
 function getRoleTitle(roles: string[]): string {
   if (roles.includes("admin")) return "Command Center";
   if (roles.includes("hr")) return "People Insights";
@@ -487,12 +654,17 @@ function getRoleTitle(roles: string[]): string {
   return "XBoom AI";
 }
 
+// =====================================================
+// TOOL EXECUTION ENGINE (with masking)
+// =====================================================
+
 async function executeToolCall(
   client: ReturnType<typeof createClient>,
   toolName: string,
   args: Record<string, unknown>,
   userId: string,
-  roles: string[]
+  roles: string[],
+  lastUserMessage: string
 ): Promise<string> {
   const limit = Math.min(Number(args.limit) || 50, 500);
   const isAdmin = roles.includes("admin");
@@ -501,7 +673,19 @@ async function executeToolCall(
   const isHR = roles.includes("hr");
   const isFinance = roles.includes("finance");
 
+  // Check tiered access level
+  const accessLevel = getAccessLevel(toolName, roles);
+
+  // DENIED: return smart denial + log
+  if (accessLevel === "denied") {
+    const denialMsg = SMART_DENIALS[toolName] || "You don't have access to this module. Please contact the relevant department.";
+    await logAccess(client, userId, roles, lastUserMessage, toolName, "denied", [], denialMsg);
+    return JSON.stringify({ access_denied: true, message: denialMsg });
+  }
+
   try {
+    let result: string;
+
     switch (toolName) {
       case "query_orders": {
         let query = client.from("orders").select("id, order_number, customer_name, customer_company, product_name, product_code, product_category, quantity, total_sales_amount, amount_paid, discount_amount, payment_status, status, sales_person_name, created_at, payment_due_date, shipping_address").order("created_at", { ascending: false }).limit(limit);
@@ -513,7 +697,11 @@ async function executeToolCall(
         if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify({ count: data?.length || 0, records: data || [] });
+        const records = (data || []) as Record<string, unknown>[];
+        const { cleaned, maskedFields } = stripSensitiveFields(records, roles, accessLevel);
+        await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel, maskedFields);
+        result = JSON.stringify({ count: cleaned.length, records: cleaned });
+        break;
       }
 
       case "query_enquiries": {
@@ -528,7 +716,11 @@ async function executeToolCall(
         if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify({ count: data?.length || 0, records: data || [] });
+        const records = (data || []) as Record<string, unknown>[];
+        const { cleaned, maskedFields } = stripSensitiveFields(records, roles, accessLevel);
+        await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel, maskedFields);
+        result = JSON.stringify({ count: cleaned.length, records: cleaned });
+        break;
       }
 
       case "query_pipeline": {
@@ -540,7 +732,9 @@ async function executeToolCall(
         if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify({ count: data?.length || 0, records: data || [] });
+        await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel);
+        result = JSON.stringify({ count: data?.length || 0, records: data || [] });
+        break;
       }
 
       case "query_inventory": {
@@ -549,142 +743,144 @@ async function executeToolCall(
         if (args.low_stock_only) query = query.lte("current_stock", 10);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify(data || []);
+        await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel);
+        result = JSON.stringify(data || []);
+        break;
       }
 
       case "query_employees": {
-        if (!isAdmin && !isHR) {
-          return JSON.stringify({ error: "You don't have permission to view employee data" });
+        // For masked access (non-HR/admin), return only safe fields
+        if (accessLevel === "masked") {
+          let query = client.from("employees").select("id, name, department, designation, employment_status, is_active, work_location").order("name").limit(limit);
+          if (args.search) query = query.or(`name.ilike.%${args.search}%,department.ilike.%${args.search}%`);
+          if (args.department) query = query.eq("department", args.department);
+          const { data, error } = await query;
+          if (error) throw error;
+          await logAccess(client, userId, roles, lastUserMessage, toolName, "masked", ["phone", "personal_email", "joining_date", "monthly_salary", "bank_account"]);
+          result = JSON.stringify({ count: data?.length || 0, records: data || [], note: "Showing limited employee info. Personal details are restricted." });
+          break;
         }
-        let query = client.from("employees").select("id, name, department, designation, employment_status, joining_date, is_active, work_location, shift_type").order("name").limit(limit);
+
+        if (!isAdmin && !isHR) {
+          await logAccess(client, userId, roles, lastUserMessage, toolName, "denied", [], "Role not authorized");
+          result = JSON.stringify({ access_denied: true, message: "Employee details are restricted to HR and Admin roles. I can share that employees are organized by department. Please contact HR for specific employee information." });
+          break;
+        }
+        // Full access for HR/Admin — still strip hard-blocked for non-admin
+        let query = client.from("employees").select("id, name, department, designation, employment_status, joining_date, is_active, work_location, shift_type, phone, personal_email, monthly_salary, bank_account, ifsc_code, pan_number").order("name").limit(limit);
         if (args.search) query = query.or(`name.ilike.%${args.search}%,department.ilike.%${args.search}%`);
         if (args.department) query = query.eq("department", args.department);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify(data || []);
+        const records = (data || []) as Record<string, unknown>[];
+        const { cleaned, maskedFields } = stripSensitiveFields(records, roles, accessLevel);
+        await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel, maskedFields);
+        result = JSON.stringify({ count: cleaned.length, records: cleaned });
+        break;
       }
 
       case "query_attendance": {
         if (!isAdmin && !isHR) {
-          return JSON.stringify({ error: "You don't have permission to view attendance data" });
+          await logAccess(client, userId, roles, lastUserMessage, toolName, "denied", [], "Role not authorized");
+          result = JSON.stringify({ access_denied: true, message: "Attendance data is restricted to HR and Admin roles. The attendance system is operational. Please contact HR for specific attendance queries." });
+          break;
         }
         let query = client.from("attendance_logs").select("id, employee_id, date, check_in_time, check_out_time, working_hours, status, source, notes, total_break_minutes, auto_checkout_applied, checkout_missing").order("date", { ascending: false }).limit(limit);
-        
-        // Join with employee name if filtering
         if (args.employee_name) {
           const { data: empMatch } = await client.from("employees").select("id").ilike("name", `%${args.employee_name}%`);
           if (empMatch?.length) {
             query = query.in("employee_id", empMatch.map(e => e.id));
           } else {
-            return JSON.stringify({ count: 0, records: [], message: "No employee found with that name" });
+            result = JSON.stringify({ count: 0, records: [], message: "No employee found with that name" });
+            await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel);
+            break;
           }
         }
         if (args.department) {
           const { data: deptEmps } = await client.from("employees").select("id").eq("department", args.department);
-          if (deptEmps?.length) {
-            query = query.in("employee_id", deptEmps.map(e => e.id));
-          }
+          if (deptEmps?.length) query = query.in("employee_id", deptEmps.map(e => e.id));
         }
         if (args.status) query = query.eq("status", args.status);
         if (args.date_from) query = query.gte("date", args.date_from);
         if (args.date_to) query = query.lte("date", args.date_to);
-        if (args.late_only) {
-          query = query.gt("check_in_time", `${args.date_from || new Date().toISOString().split("T")[0]}T09:30:00`);
-        }
-        if (args.absent_only) {
-          query = query.eq("status", "absent");
-        }
-        
+        if (args.late_only) query = query.gt("check_in_time", `${args.date_from || new Date().toISOString().split("T")[0]}T09:30:00`);
+        if (args.absent_only) query = query.eq("status", "absent");
         const { data, error } = await query;
         if (error) throw error;
-        
-        // Enrich with employee names
         if (data?.length) {
           const empIds = [...new Set(data.map(d => d.employee_id))];
           const { data: emps } = await client.from("employees").select("id, name, department").in("id", empIds);
           const empMap = Object.fromEntries((emps || []).map(e => [e.id, e]));
-          const enriched = data.map(d => ({
-            ...d,
-            employee_name: empMap[d.employee_id]?.name || "Unknown",
-            department: empMap[d.employee_id]?.department || "Unknown",
-          }));
-          return JSON.stringify({ count: enriched.length, records: enriched });
+          const enriched = data.map(d => ({ ...d, employee_name: empMap[d.employee_id]?.name || "Unknown", department: empMap[d.employee_id]?.department || "Unknown" }));
+          await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel);
+          result = JSON.stringify({ count: enriched.length, records: enriched });
+        } else {
+          await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel);
+          result = JSON.stringify({ count: 0, records: [] });
         }
-        return JSON.stringify({ count: 0, records: [] });
+        break;
       }
 
       case "query_leave_requests": {
         if (!isAdmin && !isHR) {
-          return JSON.stringify({ error: "You don't have permission to view leave data" });
+          await logAccess(client, userId, roles, lastUserMessage, toolName, "denied", [], "Role not authorized");
+          result = JSON.stringify({ access_denied: true, message: SMART_DENIALS.query_leave_requests });
+          break;
         }
         let query = client.from("leave_requests").select("id, employee_id, leave_type, start_date, end_date, total_days, reason, status, applied_by_name, approved_by_name, created_at").order("created_at", { ascending: false }).limit(limit);
-        
         if (args.employee_name) {
           const { data: empMatch } = await client.from("employees").select("id").ilike("name", `%${args.employee_name}%`);
-          if (empMatch?.length) {
-            query = query.in("employee_id", empMatch.map(e => e.id));
-          } else {
-            return JSON.stringify({ count: 0, records: [] });
-          }
+          if (empMatch?.length) query = query.in("employee_id", empMatch.map(e => e.id));
+          else { result = JSON.stringify({ count: 0, records: [] }); break; }
         }
         if (args.status) query = query.eq("status", args.status);
         if (args.leave_type) query = query.eq("leave_type", args.leave_type);
         if (args.date_from) query = query.gte("start_date", args.date_from);
         if (args.date_to) query = query.lte("start_date", args.date_to);
-        
         const { data, error } = await query;
         if (error) throw error;
-        
-        // Enrich with employee names
         if (data?.length) {
           const empIds = [...new Set(data.map(d => d.employee_id))];
           const { data: emps } = await client.from("employees").select("id, name, department").in("id", empIds);
           const empMap = Object.fromEntries((emps || []).map(e => [e.id, e]));
-          const enriched = data.map(d => ({
-            ...d,
-            employee_name: empMap[d.employee_id]?.name || "Unknown",
-            department: empMap[d.employee_id]?.department || "Unknown",
-          }));
-          return JSON.stringify({ count: enriched.length, records: enriched });
+          const enriched = data.map(d => ({ ...d, employee_name: empMap[d.employee_id]?.name || "Unknown", department: empMap[d.employee_id]?.department || "Unknown" }));
+          await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel);
+          result = JSON.stringify({ count: enriched.length, records: enriched });
+        } else {
+          await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel);
+          result = JSON.stringify({ count: 0, records: [] });
         }
-        return JSON.stringify({ count: 0, records: [] });
+        break;
       }
 
       case "query_leave_balances": {
         if (!isAdmin && !isHR) {
-          return JSON.stringify({ error: "You don't have permission to view leave balance data" });
+          await logAccess(client, userId, roles, lastUserMessage, toolName, "denied", [], "Role not authorized");
+          result = JSON.stringify({ access_denied: true, message: SMART_DENIALS.query_leave_balances });
+          break;
         }
         let empQuery = client.from("employees").select("id, name, department").eq("is_active", true).order("name").limit(limit);
         if (args.employee_name) empQuery = empQuery.ilike("name", `%${args.employee_name}%`);
         if (args.department) empQuery = empQuery.eq("department", args.department);
-        
         const { data: emps, error: empErr } = await empQuery;
         if (empErr) throw empErr;
-        if (!emps?.length) return JSON.stringify({ count: 0, records: [] });
-        
+        if (!emps?.length) { result = JSON.stringify({ count: 0, records: [] }); break; }
         const empIds = emps.map(e => e.id);
         const currentYear = new Date().getFullYear();
         const { data: balances } = await client.from("leave_balances").select("employee_id, leave_type, balance, year").in("employee_id", empIds).eq("year", currentYear);
-        
         const balMap: Record<string, Record<string, number>> = {};
-        (balances || []).forEach(b => {
-          if (!balMap[b.employee_id]) balMap[b.employee_id] = {};
-          balMap[b.employee_id][b.leave_type] = b.balance;
-        });
-        
-        const records = emps.map(e => ({
-          employee_name: e.name,
-          department: e.department,
-          el_balance: balMap[e.id]?.["EL"] ?? 0,
-          sl_balance: balMap[e.id]?.["SL"] ?? 0,
-        }));
-        
-        return JSON.stringify({ count: records.length, records });
+        (balances || []).forEach(b => { if (!balMap[b.employee_id]) balMap[b.employee_id] = {}; balMap[b.employee_id][b.leave_type] = b.balance; });
+        const records = emps.map(e => ({ employee_name: e.name, department: e.department, el_balance: balMap[e.id]?.["EL"] ?? 0, sl_balance: balMap[e.id]?.["SL"] ?? 0 }));
+        await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel);
+        result = JSON.stringify({ count: records.length, records });
+        break;
       }
 
       case "query_salary_sheets": {
         if (!isAdmin && !isHR) {
-          return JSON.stringify({ error: "You don't have permission to view payroll data" });
+          await logAccess(client, userId, roles, lastUserMessage, toolName, "denied", [], "Role not authorized");
+          result = JSON.stringify({ access_denied: true, message: SMART_DENIALS.query_salary_sheets });
+          break;
         }
         let query = client.from("salary_sheets").select("id, month, year, status, total_employees, total_gross, total_net, total_deductions, created_at").order("created_at", { ascending: false }).limit(limit);
         if (args.month) query = query.eq("month", args.month);
@@ -692,12 +888,23 @@ async function executeToolCall(
         if (args.status) query = query.eq("status", args.status);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify({ count: data?.length || 0, records: data || [] });
+        // For HR (non-admin), mask total amounts to summaries
+        if (isHR && !isAdmin) {
+          const maskedData = (data || []).map(d => ({ ...d, total_gross: undefined, total_net: undefined, total_deductions: undefined, summary: `${d.total_employees} employees, Status: ${d.status}` }));
+          await logAccess(client, userId, roles, lastUserMessage, toolName, "masked", ["total_gross", "total_net", "total_deductions"]);
+          result = JSON.stringify({ count: maskedData.length, records: maskedData, note: "Financial totals are restricted. Showing summary only." });
+        } else {
+          await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel);
+          result = JSON.stringify({ count: data?.length || 0, records: data || [] });
+        }
+        break;
       }
 
       case "query_expected_payments": {
         if (!isAdmin && !isFinance) {
-          return JSON.stringify({ error: "You don't have permission to view payment data" });
+          await logAccess(client, userId, roles, lastUserMessage, toolName, "denied", [], "Role not authorized");
+          result = JSON.stringify({ access_denied: true, message: SMART_DENIALS.query_expected_payments });
+          break;
         }
         let query = client.from("expected_payments").select("id, customer_name, customer_company, amount, expected_date, status, order_number, source_type, notes, actual_received_date").order("expected_date", { ascending: true }).limit(limit);
         if (args.status) query = query.eq("status", args.status);
@@ -705,7 +912,9 @@ async function executeToolCall(
         if (args.date_to) query = query.lte("expected_date", args.date_to);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify({ count: data?.length || 0, records: data || [] });
+        await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel);
+        result = JSON.stringify({ count: data?.length || 0, records: data || [] });
+        break;
       }
 
       case "query_tasks": {
@@ -718,7 +927,9 @@ async function executeToolCall(
         if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify({ count: data?.length || 0, records: data || [] });
+        await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel);
+        result = JSON.stringify({ count: data?.length || 0, records: data || [] });
+        break;
       }
 
       case "query_tickets": {
@@ -731,18 +942,28 @@ async function executeToolCall(
         if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify({ count: data?.length || 0, records: data || [] });
+        await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel);
+        result = JSON.stringify({ count: data?.length || 0, records: data || [] });
+        break;
       }
 
       case "query_procurements": {
-        let query = client.from("inventory_procurements").select("id, procurement_number, product_name, product_category, quantity, supplier_name, payment_status, total_cost, procurement_date, status").order("created_at", { ascending: false }).limit(limit);
+        let selectFields = "id, procurement_number, product_name, product_category, quantity, supplier_name, payment_status, total_cost, procurement_date, status";
+        // For sales role accessing procurements (masked), hide cost info
+        if (accessLevel === "masked" && isSales) {
+          selectFields = "id, procurement_number, product_name, product_category, quantity, supplier_name, payment_status, procurement_date, status";
+        }
+        let query = client.from("inventory_procurements").select(selectFields).order("created_at", { ascending: false }).limit(limit);
         if (args.search) query = query.or(`product_name.ilike.%${args.search}%,supplier_name.ilike.%${args.search}%,procurement_number.ilike.%${args.search}%`);
         if (args.payment_status) query = query.eq("payment_status", args.payment_status);
         if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
         if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify({ count: data?.length || 0, records: data || [] });
+        const mf = accessLevel === "masked" && isSales ? ["total_cost"] : [];
+        await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel, mf);
+        result = JSON.stringify({ count: data?.length || 0, records: data || [] });
+        break;
       }
 
       case "query_suppliers": {
@@ -750,10 +971,24 @@ async function executeToolCall(
         if (args.search) query = query.or(`name.ilike.%${args.search}%,company.ilike.%${args.search}%`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify(data || []);
+        // Mask supplier contact info for non-supply_chain/admin
+        if (!isAdmin && !roles.includes("supply_chain")) {
+          const masked = (data || []).map(d => ({ ...d, email: undefined, phone: undefined }));
+          await logAccess(client, userId, roles, lastUserMessage, toolName, "masked", ["email", "phone"]);
+          result = JSON.stringify(masked);
+        } else {
+          await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel);
+          result = JSON.stringify(data || []);
+        }
+        break;
       }
 
       case "query_expenses": {
+        if (!isAdmin && !isFinance) {
+          await logAccess(client, userId, roles, lastUserMessage, toolName, "denied", [], "Role not authorized");
+          result = JSON.stringify({ access_denied: true, message: SMART_DENIALS.query_expenses });
+          break;
+        }
         let query = client.from("expenses").select("id, description, amount, category, payment_mode, status, created_by_name, created_at, approved_by_name").order("created_at", { ascending: false }).limit(limit);
         if (!isAdmin && !isFinance) query = query.eq("created_by", userId);
         if (args.search) query = query.or(`description.ilike.%${args.search}%,vendor_name.ilike.%${args.search}%`);
@@ -762,18 +997,23 @@ async function executeToolCall(
         if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify({ count: data?.length || 0, records: data || [] });
+        await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel);
+        result = JSON.stringify({ count: data?.length || 0, records: data || [] });
+        break;
       }
 
       case "query_repairs": {
-        let query = client.from("repairs").select("id, repair_number, customer_name, customer_phone, drone_model, issue_description, status, repair_cost, created_at").order("created_at", { ascending: false }).limit(limit);
+        let query = client.from("repairs").select("id, repair_number, customer_name, drone_model, issue_description, status, repair_cost, created_at").order("created_at", { ascending: false }).limit(limit);
+        // Strip customer_phone from repairs for non-admin
         if (args.search) query = query.or(`customer_name.ilike.%${args.search}%,drone_model.ilike.%${args.search}%,repair_number.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
         if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
         if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
         const { data, error } = await query;
         if (error) throw error;
-        return JSON.stringify({ count: data?.length || 0, records: data || [] });
+        await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel);
+        result = JSON.stringify({ count: data?.length || 0, records: data || [] });
+        break;
       }
 
       case "get_dashboard_stats": {
@@ -781,7 +1021,6 @@ async function executeToolCall(
         const dateFrom = args.date_from as string | undefined;
         const dateTo = args.date_to as string | undefined;
 
-        // Orders summary (sales, finance, admin)
         if (isAdmin || isSalesManager || isSales || isFinance) {
           let ordersQuery = isAdmin || isSalesManager || isFinance
             ? client.from("orders").select("id, total_sales_amount, amount_paid, payment_status, status", { count: "exact" })
@@ -789,7 +1028,6 @@ async function executeToolCall(
           if (dateFrom) ordersQuery = ordersQuery.gte("created_at", `${dateFrom}T00:00:00`);
           if (dateTo) ordersQuery = ordersQuery.lte("created_at", `${dateTo}T23:59:59`);
           const { data: orders, count: orderCount } = await ordersQuery;
-          
           if (orders) {
             stats.total_orders = orderCount;
             stats.total_revenue = orders.reduce((s, o) => s + (o.total_sales_amount || 0), 0);
@@ -798,7 +1036,6 @@ async function executeToolCall(
           }
         }
 
-        // Enquiries (sales, marketing, admin)
         if (isAdmin || isSalesManager || isSales || roles.includes("marketing")) {
           let enqQuery = isAdmin || isSalesManager
             ? client.from("enquiries").select("id, status, lead_temperature", { count: "exact" })
@@ -813,7 +1050,6 @@ async function executeToolCall(
           }
         }
 
-        // Inventory (admin, supply_chain)
         if (isAdmin || roles.includes("supply_chain")) {
           const { data: inv } = await client.from("inventory").select("id, current_stock, reorder_point");
           if (inv) {
@@ -822,7 +1058,6 @@ async function executeToolCall(
           }
         }
 
-        // HR stats (admin, hr)
         if (isAdmin || isHR) {
           const today = new Date().toISOString().split("T")[0];
           const { data: todayAttendance } = await client.from("attendance_logs").select("id, status, check_in_time").eq("date", today);
@@ -837,7 +1072,6 @@ async function executeToolCall(
           stats.pending_leave_requests = pendingLeaves?.length || 0;
         }
 
-        // Tasks
         const { data: tasks } = await (isAdmin
           ? client.from("tasks").select("id, status")
           : client.from("tasks").select("id, status").eq("assigned_to", userId));
@@ -847,7 +1081,9 @@ async function executeToolCall(
           stats.in_progress_tasks = tasks.filter(t => t.status === "in_progress").length;
         }
 
-        return JSON.stringify(stats);
+        await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel);
+        result = JSON.stringify(stats);
+        break;
       }
 
       // --- ACTIONABLE COMMANDS ---
@@ -856,18 +1092,21 @@ async function executeToolCall(
         const newStatus = args.new_status as string;
         const validStatuses = ["confirmed", "dispatched", "delivered", "cancelled"];
         if (!validStatuses.includes(newStatus)) {
-          return JSON.stringify({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+          result = JSON.stringify({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+          break;
         }
         const { data: orderMatch } = await client.from("orders").select("id, order_number, status").ilike("order_number", orderNum).limit(1);
-        if (!orderMatch?.length) return JSON.stringify({ error: `Order ${orderNum} not found` });
+        if (!orderMatch?.length) { result = JSON.stringify({ error: `Order ${orderNum} not found` }); break; }
         if (isSales && !isAdmin && !isSalesManager) {
           const { data: ownOrder } = await client.from("orders").select("id").eq("id", orderMatch[0].id).eq("sales_person_id", userId);
-          if (!ownOrder?.length) return JSON.stringify({ error: "You don't have permission to update this order" });
+          if (!ownOrder?.length) { result = JSON.stringify({ error: "You don't have permission to update this order" }); break; }
         }
         const { error: updateErr } = await client.from("orders").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", orderMatch[0].id);
         if (updateErr) throw updateErr;
         await client.from("ai_action_logs").insert({ user_id: userId, action_type: "update_order_status", payload: { order_number: orderNum, old_status: orderMatch[0].status, new_status: newStatus }, status: "executed" }).catch(() => {});
-        return JSON.stringify({ success: true, message: `Order ${orderNum} status updated from "${orderMatch[0].status}" to "${newStatus}"` });
+        await logAccess(client, userId, roles, lastUserMessage, toolName, "full");
+        result = JSON.stringify({ success: true, message: `Order ${orderNum} status updated from "${orderMatch[0].status}" to "${newStatus}"` });
+        break;
       }
 
       case "update_enquiry_status": {
@@ -875,18 +1114,21 @@ async function executeToolCall(
         const newStatus = args.new_status as string;
         const validStatuses = ["new", "responded", "on_hold", "moved_to_pipeline", "order_won", "order_lost"];
         if (!validStatuses.includes(newStatus)) {
-          return JSON.stringify({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+          result = JSON.stringify({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+          break;
         }
         const { data: enqMatch } = await client.from("enquiries").select("id, status").eq("id", enquiryId).limit(1);
-        if (!enqMatch?.length) return JSON.stringify({ error: "Enquiry not found" });
+        if (!enqMatch?.length) { result = JSON.stringify({ error: "Enquiry not found" }); break; }
         if (isSales && !isAdmin && !isSalesManager) {
           const { data: ownEnq } = await client.from("enquiries").select("id").eq("id", enquiryId).eq("sales_person_id", userId);
-          if (!ownEnq?.length) return JSON.stringify({ error: "You don't have permission to update this enquiry" });
+          if (!ownEnq?.length) { result = JSON.stringify({ error: "You don't have permission to update this enquiry" }); break; }
         }
         const { error: updateErr } = await client.from("enquiries").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", enquiryId);
         if (updateErr) throw updateErr;
         await client.from("ai_action_logs").insert({ user_id: userId, action_type: "update_enquiry_status", payload: { enquiry_id: enquiryId, old_status: enqMatch[0].status, new_status: newStatus }, status: "executed" }).catch(() => {});
-        return JSON.stringify({ success: true, message: `Enquiry status updated from "${enqMatch[0].status}" to "${newStatus}"` });
+        await logAccess(client, userId, roles, lastUserMessage, toolName, "full");
+        result = JSON.stringify({ success: true, message: `Enquiry status updated from "${enqMatch[0].status}" to "${newStatus}"` });
+        break;
       }
 
       case "update_task_status": {
@@ -894,20 +1136,23 @@ async function executeToolCall(
         const newStatus = args.new_status as string;
         const validStatuses = ["pending", "in_progress", "completed"];
         if (!validStatuses.includes(newStatus)) {
-          return JSON.stringify({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+          result = JSON.stringify({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+          break;
         }
         const { data: taskMatch } = await client.from("tasks").select("id, status, title").eq("id", taskId).limit(1);
-        if (!taskMatch?.length) return JSON.stringify({ error: "Task not found" });
+        if (!taskMatch?.length) { result = JSON.stringify({ error: "Task not found" }); break; }
         if (!isAdmin && !isSalesManager) {
           const { data: ownTask } = await client.from("tasks").select("id").eq("id", taskId).eq("assigned_to", userId);
-          if (!ownTask?.length) return JSON.stringify({ error: "You can only update tasks assigned to you" });
+          if (!ownTask?.length) { result = JSON.stringify({ error: "You can only update tasks assigned to you" }); break; }
         }
         const updateData: Record<string, unknown> = { status: newStatus, updated_at: new Date().toISOString() };
         if (newStatus === "completed") updateData.completed_at = new Date().toISOString();
         const { error: updateErr } = await client.from("tasks").update(updateData).eq("id", taskId);
         if (updateErr) throw updateErr;
         await client.from("ai_action_logs").insert({ user_id: userId, action_type: "update_task_status", payload: { task_id: taskId, old_status: taskMatch[0].status, new_status: newStatus, task_title: taskMatch[0].title }, status: "executed" }).catch(() => {});
-        return JSON.stringify({ success: true, message: `Task "${taskMatch[0].title}" updated to "${newStatus}"` });
+        await logAccess(client, userId, roles, lastUserMessage, toolName, "full");
+        result = JSON.stringify({ success: true, message: `Task "${taskMatch[0].title}" updated to "${newStatus}"` });
+        break;
       }
 
       case "create_task": {
@@ -916,140 +1161,87 @@ async function executeToolCall(
         const assignedToName = args.assigned_to_name as string;
         const priority = (args.priority as number) || 2;
         const dueDate = (args.due_date as string) || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-
-        const { data: assignee } = await client.from("profiles")
-          .select("user_id, name")
-          .ilike("name", `%${assignedToName}%`)
-          .limit(1)
-          .single();
-
+        const { data: assignee } = await client.from("profiles").select("user_id, name").ilike("name", `%${assignedToName}%`).limit(1).single();
         const { data: task, error: taskErr } = await client.from("tasks").insert({
-          title,
-          description,
-          task_type: "sales_followup",
+          title, description, task_type: "sales_followup",
           assigned_to: assignee?.user_id || userId,
           assigned_to_name: assignee?.name || assignedToName,
-          assigned_role: "sales",
-          priority,
-          due_date: dueDate,
+          assigned_role: "sales", priority, due_date: dueDate,
           created_by: userId,
           created_by_name: (await client.from("profiles").select("name").eq("user_id", userId).single()).data?.name || "AI",
           status: "new",
         }).select("id, title").single();
-
         if (taskErr) throw taskErr;
-
-        await client.from("ai_action_logs").insert({
-          user_id: userId,
-          action_type: "create_task",
-          payload: { title, assigned_to_name: assignedToName, priority, due_date: dueDate },
-          status: "executed",
-          result: { task_id: task?.id },
-        });
-
-        return JSON.stringify({ success: true, message: `✅ Task "${title}" created and assigned to ${assignee?.name || assignedToName}`, task_id: task?.id });
+        await client.from("ai_action_logs").insert({ user_id: userId, action_type: "create_task", payload: { title, assigned_to_name: assignedToName, priority, due_date: dueDate }, status: "executed", result: { task_id: task?.id } });
+        await logAccess(client, userId, roles, lastUserMessage, toolName, "full");
+        result = JSON.stringify({ success: true, message: `✅ Task "${title}" created and assigned to ${assignee?.name || assignedToName}`, task_id: task?.id });
+        break;
       }
 
       case "create_payment_followup": {
         const orderNum = args.order_number as string;
-        const { data: orderMatch } = await client.from("orders")
-          .select("id, order_number, customer_name, total_sales_amount, amount_paid, sales_person_id, sales_person_name")
-          .ilike("order_number", orderNum)
-          .limit(1);
-
-        if (!orderMatch?.length) return JSON.stringify({ error: `Order ${orderNum} not found` });
+        const { data: orderMatch } = await client.from("orders").select("id, order_number, customer_name, total_sales_amount, amount_paid, sales_person_id, sales_person_name").ilike("order_number", orderNum).limit(1);
+        if (!orderMatch?.length) { result = JSON.stringify({ error: `Order ${orderNum} not found` }); break; }
         const order = orderMatch[0];
         const pendingAmount = (order.total_sales_amount || 0) - (order.amount_paid || 0);
-
-        if (pendingAmount <= 0) return JSON.stringify({ message: `Order ${orderNum} has no pending payments.` });
-
+        if (pendingAmount <= 0) { result = JSON.stringify({ message: `Order ${orderNum} has no pending payments.` }); break; }
         const profileData = await client.from("profiles").select("name").eq("user_id", userId).single();
-
         const { data: task, error: taskErr } = await client.from("tasks").insert({
           title: `💰 Payment follow-up: ${order.customer_name} - ₹${pendingAmount.toLocaleString("en-IN")}`,
           description: `Order ${order.order_number}. Total: ₹${(order.total_sales_amount || 0).toLocaleString("en-IN")}, Received: ₹${(order.amount_paid || 0).toLocaleString("en-IN")}, Pending: ₹${pendingAmount.toLocaleString("en-IN")}`,
           task_type: "finance_review",
           assigned_to: order.sales_person_id || userId,
           assigned_to_name: order.sales_person_name || profileData.data?.name || "User",
-          assigned_role: "sales",
-          priority: 1,
+          assigned_role: "sales", priority: 1,
           due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          created_by: userId,
-          created_by_name: profileData.data?.name || "AI",
-          status: "new",
+          created_by: userId, created_by_name: profileData.data?.name || "AI", status: "new",
         }).select("id").single();
-
         if (taskErr) throw taskErr;
-
-        await client.from("ai_action_logs").insert({
-          user_id: userId,
-          action_type: "create_payment_followup",
-          payload: { order_number: orderNum, order_id: order.id, pending_amount: pendingAmount },
-          status: "executed",
-          result: { task_id: task?.id },
-        });
-
-        return JSON.stringify({ success: true, message: `✅ Payment follow-up task created for ${order.customer_name} (₹${pendingAmount.toLocaleString("en-IN")} pending)` });
+        await client.from("ai_action_logs").insert({ user_id: userId, action_type: "create_payment_followup", payload: { order_number: orderNum, order_id: order.id, pending_amount: pendingAmount }, status: "executed", result: { task_id: task?.id } });
+        await logAccess(client, userId, roles, lastUserMessage, toolName, "full");
+        result = JSON.stringify({ success: true, message: `✅ Payment follow-up task created for ${order.customer_name} (₹${pendingAmount.toLocaleString("en-IN")} pending)` });
+        break;
       }
 
       case "get_daily_briefing": {
         const briefing: Record<string, unknown> = {};
         const today = new Date().toISOString().split("T")[0];
 
-        // --- HR-specific briefing ---
         if (isAdmin || isHR) {
-          // Today's attendance summary
           const { data: todayLogs } = await client.from("attendance_logs").select("id, employee_id, check_in_time, status, checkout_missing").eq("date", today);
           const { data: activeEmps } = await client.from("employees").select("id, name, department").eq("is_active", true);
-          
           if (todayLogs && activeEmps) {
             const checkedInIds = new Set(todayLogs.map(l => l.employee_id));
             const absentees = activeEmps.filter(e => !checkedInIds.has(e.id));
             const lateArrivals = todayLogs.filter(l => l.check_in_time && l.check_in_time > `${today}T09:30:00`);
             const missingCheckout = todayLogs.filter(l => l.checkout_missing);
-            
             briefing.attendance_summary = {
-              total_active: activeEmps.length,
-              checked_in: todayLogs.length,
-              absent_count: absentees.length,
+              total_active: activeEmps.length, checked_in: todayLogs.length, absent_count: absentees.length,
               absent_employees: absentees.slice(0, 10).map(e => ({ name: e.name, department: e.department })),
-              late_arrivals_count: lateArrivals.length,
-              missing_checkout_count: missingCheckout.length,
+              late_arrivals_count: lateArrivals.length, missing_checkout_count: missingCheckout.length,
             };
           }
-          
-          // Pending leave requests
           const { data: pendingLeaves } = await client.from("leave_requests").select("id, employee_id, leave_type, start_date, end_date, total_days, created_at").eq("status", "pending").order("created_at").limit(10);
           if (pendingLeaves?.length) {
             const leaveEmpIds = [...new Set(pendingLeaves.map(l => l.employee_id))];
             const { data: leaveEmps } = await client.from("employees").select("id, name").in("id", leaveEmpIds);
             const empMap = Object.fromEntries((leaveEmps || []).map(e => [e.id, e.name]));
-            briefing.pending_leaves = {
-              count: pendingLeaves.length,
-              records: pendingLeaves.map(l => ({ ...l, employee_name: empMap[l.employee_id] || "Unknown" })),
-            };
+            briefing.pending_leaves = { count: pendingLeaves.length, records: pendingLeaves.map(l => ({ ...l, employee_name: empMap[l.employee_id] || "Unknown" })) };
           } else {
             briefing.pending_leaves = { count: 0, records: [] };
           }
-          
-          // Employees on leave today
           const { data: onLeaveToday } = await client.from("leave_requests").select("id, employee_id, leave_type, start_date, end_date").eq("status", "approved").lte("start_date", today).gte("end_date", today).limit(20);
           if (onLeaveToday?.length) {
             const leaveEmpIds2 = [...new Set(onLeaveToday.map(l => l.employee_id))];
             const { data: leaveEmps2 } = await client.from("employees").select("id, name, department").in("id", leaveEmpIds2);
             const empMap2 = Object.fromEntries((leaveEmps2 || []).map(e => [e.id, e]));
-            briefing.on_leave_today = {
-              count: onLeaveToday.length,
-              records: onLeaveToday.map(l => ({ ...l, employee_name: empMap2[l.employee_id]?.name || "Unknown", department: empMap2[l.employee_id]?.department || "Unknown" })),
-            };
+            briefing.on_leave_today = { count: onLeaveToday.length, records: onLeaveToday.map(l => ({ ...l, employee_name: empMap2[l.employee_id]?.name || "Unknown", department: empMap2[l.employee_id]?.department || "Unknown" })) };
           } else {
             briefing.on_leave_today = { count: 0, records: [] };
           }
         }
 
-        // --- Sales/Finance briefing ---
         if (isAdmin || isSalesManager || isSales || isFinance) {
-          // Overdue payments
           const overdueQuery = isAdmin || isSalesManager || isFinance
             ? client.from("orders").select("id, order_number, customer_name, total_sales_amount, amount_paid, payment_due_date").in("payment_status", ["pending", "partial"]).lt("payment_due_date", today).order("payment_due_date").limit(10)
             : client.from("orders").select("id, order_number, customer_name, total_sales_amount, amount_paid, payment_due_date").eq("sales_person_id", userId).in("payment_status", ["pending", "partial"]).lt("payment_due_date", today).order("payment_due_date").limit(10);
@@ -1058,15 +1250,12 @@ async function executeToolCall(
         }
 
         if (isAdmin || isSalesManager || isSales) {
-          // Stalled pipeline (no update in 7+ days)
           const stalledDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
           const stalledQuery = isAdmin || isSalesManager
             ? client.from("pipeline_orders").select("id, customer_name, product_name, expected_price, updated_at, status").eq("status", "active").lt("updated_at", stalledDate).limit(10)
             : client.from("pipeline_orders").select("id, customer_name, product_name, expected_price, updated_at, status").eq("sales_person_id", userId).eq("status", "active").lt("updated_at", stalledDate).limit(10);
           const { data: stalled } = await stalledQuery;
           briefing.stalled_deals = { count: stalled?.length || 0, records: stalled || [] };
-
-          // Recent hot leads (last 24h)
           const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
           const hotQuery = isAdmin || isSalesManager
             ? client.from("enquiries").select("id, customer_name, product_name, probability_to_close, created_at").gte("probability_to_close", 70).gte("created_at", yesterday).limit(5)
@@ -1075,33 +1264,37 @@ async function executeToolCall(
           briefing.new_hot_leads = { count: newHot?.length || 0, records: newHot || [] };
         }
 
-        // --- Operations briefing ---
         if (isAdmin || roles.includes("supply_chain")) {
           const { data: lowStock } = await client.from("inventory").select("id, product_name, current_stock, reorder_point").gt("reorder_point", 0);
           const lowItems = (lowStock || []).filter(i => i.current_stock <= (i.reorder_point || 0));
           briefing.low_stock_alerts = { count: lowItems.length, items: lowItems.slice(0, 5) };
-          
-          // Delayed procurements
           const { data: delayedProc } = await client.from("inventory_procurements").select("id, procurement_number, product_name, supplier_name, status, procurement_date").in("status", ["pending", "ordered"]).lt("procurement_date", today).order("procurement_date").limit(10);
           briefing.delayed_procurements = { count: delayedProc?.length || 0, records: delayedProc || [] };
         }
 
-        // --- Urgent tasks (all roles) ---
         const { data: urgentTasks } = await client.from("tasks").select("id, title, due_date, priority, status")
           .eq("assigned_to", userId).in("status", ["pending", "in_progress"]).lte("due_date", `${today}T23:59:59`).order("due_date").limit(10);
         briefing.urgent_tasks = { count: urgentTasks?.length || 0, records: urgentTasks || [] };
 
-        return JSON.stringify(briefing);
+        await logAccess(client, userId, roles, lastUserMessage, toolName, accessLevel);
+        result = JSON.stringify(briefing);
+        break;
       }
 
       default:
-        return JSON.stringify({ error: "Unknown tool" });
+        result = JSON.stringify({ error: "Unknown tool" });
     }
+
+    return result;
   } catch (err) {
     console.error(`Tool ${toolName} error:`, err);
     return JSON.stringify({ error: `Failed to query ${toolName}` });
   }
 }
+
+// =====================================================
+// MAIN SERVER HANDLER
+// =====================================================
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -1112,8 +1305,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -1126,7 +1318,6 @@ serve(async (req) => {
       throw new Error("Server configuration missing");
     }
 
-    // Verify JWT
     const token = authHeader.replace("Bearer ", "");
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
@@ -1134,25 +1325,24 @@ serve(async (req) => {
 
     const { data: { user }, error: userError } = await userClient.auth.getUser(token);
     if (userError || !user) {
-      console.error("JWT validation failed:", userError?.message);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const userId = user.id;
     const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get user roles
     const { data: userRoles } = await serviceClient.from("user_roles").select("role").eq("user_id", userId);
     const roles = userRoles?.map(r => r.role) || ["employee"];
 
-    // Get user name
     const { data: profile } = await serviceClient.from("profiles").select("name").eq("user_id", userId).single();
     const userName = profile?.name || "User";
 
     const { messages } = await req.json() as { messages: Message[] };
+
+    // Extract last user message for audit logging
+    const lastUserMessage = messages.filter(m => m.role === "user").pop()?.content || "";
 
     // Filter tools based on role
     const allAllowedTools = new Set<string>();
@@ -1166,7 +1356,7 @@ serve(async (req) => {
     const today = new Date().toISOString().split("T")[0];
     const rolePersonality = getRolePersonality(roles);
     const roleTitle = getRoleTitle(roles);
-    
+
     const systemPrompt = `${rolePersonality}
 
 User: ${userName}
@@ -1180,99 +1370,86 @@ IMPORTANT — Date filtering:
 - All query tools support date_from and date_to parameters (ISO format YYYY-MM-DD).
 - When users ask "this month", "last week", "today", "this year", etc., calculate the correct date range from today's date and pass date_from/date_to.
 - Example: "orders this month" with today=${today} → date_from="${today.substring(0, 8)}01", date_to="${today}"
-- Example: "last 7 days" → calculate date_from as 7 days ago
-- get_dashboard_stats also supports date_from/date_to for time-specific summaries.
 
 CRITICAL — Aggregation & Analysis:
 - You ARE capable of performing aggregation, grouping, summarization, and analysis on the data returned by tools.
-- When the user asks for breakdowns (e.g., "product-wise", "salesperson-wise", "category-wise", "status-wise", "state-wise", "department-wise"), fetch the data using the query tool with a HIGH limit (200-500) and then group/aggregate the results yourself.
+- When the user asks for breakdowns, fetch data with a HIGH limit (200-500) and group/aggregate yourself.
 - Present aggregated results in markdown tables with proper totals.
-- Always show both count and total amounts in aggregation tables where applicable.
-- Common aggregation patterns you should handle:
-  * Group by product_name/product_category → count + sum of total_sales_amount
-  * Group by sales_person_name → count + sum of amounts
-  * Group by status/payment_status → count + sum
-  * Group by department → count employees/attendance
-  * Top N analysis (top customers, top products, etc.)
-  * Trend analysis (daily/weekly counts within a date range)
-  * Comparisons (this month vs last month — make two tool calls)
+- Common aggregation patterns: Group by product/category/salesperson/status → count + sum of amounts.
 
-ROLE-BASED DATA ISOLATION — CRITICAL:
-${roles.includes("hr") && !roles.includes("admin") ? `- You are HR. You can access: employees, attendance, leave, payroll, tasks, tickets.
-- You CANNOT access: order amounts, revenue, cost prices, expenses, pipeline deals, procurement costs. If asked about financial data, explain you only have access to HR modules.` : ""}
+TIERED ACCESS CONTROL — CRITICAL SECURITY RULES:
+1. If a tool returns "access_denied": true, present the denial message helpfully. Do NOT try to circumvent it.
+2. NEVER expose raw sensitive data: salaries, bank accounts, PAN numbers, Aadhaar, personal contact info.
+3. When data contains "note" about restricted fields, acknowledge the restriction transparently.
+4. For cross-module queries outside your access: provide helpful INSIGHTS without raw data.
+   - Instead of "Employee X was absent" → "Operational delays may be due to workforce availability"
+   - Instead of raw salary data → "Payroll processing is handled by the HR team"
+5. SMART DENIALS: When access is denied, ALWAYS:
+   - Acknowledge what the user asked
+   - Explain which team handles this data
+   - Suggest an alternative action within your access level
+   - Be helpful, not dismissive
+
+ROLE-BASED DATA ISOLATION:
+${roles.includes("hr") && !roles.includes("admin") ? `- You are HR. You can access: employees, attendance, leave, payroll status, tasks, tickets.
+- You CANNOT access: order amounts, revenue, cost prices, expenses, pipeline deals, procurement costs.
+- You CAN see payroll sheet status but NOT individual salary amounts.` : ""}
 ${roles.includes("finance") && !roles.includes("admin") ? `- You are Finance. You can access: orders (payments), expenses, procurements, expected payments, tasks.
-- You CANNOT access: employee salaries, attendance details, leave records, personal HR data. If asked about HR data, explain you only have access to financial modules.` : ""}
+- You CANNOT access: employee salaries, attendance details, leave records, personal HR data.` : ""}
 ${roles.includes("sales") && !roles.includes("admin") && !roles.includes("sales_manager") ? `- You are Sales. You can ONLY see your own leads, orders, and pipeline.
-- You CANNOT access: other salespeople's data, employee data, salaries, expenses, or procurement details.` : ""}
+- You CANNOT access: other salespeople's data, employee data, salaries, expenses, or procurement costs.` : ""}
+${roles.includes("supply_chain") && !roles.includes("admin") ? `- You are Operations. You can access: orders, inventory, procurements, suppliers, tasks.
+- You CANNOT access: employee personal data, salaries, leave records, financial risk scoring.` : ""}
+
+DATA MASKING RULES:
+- Bank Account → show as XXXX1234 (last 4 digits only)
+- Phone numbers in cross-module queries → show as XXXXX7890
+- PAN/Aadhaar → NEVER show, not even partially
+- Salary data → NEVER shown to non-HR/non-Admin roles
+- Supplier contracts/financials → masked for non-supply-chain roles
 
 Guidelines:
 - Be concise, conversational, and professional
 - Format prices with ₹ symbol for Indian Rupees
-- Present data in clean markdown tables or bullet points when showing multiple records
+- Present data in clean markdown tables or bullet points
 - Always include the count of records found
 - If results are empty, say so clearly
-- For dashboard/summary questions, use get_dashboard_stats
-- For specific searches, use the appropriate query tool
-- For analytics/breakdown queries, fetch all relevant data (high limit) then aggregate yourself
 - Never fabricate data — only use what the tools return
-- If the user asks about something outside your tools, explain what modules you can help with
-- Respect that data is filtered based on the user's role
-- When doing comparisons or multi-period analysis, make multiple tool calls as needed
-
-RESPONSE FORMATTING — CRITICAL:
-- NEVER dump raw column names or database field names in responses. Translate them to human-readable labels.
-  - "customer_name" → "Customer", "product_name" → "Product", "total_sales_amount" → "Amount", "expected_closure_date" → "Expected Close Date", "sales_person_name" → "Salesperson", "employee_name" → "Employee", "check_in_time" → "Check-in"
-- When presenting data, lead with a brief SUMMARY sentence first, then show details.
-- For analytical responses, structure as: Summary → Key insights → Details (table/list).
-- Keep table columns to 3-5 max. Pick the most relevant fields, don't show every column.
-- Use natural language for single records.
-- For lists of 3 or fewer items, use bullet points instead of tables.
+- Respect data isolation strictly
 - Round large numbers: ₹10,50,000 → ₹10.5L, ₹1,06,00,000 → ₹1.06 Cr
-- Use markdown headers (##, ###) to section your response when it has multiple parts.
-- Use **bold** for order numbers, customer names, and key figures.
+- Use **bold** for order numbers, customer names, and key figures
+
+RESPONSE FORMATTING:
+- NEVER dump raw column names. Translate to human-readable labels.
+- Lead with a brief SUMMARY sentence, then show details.
+- Keep table columns to 3-5 max.
+- Use markdown headers (##, ###) to section responses.
 - Add a brief "💡 Tip" or actionable insight at the end when relevant.
 
 ACTIONABLE COMMANDS:
-- You can update order statuses, enquiry statuses, task statuses, create tasks, and create payment follow-ups.
 - For updates, ALWAYS confirm what you're about to do BEFORE executing.
-- After executing an update, clearly confirm the result.
-- If the user asks to update something and you need an ID, first query to find the record, then update.
+- After executing, clearly confirm the result.
 
-SUGGESTED ACTIONS — CRITICAL:
-After presenting data analysis, proactively suggest relevant actions the user can take. Format suggested actions as a special block:
-
+SUGGESTED ACTIONS:
+After presenting data analysis, suggest relevant actions:
 \`\`\`actions
-[{"label":"Follow up payment for Order X","action_type":"create_payment_followup","payload":{"order_number":"ORD2500168"}},{"label":"Create task for sales team","action_type":"create_task","payload":{"title":"Follow up hot leads","assigned_to_name":"Sales Team"}}]
+[{"label":"Follow up payment for Order X","action_type":"create_payment_followup","payload":{"order_number":"ORD2500168"}}]
 \`\`\`
-
-Rules for suggested actions:
-- Only suggest actions the user's role allows
-- Include 1-3 most relevant actions based on the data shown
-- Supported action_types: create_task, update_lead_status, update_order_status, update_task_status, create_payment_followup
+Only suggest actions the user's role allows. Include 1-3 most relevant actions.
 
 DAILY BRIEFING:
-- When user asks for "daily briefing", "morning summary", or "what should I focus on", use the get_daily_briefing tool.
-- Present the briefing with role-appropriate sections:
-  ${roles.includes("hr") || roles.includes("admin") ? "* HR: 👥 Attendance Summary, 📋 Pending Leave Requests, 🏠 On Leave Today" : ""}
-  ${roles.includes("sales") || roles.includes("sales_manager") || roles.includes("admin") ? "* Sales: 🔴 Overdue Payments, 📊 Stalled Deals, 🔥 New Hot Leads" : ""}
-  ${roles.includes("finance") || roles.includes("admin") ? "* Finance: 🔴 Overdue Payments, 💰 Cashflow Alerts" : ""}
-  ${roles.includes("supply_chain") || roles.includes("admin") ? "* Operations: 📦 Low Stock, 🚚 Delayed Procurements" : ""}
-  * All: ⚡ Urgent Tasks
-- Prioritize actionable items and give specific recommendations.
+- When user asks for "daily briefing", use get_daily_briefing tool.
+- Present with role-appropriate sections.
 
-VISUAL CHARTS — You can render interactive charts by outputting a special code block:
-
+VISUAL CHARTS:
 \`\`\`chart
 {"type":"bar","title":"Orders by Product","data":[{"name":"DJI Mini","count":5,"revenue":250000}],"xKey":"name","yKeys":["count","revenue"]}
 \`\`\`
-
 Chart types: "bar", "pie", "line"
-- Use charts when the user asks for breakdowns, comparisons, trends, distributions, or analytics
-- Do NOT use charts for simple counts or single-value answers
 
-Available modules based on your role: ${Array.from(allAllowedTools).map(t => t.replace("query_", "").replace("get_", "")).join(", ")}`;
+Available modules: ${Array.from(allAllowedTools).map(t => t.replace("query_", "").replace("get_", "")).join(", ")}`;
 
-    // Step 1: Send to AI with tools (non-streaming to get tool calls)
+    // Step 1: Send to AI with tools
     const step1Response = await fetch(GATEWAY_URL, {
       method: "POST",
       headers: {
@@ -1310,37 +1487,29 @@ Available modules based on your role: ${Array.from(allAllowedTools).map(t => t.r
     const assistantMessage = step1Data.choices?.[0]?.message;
     const finishReason = step1Data.choices?.[0]?.finish_reason;
 
-    // Handle malformed function calls or errors from the AI
     if (finishReason === "error" || !assistantMessage) {
-      console.error("AI step1 finish_reason:", finishReason, JSON.stringify(step1Data.choices?.[0]));
       const retryResponse = await fetch(GATEWAY_URL, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
           messages: [
-            { role: "system", content: systemPrompt + "\n\nIMPORTANT: Answer the user's question directly based on your knowledge of the system. Do not attempt to call any tools." },
+            { role: "system", content: systemPrompt + "\n\nIMPORTANT: Answer the user's question directly. Do not attempt to call any tools." },
             ...messages,
           ],
           stream: true,
         }),
       });
-
       if (!retryResponse.ok) {
         return new Response(JSON.stringify({ error: "AI assistant unavailable" }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-
       return new Response(retryResponse.body, {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
       });
     }
 
-    // If no tool calls, stream the response directly
     if (!assistantMessage?.tool_calls || assistantMessage.tool_calls.length === 0) {
       if (assistantMessage?.content) {
         const encoder = new TextEncoder();
@@ -1351,63 +1520,49 @@ Available modules based on your role: ${Array.from(allAllowedTools).map(t => t.r
           headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
         });
       }
-      
       const streamResponse = await fetch(GATEWAY_URL, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
           messages: [{ role: "system", content: systemPrompt }, ...messages],
           stream: true,
         }),
       });
-
       if (!streamResponse.ok) {
         return new Response(JSON.stringify({ error: "AI assistant unavailable" }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-
       return new Response(streamResponse.body, {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
       });
     }
 
-    // Step 2: Execute tool calls
+    // Step 2: Execute tool calls with access control
     const toolResults: { role: string; tool_call_id: string; content: string }[] = [];
     
     for (const toolCall of assistantMessage.tool_calls) {
       const toolName = toolCall.function.name;
       
-      // Security: verify tool is allowed for this user
       if (!allAllowedTools.has(toolName)) {
         toolResults.push({
           role: "tool",
           tool_call_id: toolCall.id,
-          content: JSON.stringify({ error: "Access denied for this module" }),
+          content: JSON.stringify({ access_denied: true, message: "Access denied for this module based on your role." }),
         });
+        await logAccess(serviceClient, userId, roles, lastUserMessage, toolName, "denied", [], "Tool not in allowed list");
         continue;
       }
 
       let toolArgs: Record<string, unknown> = {};
-      try {
-        toolArgs = JSON.parse(toolCall.function.arguments || "{}");
-      } catch {
-        toolArgs = {};
-      }
+      try { toolArgs = JSON.parse(toolCall.function.arguments || "{}"); } catch { toolArgs = {}; }
 
-      const result = await executeToolCall(serviceClient, toolName, toolArgs, userId, roles);
-      toolResults.push({
-        role: "tool",
-        tool_call_id: toolCall.id,
-        content: result,
-      });
+      const result = await executeToolCall(serviceClient, toolName, toolArgs, userId, roles, lastUserMessage);
+      toolResults.push({ role: "tool", tool_call_id: toolCall.id, content: result });
     }
 
-    // Step 3: Send tool results back to AI for final streaming response
+    // Step 3: Send tool results back to AI
     const step3Messages = [
       { role: "system", content: systemPrompt },
       ...messages,
@@ -1417,10 +1572,7 @@ Available modules based on your role: ${Array.from(allAllowedTools).map(t => t.r
 
     const finalResponse = await fetch(GATEWAY_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: step3Messages,
@@ -1429,8 +1581,7 @@ Available modules based on your role: ${Array.from(allAllowedTools).map(t => t.r
     });
 
     if (!finalResponse.ok) {
-      const errText = await finalResponse.text();
-      console.error("AI step3 error:", finalResponse.status, errText);
+      console.error("AI step3 error:", finalResponse.status);
       return new Response(JSON.stringify({ error: "AI assistant unavailable" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -1443,8 +1594,7 @@ Available modules based on your role: ${Array.from(allAllowedTools).map(t => t.r
   } catch (error) {
     console.error("Portal assistant error:", error);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
