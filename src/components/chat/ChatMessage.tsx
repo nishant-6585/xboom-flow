@@ -365,8 +365,8 @@ export function ChatMessage({ role, content, isStreaming, autoSpeak, onSpeakingD
     const markdownComponents = {
       table: ({ children, ...props }: any) => (
         <div className="my-2.5 rounded-lg border border-border/50 dark:border-primary/20 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs border-collapse" {...props}>{children}</table>
+          <div className="overflow-x-auto scrollbar-hide">
+            <table className="w-full text-xs border-collapse min-w-[480px]" {...props}>{children}</table>
           </div>
         </div>
       ),
@@ -374,10 +374,10 @@ export function ChatMessage({ role, content, isStreaming, autoSpeak, onSpeakingD
         <thead className="bg-primary/15 dark:bg-primary/20" {...props}>{children}</thead>
       ),
       th: ({ children, ...props }: any) => (
-        <th className="px-3 py-2 text-left font-semibold text-foreground text-[11px] uppercase tracking-wider border-b border-border/50 dark:border-primary/30" {...props}>{children}</th>
+        <th className="px-3 py-2.5 text-left font-semibold text-foreground text-[11px] uppercase tracking-wider border-b border-border/50 dark:border-primary/30 whitespace-nowrap" {...props}>{children}</th>
       ),
       td: ({ children, ...props }: any) => (
-        <td className="px-3 py-2 border-b border-border/20 dark:border-border/40 text-foreground/90" {...props}>{children}</td>
+        <td className="px-3 py-2 border-b border-border/20 dark:border-border/40 text-foreground/90 whitespace-nowrap" {...props}>{children}</td>
       ),
       tr: ({ children, ...props }: any) => (
         <tr className="hover:bg-muted/40 dark:hover:bg-primary/5 transition-colors even:bg-muted/20 dark:even:bg-primary/[0.03]" {...props}>{children}</tr>
