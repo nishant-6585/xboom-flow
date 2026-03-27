@@ -469,11 +469,17 @@ export function useSalarySheets() {
       const updates: Record<string, any> = {};
 
       // Refresh financial details from employee master (single source of truth)
-      if (profileData.bank_account !== entry.bank_account) updates.bank_account = profileData.bank_account;
-      if (profileData.ifsc_code !== entry.ifsc_code) updates.ifsc_code = profileData.ifsc_code;
+      // Always sync bank details - use nullish coalescing for safe comparison
+      const currentBank = entry.bank_account || null;
+      const currentIfsc = entry.ifsc_code || null;
+      const masterBank = profileData.bank_account || null;
+      const masterIfsc = profileData.ifsc_code || null;
+      if (masterBank !== currentBank) updates.bank_account = masterBank;
+      if (masterIfsc !== currentIfsc) updates.ifsc_code = masterIfsc;
 
       // Refresh salary from employee master / salary history
-      if (profileData.salary && profileData.salary !== entry.salary) {
+      // Also sync when entry salary is 0 but master has a value
+      if (profileData.salary && profileData.salary !== (entry.salary || 0)) {
         // Check for pro-rated salary (exit in this month)
         const { data: empData } = await supabase
           .from("employees")
