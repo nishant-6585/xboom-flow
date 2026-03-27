@@ -616,6 +616,9 @@ export function LeadsPanel() {
       {/* Interakt Tab */}
       <TabsContent value="interakt" className="space-y-6">
         <div className="space-y-6">
+          {/* Prospect Analytics for Interakt */}
+          <ProspectAnalyticsCards prospects={prospects} sourceType="interakt" />
+
           {/* Interakt Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20">
@@ -769,6 +772,7 @@ export function LeadsPanel() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50">
+                          <TableHead className="w-[40px]">P</TableHead>
                           <TableHead className="w-[160px]">Customer Name</TableHead>
                           <TableHead className="w-[140px]">Phone Number</TableHead>
                           <TableHead className="w-[120px]">Company</TableHead>
@@ -783,6 +787,20 @@ export function LeadsPanel() {
                       <TableBody>
                         {filteredInteraktLeads.map((lead) => (
                           <TableRow key={lead.id} className="hover:bg-muted/50">
+                            <TableCell>
+                              <ProspectButton
+                                sourceType="interakt"
+                                sourceId={lead.id}
+                                customerName={lead.customer_name}
+                                phoneNumber={lead.phone_number}
+                                email={lead.email}
+                                company={lead.company}
+                                city={lead.city}
+                                productName={lead.product_name}
+                                notes={lead.notes}
+                                isAlreadyProspect={prospectSourceIds.has(`interakt:${lead.id}`)}
+                              />
+                            </TableCell>
                             <TableCell>
                               <p className="font-medium">{lead.customer_name}</p>
                             </TableCell>
@@ -863,7 +881,10 @@ export function LeadsPanel() {
       </TabsContent>
 
       <TabsContent value="myoperator">
-        <CallLogsPanel />
+        <div className="space-y-6">
+          <ProspectAnalyticsCards prospects={prospects} sourceType="myoperator" />
+          <CallLogsPanel prospects={prospects} prospectSourceIds={prospectSourceIds} />
+        </div>
       </TabsContent>
     </Tabs>
   );
