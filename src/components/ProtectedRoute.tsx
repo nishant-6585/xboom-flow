@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useSessionPolicy } from "@/hooks/useSessionPolicy";
@@ -14,14 +15,30 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute = ({ children, requireApproval = true }: ProtectedRouteProps) => {
-  const { user, loading, isApproved, signOut, profile, mfaStatus, refreshMfaStatus } = useAuth();
+  const { user, loading, isApproved, signOut, profile, mfaStatus, refreshMfaStatus, refreshProfile } = useAuth();
+  const [retrying, setRetrying] = useState(false);
+  const retryAttemptedRef = useRef(false);
 
   // Only activate session policy and activity tracking after full authentication (including MFA)
   const isFullyAuthenticated = !!user && isApproved && mfaStatus !== "enrollment_required" && mfaStatus !== "verification_required";
   const { recordActivity } = useSessionPolicy(isFullyAuthenticated ? user?.id : undefined, signOut);
   useActivityTracker(isFullyAuthenticated ? recordActivity : undefined);
 
-  if (loading) {
+  // Auto-retry: if user exists but profile says not approved, re-fetch once before showing the screen
+  useEffect(() => {
+    if (!loading && user && requireApproval && !isApproved && !retryAttemptedRef.current) {
+      retryAttemptedRef.current = true;
+      console.warn("[ProtectedRoute] Approval check failed — auto-retrying profile fetch for", user.id);
+      setRetrying(true);
+      refreshProfile().finally(() => setRetrying(false));
+    }
+    // Reset retry flag when user changes
+    if (!user) {
+      retryAttemptedRef.current = false;
+    }
+  }, [loading, user, isApproved, requireApproval, refreshProfile]);
+
+  if (loading || retrying) {
     return (
       <div className="min-h-[100dvh] bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -74,6 +91,17 @@ export const ProtectedRoute = ({ children, requireApproval = true }: ProtectedRo
               </p>
             </div>
 
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => {
+                retryAttemptedRef.current = false;
+                setRetrying(true);
+                refreshProfile().finally(() => setRetrying(false));
+              }}
+            >
+              Check Again
+            </Button>
             <Button 
               variant="outline" 
               className="w-full" 
