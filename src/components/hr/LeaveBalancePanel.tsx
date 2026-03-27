@@ -18,8 +18,6 @@ const LEAVE_TYPE_DISPLAY: Record<string, string> = {
   EL: 'Earned Leave',
   paid: 'Earned Leave',
   sick: 'Sick Leave',
-  unpaid: 'Unpaid Leave',
-  wfh: 'Work from Home',
   casual: 'Earned Leave (Casual)',
   half_day_casual: 'Half Day Earned',
 };
@@ -93,7 +91,7 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactions.filter(tx => tx.leave_type !== 'paid' && tx.leave_type !== 'half_day_paid').map(tx => (
+                  {transactions.filter(tx => tx.leave_type !== 'paid' && tx.leave_type !== 'half_day_paid' && tx.leave_type !== 'unpaid' && tx.leave_type !== 'wfh' && tx.leave_type !== 'half_day_unpaid').map(tx => (
                     <TableRow key={tx.id}>
                       <TableCell className="text-xs">{format(new Date(tx.created_at), 'dd MMM yyyy')}</TableCell>
                       <TableCell>
@@ -126,8 +124,6 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
                       <TableHead>Employee</TableHead>
                       <TableHead className="text-center">Earned Leave</TableHead>
                       <TableHead className="text-center">Sick Leave</TableHead>
-                      <TableHead className="text-center">Unpaid</TableHead>
-                      <TableHead className="text-center">WFH</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -139,8 +135,6 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
                           <TableCell className="font-medium">{row.employee_name}</TableCell>
                           <TableCell className="text-center font-semibold text-primary">{getBalance('EL')}</TableCell>
                           <TableCell className="text-center font-semibold text-primary">{getBalance('sick')}</TableCell>
-                          <TableCell className="text-center font-semibold text-primary">{getBalance('unpaid')}</TableCell>
-                          <TableCell className="text-center font-semibold text-primary">{getBalance('wfh')}</TableCell>
                           <TableCell className="text-right">
                             <Button variant="ghost" size="sm" onClick={() => setEditRow(row)}>
                               <Pencil className="h-4 w-4 mr-1" /> Edit
@@ -164,8 +158,8 @@ export function LeaveBalancePanel({ employeeId }: LeaveBalancePanelProps) {
           employeeName={editRow.employee_name}
           employeeId={editRow.employee_id}
           balances={
-            // Ensure all standard types appear
-            ['EL', 'sick', 'unpaid', 'wfh'].map(lt => {
+            // Only EL and Sick are balance-tracked leave types
+            ['EL', 'sick'].map(lt => {
               const existing = editRow.balances.find(b => b.leave_type === lt);
               return {
                 leave_type: lt,
