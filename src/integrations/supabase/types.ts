@@ -594,8 +594,13 @@ export type Database = {
           call_status: string
           call_type: string | null
           caller_number: string
+          city: string | null
+          company: string | null
           created_at: string
+          customer_company: string | null
+          customer_name: string | null
           department: string | null
+          email: string | null
           end_time: string | null
           full_number: string | null
           id: string
@@ -604,12 +609,21 @@ export type Database = {
           ivr_input: string | null
           lead_created: boolean
           lead_id: string | null
+          lead_source: string | null
+          notes: string | null
+          product_category: string | null
+          product_code: string | null
+          product_name: string | null
+          purpose_of_purchase: string | null
+          quantity: number | null
           raw_payload: Json | null
           recording_fetched_at: string | null
           recording_stream_url: string | null
           recording_url: string | null
+          requested_timeline: string | null
           start_time: string | null
           updated_at: string
+          urgency: string | null
         }
         Insert: {
           agent_name?: string | null
@@ -621,8 +635,13 @@ export type Database = {
           call_status?: string
           call_type?: string | null
           caller_number: string
+          city?: string | null
+          company?: string | null
           created_at?: string
+          customer_company?: string | null
+          customer_name?: string | null
           department?: string | null
+          email?: string | null
           end_time?: string | null
           full_number?: string | null
           id?: string
@@ -631,12 +650,21 @@ export type Database = {
           ivr_input?: string | null
           lead_created?: boolean
           lead_id?: string | null
+          lead_source?: string | null
+          notes?: string | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name?: string | null
+          purpose_of_purchase?: string | null
+          quantity?: number | null
           raw_payload?: Json | null
           recording_fetched_at?: string | null
           recording_stream_url?: string | null
           recording_url?: string | null
+          requested_timeline?: string | null
           start_time?: string | null
           updated_at?: string
+          urgency?: string | null
         }
         Update: {
           agent_name?: string | null
@@ -648,8 +676,13 @@ export type Database = {
           call_status?: string
           call_type?: string | null
           caller_number?: string
+          city?: string | null
+          company?: string | null
           created_at?: string
+          customer_company?: string | null
+          customer_name?: string | null
           department?: string | null
+          email?: string | null
           end_time?: string | null
           full_number?: string | null
           id?: string
@@ -658,12 +691,21 @@ export type Database = {
           ivr_input?: string | null
           lead_created?: boolean
           lead_id?: string | null
+          lead_source?: string | null
+          notes?: string | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name?: string | null
+          purpose_of_purchase?: string | null
+          quantity?: number | null
           raw_payload?: Json | null
           recording_fetched_at?: string | null
           recording_stream_url?: string | null
           recording_url?: string | null
+          requested_timeline?: string | null
           start_time?: string | null
           updated_at?: string
+          urgency?: string | null
         }
         Relationships: []
       }
@@ -2984,6 +3026,7 @@ export type Database = {
           company: string | null
           country_code: string
           created_at: string
+          customer_company: string | null
           customer_name: string
           email: string | null
           id: string
@@ -2992,21 +3035,29 @@ export type Database = {
           interakt_user_id: string | null
           is_a_category: boolean | null
           is_prospect: boolean | null
+          lead_source: string | null
           notes: string | null
           phone_number: string
+          product_category: string | null
+          product_code: string | null
           product_name: string | null
+          purpose_of_purchase: string | null
+          quantity: number | null
+          requested_timeline: string | null
           source: string
           status: string
           synced_at: string
           synced_by: string | null
           updated_at: string
           updated_by: string | null
+          urgency: string | null
         }
         Insert: {
           city?: string | null
           company?: string | null
           country_code?: string
           created_at?: string
+          customer_company?: string | null
           customer_name: string
           email?: string | null
           id?: string
@@ -3015,21 +3066,29 @@ export type Database = {
           interakt_user_id?: string | null
           is_a_category?: boolean | null
           is_prospect?: boolean | null
+          lead_source?: string | null
           notes?: string | null
           phone_number: string
+          product_category?: string | null
+          product_code?: string | null
           product_name?: string | null
+          purpose_of_purchase?: string | null
+          quantity?: number | null
+          requested_timeline?: string | null
           source?: string
           status?: string
           synced_at?: string
           synced_by?: string | null
           updated_at?: string
           updated_by?: string | null
+          urgency?: string | null
         }
         Update: {
           city?: string | null
           company?: string | null
           country_code?: string
           created_at?: string
+          customer_company?: string | null
           customer_name?: string
           email?: string | null
           id?: string
@@ -3038,15 +3097,22 @@ export type Database = {
           interakt_user_id?: string | null
           is_a_category?: boolean | null
           is_prospect?: boolean | null
+          lead_source?: string | null
           notes?: string | null
           phone_number?: string
+          product_category?: string | null
+          product_code?: string | null
           product_name?: string | null
+          purpose_of_purchase?: string | null
+          quantity?: number | null
+          requested_timeline?: string | null
           source?: string
           status?: string
           synced_at?: string
           synced_by?: string | null
           updated_at?: string
           updated_by?: string | null
+          urgency?: string | null
         }
         Relationships: []
       }
@@ -5493,17 +5559,25 @@ export type Database = {
           created_at: string
           created_by: string
           created_by_name: string
+          customer_company: string | null
           customer_name: string
           email: string | null
           id: string
           is_a_category: boolean
+          lead_source: string | null
           notes: string | null
           phone_number: string | null
+          product_category: string | null
+          product_code: string | null
           product_name: string | null
+          purpose_of_purchase: string | null
+          quantity: number | null
+          requested_timeline: string | null
           source_id: string
           source_type: string
           status: string
           updated_at: string
+          urgency: string | null
         }
         Insert: {
           a_category_marked_at?: string | null
@@ -5513,17 +5587,25 @@ export type Database = {
           created_at?: string
           created_by: string
           created_by_name: string
+          customer_company?: string | null
           customer_name: string
           email?: string | null
           id?: string
           is_a_category?: boolean
+          lead_source?: string | null
           notes?: string | null
           phone_number?: string | null
+          product_category?: string | null
+          product_code?: string | null
           product_name?: string | null
+          purpose_of_purchase?: string | null
+          quantity?: number | null
+          requested_timeline?: string | null
           source_id: string
           source_type: string
           status?: string
           updated_at?: string
+          urgency?: string | null
         }
         Update: {
           a_category_marked_at?: string | null
@@ -5533,17 +5615,25 @@ export type Database = {
           created_at?: string
           created_by?: string
           created_by_name?: string
+          customer_company?: string | null
           customer_name?: string
           email?: string | null
           id?: string
           is_a_category?: boolean
+          lead_source?: string | null
           notes?: string | null
           phone_number?: string | null
+          product_category?: string | null
+          product_code?: string | null
           product_name?: string | null
+          purpose_of_purchase?: string | null
+          quantity?: number | null
+          requested_timeline?: string | null
           source_id?: string
           source_type?: string
           status?: string
           updated_at?: string
+          urgency?: string | null
         }
         Relationships: []
       }
