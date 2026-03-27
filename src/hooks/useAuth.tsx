@@ -438,6 +438,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     await supabase.auth.signOut();
     setProfile(null);
+    profileRef.current = null;
     setRole(null);
     setRoles([]);
     setMfaStatus("not_required");
