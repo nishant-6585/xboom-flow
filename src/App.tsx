@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { FloatingActionButton } from "@/components/FloatingActionButton";
@@ -108,6 +108,11 @@ function AppInner() {
 /** Renders global widgets only when user is fully authenticated (including MFA) */
 function AuthGuardedWidgets({ isMobile }: { isMobile: boolean }) {
   const { user, mfaStatus, isApproved, loading } = useAuth();
+  const location = useLocation();
+  // Hide widgets on public/auth pages
+  const publicPaths = ['/auth', '/mfa-verify', '/form-embed', '/public'];
+  const isPublicPage = publicPaths.some(p => location.pathname.startsWith(p));
+  if (isPublicPage) return null;
   // Do not render any protected UI until authentication and MFA state are fully resolved
   if (loading) return null;
   if (!user) return null;
