@@ -526,8 +526,6 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                     </button>
                   ));
                 })()}
-                  </button>
-                ))}
               </div>
             </div>
           ) : (
