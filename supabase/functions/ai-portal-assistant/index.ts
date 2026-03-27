@@ -339,15 +339,15 @@ const DATA_TOOLS = [
 
 // Role-based module access map
 const ROLE_MODULE_ACCESS: Record<string, string[]> = {
-  admin: ["query_orders", "query_enquiries", "query_pipeline", "query_inventory", "query_employees", "query_tasks", "query_tickets", "query_procurements", "query_suppliers", "query_expenses", "query_repairs", "get_dashboard_stats", "update_order_status", "update_enquiry_status", "update_task_status", "get_daily_briefing"],
-  sales: ["query_orders", "query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats", "update_enquiry_status", "update_task_status", "get_daily_briefing"],
-  sales_manager: ["query_orders", "query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats", "update_order_status", "update_enquiry_status", "update_task_status", "get_daily_briefing"],
-  supply_chain: ["query_orders", "query_inventory", "query_procurements", "query_suppliers", "query_tasks", "get_dashboard_stats", "update_order_status", "update_task_status", "get_daily_briefing"],
-  finance: ["query_orders", "query_expenses", "query_procurements", "query_tasks", "get_dashboard_stats", "update_task_status", "get_daily_briefing"],
-  hr: ["query_employees", "query_tasks", "query_tickets", "get_dashboard_stats", "update_task_status", "get_daily_briefing"],
-  it: ["query_tickets", "query_tasks", "get_dashboard_stats", "update_task_status", "get_daily_briefing"],
-  marketing: ["query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats", "update_task_status", "get_daily_briefing"],
-  employee: ["query_tasks", "query_tickets", "get_dashboard_stats", "update_task_status", "get_daily_briefing"],
+  admin: ["query_orders", "query_enquiries", "query_pipeline", "query_inventory", "query_employees", "query_tasks", "query_tickets", "query_procurements", "query_suppliers", "query_expenses", "query_repairs", "get_dashboard_stats", "update_order_status", "update_enquiry_status", "update_task_status", "create_task", "create_payment_followup", "get_daily_briefing"],
+  sales: ["query_orders", "query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats", "update_enquiry_status", "update_task_status", "create_task", "get_daily_briefing"],
+  sales_manager: ["query_orders", "query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats", "update_order_status", "update_enquiry_status", "update_task_status", "create_task", "create_payment_followup", "get_daily_briefing"],
+  supply_chain: ["query_orders", "query_inventory", "query_procurements", "query_suppliers", "query_tasks", "get_dashboard_stats", "update_order_status", "update_task_status", "create_task", "get_daily_briefing"],
+  finance: ["query_orders", "query_expenses", "query_procurements", "query_tasks", "get_dashboard_stats", "update_task_status", "create_task", "create_payment_followup", "get_daily_briefing"],
+  hr: ["query_employees", "query_tasks", "query_tickets", "get_dashboard_stats", "update_task_status", "create_task", "get_daily_briefing"],
+  it: ["query_tickets", "query_tasks", "get_dashboard_stats", "update_task_status", "create_task", "get_daily_briefing"],
+  marketing: ["query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats", "update_task_status", "create_task", "get_daily_briefing"],
+  employee: ["query_tasks", "query_tickets", "get_dashboard_stats", "update_task_status", "create_task", "get_daily_briefing"],
 };
 
 async function executeToolCall(
