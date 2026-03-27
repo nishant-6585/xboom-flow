@@ -107,7 +107,7 @@ export function useAIChats() {
     try {
       const { error } = await supabase
         .from('ai_messages')
-        .insert({ chat_id: chatId, role, content, metadata });
+        .insert({ chat_id: chatId, role, content, metadata } as any);
       if (error) throw error;
       // Bump chat updated_at
       await supabase.from('ai_chats').update({ updated_at: new Date().toISOString() }).eq('id', chatId);
