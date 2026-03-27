@@ -151,8 +151,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const isSameHydratedUser =
           !!incomingUserId && lastHydratedUserIdRef.current === incomingUserId;
 
-        // Skip noisy events that happen on tab focus/background refresh
+        // For TOKEN_REFRESHED or same-user SIGNED_IN:
+        // Skip full loading state, but still ensure profile is hydrated
         if (event === "TOKEN_REFRESHED" || (event === "SIGNED_IN" && isSameHydratedUser)) {
+          // If profile was lost from state (race condition), silently re-fetch
+          if (incomingUserId && !profile) {
+            console.warn("[Auth] Profile missing during", event, "— re-fetching silently");
+            fetchUserData(incomingUserId);
+          }
           return;
         }
 
@@ -209,7 +215,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [profile]);
 
   const signUp = async (email: string, password: string, name: string, team: AppRole) => {
     const normalizedEmail = email.toLowerCase().trim();
