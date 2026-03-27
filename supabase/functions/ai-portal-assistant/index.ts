@@ -607,6 +607,91 @@ async function executeToolCall(
         return JSON.stringify({ success: true, message: `Task "${taskMatch[0].title}" updated to "${newStatus}"` });
       }
 
+      case "create_task": {
+        const title = args.title as string;
+        const description = (args.description as string) || "";
+        const assignedToName = args.assigned_to_name as string;
+        const priority = (args.priority as number) || 2;
+        const dueDate = (args.due_date as string) || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+        // Find the assigned user
+        const { data: assignee } = await client.from("profiles")
+          .select("user_id, name")
+          .ilike("name", `%${assignedToName}%`)
+          .limit(1)
+          .single();
+
+        const { data: task, error: taskErr } = await client.from("tasks").insert({
+          title,
+          description,
+          task_type: "sales_followup",
+          assigned_to: assignee?.user_id || userId,
+          assigned_to_name: assignee?.name || assignedToName,
+          assigned_role: "sales",
+          priority,
+          due_date: dueDate,
+          created_by: userId,
+          created_by_name: (await client.from("profiles").select("name").eq("user_id", userId).single()).data?.name || "AI",
+          status: "new",
+        }).select("id, title").single();
+
+        if (taskErr) throw taskErr;
+
+        // Log the action
+        await client.from("ai_action_logs").insert({
+          user_id: userId,
+          action_type: "create_task",
+          payload: { title, assigned_to_name: assignedToName, priority, due_date: dueDate },
+          status: "executed",
+          result: { task_id: task?.id },
+        });
+
+        return JSON.stringify({ success: true, message: `✅ Task "${title}" created and assigned to ${assignee?.name || assignedToName}`, task_id: task?.id });
+      }
+
+      case "create_payment_followup": {
+        const orderNum = args.order_number as string;
+        const { data: orderMatch } = await client.from("orders")
+          .select("id, order_number, customer_name, total_sales_amount, amount_paid, sales_person_id, sales_person_name")
+          .ilike("order_number", orderNum)
+          .limit(1);
+
+        if (!orderMatch?.length) return JSON.stringify({ error: `Order ${orderNum} not found` });
+        const order = orderMatch[0];
+        const pendingAmount = (order.total_sales_amount || 0) - (order.amount_paid || 0);
+
+        if (pendingAmount <= 0) return JSON.stringify({ message: `Order ${orderNum} has no pending payments.` });
+
+        const profileData = await client.from("profiles").select("name").eq("user_id", userId).single();
+
+        const { data: task, error: taskErr } = await client.from("tasks").insert({
+          title: `💰 Payment follow-up: ${order.customer_name} - ₹${pendingAmount.toLocaleString("en-IN")}`,
+          description: `Order ${order.order_number}. Total: ₹${(order.total_sales_amount || 0).toLocaleString("en-IN")}, Received: ₹${(order.amount_paid || 0).toLocaleString("en-IN")}, Pending: ₹${pendingAmount.toLocaleString("en-IN")}`,
+          task_type: "finance_review",
+          assigned_to: order.sales_person_id || userId,
+          assigned_to_name: order.sales_person_name || profileData.data?.name || "User",
+          assigned_role: "sales",
+          priority: 1,
+          due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          created_by: userId,
+          created_by_name: profileData.data?.name || "AI",
+          status: "new",
+        }).select("id").single();
+
+        if (taskErr) throw taskErr;
+
+        // Log the action
+        await client.from("ai_action_logs").insert({
+          user_id: userId,
+          action_type: "create_payment_followup",
+          payload: { order_number: orderNum, order_id: order.id, pending_amount: pendingAmount },
+          status: "executed",
+          result: { task_id: task?.id },
+        });
+
+        return JSON.stringify({ success: true, message: `✅ Payment follow-up task created for ${order.customer_name} (₹${pendingAmount.toLocaleString("en-IN")} pending)` });
+      }
+
       case "get_daily_briefing": {
         const briefing: Record<string, unknown> = {};
         const today = new Date().toISOString().split("T")[0];
