@@ -184,6 +184,137 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_action_queue: {
+        Row: {
+          action_type: string
+          approved_at: string | null
+          approved_by: string | null
+          approved_by_name: string | null
+          created_at: string
+          error_message: string | null
+          executed_at: string | null
+          id: string
+          max_retries: number
+          payload: Json
+          requires_approval: boolean
+          result: Json | null
+          retry_count: number
+          risk_level: string
+          rule_id: string | null
+          status: string
+          triggered_by: string
+          updated_at: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          action_type: string
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
+          created_at?: string
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          max_retries?: number
+          payload?: Json
+          requires_approval?: boolean
+          result?: Json | null
+          retry_count?: number
+          risk_level?: string
+          rule_id?: string | null
+          status?: string
+          triggered_by?: string
+          updated_at?: string
+          user_id: string
+          user_name?: string
+        }
+        Update: {
+          action_type?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
+          created_at?: string
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          max_retries?: number
+          payload?: Json
+          requires_approval?: boolean
+          result?: Json | null
+          retry_count?: number
+          risk_level?: string
+          rule_id?: string | null
+          status?: string
+          triggered_by?: string
+          updated_at?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_action_queue_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "ai_auto_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_auto_rules: {
+        Row: {
+          action_type: string
+          allowed_roles: string[]
+          condition: Json
+          created_at: string
+          created_by: string
+          created_by_name: string
+          description: string | null
+          id: string
+          is_active: boolean
+          payload: Json
+          requires_approval: boolean
+          risk_level: string
+          rule_name: string
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          action_type: string
+          allowed_roles?: string[]
+          condition?: Json
+          created_at?: string
+          created_by: string
+          created_by_name?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          payload?: Json
+          requires_approval?: boolean
+          risk_level?: string
+          rule_name: string
+          trigger_type?: string
+          updated_at?: string
+        }
+        Update: {
+          action_type?: string
+          allowed_roles?: string[]
+          condition?: Json
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          payload?: Json
+          requires_approval?: boolean
+          risk_level?: string
+          rule_name?: string
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_chats: {
         Row: {
           created_at: string
@@ -205,6 +336,39 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      ai_learning_logs: {
+        Row: {
+          context: Json | null
+          created_at: string
+          execution_result: string | null
+          id: string
+          suggestion_payload: Json
+          suggestion_type: string
+          user_id: string
+          user_response: string
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string
+          execution_result?: string | null
+          id?: string
+          suggestion_payload?: Json
+          suggestion_type: string
+          user_id: string
+          user_response: string
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string
+          execution_result?: string | null
+          id?: string
+          suggestion_payload?: Json
+          suggestion_type?: string
+          user_id?: string
+          user_response?: string
         }
         Relationships: []
       }
@@ -242,6 +406,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ai_policies: {
+        Row: {
+          allowed_actions: string[]
+          amount_threshold: number | null
+          blocked_actions: string[]
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_active: boolean
+          policy_name: string
+          requires_approval_above: number | null
+          role: string
+          time_restriction_end: string | null
+          time_restriction_start: string | null
+          updated_at: string
+        }
+        Insert: {
+          allowed_actions?: string[]
+          amount_threshold?: number | null
+          blocked_actions?: string[]
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          policy_name: string
+          requires_approval_above?: number | null
+          role: string
+          time_restriction_end?: string | null
+          time_restriction_start?: string | null
+          updated_at?: string
+        }
+        Update: {
+          allowed_actions?: string[]
+          amount_threshold?: number | null
+          blocked_actions?: string[]
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          policy_name?: string
+          requires_approval_above?: number | null
+          role?: string
+          time_restriction_end?: string | null
+          time_restriction_start?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       ai_scoring_logs: {
         Row: {
