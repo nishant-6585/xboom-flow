@@ -291,6 +291,40 @@ const DATA_TOOLS = [
   {
     type: "function" as const,
     function: {
+      name: "create_task",
+      description: "Create a new task. Use when the user asks to create a task, follow-up, or action item for someone.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          title: { type: "string" as const, description: "Task title" },
+          description: { type: "string" as const, description: "Task description" },
+          assigned_to_name: { type: "string" as const, description: "Name of the person to assign the task to" },
+          priority: { type: "number" as const, description: "Priority: 1 (highest) to 3 (lowest)" },
+          due_date: { type: "string" as const, description: "Due date in ISO format" },
+        },
+        required: ["title", "assigned_to_name"] as string[],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "create_payment_followup",
+      description: "Create a payment follow-up task for an order with pending payment. Use when user asks to follow up on payments.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          order_number: { type: "string" as const, description: "The order number (e.g., ORD2500012)" },
+        },
+        required: ["order_number"] as string[],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "get_daily_briefing",
       description: "Get a comprehensive daily briefing with overdue payments, stalled deals, pending approvals, low stock alerts, and task deadlines. Use when user asks for a briefing or morning summary.",
       parameters: {
