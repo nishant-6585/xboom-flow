@@ -48,7 +48,15 @@ const LEAD_SOURCES = [
 export function LeadsPanel() {
   const { enquiries, loading, refetch } = useEnquiries();
   const { leads: interaktLeads, loading: interaktLoading, syncFromInterakt, syncing, updateLead, updating } = useInteraktLeads();
+  const { prospects } = useProspects();
   const { user, profile, role } = useAuth();
+
+  // Build set of already-prospect source IDs for quick lookup
+  const prospectSourceIds = useMemo(() => {
+    const set = new Set<string>();
+    prospects.forEach(p => set.add(`${p.source_type}:${p.source_id}`));
+    return set;
+  }, [prospects]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
