@@ -56,6 +56,39 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_action_logs: {
+        Row: {
+          action_type: string
+          created_at: string
+          error_message: string | null
+          id: string
+          payload: Json
+          result: Json | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          payload?: Json
+          result?: Json | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          payload?: Json
+          result?: Json | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_chats: {
         Row: {
           created_at: string
