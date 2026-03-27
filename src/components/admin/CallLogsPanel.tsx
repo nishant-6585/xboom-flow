@@ -431,7 +431,7 @@ export function CallLogsPanel() {
                       {expandedAudio === logKey && info.recordingFile && (
                         <TableRow key={`${log.id}-audio`}>
                           <TableCell colSpan={7} className="py-2 px-4">
-                            <InlineAudioPlayer recordingFile={info.recordingFile} duration={info.duration} />
+                            <InlineAudioPlayer recordingFile={info.recordingFile} duration={info.duration} autoPlay />
                           </TableCell>
                         </TableRow>
                       )}
@@ -464,7 +464,7 @@ export function CallLogsPanel() {
 }
 
 /* ─── Inline Audio Player ─── */
-function InlineAudioPlayer({ recordingFile, duration }: { recordingFile: string; duration: number | null }) {
+function InlineAudioPlayer({ recordingFile, duration, autoPlay = false }: { recordingFile: string; duration: number | null; autoPlay?: boolean }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -472,6 +472,7 @@ function InlineAudioPlayer({ recordingFile, duration }: { recordingFile: string;
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  const hasAutoStarted = useRef(false);
 
   // Fetch recording via MyOperator recordings/link API
   const fetchRecording = useCallback(async () => {
@@ -501,6 +502,14 @@ function InlineAudioPlayer({ recordingFile, duration }: { recordingFile: string;
       setLoading(false);
     }
   }, [recordingFile]);
+
+  // Auto-start loading on mount when autoPlay is true
+  useEffect(() => {
+    if (autoPlay && !hasAutoStarted.current && !streamUrl && !error && !loading) {
+      hasAutoStarted.current = true;
+      fetchRecording();
+    }
+  }, [autoPlay, fetchRecording]);
 
   useEffect(() => {
     return () => {
