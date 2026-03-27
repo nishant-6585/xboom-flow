@@ -119,19 +119,21 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
   const { chats, fetchChats, createChat, renameChat, deleteChat, fetchMessages, addMessage, autoTitleChat } = useAIChats();
 
   // Resize handlers
-  const onResizeMouseDown = useCallback((e: React.MouseEvent) => {
+  const onResizeMouseDown = useCallback((edge: 'top-right' | 'right' | 'top', e: React.MouseEvent) => {
     e.preventDefault();
     resizingRef.current = true;
     startRef.current = { x: e.clientX, y: e.clientY, w: size.w, h: size.h };
 
     const onMouseMove = (ev: MouseEvent) => {
       if (!resizingRef.current) return;
-      const dw = ev.clientX - startRef.current.x; // dragging right = bigger
-      const dh = startRef.current.y - ev.clientY; // dragging up = bigger
-      setSize({
-        w: Math.max(480, Math.min(1400, startRef.current.w + dw)),
-        h: Math.max(400, Math.min(900, startRef.current.h + dh)),
-      });
+      const newSize = { ...startRef.current };
+      if (edge === 'right' || edge === 'top-right') {
+        newSize.w = Math.max(480, Math.min(1400, startRef.current.w + (ev.clientX - startRef.current.x)));
+      }
+      if (edge === 'top' || edge === 'top-right') {
+        newSize.h = Math.max(400, Math.min(900, startRef.current.h + (startRef.current.y - ev.clientY)));
+      }
+      setSize({ w: newSize.w, h: newSize.h });
     };
 
     const onMouseUp = () => {
@@ -384,10 +386,21 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
       )}
       style={{ bottom: 16, left: 16, width: size.w, height: size.h }}
     >
-      {/* Resize handle — top-right corner */}
+      {/* Resize handles */}
+      {/* Right edge */}
       <div
-        onMouseDown={onResizeMouseDown}
-        className="absolute top-0 right-0 w-5 h-5 cursor-nesw-resize z-[60] group max-sm:hidden"
+        onMouseDown={(e) => onResizeMouseDown('right', e)}
+        className="absolute top-0 right-0 w-2 h-full cursor-ew-resize z-[60] max-sm:hidden hover:bg-primary/10 transition-colors"
+      />
+      {/* Top edge */}
+      <div
+        onMouseDown={(e) => onResizeMouseDown('top', e)}
+        className="absolute top-0 left-0 w-full h-2 cursor-ns-resize z-[60] max-sm:hidden hover:bg-primary/10 transition-colors"
+      />
+      {/* Top-right corner */}
+      <div
+        onMouseDown={(e) => onResizeMouseDown('top-right', e)}
+        className="absolute top-0 right-0 w-5 h-5 cursor-nesw-resize z-[61] group max-sm:hidden"
         title="Drag to resize"
       >
         <svg className="w-3 h-3 absolute top-1 right-1 text-muted-foreground/40 group-hover:text-primary/60 transition-colors" viewBox="0 0 10 10">
