@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEnquiries, PRODUCT_CATEGORIES, Enquiry } from '@/hooks/useEnquiries';
 import { useInteraktLeads, InteraktLead } from '@/hooks/useInteraktLeads';
+import { useProspects } from '@/hooks/useProspects';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -23,6 +24,8 @@ import { LeadFormDialog } from './LeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { InteraktLeadEditDialog } from '@/components/interakt/InteraktLeadEditDialog';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
+import { ProspectButton } from './ProspectButton';
+import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 
 const LEAD_SOURCES = [
   'Website',
@@ -45,7 +48,15 @@ const LEAD_SOURCES = [
 export function LeadsPanel() {
   const { enquiries, loading, refetch } = useEnquiries();
   const { leads: interaktLeads, loading: interaktLoading, syncFromInterakt, syncing, updateLead, updating } = useInteraktLeads();
+  const { prospects } = useProspects();
   const { user, profile, role } = useAuth();
+
+  // Build set of already-prospect source IDs for quick lookup
+  const prospectSourceIds = useMemo(() => {
+    const set = new Set<string>();
+    prospects.forEach(p => set.add(`${p.source_type}:${p.source_id}`));
+    return set;
+  }, [prospects]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -278,6 +289,8 @@ export function LeadsPanel() {
 
       <TabsContent value="leads" className="space-y-6">
     <div className="space-y-6">
+      {/* Prospect Analytics */}
+      <ProspectAnalyticsCards prospects={prospects} sourceType="enquiry" />
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
@@ -444,7 +457,8 @@ export function LeadsPanel() {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
+                     <TableRow className="bg-muted/50">
+                      <TableHead className="w-[40px]">P</TableHead>
                       <TableHead className="w-[180px]">Customer</TableHead>
                       <TableHead className="w-[180px]">Product</TableHead>
                       <TableHead className="w-[60px]">Qty</TableHead>
@@ -459,6 +473,17 @@ export function LeadsPanel() {
                   <TableBody>
                     {leads.map((lead) => (
                       <TableRow key={lead.id} className="hover:bg-muted/50">
+                        <TableCell>
+                          <ProspectButton
+                            sourceType="enquiry"
+                            sourceId={lead.id}
+                            customerName={lead.customer_name}
+                            company={lead.customer_company}
+                            productName={lead.product_name}
+                            notes={lead.notes}
+                            isAlreadyProspect={prospectSourceIds.has(`enquiry:${lead.id}`)}
+                          />
+                        </TableCell>
                         <TableCell>
                           <div>
                             <p className="font-medium">{lead.customer_name}</p>
@@ -591,6 +616,9 @@ export function LeadsPanel() {
       {/* Interakt Tab */}
       <TabsContent value="interakt" className="space-y-6">
         <div className="space-y-6">
+          {/* Prospect Analytics for Interakt */}
+          <ProspectAnalyticsCards prospects={prospects} sourceType="interakt" />
+
           {/* Interakt Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20">
@@ -744,6 +772,7 @@ export function LeadsPanel() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50">
+                          <TableHead className="w-[40px]">P</TableHead>
                           <TableHead className="w-[160px]">Customer Name</TableHead>
                           <TableHead className="w-[140px]">Phone Number</TableHead>
                           <TableHead className="w-[120px]">Company</TableHead>
@@ -758,6 +787,20 @@ export function LeadsPanel() {
                       <TableBody>
                         {filteredInteraktLeads.map((lead) => (
                           <TableRow key={lead.id} className="hover:bg-muted/50">
+                            <TableCell>
+                              <ProspectButton
+                                sourceType="interakt"
+                                sourceId={lead.id}
+                                customerName={lead.customer_name}
+                                phoneNumber={lead.phone_number}
+                                email={lead.email}
+                                company={lead.company}
+                                city={lead.city}
+                                productName={lead.product_name}
+                                notes={lead.notes}
+                                isAlreadyProspect={prospectSourceIds.has(`interakt:${lead.id}`)}
+                              />
+                            </TableCell>
                             <TableCell>
                               <p className="font-medium">{lead.customer_name}</p>
                             </TableCell>
@@ -838,7 +881,10 @@ export function LeadsPanel() {
       </TabsContent>
 
       <TabsContent value="myoperator">
-        <CallLogsPanel />
+        <div className="space-y-6">
+          <ProspectAnalyticsCards prospects={prospects} sourceType="myoperator" />
+          <CallLogsPanel prospects={prospects} prospectSourceIds={prospectSourceIds} />
+        </div>
       </TabsContent>
     </Tabs>
   );
