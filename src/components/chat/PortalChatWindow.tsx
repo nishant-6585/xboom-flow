@@ -111,9 +111,38 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
   const [isListening, setIsListening] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [size, setSize] = useState({ w: 720, h: 650 });
+  const resizingRef = useRef(false);
+  const startRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { chats, fetchChats, createChat, renameChat, deleteChat, fetchMessages, addMessage, autoTitleChat } = useAIChats();
+
+  // Resize handlers
+  const onResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    resizingRef.current = true;
+    startRef.current = { x: e.clientX, y: e.clientY, w: size.w, h: size.h };
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const dw = startRef.current.x - ev.clientX; // dragging left = bigger
+      const dh = startRef.current.y - ev.clientY; // dragging up = bigger
+      setSize({
+        w: Math.max(480, Math.min(1400, startRef.current.w + dw)),
+        h: Math.max(400, Math.min(900, startRef.current.h + dh)),
+      });
+    };
+
+    const onMouseUp = () => {
+      resizingRef.current = false;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, [size]);
 
   // Load chats on mount
   useEffect(() => { fetchChats(); }, [fetchChats]);
@@ -346,13 +375,25 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
   const isNewChat = !activeChatId && messages.length === 0;
 
   return (
-    <div className={cn(
-      "fixed z-50 flex animate-scale-in",
-      "bg-background/98 backdrop-blur-xl border border-border/50 shadow-2xl dark:border-border/30 dark:shadow-[0_0_60px_rgba(0,0,0,0.5)]",
-      "bottom-4 left-4 w-[720px] h-[650px] rounded-2xl overflow-hidden",
-      "max-sm:inset-0 max-sm:w-full max-sm:h-full max-sm:rounded-none max-sm:bottom-0 max-sm:left-0",
-      "max-md:w-[480px]"
-    )}>
+    <div
+      className={cn(
+        "fixed z-50 flex animate-scale-in",
+        "bg-background/98 backdrop-blur-xl border border-border/50 shadow-2xl dark:border-border/30 dark:shadow-[0_0_60px_rgba(0,0,0,0.5)]",
+        "rounded-2xl overflow-hidden",
+        "max-sm:inset-0 max-sm:w-full max-sm:h-full max-sm:rounded-none max-sm:bottom-0 max-sm:left-0",
+      )}
+      style={{ bottom: 16, left: 16, width: size.w, height: size.h }}
+    >
+      {/* Resize handle — top-right corner */}
+      <div
+        onMouseDown={onResizeMouseDown}
+        className="absolute top-0 right-0 w-5 h-5 cursor-nesw-resize z-[60] group max-sm:hidden"
+        title="Drag to resize"
+      >
+        <svg className="w-3 h-3 absolute top-1 right-1 text-muted-foreground/40 group-hover:text-primary/60 transition-colors" viewBox="0 0 10 10">
+          <path d="M10 0L0 10M10 4L4 10M10 8L8 10" stroke="currentColor" strokeWidth="1.5" fill="none" />
+        </svg>
+      </div>
       {/* Sidebar */}
       {showSidebar && (
         <div className="w-[220px] shrink-0 max-sm:hidden">
