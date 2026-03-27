@@ -731,11 +731,30 @@ async function executeToolCall(
   // Check tiered access level
   const accessLevel = getAccessLevel(toolName, roles);
 
-  // DENIED: return smart denial + log
+  // DENIED: check temp permissions first, then return explainable denial
   if (accessLevel === "denied") {
-    const denialMsg = SMART_DENIALS[toolName] || "You don't have access to this module. Please contact the relevant department.";
-    await logAccess(client, userId, roles, lastUserMessage, toolName, "denied", [], denialMsg);
-    return JSON.stringify({ access_denied: true, message: denialMsg });
+    const denial = SMART_DENIALS[toolName];
+    const dataType = denial?.data_type || toolName.replace("query_", "");
+    
+    // Check if user has a temporary permission grant
+    const hasTempAccess = await checkTempPermission(client, userId, dataType);
+    if (hasTempAccess) {
+      // Temp permission found — allow access as "masked" level
+      await logAccess(client, userId, roles, lastUserMessage, toolName, "masked", [], undefined, undefined);
+      // Continue execution with masked access (fall through to switch)
+    } else {
+      const explainableResponse = {
+        access_denied: true,
+        access_level: "restricted",
+        message: denial?.message || "You don't have access to this module. Please contact the relevant department.",
+        who_can_access: denial?.who_can_access || "Admin",
+        alternative: denial?.alternative || "I can help with modules relevant to your role.",
+        data_type: dataType,
+        can_request_access: true,
+      };
+      await logAccess(client, userId, roles, lastUserMessage, toolName, "denied", [], denial?.message || "Role not authorized");
+      return JSON.stringify(explainableResponse);
+    }
   }
 
   try {
