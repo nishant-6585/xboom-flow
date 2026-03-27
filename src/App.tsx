@@ -46,6 +46,7 @@ import MFAVerify from "./pages/MFAVerify";
 import PayrollReconciliation from "./pages/PayrollReconciliation";
 import SamplePayslip from "./pages/SamplePayslip";
 import DailyFlow from "./pages/DailyFlow";
+import AIAutomation from "./pages/AIAutomation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -98,6 +99,7 @@ function AppInner() {
         <Route path="/admin/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
         <Route path="/payroll-reconciliation" element={<ProtectedRoute><PayrollReconciliation /></ProtectedRoute>} />
         <Route path="/daily-flow" element={<ProtectedRoute><DailyFlow /></ProtectedRoute>} />
+        <Route path="/admin/ai-automation" element={<ProtectedRoute><AIAutomation /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <AuthGuardedWidgets isMobile={isMobile} />
