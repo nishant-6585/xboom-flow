@@ -458,9 +458,11 @@ export function useSalarySheets() {
   const refreshAttendanceData = useCallback(async (sheetId: string, month: number, year: number) => {
     const currentEntries = await fetchEntries(sheetId);
     let updatedCount = 0;
+    let addedCount = 0;
     let workingDays = 26;
     try { workingDays = await getWorkingDaysInMonth(month, year); } catch {}
 
+    // --- Step 1: Update existing entries ---
     for (const entry of currentEntries) {
       const [attendanceData, profileData] = await Promise.all([
         calculateAttendanceData(entry.employee_id, month, year),
@@ -469,7 +471,6 @@ export function useSalarySheets() {
       const updates: Record<string, any> = {};
 
       // Refresh financial details from employee master (single source of truth)
-      // Always sync bank details - use nullish coalescing for safe comparison
       const currentBank = entry.bank_account || null;
       const currentIfsc = entry.ifsc_code || null;
       const masterBank = profileData.bank_account || null;
@@ -478,9 +479,7 @@ export function useSalarySheets() {
       if (masterIfsc !== currentIfsc) updates.ifsc_code = masterIfsc;
 
       // Refresh salary from employee master / salary history
-      // Also sync when entry salary is 0 but master has a value
       if (profileData.salary && profileData.salary !== (entry.salary || 0)) {
-        // Check for pro-rated salary (exit in this month)
         const { data: empData } = await supabase
           .from("employees")
           .select("exit_date")
@@ -517,15 +516,91 @@ export function useSalarySheets() {
       }
     }
 
+    // --- Step 2: Auto-add missing active employees ---
+    const existingEmployeeIds = new Set(currentEntries.map(e => e.employee_id));
+    const { data: allActiveEmployees } = await supabase
+      .from("employees")
+      .select("id, name, exit_date, is_active, employment_status")
+      .eq("is_active", true)
+      .eq("employment_status", "active");
+
+    if (allActiveEmployees) {
+      const missingEmployees = allActiveEmployees.filter(e => !existingEmployeeIds.has(e.id));
+      
+      if (missingEmployees.length > 0) {
+        const newRows = [];
+        for (const emp of missingEmployees) {
+          let attendanceData: AttendanceSummary = { wfh_days: 0, unpaid_leaves: 0, el_leaves: 0, sl_leaves: 0 };
+          let profileData: EmployeeProfileData = { salary: 0, bank_account: null, ifsc_code: null, designation: null, department: null };
+          try {
+            [attendanceData, profileData] = await Promise.all([
+              calculateAttendanceData(emp.id, month, year),
+              getEmployeeProfileData(emp.id, month, year),
+            ]);
+          } catch (e) {
+            console.error("Failed to calc data for", emp.name, e);
+          }
+
+          let effectiveSalary = profileData.salary;
+          if (emp.exit_date) {
+            const exitDate = new Date(emp.exit_date);
+            if (exitDate.getMonth() + 1 === month && exitDate.getFullYear() === year) {
+              effectiveSalary = await calculateProratedSalary(profileData.salary, emp.exit_date, month, year);
+            }
+          }
+
+          const deduction = calculateDeduction(effectiveSalary, attendanceData.unpaid_leaves, workingDays);
+          const total = calculateTotal({
+            salary: effectiveSalary, deductions: deduction, pending_amount: 0,
+            tds: 0, tax: 0, reimbursements: 0,
+          });
+
+          newRows.push({
+            salary_sheet_id: sheetId,
+            employee_id: emp.id,
+            employee_name: emp.name,
+            salary: effectiveSalary,
+            bank_account: profileData.bank_account,
+            ifsc_code: profileData.ifsc_code,
+            wfh_days: attendanceData.wfh_days,
+            unpaid_leaves: attendanceData.unpaid_leaves,
+            el_leaves: attendanceData.el_leaves,
+            sl_leaves: attendanceData.sl_leaves,
+            deductions: deduction,
+            pending_amount: 0, tds: 0, tax: 0, reimbursements: 0,
+            total,
+            wfh_days_override: false,
+            unpaid_leaves_override: false,
+            el_leaves_override: false,
+            sl_leaves_override: false,
+            deductions_override: false,
+            last_working_date: null,
+          });
+        }
+
+        if (newRows.length > 0) {
+          const { error } = await supabase.from("salary_sheet_entries").insert(newRows as any);
+          if (!error) {
+            addedCount = newRows.length;
+          } else {
+            console.error("Failed to auto-add employees:", error);
+          }
+        }
+      }
+    }
+
     if (user) {
       recordAuditLog(user.id, userName || "", {
         action: "SALARY_DATA_REFRESHED",
-        details: { month, year, refreshed_entries: updatedCount, includes: ["attendance", "financial_details", "salary"] },
+        details: { month, year, refreshed_entries: updatedCount, added_entries: addedCount, includes: ["attendance", "financial_details", "salary", "auto_add_missing"] },
       });
     }
 
     await fetchEntries(sheetId);
-    toast.success(`Data refreshed for ${updatedCount} entries (attendance + financial details)`);
+    const parts = [];
+    if (updatedCount > 0) parts.push(`${updatedCount} updated`);
+    if (addedCount > 0) parts.push(`${addedCount} new employees added`);
+    toast.success(`Data refreshed: ${parts.length > 0 ? parts.join(", ") : "all up to date"}`);
   }, [fetchEntries, user, userName]);
 
   const validateBeforeLock = useCallback((entriesToValidate: SalarySheetEntry[]): string[] => {
