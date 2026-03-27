@@ -12,9 +12,16 @@ import { DailyBriefingWidget } from './DailyBriefingWidget';
 import { useAIChats, type AIMessage } from '@/hooks/useAIChats';
 import { useAuth } from '@/hooks/useAuth';
 
+interface AIAction {
+  label: string;
+  action_type: string;
+  payload: Record<string, unknown>;
+}
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  actions?: AIAction[];
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-portal-assistant`;
@@ -177,6 +184,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
     }
 
     let assistantContent = '';
+    let pendingActions: AIAction[] = [];
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -228,6 +236,13 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
 
           try {
             const parsed = JSON.parse(jsonStr);
+
+            // Handle structured actions event from server
+            if (parsed.__actions__) {
+              pendingActions = parsed.__actions__;
+              continue;
+            }
+
             const finishReason = parsed.choices?.[0]?.finish_reason;
             if (finishReason === 'error') break;
             const content = parsed.choices?.[0]?.delta?.content;
@@ -244,6 +259,19 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
             break;
           }
         }
+      }
+
+      // Apply structured actions to the final message
+      if (pendingActions.length > 0) {
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { 
+            role: 'assistant', 
+            content: assistantContent || updated[updated.length - 1].content,
+            actions: pendingActions,
+          };
+          return updated;
+        });
       }
 
       if (!assistantContent.trim()) {
@@ -538,6 +566,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                     key={i}
                     role={msg.role}
                     content={msg.content}
+                    actions={msg.actions}
                     isStreaming={isCurrentlyStreaming}
                     autoSpeak={voiceMode && isLastAssistant && !isCurrentlyStreaming}
                     onSpeakingDone={handleSpeakingDone}

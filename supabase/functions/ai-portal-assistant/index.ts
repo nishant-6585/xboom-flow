@@ -1510,17 +1510,16 @@ ACTIONABLE COMMANDS:
 - For updates, ALWAYS confirm what you're about to do BEFORE executing.
 - After executing, clearly confirm the result.
 
-SUGGESTED ACTIONS (CRITICAL FORMAT RULES):
-After presenting data analysis, you may suggest clickable actions. You MUST use EXACTLY this format with triple backticks:
+SUGGESTED ACTIONS — STRUCTURED RESPONSE FORMAT:
+After presenting data analysis, you may suggest clickable actions. Return them in a SEPARATE actions block using EXACTLY this format:
 \`\`\`actions
 [{"label":"Follow up payment","action_type":"mark_payment_followup","payload":{"order_id":"..."}}]
 \`\`\`
 RULES:
-- NEVER write action JSON as plain text — always wrap in \`\`\`actions blocks
-- NEVER expose raw JSON payloads to the user in your prose text
-- Your visible text should be clean and human-readable — the action block is parsed and rendered as buttons automatically
+- NEVER write action JSON as plain text
+- Your visible text should be clean and human-readable
 - Only suggest actions the user's role allows. Include 1-3 most relevant actions.
-- The action block is INVISIBLE to the user — they only see rendered buttons
+- The action block is parsed server-side and sent as structured data — it never appears in the UI text
 
 DAILY BRIEFING:
 - When user asks for "daily briefing", use get_daily_briefing tool.
@@ -1647,7 +1646,7 @@ Available modules: ${Array.from(allAllowedTools).map(t => t.replace("query_", ""
       toolResults.push({ role: "tool", tool_call_id: toolCall.id, content: result });
     }
 
-    // Step 3: Send tool results back to AI
+    // Step 3: Send tool results back to AI (NON-STREAMING to extract actions server-side)
     const step3Messages = [
       { role: "system", content: systemPrompt },
       ...messages,
@@ -1661,7 +1660,7 @@ Available modules: ${Array.from(allAllowedTools).map(t => t.replace("query_", ""
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: step3Messages,
-        stream: true,
+        stream: false,
       }),
     });
 
@@ -1672,7 +1671,62 @@ Available modules: ${Array.from(allAllowedTools).map(t => t.replace("query_", ""
       });
     }
 
-    return new Response(finalResponse.body, {
+    const finalData = await finalResponse.json();
+    let finalContent = finalData.choices?.[0]?.message?.content || "";
+
+    // Server-side action extraction — parse and strip ```actions blocks
+    const extractedActions: { label: string; action_type: string; payload: Record<string, unknown> }[] = [];
+
+    // 1. Standard ```actions ... ``` blocks
+    finalContent = finalContent.replace(/```actions\s*\n?([\s\S]*?)```/g, (_: string, json: string) => {
+      try {
+        const parsed = JSON.parse(json.trim());
+        if (Array.isArray(parsed)) extractedActions.push(...parsed);
+      } catch { /* skip malformed */ }
+      return "";
+    });
+
+    // 2. Loose "actions [...]" patterns
+    finalContent = finalContent.replace(/\bactions\s*\n?\s*(\[[\s\S]*?\])\s*$/gm, (_: string, json: string) => {
+      try {
+        const parsed = JSON.parse(json.trim());
+        if (Array.isArray(parsed) && parsed.every((a: Record<string, unknown>) => a.label && a.action_type)) {
+          extractedActions.push(...parsed);
+          return "";
+        }
+      } catch { /* skip */ }
+      return _;
+    });
+
+    // 3. Standalone JSON arrays matching action signature
+    finalContent = finalContent.replace(/\n\s*(\[\s*\{\s*"label"\s*:\s*"[^"]+"\s*,\s*"action_type"\s*:\s*"[^"]+"[\s\S]*?\}\s*\])\s*$/g, (_: string, json: string) => {
+      try {
+        const parsed = JSON.parse(json.trim());
+        if (Array.isArray(parsed) && parsed.every((a: Record<string, unknown>) => a.label && a.action_type)) {
+          extractedActions.push(...parsed);
+          return "";
+        }
+      } catch { /* skip */ }
+      return _;
+    });
+
+    // Clean up residual whitespace
+    finalContent = finalContent.replace(/\n{3,}/g, "\n\n").trim();
+
+    // Build structured SSE response: text content + separate actions event
+    const encoder = new TextEncoder();
+    let ssePayload = `data: ${JSON.stringify({
+      choices: [{ delta: { content: finalContent, role: "assistant" }, finish_reason: "stop" }]
+    })}\n\n`;
+
+    // Send extracted actions as a separate structured event
+    if (extractedActions.length > 0) {
+      ssePayload += `data: ${JSON.stringify({ __actions__: extractedActions })}\n\n`;
+    }
+
+    ssePayload += `data: [DONE]\n\n`;
+
+    return new Response(encoder.encode(ssePayload), {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
 

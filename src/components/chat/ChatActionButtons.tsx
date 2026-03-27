@@ -5,55 +5,22 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-interface AIAction {
+export interface AIAction {
   label: string;
   action_type: string;
   payload: Record<string, unknown>;
 }
 
-/** Parse action blocks from content - handles multiple formats AI might use */
-export function parseActionBlocks(content: string): { cleanContent: string; actions: AIAction[] } {
-  let actions: AIAction[] = [];
-  let cleanContent = content;
-
-  // 1. Standard ```actions ... ``` blocks
-  cleanContent = cleanContent.replace(/```actions\s*\n?([\s\S]*?)```/g, (_, json) => {
-    try {
-      const parsed = JSON.parse(json.trim());
-      if (Array.isArray(parsed)) actions = [...actions, ...parsed];
-    } catch { /* ignore */ }
-    return '';
-  });
-
-  // 2. Loose "actions [...]" or "actions\n[...]" patterns (AI sometimes skips backticks)
-  cleanContent = cleanContent.replace(/\bactions\s*\n?\s*(\[[\s\S]*?\])\s*$/gm, (_, json) => {
-    try {
-      const parsed = JSON.parse(json.trim());
-      if (Array.isArray(parsed) && parsed.every(a => a.label && a.action_type)) {
-        actions = [...actions, ...parsed];
-        return '';
-      }
-    } catch { /* ignore */ }
-    return _;
-  });
-
-  // 3. Standalone JSON arrays that look like action blocks
-  cleanContent = cleanContent.replace(/\n\s*(\[\s*\{\s*"label"\s*:\s*"[^"]+"\s*,\s*"action_type"\s*:\s*"[^"]+"[\s\S]*?\}\s*\])\s*$/g, (_, json) => {
-    try {
-      const parsed = JSON.parse(json.trim());
-      if (Array.isArray(parsed) && parsed.every(a => a.label && a.action_type)) {
-        actions = [...actions, ...parsed];
-        return '';
-      }
-    } catch { /* ignore */ }
-    return _;
-  });
-
-  // 4. Clean up residual empty lines and whitespace
-  cleanContent = cleanContent.replace(/\n{3,}/g, '\n\n').trim();
-
-  return { cleanContent, actions };
-}
+// Whitelist of allowed action types (must match server-side)
+const ALLOWED_ACTION_TYPES = new Set([
+  'create_task',
+  'update_lead_status',
+  'update_order_status',
+  'update_task_status',
+  'create_followup',
+  'mark_payment_followup',
+  'request_data_access',
+]);
 
 export function ChatActionButtons({ actions }: { actions: AIAction[] }) {
   const [executing, setExecuting] = useState<number | null>(null);
@@ -62,20 +29,27 @@ export function ChatActionButtons({ actions }: { actions: AIAction[] }) {
   if (!actions.length) return null;
 
   const executeAction = async (action: AIAction, index: number) => {
+    // Client-side validation: only allow whitelisted action types
+    if (!ALLOWED_ACTION_TYPES.has(action.action_type)) {
+      toast.error('Unknown action type');
+      setResults(prev => ({ ...prev, [index]: 'error' }));
+      return;
+    }
+
     setExecuting(index);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error('Not authenticated');
 
-      // Handle access request action specially
+      // Handle access request action specially (direct DB insert)
       if (action.action_type === 'request_data_access') {
         const { data: profile } = await supabase.from('profiles').select('name').eq('user_id', session.user.id).single();
         const { error } = await supabase.from('ai_access_requests').insert({
           requester_user_id: session.user.id,
           requester_name: profile?.name || 'User',
-          requested_data_type: action.payload.data_type as string,
-          target_description: action.payload.reason as string || 'AI data access request',
-          reason: action.payload.reason as string,
+          requested_data_type: String(action.payload.data_type || ''),
+          target_description: String(action.payload.reason || 'AI data access request'),
+          reason: String(action.payload.reason || ''),
           status: 'pending',
         });
         if (error) throw new Error(error.message);
@@ -84,6 +58,7 @@ export function ChatActionButtons({ actions }: { actions: AIAction[] }) {
         return;
       }
 
+      // All other actions go through the secure action executor
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-action-executor`,
         {
