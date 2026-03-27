@@ -462,8 +462,33 @@ export function useSalarySheets() {
     try { workingDays = await getWorkingDaysInMonth(month, year); } catch {}
 
     for (const entry of currentEntries) {
-      const attendanceData = await calculateAttendanceData(entry.employee_id, month, year);
+      const [attendanceData, profileData] = await Promise.all([
+        calculateAttendanceData(entry.employee_id, month, year),
+        getEmployeeProfileData(entry.employee_id, month, year),
+      ]);
       const updates: Record<string, any> = {};
+
+      // Refresh financial details from employee master (single source of truth)
+      if (profileData.bank_account !== entry.bank_account) updates.bank_account = profileData.bank_account;
+      if (profileData.ifsc_code !== entry.ifsc_code) updates.ifsc_code = profileData.ifsc_code;
+
+      // Refresh salary from employee master / salary history
+      if (profileData.salary && profileData.salary !== entry.salary) {
+        // Check for pro-rated salary (exit in this month)
+        const { data: empData } = await supabase
+          .from("employees")
+          .select("exit_date")
+          .eq("id", entry.employee_id)
+          .single();
+        let effectiveSalary = profileData.salary;
+        if (empData?.exit_date) {
+          const exitDate = new Date(empData.exit_date);
+          if (exitDate.getMonth() + 1 === month && exitDate.getFullYear() === year) {
+            effectiveSalary = await calculateProratedSalary(profileData.salary, empData.exit_date, month, year);
+          }
+        }
+        updates.salary = effectiveSalary;
+      }
 
       if (!entry.wfh_days_override) updates.wfh_days = attendanceData.wfh_days;
       if (!entry.unpaid_leaves_override) updates.unpaid_leaves = attendanceData.unpaid_leaves;
@@ -471,8 +496,9 @@ export function useSalarySheets() {
       if (!entry.sl_leaves_override) updates.sl_leaves = attendanceData.sl_leaves;
 
       const effectiveUnpaid = updates.unpaid_leaves ?? entry.unpaid_leaves;
+      const effectiveSalaryForDeduction = updates.salary ?? entry.salary;
       if (!entry.deductions_override) {
-        updates.deductions = calculateDeduction(entry.salary, effectiveUnpaid, workingDays);
+        updates.deductions = calculateDeduction(effectiveSalaryForDeduction, effectiveUnpaid, workingDays);
       }
 
       if (Object.keys(updates).length > 0) {
@@ -487,13 +513,13 @@ export function useSalarySheets() {
 
     if (user) {
       recordAuditLog(user.id, userName || "", {
-        action: "SALARY_AUTO_CALCULATED",
-        details: { month, year, refreshed_entries: updatedCount },
+        action: "SALARY_DATA_REFRESHED",
+        details: { month, year, refreshed_entries: updatedCount, includes: ["attendance", "financial_details", "salary"] },
       });
     }
 
     await fetchEntries(sheetId);
-    toast.success(`Attendance data refreshed for ${updatedCount} entries`);
+    toast.success(`Data refreshed for ${updatedCount} entries (attendance + financial details)`);
   }, [fetchEntries, user, userName]);
 
   const validateBeforeLock = useCallback((entriesToValidate: SalarySheetEntry[]): string[] => {
