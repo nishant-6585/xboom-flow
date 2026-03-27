@@ -59,6 +59,7 @@ export type Database = {
       ai_access_logs: {
         Row: {
           access_type: string
+          approval_reference_id: string | null
           created_at: string
           denied_reason: string | null
           id: string
@@ -70,6 +71,7 @@ export type Database = {
         }
         Insert: {
           access_type?: string
+          approval_reference_id?: string | null
           created_at?: string
           denied_reason?: string | null
           id?: string
@@ -81,6 +83,7 @@ export type Database = {
         }
         Update: {
           access_type?: string
+          approval_reference_id?: string | null
           created_at?: string
           denied_reason?: string | null
           id?: string
@@ -89,6 +92,62 @@ export type Database = {
           tool_name?: string
           user_id?: string
           user_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_access_logs_approval_reference_id_fkey"
+            columns: ["approval_reference_id"]
+            isOneToOne: false
+            referencedRelation: "ai_access_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_access_requests: {
+        Row: {
+          approved_by: string | null
+          approved_by_name: string | null
+          created_at: string
+          id: string
+          reason: string | null
+          requested_data_type: string
+          requester_name: string
+          requester_user_id: string
+          review_notes: string | null
+          reviewed_at: string | null
+          status: string
+          target_description: string | null
+          target_entity_id: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          approved_by_name?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          requested_data_type: string
+          requester_name?: string
+          requester_user_id: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          status?: string
+          target_description?: string | null
+          target_entity_id?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          approved_by_name?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          requested_data_type?: string
+          requester_name?: string
+          requester_user_id?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          status?: string
+          target_description?: string | null
+          target_entity_id?: string | null
         }
         Relationships: []
       }
@@ -224,6 +283,50 @@ export type Database = {
             columns: ["enquiry_id"]
             isOneToOne: false
             referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_temp_permissions: {
+        Row: {
+          access_request_id: string | null
+          created_at: string
+          data_type: string
+          expires_at: string
+          granted_by: string
+          granted_by_name: string
+          id: string
+          target_entity_id: string | null
+          user_id: string
+        }
+        Insert: {
+          access_request_id?: string | null
+          created_at?: string
+          data_type: string
+          expires_at: string
+          granted_by: string
+          granted_by_name?: string
+          id?: string
+          target_entity_id?: string | null
+          user_id: string
+        }
+        Update: {
+          access_request_id?: string | null
+          created_at?: string
+          data_type?: string
+          expires_at?: string
+          granted_by?: string
+          granted_by_name?: string
+          id?: string
+          target_entity_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_temp_permissions_access_request_id_fkey"
+            columns: ["access_request_id"]
+            isOneToOne: false
+            referencedRelation: "ai_access_requests"
             referencedColumns: ["id"]
           },
         ]
