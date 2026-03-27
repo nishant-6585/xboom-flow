@@ -47,6 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [mfaStatus, setMfaStatus] = useState<MfaStatus>("not_required");
   const lastHydratedUserIdRef = useRef<string | null>(null);
   const isBootstrappedRef = useRef(false);
+  const profileRef = useRef<Profile | null>(null);
 
   const fetchUserData = async (userId: string) => {
     try {
