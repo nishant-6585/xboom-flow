@@ -291,6 +291,40 @@ const DATA_TOOLS = [
   {
     type: "function" as const,
     function: {
+      name: "create_task",
+      description: "Create a new task. Use when the user asks to create a task, follow-up, or action item for someone.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          title: { type: "string" as const, description: "Task title" },
+          description: { type: "string" as const, description: "Task description" },
+          assigned_to_name: { type: "string" as const, description: "Name of the person to assign the task to" },
+          priority: { type: "number" as const, description: "Priority: 1 (highest) to 3 (lowest)" },
+          due_date: { type: "string" as const, description: "Due date in ISO format" },
+        },
+        required: ["title", "assigned_to_name"] as string[],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "create_payment_followup",
+      description: "Create a payment follow-up task for an order with pending payment. Use when user asks to follow up on payments.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          order_number: { type: "string" as const, description: "The order number (e.g., ORD2500012)" },
+        },
+        required: ["order_number"] as string[],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "get_daily_briefing",
       description: "Get a comprehensive daily briefing with overdue payments, stalled deals, pending approvals, low stock alerts, and task deadlines. Use when user asks for a briefing or morning summary.",
       parameters: {
@@ -305,15 +339,15 @@ const DATA_TOOLS = [
 
 // Role-based module access map
 const ROLE_MODULE_ACCESS: Record<string, string[]> = {
-  admin: ["query_orders", "query_enquiries", "query_pipeline", "query_inventory", "query_employees", "query_tasks", "query_tickets", "query_procurements", "query_suppliers", "query_expenses", "query_repairs", "get_dashboard_stats", "update_order_status", "update_enquiry_status", "update_task_status", "get_daily_briefing"],
-  sales: ["query_orders", "query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats", "update_enquiry_status", "update_task_status", "get_daily_briefing"],
-  sales_manager: ["query_orders", "query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats", "update_order_status", "update_enquiry_status", "update_task_status", "get_daily_briefing"],
-  supply_chain: ["query_orders", "query_inventory", "query_procurements", "query_suppliers", "query_tasks", "get_dashboard_stats", "update_order_status", "update_task_status", "get_daily_briefing"],
-  finance: ["query_orders", "query_expenses", "query_procurements", "query_tasks", "get_dashboard_stats", "update_task_status", "get_daily_briefing"],
-  hr: ["query_employees", "query_tasks", "query_tickets", "get_dashboard_stats", "update_task_status", "get_daily_briefing"],
-  it: ["query_tickets", "query_tasks", "get_dashboard_stats", "update_task_status", "get_daily_briefing"],
-  marketing: ["query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats", "update_task_status", "get_daily_briefing"],
-  employee: ["query_tasks", "query_tickets", "get_dashboard_stats", "update_task_status", "get_daily_briefing"],
+  admin: ["query_orders", "query_enquiries", "query_pipeline", "query_inventory", "query_employees", "query_tasks", "query_tickets", "query_procurements", "query_suppliers", "query_expenses", "query_repairs", "get_dashboard_stats", "update_order_status", "update_enquiry_status", "update_task_status", "create_task", "create_payment_followup", "get_daily_briefing"],
+  sales: ["query_orders", "query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats", "update_enquiry_status", "update_task_status", "create_task", "get_daily_briefing"],
+  sales_manager: ["query_orders", "query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats", "update_order_status", "update_enquiry_status", "update_task_status", "create_task", "create_payment_followup", "get_daily_briefing"],
+  supply_chain: ["query_orders", "query_inventory", "query_procurements", "query_suppliers", "query_tasks", "get_dashboard_stats", "update_order_status", "update_task_status", "create_task", "get_daily_briefing"],
+  finance: ["query_orders", "query_expenses", "query_procurements", "query_tasks", "get_dashboard_stats", "update_task_status", "create_task", "create_payment_followup", "get_daily_briefing"],
+  hr: ["query_employees", "query_tasks", "query_tickets", "get_dashboard_stats", "update_task_status", "create_task", "get_daily_briefing"],
+  it: ["query_tickets", "query_tasks", "get_dashboard_stats", "update_task_status", "create_task", "get_daily_briefing"],
+  marketing: ["query_enquiries", "query_pipeline", "query_tasks", "get_dashboard_stats", "update_task_status", "create_task", "get_daily_briefing"],
+  employee: ["query_tasks", "query_tickets", "get_dashboard_stats", "update_task_status", "create_task", "get_daily_briefing"],
 };
 
 async function executeToolCall(
@@ -532,6 +566,7 @@ async function executeToolCall(
         }
         const { error: updateErr } = await client.from("orders").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", orderMatch[0].id);
         if (updateErr) throw updateErr;
+        await client.from("ai_action_logs").insert({ user_id: userId, action_type: "update_order_status", payload: { order_number: orderNum, old_status: orderMatch[0].status, new_status: newStatus }, status: "executed" }).catch(() => {});
         return JSON.stringify({ success: true, message: `Order ${orderNum} status updated from "${orderMatch[0].status}" to "${newStatus}"` });
       }
 
@@ -550,6 +585,7 @@ async function executeToolCall(
         }
         const { error: updateErr } = await client.from("enquiries").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", enquiryId);
         if (updateErr) throw updateErr;
+        await client.from("ai_action_logs").insert({ user_id: userId, action_type: "update_enquiry_status", payload: { enquiry_id: enquiryId, old_status: enqMatch[0].status, new_status: newStatus }, status: "executed" }).catch(() => {});
         return JSON.stringify({ success: true, message: `Enquiry status updated from "${enqMatch[0].status}" to "${newStatus}"` });
       }
 
@@ -570,7 +606,93 @@ async function executeToolCall(
         if (newStatus === "completed") updateData.completed_at = new Date().toISOString();
         const { error: updateErr } = await client.from("tasks").update(updateData).eq("id", taskId);
         if (updateErr) throw updateErr;
+        await client.from("ai_action_logs").insert({ user_id: userId, action_type: "update_task_status", payload: { task_id: taskId, old_status: taskMatch[0].status, new_status: newStatus, task_title: taskMatch[0].title }, status: "executed" }).catch(() => {});
         return JSON.stringify({ success: true, message: `Task "${taskMatch[0].title}" updated to "${newStatus}"` });
+      }
+
+      case "create_task": {
+        const title = args.title as string;
+        const description = (args.description as string) || "";
+        const assignedToName = args.assigned_to_name as string;
+        const priority = (args.priority as number) || 2;
+        const dueDate = (args.due_date as string) || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+        // Find the assigned user
+        const { data: assignee } = await client.from("profiles")
+          .select("user_id, name")
+          .ilike("name", `%${assignedToName}%`)
+          .limit(1)
+          .single();
+
+        const { data: task, error: taskErr } = await client.from("tasks").insert({
+          title,
+          description,
+          task_type: "sales_followup",
+          assigned_to: assignee?.user_id || userId,
+          assigned_to_name: assignee?.name || assignedToName,
+          assigned_role: "sales",
+          priority,
+          due_date: dueDate,
+          created_by: userId,
+          created_by_name: (await client.from("profiles").select("name").eq("user_id", userId).single()).data?.name || "AI",
+          status: "new",
+        }).select("id, title").single();
+
+        if (taskErr) throw taskErr;
+
+        // Log the action
+        await client.from("ai_action_logs").insert({
+          user_id: userId,
+          action_type: "create_task",
+          payload: { title, assigned_to_name: assignedToName, priority, due_date: dueDate },
+          status: "executed",
+          result: { task_id: task?.id },
+        });
+
+        return JSON.stringify({ success: true, message: `✅ Task "${title}" created and assigned to ${assignee?.name || assignedToName}`, task_id: task?.id });
+      }
+
+      case "create_payment_followup": {
+        const orderNum = args.order_number as string;
+        const { data: orderMatch } = await client.from("orders")
+          .select("id, order_number, customer_name, total_sales_amount, amount_paid, sales_person_id, sales_person_name")
+          .ilike("order_number", orderNum)
+          .limit(1);
+
+        if (!orderMatch?.length) return JSON.stringify({ error: `Order ${orderNum} not found` });
+        const order = orderMatch[0];
+        const pendingAmount = (order.total_sales_amount || 0) - (order.amount_paid || 0);
+
+        if (pendingAmount <= 0) return JSON.stringify({ message: `Order ${orderNum} has no pending payments.` });
+
+        const profileData = await client.from("profiles").select("name").eq("user_id", userId).single();
+
+        const { data: task, error: taskErr } = await client.from("tasks").insert({
+          title: `💰 Payment follow-up: ${order.customer_name} - ₹${pendingAmount.toLocaleString("en-IN")}`,
+          description: `Order ${order.order_number}. Total: ₹${(order.total_sales_amount || 0).toLocaleString("en-IN")}, Received: ₹${(order.amount_paid || 0).toLocaleString("en-IN")}, Pending: ₹${pendingAmount.toLocaleString("en-IN")}`,
+          task_type: "finance_review",
+          assigned_to: order.sales_person_id || userId,
+          assigned_to_name: order.sales_person_name || profileData.data?.name || "User",
+          assigned_role: "sales",
+          priority: 1,
+          due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          created_by: userId,
+          created_by_name: profileData.data?.name || "AI",
+          status: "new",
+        }).select("id").single();
+
+        if (taskErr) throw taskErr;
+
+        // Log the action
+        await client.from("ai_action_logs").insert({
+          user_id: userId,
+          action_type: "create_payment_followup",
+          payload: { order_number: orderNum, order_id: order.id, pending_amount: pendingAmount },
+          status: "executed",
+          result: { task_id: task?.id },
+        });
+
+        return JSON.stringify({ success: true, message: `✅ Payment follow-up task created for ${order.customer_name} (₹${pendingAmount.toLocaleString("en-IN")} pending)` });
       }
 
       case "get_daily_briefing": {
@@ -748,15 +870,33 @@ RESPONSE FORMATTING — CRITICAL:
 - Add a brief "💡 Tip" or actionable insight at the end when relevant.
 
 ACTIONABLE COMMANDS:
-- You can update order statuses, enquiry statuses, and task statuses when the user asks.
+- You can update order statuses, enquiry statuses, task statuses, create tasks, and create payment follow-ups.
 - For updates, ALWAYS confirm what you're about to do BEFORE executing: "I'll update order ORD2500012 status to dispatched. Proceeding..."
 - After executing an update, clearly confirm the result: "✅ Done — Order ORD2500012 is now dispatched."
 - If the user asks to update something and you need an ID, first query to find the record, then update.
+- When the user asks to create a follow-up, use create_task tool with appropriate details.
+- When the user asks to follow up on payments, use create_payment_followup with the order number.
+
+SUGGESTED ACTIONS — CRITICAL:
+After presenting data analysis, proactively suggest relevant actions the user can take. Format suggested actions as a special block:
+
+\`\`\`actions
+[{"label":"Follow up payment for Order X","action_type":"create_payment_followup","payload":{"order_number":"ORD2500168"}},{"label":"Create task for sales team","action_type":"create_task","payload":{"title":"Follow up hot leads","assigned_to_name":"Sales Team"}}]
+\`\`\`
+
+Rules for suggested actions:
+- Only suggest actions the user's role allows
+- Include 1-3 most relevant actions based on the data shown
+- Each action must have: label (human-readable), action_type, payload
+- Supported action_types: create_task, update_lead_status, update_order_status, update_task_status, create_payment_followup
+- Place the actions block at the END of your response
+- Do NOT suggest actions for every response — only when there's a clear actionable next step
 
 DAILY BRIEFING:
 - When user asks for "daily briefing", "morning summary", or "what should I focus on", use the get_daily_briefing tool.
 - Present the briefing in a structured format with emoji sections: 🔴 Overdue Payments, 📊 Stalled Deals, ⚡ Urgent Tasks, 📦 Low Stock, 🔥 New Hot Leads
 - Prioritize actionable items and give specific recommendations.
+- Always include suggested actions for the briefing.
 
 VISUAL CHARTS — You can render interactive charts by outputting a special code block. Use this for aggregation/analytics queries. Format:
 
