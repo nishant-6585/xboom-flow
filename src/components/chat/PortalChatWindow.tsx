@@ -566,6 +566,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                     key={i}
                     role={msg.role}
                     content={msg.content}
+                    actions={msg.actions}
                     isStreaming={isCurrentlyStreaming}
                     autoSpeak={voiceMode && isLastAssistant && !isCurrentlyStreaming}
                     onSpeakingDone={handleSpeakingDone}

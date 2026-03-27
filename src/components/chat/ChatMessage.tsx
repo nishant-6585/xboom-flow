@@ -4,14 +4,21 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 import { parseChartBlocks, ChatChart } from './ChatChart';
-import { parseActionBlocks, ChatActionButtons } from './ChatActionButtons';
+import { ChatActionButtons } from './ChatActionButtons';
 import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+interface AIAction {
+  label: string;
+  action_type: string;
+  payload: Record<string, unknown>;
+}
+
 interface ChatMessageProps {
   role: 'user' | 'assistant';
   content: string;
+  actions?: AIAction[];
   isStreaming?: boolean;
   autoSpeak?: boolean;
   onSpeakingDone?: () => void;
@@ -316,7 +323,7 @@ function downloadResponseAsPdf(content: string) {
   doc.save(`xboom-ai-response-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
-export function ChatMessage({ role, content, isStreaming, autoSpeak, onSpeakingDone }: ChatMessageProps) {
+export function ChatMessage({ role, content, actions: structuredActions, isStreaming, autoSpeak, onSpeakingDone }: ChatMessageProps) {
   const isUser = role === 'user';
   const [isSpeaking, setIsSpeaking] = useState(false);
   const hasAutoSpokenRef = useRef(false);
