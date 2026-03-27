@@ -130,8 +130,8 @@ export function EmailLeadFormDialog({ open, onOpenChange, lead, onSuccess }: Pro
       setForm(f => ({
         ...f,
         product_name: product.product_name,
-        product_code: product.product_code || '',
-        product_category: product.category || f.product_category,
+        product_code: '',
+        product_category: product.product_category || f.product_category,
       }));
     }
   };
