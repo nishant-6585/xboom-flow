@@ -267,6 +267,7 @@ export function ProspectsPanel() {
                       <TableHead className="w-[90px]">Status</TableHead>
                       <TableHead className="w-[90px]">Date</TableHead>
                       <TableHead className="w-[100px]">By</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -303,6 +304,11 @@ export function ProspectsPanel() {
                         </TableCell>
                         <TableCell><span className="text-xs text-muted-foreground">{format(new Date(p.created_at), 'dd MMM')}</span></TableCell>
                         <TableCell><span className="text-xs text-muted-foreground">{p.created_by_name}</span></TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingProspect(p)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -312,6 +318,13 @@ export function ProspectsPanel() {
           )}
         </CardContent>
       </Card>
+
+      <ProspectEditDialog
+        open={!!editingProspect}
+        onOpenChange={(open) => { if (!open) setEditingProspect(null); }}
+        prospect={editingProspect}
+        onSuccess={() => { setEditingProspect(null); refetch(); }}
+      />
     </div>
   );
 }
