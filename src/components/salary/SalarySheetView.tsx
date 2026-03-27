@@ -213,7 +213,7 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
             {canEdit && (
               <>
                 <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
-                  <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Refreshing..." : "Refresh Attendance"}
+                  <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} /> {refreshing ? "Refreshing..." : "Refresh All Data"}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
                   <UserPlus className="h-4 w-4 mr-1" /> Add Employees
@@ -254,6 +254,18 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Missing Financial Details Warning */}
+        {entries.length > 0 && entries.some(e => !e.bank_account || !e.ifsc_code) && (
+          <div className="flex items-center gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-sm">
+            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+            <span>
+              <strong>Missing bank details:</strong>{" "}
+              {entries.filter(e => !e.bank_account || !e.ifsc_code).map(e => e.employee_name).join(", ")}.
+              {canEdit && " Click \"Refresh All Data\" to pull latest financial details from employee records."}
+            </span>
+          </div>
+        )}
+
         {/* Payroll Summary */}
         <PayrollSummaryPanel entries={entries} />
 
@@ -304,8 +316,12 @@ export function SalarySheetView({ sheet, onBack, onLock, onStatusChange }: Props
                       <TableCell className="font-medium">{entry.employee_name}</TableCell>
                       <TableCell className="text-xs">{entry.last_working_date ? new Date(entry.last_working_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : "—"}</TableCell>
                       <TableCell>{fmt(entry.salary)}</TableCell>
-                      <TableCell className="text-xs">{entry.bank_account || "—"}</TableCell>
-                      <TableCell className="text-xs">{entry.ifsc_code || "—"}</TableCell>
+                      <TableCell className="text-xs">
+                        {entry.bank_account ? entry.bank_account : <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Missing</span>}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {entry.ifsc_code ? entry.ifsc_code : <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Missing</span>}
+                      </TableCell>
                       <TableCell>{fmt(entry.wfh_days)}</TableCell>
                       <TableCell>{fmt(entry.unpaid_leaves)}</TableCell>
                       <TableCell>{fmt(entry.el_leaves)}</TableCell>
