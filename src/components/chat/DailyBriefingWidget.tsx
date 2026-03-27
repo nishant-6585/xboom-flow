@@ -1,4 +1,4 @@
-import { AlertTriangle, TrendingUp, Clock, Package, Users, Calendar, DollarSign, Truck, useMemo } from 'lucide-react';
+import { AlertTriangle, TrendingUp, Clock, Package, Users, Calendar, DollarSign, Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 
