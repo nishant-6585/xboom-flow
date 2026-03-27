@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Plus, MessageSquare, Trash2, Pencil, Check, X } from 'lucide-react';
+import { AccessRequestsPanel } from './AccessRequestsPanel';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
