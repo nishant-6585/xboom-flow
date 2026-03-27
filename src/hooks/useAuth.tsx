@@ -159,7 +159,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Skip full loading state, but still ensure profile is hydrated
         if (event === "TOKEN_REFRESHED" || (event === "SIGNED_IN" && isSameHydratedUser)) {
           // If profile was lost from state (race condition), silently re-fetch
-          if (incomingUserId && !profile) {
+          if (incomingUserId && !profileRef.current) {
             console.warn("[Auth] Profile missing during", event, "— re-fetching silently");
             fetchUserData(incomingUserId);
           }
