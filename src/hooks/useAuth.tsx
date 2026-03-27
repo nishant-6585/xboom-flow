@@ -59,9 +59,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .maybeSingle();
 
       if (profileData) {
-        setProfile(profileData as Profile);
+        const p = profileData as Profile;
+        setProfile(p);
+        profileRef.current = p;
       } else {
         setProfile(null);
+        profileRef.current = null;
       }
 
       // Fetch all roles (user may have multiple)
