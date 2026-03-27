@@ -10,6 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { ProspectButton } from "@/components/sales/ProspectButton";
+import type { Prospect } from "@/hooks/useProspects";
+
+interface CallLogsPanelProps {
+  prospects?: Prospect[];
+  prospectSourceIds?: Set<string>;
+}
 
 interface CallLog {
   id: string;
@@ -185,7 +192,7 @@ function groupLogsByCallId(logs: CallLog[]): CallLog[] {
   return Array.from(grouped.values());
 }
 
-export function CallLogsPanel() {
+export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set() }: CallLogsPanelProps) {
   const [logs, setLogs] = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
