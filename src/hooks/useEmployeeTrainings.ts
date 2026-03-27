@@ -236,12 +236,32 @@ export function useEmployeeTrainings() {
 
   const deleteAssignment = async (assignmentId: string) => {
     try {
+      // Capture assignment details before deletion for audit trail
+      const assignment = assignments.find(a => a.id === assignmentId);
+
       const { error } = await supabase
         .from("training_assignments")
         .delete()
         .eq("id", assignmentId);
 
       if (error) throw error;
+
+      // Log deletion to security audit log
+      if (user) {
+        await supabase.from("security_audit_log").insert({
+          user_id: user.id,
+          user_name: user.user_metadata?.name || user.email || "Unknown",
+          action: "training_assignment_deleted",
+          details: {
+            assignment_id: assignmentId,
+            training_title: assignment?.training_title || "Unknown",
+            employee_name: assignment?.employee_name || "Unknown",
+            employee_id: assignment?.employee_id || "Unknown",
+          },
+          user_agent: navigator.userAgent,
+        });
+      }
+
       toast({ title: "Success", description: "Training assignment deleted" });
     } catch (error: any) {
       toast({ title: "Error", description: "Failed to delete assignment", variant: "destructive" });
