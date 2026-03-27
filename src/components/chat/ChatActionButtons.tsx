@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Zap, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { Zap, Loader2, CheckCircle2, XCircle, Lock, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -37,6 +37,23 @@ export function ChatActionButtons({ actions }: { actions: AIAction[] }) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error('Not authenticated');
 
+      // Handle access request action specially
+      if (action.action_type === 'request_data_access') {
+        const { data: profile } = await supabase.from('profiles').select('name').eq('user_id', session.user.id).single();
+        const { error } = await supabase.from('ai_access_requests').insert({
+          requester_user_id: session.user.id,
+          requester_name: profile?.name || 'User',
+          requested_data_type: action.payload.data_type as string,
+          target_description: action.payload.reason as string || 'AI data access request',
+          reason: action.payload.reason as string,
+          status: 'pending',
+        });
+        if (error) throw new Error(error.message);
+        setResults(prev => ({ ...prev, [index]: 'success' }));
+        toast.success('Access request submitted! The relevant team will review it shortly.');
+        return;
+      }
+
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-action-executor`,
         {
@@ -65,16 +82,28 @@ export function ChatActionButtons({ actions }: { actions: AIAction[] }) {
     }
   };
 
+  const isAccessRequest = (action: AIAction) => action.action_type === 'request_data_access';
+
   return (
     <div className="mt-3 pt-2.5 border-t border-border/30 dark:border-primary/10">
       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
-        <Zap className="w-3 h-3 text-primary" />
-        Suggested Actions
+        {actions.some(isAccessRequest) ? (
+          <>
+            <ShieldCheck className="w-3 h-3 text-amber-500" />
+            Available Actions
+          </>
+        ) : (
+          <>
+            <Zap className="w-3 h-3 text-primary" />
+            Suggested Actions
+          </>
+        )}
       </p>
       <div className="flex flex-wrap gap-1.5">
         {actions.map((action, i) => {
           const status = results[i];
           const isRunning = executing === i;
+          const isAccess = isAccessRequest(action);
 
           return (
             <Button
@@ -87,7 +116,8 @@ export function ChatActionButtons({ actions }: { actions: AIAction[] }) {
                 "h-7 text-[11px] rounded-lg gap-1.5 transition-all",
                 status === 'success' && "border-green-500/30 text-green-600 dark:text-green-400 bg-green-500/5",
                 status === 'error' && "border-destructive/30 text-destructive",
-                !status && "border-primary/30 hover:border-primary/50 hover:bg-primary/5 dark:hover:bg-primary/10"
+                isAccess && !status && "border-amber-500/40 hover:border-amber-500/60 hover:bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                !isAccess && !status && "border-primary/30 hover:border-primary/50 hover:bg-primary/5 dark:hover:bg-primary/10"
               )}
             >
               {isRunning ? (
@@ -96,10 +126,12 @@ export function ChatActionButtons({ actions }: { actions: AIAction[] }) {
                 <CheckCircle2 className="w-3 h-3" />
               ) : status === 'error' ? (
                 <XCircle className="w-3 h-3" />
+              ) : isAccess ? (
+                <Lock className="w-3 h-3 text-amber-500" />
               ) : (
                 <Zap className="w-3 h-3 text-primary" />
               )}
-              {action.label}
+              {status === 'success' && isAccess ? 'Request Sent' : action.label}
             </Button>
           );
         })}
