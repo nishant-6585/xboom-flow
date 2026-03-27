@@ -126,7 +126,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
 
     const onMouseMove = (ev: MouseEvent) => {
       if (!resizingRef.current) return;
-      const dw = startRef.current.x - ev.clientX; // dragging left = bigger
+      const dw = ev.clientX - startRef.current.x; // dragging right = bigger
       const dh = startRef.current.y - ev.clientY; // dragging up = bigger
       setSize({
         w: Math.max(480, Math.min(1400, startRef.current.w + dw)),
