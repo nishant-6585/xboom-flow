@@ -289,6 +289,8 @@ export function LeadsPanel() {
 
       <TabsContent value="leads" className="space-y-6">
     <div className="space-y-6">
+      {/* Prospect Analytics */}
+      <ProspectAnalyticsCards prospects={prospects} sourceType="enquiry" />
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
@@ -455,7 +457,8 @@ export function LeadsPanel() {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
+                     <TableRow className="bg-muted/50">
+                      <TableHead className="w-[40px]">P</TableHead>
                       <TableHead className="w-[180px]">Customer</TableHead>
                       <TableHead className="w-[180px]">Product</TableHead>
                       <TableHead className="w-[60px]">Qty</TableHead>
@@ -471,7 +474,17 @@ export function LeadsPanel() {
                     {leads.map((lead) => (
                       <TableRow key={lead.id} className="hover:bg-muted/50">
                         <TableCell>
-                          <div>
+                          <ProspectButton
+                            sourceType="enquiry"
+                            sourceId={lead.id}
+                            customerName={lead.customer_name}
+                            company={lead.customer_company}
+                            productName={lead.product_name}
+                            notes={lead.notes}
+                            isAlreadyProspect={prospectSourceIds.has(`enquiry:${lead.id}`)}
+                          />
+                        </TableCell>
+                        <TableCell>
                             <p className="font-medium">{lead.customer_name}</p>
                             <p className="text-xs text-muted-foreground">{lead.customer_company}</p>
                           </div>
