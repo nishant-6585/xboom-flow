@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEnquiries, PRODUCT_CATEGORIES, Enquiry } from '@/hooks/useEnquiries';
 import { useInteraktLeads, InteraktLead } from '@/hooks/useInteraktLeads';
+import { useProspects } from '@/hooks/useProspects';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -23,6 +24,8 @@ import { LeadFormDialog } from './LeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { InteraktLeadEditDialog } from '@/components/interakt/InteraktLeadEditDialog';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
+import { ProspectButton } from './ProspectButton';
+import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 
 const LEAD_SOURCES = [
   'Website',
