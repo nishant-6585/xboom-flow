@@ -215,7 +215,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => subscription.unsubscribe();
-  }, [profile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const signUp = async (email: string, password: string, name: string, team: AppRole) => {
     const normalizedEmail = email.toLowerCase().trim();
