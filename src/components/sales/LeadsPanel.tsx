@@ -56,6 +56,7 @@ export function LeadsPanel() {
   const { enquiries, loading, refetch } = useEnquiries();
   const { leads: interaktLeads, loading: interaktLoading, syncFromInterakt, syncing, updateLead, updating } = useInteraktLeads();
   const { prospects } = useProspects();
+  const { items: attentionItems } = useAttentionItems();
   const { user, profile, role } = useAuth();
 
   // Build set of already-prospect source IDs for quick lookup
