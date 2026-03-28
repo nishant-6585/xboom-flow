@@ -29,6 +29,7 @@ import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadsPanel } from './EmailLeadsPanel';
 import { Mail } from 'lucide-react';
 import { MyOperatorAnalytics } from './MyOperatorAnalytics';
+import { MyOperatorTabContent } from './MyOperatorTabContent';
 
 const LEAD_SOURCES = [
   'Website',
