@@ -26,6 +26,8 @@ import { InteraktLeadEditDialog } from '@/components/interakt/InteraktLeadEditDi
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
 import { ProspectButton } from './ProspectButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
+import { EmailLeadsPanel } from './EmailLeadsPanel';
+import { Mail } from 'lucide-react';
 
 const LEAD_SOURCES = [
   'Website',
@@ -284,6 +286,10 @@ export function LeadsPanel() {
         <TabsTrigger value="myoperator" className="gap-1.5">
           <Phone className="h-3.5 w-3.5" />
           MyOperator
+        </TabsTrigger>
+        <TabsTrigger value="emails" className="gap-1.5">
+          <Mail className="h-3.5 w-3.5" />
+          Emails
         </TabsTrigger>
       </TabsList>
 
@@ -885,6 +891,10 @@ export function LeadsPanel() {
           <ProspectAnalyticsCards prospects={prospects} sourceType="myoperator" />
           <CallLogsPanel prospects={prospects} prospectSourceIds={prospectSourceIds} />
         </div>
+      </TabsContent>
+
+      <TabsContent value="emails">
+        <EmailLeadsPanel />
       </TabsContent>
     </Tabs>
   );
