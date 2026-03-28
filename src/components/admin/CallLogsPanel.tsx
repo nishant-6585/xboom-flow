@@ -256,6 +256,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), o
       }
       prevIdsRef.current = currentIds;
       setLogs(grouped);
+      onLogsLoaded?.(allLogs);
     }
     setLoading(false);
   }, [searchPhone, statusFilter]);
