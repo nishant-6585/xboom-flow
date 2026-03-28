@@ -17,6 +17,7 @@ import type { Prospect } from "@/hooks/useProspects";
 interface CallLogsPanelProps {
   prospects?: Prospect[];
   prospectSourceIds?: Set<string>;
+  onLogsLoaded?: (logs: CallLog[]) => void;
 }
 
 interface CallLog {
@@ -193,7 +194,7 @@ function groupLogsByCallId(logs: CallLog[]): CallLog[] {
   return Array.from(grouped.values());
 }
 
-export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set() }: CallLogsPanelProps) {
+export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), onLogsLoaded }: CallLogsPanelProps) {
   const [logs, setLogs] = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
