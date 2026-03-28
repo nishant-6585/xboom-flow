@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEnquiries, PRODUCT_CATEGORIES, Enquiry } from '@/hooks/useEnquiries';
 import { useInteraktLeads, InteraktLead } from '@/hooks/useInteraktLeads';
 import { useProspects } from '@/hooks/useProspects';
+import { useAttentionItems } from '@/hooks/useAttentionItems';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -25,6 +26,7 @@ import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { InteraktLeadEditDialog } from '@/components/interakt/InteraktLeadEditDialog';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
 import { ProspectButton } from './ProspectButton';
+import { AttentionButton } from './AttentionButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadsPanel } from './EmailLeadsPanel';
 import { Mail } from 'lucide-react';
@@ -54,6 +56,7 @@ export function LeadsPanel() {
   const { enquiries, loading, refetch } = useEnquiries();
   const { leads: interaktLeads, loading: interaktLoading, syncFromInterakt, syncing, updateLead, updating } = useInteraktLeads();
   const { prospects } = useProspects();
+  const { items: attentionItems } = useAttentionItems();
   const { user, profile, role } = useAuth();
 
   // Build set of already-prospect source IDs for quick lookup
@@ -62,6 +65,13 @@ export function LeadsPanel() {
     prospects.forEach(p => set.add(`${p.source_type}:${p.source_id}`));
     return set;
   }, [prospects]);
+
+  // Build set of already-attention source IDs
+  const attentionSourceIds = useMemo(() => {
+    const set = new Set<string>();
+    attentionItems.forEach(a => set.add(`${a.source_type}:${a.source_id}`));
+    return set;
+  }, [attentionItems]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -467,7 +477,7 @@ export function LeadsPanel() {
                 <Table>
                   <TableHeader>
                      <TableRow className="bg-muted/50">
-                      <TableHead className="w-[40px]">P</TableHead>
+                      <TableHead className="w-[70px]">P / ⚠</TableHead>
                       <TableHead className="w-[180px]">Customer</TableHead>
                       <TableHead className="w-[180px]">Product</TableHead>
                       <TableHead className="w-[60px]">Qty</TableHead>
@@ -483,15 +493,26 @@ export function LeadsPanel() {
                     {leads.map((lead) => (
                       <TableRow key={lead.id} className="hover:bg-muted/50">
                         <TableCell>
-                          <ProspectButton
-                            sourceType="enquiry"
-                            sourceId={lead.id}
-                            customerName={lead.customer_name}
-                            company={lead.customer_company}
-                            productName={lead.product_name}
-                            notes={lead.notes}
-                            isAlreadyProspect={prospectSourceIds.has(`enquiry:${lead.id}`)}
-                          />
+                          <div className="flex gap-1">
+                            <ProspectButton
+                              sourceType="enquiry"
+                              sourceId={lead.id}
+                              customerName={lead.customer_name}
+                              company={lead.customer_company}
+                              productName={lead.product_name}
+                              notes={lead.notes}
+                              isAlreadyProspect={prospectSourceIds.has(`enquiry:${lead.id}`)}
+                            />
+                            <AttentionButton
+                              sourceType="enquiry"
+                              sourceId={lead.id}
+                              customerName={lead.customer_name}
+                              company={lead.customer_company}
+                              productName={lead.product_name}
+                              notes={lead.notes}
+                              isAlreadyAttention={attentionSourceIds.has(`enquiry:${lead.id}`)}
+                            />
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div>
@@ -784,7 +805,7 @@ export function LeadsPanel() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50">
-                          <TableHead className="w-[40px]">P</TableHead>
+                          <TableHead className="w-[70px]">P / ⚠</TableHead>
                           <TableHead className="w-[160px]">Customer Name</TableHead>
                           <TableHead className="w-[140px]">Phone Number</TableHead>
                           <TableHead className="w-[120px]">Company</TableHead>
@@ -800,18 +821,32 @@ export function LeadsPanel() {
                         {filteredInteraktLeads.map((lead) => (
                           <TableRow key={lead.id} className="hover:bg-muted/50">
                             <TableCell>
-                              <ProspectButton
-                                sourceType="interakt"
-                                sourceId={lead.id}
-                                customerName={lead.customer_name}
-                                phoneNumber={lead.phone_number}
-                                email={lead.email}
-                                company={lead.company}
-                                city={lead.city}
-                                productName={lead.product_name}
-                                notes={lead.notes}
-                                isAlreadyProspect={prospectSourceIds.has(`interakt:${lead.id}`)}
-                              />
+                              <div className="flex gap-1">
+                                <ProspectButton
+                                  sourceType="interakt"
+                                  sourceId={lead.id}
+                                  customerName={lead.customer_name}
+                                  phoneNumber={lead.phone_number}
+                                  email={lead.email}
+                                  company={lead.company}
+                                  city={lead.city}
+                                  productName={lead.product_name}
+                                  notes={lead.notes}
+                                  isAlreadyProspect={prospectSourceIds.has(`interakt:${lead.id}`)}
+                                />
+                                <AttentionButton
+                                  sourceType="interakt"
+                                  sourceId={lead.id}
+                                  customerName={lead.customer_name}
+                                  phoneNumber={lead.phone_number}
+                                  email={lead.email}
+                                  company={lead.company}
+                                  city={lead.city}
+                                  productName={lead.product_name}
+                                  notes={lead.notes}
+                                  isAlreadyAttention={attentionSourceIds.has(`interakt:${lead.id}`)}
+                                />
+                              </div>
                             </TableCell>
                             <TableCell>
                               <p className="font-medium">{lead.customer_name}</p>
@@ -893,7 +928,7 @@ export function LeadsPanel() {
       </TabsContent>
 
       <TabsContent value="myoperator">
-        <MyOperatorTabContent prospects={prospects} prospectSourceIds={prospectSourceIds} />
+        <MyOperatorTabContent prospects={prospects} prospectSourceIds={prospectSourceIds} attentionSourceIds={attentionSourceIds} />
       </TabsContent>
 
       <TabsContent value="emails">

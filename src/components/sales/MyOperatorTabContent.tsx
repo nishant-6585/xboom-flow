@@ -7,9 +7,10 @@ import type { Prospect } from '@/hooks/useProspects';
 interface Props {
   prospects: Prospect[];
   prospectSourceIds: Set<string>;
+  attentionSourceIds: Set<string>;
 }
 
-export function MyOperatorTabContent({ prospects, prospectSourceIds }: Props) {
+export function MyOperatorTabContent({ prospects, prospectSourceIds, attentionSourceIds }: Props) {
   const [rawLogs, setRawLogs] = useState<any[]>([]);
 
   const handleLogsLoaded = useCallback((logs: any[]) => {
@@ -23,6 +24,7 @@ export function MyOperatorTabContent({ prospects, prospectSourceIds }: Props) {
       <CallLogsPanel
         prospects={prospects}
         prospectSourceIds={prospectSourceIds}
+        attentionSourceIds={attentionSourceIds}
         onLogsLoaded={handleLogsLoaded}
       />
     </div>

@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -23,6 +23,7 @@ import { TasksPanel } from "@/components/tasks/TasksPanel";
 import { PipelineOrders } from "@/components/pipeline/PipelineOrders";
 import { EnquiriesPanel } from "@/components/sales/EnquiriesPanel";
 import { ProspectsPanel } from "@/components/sales/ProspectsPanel";
+import { AttentionPanel } from "@/components/sales/AttentionPanel";
 
 
 export default function Sales() {
@@ -91,6 +92,10 @@ export default function Sales() {
               <TabsTrigger value="prospects" className="gap-2 data-[state=active]:bg-amber-600 data-[state=active]:text-white rounded-lg px-3 py-2">
                 <Target className="w-4 h-4" />
                 Prospects
+              </TabsTrigger>
+              <TabsTrigger value="attention" className="gap-2 data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground rounded-lg px-3 py-2">
+                <AlertTriangle className="w-4 h-4" />
+                Attention
               </TabsTrigger>
               <TabsTrigger value="activity" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <Rocket className="w-4 h-4" />
@@ -177,6 +182,10 @@ export default function Sales() {
 
           <TabsContent value="prospects" className="space-y-6">
             <ProspectsPanel />
+          </TabsContent>
+
+          <TabsContent value="attention" className="space-y-6">
+            <AttentionPanel />
           </TabsContent>
 
           <TabsContent value="leaderboard" className="space-y-6">

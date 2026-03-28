@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.sync-myoperator-logs]
 verify_jwt = false
+
+[functions.send-attention-notification]
+verify_jwt = false

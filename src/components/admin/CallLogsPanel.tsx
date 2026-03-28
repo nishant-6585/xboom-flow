@@ -12,11 +12,13 @@ import { CallLogEditDialog } from './CallLogEditDialog';
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { ProspectButton } from "@/components/sales/ProspectButton";
+import { AttentionButton } from "@/components/sales/AttentionButton";
 import type { Prospect } from "@/hooks/useProspects";
 
 interface CallLogsPanelProps {
   prospects?: Prospect[];
   prospectSourceIds?: Set<string>;
+  attentionSourceIds?: Set<string>;
   onLogsLoaded?: (logs: CallLog[]) => void;
 }
 
@@ -194,7 +196,7 @@ function groupLogsByCallId(logs: CallLog[]): CallLog[] {
   return Array.from(grouped.values());
 }
 
-export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), onLogsLoaded }: CallLogsPanelProps) {
+export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), attentionSourceIds = new Set(), onLogsLoaded }: CallLogsPanelProps) {
   const [logs, setLogs] = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -380,14 +382,24 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), o
                       >
                         <TableCell className="pr-0">{statusIcon(info.status)}</TableCell>
                         <TableCell>
-                          <ProspectButton
-                            sourceType="myoperator"
-                            sourceId={log.id}
-                            customerName={log.full_number || log.caller_number}
-                            phoneNumber={log.full_number || log.caller_number}
-                            notes={info.whatText}
-                            isAlreadyProspect={prospectSourceIds.has(`myoperator:${log.id}`)}
-                          />
+                          <div className="flex gap-1">
+                            <ProspectButton
+                              sourceType="myoperator"
+                              sourceId={log.id}
+                              customerName={log.full_number || log.caller_number}
+                              phoneNumber={log.full_number || log.caller_number}
+                              notes={info.whatText}
+                              isAlreadyProspect={prospectSourceIds.has(`myoperator:${log.id}`)}
+                            />
+                            <AttentionButton
+                              sourceType="myoperator"
+                              sourceId={log.id}
+                              customerName={log.full_number || log.caller_number}
+                              phoneNumber={log.full_number || log.caller_number}
+                              notes={info.whatText}
+                              isAlreadyAttention={attentionSourceIds.has(`myoperator:${log.id}`)}
+                            />
+                          </div>
                         </TableCell>
                         <TableCell className="font-mono text-sm font-medium text-primary">
                           {log.full_number || log.caller_number}

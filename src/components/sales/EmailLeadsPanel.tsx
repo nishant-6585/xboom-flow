@@ -7,11 +7,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useEmailLeads, MAIL_SOURCES, EmailLead } from '@/hooks/useEmailLeads';
 import { useProspects } from '@/hooks/useProspects';
+import { useAttentionItems } from '@/hooks/useAttentionItems';
 import { useAuth } from '@/hooks/useAuth';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { Search, Plus, Mail, Loader2, Filter, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { ProspectButton, ACategoryButton } from './ProspectButton';
+import { AttentionButton } from './AttentionButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadFormDialog } from './EmailLeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
@@ -19,6 +21,7 @@ import { DateRangeFilter } from '@/components/DateRangeFilter';
 export function EmailLeadsPanel() {
   const { leads, loading, refetch } = useEmailLeads();
   const { prospects } = useProspects();
+  const { items: attentionItems } = useAttentionItems();
   const { role } = useAuth();
   const [search, setSearch] = useState('');
   const [mailSourceFilter, setMailSourceFilter] = useState<string>('all');
@@ -64,6 +67,7 @@ export function EmailLeadsPanel() {
   };
 
   const isProspect = (leadId: string) => prospects.some(p => p.source_id === leadId && p.source_type === 'email');
+  const isAttention = (leadId: string) => attentionItems.some(a => a.source_id === leadId && a.source_type === 'email');
 
   return (
     <div className="space-y-6">
@@ -139,7 +143,7 @@ export function EmailLeadsPanel() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[70px]">P / A</TableHead>
+                    <TableHead className="w-[100px]">P / A / ⚠</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Company</TableHead>
                     <TableHead>Email</TableHead>
@@ -173,6 +177,18 @@ export function EmailLeadsPanel() {
                             sourceType="email"
                             sourceId={lead.id}
                             isACategory={lead.is_a_category}
+                          />
+                          <AttentionButton
+                            sourceType="email"
+                            sourceId={lead.id}
+                            customerName={lead.customer_name}
+                            phoneNumber={lead.phone_number}
+                            email={lead.email}
+                            company={lead.customer_company}
+                            city={lead.city}
+                            productName={lead.product_name}
+                            notes={lead.notes}
+                            isAlreadyAttention={isAttention(lead.id)}
                           />
                         </div>
                       </TableCell>
