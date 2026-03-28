@@ -28,6 +28,7 @@ import { ProspectButton } from './ProspectButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadsPanel } from './EmailLeadsPanel';
 import { Mail } from 'lucide-react';
+import { MyOperatorAnalytics } from './MyOperatorAnalytics';
 
 const LEAD_SOURCES = [
   'Website',
@@ -887,10 +888,7 @@ export function LeadsPanel() {
       </TabsContent>
 
       <TabsContent value="myoperator">
-        <div className="space-y-6">
-          <ProspectAnalyticsCards prospects={prospects} sourceType="myoperator" />
-          <CallLogsPanel prospects={prospects} prospectSourceIds={prospectSourceIds} />
-        </div>
+        <MyOperatorTabContent prospects={prospects} prospectSourceIds={prospectSourceIds} />
       </TabsContent>
 
       <TabsContent value="emails">
