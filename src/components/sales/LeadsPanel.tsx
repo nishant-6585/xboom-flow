@@ -514,7 +514,6 @@ export function LeadsPanel() {
                             />
                           </div>
                         </TableCell>
-                        </TableCell>
                         <TableCell>
                           <div>
                             <p className="font-medium">{lead.customer_name}</p>
