@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useProspects } from '@/hooks/useProspects';
 import { useAuth } from '@/hooks/useAuth';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { toast } from 'sonner';
 
 interface ProspectButtonProps {
   sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email';
@@ -38,6 +39,10 @@ export function ProspectButton({
   const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (added || !user || !profile) return;
+    if (!productName || productName.trim() === '') {
+      toast.error('Product name is required before marking as Prospect. Please edit the lead and fill the Product field.');
+      return;
+    }
     setLoading(true);
     try {
       await addProspect({
