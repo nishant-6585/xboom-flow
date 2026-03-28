@@ -805,7 +805,7 @@ export function LeadsPanel() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50">
-                          <TableHead className="w-[40px]">P</TableHead>
+                          <TableHead className="w-[70px]">P / ⚠</TableHead>
                           <TableHead className="w-[160px]">Customer Name</TableHead>
                           <TableHead className="w-[140px]">Phone Number</TableHead>
                           <TableHead className="w-[120px]">Company</TableHead>
@@ -821,18 +821,32 @@ export function LeadsPanel() {
                         {filteredInteraktLeads.map((lead) => (
                           <TableRow key={lead.id} className="hover:bg-muted/50">
                             <TableCell>
-                              <ProspectButton
-                                sourceType="interakt"
-                                sourceId={lead.id}
-                                customerName={lead.customer_name}
-                                phoneNumber={lead.phone_number}
-                                email={lead.email}
-                                company={lead.company}
-                                city={lead.city}
-                                productName={lead.product_name}
-                                notes={lead.notes}
-                                isAlreadyProspect={prospectSourceIds.has(`interakt:${lead.id}`)}
-                              />
+                              <div className="flex gap-1">
+                                <ProspectButton
+                                  sourceType="interakt"
+                                  sourceId={lead.id}
+                                  customerName={lead.customer_name}
+                                  phoneNumber={lead.phone_number}
+                                  email={lead.email}
+                                  company={lead.company}
+                                  city={lead.city}
+                                  productName={lead.product_name}
+                                  notes={lead.notes}
+                                  isAlreadyProspect={prospectSourceIds.has(`interakt:${lead.id}`)}
+                                />
+                                <AttentionButton
+                                  sourceType="interakt"
+                                  sourceId={lead.id}
+                                  customerName={lead.customer_name}
+                                  phoneNumber={lead.phone_number}
+                                  email={lead.email}
+                                  company={lead.company}
+                                  city={lead.city}
+                                  productName={lead.product_name}
+                                  notes={lead.notes}
+                                  isAlreadyAttention={attentionSourceIds.has(`interakt:${lead.id}`)}
+                                />
+                              </div>
                             </TableCell>
                             <TableCell>
                               <p className="font-medium">{lead.customer_name}</p>
