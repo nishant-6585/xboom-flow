@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, Mail } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -23,7 +23,7 @@ import { TasksPanel } from "@/components/tasks/TasksPanel";
 import { PipelineOrders } from "@/components/pipeline/PipelineOrders";
 import { EnquiriesPanel } from "@/components/sales/EnquiriesPanel";
 import { ProspectsPanel } from "@/components/sales/ProspectsPanel";
-import { EmailLeadsPanel } from "@/components/sales/EmailLeadsPanel";
+
 
 export default function Sales() {
   const { role } = useAuth();
@@ -107,10 +107,6 @@ export default function Sales() {
               <TabsTrigger value="outbound" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <Phone className="w-4 h-4" />
                 Outbound
-              </TabsTrigger>
-              <TabsTrigger value="emails" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
-                <Mail className="w-4 h-4" />
-                Emails
               </TabsTrigger>
             </TabsList>
             
@@ -196,9 +192,6 @@ export default function Sales() {
             <OutboundSalesPanel />
           </TabsContent>
 
-          <TabsContent value="emails" className="space-y-6">
-            <EmailLeadsPanel />
-          </TabsContent>
 
           <TabsContent value="testimonials" className="space-y-6">
             <TestimonialsPanel />
