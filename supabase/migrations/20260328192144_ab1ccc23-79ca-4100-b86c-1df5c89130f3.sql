@@ -1,0 +1,1 @@
+ALTER TABLE public.prospects ADD COLUMN prospect_type text DEFAULT null;

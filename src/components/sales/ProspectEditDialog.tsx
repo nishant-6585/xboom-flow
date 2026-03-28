@@ -48,6 +48,7 @@ export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: 
     urgency: 'medium',
     requested_timeline: '',
     purpose_of_purchase: '',
+    prospect_type: '',
     status: 'new',
     notes: '',
   });
@@ -69,6 +70,7 @@ export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: 
         urgency: (prospect as any).urgency || 'medium',
         requested_timeline: (prospect as any).requested_timeline || '',
         purpose_of_purchase: (prospect as any).purpose_of_purchase || '',
+        prospect_type: (prospect as any).prospect_type || '',
         status: prospect.status || 'new',
         notes: prospect.notes || '',
       });
@@ -96,6 +98,7 @@ export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: 
           urgency: form.urgency,
           requested_timeline: form.requested_timeline.trim() || null,
           purpose_of_purchase: form.purpose_of_purchase || null,
+          prospect_type: form.prospect_type || null,
           status: form.status,
           notes: form.notes.trim() || null,
         } as Record<string, unknown>)
@@ -204,6 +207,20 @@ export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: 
                 <SelectContent>
                   <SelectItem value="none">-- None --</SelectItem>
                   {PURPOSE_OF_PURCHASE.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Prospect Type</Label>
+              <Select value={form.prospect_type || 'none'} onValueChange={(v) => setForm(f => ({ ...f, prospect_type: v === 'none' ? '' : v }))}>
+                <SelectTrigger><SelectValue placeholder="Select type..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">-- None --</SelectItem>
+                  <SelectItem value="B2C">B2C</SelectItem>
+                  <SelectItem value="B2B">B2B</SelectItem>
+                  <SelectItem value="B2G">B2G</SelectItem>
+                  <SelectItem value="Reseller">Reseller</SelectItem>
                 </SelectContent>
               </Select>
             </div>
