@@ -40,12 +40,13 @@ const STATUS_COLORS: Record<string, string> = {
 const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
 export function ProspectsPanel() {
-  const { prospects, loading, toggleACategory, updateStatus, refetch } = useProspects();
+  const { prospects, loading, toggleACategory, updateStatus, updateProspectType, refetch } = useProspects();
   const { user, role } = useAuth();
   const [search, setSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [aCategoryFilter, setACategoryFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [dateStart, setDateStart] = useState<Date | undefined>();
   const [dateEnd, setDateEnd] = useState<Date | undefined>();
   const [editingProspect, setEditingProspect] = useState<any>(null);
@@ -59,9 +60,10 @@ export function ProspectsPanel() {
     const matchesSource = sourceFilter === 'all' || p.source_type === sourceFilter;
     const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
     const matchesA = aCategoryFilter === 'all' || (aCategoryFilter === 'yes' ? p.is_a_category : !p.is_a_category);
+    const matchesType = typeFilter === 'all' || (p as any).prospect_type === typeFilter;
     const d = new Date(p.created_at);
     const matchesDate = (!dateStart || d >= startOfDay(dateStart)) && (!dateEnd || d <= endOfDay(dateEnd));
-    return matchesSearch && matchesSource && matchesStatus && matchesA && matchesDate;
+    return matchesSearch && matchesSource && matchesStatus && matchesA && matchesType && matchesDate;
   });
 
   // Analytics
@@ -224,6 +226,16 @@ export function ProspectsPanel() {
                 <SelectItem value="no">Non A-Category</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-[130px]"><SelectValue placeholder="Type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="B2C">B2C</SelectItem>
+                <SelectItem value="B2B">B2B</SelectItem>
+                <SelectItem value="B2G">B2G</SelectItem>
+                <SelectItem value="Reseller">Reseller</SelectItem>
+              </SelectContent>
+            </Select>
             <DateRangeFilter
               startDate={dateStart} endDate={dateEnd}
               onStartDateChange={setDateStart} onEndDateChange={setDateEnd}
@@ -264,6 +276,7 @@ export function ProspectsPanel() {
                       <TableHead className="w-[120px]">Company</TableHead>
                       <TableHead className="w-[100px]">City</TableHead>
                       <TableHead className="w-[120px]">Product</TableHead>
+                      <TableHead className="w-[80px]">Type</TableHead>
                       <TableHead className="w-[90px]">Status</TableHead>
                       <TableHead className="w-[90px]">Date</TableHead>
                       <TableHead className="w-[100px]">By</TableHead>
@@ -292,6 +305,20 @@ export function ProspectsPanel() {
                         <TableCell><span className="text-sm">{p.company || '—'}</span></TableCell>
                         <TableCell><span className="text-sm">{p.city || '—'}</span></TableCell>
                         <TableCell><span className="text-sm">{p.product_name || '—'}</span></TableCell>
+                        <TableCell>
+                          <Select value={(p as any).prospect_type || 'none'} onValueChange={(v) => updateProspectType({ id: p.id, prospectType: v === 'none' ? null : v })}>
+                            <SelectTrigger className="h-7 text-xs w-[90px]">
+                              <SelectValue placeholder="—" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">—</SelectItem>
+                              <SelectItem value="B2C">B2C</SelectItem>
+                              <SelectItem value="B2B">B2B</SelectItem>
+                              <SelectItem value="B2G">B2G</SelectItem>
+                              <SelectItem value="Reseller">Reseller</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
                         <TableCell>
                           <Select value={p.status} onValueChange={(v) => updateStatus({ id: p.id, status: v })}>
                             <SelectTrigger className="h-7 text-xs w-[100px]">

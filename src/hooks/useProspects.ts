@@ -102,6 +102,23 @@ export function useProspects() {
     },
   });
 
+  const updateProspectTypeMutation = useMutation({
+    mutationFn: async ({ id, prospectType }: { id: string; prospectType: string | null }) => {
+      const { error } = await supabase
+        .from('prospects')
+        .update({ prospect_type: prospectType } as Record<string, unknown>)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prospects'] });
+      toast.success('Prospect type updated');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed: ${error.message}`);
+    },
+  });
+
   return {
     prospects,
     loading,
@@ -110,5 +127,6 @@ export function useProspects() {
     addingProspect: addProspectMutation.isPending,
     toggleACategory: toggleACategoryMutation.mutate,
     updateStatus: updateStatusMutation.mutate,
+    updateProspectType: updateProspectTypeMutation.mutate,
   };
 }
