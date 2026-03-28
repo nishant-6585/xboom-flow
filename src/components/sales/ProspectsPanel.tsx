@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,11 +7,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProspects } from '@/hooks/useProspects';
 import { useAuth } from '@/hooks/useAuth';
-import { Target, Search, Loader2, Star, Filter, TrendingUp, Calendar, Users, Phone, MessageCircle, Package, Pencil } from 'lucide-react';
-import { format, startOfDay, endOfDay, startOfWeek, startOfMonth, endOfWeek, endOfMonth } from 'date-fns';
+import { Target, Search, Loader2, Star, Filter, TrendingUp, Calendar, Users, Phone, MessageCircle, Package, Pencil, UserCheck } from 'lucide-react';
+import { format, startOfDay, endOfDay, startOfWeek, startOfMonth, endOfWeek, endOfMonth, subDays, subWeeks } from 'date-fns';
 import { ACategoryButton } from './ProspectButton';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { ProspectEditDialog } from './ProspectEditDialog';
 
 const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'negotiation', 'converted', 'lost'];
