@@ -65,6 +65,13 @@ export function LeadsPanel() {
     prospects.forEach(p => set.add(`${p.source_type}:${p.source_id}`));
     return set;
   }, [prospects]);
+
+  // Build set of already-attention source IDs
+  const attentionSourceIds = useMemo(() => {
+    const set = new Set<string>();
+    attentionItems.forEach(a => set.add(`${a.source_type}:${a.source_id}`));
+    return set;
+  }, [attentionItems]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
