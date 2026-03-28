@@ -50,6 +50,7 @@ export function ProspectsPanel() {
   const [dateStart, setDateStart] = useState<Date | undefined>();
   const [dateEnd, setDateEnd] = useState<Date | undefined>();
   const [editingProspect, setEditingProspect] = useState<any>(null);
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'all'>('daily');
 
   const filtered = prospects.filter(p => {
     const matchesSearch = !search ||
