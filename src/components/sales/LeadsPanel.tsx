@@ -928,7 +928,7 @@ export function LeadsPanel() {
       </TabsContent>
 
       <TabsContent value="myoperator">
-        <MyOperatorTabContent prospects={prospects} prospectSourceIds={prospectSourceIds} />
+        <MyOperatorTabContent prospects={prospects} prospectSourceIds={prospectSourceIds} attentionSourceIds={attentionSourceIds} />
       </TabsContent>
 
       <TabsContent value="emails">
