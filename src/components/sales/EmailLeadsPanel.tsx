@@ -7,11 +7,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useEmailLeads, MAIL_SOURCES, EmailLead } from '@/hooks/useEmailLeads';
 import { useProspects } from '@/hooks/useProspects';
+import { useAttentionItems } from '@/hooks/useAttentionItems';
 import { useAuth } from '@/hooks/useAuth';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { Search, Plus, Mail, Loader2, Filter, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { ProspectButton, ACategoryButton } from './ProspectButton';
+import { AttentionButton } from './AttentionButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadFormDialog } from './EmailLeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
@@ -19,6 +21,7 @@ import { DateRangeFilter } from '@/components/DateRangeFilter';
 export function EmailLeadsPanel() {
   const { leads, loading, refetch } = useEmailLeads();
   const { prospects } = useProspects();
+  const { items: attentionItems } = useAttentionItems();
   const { role } = useAuth();
   const [search, setSearch] = useState('');
   const [mailSourceFilter, setMailSourceFilter] = useState<string>('all');
