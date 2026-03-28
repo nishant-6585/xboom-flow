@@ -874,6 +874,69 @@ export type Database = {
         }
         Relationships: []
       }
+      attention_items: {
+        Row: {
+          city: string | null
+          company: string | null
+          created_at: string
+          customer_name: string
+          email: string | null
+          id: string
+          marked_by: string
+          marked_by_name: string
+          notes: string | null
+          phone_number: string | null
+          product_name: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          resolved_by_name: string | null
+          source_id: string
+          source_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          company?: string | null
+          created_at?: string
+          customer_name: string
+          email?: string | null
+          id?: string
+          marked_by: string
+          marked_by_name: string
+          notes?: string | null
+          phone_number?: string | null
+          product_name?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_by_name?: string | null
+          source_id: string
+          source_type: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          company?: string | null
+          created_at?: string
+          customer_name?: string
+          email?: string | null
+          id?: string
+          marked_by?: string
+          marked_by_name?: string
+          notes?: string | null
+          phone_number?: string | null
+          product_name?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_by_name?: string | null
+          source_id?: string
+          source_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       buyback_drones: {
         Row: {
           buyback_date: string
