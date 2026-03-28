@@ -30,6 +30,7 @@ import { EmailLeadsPanel } from './EmailLeadsPanel';
 import { Mail } from 'lucide-react';
 import { MyOperatorAnalytics } from './MyOperatorAnalytics';
 import { MyOperatorTabContent } from './MyOperatorTabContent';
+import { InteraktAnalytics } from './InteraktAnalytics';
 
 const LEAD_SOURCES = [
   'Website',
