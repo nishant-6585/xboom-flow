@@ -93,6 +93,10 @@ export default function Sales() {
                 <Target className="w-4 h-4" />
                 Prospects
               </TabsTrigger>
+              <TabsTrigger value="attention" className="gap-2 data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground rounded-lg px-3 py-2">
+                <AlertTriangle className="w-4 h-4" />
+                Attention
+              </TabsTrigger>
               <TabsTrigger value="activity" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-3 py-2">
                 <Rocket className="w-4 h-4" />
                 Activity
