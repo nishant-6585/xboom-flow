@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useProspects } from '@/hooks/useProspects';
 import { useAuth } from '@/hooks/useAuth';
 import { Target, Search, Loader2, Star, Filter, TrendingUp, Calendar, Users, Phone, MessageCircle, Package, Pencil, UserCheck } from 'lucide-react';
-import { format, startOfDay, endOfDay, startOfWeek, startOfMonth, endOfWeek, endOfMonth, subDays, subWeeks } from 'date-fns';
+import { format, startOfDay, endOfDay, startOfWeek, startOfMonth } from 'date-fns';
 import { ACategoryButton } from './ProspectButton';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -38,6 +38,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+const TOOLTIP_STYLE = { background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' };
 
 export function ProspectsPanel() {
   const { prospects, loading, toggleACategory, updateStatus, updateProspectType, refetch } = useProspects();
@@ -73,6 +74,15 @@ export function ProspectsPanel() {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const monthStart = startOfMonth(now);
 
+  // Filter prospects by selected analytics period
+  const periodProspects = useMemo(() => {
+    if (analyticsPeriod === 'all') return prospects;
+    const cutoff = analyticsPeriod === 'daily' ? todayStart
+      : analyticsPeriod === 'weekly' ? weekStart
+      : monthStart;
+    return prospects.filter(p => new Date(p.created_at) >= cutoff);
+  }, [prospects, analyticsPeriod, todayStart, weekStart, monthStart]);
+
   const todayProspects = prospects.filter(p => new Date(p.created_at) >= todayStart).length;
   const weekProspects = prospects.filter(p => new Date(p.created_at) >= weekStart).length;
   const monthProspects = prospects.filter(p => new Date(p.created_at) >= monthStart).length;
@@ -81,16 +91,40 @@ export function ProspectsPanel() {
   const weekA = prospects.filter(p => p.is_a_category && new Date(p.created_at) >= weekStart).length;
   const monthA = prospects.filter(p => p.is_a_category && new Date(p.created_at) >= monthStart).length;
 
-  // Source distribution for pie chart
+  // Creator breakdown
+  const creatorData = useMemo(() => {
+    const map = new Map<string, { total: number; aCategory: number }>();
+    periodProspects.forEach(p => {
+      const name = p.created_by_name || 'Unknown';
+      const existing = map.get(name) || { total: 0, aCategory: 0 };
+      existing.total++;
+      if (p.is_a_category) existing.aCategory++;
+      map.set(name, existing);
+    });
+    return Array.from(map.entries())
+      .map(([name, data]) => ({ name, total: data.total, aCategory: data.aCategory }))
+      .sort((a, b) => b.total - a.total);
+  }, [periodProspects]);
+
+  // Type distribution
+  const typeData = useMemo(() => {
+    const types = ['B2C', 'B2B', 'B2G', 'Reseller', 'Untagged'];
+    return types.map(t => ({
+      name: t,
+      value: periodProspects.filter(p => t === 'Untagged' ? !(p as any).prospect_type : (p as any).prospect_type === t).length,
+    })).filter(d => d.value > 0);
+  }, [periodProspects]);
+
+  // Source distribution
   const sourceData = ['enquiry', 'interakt', 'myoperator'].map(src => ({
     name: src.charAt(0).toUpperCase() + src.slice(1),
-    value: prospects.filter(p => p.source_type === src).length,
+    value: periodProspects.filter(p => p.source_type === src).length,
   })).filter(d => d.value > 0);
 
-  // Status distribution for bar chart
+  // Status distribution
   const statusData = STATUS_OPTIONS.map(s => ({
     name: s.charAt(0).toUpperCase() + s.slice(1),
-    count: prospects.filter(p => p.status === s).length,
+    count: periodProspects.filter(p => p.status === s).length,
   }));
 
   // Daily trend (last 7 days)
@@ -106,14 +140,16 @@ export function ProspectsPanel() {
     };
   });
 
+  const periodLabel = analyticsPeriod === 'daily' ? 'Today' : analyticsPeriod === 'weekly' ? 'This Week' : analyticsPeriod === 'monthly' ? 'This Month' : 'All Time';
+
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-        <Card className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-500/20">
+        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
           <CardContent className="pt-3 pb-3">
             <div className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-amber-600" />
+              <Target className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-xl font-bold">{prospects.length}</p>
                 <p className="text-[10px] text-muted-foreground">Total Prospects</p>
@@ -124,10 +160,10 @@ export function ProspectsPanel() {
         <Card><CardContent className="pt-3 pb-3"><p className="text-xl font-bold">{todayProspects}</p><p className="text-[10px] text-muted-foreground">Today</p></CardContent></Card>
         <Card><CardContent className="pt-3 pb-3"><p className="text-xl font-bold">{weekProspects}</p><p className="text-[10px] text-muted-foreground">This Week</p></CardContent></Card>
         <Card><CardContent className="pt-3 pb-3"><p className="text-xl font-bold">{monthProspects}</p><p className="text-[10px] text-muted-foreground">This Month</p></CardContent></Card>
-        <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/20">
+        <Card className="bg-gradient-to-br from-destructive/10 to-destructive/5 border-destructive/20">
           <CardContent className="pt-3 pb-3">
             <div className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-red-600" />
+              <Star className="h-5 w-5 text-destructive" />
               <div>
                 <p className="text-xl font-bold">{totalA}</p>
                 <p className="text-[10px] text-muted-foreground">A-Category</p>
@@ -135,23 +171,34 @@ export function ProspectsPanel() {
             </div>
           </CardContent>
         </Card>
-        <Card><CardContent className="pt-3 pb-3"><p className="text-xl font-bold text-red-600">{todayA}/{weekA}/{monthA}</p><p className="text-[10px] text-muted-foreground">A: D/W/M</p></CardContent></Card>
-        <Card><CardContent className="pt-3 pb-3"><p className="text-xl font-bold text-green-600">{prospects.filter(p => p.status === 'converted').length}</p><p className="text-[10px] text-muted-foreground">Converted</p></CardContent></Card>
+        <Card><CardContent className="pt-3 pb-3"><p className="text-xl font-bold text-destructive">{todayA}/{weekA}/{monthA}</p><p className="text-[10px] text-muted-foreground">A: D/W/M</p></CardContent></Card>
+        <Card><CardContent className="pt-3 pb-3"><p className="text-xl font-bold text-chart-2">{prospects.filter(p => p.status === 'converted').length}</p><p className="text-[10px] text-muted-foreground">Converted</p></CardContent></Card>
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Analytics Period Toggle */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm font-medium text-muted-foreground">Analytics Period:</span>
+        {(['daily', 'weekly', 'monthly', 'all'] as const).map(p => (
+          <Button key={p} variant={analyticsPeriod === p ? 'default' : 'outline'} size="sm" onClick={() => setAnalyticsPeriod(p)} className="text-xs capitalize">
+            {p === 'all' ? 'Till Date' : p}
+          </Button>
+        ))}
+        <Badge variant="secondary" className="ml-2 text-xs">{periodProspects.length} prospects ({periodLabel})</Badge>
+      </div>
+
+      {/* Charts Row 1: Trend + Creator Performance */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Daily Trend (7d)</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={180}>
+            <ResponsiveContainer width="100%" height={200}>
               <BarChart data={dailyData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="day" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} />
                 <Bar dataKey="prospects" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Prospects" />
                 <Bar dataKey="aCategory" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="A-Category" />
               </BarChart>
@@ -160,16 +207,42 @@ export function ProspectsPanel() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Source Distribution</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-2"><UserCheck className="h-4 w-4" /> Creator Performance ({periodLabel})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {creatorData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={creatorData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={90} className="fill-muted-foreground" />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Prospects" />
+                  <Bar dataKey="aCategory" fill="hsl(var(--destructive))" radius={[0, 4, 4, 0]} name="A-Category" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground py-8 text-center">No data for this period</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Row 2: Type + Source + Status */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Prospect Type ({periodLabel})</CardTitle>
           </CardHeader>
           <CardContent className="flex items-center justify-center">
-            {sourceData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={180}>
+            {typeData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
-                  <Pie data={sourceData} cx="50%" cy="50%" outerRadius={70} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
-                    {sourceData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                  <Pie data={typeData} cx="50%" cy="50%" outerRadius={70} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
+                    {typeData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -179,21 +252,84 @@ export function ProspectsPanel() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Status Breakdown</CardTitle>
+            <CardTitle className="text-sm">Source Distribution ({periodLabel})</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center">
+            {sourceData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={sourceData} cx="50%" cy="50%" outerRadius={70} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
+                    {sourceData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground py-8">No data yet</p>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Status Breakdown ({periodLabel})</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={180}>
+            <ResponsiveContainer width="100%" height={200}>
               <BarChart data={statusData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis type="number" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={75} className="fill-muted-foreground" />
-                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} />
                 <Bar dataKey="count" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
+
+      {/* Creator Details Table */}
+      {creatorData.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2"><Users className="h-4 w-4" /> Creator Details ({periodLabel})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead>Created By</TableHead>
+                    <TableHead className="text-center">Total</TableHead>
+                    <TableHead className="text-center">A-Category</TableHead>
+                    {['B2C', 'B2B', 'B2G', 'Reseller'].map(t => (
+                      <TableHead key={t} className="text-center">{t}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {creatorData.map(c => {
+                    const creatorProspects = periodProspects.filter(p => (p.created_by_name || 'Unknown') === c.name);
+                    return (
+                      <TableRow key={c.name}>
+                        <TableCell className="font-medium">{c.name}</TableCell>
+                        <TableCell className="text-center font-bold">{c.total}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="destructive" className="text-xs">{c.aCategory}</Badge>
+                        </TableCell>
+                        {['B2C', 'B2B', 'B2G', 'Reseller'].map(t => (
+                          <TableCell key={t} className="text-center text-sm">
+                            {creatorProspects.filter(p => (p as any).prospect_type === t).length || '—'}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <Card>
@@ -250,7 +386,7 @@ export function ProspectsPanel() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-amber-600" />
+            <Target className="h-5 w-5 text-primary" />
             Prospects ({filtered.length})
           </CardTitle>
           <CardDescription>Qualified contacts from Leads, Interakt & MyOperator</CardDescription>
@@ -286,7 +422,7 @@ export function ProspectsPanel() {
                   </TableHeader>
                   <TableBody>
                     {filtered.map((p) => (
-                      <TableRow key={p.id} className={`hover:bg-muted/50 ${p.is_a_category ? 'bg-red-500/5' : ''}`}>
+                      <TableRow key={p.id} className={`hover:bg-muted/50 ${p.is_a_category ? 'bg-destructive/5' : ''}`}>
                         <TableCell>
                           <ACategoryButton
                             sourceType={p.source_type}
