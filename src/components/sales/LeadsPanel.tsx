@@ -30,6 +30,7 @@ import { EmailLeadsPanel } from './EmailLeadsPanel';
 import { Mail } from 'lucide-react';
 import { MyOperatorAnalytics } from './MyOperatorAnalytics';
 import { MyOperatorTabContent } from './MyOperatorTabContent';
+import { InteraktAnalytics } from './InteraktAnalytics';
 
 const LEAD_SOURCES = [
   'Website',
@@ -626,6 +627,9 @@ export function LeadsPanel() {
         <div className="space-y-6">
           {/* Prospect Analytics for Interakt */}
           <ProspectAnalyticsCards prospects={prospects} sourceType="interakt" />
+
+          {/* Interakt Analytics Dashboard */}
+          <InteraktAnalytics leads={interaktLeads} prospects={prospects} />
 
           {/* Interakt Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
