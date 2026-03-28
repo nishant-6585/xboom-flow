@@ -477,7 +477,7 @@ export function LeadsPanel() {
                 <Table>
                   <TableHeader>
                      <TableRow className="bg-muted/50">
-                      <TableHead className="w-[40px]">P</TableHead>
+                      <TableHead className="w-[70px]">P / ⚠</TableHead>
                       <TableHead className="w-[180px]">Customer</TableHead>
                       <TableHead className="w-[180px]">Product</TableHead>
                       <TableHead className="w-[60px]">Qty</TableHead>
@@ -493,15 +493,27 @@ export function LeadsPanel() {
                     {leads.map((lead) => (
                       <TableRow key={lead.id} className="hover:bg-muted/50">
                         <TableCell>
-                          <ProspectButton
-                            sourceType="enquiry"
-                            sourceId={lead.id}
-                            customerName={lead.customer_name}
-                            company={lead.customer_company}
-                            productName={lead.product_name}
-                            notes={lead.notes}
-                            isAlreadyProspect={prospectSourceIds.has(`enquiry:${lead.id}`)}
-                          />
+                          <div className="flex gap-1">
+                            <ProspectButton
+                              sourceType="enquiry"
+                              sourceId={lead.id}
+                              customerName={lead.customer_name}
+                              company={lead.customer_company}
+                              productName={lead.product_name}
+                              notes={lead.notes}
+                              isAlreadyProspect={prospectSourceIds.has(`enquiry:${lead.id}`)}
+                            />
+                            <AttentionButton
+                              sourceType="enquiry"
+                              sourceId={lead.id}
+                              customerName={lead.customer_name}
+                              company={lead.customer_company}
+                              productName={lead.product_name}
+                              notes={lead.notes}
+                              isAlreadyAttention={attentionSourceIds.has(`enquiry:${lead.id}`)}
+                            />
+                          </div>
+                        </TableCell>
                         </TableCell>
                         <TableCell>
                           <div>
