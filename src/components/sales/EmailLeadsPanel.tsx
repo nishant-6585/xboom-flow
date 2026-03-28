@@ -143,7 +143,7 @@ export function EmailLeadsPanel() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[70px]">P / A</TableHead>
+                    <TableHead className="w-[100px]">P / A / ⚠</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Company</TableHead>
                     <TableHead>Email</TableHead>
