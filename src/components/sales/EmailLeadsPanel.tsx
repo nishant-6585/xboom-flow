@@ -67,6 +67,7 @@ export function EmailLeadsPanel() {
   };
 
   const isProspect = (leadId: string) => prospects.some(p => p.source_id === leadId && p.source_type === 'email');
+  const isAttention = (leadId: string) => attentionItems.some(a => a.source_id === leadId && a.source_type === 'email');
 
   return (
     <div className="space-y-6">
