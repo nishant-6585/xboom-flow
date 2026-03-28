@@ -628,6 +628,9 @@ export function LeadsPanel() {
           {/* Prospect Analytics for Interakt */}
           <ProspectAnalyticsCards prospects={prospects} sourceType="interakt" />
 
+          {/* Interakt Analytics Dashboard */}
+          <InteraktAnalytics leads={interaktLeads} prospects={prospects} />
+
           {/* Interakt Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20">
