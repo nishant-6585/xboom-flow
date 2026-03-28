@@ -23,6 +23,7 @@ import { TasksPanel } from "@/components/tasks/TasksPanel";
 import { PipelineOrders } from "@/components/pipeline/PipelineOrders";
 import { EnquiriesPanel } from "@/components/sales/EnquiriesPanel";
 import { ProspectsPanel } from "@/components/sales/ProspectsPanel";
+import { AttentionPanel } from "@/components/sales/AttentionPanel";
 
 
 export default function Sales() {
