@@ -6011,6 +6011,7 @@ export type Database = {
           product_category: string | null
           product_code: string | null
           product_name: string | null
+          prospect_type: string | null
           purpose_of_purchase: string | null
           quantity: number | null
           requested_timeline: string | null
@@ -6039,6 +6040,7 @@ export type Database = {
           product_category?: string | null
           product_code?: string | null
           product_name?: string | null
+          prospect_type?: string | null
           purpose_of_purchase?: string | null
           quantity?: number | null
           requested_timeline?: string | null
@@ -6067,6 +6069,7 @@ export type Database = {
           product_category?: string | null
           product_code?: string | null
           product_name?: string | null
+          prospect_type?: string | null
           purpose_of_purchase?: string | null
           quantity?: number | null
           requested_timeline?: string | null
