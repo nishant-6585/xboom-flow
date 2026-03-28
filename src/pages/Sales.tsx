@@ -184,7 +184,10 @@ export default function Sales() {
             <ProspectsPanel />
           </TabsContent>
 
-          <TabsContent value="leaderboard" className="space-y-6">
+          <TabsContent value="attention" className="space-y-6">
+            <AttentionPanel />
+          </TabsContent>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
                 <SalesLeaderboard />
