@@ -178,6 +178,18 @@ export function EmailLeadsPanel() {
                             sourceId={lead.id}
                             isACategory={lead.is_a_category}
                           />
+                          <AttentionButton
+                            sourceType="email"
+                            sourceId={lead.id}
+                            customerName={lead.customer_name}
+                            phoneNumber={lead.phone_number}
+                            email={lead.email}
+                            company={lead.customer_company}
+                            city={lead.city}
+                            productName={lead.product_name}
+                            notes={lead.notes}
+                            isAlreadyAttention={isAttention(lead.id)}
+                          />
                         </div>
                       </TableCell>
                       <TableCell className="font-medium">{lead.customer_name}</TableCell>
