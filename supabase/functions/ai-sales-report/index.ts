@@ -546,13 +546,12 @@ serve(async (req) => {
     const blocks = buildSlackBlocks(aggregated, aiInsights, label, enableAI, enableActions);
 
     // Send to Slack
-    if (botToken && reportChannel) {
-      await sendBotMessage(botToken, reportChannel, blocks);
-    } else if (webhookUrl) {
-      await sendWebhook(webhookUrl, blocks);
-    } else {
-      console.log('No report channel or webhook configured');
-    }
+    await sendReportToSlack({
+      botToken,
+      webhookUrl,
+      channel: reportChannel,
+      blocks,
+    });
 
     // Log execution
     await supabase.from('ai_action_logs').insert({
