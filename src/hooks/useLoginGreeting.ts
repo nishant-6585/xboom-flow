@@ -46,7 +46,28 @@ export function useLoginGreeting() {
     else if (hour < 17) timeGreeting = "Good afternoon";
     else timeGreeting = "Good evening";
 
-    const message = `${timeGreeting}, ${name}! Welcome to Xboom Flow.`;
+    const motivationalQuotes = [
+      "Let's make your day productive!",
+      "Small steps every day lead to big results.",
+      "You've got the power to crush it today!",
+      "Stay focused, stay sharp — great things are ahead.",
+      "Every call you make brings you closer to your goal.",
+      "Champions are built one day at a time. Let's go!",
+      "Your energy sets the tone — bring your best today.",
+      "Consistency beats talent. Keep showing up!",
+      "Today is a fresh opportunity to make an impact.",
+      "Winners don't wait for chances — they create them.",
+      "Believe in your hustle. Results will follow.",
+      "One more follow-up could change everything. Keep going!",
+      "Success loves speed. Let's move fast today!",
+      "The team that grinds together, wins together.",
+      "Your pipeline is your lifeline — let's fill it up today!",
+    ];
+
+    const dayIndex = new Date().getDate() % motivationalQuotes.length;
+    const motivation = motivationalQuotes[dayIndex];
+
+    const message = `${timeGreeting}, ${name}! Welcome to Xboom Flow. ${motivation}`;
 
     setTimeout(async () => {
       try {
