@@ -524,20 +524,67 @@ export function SalesPersonDeepDive({
 
                     {/* Follow-up + Orders + Radar */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-3">
+                       <div className="space-y-3">
                         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Results</h4>
                         <div className="grid grid-cols-2 gap-3">
-                          <div className="p-3 rounded-lg bg-green-500/10 text-center">
-                            <ShoppingCart className="w-4 h-4 mx-auto mb-1 text-green-500" />
-                            <p className="text-xl font-bold text-green-500">{sp.ordersWon}</p>
+                          <div className="p-3 rounded-lg bg-emerald-500/10 text-center">
+                            <ShoppingCart className="w-4 h-4 mx-auto mb-1 text-emerald-500" />
+                            <p className="text-xl font-bold text-emerald-500">{sp.ordersWon}</p>
                             <p className="text-[10px] text-muted-foreground">Orders Closed</p>
-                            <p className="text-xs font-semibold text-green-500">{formatCurrency(sp.ordersValue)}</p>
+                            <p className="text-xs font-semibold text-emerald-500">{formatCurrency(sp.ordersValue)}</p>
                           </div>
                           <div className="p-3 rounded-lg bg-amber-500/10 text-center">
                             <RefreshCw className="w-4 h-4 mx-auto mb-1 text-amber-500" />
                             <p className="text-xl font-bold text-amber-500">{sp.followUpsDue}</p>
-                            <p className="text-[10px] text-muted-foreground">Follow-ups Due</p>
-                            <p className="text-xs text-muted-foreground">{sp.followUpsCompleted} completed</p>
+                            <p className="text-[10px] text-muted-foreground">Pipeline Due</p>
+                            <p className="text-xs text-muted-foreground">{sp.followUpsCompleted} resolved</p>
+                          </div>
+                        </div>
+
+                        {/* Follow-ups & Callbacks Section */}
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pt-2">Follow-ups & Callbacks</h4>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="p-2.5 rounded-lg bg-primary/10 text-center">
+                            <CalendarCheck className="w-3.5 h-3.5 mx-auto mb-1 text-primary" />
+                            <p className="text-lg font-bold">{sp.followupsTotal}</p>
+                            <p className="text-[9px] text-muted-foreground">Total Follow-ups</p>
+                          </div>
+                          <div className="p-2.5 rounded-lg bg-emerald-500/10 text-center">
+                            <CheckCircle2 className="w-3.5 h-3.5 mx-auto mb-1 text-emerald-500" />
+                            <p className="text-lg font-bold text-emerald-500">{sp.followupsCompleted}</p>
+                            <p className="text-[9px] text-muted-foreground">Completed</p>
+                          </div>
+                          <div className={`p-2.5 rounded-lg text-center ${sp.followupsOverdue > 0 ? 'bg-red-500/10' : 'bg-amber-500/10'}`}>
+                            <AlertTriangle className={`w-3.5 h-3.5 mx-auto mb-1 ${sp.followupsOverdue > 0 ? 'text-red-500' : 'text-amber-500'}`} />
+                            <p className={`text-lg font-bold ${sp.followupsOverdue > 0 ? 'text-red-500' : 'text-amber-500'}`}>{sp.followupsPending}</p>
+                            <p className="text-[9px] text-muted-foreground">Pending ({sp.followupsOverdue} overdue)</p>
+                          </div>
+                        </div>
+                        {sp.followupsTotal > 0 && (
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Follow-up Completion Rate</span>
+                              <span className="font-medium">{Math.round((sp.followupsCompleted / sp.followupsTotal) * 100)}%</span>
+                            </div>
+                            <Progress value={(sp.followupsCompleted / sp.followupsTotal) * 100} className="h-1.5" />
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="p-2.5 rounded-lg bg-red-500/10 text-center">
+                            <PhoneOff className="w-3.5 h-3.5 mx-auto mb-1 text-red-500" />
+                            <p className="text-lg font-bold text-red-500">{sp.callbacksTotal}</p>
+                            <p className="text-[9px] text-muted-foreground">Callbacks Assigned</p>
+                          </div>
+                          <div className="p-2.5 rounded-lg bg-emerald-500/10 text-center">
+                            <Phone className="w-3.5 h-3.5 mx-auto mb-1 text-emerald-500" />
+                            <p className="text-lg font-bold text-emerald-500">{sp.callbacksCompleted}</p>
+                            <p className="text-[9px] text-muted-foreground">Called Back</p>
+                          </div>
+                          <div className={`p-2.5 rounded-lg text-center ${sp.callbacksPending > 0 ? 'bg-red-500/10' : 'bg-muted/40'}`}>
+                            <Clock className={`w-3.5 h-3.5 mx-auto mb-1 ${sp.callbacksPending > 0 ? 'text-red-500' : 'text-muted-foreground'}`} />
+                            <p className={`text-lg font-bold ${sp.callbacksPending > 0 ? 'text-red-500' : ''}`}>{sp.callbacksPending}</p>
+                            <p className="text-[9px] text-muted-foreground">Pending</p>
                           </div>
                         </div>
                         {sp.revenueTarget > 0 && (
