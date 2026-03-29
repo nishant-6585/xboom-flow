@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -208,6 +209,7 @@ function generatePerformanceSuggestions(
 export function SalesCommandCenter() {
 
   const { user, role } = useAuth();
+  const [, setSearchParams] = useSearchParams();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('this_month');
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
@@ -672,10 +674,9 @@ export function SalesCommandCenter() {
     openDrillDown(`${sourceName} (${items.length})`, items);
   }, [filtered, openDrillDown]);
 
-  // Navigate to detail tab
+  // Navigate to detail tab and open specific record
   const handleItemClick = useCallback((item: DetailItem) => {
     setDetailDialogOpen(false);
-    // Find the tab button in the Sales page and click it
     const tabMap: Record<string, string> = {
       enquiries: 'enquiries',
       pipeline: 'pipeline',
@@ -684,13 +685,17 @@ export function SalesCommandCenter() {
     };
     const tabValue = tabMap[item.tab || ''];
     if (tabValue) {
-      // Use DOM to switch tab on the Sales page
+      // Use URL search params to navigate — Sales.tsx reads 'tab' and 'leadId'
       setTimeout(() => {
-        const tabBtn = document.querySelector(`[data-value="${tabValue}"], [value="${tabValue}"]`) as HTMLElement;
-        if (tabBtn) tabBtn.click();
-      }, 100);
+        setSearchParams(prev => {
+          const params = new URLSearchParams(prev);
+          params.set('tab', tabValue);
+          if (item.id) params.set('leadId', item.id);
+          return params;
+        });
+      }, 150);
     }
-  }, []);
+  }, [setSearchParams]);
 
   return (
     <div className="space-y-6">

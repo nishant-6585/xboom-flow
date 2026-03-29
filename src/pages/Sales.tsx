@@ -33,17 +33,17 @@ export default function Sales() {
   const isManager = role === 'admin' || role === 'supply_chain';
   const [assistantOpen, setAssistantOpen] = useState(false);
   
-  // Read tab and leadId from URL params
+  // Read tab and leadId from URL params (reactive to changes)
   const urlTab = searchParams.get("tab");
   const urlLeadId = searchParams.get("leadId");
   const [activeTab, setActiveTab] = useState(urlTab || "manager");
 
-  // Handle URL params for tab navigation
+  // Handle URL params for tab navigation — react to every change
   useEffect(() => {
     if (urlTab) {
       setActiveTab(urlTab);
     }
-  }, [urlTab]);
+  }, [urlTab, urlLeadId]);
 
   const triggerBase = "gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-muted/80 data-[state=active]:shadow-md";
   const triggerPrimary = `${triggerBase} data-[state=active]:bg-primary data-[state=active]:text-primary-foreground`;
@@ -187,7 +187,7 @@ export default function Sales() {
           </TabsContent>
 
           <TabsContent value="enquiries" className="space-y-6">
-            <EnquiriesPanel />
+            <EnquiriesPanel selectedLeadId={urlLeadId} />
           </TabsContent>
 
           <TabsContent value="pipeline" className="space-y-6">
