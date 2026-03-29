@@ -220,13 +220,13 @@ export function FormsLeadsPanel() {
                 <thead>
                   <tr className="border-b text-left">
                     <th className="py-2 px-3 font-medium">Name</th>
+                    <th className="py-2 px-1 font-medium w-20"></th>
                     <th className="py-2 px-3 font-medium">Contact</th>
                     <th className="py-2 px-3 font-medium">Company</th>
                     <th className="py-2 px-3 font-medium">Form Source</th>
                     <th className="py-2 px-3 font-medium">Product</th>
                     <th className="py-2 px-3 font-medium">Status</th>
                     <th className="py-2 px-3 font-medium">Assigned</th>
-                    <th className="py-2 px-3 font-medium">Date</th>
                     <th className="py-2 px-3 font-medium">Actions</th>
                   </tr>
                 </thead>
