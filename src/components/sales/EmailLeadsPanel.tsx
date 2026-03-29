@@ -14,6 +14,7 @@ import { Search, Plus, Mail, Loader2, Filter, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { ProspectButton, ACategoryButton } from './ProspectButton';
 import { AttentionButton } from './AttentionButton';
+import { EnquiryConvertButton } from './EnquiryConvertButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadFormDialog } from './EmailLeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';

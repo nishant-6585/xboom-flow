@@ -27,6 +27,7 @@ import { InteraktLeadEditDialog } from '@/components/interakt/InteraktLeadEditDi
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
 import { ProspectButton } from './ProspectButton';
 import { AttentionButton } from './AttentionButton';
+import { EnquiryConvertButton } from './EnquiryConvertButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadsPanel } from './EmailLeadsPanel';
 import { FormsLeadsPanel } from './FormsLeadsPanel';
