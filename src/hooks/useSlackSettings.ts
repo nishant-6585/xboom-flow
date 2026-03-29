@@ -173,12 +173,50 @@ export const useSlackSettings = () => {
     }
   };
 
+  const triggerSalesReport = async (timeframe: 'daily' | 'weekly' | 'mtd') => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('You must be logged in to trigger a report');
+        return false;
+      }
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/ai-sales-report`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ timeframe, force: true })
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Report generation failed');
+      }
+
+      if (result.no_activity) {
+        toast.info('No sales activity for this period. Empty report sent.');
+      } else {
+        toast.success(`${timeframe.charAt(0).toUpperCase() + timeframe.slice(1)} sales report sent to Slack!`);
+      }
+      return true;
+    } catch (error) {
+      console.error('Sales report failed:', error);
+      toast.error('Failed to generate sales report');
+      return false;
+    }
+  };
+
   return {
     settings,
     loading,
     updateSettings,
     testWebhook,
     testChannel,
+    triggerSalesReport,
     refetch: fetchSettings
   };
 };
