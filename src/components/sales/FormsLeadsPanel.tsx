@@ -52,6 +52,11 @@ export function FormsLeadsPanel() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isManager = role === "admin" || role === "supply_chain";
+  const { prospects } = useProspects();
+  const { items: attentionItems } = useAttentionItems();
+
+  const prospectSourceIds = new Set(prospects.map(p => `${p.source_type}:${p.source_id}`));
+  const attentionSourceIds = new Set(attentionItems.map(a => `${a.source_type}:${a.source_id}`));
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
