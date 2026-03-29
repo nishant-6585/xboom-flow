@@ -1297,6 +1297,23 @@ export function SalesCommandCenter() {
         </CardContent>
       </Card>
 
+      {/* ============ SALESPERSON DEEP DIVE ============ */}
+      {isManager && (
+        <SalesPersonDeepDive
+          salesTeam={salesTeam}
+          enquiries={filtered.enquiries}
+          interaktLeads={filtered.interakt}
+          emailLeads={filtered.email}
+          callLogs={filtered.calls}
+          formLeads={filtered.forms}
+          pipelineOrders={filtered.pipeline}
+          orders={filtered.orders}
+          prospects={filtered.prospects}
+          targets={targets}
+          isManager={isManager}
+        />
+      )}
+
       {/* ============ DRILL-DOWN DETAIL DIALOG ============ */}
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh]">
