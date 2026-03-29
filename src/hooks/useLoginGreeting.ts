@@ -27,27 +27,53 @@ export function useLoginGreeting() {
           const message = `${timeGreeting}, ${name}! Welcome to Xboom Flow.`;
 
           // Small delay to let the UI settle
-          setTimeout(() => {
-            if ("speechSynthesis" in window) {
-              // Cancel any pending speech
-              window.speechSynthesis.cancel();
+          setTimeout(async () => {
+            try {
+              const response = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                  },
+                  body: JSON.stringify({ text: message }),
+                }
+              );
 
-              const utterance = new SpeechSynthesisUtterance(message);
-              utterance.rate = 1;
-              utterance.pitch = 1;
-              utterance.volume = 0.8;
+              if (!response.ok) {
+                throw new Error(`TTS request failed: ${response.status}`);
+              }
 
-              // Try to pick a good English voice
-              const voices = window.speechSynthesis.getVoices();
-              const preferred = voices.find(
-                (v) =>
-                  v.lang.startsWith("en") &&
-                  (v.name.includes("Google") || v.name.includes("Samantha") || v.name.includes("Daniel"))
-              ) || voices.find((v) => v.lang.startsWith("en"));
+              const audioBlob = await response.blob();
+              const audioUrl = URL.createObjectURL(audioBlob);
+              const audio = new Audio(audioUrl);
+              audio.volume = 0.8;
+              await audio.play();
 
-              if (preferred) utterance.voice = preferred;
-
-              window.speechSynthesis.speak(utterance);
+              // Clean up blob URL after playback
+              audio.addEventListener("ended", () => {
+                URL.revokeObjectURL(audioUrl);
+              });
+            } catch (error) {
+              console.warn("ElevenLabs TTS failed, falling back to browser speech:", error);
+              // Fallback to browser speech synthesis
+              if ("speechSynthesis" in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(message);
+                utterance.rate = 1;
+                utterance.pitch = 1;
+                utterance.volume = 0.8;
+                const voices = window.speechSynthesis.getVoices();
+                const preferred = voices.find(
+                  (v) =>
+                    v.lang.startsWith("en") &&
+                    (v.name.includes("Google") || v.name.includes("Samantha") || v.name.includes("Daniel"))
+                ) || voices.find((v) => v.lang.startsWith("en"));
+                if (preferred) utterance.voice = preferred;
+                window.speechSynthesis.speak(utterance);
+              }
             }
           }, 800);
         }
