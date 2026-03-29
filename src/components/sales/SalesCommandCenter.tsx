@@ -14,7 +14,7 @@ import {
   TrendingUp, Users, Target, DollarSign, Package,
   Phone, MessageCircle, Mail, FileText, Send, ShoppingCart,
   Eye, Zap, Clock, CalendarIcon, ArrowUpRight, ArrowDownRight,
-  Percent, Activity, Layers, BarChart3, Award,
+  Percent, Activity, Layers, BarChart3, Award, MapPin, Flame,
 } from 'lucide-react';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useInteraktLeads } from '@/hooks/useInteraktLeads';
@@ -28,8 +28,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import {
   format, subDays, subWeeks, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  isAfter, isBefore, parseISO, startOfDay, endOfDay,
+  isAfter, isBefore, parseISO, startOfDay, endOfDay, eachDayOfInterval, addMonths, isSameDay,
 } from 'date-fns';
+import { useExpectedPayments } from '@/hooks/useExpectedPayments';
 import type { DateRange } from 'react-day-picker';
 
 const formatCurrency = (value: number) => {
