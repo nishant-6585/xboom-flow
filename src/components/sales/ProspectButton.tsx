@@ -5,6 +5,7 @@ import { useProspects } from '@/hooks/useProspects';
 import { useAuth } from '@/hooks/useAuth';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
+import { FollowupScheduleDialog } from './FollowupScheduleDialog';
 
 interface ProspectButtonProps {
   sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead';
@@ -35,6 +36,8 @@ export function ProspectButton({
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [added, setAdded] = useState(isAlreadyProspect);
+  const [showFollowup, setShowFollowup] = useState(false);
+  const [newProspectId, setNewProspectId] = useState<string | null>(null);
 
   const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -45,7 +48,7 @@ export function ProspectButton({
     }
     setLoading(true);
     try {
-      await addProspect({
+      const result = await addProspect({
         source_type: sourceType,
         source_id: sourceId,
         customer_name: customerName,
@@ -61,6 +64,11 @@ export function ProspectButton({
         created_by_name: profile.name,
       });
       setAdded(true);
+      if (result) {
+        setNewProspectId(result.id);
+        // Show follow-up dialog after adding prospect
+        setShowFollowup(true);
+      }
     } catch {
       // Error handled by hook
     } finally {
@@ -90,6 +98,19 @@ export function ProspectButton({
           {added ? 'Already a Prospect' : 'Move to Prospects (+10 pts)'}
         </TooltipContent>
       </Tooltip>
+
+      {/* Follow-up Schedule Dialog */}
+      <FollowupScheduleDialog
+        open={showFollowup}
+        onOpenChange={setShowFollowup}
+        sourceType="prospect"
+        sourceId={newProspectId || sourceId}
+        customerName={customerName}
+        customerCompany={company}
+        productName={productName}
+        phone={phoneNumber}
+        email={email}
+      />
     </TooltipProvider>
   );
 }

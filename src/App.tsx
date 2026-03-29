@@ -10,6 +10,7 @@ import { MobileAttendanceFAB } from "@/components/attendance/MobileAttendanceFAB
 import { CommandPalette } from "@/components/CommandPalette";
 import { PortalChatButton } from "@/components/chat/PortalChatButton";
 import { VoiceChatBot } from "@/components/voice-chat/VoiceChatBot";
+import { FollowupReminderPopup } from "@/components/sales/FollowupReminderPopup";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useThemeLoader } from "@/hooks/useThemeLoader";
 import { useLoginGreeting } from "@/hooks/useLoginGreeting";
@@ -130,6 +131,7 @@ function AuthGuardedWidgets({ isMobile }: { isMobile: boolean }) {
       <CommandPalette />
       <PortalChatButton />
       <VoiceChatBot />
+      <FollowupReminderPopup />
     </>
   );
 }
