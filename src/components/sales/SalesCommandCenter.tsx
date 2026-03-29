@@ -113,6 +113,7 @@ export function SalesCommandCenter() {
   const { orders } = useOrders();
   const { prospects } = useProspects();
   const { targets } = useSalesTargets();
+  const { payments } = useExpectedPayments();
 
   const { data: callLogs = [] } = useQuery({
     queryKey: ['command-center-call-logs'],
