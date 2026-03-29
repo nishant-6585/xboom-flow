@@ -516,11 +516,12 @@ serve(async (req) => {
         { type: "context", elements: [{ type: "mrkdwn", text: `📅 ${new Date().toLocaleString('en-IN')} • XBoom Flow` }] }
       ];
 
-      if (botToken && reportChannel) {
-        await sendBotMessage(botToken, reportChannel, noActivityBlocks);
-      } else if (webhookUrl) {
-        await sendWebhook(webhookUrl, noActivityBlocks);
-      }
+      await sendReportToSlack({
+        botToken,
+        webhookUrl,
+        channel: reportChannel,
+        blocks: noActivityBlocks,
+      });
 
       // Log execution
       await supabase.from('ai_action_logs').insert({
@@ -545,13 +546,12 @@ serve(async (req) => {
     const blocks = buildSlackBlocks(aggregated, aiInsights, label, enableAI, enableActions);
 
     // Send to Slack
-    if (botToken && reportChannel) {
-      await sendBotMessage(botToken, reportChannel, blocks);
-    } else if (webhookUrl) {
-      await sendWebhook(webhookUrl, blocks);
-    } else {
-      console.log('No report channel or webhook configured');
-    }
+    await sendReportToSlack({
+      botToken,
+      webhookUrl,
+      channel: reportChannel,
+      blocks,
+    });
 
     // Log execution
     await supabase.from('ai_action_logs').insert({
@@ -592,4 +592,32 @@ async function sendWebhook(webhookUrl: string, blocks: any[]) {
     body: JSON.stringify({ blocks }),
   });
   if (!response.ok) throw new Error(await response.text());
+}
+
+async function sendReportToSlack({
+  botToken,
+  webhookUrl,
+  channel,
+  blocks,
+}: {
+  botToken?: string | null;
+  webhookUrl?: string | null;
+  channel?: string | null;
+  blocks: any[];
+}) {
+  if (botToken && channel) {
+    try {
+      await sendBotMessage(botToken, channel, blocks);
+      return;
+    } catch (error) {
+      console.error('Sales report bot send failed, falling back to webhook:', error);
+    }
+  }
+
+  if (webhookUrl) {
+    await sendWebhook(webhookUrl, blocks);
+    return;
+  }
+
+  console.log('No report channel or webhook configured');
 }
