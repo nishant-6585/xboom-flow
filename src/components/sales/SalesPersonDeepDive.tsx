@@ -313,8 +313,8 @@ export function SalesPersonDeepDive({
       };
       return data;
     }).filter(sp => {
-      const totalActivity = sp.enquiries + sp.interaktLeads + sp.callLogs + sp.emailLeads + sp.formLeads + sp.prospects + sp.ordersWon + sp.pipelineCreated;
-      return totalActivity > 0;
+      if (sp.name?.toLowerCase().includes('test')) return false;
+      return true;
     }).sort((a, b) => b.ordersValue - a.ordersValue);
   }, [salesTeam, enquiries, interaktLeads, emailLeads, callLogs, formLeads, pipelineOrders, orders, prospects, targets, followups, callbacks, isManager]);
 
