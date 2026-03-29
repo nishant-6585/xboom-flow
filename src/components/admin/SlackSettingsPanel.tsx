@@ -4,13 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, MessageSquare, Send, Check, Info, Hash, Lock } from 'lucide-react';
+import { Loader2, MessageSquare, Send, Check, Info, Hash, Lock, BarChart3 } from 'lucide-react';
 import { useSlackSettings } from '@/hooks/useSlackSettings';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 
 export const SlackSettingsPanel = () => {
-  const { settings, loading, updateSettings, testWebhook, testChannel } = useSlackSettings();
+  const { settings, loading, updateSettings, testWebhook, testChannel, triggerSalesReport } = useSlackSettings();
   
   const [isEnabled, setIsEnabled] = useState(false);
   const [notifyNewOrders, setNotifyNewOrders] = useState(true);
@@ -32,9 +32,17 @@ export const SlackSettingsPanel = () => {
   const [notifyTicketAssigned, setNotifyTicketAssigned] = useState(true);
   const [notifyTicketStatusChange, setNotifyTicketStatusChange] = useState(true);
   
+  // Sales report settings
+  const [channelSalesReport, setChannelSalesReport] = useState('');
+  const [enableDailyReport, setEnableDailyReport] = useState(false);
+  const [enableWeeklyReport, setEnableWeeklyReport] = useState(false);
+  const [enableAIInsights, setEnableAIInsights] = useState(true);
+  const [enableInteractiveActions, setEnableInteractiveActions] = useState(true);
+  
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testingChannel, setTestingChannel] = useState<string | null>(null);
+  const [triggeringReport, setTriggeringReport] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
