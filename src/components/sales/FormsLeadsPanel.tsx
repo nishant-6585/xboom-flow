@@ -295,86 +295,189 @@ export function FormsLeadsPanel() {
         </CardContent>
       </Card>
 
-      {/* Detail Dialog */}
-      <Dialog open={!!selectedLead} onOpenChange={() => setSelectedLead(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <User className="w-5 h-5" />
-              {selectedLead?.customer_name}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedLead && (
-            <ScrollArea className="max-h-[60vh]">
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  {selectedLead.email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm">{selectedLead.email}</span>
-                    </div>
-                  )}
-                  {selectedLead.phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm">{selectedLead.phone}</span>
-                    </div>
-                  )}
-                  {selectedLead.company && (
-                    <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm">{selectedLead.company}</span>
-                    </div>
-                  )}
-                  {selectedLead.city && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm">{selectedLead.city}</span>
-                    </div>
-                  )}
-                  {selectedLead.product_name && (
-                    <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm">{selectedLead.product_name}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm">{format(new Date(selectedLead.created_at), "dd MMM yyyy, hh:mm a")}</span>
-                  </div>
-                </div>
-
-                <div>
-                  <Badge variant="outline" className="text-xs">Source: {selectedLead.form_name}</Badge>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">Status:</span>
-                  {getStatusBadge(selectedLead.status)}
-                </div>
-
-                {selectedLead.assigned_to_name && (
-                  <div className="text-sm">
-                    <span className="font-medium">Assigned to:</span> {selectedLead.assigned_to_name}
-                  </div>
-                )}
-
-                {selectedLead.notes && (
-                  <>
-                    <Separator />
-                    <div>
-                      <h4 className="text-sm font-medium mb-2">Additional Information (Notes)</h4>
-                      <pre className="text-sm text-muted-foreground whitespace-pre-wrap bg-muted/30 rounded-lg p-3">
-                        {selectedLead.notes}
-                      </pre>
-                    </div>
-                  </>
-                )}
-              </div>
-            </ScrollArea>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Edit Dialog */}
+      <FormLeadEditDialog
+        lead={selectedLead}
+        open={!!selectedLead}
+        onClose={() => setSelectedLead(null)}
+        onSave={(updates) => updateLead.mutate(updates)}
+        isSaving={updateLead.isPending}
+        assignableUsers={assignableUsers}
+        statusOptions={STATUS_OPTIONS}
+      />
     </div>
+  );
+}
+
+function FormLeadEditDialog({
+  lead,
+  open,
+  onClose,
+  onSave,
+  isSaving,
+  assignableUsers,
+  statusOptions,
+}: {
+  lead: FormLead | null;
+  open: boolean;
+  onClose: () => void;
+  onSave: (updates: Partial<FormLead> & { id: string }) => void;
+  isSaving: boolean;
+  assignableUsers: { user_id: string; name: string }[];
+  statusOptions: { value: string; label: string; color: string }[];
+}) {
+  const [form, setForm] = useState({
+    customer_name: "",
+    email: "",
+    phone: "",
+    company: "",
+    city: "",
+    product_name: "",
+    notes: "",
+    status: "new",
+    assigned_to: "",
+    assigned_to_name: "",
+  });
+
+  useEffect(() => {
+    if (lead) {
+      setForm({
+        customer_name: lead.customer_name || "",
+        email: lead.email || "",
+        phone: lead.phone || "",
+        company: lead.company || "",
+        city: lead.city || "",
+        product_name: lead.product_name || "",
+        notes: lead.notes || "",
+        status: lead.status || "new",
+        assigned_to: lead.assigned_to || "",
+        assigned_to_name: lead.assigned_to_name || "",
+      });
+    }
+  }, [lead]);
+
+  if (!lead) return null;
+
+  const handleSave = () => {
+    onSave({
+      id: lead.id,
+      customer_name: form.customer_name,
+      email: form.email || null,
+      phone: form.phone || null,
+      company: form.company || null,
+      city: form.city || null,
+      product_name: form.product_name || null,
+      notes: form.notes || null,
+      status: form.status,
+      assigned_to: form.assigned_to || null,
+      assigned_to_name: form.assigned_to_name || null,
+    } as Partial<FormLead> & { id: string });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Pencil className="w-5 h-5" />
+            Edit Form Lead
+          </DialogTitle>
+        </DialogHeader>
+        <ScrollArea className="max-h-[60vh]">
+          <div className="space-y-4 p-1">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Name</Label>
+                <Input value={form.customer_name} onChange={(e) => setForm(f => ({ ...f, customer_name: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Email</Label>
+                <Input value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Phone</Label>
+                <Input value={form.phone} onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Company</Label>
+                <Input value={form.company} onChange={(e) => setForm(f => ({ ...f, company: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">City</Label>
+                <Input value={form.city} onChange={(e) => setForm(f => ({ ...f, city: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Product</Label>
+                <Input value={form.product_name} onChange={(e) => setForm(f => ({ ...f, product_name: e.target.value }))} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Status</Label>
+                <Select value={form.status} onValueChange={(val) => setForm(f => ({ ...f, status: val }))}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Assigned To</Label>
+                <Select
+                  value={form.assigned_to || "unassigned"}
+                  onValueChange={(val) => {
+                    if (val === "unassigned") {
+                      setForm(f => ({ ...f, assigned_to: "", assigned_to_name: "" }));
+                    } else {
+                      const u = assignableUsers.find(u => u.user_id === val);
+                      setForm(f => ({ ...f, assigned_to: val, assigned_to_name: u?.name || "" }));
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Assign..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {assignableUsers.map((u) => (
+                      <SelectItem key={u.user_id} value={u.user_id}>{u.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Notes / Additional Info</Label>
+              <Textarea
+                value={form.notes}
+                onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
+                rows={4}
+                className="text-sm"
+              />
+            </div>
+
+            <Separator />
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Badge variant="outline">Source: {lead.form_name}</Badge>
+              <span>•</span>
+              <Calendar className="w-3 h-3" />
+              <span>{format(new Date(lead.created_at), "dd MMM yyyy, hh:mm a")}</span>
+            </div>
+          </div>
+        </ScrollArea>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave} disabled={isSaving || !form.customer_name.trim()}>
+            {isSaving ? "Saving..." : "Save Changes"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
