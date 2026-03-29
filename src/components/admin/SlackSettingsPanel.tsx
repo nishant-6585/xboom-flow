@@ -64,6 +64,11 @@ export const SlackSettingsPanel = () => {
       setNotifyNewPipeline(settings.notify_new_pipeline ?? true);
       setNotifyTicketAssigned(settings.notify_ticket_assigned ?? true);
       setNotifyTicketStatusChange(settings.notify_ticket_status_change ?? true);
+      setChannelSalesReport((settings as any).channel_sales_report || '');
+      setEnableDailyReport((settings as any).enable_daily_report ?? false);
+      setEnableWeeklyReport((settings as any).enable_weekly_report ?? false);
+      setEnableAIInsights((settings as any).enable_ai_insights ?? true);
+      setEnableInteractiveActions((settings as any).enable_interactive_actions ?? true);
     }
   }, [settings]);
 
@@ -86,14 +91,21 @@ export const SlackSettingsPanel = () => {
         notifyNewSuppliers !== (settings.notify_new_suppliers ?? true) ||
         notifyNewPipeline !== (settings.notify_new_pipeline ?? true) ||
         notifyTicketAssigned !== (settings.notify_ticket_assigned ?? true) ||
-        notifyTicketStatusChange !== (settings.notify_ticket_status_change ?? true);
+        notifyTicketStatusChange !== (settings.notify_ticket_status_change ?? true) ||
+        channelSalesReport !== ((settings as any).channel_sales_report || '') ||
+        enableDailyReport !== ((settings as any).enable_daily_report ?? false) ||
+        enableWeeklyReport !== ((settings as any).enable_weekly_report ?? false) ||
+        enableAIInsights !== ((settings as any).enable_ai_insights ?? true) ||
+        enableInteractiveActions !== ((settings as any).enable_interactive_actions ?? true);
       setHasChanges(changed);
     }
   }, [
     isEnabled, notifyNewOrders, notifyHotLeads, notifyPaymentReminders, notifyStatusChanges,
     channelOrders, channelEnquiries, channelProcurements, channelSuppliers, channelPipeline,
     channelTickets, notifyNewEnquiries, notifyNewProcurements, notifyNewSuppliers, notifyNewPipeline,
-    notifyTicketAssigned, notifyTicketStatusChange, settings
+    notifyTicketAssigned, notifyTicketStatusChange,
+    channelSalesReport, enableDailyReport, enableWeeklyReport, enableAIInsights, enableInteractiveActions,
+    settings
   ]);
 
   const handleSave = async () => {
@@ -117,7 +129,12 @@ export const SlackSettingsPanel = () => {
         channel_tickets: channelTickets || null,
         notify_ticket_assigned: notifyTicketAssigned,
         notify_ticket_status_change: notifyTicketStatusChange,
-      });
+        channel_sales_report: channelSalesReport || null,
+        enable_daily_report: enableDailyReport,
+        enable_weekly_report: enableWeeklyReport,
+        enable_ai_insights: enableAIInsights,
+        enable_interactive_actions: enableInteractiveActions,
+      } as any);
       setHasChanges(false);
     } finally {
       setSaving(false);
