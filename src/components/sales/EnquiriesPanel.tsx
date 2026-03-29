@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,11 @@ import * as XLSX from 'xlsx';
 import { EnquiryFormDialog } from './EnquiryFormDialog';
 import { cn } from '@/lib/utils';
 
-export function EnquiriesPanel() {
+interface EnquiriesPanelProps {
+  selectedLeadId?: string | null;
+}
+
+export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
   const { enquiries, loading, refetch } = useEnquiries();
   const { fetchEnquiryItems } = useEnquiryItems();
   const { user, profile, role } = useAuth();
@@ -34,6 +38,18 @@ export function EnquiriesPanel() {
   const [viewingEnquiry, setViewingEnquiry] = useState<Enquiry | null>(null);
   const [enquiryItems, setEnquiryItems] = useState<EnquiryItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
+  const lastAutoOpenedId = useRef<string | null>(null);
+
+  // Auto-open enquiry when selectedLeadId is provided
+  useEffect(() => {
+    if (!selectedLeadId || loading || enquiries.length === 0) return;
+    if (lastAutoOpenedId.current === selectedLeadId) return;
+    const target = enquiries.find(e => e.id === selectedLeadId);
+    if (target) {
+      lastAutoOpenedId.current = selectedLeadId;
+      handleViewEnquiry(target);
+    }
+  }, [selectedLeadId, loading, enquiries]);
 
   const canSeeAllEnquiries = role === 'admin' || role === 'supply_chain';
   const salesPersons = Array.from(new Set(enquiries.map(e => e.sales_person_name))).filter(Boolean).sort();

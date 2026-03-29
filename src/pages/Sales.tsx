@@ -187,7 +187,7 @@ export default function Sales() {
           </TabsContent>
 
           <TabsContent value="enquiries" className="space-y-6">
-            <EnquiriesPanel />
+            <EnquiriesPanel selectedLeadId={urlLeadId} />
           </TabsContent>
 
           <TabsContent value="pipeline" className="space-y-6">
