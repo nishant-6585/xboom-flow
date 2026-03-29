@@ -35,6 +35,7 @@ import {
 } from 'date-fns';
 import { useExpectedPayments } from '@/hooks/useExpectedPayments';
 import { LeadTemperatureBadge } from '@/components/LeadTemperatureBadge';
+import { SalesPersonDeepDive } from '@/components/sales/SalesPersonDeepDive';
 import type { DateRange } from 'react-day-picker';
 
 const formatCurrency = (value: number) => {
