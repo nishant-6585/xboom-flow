@@ -26,6 +26,7 @@ import { EnquiriesPanel } from "@/components/sales/EnquiriesPanel";
 import { ProspectsPanel } from "@/components/sales/ProspectsPanel";
 import { AttentionPanel } from "@/components/sales/AttentionPanel";
 import { FollowupsPanel } from "@/components/sales/FollowupsPanel";
+import { CallbacksPanel } from "@/components/sales/CallbacksPanel";
 
 
 export default function Sales() {
@@ -204,7 +205,18 @@ export default function Sales() {
           </TabsContent>
 
           <TabsContent value="followups" className="space-y-6">
-            <FollowupsPanel />
+            <Tabs defaultValue="followups-list" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="followups-list">📅 Follow-ups</TabsTrigger>
+                <TabsTrigger value="callbacks-list">📞 Callbacks</TabsTrigger>
+              </TabsList>
+              <TabsContent value="followups-list">
+                <FollowupsPanel />
+              </TabsContent>
+              <TabsContent value="callbacks-list">
+                <CallbacksPanel />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="attention" className="space-y-6">

@@ -16,6 +16,7 @@ import { HotLeadsWidget } from "@/components/HotLeadsWidget";
 import { LeadTemperatureAnalytics } from "@/components/LeadTemperatureAnalytics";
 import { DashboardNoticesWidget } from "@/components/notices/DashboardNoticesWidget";
 import { NoticePopup } from "@/components/notices/NoticePopup";
+import { FollowupCallbackWidget } from "@/components/dashboard/FollowupCallbackWidget";
 import {
   useEnquiries,
   Enquiry,
@@ -376,8 +377,9 @@ const Index = () => {
             ) : (
               <>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2">
+                  <div className="lg:col-span-2 space-y-4">
                     <QuickActions />
+                    <FollowupCallbackWidget />
                   </div>
                   <div>
                     <DashboardNoticesWidget />

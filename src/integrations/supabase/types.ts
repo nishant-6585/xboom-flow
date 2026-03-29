@@ -4883,6 +4883,83 @@ export type Database = {
           },
         ]
       }
+      missed_call_callbacks: {
+        Row: {
+          assigned_by: string | null
+          assigned_by_name: string | null
+          assigned_to: string | null
+          assigned_to_name: string | null
+          call_log_id: string | null
+          call_time: string
+          caller_number: string
+          city: string | null
+          completed_at: string | null
+          completed_by: string | null
+          completed_by_name: string | null
+          created_at: string
+          customer_company: string | null
+          customer_name: string | null
+          id: string
+          priority: string
+          product_name: string | null
+          remark: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          assigned_by_name?: string | null
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          call_log_id?: string | null
+          call_time?: string
+          caller_number: string
+          city?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_by_name?: string | null
+          created_at?: string
+          customer_company?: string | null
+          customer_name?: string | null
+          id?: string
+          priority?: string
+          product_name?: string | null
+          remark?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_by?: string | null
+          assigned_by_name?: string | null
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          call_log_id?: string | null
+          call_time?: string
+          caller_number?: string
+          city?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_by_name?: string | null
+          created_at?: string
+          customer_company?: string | null
+          customer_name?: string | null
+          id?: string
+          priority?: string
+          product_name?: string | null
+          remark?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "missed_call_callbacks_call_log_id_fkey"
+            columns: ["call_log_id"]
+            isOneToOne: false
+            referencedRelation: "call_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       myoperator_config: {
         Row: {
           api_token: string
