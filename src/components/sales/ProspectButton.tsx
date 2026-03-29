@@ -95,7 +95,7 @@ export function ProspectButton({
 }
 
 interface ACategoryButtonProps {
-  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email';
+  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead';
   sourceId: string;
   isACategory: boolean;
   onToggle?: () => void;
