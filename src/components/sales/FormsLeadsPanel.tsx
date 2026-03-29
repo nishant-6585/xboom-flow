@@ -15,6 +15,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { FileText, Search, Mail, Phone, Building2, MapPin, Package, User, Calendar, Eye, Trash2, RefreshCw, Pencil } from "lucide-react";
 import { format } from "date-fns";
+import { ProspectButton, ACategoryButton } from "./ProspectButton";
+import { AttentionButton } from "./AttentionButton";
+import { useProspects } from "@/hooks/useProspects";
+import { useAttentionItems } from "@/hooks/useAttentionItems";
 
 interface FormLead {
   id: string;
