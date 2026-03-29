@@ -25,6 +25,12 @@ export interface SlackSettings {
   channel_suppliers: string | null;
   channel_pipeline: string | null;
   channel_tickets: string | null;
+  // Sales report settings
+  channel_sales_report: string | null;
+  enable_daily_report: boolean;
+  enable_weekly_report: boolean;
+  enable_ai_insights: boolean;
+  enable_interactive_actions: boolean;
   created_at: string;
   updated_at: string;
 }

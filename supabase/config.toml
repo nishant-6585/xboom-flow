@@ -68,3 +68,9 @@ verify_jwt = false
 
 [functions.send-attention-notification]
 verify_jwt = false
+
+[functions.ai-sales-report]
+verify_jwt = false
+
+[functions.slack-actions]
+verify_jwt = false
