@@ -209,6 +209,7 @@ function generatePerformanceSuggestions(
 export function SalesCommandCenter() {
 
   const { user, role } = useAuth();
+  const [, setSearchParams] = useSearchParams();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('this_month');
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
