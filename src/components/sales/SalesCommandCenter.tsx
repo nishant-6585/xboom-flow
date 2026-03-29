@@ -340,6 +340,55 @@ export function SalesCommandCenter() {
     return { total: filtered.calls.length, answered, missed: filtered.calls.length - answered };
   }, [filtered.calls]);
 
+  // ============ Pipeline by State ============
+  const pipelineByState = useMemo(() => {
+    const stateMap = new Map<string, number>();
+    activePipeline.forEach(p => {
+      const state = (p as any).customer_state || 'Unknown';
+      stateMap.set(state, (stateMap.get(state) || 0) + (p.expected_price || 0));
+    });
+    return Array.from(stateMap.entries())
+      .map(([state, value]) => ({ state, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+  }, [activePipeline]);
+
+  // ============ Pipeline by Temperature ============
+  const pipelineByTemperature = useMemo(() => {
+    const tempMap: Record<string, number> = { hot: 0, warm: 0, cold: 0 };
+    activePipeline.forEach(p => {
+      const temp = p.lead_temperature || 'warm';
+      tempMap[temp] = (tempMap[temp] || 0) + (p.expected_price || 0);
+    });
+    return [
+      { name: 'Hot', value: tempMap.hot, color: '#ef4444' },
+      { name: 'Warm', value: tempMap.warm, color: '#f59e0b' },
+      { name: 'Cold', value: tempMap.cold, color: '#3b82f6' },
+    ].filter(t => t.value > 0);
+  }, [activePipeline]);
+
+  // ============ Expected Payments Timeline (30 days) ============
+  const paymentsTimeline = useMemo(() => {
+    const now = new Date();
+    const endDate = addMonths(now, 1);
+    const days = eachDayOfInterval({ start: now, end: endDate });
+    return days.map(day => {
+      const dayPayments = payments.filter(p => {
+        if (!p.expected_date || p.status === 'received') return false;
+        return isSameDay(parseISO(p.expected_date), day);
+      });
+      const pipelineClosures = activePipeline.filter(p => {
+        if (!p.expected_closure_date) return false;
+        return isSameDay(parseISO(p.expected_closure_date), day);
+      });
+      return {
+        date: format(day, 'MMM d'),
+        payments: dayPayments.reduce((sum, p) => sum + p.amount, 0),
+        closures: pipelineClosures.reduce((sum, p) => sum + (p.expected_price || 0), 0),
+      };
+    }).filter(d => d.payments > 0 || d.closures > 0);
+  }, [payments, activePipeline]);
+
   return (
     <div className="space-y-6">
       {/* ============ FILTERS BAR ============ */}
