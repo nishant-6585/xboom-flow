@@ -2870,6 +2870,78 @@ export type Database = {
         }
         Relationships: []
       }
+      followups: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          completed_by_name: string | null
+          created_at: string
+          created_by: string
+          created_by_name: string
+          customer_company: string | null
+          customer_name: string
+          email: string | null
+          followup_at: string
+          id: string
+          is_a_category: boolean | null
+          phone: string | null
+          product_name: string | null
+          remark: string | null
+          reminder_sent: boolean | null
+          source_id: string
+          source_type: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_by_name?: string | null
+          created_at?: string
+          created_by: string
+          created_by_name: string
+          customer_company?: string | null
+          customer_name: string
+          email?: string | null
+          followup_at: string
+          id?: string
+          is_a_category?: boolean | null
+          phone?: string | null
+          product_name?: string | null
+          remark?: string | null
+          reminder_sent?: boolean | null
+          source_id: string
+          source_type: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_by_name?: string | null
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          customer_company?: string | null
+          customer_name?: string
+          email?: string | null
+          followup_at?: string
+          id?: string
+          is_a_category?: boolean | null
+          phone?: string | null
+          product_name?: string | null
+          remark?: string | null
+          reminder_sent?: boolean | null
+          source_id?: string
+          source_type?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       forecast_accuracy_log: {
         Row: {
           actual_demand: number
