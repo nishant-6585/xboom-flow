@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { playGeneratedAudio } from "@/lib/audioPlayback";
 
 const PENDING_GREETING_KEY = "pending_login_greeting";
 
@@ -84,6 +85,7 @@ export function useLoginGreeting() {
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
+          console.info("[Greeting] Starting ElevenLabs greeting flow");
           let salesPart = "";
 
           if (isSalesPerson) {
@@ -123,18 +125,12 @@ export function useLoginGreeting() {
             throw new Error(`ElevenLabs TTS failed [${response.status}]: ${errorText}`);
           }
 
-          const audioBlob = await response.blob();
-          const audioUrl = URL.createObjectURL(audioBlob);
-          const audio = new Audio(audioUrl);
-          audio.preload = "auto";
-          audio.volume = 0.9;
+          const audioBuffer = await response.arrayBuffer();
+          console.info("[Greeting] ElevenLabs audio received", { bytes: audioBuffer.byteLength });
 
-          await audio.play();
+          await playGeneratedAudio(audioBuffer, 0.9);
+          console.info("[Greeting] ElevenLabs audio playback completed");
           sessionStorage.removeItem(PENDING_GREETING_KEY);
-
-          audio.addEventListener("ended", () => {
-            URL.revokeObjectURL(audioUrl);
-          });
         } catch (error) {
           console.error("[Greeting] ElevenLabs playback failed", error);
           hasAttemptedRef.current = false;
