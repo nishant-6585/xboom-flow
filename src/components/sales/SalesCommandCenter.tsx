@@ -35,6 +35,8 @@ import {
   isAfter, isBefore, parseISO, startOfDay, endOfDay, eachDayOfInterval, addMonths, isSameDay,
 } from 'date-fns';
 import { useExpectedPayments } from '@/hooks/useExpectedPayments';
+import { useFollowups } from '@/hooks/useFollowups';
+import { useCallbacks } from '@/hooks/useCallbacks';
 import { LeadTemperatureBadge } from '@/components/LeadTemperatureBadge';
 import { SalesPersonDeepDive } from '@/components/sales/SalesPersonDeepDive';
 import type { DateRange } from 'react-day-picker';
@@ -235,7 +237,8 @@ export function SalesCommandCenter() {
   const { prospects } = useProspects();
   const { targets } = useSalesTargets();
   const { payments } = useExpectedPayments();
-
+  const { followups } = useFollowups();
+  const { callbacks } = useCallbacks();
   const { data: callLogs = [] } = useQuery({
     queryKey: ['command-center-call-logs'],
     queryFn: async () => {
@@ -1315,6 +1318,8 @@ export function SalesCommandCenter() {
           orders={filtered.orders}
           prospects={filtered.prospects}
           targets={targets}
+          followups={followups}
+          callbacks={callbacks}
           isManager={isManager}
         />
       )}
