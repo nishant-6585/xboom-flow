@@ -11,6 +11,7 @@ import { CommandPalette } from "@/components/CommandPalette";
 import { PortalChatButton } from "@/components/chat/PortalChatButton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useThemeLoader } from "@/hooks/useThemeLoader";
+import { useLoginGreeting } from "@/hooks/useLoginGreeting";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
@@ -61,6 +62,7 @@ const queryClient = new QueryClient({
 function AppInner() {
   const isMobile = useIsMobile();
   useThemeLoader();
+  useLoginGreeting();
   return (
     <>
       <Routes>
