@@ -492,7 +492,123 @@ export const SlackSettingsPanel = () => {
             </div>
           </div>
 
-          {/* Save Button */}
+          {/* Sales Report Section */}
+          <Separator />
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              <Label className="text-base font-medium">Automated Sales Reports</Label>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Get automated sales performance reports with AI-generated insights delivered to Slack
+            </p>
+
+            {/* Report Channel */}
+            <div className="rounded-lg border p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Hash className="h-4 w-4 text-muted-foreground" />
+                <Label className="font-medium">Sales Report Channel</Label>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="sales-reports or C04XXXXXX"
+                  value={channelSalesReport}
+                  onChange={(e) => setChannelSalesReport(e.target.value)}
+                  disabled={!isEnabled}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleTestChannel('sales-report', channelSalesReport)}
+                  disabled={!channelSalesReport || testingChannel === 'sales-report'}
+                >
+                  {testingChannel === 'sales-report' ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Channel where sales reports will be posted</p>
+            </div>
+
+            {/* Report Schedule Toggles */}
+            <div className="grid gap-3">
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label className="font-medium">Daily Report (9:00 PM)</Label>
+                  <p className="text-xs text-muted-foreground">Daily summary with leads, orders, revenue & AI insights</p>
+                </div>
+                <Switch checked={enableDailyReport} onCheckedChange={setEnableDailyReport} disabled={!isEnabled} />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label className="font-medium">Weekly Report (Sunday 9:00 PM)</Label>
+                  <p className="text-xs text-muted-foreground">Weekly performance summary with trends</p>
+                </div>
+                <Switch checked={enableWeeklyReport} onCheckedChange={setEnableWeeklyReport} disabled={!isEnabled} />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label className="font-medium">AI Insights</Label>
+                  <p className="text-xs text-muted-foreground">Include AI-generated insights, risks & recommendations</p>
+                </div>
+                <Switch checked={enableAIInsights} onCheckedChange={setEnableAIInsights} disabled={!isEnabled} />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label className="font-medium">Interactive Actions</Label>
+                  <p className="text-xs text-muted-foreground">Add action buttons (follow-up, assign, remind) in report</p>
+                </div>
+                <Switch checked={enableInteractiveActions} onCheckedChange={setEnableInteractiveActions} disabled={!isEnabled} />
+              </div>
+            </div>
+
+            {/* Manual Trigger Buttons */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  setTriggeringReport('daily');
+                  await triggerSalesReport('daily');
+                  setTriggeringReport(null);
+                }}
+                disabled={!isEnabled || triggeringReport !== null}
+              >
+                {triggeringReport === 'daily' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <BarChart3 className="h-4 w-4 mr-2" />}
+                Send Daily Report Now
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  setTriggeringReport('weekly');
+                  await triggerSalesReport('weekly');
+                  setTriggeringReport(null);
+                }}
+                disabled={!isEnabled || triggeringReport !== null}
+              >
+                {triggeringReport === 'weekly' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <BarChart3 className="h-4 w-4 mr-2" />}
+                Send Weekly Report Now
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  setTriggeringReport('mtd');
+                  await triggerSalesReport('mtd');
+                  setTriggeringReport(null);
+                }}
+                disabled={!isEnabled || triggeringReport !== null}
+              >
+                {triggeringReport === 'mtd' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <BarChart3 className="h-4 w-4 mr-2" />}
+                Send MTD Report Now
+              </Button>
+            </div>
+          </div>
+
+
           <div className="flex justify-end pt-4">
             <Button
               onClick={handleSave}
