@@ -230,12 +230,28 @@ export function FormsLeadsPanel() {
                           </SelectContent>
                         </Select>
                       </td>
-                      <td className="py-2.5 px-3 text-xs">
-                        {lead.assigned_to_name || (
-                          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => assignToMe.mutate(lead.id)}>
-                            Assign to me
-                          </Button>
-                        )}
+                      <td className="py-2.5 px-3">
+                        <Select
+                          value={lead.assigned_to || "unassigned"}
+                          onValueChange={(val) => {
+                            if (val === "unassigned") {
+                              assignLead.mutate({ id: lead.id, userId: "", userName: "" });
+                            } else {
+                              const u = assignableUsers.find(u => u.user_id === val);
+                              if (u) assignLead.mutate({ id: lead.id, userId: u.user_id, userName: u.name });
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="h-7 w-[130px] text-xs">
+                            <SelectValue placeholder="Assign..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned">Unassigned</SelectItem>
+                            {assignableUsers.map((u) => (
+                              <SelectItem key={u.user_id} value={u.user_id}>{u.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </td>
                       <td className="py-2.5 px-3 text-xs text-muted-foreground">
                         {format(new Date(lead.created_at), "dd MMM yyyy")}
