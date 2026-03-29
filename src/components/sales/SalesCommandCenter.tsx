@@ -17,7 +17,7 @@ import {
   Phone, MessageCircle, Mail, FileText, Send, ShoppingCart,
   Eye, Zap, Clock, CalendarIcon, ArrowRight,
   Percent, Activity, Layers, BarChart3, Award, MapPin, Flame,
-  Building2, ExternalLink,
+  Building2, ExternalLink, Lightbulb, Sparkles, AlertTriangle, ThumbsUp, ArrowUpRight,
 } from 'lucide-react';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useInteraktLeads } from '@/hooks/useInteraktLeads';
@@ -128,7 +128,84 @@ const TIME_LABELS: Record<TimeFilter, string> = {
   custom: 'Custom Range',
 };
 
+interface Suggestion {
+  type: 'strength' | 'warning' | 'action' | 'insight';
+  text: string;
+}
+
+function generatePerformanceSuggestions(
+  sp: { id: string; name: string; leads: number; prospects: number; pipelineValue: number; ordersWon: number; revenue: number },
+  allSp: typeof sp[],
+  targets: { name: string; revenuePct: number; revenueTarget: number; revenueAchieved: number; ordersTarget: number; ordersAchieved: number; pipelineAchieved: number; prospectsCount: number }[]
+): Suggestion[] {
+  const suggestions: Suggestion[] = [];
+  const firstName = sp.name.split(' ')[0];
+
+  // Team averages
+  const avgLeads = allSp.reduce((s, p) => s + p.leads, 0) / Math.max(allSp.length, 1);
+  const avgProspects = allSp.reduce((s, p) => s + p.prospects, 0) / Math.max(allSp.length, 1);
+  const avgOrders = allSp.reduce((s, p) => s + p.ordersWon, 0) / Math.max(allSp.length, 1);
+  const avgRevenue = allSp.reduce((s, p) => s + p.revenue, 0) / Math.max(allSp.length, 1);
+
+  // Lead-to-prospect conversion
+  const conversionRate = sp.leads > 0 ? (sp.prospects / sp.leads) * 100 : 0;
+  const prospectToPipeline = sp.prospects > 0 ? (sp.pipelineValue > 0 ? 'active' : 'none') : 'na';
+
+  // Target comparison
+  const target = targets.find(t => t.name === sp.name);
+
+  // Strengths
+  if (sp.revenue > avgRevenue * 1.3 && sp.revenue > 0) {
+    suggestions.push({ type: 'strength', text: `${firstName} is a top performer — revenue ${Math.round((sp.revenue / avgRevenue - 1) * 100)}% above team average. Consider having them mentor others.` });
+  }
+  if (sp.ordersWon > avgOrders * 1.5 && sp.ordersWon >= 3) {
+    suggestions.push({ type: 'strength', text: `Strong closer! ${sp.ordersWon} orders won — well above team average of ${avgOrders.toFixed(1)}.` });
+  }
+  if (conversionRate > 40 && sp.leads >= 5) {
+    suggestions.push({ type: 'strength', text: `Excellent lead-to-prospect conversion at ${conversionRate.toFixed(0)}% — ${firstName} is qualifying leads effectively.` });
+  }
+
+  // Warnings
+  if (sp.leads > avgLeads * 0.8 && sp.ordersWon === 0 && sp.leads > 3) {
+    suggestions.push({ type: 'warning', text: `${firstName} has ${sp.leads} leads but zero orders won. Review their follow-up process and pipeline progression.` });
+  }
+  if (sp.leads > 5 && conversionRate < 15) {
+    suggestions.push({ type: 'warning', text: `Low lead-to-prospect conversion (${conversionRate.toFixed(0)}%). ${firstName} may need training on lead qualification.` });
+  }
+  if (sp.pipelineValue > 0 && sp.ordersWon === 0) {
+    suggestions.push({ type: 'warning', text: `Pipeline of ${formatCurrency(sp.pipelineValue)} but no closed orders. Help ${firstName} with negotiation and closing techniques.` });
+  }
+  if (sp.leads < avgLeads * 0.4 && avgLeads > 2) {
+    suggestions.push({ type: 'warning', text: `${firstName} is handling fewer leads (${sp.leads}) than team average (${Math.round(avgLeads)}). Assign more leads or check workload.` });
+  }
+
+  // Target-based insights
+  if (target) {
+    if (target.revenuePct >= 100) {
+      suggestions.push({ type: 'strength', text: `🎯 Target achieved! ${firstName} has hit ${target.revenuePct}% of revenue target. Consider revising targets upward.` });
+    } else if (target.revenuePct >= 70) {
+      suggestions.push({ type: 'insight', text: `${firstName} is at ${target.revenuePct}% of revenue target — on track. Focus on closing existing pipeline to hit 100%.` });
+    } else if (target.revenuePct < 40 && target.revenueTarget > 0) {
+      suggestions.push({ type: 'warning', text: `Only ${target.revenuePct}% of revenue target achieved. ${firstName} needs immediate pipeline acceleration and management support.` });
+    }
+  }
+
+  // Actions
+  if (sp.prospects > 3 && sp.pipelineValue === 0) {
+    suggestions.push({ type: 'action', text: `${firstName} has ${sp.prospects} prospects not yet in pipeline. Push to convert qualified prospects into pipeline opportunities.` });
+  }
+  if (sp.pipelineValue > avgRevenue * 2 && sp.ordersWon < avgOrders) {
+    suggestions.push({ type: 'action', text: `Large pipeline (${formatCurrency(sp.pipelineValue)}) with low closures. Schedule deal reviews to unblock stalled negotiations.` });
+  }
+  if (sp.leads === 0 && sp.prospects === 0 && sp.ordersWon === 0) {
+    suggestions.push({ type: 'action', text: `No activity recorded for ${firstName} in this period. Check if they need onboarding support or reassignment.` });
+  }
+
+  return suggestions.slice(0, 4); // Max 4 suggestions per person
+}
+
 export function SalesCommandCenter() {
+
   const { user, role } = useAuth();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('this_month');
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
@@ -885,6 +962,52 @@ export function SalesCommandCenter() {
                 <Bar dataKey="ordersWon" fill="hsl(var(--chart-2))" name="Orders" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ============ AI PERFORMANCE SUGGESTIONS ============ */}
+      {isManager && salesPersonPerformance.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              AI Performance Insights & Suggestions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {salesPersonPerformance.map(sp => {
+                const suggestions = generatePerformanceSuggestions(sp, salesPersonPerformance, targetComparison);
+                if (suggestions.length === 0) return null;
+                return (
+                  <div key={sp.id} className="rounded-lg border border-border/50 p-4 space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
+                        {sp.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">{sp.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {sp.leads} leads · {sp.prospects} prospects · {sp.ordersWon} orders · {formatCurrency(sp.revenue)} revenue
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5 pl-10">
+                      {suggestions.map((s, i) => (
+                        <div key={i} className="flex items-start gap-2 text-sm">
+                          {s.type === 'strength' && <ThumbsUp className="w-3.5 h-3.5 mt-0.5 text-green-500 shrink-0" />}
+                          {s.type === 'warning' && <AlertTriangle className="w-3.5 h-3.5 mt-0.5 text-amber-500 shrink-0" />}
+                          {s.type === 'action' && <ArrowUpRight className="w-3.5 h-3.5 mt-0.5 text-primary shrink-0" />}
+                          {s.type === 'insight' && <Lightbulb className="w-3.5 h-3.5 mt-0.5 text-violet-500 shrink-0" />}
+                          <span className="text-muted-foreground leading-snug">{s.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
       )}
