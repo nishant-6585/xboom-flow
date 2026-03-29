@@ -27,8 +27,10 @@ const getDateRange = (timeframe: string) => {
   }
   
   if (timeframe === 'weekly') {
-    const dayOfWeek = nowIST.getUTCDay(); // 0=Sunday
-    const weekStartIST = new Date(todayISTMidnight.getTime() - dayOfWeek * 24 * 60 * 60 * 1000);
+    // Use Monday as start of week to match backend analytics and app reporting
+    const dayOfWeek = nowIST.getUTCDay(); // 0=Sunday, 1=Monday
+    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const weekStartIST = new Date(todayISTMidnight.getTime() - daysSinceMonday * 24 * 60 * 60 * 1000);
     return { start: weekStartIST.toISOString(), end: now.toISOString(), label: 'Weekly' };
   }
   
