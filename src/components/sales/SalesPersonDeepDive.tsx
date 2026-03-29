@@ -213,12 +213,14 @@ interface Props {
   orders: any[];
   prospects: any[];
   targets: any[];
+  followups: any[];
+  callbacks: any[];
   isManager: boolean;
 }
 
 export function SalesPersonDeepDive({
   salesTeam, enquiries, interaktLeads, emailLeads, callLogs, formLeads,
-  pipelineOrders, orders, prospects, targets, isManager,
+  pipelineOrders, orders, prospects, targets, followups, callbacks, isManager,
 }: Props) {
   const [expandedPerson, setExpandedPerson] = useState<string | null>(null);
   const [detailDialog, setDetailDialog] = useState<{ open: boolean; title: string; items: any[] }>({ open: false, title: '', items: [] });
