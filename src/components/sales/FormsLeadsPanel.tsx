@@ -134,6 +134,22 @@ export function FormsLeadsPanel() {
     },
   });
 
+  const updateLead = useMutation({
+    mutationFn: async (updates: Partial<FormLead> & { id: string }) => {
+      const { id, ...rest } = updates;
+      const { error } = await supabase.from("form_leads").update(rest).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["form_leads"] });
+      setSelectedLead(null);
+      toast({ title: "Lead updated" });
+    },
+    onError: (error) => {
+      toast({ title: "Error updating lead", description: error.message, variant: "destructive" });
+    },
+  });
+
   const filtered = leads.filter((lead) => {
     const matchesSearch =
       !search ||
