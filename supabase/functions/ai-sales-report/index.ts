@@ -44,7 +44,7 @@ async function fetchSalesData(supabase: any, startDate: string, endDate: string)
   const [enquiriesRes, prospectsRes, ordersRes, interaktRes, callLogsRes, emailLeadsRes, profilesRes, pipelineRes] = await Promise.all([
     supabase.from('enquiries').select('id, customer_name, product_name, product_category, sales_person_name, sales_person_id, lead_temperature, is_mega_deal, status, created_at, urgency')
       .gte('created_at', startDate).lte('created_at', endDate),
-    supabase.from('prospects').select('id, customer_name, source, created_by_name, created_at, is_a_category, prospect_type')
+    supabase.from('prospects').select('id, customer_name, source_type, created_by_name, created_at, is_a_category, prospect_type')
       .gte('created_at', startDate).lte('created_at', endDate),
     supabase.from('orders').select('id, order_number, customer_name, product_name, product_category, sales_person_name, sales_person_id, status, total_sales_amount, amount_paid, payment_status, created_at')
       .gte('created_at', startDate).lte('created_at', endDate),
