@@ -258,6 +258,17 @@ export function SalesPersonDeepDive({
       }).length;
       const followUpsCompleted = pipelineWon.length + pipelineLost.length;
 
+      // Followups from followups table
+      const spFollowups = followups.filter((f: any) => f.user_id === sp.user_id || f.created_by === sp.user_id);
+      const spFollowupsCompleted = spFollowups.filter((f: any) => f.status === 'completed');
+      const spFollowupsPending = spFollowups.filter((f: any) => f.status === 'pending');
+      const spFollowupsOverdue = spFollowupsPending.filter((f: any) => new Date(f.followup_at) < today);
+
+      // Callbacks
+      const spCallbacks = callbacks.filter((c: any) => c.assigned_to === sp.user_id);
+      const spCallbacksCompleted = spCallbacks.filter((c: any) => c.status === 'completed');
+      const spCallbacksPending = spCallbacks.filter((c: any) => c.status === 'pending');
+
       // Target
       const target = targets.find((t: any) => t.user_id === sp.user_id);
 
@@ -290,6 +301,13 @@ export function SalesPersonDeepDive({
         enquiriesLost: spEnquiries.filter((e: any) => e.status === 'order_lost').length,
         followUpsDue,
         followUpsCompleted,
+        followupsTotal: spFollowups.length,
+        followupsCompleted: spFollowupsCompleted.length,
+        followupsPending: spFollowupsPending.length,
+        followupsOverdue: spFollowupsOverdue.length,
+        callbacksTotal: spCallbacks.length,
+        callbacksCompleted: spCallbacksCompleted.length,
+        callbacksPending: spCallbacksPending.length,
         revenueTarget: target?.revenue_target || 0,
         ordersTarget: target?.orders_target || 0,
       };
