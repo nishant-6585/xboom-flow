@@ -15,6 +15,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { FileText, Search, Mail, Phone, Building2, MapPin, Package, User, Calendar, Eye, Trash2, RefreshCw, Pencil } from "lucide-react";
 import { format } from "date-fns";
+import { ProspectButton, ACategoryButton } from "./ProspectButton";
+import { AttentionButton } from "./AttentionButton";
+import { useProspects } from "@/hooks/useProspects";
+import { useAttentionItems } from "@/hooks/useAttentionItems";
 
 interface FormLead {
   id: string;
@@ -48,6 +52,11 @@ export function FormsLeadsPanel() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isManager = role === "admin" || role === "supply_chain";
+  const { prospects } = useProspects();
+  const { items: attentionItems } = useAttentionItems();
+
+  const prospectSourceIds = new Set(prospects.map(p => `${p.source_type}:${p.source_id}`));
+  const attentionSourceIds = new Set(attentionItems.map(a => `${a.source_type}:${a.source_id}`));
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -275,7 +284,31 @@ export function FormsLeadsPanel() {
                         {format(new Date(lead.created_at), "dd MMM yyyy")}
                       </td>
                       <td className="py-2.5 px-3" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 items-center">
+                          <ProspectButton
+                            sourceType="form_lead"
+                            sourceId={lead.id}
+                            customerName={lead.customer_name}
+                            phoneNumber={lead.phone}
+                            email={lead.email}
+                            company={lead.company}
+                            city={lead.city}
+                            productName={lead.product_name}
+                            notes={lead.notes}
+                            isAlreadyProspect={prospectSourceIds.has(`form_lead:${lead.id}`)}
+                          />
+                          <AttentionButton
+                            sourceType="form_lead"
+                            sourceId={lead.id}
+                            customerName={lead.customer_name}
+                            phoneNumber={lead.phone}
+                            email={lead.email}
+                            company={lead.company}
+                            city={lead.city}
+                            productName={lead.product_name}
+                            notes={lead.notes}
+                            isAlreadyAttention={attentionSourceIds.has(`form_lead:${lead.id}`)}
+                          />
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedLead(lead)}>
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>

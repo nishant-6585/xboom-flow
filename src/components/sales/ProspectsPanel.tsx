@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProspects } from '@/hooks/useProspects';
 import { useAuth } from '@/hooks/useAuth';
-import { Target, Search, Loader2, Star, Filter, TrendingUp, Calendar, Users, Phone, MessageCircle, Package, Pencil, UserCheck } from 'lucide-react';
+import { Target, Search, Loader2, Star, Filter, TrendingUp, Calendar, Users, Phone, MessageCircle, Package, Pencil, UserCheck, FileText } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfWeek, startOfMonth } from 'date-fns';
 import { ACategoryButton } from './ProspectButton';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
@@ -20,12 +20,16 @@ const SOURCE_ICONS: Record<string, React.ReactNode> = {
   enquiry: <Package className="h-3.5 w-3.5" />,
   interakt: <MessageCircle className="h-3.5 w-3.5" />,
   myoperator: <Phone className="h-3.5 w-3.5" />,
+  email: <Package className="h-3.5 w-3.5" />,
+  form_lead: <FileText className="h-3.5 w-3.5" />,
 };
 
 const SOURCE_COLORS: Record<string, string> = {
   enquiry: 'bg-blue-500/20 text-blue-700 dark:text-blue-400',
   interakt: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400',
   myoperator: 'bg-orange-500/20 text-orange-700 dark:text-orange-400',
+  email: 'bg-violet-500/20 text-violet-700 dark:text-violet-400',
+  form_lead: 'bg-pink-500/20 text-pink-700 dark:text-pink-400',
 };
 
 const STATUS_COLORS: Record<string, string> = {

@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 
 export interface AttentionItem {
   id: string;
-  source_type: 'enquiry' | 'interakt' | 'myoperator' | 'email';
+  source_type: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead';
   source_id: string;
   customer_name: string;
   phone_number: string | null;

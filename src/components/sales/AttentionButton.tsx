@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 
 interface AttentionButtonProps {
-  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email';
+  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead';
   sourceId: string;
   customerName: string;
   phoneNumber?: string | null;

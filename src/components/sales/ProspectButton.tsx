@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 import { toast } from 'sonner';
 
 interface ProspectButtonProps {
-  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email';
+  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead';
   sourceId: string;
   customerName: string;
   phoneNumber?: string | null;
@@ -95,7 +95,7 @@ export function ProspectButton({
 }
 
 interface ACategoryButtonProps {
-  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email';
+  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead';
   sourceId: string;
   isACategory: boolean;
   onToggle?: () => void;
