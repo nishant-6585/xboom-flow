@@ -13,7 +13,7 @@ import {
   Users, Target, Phone, MessageCircle, Mail, FileText, Send,
   ShoppingCart, TrendingUp, Sparkles, ThumbsUp, AlertTriangle,
   ArrowUpRight, Lightbulb, ChevronDown, ChevronUp, Activity,
-  RefreshCw, CheckCircle2, XCircle, Clock, Star,
+  RefreshCw, CheckCircle2, XCircle, Clock, Star, CalendarCheck, PhoneOff,
 } from 'lucide-react';
 
 const formatCurrency = (value: number) => {
@@ -64,6 +64,15 @@ interface SalesPersonData {
   // Follow-up
   followUpsDue: number;
   followUpsCompleted: number;
+  // Followups (from followups table)
+  followupsTotal: number;
+  followupsCompleted: number;
+  followupsPending: number;
+  followupsOverdue: number;
+  // Callbacks
+  callbacksTotal: number;
+  callbacksCompleted: number;
+  callbacksPending: number;
   // Target
   revenueTarget: number;
   ordersTarget: number;
