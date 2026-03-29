@@ -13,6 +13,33 @@ interface MFAVerificationProps {
   onCancel: () => void;
 }
 
+const primeAudioPlayback = async () => {
+  try {
+    const AudioContextConstructor =
+      window.AudioContext ||
+      (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+    if (!AudioContextConstructor) return;
+
+    const context = new AudioContextConstructor();
+    if (context.state === "suspended") {
+      await context.resume();
+    }
+
+    const buffer = context.createBuffer(1, 1, 22050);
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.connect(context.destination);
+    source.start(0);
+
+    window.setTimeout(() => {
+      void context.close().catch(() => undefined);
+    }, 0);
+  } catch {
+    // Ignore audio priming failures.
+  }
+};
+
 export const MFAVerification = ({ onVerified, onCancel }: MFAVerificationProps) => {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,9 +55,10 @@ export const MFAVerification = ({ onVerified, onCancel }: MFAVerificationProps) 
       return;
     }
 
+    await primeAudioPlayback();
     setLoading(true);
+
     try {
-      // Get the user's TOTP factors
       const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors();
 
       if (factorsError || !factorsData) {
@@ -81,6 +109,8 @@ export const MFAVerification = ({ onVerified, onCancel }: MFAVerificationProps) 
         return;
       }
 
+      sessionStorage.setItem("pending_login_greeting", "1");
+
       toast({
         title: "Welcome back!",
         description: "MFA verification successful.",
@@ -99,7 +129,7 @@ export const MFAVerification = ({ onVerified, onCancel }: MFAVerificationProps) 
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && code.length === 6) {
-      handleVerify();
+      void handleVerify();
     }
   };
 
@@ -139,7 +169,7 @@ export const MFAVerification = ({ onVerified, onCancel }: MFAVerificationProps) 
           </div>
 
           <Button
-            onClick={handleVerify}
+            onClick={() => void handleVerify()}
             className="w-full"
             disabled={loading || code.length !== 6}
           >
