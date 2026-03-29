@@ -18,9 +18,16 @@ export function VoiceChatBot() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [transcript, setTranscript] = useState('');
   const [currentResponse, setCurrentResponse] = useState('');
+  const [statusText, setStatusText] = useState('Tap mic to talk');
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const isOpenRef = useRef(false);
+
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -35,72 +42,9 @@ export function VoiceChatBot() {
     setIsSpeaking(false);
   }, []);
 
-  const sendToVoiceChat = useCallback(async (userText: string) => {
-    if (!userText.trim()) return;
-
-    const userMsg: Message = { role: 'user', content: userText };
-    const updatedMessages = [...messages, userMsg];
-    setMessages(updatedMessages);
-    setTranscript('');
-    setIsProcessing(true);
-    setCurrentResponse('');
-
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-chat`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({
-            messages: updatedMessages.slice(-10), // last 10 messages for context
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || `Request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const assistantMsg: Message = { role: 'assistant', content: data.text };
-      setMessages(prev => [...prev, assistantMsg]);
-      setCurrentResponse(data.text);
-
-      // Play audio
-      if (data.audioContent) {
-        const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
-        const audio = new Audio(audioUrl);
-        audioRef.current = audio;
-        setIsSpeaking(true);
-        audio.onended = () => {
-          setIsSpeaking(false);
-          audioRef.current = null;
-        };
-        audio.onerror = () => {
-          setIsSpeaking(false);
-          audioRef.current = null;
-        };
-        await audio.play().catch(() => setIsSpeaking(false));
-      }
-    } catch (error: any) {
-      console.error('Voice chat error:', error);
-      toast.error(error.message || 'Voice chat failed');
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [messages]);
-
-  const startListening = useCallback(() => {
+  const startListeningInternal = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.error('Speech recognition is not supported in this browser');
-      return;
-    }
+    if (!SpeechRecognition) return;
 
     stopSpeaking();
 
@@ -109,8 +53,11 @@ export function VoiceChatBot() {
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
-    recognition.onstart = () => setIsListening(true);
-    
+    recognition.onstart = () => {
+      setIsListening(true);
+      setStatusText('Listening... tap to send');
+    };
+
     recognition.onresult = (event: any) => {
       let finalTranscript = '';
       let interimTranscript = '';
@@ -132,7 +79,8 @@ export function VoiceChatBot() {
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
       setIsListening(false);
-      if (event.error !== 'no-speech') {
+      setStatusText('Tap mic to talk');
+      if (event.error !== 'no-speech' && event.error !== 'aborted') {
         toast.error('Microphone error: ' + event.error);
       }
     };
@@ -141,12 +89,118 @@ export function VoiceChatBot() {
     recognition.start();
   }, [stopSpeaking]);
 
+  const sendToVoiceChat = useCallback(async (userText: string) => {
+    if (!userText.trim()) return;
+
+    const userMsg: Message = { role: 'user', content: userText };
+    setMessages(prev => {
+      const updated = [...prev, userMsg];
+      // Send request with updated messages
+      doSend(updated);
+      return updated;
+    });
+    setTranscript('');
+    setIsProcessing(true);
+    setStatusText('Thinking...');
+    setCurrentResponse('');
+  }, []);
+
+  const doSend = useCallback(async (allMessages: Message[]) => {
+    // Cancel any previous in-flight request
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-chat`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            messages: allMessages.slice(-10),
+          }),
+          signal: controller.signal,
+        }
+      );
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const assistantMsg: Message = { role: 'assistant', content: data.text };
+      setMessages(prev => [...prev, assistantMsg]);
+      setCurrentResponse(data.text);
+      setIsProcessing(false);
+
+      // Play audio
+      if (data.audioContent) {
+        const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
+        const audio = new Audio(audioUrl);
+        audioRef.current = audio;
+        setIsSpeaking(true);
+        setStatusText('Speaking...');
+        audio.onended = () => {
+          setIsSpeaking(false);
+          audioRef.current = null;
+          setStatusText('Tap mic to talk');
+          // Auto-start listening after response finishes
+          if (isOpenRef.current) {
+            setTimeout(() => {
+              if (isOpenRef.current) startListeningInternal();
+            }, 500);
+          }
+        };
+        audio.onerror = () => {
+          setIsSpeaking(false);
+          audioRef.current = null;
+          setStatusText('Tap mic to talk');
+        };
+        await audio.play().catch(() => {
+          setIsSpeaking(false);
+          setStatusText('Tap mic to talk');
+        });
+      } else {
+        setStatusText('Tap mic to talk');
+        // Auto-start listening even if no audio
+        if (isOpenRef.current) {
+          setTimeout(() => {
+            if (isOpenRef.current) startListeningInternal();
+          }, 500);
+        }
+      }
+    } catch (error: any) {
+      if (error.name === 'AbortError') return;
+      console.error('Voice chat error:', error);
+      toast.error(error.message || 'Voice chat failed');
+      setIsProcessing(false);
+      setStatusText('Tap mic to talk');
+    }
+  }, [startListeningInternal]);
+
+  const startListening = useCallback(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error('Speech recognition is not supported in this browser');
+      return;
+    }
+    startListeningInternal();
+  }, [startListeningInternal]);
+
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
     if (transcript.trim()) {
       sendToVoiceChat(transcript);
+    } else {
+      setStatusText('Tap mic to talk');
     }
   }, [transcript, sendToVoiceChat]);
 
@@ -154,10 +208,20 @@ export function VoiceChatBot() {
     if (isOpen) {
       stopSpeaking();
       if (recognitionRef.current) recognitionRef.current.stop();
+      if (abortRef.current) abortRef.current.abort();
       setIsListening(false);
+      setIsProcessing(false);
+      setStatusText('Tap mic to talk');
     }
     setIsOpen(!isOpen);
   };
+
+  const handleCancel = useCallback(() => {
+    if (abortRef.current) abortRef.current.abort();
+    stopSpeaking();
+    setIsProcessing(false);
+    setStatusText('Tap mic to talk');
+  }, [stopSpeaking]);
 
   if (!user) return null;
 
@@ -169,11 +233,13 @@ export function VoiceChatBot() {
         className={`fixed bottom-24 right-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ${
           isOpen
             ? 'bg-destructive text-destructive-foreground'
-            : 'bg-gradient-to-br from-violet-500 to-purple-600 text-white hover:scale-110'
+            : isSpeaking || isProcessing
+              ? 'bg-gradient-to-br from-violet-500 to-purple-600 text-white animate-pulse'
+              : 'bg-gradient-to-br from-violet-500 to-purple-600 text-white hover:scale-110'
         }`}
         title="Voice Chat"
       >
-        {isOpen ? <X className="w-6 h-6" /> : <Bot className="w-6 h-6" />}
+        {isOpen ? <X className="w-6 h-6" /> : isSpeaking ? <Volume2 className="w-6 h-6" /> : <Bot className="w-6 h-6" />}
       </button>
 
       {/* Chat panel */}
@@ -181,20 +247,25 @@ export function VoiceChatBot() {
         <div className="fixed bottom-40 right-6 z-50 w-[380px] max-h-[500px] bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4">
           {/* Header */}
           <div className="bg-gradient-to-r from-violet-500 to-purple-600 px-4 py-3 flex items-center gap-3">
-            <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center">
+            <div className={`w-9 h-9 bg-white/20 rounded-full flex items-center justify-center ${isSpeaking ? 'animate-pulse' : ''}`}>
               <Bot className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1">
               <h3 className="text-white font-semibold text-sm">Xboom Voice AI</h3>
-              <p className="text-white/70 text-xs">
-                {isSpeaking ? 'Speaking...' : isListening ? 'Listening...' : isProcessing ? 'Thinking...' : 'Tap mic to talk'}
-              </p>
+              <p className="text-white/70 text-xs">{statusText}</p>
             </div>
-            {isSpeaking && (
-              <Button size="icon" variant="ghost" className="text-white hover:bg-white/20 h-8 w-8" onClick={stopSpeaking}>
-                <Square className="w-4 h-4" />
-              </Button>
-            )}
+            <div className="flex items-center gap-1">
+              {isSpeaking && (
+                <Button size="icon" variant="ghost" className="text-white hover:bg-white/20 h-8 w-8" onClick={stopSpeaking}>
+                  <Square className="w-4 h-4" />
+                </Button>
+              )}
+              {isProcessing && (
+                <Button size="icon" variant="ghost" className="text-white hover:bg-white/20 h-8 w-8" onClick={handleCancel} title="Cancel">
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Messages */}
@@ -219,8 +290,9 @@ export function VoiceChatBot() {
             ))}
             {isProcessing && (
               <div className="flex justify-start">
-                <div className="bg-muted px-3 py-2 rounded-xl rounded-bl-sm">
+                <div className="bg-muted px-3 py-2 rounded-xl rounded-bl-sm flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Thinking...</span>
                 </div>
               </div>
             )}
