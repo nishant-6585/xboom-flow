@@ -236,7 +236,7 @@ export function FormsLeadsPanel() {
                         <Badge variant="outline" className="text-xs">{lead.form_name}</Badge>
                       </td>
                       <td className="py-2.5 px-3 text-muted-foreground">{lead.product_name || "-"}</td>
-                      <td className="py-2.5 px-3">
+                      <td className="py-2.5 px-3" onClick={(e) => e.stopPropagation()}>
                         <Select value={lead.status} onValueChange={(val) => updateStatus.mutate({ id: lead.id, status: val })}>
                           <SelectTrigger className="h-7 w-[110px] text-xs">
                             <SelectValue />
@@ -248,7 +248,7 @@ export function FormsLeadsPanel() {
                           </SelectContent>
                         </Select>
                       </td>
-                      <td className="py-2.5 px-3">
+                      <td className="py-2.5 px-3" onClick={(e) => e.stopPropagation()}>
                         <Select
                           value={lead.assigned_to || "unassigned"}
                           onValueChange={(val) => {
@@ -274,10 +274,10 @@ export function FormsLeadsPanel() {
                       <td className="py-2.5 px-3 text-xs text-muted-foreground">
                         {format(new Date(lead.created_at), "dd MMM yyyy")}
                       </td>
-                      <td className="py-2.5 px-3">
+                      <td className="py-2.5 px-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedLead(lead)}>
-                            <Eye className="w-3.5 h-3.5" />
+                            <Pencil className="w-3.5 h-3.5" />
                           </Button>
                           {isManager && (
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteLead.mutate(lead.id)}>
