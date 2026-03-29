@@ -2969,6 +2969,85 @@ export type Database = {
           },
         ]
       }
+      form_leads: {
+        Row: {
+          assigned_to: string | null
+          assigned_to_name: string | null
+          city: string | null
+          company: string | null
+          created_at: string
+          customer_name: string
+          email: string | null
+          form_id: string | null
+          form_name: string
+          id: string
+          notes: string | null
+          phone: string | null
+          product_name: string | null
+          status: string
+          submission_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          city?: string | null
+          company?: string | null
+          created_at?: string
+          customer_name?: string
+          email?: string | null
+          form_id?: string | null
+          form_name: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          product_name?: string | null
+          status?: string
+          submission_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          city?: string | null
+          company?: string | null
+          created_at?: string
+          customer_name?: string
+          email?: string | null
+          form_id?: string | null
+          form_name?: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          product_name?: string | null
+          status?: string
+          submission_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_leads_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_leads_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_leads_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       form_permissions: {
         Row: {
           can_create_forms: boolean
