@@ -18,14 +18,15 @@ serve(async (req) => {
 
     const { text, voiceId } = await req.json();
 
-    if (!text || typeof text !== 'string' || text.length > 500) {
+    if (!text || typeof text !== 'string' || text.length > 1000) {
       return new Response(JSON.stringify({ error: 'Invalid text parameter' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const selectedVoice = voiceId || 'onwK4e9ZLuTAKqWW03F9'; // Daniel voice
+    // Sarah - natural female voice
+    const selectedVoice = voiceId || 'EXAVITQu4vr4xnSDxMaL';
 
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoice}?output_format=mp3_22050_32`,
