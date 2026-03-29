@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area,
@@ -13,8 +15,9 @@ import {
 import {
   TrendingUp, Users, Target, DollarSign, Package,
   Phone, MessageCircle, Mail, FileText, Send, ShoppingCart,
-  Eye, Zap, Clock, CalendarIcon, ArrowUpRight, ArrowDownRight,
+  Eye, Zap, Clock, CalendarIcon, ArrowRight,
   Percent, Activity, Layers, BarChart3, Award, MapPin, Flame,
+  Building2, ExternalLink,
 } from 'lucide-react';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useInteraktLeads } from '@/hooks/useInteraktLeads';
@@ -31,6 +34,7 @@ import {
   isAfter, isBefore, parseISO, startOfDay, endOfDay, eachDayOfInterval, addMonths, isSameDay,
 } from 'date-fns';
 import { useExpectedPayments } from '@/hooks/useExpectedPayments';
+import { LeadTemperatureBadge } from '@/components/LeadTemperatureBadge';
 import type { DateRange } from 'react-day-picker';
 
 const formatCurrency = (value: number) => {
@@ -41,6 +45,19 @@ const formatCurrency = (value: number) => {
 };
 
 type TimeFilter = 'today' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'last_90' | 'all' | 'custom';
+
+interface DetailItem {
+  id: string;
+  type: 'pipeline' | 'enquiry' | 'payment' | 'prospect' | 'lead';
+  customer_name: string;
+  customer_company: string;
+  product_name: string;
+  value: number;
+  date: string;
+  status: string;
+  temperature?: string;
+  tab?: string; // Which tab to navigate to
+}
 
 function getDateRange(filter: TimeFilter, customRange?: { from?: Date; to?: Date }) {
   const now = new Date();
@@ -87,6 +104,19 @@ const tooltipStyle = {
   fontSize: '12px',
 };
 
+const COLORS = [
+  'hsl(var(--primary))',
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#8b5cf6',
+];
+
 const TIME_LABELS: Record<TimeFilter, string> = {
   today: 'Today',
   this_week: 'This Week',
@@ -105,7 +135,18 @@ export function SalesCommandCenter() {
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
   const isManager = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
 
-  // Data hooks — fetch ALL data, filter client-side
+  // Drill-down dialog
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [dialogTitle, setDialogTitle] = useState('');
+  const [dialogItems, setDialogItems] = useState<DetailItem[]>([]);
+
+  const openDrillDown = useCallback((title: string, items: DetailItem[]) => {
+    setDialogTitle(title);
+    setDialogItems(items);
+    setDetailDialogOpen(true);
+  }, []);
+
+  // Data hooks
   const { enquiries } = useEnquiries();
   const { leads: interaktLeads } = useInteraktLeads();
   const { leads: emailLeads } = useEmailLeads();
@@ -142,7 +183,6 @@ export function SalesCommandCenter() {
   const dateRange = getDateRange(timeFilter, customDateRange);
 
   // ============ FILTERED DATA ============
-  // Use a more robust approach: don't filter by salesperson for sources that don't have sales_person_id
   const filtered = useMemo(() => {
     const byDate = <T extends Record<string, any>>(items: T[], dateField = 'created_at') =>
       timeFilter === 'all' ? items : items.filter(i => isInRange(i[dateField], dateRange));
@@ -200,40 +240,70 @@ export function SalesCommandCenter() {
     { name: 'Forms', value: filtered.forms.length, icon: FileText, color: 'hsl(var(--chart-5))' },
   ];
 
+  // ============ Category Breakdown (list style) ============
+  const categoryBreakdown = useMemo(() => {
+    const catMap = new Map<string, { value: number; count: number }>();
+    activePipeline.forEach(p => {
+      const cat = p.product_category || 'Uncategorized';
+      const current = catMap.get(cat) || { value: 0, count: 0 };
+      catMap.set(cat, { value: current.value + (p.expected_price || 0), count: current.count + 1 });
+    });
+    return Array.from(catMap.entries())
+      .map(([category, data]) => ({ category, ...data }))
+      .sort((a, b) => b.value - a.value);
+  }, [activePipeline]);
+
+  // ============ Pipeline by State ============
+  const pipelineByState = useMemo(() => {
+    const stateMap = new Map<string, number>();
+    activePipeline.forEach(p => {
+      const state = (p as any).customer_state || 'Unknown';
+      stateMap.set(state, (stateMap.get(state) || 0) + (p.expected_price || 0));
+    });
+    return Array.from(stateMap.entries())
+      .map(([state, value]) => ({ state, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+  }, [activePipeline]);
+
+  // ============ Pipeline by Temperature ============
+  const pipelineByTemperature = useMemo(() => {
+    const tempMap: Record<string, number> = { hot: 0, warm: 0, cold: 0 };
+    activePipeline.forEach(p => {
+      const temp = p.lead_temperature || 'warm';
+      tempMap[temp] = (tempMap[temp] || 0) + (p.expected_price || 0);
+    });
+    return [
+      { name: 'Hot', value: tempMap.hot, color: '#ef4444' },
+      { name: 'Warm', value: tempMap.warm, color: '#f59e0b' },
+      { name: 'Cold', value: tempMap.cold, color: '#3b82f6' },
+    ].filter(t => t.value > 0);
+  }, [activePipeline]);
+
+  // ============ Monthly Pipeline Trend ============
+  const monthlyTrend = useMemo(() => {
+    const months: Record<string, { created: number; won: number; lost: number }> = {};
+    filtered.pipeline.forEach(p => {
+      const month = format(new Date(p.created_at), 'MMM yyyy');
+      if (!months[month]) months[month] = { created: 0, won: 0, lost: 0 };
+      months[month].created += p.expected_price || 0;
+      if (p.status === 'won') months[month].won += p.expected_price || 0;
+      else if (p.status === 'lost') months[month].lost += p.expected_price || 0;
+    });
+    return Object.entries(months).slice(-6).map(([month, data]) => ({ month, ...data }));
+  }, [filtered.pipeline]);
+
   // ============ Salesperson Performance ============
   const salesPersonPerformance = useMemo(() => {
     if (!isManager || salesTeam.length === 0) return [];
-
     const spMap = new Map<string, { name: string; leads: number; prospects: number; pipelineValue: number; ordersWon: number; revenue: number }>();
-
     salesTeam.forEach((sp: any) => {
       spMap.set(sp.user_id, { name: sp.name, leads: 0, prospects: 0, pipelineValue: 0, ordersWon: 0, revenue: 0 });
     });
-
-    filtered.enquiries.forEach((e: any) => {
-      if (!e.sales_person_id) return;
-      const sp = spMap.get(e.sales_person_id);
-      if (sp) sp.leads++;
-    });
-
-    filtered.prospects.forEach((p: any) => {
-      if (!p.created_by) return;
-      const sp = spMap.get(p.created_by);
-      if (sp) sp.prospects++;
-    });
-
-    filtered.pipeline.forEach(p => {
-      if (!p.sales_person_id) return;
-      const sp = spMap.get(p.sales_person_id);
-      if (sp && p.status !== 'won' && p.status !== 'lost') sp.pipelineValue += p.expected_price || 0;
-    });
-
-    filtered.orders.forEach(o => {
-      if (!o.sales_person_id) return;
-      const sp = spMap.get(o.sales_person_id);
-      if (sp) { sp.ordersWon++; sp.revenue += o.total_sales_amount || 0; }
-    });
-
+    filtered.enquiries.forEach((e: any) => { if (e.sales_person_id) { const sp = spMap.get(e.sales_person_id); if (sp) sp.leads++; } });
+    filtered.prospects.forEach((p: any) => { if (p.created_by) { const sp = spMap.get(p.created_by); if (sp) sp.prospects++; } });
+    filtered.pipeline.forEach(p => { if (p.sales_person_id) { const sp = spMap.get(p.sales_person_id); if (sp && p.status !== 'won' && p.status !== 'lost') sp.pipelineValue += p.expected_price || 0; } });
+    filtered.orders.forEach(o => { if (o.sales_person_id) { const sp = spMap.get(o.sales_person_id); if (sp) { sp.ordersWon++; sp.revenue += o.total_sales_amount || 0; } } });
     return Array.from(spMap.entries())
       .map(([id, data]) => ({ id, ...data }))
       .filter(sp => sp.leads > 0 || sp.prospects > 0 || sp.ordersWon > 0 || sp.pipelineValue > 0)
@@ -243,29 +313,22 @@ export function SalesCommandCenter() {
   // ============ Target vs Achieved ============
   const targetComparison = useMemo(() => {
     const now = new Date();
-    const currentTargets = targets.filter(t =>
-      new Date(t.period_start) <= now && new Date(t.period_end) >= now
-    );
-
-    return currentTargets.map(t => {
-      const spOrders = orders.filter(o => o.sales_person_id === t.user_id);
-      const spPipeline = pipelineOrders.filter(p => p.sales_person_id === t.user_id && p.status !== 'won' && p.status !== 'lost');
-      const spProspects = prospects.filter((p: any) => p.created_by === t.user_id);
-      const revenue = spOrders.reduce((s, o) => s + (o.total_sales_amount || 0), 0);
-      const pipeVal = spPipeline.reduce((s, p) => s + (p.expected_price || 0), 0);
-
-      return {
-        name: t.user_name,
-        revenueTarget: t.revenue_target,
-        revenueAchieved: revenue,
-        ordersTarget: t.orders_target,
-        ordersAchieved: spOrders.length,
-        pipelineTarget: t.pipeline_target,
-        pipelineAchieved: pipeVal,
-        prospectsCount: spProspects.length,
-        revenuePct: t.revenue_target > 0 ? Math.round((revenue / t.revenue_target) * 100) : 0,
-      };
-    });
+    return targets
+      .filter(t => new Date(t.period_start) <= now && new Date(t.period_end) >= now)
+      .map(t => {
+        const spOrders = orders.filter(o => o.sales_person_id === t.user_id);
+        const spPipeline = pipelineOrders.filter(p => p.sales_person_id === t.user_id && p.status !== 'won' && p.status !== 'lost');
+        const spProspects = prospects.filter((p: any) => p.created_by === t.user_id);
+        const revenue = spOrders.reduce((s, o) => s + (o.total_sales_amount || 0), 0);
+        const pipeVal = spPipeline.reduce((s, p) => s + (p.expected_price || 0), 0);
+        return {
+          name: t.user_name, revenueTarget: t.revenue_target, revenueAchieved: revenue,
+          ordersTarget: t.orders_target, ordersAchieved: spOrders.length,
+          pipelineTarget: t.pipeline_target, pipelineAchieved: pipeVal,
+          prospectsCount: spProspects.length,
+          revenuePct: t.revenue_target > 0 ? Math.round((revenue / t.revenue_target) * 100) : 0,
+        };
+      });
   }, [targets, orders, pipelineOrders, prospects]);
 
   // ============ Funnel ============
@@ -294,7 +357,7 @@ export function SalesCommandCenter() {
     { name: 'Lost', value: pipelineLost.length, color: '#ef4444' },
   ].filter(d => d.value > 0);
 
-  // Pipeline by category
+  // Pipeline by category (for bar chart)
   const pipelineByCategoryData = useMemo(() => {
     const catMap = new Map<string, number>();
     activePipeline.forEach(p => {
@@ -330,7 +393,7 @@ export function SalesCommandCenter() {
     }));
   }, [enquiries, interaktLeads, callLogs, prospects, orders]);
 
-  // MyOperator call stats
+  // Call stats
   const callStats = useMemo(() => {
     const answered = filtered.calls.filter((c: any) => {
       const payload = c.raw_payload;
@@ -340,34 +403,7 @@ export function SalesCommandCenter() {
     return { total: filtered.calls.length, answered, missed: filtered.calls.length - answered };
   }, [filtered.calls]);
 
-  // ============ Pipeline by State ============
-  const pipelineByState = useMemo(() => {
-    const stateMap = new Map<string, number>();
-    activePipeline.forEach(p => {
-      const state = (p as any).customer_state || 'Unknown';
-      stateMap.set(state, (stateMap.get(state) || 0) + (p.expected_price || 0));
-    });
-    return Array.from(stateMap.entries())
-      .map(([state, value]) => ({ state, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 10);
-  }, [activePipeline]);
-
-  // ============ Pipeline by Temperature ============
-  const pipelineByTemperature = useMemo(() => {
-    const tempMap: Record<string, number> = { hot: 0, warm: 0, cold: 0 };
-    activePipeline.forEach(p => {
-      const temp = p.lead_temperature || 'warm';
-      tempMap[temp] = (tempMap[temp] || 0) + (p.expected_price || 0);
-    });
-    return [
-      { name: 'Hot', value: tempMap.hot, color: '#ef4444' },
-      { name: 'Warm', value: tempMap.warm, color: '#f59e0b' },
-      { name: 'Cold', value: tempMap.cold, color: '#3b82f6' },
-    ].filter(t => t.value > 0);
-  }, [activePipeline]);
-
-  // ============ Expected Payments Timeline (30 days) ============
+  // Expected Payments Timeline (30 days)
   const paymentsTimeline = useMemo(() => {
     const now = new Date();
     const endDate = addMonths(now, 1);
@@ -389,6 +425,195 @@ export function SalesCommandCenter() {
     }).filter(d => d.payments > 0 || d.closures > 0);
   }, [payments, activePipeline]);
 
+  // ============ DRILL-DOWN HANDLERS ============
+  const handleCategoryClick = useCallback((category: string) => {
+    const items: DetailItem[] = activePipeline
+      .filter(p => (p.product_category || 'Uncategorized') === category)
+      .map(p => ({
+        id: p.id, type: 'pipeline' as const, customer_name: p.customer_name,
+        customer_company: p.customer_company, product_name: p.product_name,
+        value: p.expected_price || 0, date: p.created_at, status: p.status,
+        temperature: p.lead_temperature, tab: 'pipeline',
+      }));
+    openDrillDown(`${category} Pipeline (${items.length})`, items);
+  }, [activePipeline, openDrillDown]);
+
+  const handleStateClick = useCallback((state: string) => {
+    const items: DetailItem[] = activePipeline
+      .filter(p => ((p as any).customer_state || 'Unknown') === state)
+      .map(p => ({
+        id: p.id, type: 'pipeline' as const, customer_name: p.customer_name,
+        customer_company: p.customer_company, product_name: p.product_name,
+        value: p.expected_price || 0, date: p.created_at, status: p.status,
+        temperature: p.lead_temperature, tab: 'pipeline',
+      }));
+    openDrillDown(`${state} Pipeline (${items.length})`, items);
+  }, [activePipeline, openDrillDown]);
+
+  const handleTemperatureClick = useCallback((temp: string) => {
+    const tempLower = temp.toLowerCase();
+    const items: DetailItem[] = activePipeline
+      .filter(p => (p.lead_temperature || 'warm') === tempLower)
+      .map(p => ({
+        id: p.id, type: 'pipeline' as const, customer_name: p.customer_name,
+        customer_company: p.customer_company, product_name: p.product_name,
+        value: p.expected_price || 0, date: p.created_at, status: p.status,
+        temperature: p.lead_temperature, tab: 'pipeline',
+      }));
+    openDrillDown(`${temp} Leads (${items.length})`, items);
+  }, [activePipeline, openDrillDown]);
+
+  const handleEnquiryStatusClick = useCallback((status: string) => {
+    const statusKey = status.toLowerCase().replace(/ /g, '_');
+    const statusMap: Record<string, string> = { pending: 'pending', responded: 'responded', pipeline: 'moved_to_pipeline', won: 'order_won', lost: 'order_lost', 'on hold': 'on_hold' };
+    const mapped = statusMap[status.toLowerCase()] || statusKey;
+    const items: DetailItem[] = filtered.enquiries
+      .filter((e: any) => e.status === mapped)
+      .map((e: any) => ({
+        id: e.id, type: 'enquiry' as const, customer_name: e.customer_name,
+        customer_company: e.customer_company, product_name: e.product_name,
+        value: e.quantity || 0, date: e.created_at, status: e.status,
+        temperature: e.lead_temperature, tab: 'enquiries',
+      }));
+    openDrillDown(`${status} Enquiries (${items.length})`, items);
+  }, [filtered.enquiries, openDrillDown]);
+
+  const handlePipelineStatusClick = useCallback((status: string) => {
+    const statusMap: Record<string, string> = { pending: 'pending_confirmation', negotiation: 'negotiation', won: 'won', lost: 'lost' };
+    const mapped = statusMap[status.toLowerCase()] || status.toLowerCase();
+    const items: DetailItem[] = filtered.pipeline
+      .filter(p => p.status === mapped)
+      .map(p => ({
+        id: p.id, type: 'pipeline' as const, customer_name: p.customer_name,
+        customer_company: p.customer_company, product_name: p.product_name,
+        value: p.expected_price || 0, date: p.created_at, status: p.status,
+        temperature: p.lead_temperature, tab: 'pipeline',
+      }));
+    openDrillDown(`${status} Pipeline (${items.length})`, items);
+  }, [filtered.pipeline, openDrillDown]);
+
+  const handleFunnelClick = useCallback((stage: string) => {
+    if (stage === 'Total Leads') {
+      const items: DetailItem[] = filtered.enquiries.slice(0, 50).map((e: any) => ({
+        id: e.id, type: 'enquiry' as const, customer_name: e.customer_name,
+        customer_company: e.customer_company, product_name: e.product_name,
+        value: e.quantity || 0, date: e.created_at, status: e.status, tab: 'enquiries',
+      }));
+      openDrillDown(`All Leads (showing ${items.length})`, items);
+    } else if (stage === 'Prospects') {
+      const items: DetailItem[] = filtered.prospects.slice(0, 50).map((p: any) => ({
+        id: p.id, type: 'prospect' as const, customer_name: p.customer_name,
+        customer_company: p.company || '', product_name: p.product_name || '',
+        value: 0, date: p.created_at, status: p.is_a_category ? 'A-Category' : 'Prospect', tab: 'prospects',
+      }));
+      openDrillDown(`Prospects (showing ${items.length})`, items);
+    } else if (stage === 'Pipeline') {
+      const items: DetailItem[] = activePipeline.slice(0, 50).map(p => ({
+        id: p.id, type: 'pipeline' as const, customer_name: p.customer_name,
+        customer_company: p.customer_company, product_name: p.product_name,
+        value: p.expected_price || 0, date: p.created_at, status: p.status, tab: 'pipeline',
+      }));
+      openDrillDown(`Active Pipeline (showing ${items.length})`, items);
+    } else if (stage === 'Orders Won') {
+      const items: DetailItem[] = filtered.orders.slice(0, 50).map(o => ({
+        id: o.id, type: 'pipeline' as const, customer_name: o.customer_name || '',
+        customer_company: o.customer_company || '', product_name: o.product_name || '',
+        value: o.total_sales_amount || 0, date: o.created_at, status: 'won', tab: 'pipeline',
+      }));
+      openDrillDown(`Orders Won (showing ${items.length})`, items);
+    }
+  }, [filtered, activePipeline, openDrillDown]);
+
+  const handleInflowChartClick = useCallback((data: any) => {
+    if (!data?.activePayload?.length) return;
+    const clickedDate = data.activeLabel;
+    const now = new Date();
+    const endDate = addMonths(now, 1);
+    const days = eachDayOfInterval({ start: now, end: endDate });
+    const targetDay = days.find(d => format(d, 'MMM d') === clickedDate);
+    if (!targetDay) return;
+
+    const dayPayments = payments.filter(p => {
+      if (!p.expected_date || p.status === 'received') return false;
+      return isSameDay(parseISO(p.expected_date), targetDay);
+    });
+    const pipelineClosures = activePipeline.filter(p => {
+      if (!p.expected_closure_date) return false;
+      return isSameDay(parseISO(p.expected_closure_date), targetDay);
+    });
+
+    const items: DetailItem[] = [
+      ...dayPayments.map(p => ({
+        id: p.id, type: 'payment' as const, customer_name: p.customer_name,
+        customer_company: p.customer_company || '', product_name: p.order_number || 'Payment',
+        value: p.amount, date: p.expected_date, status: p.status, tab: 'pipeline',
+      })),
+      ...pipelineClosures.map(p => ({
+        id: p.id, type: 'pipeline' as const, customer_name: p.customer_name,
+        customer_company: p.customer_company, product_name: p.product_name,
+        value: p.expected_price || 0, date: p.expected_closure_date || '', status: p.status,
+        temperature: p.lead_temperature, tab: 'pipeline',
+      })),
+    ];
+    openDrillDown(`Expected Inflows - ${clickedDate} (${items.length} items)`, items);
+  }, [payments, activePipeline, openDrillDown]);
+
+  const handleLeadSourceClick = useCallback((sourceName: string) => {
+    let items: DetailItem[] = [];
+    if (sourceName === 'Enquiries') {
+      items = filtered.enquiries.slice(0, 50).map((e: any) => ({
+        id: e.id, type: 'enquiry' as const, customer_name: e.customer_name,
+        customer_company: e.customer_company, product_name: e.product_name,
+        value: e.quantity || 0, date: e.created_at, status: e.status, tab: 'enquiries',
+      }));
+    } else if (sourceName === 'Interakt') {
+      items = filtered.interakt.slice(0, 50).map((l: any) => ({
+        id: l.id, type: 'lead' as const, customer_name: l.customer_name || l.name || 'Unknown',
+        customer_company: l.company || '', product_name: l.product_name || '',
+        value: 0, date: l.created_at, status: l.status || 'new', tab: 'leads',
+      }));
+    } else if (sourceName === 'MyOperator') {
+      items = filtered.calls.slice(0, 50).map((c: any) => ({
+        id: c.id, type: 'lead' as const, customer_name: c.customer_name || c.caller_number,
+        customer_company: c.company || '', product_name: c.product_name || '',
+        value: 0, date: c.created_at, status: c.call_status, tab: 'leads',
+      }));
+    } else if (sourceName === 'Emails') {
+      items = filtered.email.slice(0, 50).map((e: any) => ({
+        id: e.id, type: 'lead' as const, customer_name: e.customer_name,
+        customer_company: e.customer_company || '', product_name: e.product_name || '',
+        value: 0, date: e.created_at, status: e.status || 'new', tab: 'leads',
+      }));
+    } else if (sourceName === 'Forms') {
+      items = filtered.forms.slice(0, 50).map((f: any) => ({
+        id: f.id, type: 'lead' as const, customer_name: f.customer_name || f.name || 'Unknown',
+        customer_company: f.company || '', product_name: f.product_name || '',
+        value: 0, date: f.created_at, status: f.status || 'new', tab: 'leads',
+      }));
+    }
+    openDrillDown(`${sourceName} (${items.length})`, items);
+  }, [filtered, openDrillDown]);
+
+  // Navigate to detail tab
+  const handleItemClick = useCallback((item: DetailItem) => {
+    setDetailDialogOpen(false);
+    // Find the tab button in the Sales page and click it
+    const tabMap: Record<string, string> = {
+      enquiries: 'enquiries',
+      pipeline: 'pipeline',
+      prospects: 'prospects',
+      leads: 'leads',
+    };
+    const tabValue = tabMap[item.tab || ''];
+    if (tabValue) {
+      // Use DOM to switch tab on the Sales page
+      setTimeout(() => {
+        const tabBtn = document.querySelector(`[data-value="${tabValue}"], [value="${tabValue}"]`) as HTMLElement;
+        if (tabBtn) tabBtn.click();
+      }, 100);
+    }
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* ============ FILTERS BAR ============ */}
@@ -399,14 +624,9 @@ export function SalesCommandCenter() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="this_week">This Week</SelectItem>
-            <SelectItem value="last_week">Last Week</SelectItem>
-            <SelectItem value="this_month">This Month</SelectItem>
-            <SelectItem value="last_month">Last Month</SelectItem>
-            <SelectItem value="last_90">Last 90 Days</SelectItem>
-            <SelectItem value="all">All Time</SelectItem>
-            <SelectItem value="custom">Custom Range</SelectItem>
+            {Object.entries(TIME_LABELS).map(([k, v]) => (
+              <SelectItem key={k} value={k}>{v}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
@@ -421,12 +641,7 @@ export function SalesCommandCenter() {
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="range"
-                selected={customDateRange}
-                onSelect={setCustomDateRange}
-                numberOfMonths={2}
-              />
+              <Calendar mode="range" selected={customDateRange} onSelect={setCustomDateRange} numberOfMonths={2} />
             </PopoverContent>
           </Popover>
         )}
@@ -464,9 +679,8 @@ export function SalesCommandCenter() {
         <KPICard label="Win Rate" value={`${winRate}%`} icon={Percent} gradient="from-teal-500 to-emerald-600" isText />
       </div>
 
-      {/* ============ ENQUIRIES RECEIVED vs ACHIEVED + LEAD SOURCES ============ */}
+      {/* ============ ENQUIRIES RECEIVED vs ACHIEVED + LEAD SOURCES + QUICK STATS ============ */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-        {/* Enquiries → Orders funnel card */}
         <Card className="md:col-span-4">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -495,7 +709,6 @@ export function SalesCommandCenter() {
           </CardContent>
         </Card>
 
-        {/* Lead Source Distribution */}
         <Card className="md:col-span-4">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -507,7 +720,11 @@ export function SalesCommandCenter() {
             {leadSourceData.map(src => {
               const pct = totalLeadsAll > 0 ? ((src.value / totalLeadsAll) * 100) : 0;
               return (
-                <div key={src.name} className="space-y-1">
+                <div
+                  key={src.name}
+                  className="space-y-1 cursor-pointer hover:bg-muted/50 p-1.5 rounded-lg -m-1.5 transition-colors"
+                  onClick={() => handleLeadSourceClick(src.name)}
+                >
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
                       <src.icon className="w-4 h-4" style={{ color: src.color }} />
@@ -527,7 +744,6 @@ export function SalesCommandCenter() {
           </CardContent>
         </Card>
 
-        {/* Call Stats + Pipeline Summary */}
         <Card className="md:col-span-4">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -549,9 +765,7 @@ export function SalesCommandCenter() {
                 <p className="text-xs font-medium text-muted-foreground mb-1.5">Prospects by Source</p>
                 <div className="flex flex-wrap gap-1.5">
                   {prospectsBySource.map(ps => (
-                    <Badge key={ps.name} variant="secondary" className="text-xs">
-                      {ps.name}: {ps.value}
-                    </Badge>
+                    <Badge key={ps.name} variant="secondary" className="text-xs">{ps.name}: {ps.value}</Badge>
                   ))}
                 </div>
               </div>
@@ -559,6 +773,46 @@ export function SalesCommandCenter() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ============ CATEGORY BREAKDOWN (List Style) ============ */}
+      {categoryBreakdown.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Package className="w-4 h-4 text-primary" />
+              Category Breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {categoryBreakdown.map((cat, index) => (
+                <div
+                  key={cat.category}
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
+                  onClick={() => handleCategoryClick(cat.category)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-2 h-8 rounded-full"
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    />
+                    <div>
+                      <p className="font-medium">{cat.category}</p>
+                      <p className="text-sm text-muted-foreground">{cat.count} deals</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold">{formatCurrency(cat.value)}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Avg: {formatCurrency(cat.count > 0 ? cat.value / cat.count : 0)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ============ TARGET VS ACHIEVED ============ */}
       {isManager && targetComparison.length > 0 && (
@@ -609,7 +863,7 @@ export function SalesCommandCenter() {
         </Card>
       )}
 
-      {/* ============ SALESPERSON PERFORMANCE ============ */}
+      {/* ============ SALESPERSON COMPARISON ============ */}
       {isManager && salesPersonPerformance.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
@@ -636,7 +890,7 @@ export function SalesCommandCenter() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* ============ SALES FUNNEL ============ */}
+        {/* ============ SALES FUNNEL (Clickable) ============ */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -651,15 +905,17 @@ export function SalesCommandCenter() {
                 const pct = Math.max(8, (stage.value / maxVal) * 100);
                 const convPct = i > 0 && funnelData[i - 1].value > 0 ? ((stage.value / funnelData[i - 1].value) * 100).toFixed(0) : null;
                 return (
-                  <div key={stage.stage} className="space-y-1">
+                  <div
+                    key={stage.stage}
+                    className="space-y-1 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => handleFunnelClick(stage.stage)}
+                  >
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">{stage.stage}</span>
                       <div className="flex items-center gap-2">
                         <span className="font-bold">{stage.value}</span>
                         {convPct && (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0">
-                            {convPct}% conv
-                          </Badge>
+                          <Badge variant="outline" className="text-[10px] px-1 py-0">{convPct}% conv</Badge>
                         )}
                       </div>
                     </div>
@@ -676,7 +932,7 @@ export function SalesCommandCenter() {
           </CardContent>
         </Card>
 
-        {/* ============ ENQUIRY STATUS PIE ============ */}
+        {/* ============ ENQUIRY STATUS PIE (Clickable) ============ */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -690,8 +946,14 @@ export function SalesCommandCenter() {
             ) : (
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
-                  <Pie data={enquiryStatusData} cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={3} dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                  <Pie
+                    data={enquiryStatusData} cx="50%" cy="50%" innerRadius={50} outerRadius={90}
+                    paddingAngle={3} dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
+                    onClick={(data) => handleEnquiryStatusClick(data.name)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     {enquiryStatusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                   </Pie>
                   <Tooltip contentStyle={tooltipStyle} />
@@ -701,7 +963,7 @@ export function SalesCommandCenter() {
           </CardContent>
         </Card>
 
-        {/* ============ PIPELINE STATUS ============ */}
+        {/* ============ PIPELINE STATUS (Clickable) ============ */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -715,8 +977,14 @@ export function SalesCommandCenter() {
             ) : (
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
-                  <Pie data={pipelineStatusData} cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={3} dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                  <Pie
+                    data={pipelineStatusData} cx="50%" cy="50%" innerRadius={50} outerRadius={90}
+                    paddingAngle={3} dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
+                    onClick={(data) => handlePipelineStatusClick(data.name)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     {pipelineStatusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                   </Pie>
                   <Tooltip contentStyle={tooltipStyle} />
@@ -726,7 +994,7 @@ export function SalesCommandCenter() {
           </CardContent>
         </Card>
 
-        {/* ============ PIPELINE BY CATEGORY ============ */}
+        {/* ============ PIPELINE BY CATEGORY (Bar Chart, Clickable) ============ */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -744,7 +1012,11 @@ export function SalesCommandCenter() {
                   <XAxis type="number" tickFormatter={formatCurrency} className="text-xs" />
                   <YAxis type="category" dataKey="name" width={100} className="text-xs" tickFormatter={(v) => v.length > 14 ? v.slice(0, 14) + '…' : v} />
                   <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => formatCurrency(v)} />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Value" />
+                  <Bar
+                    dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Value"
+                    onClick={(data) => handleCategoryClick(data.name)}
+                    style={{ cursor: 'pointer' }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -771,7 +1043,11 @@ export function SalesCommandCenter() {
                   <XAxis type="number" tickFormatter={formatCurrency} className="text-xs" />
                   <YAxis type="category" dataKey="state" width={100} className="text-xs" />
                   <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => formatCurrency(v)} />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Pipeline Value" />
+                  <Bar
+                    dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Pipeline Value"
+                    onClick={(data) => handleStateClick(data.state)}
+                    style={{ cursor: 'pointer' }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -789,22 +1065,64 @@ export function SalesCommandCenter() {
             {pipelineByTemperature.length === 0 ? (
               <div className="flex items-center justify-center h-[250px] text-muted-foreground text-sm">No temperature data</div>
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <PieChart>
-                  <Pie data={pipelineByTemperature} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={4} dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
-                    {pipelineByTemperature.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => formatCurrency(v)} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="space-y-4">
+                {pipelineByTemperature.map((temp) => (
+                  <div
+                    key={temp.name}
+                    className="space-y-1 cursor-pointer hover:bg-muted/50 p-2 rounded-lg -m-2 transition-colors"
+                    onClick={() => handleTemperatureClick(temp.name)}
+                  >
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: temp.color }} />
+                        <span>{temp.name}</span>
+                      </div>
+                      <span className="font-medium">{formatCurrency(temp.value)}</span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${pipelineValue > 0 ? (temp.value / pipelineValue) * 100 : 0}%`,
+                          backgroundColor: temp.color,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* ============ EXPECTED INFLOWS TIMELINE ============ */}
+      {/* ============ MONTHLY PIPELINE TREND ============ */}
+      {monthlyTrend.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-primary" />
+              Monthly Pipeline Trend
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={monthlyTrend}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="month" className="text-xs" />
+                <YAxis tickFormatter={formatCurrency} className="text-xs" />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: number, name: string) => [formatCurrency(v), name === 'created' ? 'Created' : name === 'won' ? 'Won' : 'Lost']} />
+                <Legend />
+                <Bar dataKey="created" name="Created" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="won" name="Won" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="lost" name="Lost" fill="#ef4444" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ============ EXPECTED INFLOWS TIMELINE (Clickable) ============ */}
       {paymentsTimeline.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
@@ -815,7 +1133,7 @@ export function SalesCommandCenter() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={paymentsTimeline}>
+              <BarChart data={paymentsTimeline} onClick={handleInflowChartClick} style={{ cursor: 'pointer' }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="date" className="text-xs" />
                 <YAxis tickFormatter={formatCurrency} className="text-xs" />
@@ -829,7 +1147,7 @@ export function SalesCommandCenter() {
         </Card>
       )}
 
-      {/* ============ DAILY TREND ============ */}
+      {/* ============ 14-DAY ACTIVITY TREND ============ */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -854,6 +1172,64 @@ export function SalesCommandCenter() {
           </ResponsiveContainer>
         </CardContent>
       </Card>
+
+      {/* ============ DRILL-DOWN DETAIL DIALOG ============ */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">{dialogTitle}</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] pr-4">
+            {dialogItems.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">No items found</div>
+            ) : (
+              <div className="space-y-2">
+                {dialogItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer group"
+                    onClick={() => handleItemClick(item)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium truncate">{item.customer_name}</span>
+                        <Badge variant="outline" className="text-xs shrink-0">
+                          {item.type === 'payment' ? 'Payment' : item.type === 'prospect' ? 'Prospect' : item.type === 'lead' ? 'Lead' : item.type === 'enquiry' ? 'Enquiry' : 'Pipeline'}
+                        </Badge>
+                        {item.temperature && (
+                          <LeadTemperatureBadge temperature={item.temperature as any} showLabel={false} size="sm" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        {item.customer_company && (
+                          <>
+                            <Building2 className="w-3 h-3" />
+                            <span className="truncate">{item.customer_company}</span>
+                            <span>•</span>
+                          </>
+                        )}
+                        <span className="truncate">{item.product_name || item.status}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0 ml-3">
+                      <div className="text-right">
+                        {item.value > 0 && <p className="font-semibold text-primary">{formatCurrency(item.value)}</p>}
+                        <p className="text-xs text-muted-foreground">
+                          {item.date ? format(new Date(item.date), 'dd MMM yyyy') : '—'}
+                        </p>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+          <div className="flex justify-end pt-4 border-t">
+            <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
