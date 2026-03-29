@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { unlockAppAudio } from "@/lib/audioPlayback";
 import logoIcon from "@/assets/logo-icon.jpeg";
 
 interface MFAVerificationProps {
@@ -15,26 +16,7 @@ interface MFAVerificationProps {
 
 const primeAudioPlayback = async () => {
   try {
-    const AudioContextConstructor =
-      window.AudioContext ||
-      (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-
-    if (!AudioContextConstructor) return;
-
-    const context = new AudioContextConstructor();
-    if (context.state === "suspended") {
-      await context.resume();
-    }
-
-    const buffer = context.createBuffer(1, 1, 22050);
-    const source = context.createBufferSource();
-    source.buffer = buffer;
-    source.connect(context.destination);
-    source.start(0);
-
-    window.setTimeout(() => {
-      void context.close().catch(() => undefined);
-    }, 0);
+    await unlockAppAudio();
   } catch {
     // Ignore audio priming failures.
   }
