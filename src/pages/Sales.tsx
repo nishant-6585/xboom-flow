@@ -11,6 +11,7 @@ import { PointsDisplay } from "@/components/sales/PointsDisplay";
 import { SuggestionBox } from "@/components/sales/SuggestionBox";
 import { OutboundSalesPanel } from "@/components/sales/OutboundSalesPanel";
 import { ManagerDashboard } from "@/components/sales/ManagerDashboard";
+import { SalesCommandCenter } from "@/components/sales/SalesCommandCenter";
 import { TestimonialsPanel } from "@/components/sales/TestimonialsPanel";
 import { SalesRulesPanel } from "@/components/sales/SalesRulesPanel";
 import { LeadsPanel } from "@/components/sales/LeadsPanel";
@@ -161,6 +162,7 @@ export default function Sales() {
           </TabsContent>
 
           <TabsContent value="manager" className="space-y-6">
+            <SalesCommandCenter />
             <ManagerDashboard />
           </TabsContent>
 
