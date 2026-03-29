@@ -204,6 +204,7 @@ function generatePerformanceSuggestions(
   return suggestions.slice(0, 4); // Max 4 suggestions per person
 }
 
+export function SalesCommandCenter() {
 
   const { user, role } = useAuth();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('this_month');
