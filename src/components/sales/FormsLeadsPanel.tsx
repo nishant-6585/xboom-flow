@@ -17,6 +17,7 @@ import { FileText, Search, Mail, Phone, Building2, MapPin, Package, User, Calend
 import { format } from "date-fns";
 import { ProspectButton, ACategoryButton } from "./ProspectButton";
 import { AttentionButton } from "./AttentionButton";
+import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { useProspects } from "@/hooks/useProspects";
 import { useAttentionItems } from "@/hooks/useAttentionItems";
 
@@ -259,6 +260,17 @@ export function FormsLeadsPanel() {
                             productName={lead.product_name}
                             notes={lead.notes}
                             isAlreadyAttention={attentionSourceIds.has(`form_lead:${lead.id}`)}
+                          />
+                          <EnquiryConvertButton
+                            sourceType="form_lead"
+                            sourceId={lead.id}
+                            customerName={lead.customer_name}
+                            phoneNumber={lead.phone}
+                            email={lead.email}
+                            company={lead.company}
+                            city={lead.city}
+                            productName={lead.product_name}
+                            notes={lead.notes}
                           />
                         </div>
                       </td>

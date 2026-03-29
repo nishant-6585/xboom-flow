@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { ProspectButton } from "@/components/sales/ProspectButton";
 import { AttentionButton } from "@/components/sales/AttentionButton";
+import { EnquiryConvertButton } from "@/components/sales/EnquiryConvertButton";
 import type { Prospect } from "@/hooks/useProspects";
 
 interface CallLogsPanelProps {
@@ -398,6 +399,22 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                               phoneNumber={log.full_number || log.caller_number}
                               notes={info.whatText}
                               isAlreadyAttention={attentionSourceIds.has(`myoperator:${log.id}`)}
+                            />
+                            <EnquiryConvertButton
+                              sourceType="myoperator"
+                              sourceId={log.id}
+                              customerName={(log as any).customer_name || log.full_number || log.caller_number}
+                              phoneNumber={log.full_number || log.caller_number}
+                              company={(log as any).customer_company}
+                              city={(log as any).city}
+                              productName={(log as any).product_name}
+                              productCategory={(log as any).product_category}
+                              productCode={(log as any).product_code}
+                              quantity={(log as any).quantity}
+                              urgency={(log as any).urgency}
+                              requestedTimeline={(log as any).requested_timeline}
+                              purposeOfPurchase={(log as any).purpose_of_purchase}
+                              notes={info.whatText}
                             />
                           </div>
                         </TableCell>

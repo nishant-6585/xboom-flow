@@ -14,6 +14,7 @@ import { Search, Plus, Mail, Loader2, Filter, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { ProspectButton, ACategoryButton } from './ProspectButton';
 import { AttentionButton } from './AttentionButton';
+import { EnquiryConvertButton } from './EnquiryConvertButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadFormDialog } from './EmailLeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
@@ -189,6 +190,23 @@ export function EmailLeadsPanel() {
                             productName={lead.product_name}
                             notes={lead.notes}
                             isAlreadyAttention={isAttention(lead.id)}
+                          />
+                          <EnquiryConvertButton
+                            sourceType="email"
+                            sourceId={lead.id}
+                            customerName={lead.customer_name}
+                            phoneNumber={lead.phone_number}
+                            email={lead.email}
+                            company={lead.customer_company}
+                            city={lead.city}
+                            productName={lead.product_name}
+                            productCategory={lead.product_category}
+                            productCode={lead.product_code}
+                            quantity={lead.quantity}
+                            urgency={lead.urgency}
+                            requestedTimeline={lead.requested_timeline}
+                            purposeOfPurchase={lead.purpose_of_purchase}
+                            notes={lead.notes}
                           />
                         </div>
                       </TableCell>
