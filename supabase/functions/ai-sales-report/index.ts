@@ -516,11 +516,12 @@ serve(async (req) => {
         { type: "context", elements: [{ type: "mrkdwn", text: `📅 ${new Date().toLocaleString('en-IN')} • XBoom Flow` }] }
       ];
 
-      if (botToken && reportChannel) {
-        await sendBotMessage(botToken, reportChannel, noActivityBlocks);
-      } else if (webhookUrl) {
-        await sendWebhook(webhookUrl, noActivityBlocks);
-      }
+      await sendReportToSlack({
+        botToken,
+        webhookUrl,
+        channel: reportChannel,
+        blocks: noActivityBlocks,
+      });
 
       // Log execution
       await supabase.from('ai_action_logs').insert({
