@@ -24,6 +24,7 @@ import { PipelineOrders } from "@/components/pipeline/PipelineOrders";
 import { EnquiriesPanel } from "@/components/sales/EnquiriesPanel";
 import { ProspectsPanel } from "@/components/sales/ProspectsPanel";
 import { AttentionPanel } from "@/components/sales/AttentionPanel";
+import { FormsLeadsPanel } from "@/components/sales/FormsLeadsPanel";
 
 
 export default function Sales() {
