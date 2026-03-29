@@ -261,6 +261,17 @@ export function FormsLeadsPanel() {
                             notes={lead.notes}
                             isAlreadyAttention={attentionSourceIds.has(`form_lead:${lead.id}`)}
                           />
+                          <EnquiryConvertButton
+                            sourceType="form_lead"
+                            sourceId={lead.id}
+                            customerName={lead.customer_name}
+                            phoneNumber={lead.phone}
+                            email={lead.email}
+                            company={lead.company}
+                            city={lead.city}
+                            productName={lead.product_name}
+                            notes={lead.notes}
+                          />
                         </div>
                       </td>
                       <td className="py-2.5 px-3">

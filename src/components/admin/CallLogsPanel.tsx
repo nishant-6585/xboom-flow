@@ -400,6 +400,22 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                               notes={info.whatText}
                               isAlreadyAttention={attentionSourceIds.has(`myoperator:${log.id}`)}
                             />
+                            <EnquiryConvertButton
+                              sourceType="myoperator"
+                              sourceId={log.id}
+                              customerName={log.customer_name || log.full_number || log.caller_number}
+                              phoneNumber={log.full_number || log.caller_number}
+                              company={log.customer_company}
+                              city={log.city}
+                              productName={log.product_name}
+                              productCategory={log.product_category}
+                              productCode={log.product_code}
+                              quantity={log.quantity}
+                              urgency={log.urgency}
+                              requestedTimeline={log.requested_timeline}
+                              purposeOfPurchase={log.purpose_of_purchase}
+                              notes={info.whatText}
+                            />
                           </div>
                         </TableCell>
                         <TableCell className="font-mono text-sm font-medium text-primary">

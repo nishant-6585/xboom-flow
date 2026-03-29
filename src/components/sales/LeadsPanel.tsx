@@ -852,6 +852,23 @@ export function LeadsPanel() {
                                   notes={lead.notes}
                                   isAlreadyAttention={attentionSourceIds.has(`interakt:${lead.id}`)}
                                 />
+                                <EnquiryConvertButton
+                                  sourceType="interakt"
+                                  sourceId={lead.id}
+                                  customerName={lead.customer_name}
+                                  phoneNumber={lead.phone_number}
+                                  email={lead.email}
+                                  company={lead.company}
+                                  city={lead.city}
+                                  productName={lead.product_name}
+                                  productCategory={lead.product_category}
+                                  productCode={lead.product_code}
+                                  quantity={lead.quantity}
+                                  urgency={lead.urgency}
+                                  requestedTimeline={lead.requested_timeline}
+                                  purposeOfPurchase={lead.purpose_of_purchase}
+                                  notes={lead.notes}
+                                />
                               </div>
                             </TableCell>
                             <TableCell>
