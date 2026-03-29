@@ -61,6 +61,7 @@ const queryClient = new QueryClient({
 function AppInner() {
   const isMobile = useIsMobile();
   useThemeLoader();
+  useLoginGreeting();
   return (
     <>
       <Routes>
