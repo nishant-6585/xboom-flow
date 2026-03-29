@@ -379,18 +379,21 @@ export function SalesCommandCenter() {
   // ============ Salesperson Performance ============
   const salesPersonPerformance = useMemo(() => {
     if (!isManager || salesTeam.length === 0) return [];
-    const spMap = new Map<string, { name: string; leads: number; prospects: number; pipelineValue: number; ordersWon: number; revenue: number }>();
-    salesTeam.forEach((sp: any) => {
-      spMap.set(sp.user_id, { name: sp.name, leads: 0, prospects: 0, pipelineValue: 0, ordersWon: 0, revenue: 0 });
+    const spMap = new Map<string, { name: string; leads: number; prospects: number; pipelineValue: number; ordersWon: number; revenue: number; interakt: number; calls: number; emails: number; forms: number }>();
+    salesTeam.filter((sp: any) => !sp.name?.toLowerCase().includes('test')).forEach((sp: any) => {
+      spMap.set(sp.user_id, { name: sp.name, leads: 0, prospects: 0, pipelineValue: 0, ordersWon: 0, revenue: 0, interakt: 0, calls: 0, emails: 0, forms: 0 });
     });
     filtered.enquiries.forEach((e: any) => { if (e.sales_person_id) { const sp = spMap.get(e.sales_person_id); if (sp) sp.leads++; } });
+    filtered.interakt.forEach((l: any) => { if (l.sales_person_id) { const sp = spMap.get(l.sales_person_id); if (sp) sp.interakt++; } });
+    filtered.calls.forEach((c: any) => { if (c.sales_person_id) { const sp = spMap.get(c.sales_person_id); if (sp) sp.calls++; } });
+    filtered.email.forEach((e: any) => { if (e.sales_person_id) { const sp = spMap.get(e.sales_person_id); if (sp) sp.emails++; } });
+    filtered.forms.forEach((f: any) => { if (f.sales_person_id) { const sp = spMap.get(f.sales_person_id); if (sp) sp.forms++; } });
     filtered.prospects.forEach((p: any) => { if (p.created_by) { const sp = spMap.get(p.created_by); if (sp) sp.prospects++; } });
     filtered.pipeline.forEach(p => { if (p.sales_person_id) { const sp = spMap.get(p.sales_person_id); if (sp && p.status !== 'won' && p.status !== 'lost') sp.pipelineValue += p.expected_price || 0; } });
     filtered.orders.forEach(o => { if (o.sales_person_id) { const sp = spMap.get(o.sales_person_id); if (sp) { sp.ordersWon++; sp.revenue += o.total_sales_amount || 0; } } });
     return Array.from(spMap.entries())
-      .map(([id, data]) => ({ id, ...data }))
-      .filter(sp => sp.leads > 0 || sp.prospects > 0 || sp.ordersWon > 0 || sp.pipelineValue > 0)
-      .sort((a, b) => b.revenue - a.revenue);
+      .map(([id, data]) => ({ id, totalLeads: data.leads + data.interakt + data.calls + data.emails + data.forms, ...data }))
+      .sort((a, b) => b.revenue - a.revenue || b.totalLeads - a.totalLeads);
   }, [isManager, salesTeam, filtered]);
 
   // ============ Target vs Achieved ============
@@ -998,7 +1001,7 @@ export function SalesCommandCenter() {
                       <div>
                         <p className="font-semibold text-sm">{sp.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {sp.leads} leads · {sp.prospects} prospects · {sp.ordersWon} orders · {formatCurrency(sp.revenue)} revenue
+                          {sp.totalLeads} leads · {sp.prospects} prospects · {sp.ordersWon} orders · {formatCurrency(sp.revenue)} revenue
                         </p>
                       </div>
                     </div>
