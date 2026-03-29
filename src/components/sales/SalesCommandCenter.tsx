@@ -17,7 +17,7 @@ import {
   Phone, MessageCircle, Mail, FileText, Send, ShoppingCart,
   Eye, Zap, Clock, CalendarIcon, ArrowRight,
   Percent, Activity, Layers, BarChart3, Award, MapPin, Flame,
-  Building2, ExternalLink,
+  Building2, ExternalLink, Lightbulb, Sparkles, AlertTriangle, ThumbsUp, ArrowUpRight,
 } from 'lucide-react';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useInteraktLeads } from '@/hooks/useInteraktLeads';
@@ -885,6 +885,52 @@ export function SalesCommandCenter() {
                 <Bar dataKey="ordersWon" fill="hsl(var(--chart-2))" name="Orders" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ============ AI PERFORMANCE SUGGESTIONS ============ */}
+      {isManager && salesPersonPerformance.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              AI Performance Insights & Suggestions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {salesPersonPerformance.map(sp => {
+                const suggestions = generatePerformanceSuggestions(sp, salesPersonPerformance, targetComparison);
+                if (suggestions.length === 0) return null;
+                return (
+                  <div key={sp.id} className="rounded-lg border border-border/50 p-4 space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
+                        {sp.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">{sp.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {sp.leads} leads · {sp.prospects} prospects · {sp.ordersWon} orders · {formatCurrency(sp.revenue)} revenue
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5 pl-10">
+                      {suggestions.map((s, i) => (
+                        <div key={i} className="flex items-start gap-2 text-sm">
+                          {s.type === 'strength' && <ThumbsUp className="w-3.5 h-3.5 mt-0.5 text-green-500 shrink-0" />}
+                          {s.type === 'warning' && <AlertTriangle className="w-3.5 h-3.5 mt-0.5 text-amber-500 shrink-0" />}
+                          {s.type === 'action' && <ArrowUpRight className="w-3.5 h-3.5 mt-0.5 text-primary shrink-0" />}
+                          {s.type === 'insight' && <Lightbulb className="w-3.5 h-3.5 mt-0.5 text-violet-500 shrink-0" />}
+                          <span className="text-muted-foreground leading-snug">{s.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
       )}
