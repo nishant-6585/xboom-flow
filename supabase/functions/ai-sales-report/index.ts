@@ -14,22 +14,27 @@ const formatCurrency = (amount: number): string => {
 };
 
 const getDateRange = (timeframe: string) => {
+  // Use IST (UTC+5:30) for date calculations since business operates in India
   const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+  const nowIST = new Date(now.getTime() + istOffset);
+  
+  // Get IST midnight as UTC timestamp
+  const todayISTMidnight = new Date(Date.UTC(nowIST.getUTCFullYear(), nowIST.getUTCMonth(), nowIST.getUTCDate()) - istOffset);
   
   if (timeframe === 'daily') {
-    return { start: todayStart.toISOString(), end: now.toISOString(), label: 'Daily' };
+    return { start: todayISTMidnight.toISOString(), end: now.toISOString(), label: 'Daily' };
   }
   
   if (timeframe === 'weekly') {
-    const weekStart = new Date(todayStart);
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Sunday
-    return { start: weekStart.toISOString(), end: now.toISOString(), label: 'Weekly' };
+    const dayOfWeek = nowIST.getUTCDay(); // 0=Sunday
+    const weekStartIST = new Date(todayISTMidnight.getTime() - dayOfWeek * 24 * 60 * 60 * 1000);
+    return { start: weekStartIST.toISOString(), end: now.toISOString(), label: 'Weekly' };
   }
   
-  // MTD
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  return { start: monthStart.toISOString(), end: now.toISOString(), label: 'Month-to-Date' };
+  // MTD - first day of month in IST
+  const monthStartIST = new Date(Date.UTC(nowIST.getUTCFullYear(), nowIST.getUTCMonth(), 1) - istOffset);
+  return { start: monthStartIST.toISOString(), end: now.toISOString(), label: 'Month-to-Date' };
 };
 
 async function fetchSalesData(supabase: any, startDate: string, endDate: string) {
