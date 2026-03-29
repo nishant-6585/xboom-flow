@@ -63,6 +63,38 @@ export function FormsLeadsPanel() {
     },
   });
 
+  // Fetch sales team + Rohit for assignment dropdown
+  const { data: assignableUsers = [] } = useQuery({
+    queryKey: ["form_leads_assignable_users"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, name")
+        .eq("is_approved", true)
+        .in("user_id", (await supabase
+          .from("user_roles")
+          .select("user_id")
+          .in("role", ["sales", "sales_manager"])
+        ).data?.map(r => r.user_id) || []);
+      if (error) throw error;
+      
+      // Also fetch Rohit (supply_chain) explicitly
+      const { data: rohit } = await supabase
+        .from("profiles")
+        .select("user_id, name")
+        .ilike("name", "Rohit")
+        .eq("is_approved", true);
+      
+      const all = [...(data || [])];
+      if (rohit) {
+        rohit.forEach(r => {
+          if (!all.find(u => u.user_id === r.user_id)) all.push(r);
+        });
+      }
+      return all.sort((a, b) => a.name.localeCompare(b.name));
+    },
+  });
+
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const { error } = await supabase.from("form_leads").update({ status }).eq("id", id);
@@ -74,17 +106,17 @@ export function FormsLeadsPanel() {
     },
   });
 
-  const assignToMe = useMutation({
-    mutationFn: async (id: string) => {
+  const assignLead = useMutation({
+    mutationFn: async ({ id, userId, userName }: { id: string; userId: string; userName: string }) => {
       const { error } = await supabase
         .from("form_leads")
-        .update({ assigned_to: user?.id, assigned_to_name: profile?.name || "Unknown" })
+        .update({ assigned_to: userId, assigned_to_name: userName })
         .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["form_leads"] });
-      toast({ title: "Lead assigned to you" });
+      toast({ title: "Lead assigned" });
     },
   });
 
@@ -198,12 +230,28 @@ export function FormsLeadsPanel() {
                           </SelectContent>
                         </Select>
                       </td>
-                      <td className="py-2.5 px-3 text-xs">
-                        {lead.assigned_to_name || (
-                          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => assignToMe.mutate(lead.id)}>
-                            Assign to me
-                          </Button>
-                        )}
+                      <td className="py-2.5 px-3">
+                        <Select
+                          value={lead.assigned_to || "unassigned"}
+                          onValueChange={(val) => {
+                            if (val === "unassigned") {
+                              assignLead.mutate({ id: lead.id, userId: "", userName: "" });
+                            } else {
+                              const u = assignableUsers.find(u => u.user_id === val);
+                              if (u) assignLead.mutate({ id: lead.id, userId: u.user_id, userName: u.name });
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="h-7 w-[130px] text-xs">
+                            <SelectValue placeholder="Assign..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned">Unassigned</SelectItem>
+                            {assignableUsers.map((u) => (
+                              <SelectItem key={u.user_id} value={u.user_id}>{u.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </td>
                       <td className="py-2.5 px-3 text-xs text-muted-foreground">
                         {format(new Date(lead.created_at), "dd MMM yyyy")}
