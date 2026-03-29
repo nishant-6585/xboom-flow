@@ -316,7 +316,7 @@ export function SalesPersonDeepDive({
       const totalActivity = sp.enquiries + sp.interaktLeads + sp.callLogs + sp.emailLeads + sp.formLeads + sp.prospects + sp.ordersWon + sp.pipelineCreated;
       return totalActivity > 0;
     }).sort((a, b) => b.ordersValue - a.ordersValue);
-  }, [salesTeam, enquiries, interaktLeads, emailLeads, callLogs, formLeads, pipelineOrders, orders, prospects, targets, isManager]);
+  }, [salesTeam, enquiries, interaktLeads, emailLeads, callLogs, formLeads, pipelineOrders, orders, prospects, targets, followups, callbacks, isManager]);
 
   if (!isManager || salesPersonData.length === 0) return null;
 
