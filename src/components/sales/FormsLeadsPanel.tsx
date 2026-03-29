@@ -1,0 +1,314 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { FileText, Search, Mail, Phone, Building2, MapPin, Package, User, Calendar, Eye, Trash2, RefreshCw } from "lucide-react";
+import { format } from "date-fns";
+
+interface FormLead {
+  id: string;
+  form_id: string | null;
+  form_name: string;
+  submission_id: string | null;
+  customer_name: string;
+  email: string | null;
+  phone: string | null;
+  company: string | null;
+  city: string | null;
+  product_name: string | null;
+  notes: string | null;
+  status: string;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+const STATUS_OPTIONS = [
+  { value: "new", label: "New", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
+  { value: "contacted", label: "Contacted", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300" },
+  { value: "qualified", label: "Qualified", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
+  { value: "converted", label: "Converted", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
+  { value: "closed", label: "Closed", color: "bg-muted text-muted-foreground" },
+];
+
+export function FormsLeadsPanel() {
+  const { user, role, profile } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const isManager = role === "admin" || role === "supply_chain";
+
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedLead, setSelectedLead] = useState<FormLead | null>(null);
+
+  const { data: leads = [], isLoading, refetch } = useQuery({
+    queryKey: ["form_leads"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("form_leads")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as FormLead[];
+    },
+  });
+
+  const updateStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase.from("form_leads").update({ status }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["form_leads"] });
+      toast({ title: "Status updated" });
+    },
+  });
+
+  const assignToMe = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("form_leads")
+        .update({ assigned_to: user?.id, assigned_to_name: profile?.name || "Unknown" })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["form_leads"] });
+      toast({ title: "Lead assigned to you" });
+    },
+  });
+
+  const deleteLead = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("form_leads").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["form_leads"] });
+      setSelectedLead(null);
+      toast({ title: "Lead deleted" });
+    },
+  });
+
+  const filtered = leads.filter((lead) => {
+    const matchesSearch =
+      !search ||
+      lead.customer_name.toLowerCase().includes(search.toLowerCase()) ||
+      lead.email?.toLowerCase().includes(search.toLowerCase()) ||
+      lead.phone?.includes(search) ||
+      lead.form_name.toLowerCase().includes(search.toLowerCase()) ||
+      lead.company?.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const getStatusBadge = (status: string) => {
+    const opt = STATUS_OPTIONS.find((s) => s.value === status);
+    return <Badge className={opt?.color || ""}>{opt?.label || status}</Badge>;
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary" />
+              Forms Leads
+              <Badge variant="secondary">{filtered.length}</Badge>
+            </CardTitle>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              <RefreshCw className="w-4 h-4 mr-1" /> Refresh
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-3 mb-4">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="Search name, email, phone, form..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                {STATUS_OPTIONS.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {isLoading ? (
+            <p className="text-muted-foreground text-center py-8">Loading...</p>
+          ) : filtered.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No form leads found. Leads will appear here when forms are submitted.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left">
+                    <th className="py-2 px-3 font-medium">Name</th>
+                    <th className="py-2 px-3 font-medium">Contact</th>
+                    <th className="py-2 px-3 font-medium">Company</th>
+                    <th className="py-2 px-3 font-medium">Form Source</th>
+                    <th className="py-2 px-3 font-medium">Product</th>
+                    <th className="py-2 px-3 font-medium">Status</th>
+                    <th className="py-2 px-3 font-medium">Assigned</th>
+                    <th className="py-2 px-3 font-medium">Date</th>
+                    <th className="py-2 px-3 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((lead) => (
+                    <tr key={lead.id} className="border-b hover:bg-muted/30 transition-colors">
+                      <td className="py-2.5 px-3 font-medium">{lead.customer_name}</td>
+                      <td className="py-2.5 px-3">
+                        <div className="space-y-0.5">
+                          {lead.email && <div className="flex items-center gap-1 text-xs"><Mail className="w-3 h-3" />{lead.email}</div>}
+                          {lead.phone && <div className="flex items-center gap-1 text-xs"><Phone className="w-3 h-3" />{lead.phone}</div>}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 text-muted-foreground">{lead.company || "-"}</td>
+                      <td className="py-2.5 px-3">
+                        <Badge variant="outline" className="text-xs">{lead.form_name}</Badge>
+                      </td>
+                      <td className="py-2.5 px-3 text-muted-foreground">{lead.product_name || "-"}</td>
+                      <td className="py-2.5 px-3">
+                        <Select value={lead.status} onValueChange={(val) => updateStatus.mutate({ id: lead.id, status: val })}>
+                          <SelectTrigger className="h-7 w-[110px] text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATUS_OPTIONS.map((s) => (
+                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="py-2.5 px-3 text-xs">
+                        {lead.assigned_to_name || (
+                          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => assignToMe.mutate(lead.id)}>
+                            Assign to me
+                          </Button>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-xs text-muted-foreground">
+                        {format(new Date(lead.created_at), "dd MMM yyyy")}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedLead(lead)}>
+                            <Eye className="w-3.5 h-3.5" />
+                          </Button>
+                          {isManager && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteLead.mutate(lead.id)}>
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Detail Dialog */}
+      <Dialog open={!!selectedLead} onOpenChange={() => setSelectedLead(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="w-5 h-5" />
+              {selectedLead?.customer_name}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedLead && (
+            <ScrollArea className="max-h-[60vh]">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  {selectedLead.email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm">{selectedLead.email}</span>
+                    </div>
+                  )}
+                  {selectedLead.phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm">{selectedLead.phone}</span>
+                    </div>
+                  )}
+                  {selectedLead.company && (
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm">{selectedLead.company}</span>
+                    </div>
+                  )}
+                  {selectedLead.city && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm">{selectedLead.city}</span>
+                    </div>
+                  )}
+                  {selectedLead.product_name && (
+                    <div className="flex items-center gap-2">
+                      <Package className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm">{selectedLead.product_name}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">{format(new Date(selectedLead.created_at), "dd MMM yyyy, hh:mm a")}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <Badge variant="outline" className="text-xs">Source: {selectedLead.form_name}</Badge>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Status:</span>
+                  {getStatusBadge(selectedLead.status)}
+                </div>
+
+                {selectedLead.assigned_to_name && (
+                  <div className="text-sm">
+                    <span className="font-medium">Assigned to:</span> {selectedLead.assigned_to_name}
+                  </div>
+                )}
+
+                {selectedLead.notes && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Additional Information (Notes)</h4>
+                      <pre className="text-sm text-muted-foreground whitespace-pre-wrap bg-muted/30 rounded-lg p-3">
+                        {selectedLead.notes}
+                      </pre>
+                    </div>
+                  </>
+                )}
+              </div>
+            </ScrollArea>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
