@@ -29,7 +29,8 @@ import { ProspectButton } from './ProspectButton';
 import { AttentionButton } from './AttentionButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadsPanel } from './EmailLeadsPanel';
-import { Mail } from 'lucide-react';
+import { FormsLeadsPanel } from './FormsLeadsPanel';
+import { Mail, FileText } from 'lucide-react';
 import { MyOperatorAnalytics } from './MyOperatorAnalytics';
 import { MyOperatorTabContent } from './MyOperatorTabContent';
 import { InteraktAnalytics } from './InteraktAnalytics';
@@ -303,6 +304,10 @@ export function LeadsPanel() {
         <TabsTrigger value="emails" className="gap-1.5">
           <Mail className="h-3.5 w-3.5" />
           Emails
+        </TabsTrigger>
+        <TabsTrigger value="form-leads" className="gap-1.5">
+          <FileText className="h-3.5 w-3.5" />
+          Forms
         </TabsTrigger>
       </TabsList>
 
@@ -933,6 +938,10 @@ export function LeadsPanel() {
 
       <TabsContent value="emails">
         <EmailLeadsPanel />
+      </TabsContent>
+
+      <TabsContent value="form-leads">
+        <FormsLeadsPanel />
       </TabsContent>
     </Tabs>
   );
