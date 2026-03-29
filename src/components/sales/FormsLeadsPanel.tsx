@@ -220,13 +220,13 @@ export function FormsLeadsPanel() {
                 <thead>
                   <tr className="border-b text-left">
                     <th className="py-2 px-3 font-medium">Name</th>
+                    <th className="py-2 px-1 font-medium w-20"></th>
                     <th className="py-2 px-3 font-medium">Contact</th>
                     <th className="py-2 px-3 font-medium">Company</th>
                     <th className="py-2 px-3 font-medium">Form Source</th>
                     <th className="py-2 px-3 font-medium">Product</th>
                     <th className="py-2 px-3 font-medium">Status</th>
                     <th className="py-2 px-3 font-medium">Assigned</th>
-                    <th className="py-2 px-3 font-medium">Date</th>
                     <th className="py-2 px-3 font-medium">Actions</th>
                   </tr>
                 </thead>
@@ -234,6 +234,34 @@ export function FormsLeadsPanel() {
                   {filtered.map((lead) => (
                     <tr key={lead.id} className="border-b hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setSelectedLead(lead)}>
                       <td className="py-2.5 px-3 font-medium">{lead.customer_name}</td>
+                      <td className="py-2.5 px-1" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex gap-1 items-center">
+                          <ProspectButton
+                            sourceType="form_lead"
+                            sourceId={lead.id}
+                            customerName={lead.customer_name}
+                            phoneNumber={lead.phone}
+                            email={lead.email}
+                            company={lead.company}
+                            city={lead.city}
+                            productName={lead.product_name}
+                            notes={lead.notes}
+                            isAlreadyProspect={prospectSourceIds.has(`form_lead:${lead.id}`)}
+                          />
+                          <AttentionButton
+                            sourceType="form_lead"
+                            sourceId={lead.id}
+                            customerName={lead.customer_name}
+                            phoneNumber={lead.phone}
+                            email={lead.email}
+                            company={lead.company}
+                            city={lead.city}
+                            productName={lead.product_name}
+                            notes={lead.notes}
+                            isAlreadyAttention={attentionSourceIds.has(`form_lead:${lead.id}`)}
+                          />
+                        </div>
+                      </td>
                       <td className="py-2.5 px-3">
                         <div className="space-y-0.5">
                           {lead.email && <div className="flex items-center gap-1 text-xs"><Mail className="w-3 h-3" />{lead.email}</div>}
@@ -280,35 +308,8 @@ export function FormsLeadsPanel() {
                           </SelectContent>
                         </Select>
                       </td>
-                      <td className="py-2.5 px-3 text-xs text-muted-foreground">
-                        {format(new Date(lead.created_at), "dd MMM yyyy")}
-                      </td>
                       <td className="py-2.5 px-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1 items-center">
-                          <ProspectButton
-                            sourceType="form_lead"
-                            sourceId={lead.id}
-                            customerName={lead.customer_name}
-                            phoneNumber={lead.phone}
-                            email={lead.email}
-                            company={lead.company}
-                            city={lead.city}
-                            productName={lead.product_name}
-                            notes={lead.notes}
-                            isAlreadyProspect={prospectSourceIds.has(`form_lead:${lead.id}`)}
-                          />
-                          <AttentionButton
-                            sourceType="form_lead"
-                            sourceId={lead.id}
-                            customerName={lead.customer_name}
-                            phoneNumber={lead.phone}
-                            email={lead.email}
-                            company={lead.company}
-                            city={lead.city}
-                            productName={lead.product_name}
-                            notes={lead.notes}
-                            isAlreadyAttention={attentionSourceIds.has(`form_lead:${lead.id}`)}
-                          />
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedLead(lead)}>
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
