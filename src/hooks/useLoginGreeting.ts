@@ -1,43 +1,28 @@
 import { useEffect, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
+const PENDING_GREETING_KEY = "pending_login_greeting";
+
 export function useLoginGreeting() {
-  const hasGreetedRef = useRef(false);
-  const prevMfaStatusRef = useRef<string | null>(null);
   const { user, mfaStatus, profile } = useAuth();
+  const hasAttemptedRef = useRef(false);
 
   useEffect(() => {
-    // Detect transition into verified state (fresh MFA completion)
-    const justVerified =
-      prevMfaStatusRef.current !== null &&
-      prevMfaStatusRef.current !== "verified" &&
-      prevMfaStatusRef.current !== "not_required" &&
-      (mfaStatus === "verified" || mfaStatus === "not_required");
-
-    // Also greet on fresh login (user appears while mfa is already good)
-    const freshLogin =
-      prevMfaStatusRef.current === null &&
-      user &&
-      profile &&
-      (mfaStatus === "verified" || mfaStatus === "not_required");
-
-    // Track previous status
-    prevMfaStatusRef.current = mfaStatus;
-
-    const shouldGreet = user && profile && !hasGreetedRef.current && (justVerified || freshLogin);
-
-    if (!shouldGreet) return;
-
-    // Check sessionStorage to avoid greeting on page refresh
-    const greetKey = `greeted_${user.id}`;
-    if (sessionStorage.getItem(greetKey)) {
-      hasGreetedRef.current = true;
+    if (!user) {
+      hasAttemptedRef.current = false;
+      sessionStorage.removeItem(PENDING_GREETING_KEY);
       return;
     }
 
-    hasGreetedRef.current = true;
-    sessionStorage.setItem(greetKey, "1");
+    const shouldGreet =
+      sessionStorage.getItem(PENDING_GREETING_KEY) === "1" &&
+      !!profile &&
+      (mfaStatus === "verified" || mfaStatus === "not_required") &&
+      !hasAttemptedRef.current;
+
+    if (!shouldGreet) return;
+
+    hasAttemptedRef.current = true;
 
     const name = profile.name?.split(" ")[0] || "there";
     const hour = new Date().getHours();
@@ -66,66 +51,48 @@ export function useLoginGreeting() {
 
     const dayIndex = new Date().getDate() % motivationalQuotes.length;
     const motivation = motivationalQuotes[dayIndex];
-
     const message = `${timeGreeting}, ${name}! Welcome to Xboom Flow. ${motivation}`;
 
-    setTimeout(async () => {
-      try {
-        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`;
-        console.log("[Greeting] Calling ElevenLabs TTS...");
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              },
+              body: JSON.stringify({ text: message }),
+            }
+          );
 
-        const response = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ text: message }),
-        });
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`ElevenLabs TTS failed [${response.status}]: ${errorText}`);
+          }
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("[Greeting] ElevenLabs TTS failed:", response.status, errorText);
-          throw new Error(`TTS request failed: ${response.status}`);
+          const audioBlob = await response.blob();
+          const audioUrl = URL.createObjectURL(audioBlob);
+          const audio = new Audio(audioUrl);
+          audio.preload = "auto";
+          audio.volume = 0.9;
+
+          await audio.play();
+          sessionStorage.removeItem(PENDING_GREETING_KEY);
+
+          audio.addEventListener("ended", () => {
+            URL.revokeObjectURL(audioUrl);
+          });
+        } catch (error) {
+          console.error("[Greeting] ElevenLabs playback failed", error);
+          hasAttemptedRef.current = false;
         }
+      })();
+    }, 300);
 
-        console.log("[Greeting] ElevenLabs audio received, playing...");
-        const audioBlob = await response.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
-        audio.volume = 0.8;
-        await audio.play();
-
-        audio.addEventListener("ended", () => {
-          URL.revokeObjectURL(audioUrl);
-        });
-      } catch (error) {
-        console.warn("[Greeting] ElevenLabs failed, falling back to browser speech:", error);
-        if ("speechSynthesis" in window) {
-          window.speechSynthesis.cancel();
-          const utterance = new SpeechSynthesisUtterance(message);
-          utterance.rate = 1;
-          utterance.pitch = 1;
-          utterance.volume = 0.8;
-          const voices = window.speechSynthesis.getVoices();
-          const preferred = voices.find(
-            (v) =>
-              v.lang.startsWith("en") &&
-              (v.name.includes("Google") || v.name.includes("Samantha") || v.name.includes("Daniel"))
-          ) || voices.find((v) => v.lang.startsWith("en"));
-          if (preferred) utterance.voice = preferred;
-          window.speechSynthesis.speak(utterance);
-        }
-      }
-    }, 1000);
-  }, [user, mfaStatus, profile]);
-
-  // Reset when user signs out
-  useEffect(() => {
-    if (!user) {
-      hasGreetedRef.current = false;
-      prevMfaStatusRef.current = null;
-    }
-  }, [user]);
+    return () => window.clearTimeout(timer);
+  }, [user, profile, mfaStatus]);
 }
