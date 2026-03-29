@@ -1038,6 +1038,8 @@ export type Database = {
           recording_stream_url: string | null
           recording_url: string | null
           requested_timeline: string | null
+          sales_person_id: string | null
+          sales_person_name: string | null
           start_time: string | null
           updated_at: string
           urgency: string | null
@@ -1079,6 +1081,8 @@ export type Database = {
           recording_stream_url?: string | null
           recording_url?: string | null
           requested_timeline?: string | null
+          sales_person_id?: string | null
+          sales_person_name?: string | null
           start_time?: string | null
           updated_at?: string
           urgency?: string | null
@@ -1120,6 +1124,8 @@ export type Database = {
           recording_stream_url?: string | null
           recording_url?: string | null
           requested_timeline?: string | null
+          sales_person_id?: string | null
+          sales_person_name?: string | null
           start_time?: string | null
           updated_at?: string
           urgency?: string | null
