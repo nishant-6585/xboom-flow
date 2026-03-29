@@ -284,7 +284,31 @@ export function FormsLeadsPanel() {
                         {format(new Date(lead.created_at), "dd MMM yyyy")}
                       </td>
                       <td className="py-2.5 px-3" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 items-center">
+                          <ProspectButton
+                            sourceType="form_lead"
+                            sourceId={lead.id}
+                            customerName={lead.customer_name}
+                            phoneNumber={lead.phone}
+                            email={lead.email}
+                            company={lead.company}
+                            city={lead.city}
+                            productName={lead.product_name}
+                            notes={lead.notes}
+                            isAlreadyProspect={prospectSourceIds.has(`form_lead:${lead.id}`)}
+                          />
+                          <AttentionButton
+                            sourceType="form_lead"
+                            sourceId={lead.id}
+                            customerName={lead.customer_name}
+                            phoneNumber={lead.phone}
+                            email={lead.email}
+                            company={lead.company}
+                            city={lead.city}
+                            productName={lead.product_name}
+                            notes={lead.notes}
+                            isAlreadyAttention={attentionSourceIds.has(`form_lead:${lead.id}`)}
+                          />
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedLead(lead)}>
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
