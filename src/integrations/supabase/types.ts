@@ -7127,9 +7127,14 @@ export type Database = {
           channel_orders: string | null
           channel_pipeline: string | null
           channel_procurements: string | null
+          channel_sales_report: string | null
           channel_suppliers: string | null
           channel_tickets: string | null
           created_at: string
+          enable_ai_insights: boolean | null
+          enable_daily_report: boolean | null
+          enable_interactive_actions: boolean | null
+          enable_weekly_report: boolean | null
           id: string
           is_enabled: boolean
           notify_hot_leads: boolean
@@ -7149,9 +7154,14 @@ export type Database = {
           channel_orders?: string | null
           channel_pipeline?: string | null
           channel_procurements?: string | null
+          channel_sales_report?: string | null
           channel_suppliers?: string | null
           channel_tickets?: string | null
           created_at?: string
+          enable_ai_insights?: boolean | null
+          enable_daily_report?: boolean | null
+          enable_interactive_actions?: boolean | null
+          enable_weekly_report?: boolean | null
           id?: string
           is_enabled?: boolean
           notify_hot_leads?: boolean
@@ -7171,9 +7181,14 @@ export type Database = {
           channel_orders?: string | null
           channel_pipeline?: string | null
           channel_procurements?: string | null
+          channel_sales_report?: string | null
           channel_suppliers?: string | null
           channel_tickets?: string | null
           created_at?: string
+          enable_ai_insights?: boolean | null
+          enable_daily_report?: boolean | null
+          enable_interactive_actions?: boolean | null
+          enable_weekly_report?: boolean | null
           id?: string
           is_enabled?: boolean
           notify_hot_leads?: boolean

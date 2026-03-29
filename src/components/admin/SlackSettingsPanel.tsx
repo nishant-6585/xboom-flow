@@ -4,13 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, MessageSquare, Send, Check, Info, Hash, Lock } from 'lucide-react';
+import { Loader2, MessageSquare, Send, Check, Info, Hash, Lock, BarChart3 } from 'lucide-react';
 import { useSlackSettings } from '@/hooks/useSlackSettings';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 
 export const SlackSettingsPanel = () => {
-  const { settings, loading, updateSettings, testWebhook, testChannel } = useSlackSettings();
+  const { settings, loading, updateSettings, testWebhook, testChannel, triggerSalesReport } = useSlackSettings();
   
   const [isEnabled, setIsEnabled] = useState(false);
   const [notifyNewOrders, setNotifyNewOrders] = useState(true);
@@ -32,9 +32,17 @@ export const SlackSettingsPanel = () => {
   const [notifyTicketAssigned, setNotifyTicketAssigned] = useState(true);
   const [notifyTicketStatusChange, setNotifyTicketStatusChange] = useState(true);
   
+  // Sales report settings
+  const [channelSalesReport, setChannelSalesReport] = useState('');
+  const [enableDailyReport, setEnableDailyReport] = useState(false);
+  const [enableWeeklyReport, setEnableWeeklyReport] = useState(false);
+  const [enableAIInsights, setEnableAIInsights] = useState(true);
+  const [enableInteractiveActions, setEnableInteractiveActions] = useState(true);
+  
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testingChannel, setTestingChannel] = useState<string | null>(null);
+  const [triggeringReport, setTriggeringReport] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
@@ -56,6 +64,11 @@ export const SlackSettingsPanel = () => {
       setNotifyNewPipeline(settings.notify_new_pipeline ?? true);
       setNotifyTicketAssigned(settings.notify_ticket_assigned ?? true);
       setNotifyTicketStatusChange(settings.notify_ticket_status_change ?? true);
+      setChannelSalesReport((settings as any).channel_sales_report || '');
+      setEnableDailyReport((settings as any).enable_daily_report ?? false);
+      setEnableWeeklyReport((settings as any).enable_weekly_report ?? false);
+      setEnableAIInsights((settings as any).enable_ai_insights ?? true);
+      setEnableInteractiveActions((settings as any).enable_interactive_actions ?? true);
     }
   }, [settings]);
 
@@ -78,14 +91,21 @@ export const SlackSettingsPanel = () => {
         notifyNewSuppliers !== (settings.notify_new_suppliers ?? true) ||
         notifyNewPipeline !== (settings.notify_new_pipeline ?? true) ||
         notifyTicketAssigned !== (settings.notify_ticket_assigned ?? true) ||
-        notifyTicketStatusChange !== (settings.notify_ticket_status_change ?? true);
+        notifyTicketStatusChange !== (settings.notify_ticket_status_change ?? true) ||
+        channelSalesReport !== ((settings as any).channel_sales_report || '') ||
+        enableDailyReport !== ((settings as any).enable_daily_report ?? false) ||
+        enableWeeklyReport !== ((settings as any).enable_weekly_report ?? false) ||
+        enableAIInsights !== ((settings as any).enable_ai_insights ?? true) ||
+        enableInteractiveActions !== ((settings as any).enable_interactive_actions ?? true);
       setHasChanges(changed);
     }
   }, [
     isEnabled, notifyNewOrders, notifyHotLeads, notifyPaymentReminders, notifyStatusChanges,
     channelOrders, channelEnquiries, channelProcurements, channelSuppliers, channelPipeline,
     channelTickets, notifyNewEnquiries, notifyNewProcurements, notifyNewSuppliers, notifyNewPipeline,
-    notifyTicketAssigned, notifyTicketStatusChange, settings
+    notifyTicketAssigned, notifyTicketStatusChange,
+    channelSalesReport, enableDailyReport, enableWeeklyReport, enableAIInsights, enableInteractiveActions,
+    settings
   ]);
 
   const handleSave = async () => {
@@ -109,7 +129,12 @@ export const SlackSettingsPanel = () => {
         channel_tickets: channelTickets || null,
         notify_ticket_assigned: notifyTicketAssigned,
         notify_ticket_status_change: notifyTicketStatusChange,
-      });
+        channel_sales_report: channelSalesReport || null,
+        enable_daily_report: enableDailyReport,
+        enable_weekly_report: enableWeeklyReport,
+        enable_ai_insights: enableAIInsights,
+        enable_interactive_actions: enableInteractiveActions,
+      } as any);
       setHasChanges(false);
     } finally {
       setSaving(false);
@@ -467,7 +492,123 @@ export const SlackSettingsPanel = () => {
             </div>
           </div>
 
-          {/* Save Button */}
+          {/* Sales Report Section */}
+          <Separator />
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              <Label className="text-base font-medium">Automated Sales Reports</Label>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Get automated sales performance reports with AI-generated insights delivered to Slack
+            </p>
+
+            {/* Report Channel */}
+            <div className="rounded-lg border p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Hash className="h-4 w-4 text-muted-foreground" />
+                <Label className="font-medium">Sales Report Channel</Label>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="sales-reports or C04XXXXXX"
+                  value={channelSalesReport}
+                  onChange={(e) => setChannelSalesReport(e.target.value)}
+                  disabled={!isEnabled}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleTestChannel('sales-report', channelSalesReport)}
+                  disabled={!channelSalesReport || testingChannel === 'sales-report'}
+                >
+                  {testingChannel === 'sales-report' ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Channel where sales reports will be posted</p>
+            </div>
+
+            {/* Report Schedule Toggles */}
+            <div className="grid gap-3">
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label className="font-medium">Daily Report (9:00 PM)</Label>
+                  <p className="text-xs text-muted-foreground">Daily summary with leads, orders, revenue & AI insights</p>
+                </div>
+                <Switch checked={enableDailyReport} onCheckedChange={setEnableDailyReport} disabled={!isEnabled} />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label className="font-medium">Weekly Report (Sunday 9:00 PM)</Label>
+                  <p className="text-xs text-muted-foreground">Weekly performance summary with trends</p>
+                </div>
+                <Switch checked={enableWeeklyReport} onCheckedChange={setEnableWeeklyReport} disabled={!isEnabled} />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label className="font-medium">AI Insights</Label>
+                  <p className="text-xs text-muted-foreground">Include AI-generated insights, risks & recommendations</p>
+                </div>
+                <Switch checked={enableAIInsights} onCheckedChange={setEnableAIInsights} disabled={!isEnabled} />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label className="font-medium">Interactive Actions</Label>
+                  <p className="text-xs text-muted-foreground">Add action buttons (follow-up, assign, remind) in report</p>
+                </div>
+                <Switch checked={enableInteractiveActions} onCheckedChange={setEnableInteractiveActions} disabled={!isEnabled} />
+              </div>
+            </div>
+
+            {/* Manual Trigger Buttons */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  setTriggeringReport('daily');
+                  await triggerSalesReport('daily');
+                  setTriggeringReport(null);
+                }}
+                disabled={!isEnabled || triggeringReport !== null}
+              >
+                {triggeringReport === 'daily' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <BarChart3 className="h-4 w-4 mr-2" />}
+                Send Daily Report Now
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  setTriggeringReport('weekly');
+                  await triggerSalesReport('weekly');
+                  setTriggeringReport(null);
+                }}
+                disabled={!isEnabled || triggeringReport !== null}
+              >
+                {triggeringReport === 'weekly' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <BarChart3 className="h-4 w-4 mr-2" />}
+                Send Weekly Report Now
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  setTriggeringReport('mtd');
+                  await triggerSalesReport('mtd');
+                  setTriggeringReport(null);
+                }}
+                disabled={!isEnabled || triggeringReport !== null}
+              >
+                {triggeringReport === 'mtd' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <BarChart3 className="h-4 w-4 mr-2" />}
+                Send MTD Report Now
+              </Button>
+            </div>
+          </div>
+
+
           <div className="flex justify-end pt-4">
             <Button
               onClick={handleSave}
