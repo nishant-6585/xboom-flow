@@ -47,9 +47,14 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
     const target = enquiries.find(e => e.id === selectedLeadId);
     if (target) {
       lastAutoOpenedId.current = selectedLeadId;
-      handleViewEnquiry(target);
+      setViewingEnquiry(target);
+      setViewDialogOpen(true);
+      // Fetch items
+      fetchEnquiryItems(target.id).then(items => {
+        setEnquiryItems(items);
+      }).catch(() => {});
     }
-  }, [selectedLeadId, loading, enquiries]);
+  }, [selectedLeadId, loading, enquiries, fetchEnquiryItems]);
 
   const canSeeAllEnquiries = role === 'admin' || role === 'supply_chain';
   const salesPersons = Array.from(new Set(enquiries.map(e => e.sales_person_name))).filter(Boolean).sort();
