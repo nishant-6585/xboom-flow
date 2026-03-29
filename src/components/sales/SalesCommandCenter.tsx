@@ -35,6 +35,7 @@ import {
 } from 'date-fns';
 import { useExpectedPayments } from '@/hooks/useExpectedPayments';
 import { LeadTemperatureBadge } from '@/components/LeadTemperatureBadge';
+import { SalesPersonDeepDive } from '@/components/sales/SalesPersonDeepDive';
 import type { DateRange } from 'react-day-picker';
 
 const formatCurrency = (value: number) => {
@@ -1295,6 +1296,23 @@ export function SalesCommandCenter() {
           </ResponsiveContainer>
         </CardContent>
       </Card>
+
+      {/* ============ SALESPERSON DEEP DIVE ============ */}
+      {isManager && (
+        <SalesPersonDeepDive
+          salesTeam={salesTeam}
+          enquiries={filtered.enquiries}
+          interaktLeads={filtered.interakt}
+          emailLeads={filtered.email}
+          callLogs={filtered.calls}
+          formLeads={filtered.forms}
+          pipelineOrders={filtered.pipeline}
+          orders={filtered.orders}
+          prospects={filtered.prospects}
+          targets={targets}
+          isManager={isManager}
+        />
+      )}
 
       {/* ============ DRILL-DOWN DETAIL DIALOG ============ */}
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
