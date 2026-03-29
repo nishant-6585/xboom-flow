@@ -593,3 +593,31 @@ async function sendWebhook(webhookUrl: string, blocks: any[]) {
   });
   if (!response.ok) throw new Error(await response.text());
 }
+
+async function sendReportToSlack({
+  botToken,
+  webhookUrl,
+  channel,
+  blocks,
+}: {
+  botToken?: string | null;
+  webhookUrl?: string | null;
+  channel?: string | null;
+  blocks: any[];
+}) {
+  if (botToken && channel) {
+    try {
+      await sendBotMessage(botToken, channel, blocks);
+      return;
+    } catch (error) {
+      console.error('Sales report bot send failed, falling back to webhook:', error);
+    }
+  }
+
+  if (webhookUrl) {
+    await sendWebhook(webhookUrl, blocks);
+    return;
+  }
+
+  console.log('No report channel or webhook configured');
+}
