@@ -423,7 +423,15 @@ export function SalesPersonDeepDive({
                       <span>•</span>
                       <span>{sp.pipelineActive} pipeline ({formatCurrency(sp.pipelineActiveValue)})</span>
                       <span>•</span>
-                      <span className="text-green-500 font-medium">{sp.ordersWon} orders ({formatCurrency(sp.ordersValue)})</span>
+                      <span className="text-emerald-500 font-medium">{sp.ordersWon} orders ({formatCurrency(sp.ordersValue)})</span>
+                      {(sp.followupsPending > 0 || sp.callbacksPending > 0) && (
+                        <>
+                          <span>•</span>
+                          <span className="text-amber-500 font-medium">
+                            {sp.followupsPending} follow-ups · {sp.callbacksPending} callbacks
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="shrink-0">
