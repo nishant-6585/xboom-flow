@@ -1001,7 +1001,7 @@ export function SalesCommandCenter() {
                       <div>
                         <p className="font-semibold text-sm">{sp.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {sp.leads} leads · {sp.prospects} prospects · {sp.ordersWon} orders · {formatCurrency(sp.revenue)} revenue
+                          {sp.totalLeads} leads · {sp.prospects} prospects · {sp.ordersWon} orders · {formatCurrency(sp.revenue)} revenue
                         </p>
                       </div>
                     </div>
