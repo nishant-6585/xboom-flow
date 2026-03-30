@@ -311,6 +311,10 @@ export function LeadsPanel() {
           <FileText className="h-3.5 w-3.5" />
           Forms
         </TabsTrigger>
+        <TabsTrigger value="google-ads" className="gap-1.5">
+          <Megaphone className="h-3.5 w-3.5" />
+          Google Ads
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="leads" className="space-y-6">
@@ -961,6 +965,10 @@ export function LeadsPanel() {
 
       <TabsContent value="form-leads">
         <FormsLeadsPanel />
+      </TabsContent>
+
+      <TabsContent value="google-ads">
+        <GoogleAdsSyncPanel />
       </TabsContent>
     </Tabs>
   );
