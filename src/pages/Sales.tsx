@@ -241,9 +241,6 @@ export default function Sales() {
             <TestimonialsPanel />
           </TabsContent>
 
-          <TabsContent value="google-ads" className="space-y-6">
-            <GoogleAdsSyncPanel />
-          </TabsContent>
 
           <TabsContent value="suggestions" className="space-y-6">
             <div className="max-w-2xl mx-auto">
