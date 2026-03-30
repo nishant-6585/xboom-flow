@@ -910,7 +910,111 @@ export function SalesCommandCenter() {
         </Card>
       </div>
 
-      {/* ============ CATEGORY BREAKDOWN (List Style) ============ */}
+      {/* ============ MYOPERATOR CALL ANALYTICS ============ */}
+      {callStats.total > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+          {/* Call Summary Cards */}
+          <Card className="md:col-span-3">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Phone className="w-4 h-4 text-primary" />
+                MyOperator Call Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center p-4 rounded-lg bg-muted/50">
+                <p className="text-3xl font-bold">{callStats.total}</p>
+                <p className="text-xs text-muted-foreground">Total Calls Received</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="text-center p-3 rounded-lg bg-emerald-500/10">
+                  <p className="text-xl font-bold text-emerald-600">{callStats.answered}</p>
+                  <p className="text-xs text-muted-foreground">Attended</p>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-destructive/10">
+                  <p className="text-xl font-bold text-destructive">{callStats.missed}</p>
+                  <p className="text-xs text-muted-foreground">Missed</p>
+                </div>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-primary/10">
+                <p className="text-lg font-bold text-primary">{callStats.answerRate}%</p>
+                <p className="text-xs text-muted-foreground">Answer Rate</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 7-Day Call Trend */}
+          <Card className="md:col-span-5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Activity className="w-4 h-4 text-primary" />
+                Call Trend (Last 7 Days)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={callStats.dailyCallTrend} barGap={2}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <Tooltip
+                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+                  />
+                  <Bar dataKey="answered" name="Attended" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} stackId="calls" />
+                  <Bar dataKey="missed" name="Missed" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} stackId="calls" />
+                  <Legend wrapperStyle={{ fontSize: '11px' }} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Agent-wise Breakdown */}
+          <Card className="md:col-span-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Users className="w-4 h-4 text-primary" />
+                Agent Performance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[220px]">
+                <div className="space-y-2">
+                  {callStats.agentBreakdown.filter(a => a.name !== 'Unassigned').map(agent => (
+                    <div key={agent.name} className="p-2.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium truncate max-w-[120px]">{agent.name}</span>
+                        <span className="text-xs text-muted-foreground">{agent.total} calls</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 rounded-full bg-muted/60 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-emerald-500 transition-all"
+                            style={{ width: `${agent.answerRate}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium min-w-[32px] text-right">{agent.answerRate}%</span>
+                      </div>
+                      <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                        <span className="text-emerald-600">✓ {agent.answered}</span>
+                        <span className="text-destructive">✗ {agent.missed}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {callStats.agentBreakdown.filter(a => a.name === 'Unassigned').length > 0 && (
+                    <div className="p-2 rounded-lg bg-muted/30 text-center">
+                      <span className="text-xs text-muted-foreground">
+                        {callStats.agentBreakdown.find(a => a.name === 'Unassigned')?.total || 0} unassigned calls
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+
       {categoryBreakdown.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
