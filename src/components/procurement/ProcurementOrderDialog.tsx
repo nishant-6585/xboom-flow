@@ -422,6 +422,13 @@ export function ProcurementOrderDialog({
                 setSelectedSupplierId(supplierId);
               }
             }}
+            orderProductData={{
+              product_name: order.product_name,
+              product_category: order.product_category || undefined,
+              product_code: order.product_code || undefined,
+              quantity: order.quantity,
+              unit_price: order.selling_price || undefined,
+            }}
           />
 
           <Separator />

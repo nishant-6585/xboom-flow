@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Package, Save, Loader2, Building2, Warehouse, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { Package, Save, Loader2, Building2, Warehouse, ArrowDownCircle, ArrowUpCircle, Plus, Trash2, SplitSquareHorizontal } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { OrderItem, ORDER_ITEM_STATUSES, OrderItemStatus } from '@/hooks/useOrderItems';
@@ -15,6 +15,17 @@ import { useInventory, InventoryItem } from '@/hooks/useInventory';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 
+interface OrderProductData {
+  product_name: string;
+  product_category?: string;
+  product_code?: string;
+  quantity: number;
+  unit_price?: number;
+  sales_gst_amount?: number;
+  sales_gst_percent?: number;
+  sales_price_includes_gst?: boolean;
+}
+
 interface ProcurementOrderItemsProps {
   orderId: string;
   orderQuantity: number;
@@ -22,6 +33,7 @@ interface ProcurementOrderItemsProps {
   procurementCurrency: string;
   suppliers?: Supplier[];
   onSupplierChange?: (supplierId: string) => void;
+  orderProductData?: OrderProductData;
 }
 
 interface EditedItem {
@@ -34,6 +46,8 @@ interface EditedItem {
   procurement_gst_percent: string;
   procurement_gst_amount: string;
   procurement_price_includes_gst: boolean;
+  product_name_edit?: string;
+  quantity_edit?: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -51,6 +65,7 @@ export function ProcurementOrderItems({
   procurementCurrency,
   suppliers = [],
   onSupplierChange,
+  orderProductData,
 }: ProcurementOrderItemsProps) {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,6 +105,48 @@ export function ProcurementOrderItems({
         .order('created_at', { ascending: true });
 
       if (error) throw error;
+      
+      // Auto-create order_item for legacy orders with no items
+      if ((!data || data.length === 0) && orderProductData) {
+        const { data: newItem, error: createError } = await supabase
+          .from('order_items')
+          .insert({
+            order_id: orderId,
+            product_name: orderProductData.product_name,
+            product_category: orderProductData.product_category || 'Consumer Drones',
+            product_code: orderProductData.product_code || null,
+            quantity: orderProductData.quantity,
+            unit_price: orderProductData.unit_price || null,
+            sales_gst_amount: orderProductData.sales_gst_amount || null,
+            sales_gst_percent: orderProductData.sales_gst_percent || null,
+            sales_price_includes_gst: orderProductData.sales_price_includes_gst || false,
+            status: 'pending',
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error auto-creating order item:', createError);
+        } else if (newItem) {
+          setItems([newItem]);
+          const edited: Record<string, EditedItem> = {};
+          edited[newItem.id] = {
+            procurement_rate: '',
+            procurement_date: '',
+            status: 'pending',
+            supplier_id: '',
+            quantity_procured: '',
+            fulfilled_from_stock: false,
+            procurement_gst_percent: '0',
+            procurement_gst_amount: '0',
+            procurement_price_includes_gst: false,
+          };
+          setEditedItems(edited);
+          setLoading(false);
+          return;
+        }
+      }
+
       setItems(data || []);
       
       // Initialize edited items
@@ -147,18 +204,30 @@ export function ProcurementOrderItems({
       
       for (const item of items) {
         const edited = editedItems[item.id];
+        const updateData: Record<string, any> = {
+          procurement_rate: edited.procurement_rate ? parseFloat(edited.procurement_rate) : null,
+          procurement_date: edited.procurement_date || null,
+          status: edited.status,
+          supplier_id: edited.supplier_id || null,
+          quantity_procured: edited.quantity_procured ? parseInt(edited.quantity_procured) : 0,
+          procurement_gst_percent: edited.procurement_gst_percent ? parseFloat(edited.procurement_gst_percent) : 0,
+          procurement_gst_amount: edited.procurement_gst_amount ? parseFloat(edited.procurement_gst_amount) : 0,
+          procurement_price_includes_gst: edited.procurement_price_includes_gst || false,
+        };
+        // Save product name changes
+        if (edited.product_name_edit !== undefined && edited.product_name_edit !== item.product_name) {
+          updateData.product_name = edited.product_name_edit;
+        }
+        // Save quantity changes
+        if (edited.quantity_edit !== undefined) {
+          const newQty = parseInt(edited.quantity_edit);
+          if (!isNaN(newQty) && newQty > 0) {
+            updateData.quantity = newQty;
+          }
+        }
         const { error } = await supabase
           .from('order_items')
-          .update({
-            procurement_rate: edited.procurement_rate ? parseFloat(edited.procurement_rate) : null,
-            procurement_date: edited.procurement_date || null,
-            status: edited.status,
-            supplier_id: edited.supplier_id || null,
-            quantity_procured: edited.quantity_procured ? parseInt(edited.quantity_procured) : 0,
-            procurement_gst_percent: edited.procurement_gst_percent ? parseFloat(edited.procurement_gst_percent) : 0,
-            procurement_gst_amount: edited.procurement_gst_amount ? parseFloat(edited.procurement_gst_amount) : 0,
-            procurement_price_includes_gst: edited.procurement_price_includes_gst || false,
-          })
+          .update(updateData)
           .eq('id', item.id);
         
         if (error) throw error;
@@ -232,7 +301,9 @@ export function ProcurementOrderItems({
       original.fulfilled_from_stock !== edited.fulfilled_from_stock ||
       original.procurement_gst_percent !== edited.procurement_gst_percent ||
       original.procurement_gst_amount !== edited.procurement_gst_amount ||
-      original.procurement_price_includes_gst !== edited.procurement_price_includes_gst
+      original.procurement_price_includes_gst !== edited.procurement_price_includes_gst ||
+      (edited.product_name_edit !== undefined && edited.product_name_edit !== item.product_name) ||
+      (edited.quantity_edit !== undefined && edited.quantity_edit !== item.quantity.toString())
     );
   });
 
@@ -290,6 +361,55 @@ export function ProcurementOrderItems({
     }
   };
 
+  const handleAddProcurementLine = async () => {
+    try {
+      // Default: use first item's product data or order data
+      const baseProduct = items.length > 0 ? items[0] : null;
+      const productName = baseProduct?.product_name || orderProductData?.product_name || 'New Item';
+      const productCategory = baseProduct?.product_category || orderProductData?.product_category || 'Consumer Drones';
+      const productCode = baseProduct?.product_code || orderProductData?.product_code || null;
+
+      const { error } = await supabase
+        .from('order_items')
+        .insert({
+          order_id: orderId,
+          product_name: productName,
+          product_category: productCategory,
+          product_code: productCode,
+          quantity: 1,
+          unit_price: 0,
+          status: 'pending',
+        });
+
+      if (error) throw error;
+      toast.success('Procurement line added');
+      fetchItems();
+    } catch (error: any) {
+      console.error('Error adding procurement line:', error);
+      toast.error('Failed to add procurement line');
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    try {
+      // Don't allow deleting the last item
+      if (items.length <= 1) {
+        toast.error('Cannot remove the last item');
+        return;
+      }
+      const { error } = await supabase
+        .from('order_items')
+        .delete()
+        .eq('id', itemId);
+      if (error) throw error;
+      toast.success('Procurement line removed');
+      fetchItems();
+    } catch (error: any) {
+      console.error('Error deleting item:', error);
+      toast.error('Failed to remove item');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-4">
@@ -298,7 +418,7 @@ export function ProcurementOrderItems({
     );
   }
 
-  // If no order items exist, show legacy view (single product from order)
+  // If no order items exist and auto-create didn't fire (no orderProductData), show fallback
   if (items.length === 0) {
     return (
       <Card className="bg-muted/30">
@@ -306,12 +426,12 @@ export function ProcurementOrderItems({
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-2">
               <Package className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Single Product Order</span>
+              <span className="font-medium">No procurement items</span>
             </div>
-            <div className="text-muted-foreground">
-              Qty: {orderQuantity} × {currencySymbol}{orderProcurementRate?.toLocaleString() || '0'} 
-              = {currencySymbol}{((orderProcurementRate || 0) * orderQuantity).toLocaleString()}
-            </div>
+            <Button size="sm" variant="outline" onClick={handleAddProcurementLine}>
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Add Item
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -326,16 +446,22 @@ export function ProcurementOrderItems({
             <Package className="h-4 w-4" />
             Order Items ({items.length})
           </CardTitle>
-          {hasChanges && (
-            <Button size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-              ) : (
-                <Save className="h-4 w-4 mr-1" />
-              )}
-              Save Changes
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={handleAddProcurementLine} className="text-xs">
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Add Supplier Line
             </Button>
-          )}
+            {hasChanges && (
+              <Button size="sm" onClick={handleSave} disabled={saving}>
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <Save className="h-4 w-4 mr-1" />
+                )}
+                Save Changes
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -350,10 +476,20 @@ export function ProcurementOrderItems({
           return (
             <div key={item.id} className="p-3 bg-muted/30 rounded-lg space-y-3">
               <div className="flex items-start justify-between">
-                <div>
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
-                    <span className="font-medium">{item.product_name}</span>
+                    <Input
+                      value={editedItems[item.id]?.product_name_edit ?? item.product_name}
+                      onChange={(e) => {
+                        setEditedItems(prev => ({
+                          ...prev,
+                          [item.id]: { ...prev[item.id], product_name_edit: e.target.value }
+                        }));
+                      }}
+                      className="h-7 text-sm font-medium max-w-[300px]"
+                      placeholder="Product / Component name"
+                    />
                     {isFromStock && (
                       <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 text-xs">
                         <Warehouse className="h-3 w-3 mr-1" />
@@ -361,22 +497,43 @@ export function ProcurementOrderItems({
                       </Badge>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
+                  <div className="text-xs text-muted-foreground mt-1 ml-[60px]">
                     {item.product_category} • Code: {item.product_code || '-'}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* Stock indicator */}
                   {stockItem && (
                     <Badge variant="outline" className="text-xs gap-1">
                       <Warehouse className="h-3 w-3" />
                       Stock: {availableStock}
                     </Badge>
                   )}
-                  <Badge variant="secondary">Order Qty: {item.quantity}</Badge>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={editedItems[item.id]?.quantity_edit ?? item.quantity.toString()}
+                    onChange={(e) => {
+                      setEditedItems(prev => ({
+                        ...prev,
+                        [item.id]: { ...prev[item.id], quantity_edit: e.target.value }
+                      }));
+                    }}
+                    className="h-7 w-16 text-xs text-center"
+                    placeholder="Qty"
+                  />
                   <Badge className={statusColors[editedItems[item.id]?.status || 'pending']}>
                     {ORDER_ITEM_STATUSES.find(s => s.value === editedItems[item.id]?.status)?.label || 'Pending'}
                   </Badge>
+                  {items.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteItem(item.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               </div>
 
