@@ -3297,36 +3297,45 @@ export type Database = {
       google_ads_sync_log: {
         Row: {
           created_at: string
+          duplicates_skipped: number | null
           errors: string[] | null
           id: string
           last_synced_at: string
           leads_fetched: number
           leads_inserted: number
           leads_skipped: number
+          retry_count: number | null
           status: string
           sync_duration_ms: number | null
+          sync_locked_until: string | null
         }
         Insert: {
           created_at?: string
+          duplicates_skipped?: number | null
           errors?: string[] | null
           id?: string
           last_synced_at?: string
           leads_fetched?: number
           leads_inserted?: number
           leads_skipped?: number
+          retry_count?: number | null
           status?: string
           sync_duration_ms?: number | null
+          sync_locked_until?: string | null
         }
         Update: {
           created_at?: string
+          duplicates_skipped?: number | null
           errors?: string[] | null
           id?: string
           last_synced_at?: string
           leads_fetched?: number
           leads_inserted?: number
           leads_skipped?: number
+          retry_count?: number | null
           status?: string
           sync_duration_ms?: number | null
+          sync_locked_until?: string | null
         }
         Relationships: []
       }

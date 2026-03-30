@@ -6,6 +6,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-cron-secret, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const BUFFER_WINDOW_MINUTES = 10; // #1: Buffer window to avoid missed leads
+const MAX_RETRIES = 3;            // #3: Retry attempts
+const LOCK_DURATION_MINUTES = 4;  // #7: Cron lock duration
+
 interface GoogleAdsLead {
   lead_id: string;
   campaign_id: string;
@@ -23,6 +27,25 @@ function extractField(data: { column_name: string; string_value: string }[], ...
     if (found?.string_value) return found.string_value;
   }
   return null;
+}
+
+// #4: Robust name extraction with fallbacks
+function extractLeadName(data: { column_name: string; string_value: string }[]): string {
+  const fullName = extractField(data, "FULL_NAME", "NAME");
+  if (fullName) return fullName;
+
+  const firstName = extractField(data, "FIRST_NAME");
+  const lastName = extractField(data, "LAST_NAME");
+  if (firstName && lastName) return `${firstName} ${lastName}`;
+  if (firstName) return firstName;
+
+  const company = extractField(data, "COMPANY_NAME", "COMPANY");
+  if (company) return `Lead from ${company}`;
+
+  const email = extractField(data, "EMAIL", "EMAIL_ADDRESS");
+  if (email) return email.split("@")[0];
+
+  return "Google Ads Lead";
 }
 
 async function refreshAccessToken(
@@ -50,16 +73,43 @@ async function refreshAccessToken(
   return json.access_token;
 }
 
+// #3: Fetch with retry + exponential backoff
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  retries: number = MAX_RETRIES
+): Promise<Response> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok || res.status === 400 || res.status === 401 || res.status === 403) {
+        return res; // Don't retry client errors
+      }
+      lastError = new Error(`HTTP ${res.status}: ${await res.text()}`);
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+    // Exponential backoff: 1s, 2s, 4s
+    if (attempt < retries - 1) {
+      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+    }
+  }
+  throw lastError || new Error("Fetch failed after retries");
+}
+
 async function fetchGoogleAdsLeads(
   accessToken: string,
   developerToken: string,
   customerId: string,
   lastSyncedAt: string | null
 ): Promise<GoogleAdsLead[]> {
-  // Build query — fetch lead form submissions
-  const sinceFilter = lastSyncedAt
-    ? ` AND lead_form_submission_data.submission_date_time > '${lastSyncedAt}'`
-    : "";
+  // #1: Buffer window — go back 10 minutes from last sync to catch delayed data
+  let sinceFilter = "";
+  if (lastSyncedAt) {
+    const bufferedTime = new Date(new Date(lastSyncedAt).getTime() - BUFFER_WINDOW_MINUTES * 60 * 1000);
+    sinceFilter = ` AND lead_form_submission_data.submission_date_time > '${bufferedTime.toISOString()}'`;
+  }
 
   const query = `
     SELECT
@@ -77,7 +127,8 @@ async function fetchGoogleAdsLeads(
 
   const customIdFormatted = customerId.replace(/-/g, "");
 
-  const res = await fetch(
+  // #3: Use retry wrapper
+  const res = await fetchWithRetry(
     `https://googleads.googleapis.com/v18/customers/${customIdFormatted}/googleAds:searchStream`,
     {
       method: "POST",
@@ -98,7 +149,6 @@ async function fetchGoogleAdsLeads(
   const data = await res.json();
   const leads: GoogleAdsLead[] = [];
 
-  // Parse searchStream response (array of result batches)
   const batches = Array.isArray(data) ? data : [data];
   for (const batch of batches) {
     const results = batch.results || [];
@@ -123,6 +173,46 @@ async function fetchGoogleAdsLeads(
   }
 
   return leads;
+}
+
+// #6: Send Slack alert on failures
+async function sendFailureAlert(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  errorMessage: string,
+  failedCount: number
+) {
+  try {
+    // Check if Slack is configured for notifications
+    const { data: slackSettings } = await supabaseAdmin
+      .from("slack_settings")
+      .select("is_enabled")
+      .limit(1)
+      .maybeSingle();
+
+    if (!slackSettings?.is_enabled) return;
+
+    // Use the existing send-slack-notification function via internal HTTP
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    await fetch(`${supabaseUrl}/functions/v1/send-slack-notification`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceKey}`,
+      },
+      body: JSON.stringify({
+        type: "new_order", // Reuse channel; message makes it clear it's a sync alert
+        data: {
+          customer_name: "⚠️ Google Ads Sync Alert",
+          product_name: `${failedCount} consecutive failure(s)`,
+          notes: errorMessage.substring(0, 200),
+        },
+      }),
+    });
+  } catch (e) {
+    console.error("Failed to send Slack alert:", e);
+  }
 }
 
 Deno.serve(async (req) => {
@@ -165,8 +255,48 @@ Deno.serve(async (req) => {
     });
   }
 
+  // #7: Cron lock — prevent overlapping runs
+  const { data: activeLock } = await supabaseAdmin
+    .from("google_ads_sync_log")
+    .select("id, sync_locked_until")
+    .not("sync_locked_until", "is", null)
+    .gt("sync_locked_until", new Date().toISOString())
+    .limit(1)
+    .maybeSingle();
+
+  if (activeLock) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: "Sync already in progress. Skipping this run.",
+        locked_until: activeLock.sync_locked_until,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
+
+  // Acquire lock by inserting a log entry with lock
+  const lockUntil = new Date(Date.now() + LOCK_DURATION_MINUTES * 60 * 1000).toISOString();
+  const { data: lockEntry } = await supabaseAdmin
+    .from("google_ads_sync_log")
+    .insert({
+      last_synced_at: new Date().toISOString(),
+      leads_fetched: 0,
+      leads_inserted: 0,
+      leads_skipped: 0,
+      status: "running",
+      sync_locked_until: lockUntil,
+    })
+    .select("id")
+    .single();
+
+  const lockId = lockEntry?.id;
+
   try {
-    // Get Google Ads credentials from secrets
+    // Get Google Ads credentials
     const developerToken = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN");
     const clientId = Deno.env.get("GOOGLE_ADS_CLIENT_ID");
     const clientSecret = Deno.env.get("GOOGLE_ADS_CLIENT_SECRET");
@@ -174,6 +304,15 @@ Deno.serve(async (req) => {
     const customerId = Deno.env.get("GOOGLE_ADS_CUSTOMER_ID");
 
     if (!developerToken || !clientId || !clientSecret || !refreshToken || !customerId) {
+      // Release lock + update log
+      if (lockId) {
+        await supabaseAdmin.from("google_ads_sync_log").update({
+          status: "error",
+          errors: ["Missing Google Ads credentials"],
+          sync_locked_until: null,
+          sync_duration_ms: Date.now() - startTime,
+        }).eq("id", lockId);
+      }
       return new Response(
         JSON.stringify({
           error: "Google Ads credentials not configured",
@@ -192,7 +331,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get last synced timestamp
+    // Get last successful sync timestamp
     const { data: lastSync } = await supabaseAdmin
       .from("google_ads_sync_log")
       .select("last_synced_at")
@@ -206,23 +345,17 @@ Deno.serve(async (req) => {
     // Refresh OAuth token
     const accessToken = await refreshAccessToken(clientId, clientSecret, refreshToken);
 
-    // Fetch leads from Google Ads
+    // Fetch leads from Google Ads (with retry built in)
     const leads = await fetchGoogleAdsLeads(accessToken, developerToken, customerId, lastSyncedAt);
 
     let inserted = 0;
     let skipped = 0;
+    let duplicatesSkipped = 0;
     const errors: string[] = [];
 
     for (const lead of leads) {
       try {
-        const name = extractField(lead.submission_data, "FULL_NAME", "NAME", "FIRST_NAME") || "Google Ads Lead";
-        const phone = extractField(lead.submission_data, "PHONE_NUMBER", "PHONE");
-        const email = extractField(lead.submission_data, "EMAIL", "EMAIL_ADDRESS");
-        const company = extractField(lead.submission_data, "COMPANY_NAME", "COMPANY") || "Unknown";
-        const city = extractField(lead.submission_data, "CITY", "LOCATION");
-        const productInterest = extractField(lead.submission_data, "PRODUCT", "PRODUCT_TYPE", "WHAT_ARE_YOU_LOOKING_FOR");
-
-        // Duplicate check: google_lead_id, phone, or email
+        // #2: Pre-check duplicate in code before insert attempt
         if (lead.lead_id) {
           const { data: existing } = await supabaseAdmin
             .from("enquiries")
@@ -230,17 +363,20 @@ Deno.serve(async (req) => {
             .eq("google_lead_id", lead.lead_id)
             .maybeSingle();
           if (existing) {
+            duplicatesSkipped++;
             skipped++;
+            console.log(`[DEDUP] Skipped duplicate lead: ${lead.lead_id}`);
             continue;
           }
         }
 
-        // Also check by phone/email for broader dedup
-        if (phone || email) {
-          let dupQuery = supabaseAdmin.from("enquiries").select("id").eq("lead_source", "google_ads");
-          if (phone) dupQuery = dupQuery.eq("product_code", phone); // Check phone stored in a relevant field
-          // We rely mainly on google_lead_id dedup. Phone/email secondary.
-        }
+        // #4: Robust field extraction with fallbacks
+        const name = extractLeadName(lead.submission_data);
+        const phone = extractField(lead.submission_data, "PHONE_NUMBER", "PHONE", "MOBILE", "CONTACT_NUMBER");
+        const email = extractField(lead.submission_data, "EMAIL", "EMAIL_ADDRESS", "WORK_EMAIL");
+        const company = extractField(lead.submission_data, "COMPANY_NAME", "COMPANY", "ORGANIZATION") || "Unknown";
+        const city = extractField(lead.submission_data, "CITY", "LOCATION", "AREA", "REGION");
+        const productInterest = extractField(lead.submission_data, "PRODUCT", "PRODUCT_TYPE", "WHAT_ARE_YOU_LOOKING_FOR", "INTERESTED_IN", "MODEL");
 
         const { error: insertError } = await supabaseAdmin.from("enquiries").insert({
           customer_name: name,
@@ -258,7 +394,10 @@ Deno.serve(async (req) => {
             email ? `Email: ${email}` : null,
             phone ? `Phone: ${phone}` : null,
             city ? `City: ${city}` : null,
-            `Source: Google Ads (Campaign: ${lead.campaign_name || lead.campaign_id})`,
+            `Source: Google Ads`,
+            lead.campaign_name ? `Campaign: ${lead.campaign_name}` : null,
+            lead.campaign_id ? `Campaign ID: ${lead.campaign_id}` : null,
+            lead.ad_group_id ? `Ad Group: ${lead.ad_group_id}` : null,
           ]
             .filter(Boolean)
             .join("\n"),
@@ -271,9 +410,10 @@ Deno.serve(async (req) => {
         });
 
         if (insertError) {
-          // Unique constraint violation = duplicate, skip
           if (insertError.code === "23505") {
+            duplicatesSkipped++;
             skipped++;
+            console.log(`[DEDUP-DB] Constraint caught duplicate: ${lead.lead_id}`);
           } else {
             errors.push(`Lead ${lead.lead_id}: ${insertError.message}`);
           }
@@ -286,17 +426,37 @@ Deno.serve(async (req) => {
     }
 
     const duration = Date.now() - startTime;
+    const finalStatus = errors.length > 0 && inserted === 0 ? "error" : "success";
 
-    // Log the sync
-    await supabaseAdmin.from("google_ads_sync_log").insert({
-      last_synced_at: new Date().toISOString(),
-      leads_fetched: leads.length,
-      leads_inserted: inserted,
-      leads_skipped: skipped,
-      errors: errors.length > 0 ? errors : [],
-      status: errors.length > 0 && inserted === 0 ? "error" : "success",
-      sync_duration_ms: duration,
-    });
+    // Update the lock entry with final results
+    if (lockId) {
+      await supabaseAdmin.from("google_ads_sync_log").update({
+        last_synced_at: new Date().toISOString(),
+        leads_fetched: leads.length,
+        leads_inserted: inserted,
+        leads_skipped: skipped,
+        duplicates_skipped: duplicatesSkipped,
+        errors: errors.length > 0 ? errors : [],
+        status: finalStatus,
+        sync_duration_ms: duration,
+        sync_locked_until: null, // Release lock
+      }).eq("id", lockId);
+    }
+
+    // #6: Alert on errors
+    if (finalStatus === "error") {
+      // Count consecutive failures
+      const { data: recentLogs } = await supabaseAdmin
+        .from("google_ads_sync_log")
+        .select("status")
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      const consecutiveFailures = recentLogs?.filter((l) => l.status === "error").length || 0;
+      if (consecutiveFailures >= 2) {
+        await sendFailureAlert(supabaseAdmin, errors.join("; "), consecutiveFailures);
+      }
+    }
 
     return new Response(
       JSON.stringify({
@@ -304,6 +464,7 @@ Deno.serve(async (req) => {
         fetched: leads.length,
         inserted,
         skipped,
+        duplicates_skipped: duplicatesSkipped,
         errors: errors.length,
         duration_ms: duration,
       }),
@@ -316,16 +477,30 @@ Deno.serve(async (req) => {
     const duration = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    // Log failed sync
-    await supabaseAdmin.from("google_ads_sync_log").insert({
-      last_synced_at: new Date().toISOString(),
-      leads_fetched: 0,
-      leads_inserted: 0,
-      leads_skipped: 0,
-      errors: [errorMessage],
-      status: "error",
-      sync_duration_ms: duration,
-    });
+    // Release lock + log failure
+    if (lockId) {
+      await supabaseAdmin.from("google_ads_sync_log").update({
+        leads_fetched: 0,
+        leads_inserted: 0,
+        leads_skipped: 0,
+        errors: [errorMessage],
+        status: "error",
+        sync_duration_ms: duration,
+        sync_locked_until: null,
+      }).eq("id", lockId);
+    }
+
+    // #6: Check for consecutive failures and alert
+    const { data: recentLogs } = await supabaseAdmin
+      .from("google_ads_sync_log")
+      .select("status")
+      .order("created_at", { ascending: false })
+      .limit(3);
+
+    const consecutiveFailures = recentLogs?.filter((l) => l.status === "error").length || 0;
+    if (consecutiveFailures >= 2) {
+      await sendFailureAlert(supabaseAdmin, errorMessage, consecutiveFailures);
+    }
 
     console.error("Google Ads sync error:", errorMessage);
     return new Response(
