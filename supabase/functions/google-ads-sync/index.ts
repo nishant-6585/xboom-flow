@@ -109,28 +109,33 @@ async function fetchGoogleAdsLeads(
     ? new Date(new Date(lastSyncedAt).getTime() - BUFFER_WINDOW_MINUTES * 60 * 1000)
     : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  // Format as YYYY-MM-DD HH:MM:SS for GAQL compatibility
-  const startTimeFormatted = baselineTime.toISOString().replace("T", " ").replace(/\.\d+Z$/, "");
+  // Format as 'YYYY-MM-DD HH:MM:SS' for GAQL compatibility (no T, no Z, no ms)
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const d = baselineTime;
+  const startTimeFormatted = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
 
   const query = `SELECT lead_form_submission_data.id, lead_form_submission_data.create_time, lead_form_submission_data.campaign, lead_form_submission_data.ad_group, lead_form_submission_data.asset, lead_form_submission_data.lead_form_user_submission_data FROM lead_form_submission_data WHERE lead_form_submission_data.create_time >= '${startTimeFormatted}' ORDER BY lead_form_submission_data.create_time DESC`;
 
   console.log("[GAQL] Final query:", query);
 
-  const customIdFormatted = customerId.replace(/-/g, "");
+  // Ensure customer ID is numeric only (no dashes), use the direct account ID not MCC
+  const customIdFormatted = customerId.replace(/-/g, "").replace(/\s/g, "");
+  console.log("[Google Ads] Using customer ID:", customIdFormatted);
+
+  // Use v16 API (stable, widely supported for lead form submissions)
+  const apiUrl = `https://googleads.googleapis.com/v16/customers/${customIdFormatted}/googleAds:searchStream`;
+  console.log("[Google Ads] API URL:", apiUrl);
 
   // #3: Use retry wrapper
-  const res = await fetchWithRetry(
-    `https://googleads.googleapis.com/v23/customers/${customIdFormatted}/googleAds:searchStream`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "developer-token": developerToken,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ query }),
-    }
-  );
+  const res = await fetchWithRetry(apiUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "developer-token": developerToken,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query }),
+  });
 
   if (!res.ok) {
     const errText = await res.text();
