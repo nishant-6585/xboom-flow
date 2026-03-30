@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const primaryRole = ROLE_PRIORITY.find((r) => userRoles.includes(r)) || userRoles[0];
         setRole(primaryRole);
         // Check MFA status for admin users
-        await checkMfaStatus(userRoles);
+        await checkMfaStatus(userRoles, userId);
       } else {
         setRoles([]);
         setRole(null);
@@ -92,24 +92,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const checkMfaStatus = useCallback(async (_userRoles: AppRole[]) => {
+  const checkMfaStatus = useCallback(async (_userRoles: AppRole[], currentUserId?: string) => {
     try {
-      // Always check AAL level first — this is the source of truth
       const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (aalError) {
         console.error("AAL check error:", aalError);
-        // Fail-closed: require verification on error
         setMfaStatus("verification_required");
         return;
       }
 
-      // If already at AAL2, user is fully verified
       if (aalData.currentLevel === "aal2") {
         setMfaStatus("verified");
         return;
       }
 
-      // At AAL1 — check if user has TOTP factors enrolled
       const { data, error } = await supabase.auth.mfa.listFactors();
       if (error) {
         console.error("MFA factor list error:", error);
@@ -120,23 +116,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const verifiedFactors = data.totp.filter((f) => f.status === "verified");
 
       if (verifiedFactors.length > 0) {
-        // Has enrolled factors but AAL is not aal2 → needs verification
+        // Check if this device is trusted (24-hour remember)
+        const trustData = localStorage.getItem("mfa_device_trust");
+        if (trustData) {
+          try {
+            const parsed = JSON.parse(trustData);
+            const trustExpiry = new Date(parsed.expiresAt).getTime();
+            if (parsed.userId === currentUserId && trustExpiry > Date.now()) {
+              setMfaStatus("verified");
+              return;
+            } else {
+              localStorage.removeItem("mfa_device_trust");
+            }
+          } catch {
+            localStorage.removeItem("mfa_device_trust");
+          }
+        }
         setMfaStatus("verification_required");
         return;
       }
 
-      // No factors enrolled — ALL users must enroll
       setMfaStatus("enrollment_required");
     } catch (e) {
       console.error("MFA status check failed:", e);
-      // Fail-closed: require verification on error
       setMfaStatus("verification_required");
     }
   }, []);
 
   const refreshMfaStatus = useCallback(async () => {
-    await checkMfaStatus(roles);
-  }, [roles, checkMfaStatus]);
+    const uid = user?.id;
+    await checkMfaStatus(roles, uid);
+  }, [roles, checkMfaStatus, user]);
 
   const refreshProfile = async () => {
     if (user) {
@@ -436,6 +446,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .eq("user_id", user.id)
         .eq("is_current", true);
     }
+    localStorage.removeItem("mfa_device_trust");
     await supabase.auth.signOut();
     setProfile(null);
     profileRef.current = null;
