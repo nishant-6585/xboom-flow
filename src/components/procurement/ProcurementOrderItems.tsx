@@ -301,7 +301,9 @@ export function ProcurementOrderItems({
       original.fulfilled_from_stock !== edited.fulfilled_from_stock ||
       original.procurement_gst_percent !== edited.procurement_gst_percent ||
       original.procurement_gst_amount !== edited.procurement_gst_amount ||
-      original.procurement_price_includes_gst !== edited.procurement_price_includes_gst
+      original.procurement_price_includes_gst !== edited.procurement_price_includes_gst ||
+      (edited.product_name_edit !== undefined && edited.product_name_edit !== item.product_name) ||
+      (edited.quantity_edit !== undefined && edited.quantity_edit !== item.quantity.toString())
     );
   });
 
