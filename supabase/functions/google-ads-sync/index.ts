@@ -114,11 +114,13 @@ async function fetchGoogleAdsLeads(
   const query = `
     SELECT
       lead_form_submission_data.id,
-      lead_form_submission_data.campaign_id,
-      lead_form_submission_data.ad_group_id,
+      lead_form_submission_data.resource_name,
       lead_form_submission_data.lead_form_submission_fields,
       lead_form_submission_data.submission_date_time,
-      campaign.name
+      campaign.id,
+      campaign.name,
+      ad_group.id,
+      ad_group.name
     FROM lead_form_submission_data
     WHERE segments.date DURING LAST_30_DAYS${sinceFilter}
     ORDER BY lead_form_submission_data.submission_date_time DESC
@@ -158,9 +160,9 @@ async function fetchGoogleAdsLeads(
 
       leads.push({
         lead_id: sub.id || sub.resourceName,
-        campaign_id: String(result.leadFormSubmissionData?.campaignId || sub.campaignId || ""),
+        campaign_id: String(result.campaign?.id || ""),
         campaign_name: result.campaign?.name || "",
-        ad_group_id: String(sub.adGroupId || ""),
+        ad_group_id: String(result.adGroup?.id || ""),
         submission_data: (sub.leadFormSubmissionFields || []).map(
           (f: { fieldName: string; fieldValue: string }) => ({
             column_name: f.fieldName,
