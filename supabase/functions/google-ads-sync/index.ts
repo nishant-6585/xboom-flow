@@ -129,7 +129,7 @@ async function fetchGoogleAdsLeads(
 
   // #3: Use retry wrapper
   const res = await fetchWithRetry(
-    `https://googleads.googleapis.com/v17/customers/${customIdFormatted}/googleAds:searchStream`,
+    `https://googleads.googleapis.com/v23/customers/${customIdFormatted}/googleAds:searchStream`,
     {
       method: "POST",
       headers: {
