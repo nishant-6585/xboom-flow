@@ -46,6 +46,8 @@ interface EditedItem {
   procurement_gst_percent: string;
   procurement_gst_amount: string;
   procurement_price_includes_gst: boolean;
+  product_name_edit?: string;
+  quantity_edit?: string;
 }
 
 const statusColors: Record<string, string> = {
