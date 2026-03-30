@@ -1073,6 +1073,38 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             </Badge>
                           )}
                         </TableCell>
+                        <TableCell>
+                          {editingOrderItems ? (
+                            <Select
+                              value={editedOrderItems[item.id]?.supplier_id || 'none'}
+                              onValueChange={(v) => setEditedOrderItems(prev => ({
+                                ...prev,
+                                [item.id]: { ...prev[item.id], supplier_id: v === 'none' ? '' : v }
+                              }))}
+                            >
+                              <SelectTrigger className="h-8 w-[160px] text-sm">
+                                <SelectValue placeholder="Select supplier" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">No Supplier</SelectItem>
+                                {suppliers.map(s => (
+                                  <SelectItem key={s.id} value={s.id}>
+                                    {s.name} {s.brand_name ? `(${s.brand_name})` : ''}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            (() => {
+                              const sup = suppliers.find(s => s.id === item.supplier_id);
+                              return sup ? (
+                                <span className="text-sm">{sup.name}</span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              );
+                            })()
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">
                           {editingOrderItems ? (
                             <Input
