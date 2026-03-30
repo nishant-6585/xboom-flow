@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -173,6 +173,49 @@ export function CandidateFormDialog({ open, onClose, candidate }: Props) {
       notes: candidate?.notes || "",
     },
   });
+
+  // Reset form completely when dialog opens/closes or candidate changes
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        full_name: candidate?.full_name || "",
+        email: candidate?.email || "",
+        phone: candidate?.phone || "",
+        location_city: candidate?.location_city || "",
+        location_state: candidate?.location_state || "",
+        application_source: candidate?.application_source || "",
+        years_of_experience: candidate?.years_of_experience ?? undefined,
+        relevant_experience_years: candidate?.relevant_experience_years ?? undefined,
+        current_company: candidate?.current_company || "",
+        current_designation: candidate?.current_designation || "",
+        current_ctc: candidate?.current_ctc ?? undefined,
+        expected_ctc: candidate?.expected_ctc ?? undefined,
+        notice_period_days: candidate?.notice_period_days ?? undefined,
+        employment_type: candidate?.employment_type || "",
+        job_role_applied: candidate?.job_role_applied || "",
+        department: candidate?.department || "",
+        recruiter_name: candidate?.recruiter_name || "",
+        screening_status: candidate?.screening_status || "New",
+        interview_stage: candidate?.interview_stage || "",
+        final_status: candidate?.final_status || "",
+        offer_letter_issued: candidate?.offer_letter_issued || false,
+        joining_date: candidate?.joining_date || "",
+        status: candidate?.status || "applied",
+        rejection_reason: candidate?.rejection_reason || "",
+        follow_up_date: candidate?.follow_up_date || "",
+        remarks: candidate?.remarks || "",
+        notes: candidate?.notes || "",
+      });
+      setSkills(candidate?.primary_skills || []);
+      setSkillInput("");
+      setCvFile(null);
+      setBasicOpen(true);
+      setProfOpen(true);
+      setHiringOpen(false);
+      setComplianceOpen(false);
+      setStatusOpen(false);
+    }
+  }, [open, candidate]);
 
   const watchedFinalStatus = form.watch("final_status");
   const watchedStatus = form.watch("status");
