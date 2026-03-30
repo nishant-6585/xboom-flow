@@ -105,11 +105,10 @@ async function fetchGoogleAdsLeads(
   lastSyncedAt: string | null
 ): Promise<GoogleAdsLead[]> {
   // #1: Buffer window — go back 10 minutes from last sync to catch delayed data
-  let sinceFilter = "";
-  if (lastSyncedAt) {
-    const bufferedTime = new Date(new Date(lastSyncedAt).getTime() - BUFFER_WINDOW_MINUTES * 60 * 1000);
-    sinceFilter = ` AND lead_form_submission_data.submission_date_time > '${bufferedTime.toISOString()}'`;
-  }
+  const baselineTime = lastSyncedAt
+    ? new Date(new Date(lastSyncedAt).getTime() - BUFFER_WINDOW_MINUTES * 60 * 1000)
+    : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const sinceFilter = `lead_form_submission_data.submission_date_time > '${baselineTime.toISOString()}'`;
 
   const query = `
     SELECT
@@ -122,7 +121,7 @@ async function fetchGoogleAdsLeads(
       ad_group.id,
       ad_group.name
     FROM lead_form_submission_data
-    WHERE segments.date DURING LAST_30_DAYS${sinceFilter}
+    WHERE ${sinceFilter}
     ORDER BY lead_form_submission_data.submission_date_time DESC
     LIMIT 100
   `;
