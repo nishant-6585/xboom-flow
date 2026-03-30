@@ -996,6 +996,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <TableRow>
                       <TableHead>Product</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Supplier</TableHead>
                       <TableHead className="text-right">Qty</TableHead>
                       <TableHead className="text-right">Unit Price</TableHead>
                       {canSeeProcurement && <TableHead className="text-right">Procurement</TableHead>}
