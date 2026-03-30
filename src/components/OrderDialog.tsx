@@ -867,6 +867,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             status: item.status,
                             notes: item.notes || '',
                             procurement_rate: item.procurement_rate || '',
+                            supplier_id: item.supplier_id || '',
                           };
                         });
                         setEditedOrderItems(initialEdits);
