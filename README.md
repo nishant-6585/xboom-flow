@@ -64,7 +64,10 @@ Users can hold multiple roles simultaneously. A priority hierarchy (`Admin > HR 
 ## Core Modules
 
 ### Sales & CRM
-Lead management with multi-item enquiries, AI-powered lead scoring (1–10 scale), lead temperature tracking (Hot/Warm/Cold), mega deal flagging, pipeline management with stage tracking, sales leaderboard with points gamification, daily activity logging, and customer testimonials.
+Lead management with multi-source ingestion (Interakt, MyOperator, Email, Google Ads, Custom Forms), multi-item enquiries, AI-powered lead scoring (1–10 scale), lead temperature tracking (Hot/Warm/Cold), mega deal flagging, pipeline management with stage tracking, sales leaderboard with points gamification, daily activity logging, and customer testimonials.
+
+### Google Ads Integration
+Full revenue intelligence system for Google Ads campaigns. Lead Form Extension sync via API v23 with heuristic field parsing for unknown column names. CEO-level dashboard with Spend, Revenue, Profit, and ROAS metrics. Campaign Decision Engine with automated recommendations (SCALE, OPTIMIZE, PAUSE, CRITICAL). Sales performance analytics per salesperson. Lead aging detection and time-to-conversion tracking. Revenue leakage alerts and budget optimization insights. Conversion tracking via database triggers linking orders back to campaigns.
 
 ### Inventory Management
 Real-time stock tracking via database triggers on inventory transactions. Supports procurement-in, order-fulfilled, customer-return, and adjustment transaction types. Product catalog with pricing (internal + public pricelist). Demand forecasting widget.
@@ -122,6 +125,11 @@ Training program management with sequential numbering and certificate generation
 |---------|-------------|
 | AI Lead Scoring | Gemini-powered 1–10 scoring with key factors, risk analysis, and suggested approach |
 | AI Sales Assistant | Conversational chatbot for product/pricing queries (cost-price gated by role) |
+| AI Decision Engine | Automated campaign recommendations — SCALE, OPTIMIZE, PAUSE, CRITICAL based on ROAS |
+| Google Ads ROI | End-to-end attribution: Ad Spend → Leads → Conversions → Revenue → ROAS per campaign |
+| Revenue Leakage Detection | Alerts when leads are generated but not converting into revenue |
+| Lead Priority System | Auto-classifies leads as High Value 🔥, Hot ⚡, Warm, Cold based on form responses |
+| Sales Performance Analytics | Per-salesperson conversion rate, revenue attribution, and ranking |
 | Sales Pipeline | Stage-based deal tracking with weighted forecast |
 | Inventory Tracking | Trigger-based real-time stock updates |
 | Payroll Automation | Attendance → salary sheet → approval → payslip → bank file → reconciliation |
@@ -171,6 +179,7 @@ Training program management with sequential numbering and certificate generation
 │                                             │
 │  ┌──────────────────────────────────────┐   │
 │  │ External Integrations               │   │
+│  │  • Google Ads (Lead Sync + ROI)     │   │
 │  │  • Shopify (webhook + backfill)     │   │
 │  │  • Slack (notifications)            │   │
 │  │  • Lovable AI Gateway (LLM calls)   │   │
@@ -235,7 +244,7 @@ For detailed security architecture, see [SECURITY_ARCHITECTURE.md](Features/SECU
 | **Database Migrations** | Stored in `supabase/migrations/` — applied automatically |
 | **Edge Functions** | Deployed automatically from `supabase/functions/` |
 | **Storage** | Private buckets for payslips, invoices, signatures, attachments |
-| **External APIs** | Shopify Admin API, Slack (OAuth connector), Lovable AI Gateway |
+| **External APIs** | Shopify Admin API, Google Ads API v23, Slack (OAuth connector), Lovable AI Gateway |
 
 ---
 
@@ -246,7 +255,7 @@ For detailed security architecture, see [SECURITY_ARCHITECTURE.md](Features/SECU
 | Domain | Key Tables | Purpose |
 |--------|------------|---------|
 | **Auth & Users** | `profiles`, `user_roles`, `user_invitations`, `admin_whitelist`, `user_sessions`, `login_history` | User identity, roles, sessions |
-| **Sales** | `enquiries`, `enquiry_items`, `pipeline_orders`, `lead_tags` | Lead management, pipeline tracking |
+| **Sales** | `enquiries`, `enquiry_items`, `pipeline_orders`, `lead_tags`, `campaign_spend` | Lead management, pipeline, Google Ads attribution |
 | **Orders** | `orders`, `order_items`, `order_procurement_links` | Order lifecycle |
 | **Procurement** | `inventory_procurements`, `procurement_payment_requests`, `supplier_quotations` | Purchase management |
 | **Inventory** | `inventory`, `inventory_transactions` | Stock tracking |
@@ -267,7 +276,7 @@ For detailed security architecture, see [SECURITY_ARCHITECTURE.md](Features/SECU
 
 ## Edge Functions
 
-17 deployed edge functions. See [EDGE_FUNCTIONS.md](Features/EDGE_FUNCTIONS.md) for detailed documentation.
+18 deployed edge functions. See [EDGE_FUNCTIONS.md](Features/EDGE_FUNCTIONS.md) for detailed documentation.
 
 | Function | Purpose |
 |----------|---------|
@@ -287,6 +296,7 @@ For detailed security architecture, see [SECURITY_ARCHITECTURE.md](Features/SECU
 | `shopify-order-backfill` | Cursor-based historical order backfill |
 | `shopify-order-processor` | Batch processes raw Shopify orders |
 | `shopify-webhook` | Receives HMAC-verified Shopify order webhooks |
+| `google-ads-sync` | Syncs Google Ads Lead Form submissions, parses fields, attributes to campaigns |
 | `upload-form-attachment` | File uploads for custom form submissions |
 
 ---
@@ -327,6 +337,7 @@ XBoom Workflow follows a **6-layer security architecture** (Network → Authenti
 | **Procurement** | Auto-create procurement record when order is created |
 | **Gamification** | Award points on order creation, delivery, pipeline entry, testimonial |
 | **Notifications** | In-app alerts for hot leads, lead temperature upgrades |
+| **Conversion tracking** | Mark enquiry as converted when linked order is created, update campaign performance |
 | **Invoice security** | Prevent edit/delete of signed invoices, log signing events |
 | **Validation** | Form submission validation against field schema |
 | **HR automation** | Calculate working hours, create employee on profile approval, calculate ticket SLA |
@@ -467,6 +478,9 @@ See [LOCAL_SETUP.md](Features/LOCAL_SETUP.md) for detailed instructions.
 
 ## Future Roadmap
 
+- [x] Google Ads lead sync and ROI dashboard
+- [x] AI-powered campaign decision engine
+- [x] Conversion tracking with revenue attribution
 - [ ] Company operations dashboard (executive overview)
 - [ ] Payroll analytics and department cost reports
 - [ ] Multi-warehouse inventory tracking
@@ -510,4 +524,4 @@ Use conventional commit format: `type: description`
 
 ---
 
-*Last updated: 2026-03-06 | Source: XBoom Workflow codebase*
+*Last updated: 2026-03-30 | Source: XBoom Workflow codebase*
