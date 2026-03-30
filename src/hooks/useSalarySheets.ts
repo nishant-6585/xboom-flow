@@ -168,7 +168,27 @@ export function calculateDeduction(salary: number, unpaidLeaves: number, working
 }
 
 /**
+ * Count working days between two dates (inclusive), excluding weekends and holidays.
+ */
+async function countWorkingDaysBetween(
+  fromDate: Date,
+  toDate: Date,
+  holidaySet: Set<string>
+): Promise<number> {
+  if (fromDate > toDate) return 0;
+  const days = eachDayOfInterval({ start: fromDate, end: toDate });
+  return days.filter(d => {
+    const day = getDay(d);
+    if (day === 0 || day === 6) return false;
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return !holidaySet.has(dateStr);
+  }).length;
+}
+
+/**
  * Fetch the effective salary for an employee for a given month/year from salary_history.
+ * If there's a mid-month salary change, automatically pro-rates between old and new salary
+ * based on working days before and after the change date.
  * Falls back to employees.monthly_salary if no history exists.
  */
 export async function getEmployeeProfileData(
@@ -183,20 +203,85 @@ export async function getEmployeeProfileData(
     .eq("id", employeeId)
     .single();
 
-  let salary = Number(emp?.monthly_salary) || 0;
+  const baseSalary = Number(emp?.monthly_salary) || 0;
+  const monthStart = startOfMonth(new Date(year, month - 1));
+  const monthEnd = endOfMonth(new Date(year, month - 1));
 
-  // Check salary_history for the effective salary for this month
-  const effectiveDate = `${year}-${String(month).padStart(2, "0")}-01`;
-  const { data: history } = await supabase
+  // Fetch ALL salary history entries effective on or before end of this month
+  const monthEndStr = `${year}-${String(month).padStart(2, "0")}-${String(monthEnd.getDate()).padStart(2, "0")}`;
+  const monthStartStr = `${year}-${String(month).padStart(2, "0")}-01`;
+
+  const { data: allHistory } = await supabase
     .from("salary_history")
-    .select("salary")
+    .select("salary, effective_from")
     .eq("employee_id", employeeId)
-    .lte("effective_from", effectiveDate)
-    .order("effective_from", { ascending: false })
-    .limit(1);
+    .lte("effective_from", monthEndStr)
+    .order("effective_from", { ascending: true });
 
-  if (history && history.length > 0) {
-    salary = Number((history[0] as any).salary) || salary;
+  let salary = baseSalary;
+
+  if (allHistory && allHistory.length > 0) {
+    // Find entries that create mid-month transitions
+    // "Before month" entries: effective_from < monthStart → these set the starting salary
+    // "During month" entries: effective_from within this month → these cause a mid-month change
+    const beforeMonth = allHistory.filter((h: any) => h.effective_from < monthStartStr);
+    const duringMonth = allHistory.filter((h: any) => h.effective_from >= monthStartStr && h.effective_from <= monthEndStr);
+
+    const startingSalary = beforeMonth.length > 0
+      ? Number((beforeMonth[beforeMonth.length - 1] as any).salary) || baseSalary
+      : baseSalary;
+
+    if (duringMonth.length === 0) {
+      // No mid-month change — use the latest salary effective before the month
+      salary = startingSalary;
+    } else {
+      // Mid-month salary change(s) detected — pro-rate!
+      // Fetch holidays for the month
+      const { data: holidays } = await supabase
+        .from("holidays")
+        .select("date")
+        .gte("date", monthStartStr)
+        .lte("date", monthEndStr);
+      const holidaySet = new Set((holidays || []).map((h: any) => h.date));
+
+      const totalWorkingDays = await countWorkingDaysBetween(monthStart, monthEnd, holidaySet);
+      if (totalWorkingDays <= 0) {
+        salary = startingSalary;
+      } else {
+        // Build salary segments: [{salary, fromDate, toDate}, ...]
+        type Segment = { salary: number; from: Date; to: Date };
+        const segments: Segment[] = [];
+
+        let currentSal = startingSalary;
+        let segStart = monthStart;
+
+        for (const entry of duringMonth) {
+          const changeDate = new Date((entry as any).effective_from);
+          // Segment before this change: segStart to day before changeDate
+          if (changeDate > segStart) {
+            const segEnd = new Date(changeDate);
+            segEnd.setDate(segEnd.getDate() - 1);
+            if (segEnd >= segStart) {
+              segments.push({ salary: currentSal, from: segStart, to: segEnd });
+            }
+          }
+          currentSal = Number((entry as any).salary) || currentSal;
+          segStart = changeDate;
+        }
+
+        // Final segment: from last change date to end of month
+        segments.push({ salary: currentSal, from: segStart, to: monthEnd });
+
+        // Calculate weighted salary
+        let weightedTotal = 0;
+        for (const seg of segments) {
+          const days = await countWorkingDaysBetween(seg.from, seg.to, holidaySet);
+          weightedTotal += seg.salary * (days / totalWorkingDays);
+        }
+
+        salary = Math.round(weightedTotal * 100) / 100;
+      }
+    }
   }
 
   return {
