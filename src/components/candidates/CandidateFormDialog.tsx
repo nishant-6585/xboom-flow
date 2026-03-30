@@ -86,6 +86,8 @@ const APP_SOURCES = [
   { value: "Website", label: "Website" },
   { value: "Consultant", label: "Consultant" },
   { value: "Walk-in", label: "Walk-in" },
+  { value: "Internshala", label: "Internshala" },
+  { value: "Indeed", label: "Indeed" },
 ];
 
 const EMPLOYMENT_TYPES = [
