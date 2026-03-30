@@ -228,25 +228,29 @@ const Auth = () => {
   if (isResetPassword) {
     return (
       <div className="min-h-[100dvh] bg-background flex items-center justify-center p-4 overflow-y-auto">
-        <Card className="w-full max-w-md glass animate-fade-in my-auto">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <img src={logoIcon} alt="Xboom Logo" className="w-16 h-16 rounded-xl" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/3 pointer-events-none" />
+        <Card className="w-full max-w-md glass-strong animate-fade-in my-auto shadow-lg relative">
+          <CardHeader className="text-center pb-4">
+            <div className="flex justify-center mb-5">
+              <div className="relative">
+                <div className="absolute inset-0 bg-primary/20 rounded-2xl blur-xl scale-125" />
+                <img src={logoIcon} alt="Xboom Logo" className="w-16 h-16 rounded-2xl relative shadow-md" />
+              </div>
             </div>
             {resetSuccess ? (
               <>
                 <div className="flex justify-center mb-4">
                   <CheckCircle className="w-16 h-16 text-success" />
                 </div>
-                <CardTitle className="text-2xl text-gradient">Password Updated!</CardTitle>
+                <CardTitle className="text-2xl font-display text-gradient">Password Updated!</CardTitle>
                 <CardDescription>
                   Redirecting you to sign in...
                 </CardDescription>
               </>
             ) : (
               <>
-                <CardTitle className="text-2xl text-gradient">Set New Password</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-2xl font-display text-gradient">Set New Password</CardTitle>
+                <CardDescription className="text-muted-foreground/80">
                   Enter your new password below
                 </CardDescription>
               </>
@@ -264,6 +268,7 @@ const Auth = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
+                    className="h-11"
                   />
                   {errors.password && (
                     <p className="text-sm text-destructive">{errors.password}</p>
@@ -279,13 +284,14 @@ const Auth = () => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     disabled={loading}
+                    className="h-11"
                   />
                   {errors.confirmPassword && (
                     <p className="text-sm text-destructive">{errors.confirmPassword}</p>
                   )}
                 </div>
 
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full h-11 font-semibold shadow-md hover:shadow-lg transition-shadow" disabled={loading}>
                   {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Update Password
                 </Button>
