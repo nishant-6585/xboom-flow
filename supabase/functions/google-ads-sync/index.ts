@@ -129,7 +129,7 @@ async function fetchGoogleAdsLeads(
 
   // #3: Use retry wrapper
   const res = await fetchWithRetry(
-    `https://googleads.googleapis.com/v18/customers/${customIdFormatted}/googleAds:searchStream`,
+    `https://googleads.googleapis.com/v17/customers/${customIdFormatted}/googleAds:searchStream`,
     {
       method: "POST",
       headers: {
@@ -504,7 +504,7 @@ Deno.serve(async (req) => {
 
     console.error("Google Ads sync error:", errorMessage);
     return new Response(
-      JSON.stringify({ error: "Internal server error" }),
+      JSON.stringify({ error: "Sync failed", details: errorMessage.substring(0, 200) }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
