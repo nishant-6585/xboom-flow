@@ -601,6 +601,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "attendance_audit_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       attendance_breaks: {
@@ -711,6 +718,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "attendance_correction_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       attendance_logs: {
@@ -798,6 +812,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -1526,6 +1547,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "daily_flow_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "daily_flow_entries_template_id_fkey"
             columns: ["template_id"]
             isOneToOne: false
@@ -1601,6 +1629,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_flow_templates_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -2024,6 +2059,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "employee_assets_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       employee_checklist_items: {
@@ -2123,6 +2165,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_checklists_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -2252,6 +2301,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "employee_kpis_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       employee_payslips: {
@@ -2294,6 +2350,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_payslips_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
             referencedColumns: ["id"]
           },
           {
@@ -2345,6 +2408,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_roles_responsibilities_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -3454,6 +3524,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "hr_document_shares_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       hr_documents: {
@@ -3546,6 +3623,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "hr_folder_shares_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "hr_folder_shares_folder_id_fkey"
             columns: ["folder_id"]
             isOneToOne: false
@@ -3597,6 +3681,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_folders_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
             referencedColumns: ["id"]
           },
           {
@@ -4648,6 +4739,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "leave_balances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       leave_requests: {
@@ -4716,6 +4814,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       leave_transactions: {
@@ -4767,6 +4872,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_transactions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -5995,6 +6107,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payroll_payment_status_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payroll_payment_status_salary_sheet_id_fkey"
             columns: ["salary_sheet_id"]
             isOneToOne: false
@@ -6859,6 +6978,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "resignation_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       salary_history: {
@@ -6898,6 +7024,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_history_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -6993,6 +7126,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_sheet_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
             referencedColumns: ["id"]
           },
           {
@@ -8225,6 +8365,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "training_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       training_resource_tracking: {
@@ -8261,6 +8408,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_resource_tracking_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
             referencedColumns: ["id"]
           },
           {
@@ -8647,6 +8801,93 @@ export type Database = {
           leads: number | null
           revenue: number | null
           spend: number | null
+        }
+        Relationships: []
+      }
+      employees_directory: {
+        Row: {
+          city: string | null
+          department: string | null
+          designation: string | null
+          employee_number: string | null
+          employee_type: string | null
+          employment_status:
+            | Database["public"]["Enums"]["employment_status"]
+            | null
+          exit_date: string | null
+          gender: string | null
+          id: string | null
+          is_active: boolean | null
+          joining_date: string | null
+          manager_id: string | null
+          monthly_attendance_target: number | null
+          name: string | null
+          phone: string | null
+          role: string | null
+          shift_end_time: string | null
+          shift_start_time: string | null
+          shift_type: string | null
+          state: string | null
+          user_id: string | null
+          weekly_hours_target: number | null
+          work_location: string | null
+          xboom_email: string | null
+        }
+        Insert: {
+          city?: string | null
+          department?: string | null
+          designation?: string | null
+          employee_number?: string | null
+          employee_type?: string | null
+          employment_status?:
+            | Database["public"]["Enums"]["employment_status"]
+            | null
+          exit_date?: string | null
+          gender?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          joining_date?: string | null
+          manager_id?: string | null
+          monthly_attendance_target?: number | null
+          name?: string | null
+          phone?: string | null
+          role?: string | null
+          shift_end_time?: string | null
+          shift_start_time?: string | null
+          shift_type?: string | null
+          state?: string | null
+          user_id?: string | null
+          weekly_hours_target?: number | null
+          work_location?: string | null
+          xboom_email?: string | null
+        }
+        Update: {
+          city?: string | null
+          department?: string | null
+          designation?: string | null
+          employee_number?: string | null
+          employee_type?: string | null
+          employment_status?:
+            | Database["public"]["Enums"]["employment_status"]
+            | null
+          exit_date?: string | null
+          gender?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          joining_date?: string | null
+          manager_id?: string | null
+          monthly_attendance_target?: number | null
+          name?: string | null
+          phone?: string | null
+          role?: string | null
+          shift_end_time?: string | null
+          shift_start_time?: string | null
+          shift_type?: string | null
+          state?: string | null
+          user_id?: string | null
+          weekly_hours_target?: number | null
+          work_location?: string | null
+          xboom_email?: string | null
         }
         Relationships: []
       }
