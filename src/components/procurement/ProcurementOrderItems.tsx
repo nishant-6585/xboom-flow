@@ -103,6 +103,48 @@ export function ProcurementOrderItems({
         .order('created_at', { ascending: true });
 
       if (error) throw error;
+      
+      // Auto-create order_item for legacy orders with no items
+      if ((!data || data.length === 0) && orderProductData) {
+        const { data: newItem, error: createError } = await supabase
+          .from('order_items')
+          .insert({
+            order_id: orderId,
+            product_name: orderProductData.product_name,
+            product_category: orderProductData.product_category || 'Consumer Drones',
+            product_code: orderProductData.product_code || null,
+            quantity: orderProductData.quantity,
+            unit_price: orderProductData.unit_price || null,
+            sales_gst_amount: orderProductData.sales_gst_amount || null,
+            sales_gst_percent: orderProductData.sales_gst_percent || null,
+            sales_price_includes_gst: orderProductData.sales_price_includes_gst || false,
+            status: 'pending',
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error auto-creating order item:', createError);
+        } else if (newItem) {
+          setItems([newItem]);
+          const edited: Record<string, EditedItem> = {};
+          edited[newItem.id] = {
+            procurement_rate: '',
+            procurement_date: '',
+            status: 'pending',
+            supplier_id: '',
+            quantity_procured: '',
+            fulfilled_from_stock: false,
+            procurement_gst_percent: '0',
+            procurement_gst_amount: '0',
+            procurement_price_includes_gst: false,
+          };
+          setEditedItems(edited);
+          setLoading(false);
+          return;
+        }
+      }
+
       setItems(data || []);
       
       // Initialize edited items
