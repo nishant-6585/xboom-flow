@@ -445,6 +445,7 @@ export function ProcurementOrderItems({
                 Save Changes
               </Button>
             )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
