@@ -307,13 +307,17 @@ const Auth = () => {
   if (isForgotPassword) {
     return (
       <div className="min-h-[100dvh] bg-background flex items-center justify-center p-4 overflow-y-auto">
-        <Card className="w-full max-w-md glass animate-fade-in my-auto">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <img src={logoIcon} alt="Xboom Logo" className="w-16 h-16 rounded-xl" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/3 pointer-events-none" />
+        <Card className="w-full max-w-md glass-strong animate-fade-in my-auto shadow-lg relative">
+          <CardHeader className="text-center pb-4">
+            <div className="flex justify-center mb-5">
+              <div className="relative">
+                <div className="absolute inset-0 bg-primary/20 rounded-2xl blur-xl scale-125" />
+                <img src={logoIcon} alt="Xboom Logo" className="w-16 h-16 rounded-2xl relative shadow-md" />
+              </div>
             </div>
-            <CardTitle className="text-2xl text-gradient">Reset Password</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-2xl font-display text-gradient">Reset Password</CardTitle>
+            <CardDescription className="text-muted-foreground/80">
               Enter your email and we'll send you a link to reset your password
             </CardDescription>
           </CardHeader>
@@ -328,13 +332,14 @@ const Auth = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={loading}
+                  className="h-11"
                 />
                 {errors.email && (
                   <p className="text-sm text-destructive">{errors.email}</p>
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full h-11 font-semibold shadow-md hover:shadow-lg transition-shadow" disabled={loading}>
                 {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Send Reset Link
               </Button>
@@ -343,11 +348,8 @@ const Auth = () => {
             <div className="mt-6 text-center">
               <button
                 type="button"
-                onClick={() => {
-                  setIsForgotPassword(false);
-                  setErrors({});
-                }}
-                className="text-sm text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
+                onClick={() => { setIsForgotPassword(false); setErrors({}); }}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1.5 font-medium"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back to Sign In
