@@ -125,6 +125,10 @@ export default function Sales() {
                   <Phone className="w-4 h-4" />
                   Outbound
                 </TabsTrigger>
+                <TabsTrigger value="google-ads" className={triggerPrimary}>
+                  <Megaphone className="w-4 h-4" />
+                  Google Ads
+                </TabsTrigger>
               </TabsList>
             </div>
             
@@ -239,6 +243,10 @@ export default function Sales() {
 
           <TabsContent value="testimonials" className="space-y-6">
             <TestimonialsPanel />
+          </TabsContent>
+
+          <TabsContent value="google-ads" className="space-y-6">
+            <GoogleAdsSyncPanel />
           </TabsContent>
 
           <TabsContent value="suggestions" className="space-y-6">
