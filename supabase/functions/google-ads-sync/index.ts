@@ -359,6 +359,40 @@ Deno.serve(async (req) => {
     let duplicatesSkipped = 0;
     const errors: string[] = [];
 
+    // Ensure every enquiry has a valid assignee to satisfy downstream task trigger constraints
+    let defaultAssigneeId: string | null = null;
+    let defaultAssigneeName = "Unassigned";
+
+    const { data: salesRoleUser } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "sales")
+      .limit(1)
+      .maybeSingle();
+
+    if (salesRoleUser?.user_id) {
+      defaultAssigneeId = salesRoleUser.user_id;
+    } else {
+      const { data: adminRoleUser } = await supabaseAdmin
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin")
+        .limit(1)
+        .maybeSingle();
+      defaultAssigneeId = adminRoleUser?.user_id ?? null;
+    }
+
+    if (defaultAssigneeId) {
+      const { data: assigneeProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("name")
+        .eq("user_id", defaultAssigneeId)
+        .maybeSingle();
+      defaultAssigneeName = assigneeProfile?.name || "Auto-assigned";
+    } else {
+      throw new Error("No eligible user found to assign imported leads.");
+    }
+
     for (const lead of leads) {
       try {
         // #2: Pre-check duplicate in code before insert attempt
@@ -392,8 +426,8 @@ Deno.serve(async (req) => {
           product_category: "Consumer Drones",
           quantity: 1,
           urgency: "medium",
-          sales_person_id: null,
-          sales_person_name: "Unassigned",
+          sales_person_id: defaultAssigneeId,
+          sales_person_name: defaultAssigneeName,
           status: "pending",
           lead_temperature: "warm",
           notes: [
