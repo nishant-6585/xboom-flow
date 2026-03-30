@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { GoogleAdsSyncPanel } from '@/components/sales/GoogleAdsSyncPanel';
 import { useEnquiries, PRODUCT_CATEGORIES, Enquiry } from '@/hooks/useEnquiries';
 import { useInteraktLeads, InteraktLead } from '@/hooks/useInteraktLeads';
 import { useProspects } from '@/hooks/useProspects';
@@ -31,7 +32,7 @@ import { EnquiryConvertButton } from './EnquiryConvertButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadsPanel } from './EmailLeadsPanel';
 import { FormsLeadsPanel } from './FormsLeadsPanel';
-import { Mail, FileText } from 'lucide-react';
+import { Mail, FileText, Megaphone } from 'lucide-react';
 import { MyOperatorAnalytics } from './MyOperatorAnalytics';
 import { MyOperatorTabContent } from './MyOperatorTabContent';
 import { InteraktAnalytics } from './InteraktAnalytics';
@@ -309,6 +310,10 @@ export function LeadsPanel() {
         <TabsTrigger value="form-leads" className="gap-1.5">
           <FileText className="h-3.5 w-3.5" />
           Forms
+        </TabsTrigger>
+        <TabsTrigger value="google-ads" className="gap-1.5">
+          <Megaphone className="h-3.5 w-3.5" />
+          Google Ads
         </TabsTrigger>
       </TabsList>
 
@@ -960,6 +965,10 @@ export function LeadsPanel() {
 
       <TabsContent value="form-leads">
         <FormsLeadsPanel />
+      </TabsContent>
+
+      <TabsContent value="google-ads">
+        <GoogleAdsSyncPanel />
       </TabsContent>
     </Tabs>
   );
