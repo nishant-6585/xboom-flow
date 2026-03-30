@@ -109,13 +109,11 @@ async function fetchGoogleAdsLeads(
     ? new Date(new Date(lastSyncedAt).getTime() - BUFFER_WINDOW_MINUTES * 60 * 1000)
     : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  // Format as YYYY-MM-DD HH:MM:SS+00:00 for GAQL datetime compatibility
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const d = baselineTime;
-  const startTimeFormatted = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}+00:00`;
+  // GAQL expects DATE literal in filters for this field (YYYY-MM-DD)
+  const startDateFormatted = baselineTime.toISOString().slice(0, 10);
 
   // Use only supported lead_form_submission_data fields for v23
-  const query = `SELECT lead_form_submission_data.id, lead_form_submission_data.submission_date_time, lead_form_submission_data.campaign, lead_form_submission_data.ad_group, lead_form_submission_data.asset, lead_form_submission_data.lead_form_submission_fields FROM lead_form_submission_data WHERE lead_form_submission_data.submission_date_time >= '${startTimeFormatted}' ORDER BY lead_form_submission_data.submission_date_time DESC`;
+  const query = `SELECT lead_form_submission_data.id, lead_form_submission_data.submission_date_time, lead_form_submission_data.campaign, lead_form_submission_data.ad_group, lead_form_submission_data.asset, lead_form_submission_data.lead_form_submission_fields FROM lead_form_submission_data WHERE lead_form_submission_data.submission_date_time >= '${startDateFormatted}' ORDER BY lead_form_submission_data.submission_date_time DESC`;
 
   console.log("[GAQL] Final query:", query);
 
