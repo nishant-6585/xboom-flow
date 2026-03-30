@@ -108,23 +108,13 @@ async function fetchGoogleAdsLeads(
   const baselineTime = lastSyncedAt
     ? new Date(new Date(lastSyncedAt).getTime() - BUFFER_WINDOW_MINUTES * 60 * 1000)
     : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const sinceFilter = `lead_form_submission_data.submission_date_time > '${baselineTime.toISOString()}'`;
 
-  const query = `
-    SELECT
-      lead_form_submission_data.id,
-      lead_form_submission_data.resource_name,
-      lead_form_submission_data.lead_form_submission_fields,
-      lead_form_submission_data.submission_date_time,
-      campaign.id,
-      campaign.name,
-      ad_group.id,
-      ad_group.name
-    FROM lead_form_submission_data
-    WHERE ${sinceFilter}
-    ORDER BY lead_form_submission_data.submission_date_time DESC
-    LIMIT 100
-  `;
+  // Format as YYYY-MM-DD HH:MM:SS for GAQL compatibility
+  const startTimeFormatted = baselineTime.toISOString().replace("T", " ").replace(/\.\d+Z$/, "");
+
+  const query = `SELECT lead_form_submission_data.id, lead_form_submission_data.create_time, lead_form_submission_data.campaign, lead_form_submission_data.ad_group, lead_form_submission_data.asset, lead_form_submission_data.lead_form_user_submission_data FROM lead_form_submission_data WHERE lead_form_submission_data.create_time >= '${startTimeFormatted}' ORDER BY lead_form_submission_data.create_time DESC`;
+
+  console.log("[GAQL] Final query:", query);
 
   const customIdFormatted = customerId.replace(/-/g, "");
 
@@ -144,12 +134,14 @@ async function fetchGoogleAdsLeads(
 
   if (!res.ok) {
     const errText = await res.text();
+    console.error("[Google Ads API] Full error response:", errText);
     throw new Error(`Google Ads API error (${res.status}): ${errText}`);
   }
 
   const data = await res.json();
   const leads: GoogleAdsLead[] = [];
 
+  // searchStream returns an array of batches
   const batches = Array.isArray(data) ? data : [data];
   for (const batch of batches) {
     const results = batch.results || [];
@@ -157,22 +149,27 @@ async function fetchGoogleAdsLeads(
       const sub = result.leadFormSubmissionData;
       if (!sub) continue;
 
+      // Extract submission fields from lead_form_user_submission_data
+      const userSubmission = sub.leadFormUserSubmissionData || {};
+      const submissionFields = (userSubmission.userSubmissionFields || []).map(
+        (f: { fieldName: string; fieldValue: string }) => ({
+          column_name: f.fieldName,
+          string_value: f.fieldValue,
+        })
+      );
+
       leads.push({
-        lead_id: sub.id || sub.resourceName,
-        campaign_id: String(result.campaign?.id || ""),
-        campaign_name: result.campaign?.name || "",
-        ad_group_id: String(result.adGroup?.id || ""),
-        submission_data: (sub.leadFormSubmissionFields || []).map(
-          (f: { fieldName: string; fieldValue: string }) => ({
-            column_name: f.fieldName,
-            string_value: f.fieldValue,
-          })
-        ),
-        created_at: sub.submissionDateTime || new Date().toISOString(),
+        lead_id: sub.id || sub.resourceName || "",
+        campaign_id: sub.campaign ? sub.campaign.split("/").pop() || "" : "",
+        campaign_name: "",
+        ad_group_id: sub.adGroup ? sub.adGroup.split("/").pop() || "" : "",
+        submission_data: submissionFields,
+        created_at: sub.createTime || new Date().toISOString(),
       });
     }
   }
 
+  console.log(`[Google Ads] Fetched ${leads.length} leads from API`);
   return leads;
 }
 
