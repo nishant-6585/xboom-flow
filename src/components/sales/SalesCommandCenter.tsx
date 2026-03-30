@@ -481,12 +481,59 @@ export function SalesCommandCenter() {
 
   // Call stats
   const callStats = useMemo(() => {
-    const answered = filtered.calls.filter((c: any) => {
+    const isAnswered = (c: any) => {
       const payload = c.raw_payload;
       if (!payload?._ld || !Array.isArray(payload._ld)) return c.call_status === 'answered';
       return (payload._ld as any[]).some((l: any) => l._ac === 'received');
-    }).length;
-    return { total: filtered.calls.length, answered, missed: filtered.calls.length - answered };
+    };
+    const answered = filtered.calls.filter(isAnswered).length;
+    const missed = filtered.calls.length - answered;
+    const answerRate = filtered.calls.length > 0 ? ((answered / filtered.calls.length) * 100).toFixed(1) : '0';
+
+    // Agent-wise breakdown
+    const agentMap = new Map<string, { total: number; answered: number; missed: number }>();
+    filtered.calls.forEach((c: any) => {
+      const agent = c.assigned_agent_name || c.agent_name || 'Unassigned';
+      if (!agentMap.has(agent)) agentMap.set(agent, { total: 0, answered: 0, missed: 0 });
+      const entry = agentMap.get(agent)!;
+      entry.total++;
+      if (isAnswered(c)) entry.answered++;
+      else entry.missed++;
+    });
+    const agentBreakdown = Array.from(agentMap.entries())
+      .map(([name, data]) => ({ name, ...data, answerRate: data.total > 0 ? ((data.answered / data.total) * 100).toFixed(1) : '0' }))
+      .sort((a, b) => b.total - a.total);
+
+    // Daily trend (last 7 days)
+    const dailyCallTrend = Array.from({ length: 7 }, (_, i) => {
+      const date = format(subDays(new Date(), 6 - i), 'yyyy-MM-dd');
+      const dayCalls = filtered.calls.filter((c: any) => c.created_at?.startsWith(date));
+      const dayAnswered = dayCalls.filter(isAnswered).length;
+      return {
+        date: format(subDays(new Date(), 6 - i), 'MMM d'),
+        received: dayCalls.length,
+        answered: dayAnswered,
+        missed: dayCalls.length - dayAnswered,
+      };
+    });
+
+    // Hourly distribution
+    const hourlyDist = Array.from({ length: 12 }, (_, i) => {
+      const hour = i + 8; // 8 AM to 7 PM
+      const hourCalls = filtered.calls.filter((c: any) => {
+        const st = c.start_time || c.created_at;
+        if (!st) return false;
+        const h = new Date(st).getHours();
+        return h === hour;
+      });
+      return {
+        hour: `${hour > 12 ? hour - 12 : hour}${hour >= 12 ? 'PM' : 'AM'}`,
+        calls: hourCalls.length,
+        answered: hourCalls.filter(isAnswered).length,
+      };
+    });
+
+    return { total: filtered.calls.length, answered, missed, answerRate, agentBreakdown, dailyCallTrend, hourlyDist };
   }, [filtered.calls]);
 
   // Expected Payments Timeline (30 days)
