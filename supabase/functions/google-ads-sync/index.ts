@@ -160,9 +160,9 @@ async function fetchGoogleAdsLeads(
 
       leads.push({
         lead_id: sub.id || sub.resourceName,
-        campaign_id: String(result.leadFormSubmissionData?.campaignId || sub.campaignId || ""),
+        campaign_id: String(result.campaign?.id || ""),
         campaign_name: result.campaign?.name || "",
-        ad_group_id: String(sub.adGroupId || ""),
+        ad_group_id: String(result.adGroup?.id || ""),
         submission_data: (sub.leadFormSubmissionFields || []).map(
           (f: { fieldName: string; fieldValue: string }) => ({
             column_name: f.fieldName,
