@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ const primeAudioPlayback = async () => {
 export const MFAVerification = ({ onVerified, onCancel }: MFAVerificationProps) => {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(true);
   const { toast } = useToast();
 
   const handleVerify = async () => {
@@ -93,9 +95,20 @@ export const MFAVerification = ({ onVerified, onCancel }: MFAVerificationProps) 
 
       sessionStorage.setItem("pending_login_greeting", "1");
 
+      // Remember device for 24 hours if checked
+      if (rememberDevice) {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user) {
+          localStorage.setItem("mfa_device_trust", JSON.stringify({
+            userId: userData.user.id,
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          }));
+        }
+      }
+
       toast({
         title: "Welcome back!",
-        description: "MFA verification successful.",
+        description: rememberDevice ? "MFA verified. This device is trusted for 24 hours." : "MFA verification successful.",
       });
       onVerified();
     } catch (e) {
@@ -148,6 +161,17 @@ export const MFAVerification = ({ onVerified, onCancel }: MFAVerificationProps) 
               className="text-center text-2xl tracking-[0.5em] font-mono"
               autoFocus
             />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="remember-device"
+              checked={rememberDevice}
+              onCheckedChange={(checked) => setRememberDevice(checked === true)}
+            />
+            <Label htmlFor="remember-device" className="text-sm text-muted-foreground cursor-pointer">
+              Remember this device for 24 hours
+            </Label>
           </div>
 
           <Button
