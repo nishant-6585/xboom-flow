@@ -34,6 +34,7 @@ interface OrderFormProps {
   suppliers?: Supplier[];
   showProcurementRate?: boolean;
   userRole?: 'sales' | 'sales_manager' | 'supply_chain' | 'admin';
+  preSelectEnquiryId?: string;
 }
 
 const STEPS = [
@@ -43,7 +44,7 @@ const STEPS = [
   { id: 4, title: 'Delivery', icon: Truck, description: 'Shipping & notes' },
 ];
 
-export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcurementRate = true, userRole = 'sales' }: OrderFormProps) {
+export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcurementRate = true, userRole = 'sales', preSelectEnquiryId }: OrderFormProps) {
   const canViewProcurement = userRole === 'admin' || userRole === 'supply_chain';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [salesTeam, setSalesTeam] = useState<SalesTeamMember[]>([]);
