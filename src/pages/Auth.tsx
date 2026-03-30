@@ -228,25 +228,29 @@ const Auth = () => {
   if (isResetPassword) {
     return (
       <div className="min-h-[100dvh] bg-background flex items-center justify-center p-4 overflow-y-auto">
-        <Card className="w-full max-w-md glass animate-fade-in my-auto">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <img src={logoIcon} alt="Xboom Logo" className="w-16 h-16 rounded-xl" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/3 pointer-events-none" />
+        <Card className="w-full max-w-md glass-strong animate-fade-in my-auto shadow-lg relative">
+          <CardHeader className="text-center pb-4">
+            <div className="flex justify-center mb-5">
+              <div className="relative">
+                <div className="absolute inset-0 bg-primary/20 rounded-2xl blur-xl scale-125" />
+                <img src={logoIcon} alt="Xboom Logo" className="w-16 h-16 rounded-2xl relative shadow-md" />
+              </div>
             </div>
             {resetSuccess ? (
               <>
                 <div className="flex justify-center mb-4">
                   <CheckCircle className="w-16 h-16 text-success" />
                 </div>
-                <CardTitle className="text-2xl text-gradient">Password Updated!</CardTitle>
+                <CardTitle className="text-2xl font-display text-gradient">Password Updated!</CardTitle>
                 <CardDescription>
                   Redirecting you to sign in...
                 </CardDescription>
               </>
             ) : (
               <>
-                <CardTitle className="text-2xl text-gradient">Set New Password</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-2xl font-display text-gradient">Set New Password</CardTitle>
+                <CardDescription className="text-muted-foreground/80">
                   Enter your new password below
                 </CardDescription>
               </>
@@ -264,6 +268,7 @@ const Auth = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
+                    className="h-11"
                   />
                   {errors.password && (
                     <p className="text-sm text-destructive">{errors.password}</p>
@@ -279,13 +284,14 @@ const Auth = () => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     disabled={loading}
+                    className="h-11"
                   />
                   {errors.confirmPassword && (
                     <p className="text-sm text-destructive">{errors.confirmPassword}</p>
                   )}
                 </div>
 
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full h-11 font-semibold shadow-md hover:shadow-lg transition-shadow" disabled={loading}>
                   {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Update Password
                 </Button>
@@ -301,13 +307,17 @@ const Auth = () => {
   if (isForgotPassword) {
     return (
       <div className="min-h-[100dvh] bg-background flex items-center justify-center p-4 overflow-y-auto">
-        <Card className="w-full max-w-md glass animate-fade-in my-auto">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <img src={logoIcon} alt="Xboom Logo" className="w-16 h-16 rounded-xl" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/3 pointer-events-none" />
+        <Card className="w-full max-w-md glass-strong animate-fade-in my-auto shadow-lg relative">
+          <CardHeader className="text-center pb-4">
+            <div className="flex justify-center mb-5">
+              <div className="relative">
+                <div className="absolute inset-0 bg-primary/20 rounded-2xl blur-xl scale-125" />
+                <img src={logoIcon} alt="Xboom Logo" className="w-16 h-16 rounded-2xl relative shadow-md" />
+              </div>
             </div>
-            <CardTitle className="text-2xl text-gradient">Reset Password</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-2xl font-display text-gradient">Reset Password</CardTitle>
+            <CardDescription className="text-muted-foreground/80">
               Enter your email and we'll send you a link to reset your password
             </CardDescription>
           </CardHeader>
@@ -322,13 +332,14 @@ const Auth = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={loading}
+                  className="h-11"
                 />
                 {errors.email && (
                   <p className="text-sm text-destructive">{errors.email}</p>
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full h-11 font-semibold shadow-md hover:shadow-lg transition-shadow" disabled={loading}>
                 {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Send Reset Link
               </Button>
@@ -337,11 +348,8 @@ const Auth = () => {
             <div className="mt-6 text-center">
               <button
                 type="button"
-                onClick={() => {
-                  setIsForgotPassword(false);
-                  setErrors({});
-                }}
-                className="text-sm text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
+                onClick={() => { setIsForgotPassword(false); setErrors({}); }}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1.5 font-medium"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back to Sign In
@@ -355,15 +363,19 @@ const Auth = () => {
 
   return (
     <div className="min-h-[100dvh] bg-background flex items-center justify-center p-4 overflow-y-auto">
-      <Card className="w-full max-w-md glass animate-fade-in my-auto">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <img src={logoIcon} alt="Xboom Logo" className="w-16 h-16 rounded-xl" />
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/3 pointer-events-none" />
+      <Card className="w-full max-w-md glass-strong animate-fade-in my-auto shadow-lg relative">
+        <CardHeader className="text-center pb-4">
+          <div className="flex justify-center mb-5">
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary/20 rounded-2xl blur-xl scale-125" />
+              <img src={logoIcon} alt="Xboom Logo" className="w-16 h-16 rounded-2xl relative shadow-md" />
+            </div>
           </div>
-          <CardTitle className="text-2xl text-gradient">
+          <CardTitle className="text-2xl font-display text-gradient">
             {isLogin ? "Welcome to Xboom OS" : "Join Xboom OS"}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-muted-foreground/80">
             {isLogin
               ? "Sign in to manage daily operations"
               : "Register to start streamlining operations"}
@@ -381,6 +393,7 @@ const Auth = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={loading}
+                  className="h-11"
                 />
                 {errors.name && (
                   <p className="text-sm text-destructive">{errors.name}</p>
@@ -397,6 +410,7 @@ const Auth = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
+                className="h-11"
               />
               {errors.email && (
                 <p className="text-sm text-destructive">{errors.email}</p>
@@ -409,11 +423,8 @@ const Auth = () => {
                 {isLogin && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsForgotPassword(true);
-                      setErrors({});
-                    }}
-                    className="text-xs text-primary hover:text-primary/80 transition-colors"
+                    onClick={() => { setIsForgotPassword(true); setErrors({}); }}
+                    className="text-xs text-primary hover:text-primary/80 transition-colors font-medium"
                   >
                     Forgot password?
                   </button>
@@ -426,6 +437,7 @@ const Auth = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
+                className="h-11"
               />
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password}</p>
@@ -438,76 +450,30 @@ const Auth = () => {
                 <RadioGroup
                   value={team}
                   onValueChange={(value) => setTeam(value as AppRole)}
-                  className="grid grid-cols-1 gap-3"
+                  className="grid grid-cols-1 gap-2"
                 >
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-secondary/50 border border-border hover:border-primary/50 transition-colors">
-                    <RadioGroupItem value="sales" id="sales" />
-                    <Label htmlFor="sales" className="cursor-pointer flex-1">
-                      <span className="font-medium">Sales Team</span>
-                      <p className="text-sm text-muted-foreground">
-                        Manage customer enquiries and orders
-                      </p>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-secondary/50 border border-border hover:border-primary/50 transition-colors">
-                    <RadioGroupItem value="supply_chain" id="supply_chain" />
-                    <Label htmlFor="supply_chain" className="cursor-pointer flex-1">
-                      <span className="font-medium">Supply Chain Team</span>
-                      <p className="text-sm text-muted-foreground">
-                        Handle procurement and inventory
-                      </p>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-secondary/50 border border-border hover:border-primary/50 transition-colors">
-                    <RadioGroupItem value="finance" id="finance" />
-                    <Label htmlFor="finance" className="cursor-pointer flex-1">
-                      <span className="font-medium">Finance Team</span>
-                      <p className="text-sm text-muted-foreground">
-                        Payment tracking and approval workflows
-                      </p>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-secondary/50 border border-border hover:border-primary/50 transition-colors">
-                    <RadioGroupItem value="admin" id="admin" />
-                    <Label htmlFor="admin" className="cursor-pointer flex-1">
-                      <span className="font-medium">Admin</span>
-                      <p className="text-sm text-muted-foreground">
-                        Full system access and user management
-                      </p>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-secondary/50 border border-border hover:border-primary/50 transition-colors">
-                    <RadioGroupItem value="it" id="it" />
-                    <Label htmlFor="it" className="cursor-pointer flex-1">
-                      <span className="font-medium">IT Team</span>
-                      <p className="text-sm text-muted-foreground">
-                        System administration and technical support
-                      </p>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-secondary/50 border border-border hover:border-primary/50 transition-colors">
-                    <RadioGroupItem value="marketing" id="marketing" />
-                    <Label htmlFor="marketing" className="cursor-pointer flex-1">
-                      <span className="font-medium">Marketing Team</span>
-                      <p className="text-sm text-muted-foreground">
-                        Campaigns and content management
-                      </p>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-secondary/50 border border-border hover:border-primary/50 transition-colors">
-                    <RadioGroupItem value="hr" id="hr" />
-                    <Label htmlFor="hr" className="cursor-pointer flex-1">
-                      <span className="font-medium">HR Team</span>
-                      <p className="text-sm text-muted-foreground">
-                        Human resources and employee management
-                      </p>
-                    </Label>
-                  </div>
+                  {[
+                    { value: "sales", label: "Sales Team", desc: "Manage customer enquiries and orders" },
+                    { value: "supply_chain", label: "Supply Chain Team", desc: "Handle procurement and inventory" },
+                    { value: "finance", label: "Finance Team", desc: "Payment tracking and approval workflows" },
+                    { value: "admin", label: "Admin", desc: "Full system access and user management" },
+                    { value: "it", label: "IT Team", desc: "System administration and technical support" },
+                    { value: "marketing", label: "Marketing Team", desc: "Campaigns and content management" },
+                    { value: "hr", label: "HR Team", desc: "Human resources and employee management" },
+                  ].map(({ value, label, desc }) => (
+                    <div key={value} className="flex items-center space-x-3 p-3 rounded-lg bg-secondary/40 border border-border/60 hover:border-primary/40 transition-all duration-150 hover:bg-secondary/60">
+                      <RadioGroupItem value={value} id={value} />
+                      <Label htmlFor={value} className="cursor-pointer flex-1">
+                        <span className="font-medium text-sm">{label}</span>
+                        <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+                      </Label>
+                    </div>
+                  ))}
                 </RadioGroup>
               </div>
             )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full h-11 font-semibold shadow-md hover:shadow-lg transition-shadow" disabled={loading}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {isLogin ? "Sign In" : "Create Account"}
             </Button>
@@ -516,11 +482,8 @@ const Auth = () => {
           <div className="mt-6 text-center">
             <button
               type="button"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setErrors({});
-              }}
-              className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              onClick={() => { setIsLogin(!isLogin); setErrors({}); }}
+              className="text-sm text-muted-foreground hover:text-primary transition-colors font-medium"
             >
               {isLogin
                 ? "Don't have an account? Register"
