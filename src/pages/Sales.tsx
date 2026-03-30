@@ -125,10 +125,6 @@ export default function Sales() {
                   <Phone className="w-4 h-4" />
                   Outbound
                 </TabsTrigger>
-                <TabsTrigger value="google-ads" className={triggerPrimary}>
-                  <Megaphone className="w-4 h-4" />
-                  Google Ads
-                </TabsTrigger>
               </TabsList>
             </div>
             
