@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const primaryRole = ROLE_PRIORITY.find((r) => userRoles.includes(r)) || userRoles[0];
         setRole(primaryRole);
         // Check MFA status for admin users
-        await checkMfaStatus(userRoles);
+        await checkMfaStatus(userRoles, userId);
       } else {
         setRoles([]);
         setRole(null);
@@ -144,8 +144,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const refreshMfaStatus = useCallback(async () => {
-    await checkMfaStatus(roles);
-  }, [roles, checkMfaStatus]);
+    const uid = user?.id;
+    await checkMfaStatus(roles, uid);
+  }, [roles, checkMfaStatus, user]);
 
   const refreshProfile = async () => {
     if (user) {
