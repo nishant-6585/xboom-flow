@@ -345,6 +345,55 @@ export function ProcurementOrderItems({
     }
   };
 
+  const handleAddProcurementLine = async () => {
+    try {
+      // Default: use first item's product data or order data
+      const baseProduct = items.length > 0 ? items[0] : null;
+      const productName = baseProduct?.product_name || orderProductData?.product_name || 'New Item';
+      const productCategory = baseProduct?.product_category || orderProductData?.product_category || 'Consumer Drones';
+      const productCode = baseProduct?.product_code || orderProductData?.product_code || null;
+
+      const { error } = await supabase
+        .from('order_items')
+        .insert({
+          order_id: orderId,
+          product_name: productName,
+          product_category: productCategory,
+          product_code: productCode,
+          quantity: 1,
+          unit_price: 0,
+          status: 'pending',
+        });
+
+      if (error) throw error;
+      toast.success('Procurement line added');
+      fetchItems();
+    } catch (error: any) {
+      console.error('Error adding procurement line:', error);
+      toast.error('Failed to add procurement line');
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    try {
+      // Don't allow deleting the last item
+      if (items.length <= 1) {
+        toast.error('Cannot remove the last item');
+        return;
+      }
+      const { error } = await supabase
+        .from('order_items')
+        .delete()
+        .eq('id', itemId);
+      if (error) throw error;
+      toast.success('Procurement line removed');
+      fetchItems();
+    } catch (error: any) {
+      console.error('Error deleting item:', error);
+      toast.error('Failed to remove item');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-4">
@@ -353,7 +402,7 @@ export function ProcurementOrderItems({
     );
   }
 
-  // If no order items exist, show legacy view (single product from order)
+  // If no order items exist and auto-create didn't fire (no orderProductData), show fallback
   if (items.length === 0) {
     return (
       <Card className="bg-muted/30">
@@ -361,12 +410,12 @@ export function ProcurementOrderItems({
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-2">
               <Package className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Single Product Order</span>
+              <span className="font-medium">No procurement items</span>
             </div>
-            <div className="text-muted-foreground">
-              Qty: {orderQuantity} × {currencySymbol}{orderProcurementRate?.toLocaleString() || '0'} 
-              = {currencySymbol}{((orderProcurementRate || 0) * orderQuantity).toLocaleString()}
-            </div>
+            <Button size="sm" variant="outline" onClick={handleAddProcurementLine}>
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Add Item
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -381,16 +430,21 @@ export function ProcurementOrderItems({
             <Package className="h-4 w-4" />
             Order Items ({items.length})
           </CardTitle>
-          {hasChanges && (
-            <Button size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-              ) : (
-                <Save className="h-4 w-4 mr-1" />
-              )}
-              Save Changes
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={handleAddProcurementLine} className="text-xs">
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Add Supplier Line
             </Button>
-          )}
+            {hasChanges && (
+              <Button size="sm" onClick={handleSave} disabled={saving}>
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <Save className="h-4 w-4 mr-1" />
+                )}
+                Save Changes
+              </Button>
+            )}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
