@@ -15,6 +15,17 @@ import { useInventory, InventoryItem } from '@/hooks/useInventory';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 
+interface OrderProductData {
+  product_name: string;
+  product_category?: string;
+  product_code?: string;
+  quantity: number;
+  unit_price?: number;
+  sales_gst_amount?: number;
+  sales_gst_percent?: number;
+  sales_price_includes_gst?: boolean;
+}
+
 interface ProcurementOrderItemsProps {
   orderId: string;
   orderQuantity: number;
@@ -22,6 +33,7 @@ interface ProcurementOrderItemsProps {
   procurementCurrency: string;
   suppliers?: Supplier[];
   onSupplierChange?: (supplierId: string) => void;
+  orderProductData?: OrderProductData;
 }
 
 interface EditedItem {
