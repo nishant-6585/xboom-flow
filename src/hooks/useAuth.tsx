@@ -446,6 +446,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .eq("user_id", user.id)
         .eq("is_current", true);
     }
+    localStorage.removeItem("mfa_device_trust");
     await supabase.auth.signOut();
     setProfile(null);
     profileRef.current = null;
