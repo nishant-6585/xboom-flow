@@ -210,17 +210,9 @@ export async function getEmployeeProfileData(
       // No mid-month change — use the latest salary effective before the month
       salary = startingSalary;
     } else {
-      // Mid-month salary change(s) detected — pro-rate!
-      // Fetch holidays for the month
-      const { data: holidays } = await supabase
-        .from("holidays")
-        .select("date")
-        .gte("date", monthStartStr)
-        .lte("date", monthEndStr);
-      const holidaySet = new Set((holidays || []).map((h: any) => h.date));
-
-      const totalWorkingDays = await countWorkingDaysBetween(monthStart, monthEnd, holidaySet);
-      if (totalWorkingDays <= 0) {
+      // Mid-month salary change(s) detected — pro-rate using calendar days!
+      const totalDaysInMonth = endOfMonth(monthStart).getDate();
+      if (totalDaysInMonth <= 0) {
         salary = startingSalary;
       } else {
         // Build salary segments: [{salary, fromDate, toDate}, ...]
@@ -247,11 +239,11 @@ export async function getEmployeeProfileData(
         // Final segment: from last change date to end of month
         segments.push({ salary: currentSal, from: segStart, to: monthEnd });
 
-        // Calculate weighted salary
+        // Calculate weighted salary using calendar days
         let weightedTotal = 0;
         for (const seg of segments) {
-          const days = await countWorkingDaysBetween(seg.from, seg.to, holidaySet);
-          weightedTotal += seg.salary * (days / totalWorkingDays);
+          const days = countCalendarDaysBetween(seg.from, seg.to);
+          weightedTotal += seg.salary * (days / totalDaysInMonth);
         }
 
         salary = Math.round(weightedTotal * 100) / 100;
