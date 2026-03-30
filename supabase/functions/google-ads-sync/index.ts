@@ -448,12 +448,13 @@ Deno.serve(async (req) => {
           }
         }
 
-        // #4: Robust field extraction with fallbacks
-        const name = extractLeadName(lead.submission_data);
-        const phone = extractField(lead.submission_data, "PHONE_NUMBER", "PHONE", "MOBILE", "CONTACT_NUMBER");
-        const email = extractField(lead.submission_data, "EMAIL", "EMAIL_ADDRESS", "WORK_EMAIL");
+        // #4: Use heuristic parser for "unknown" column names
+        const parsed = parseSubmissionFields(lead.submission_data);
+        const name = parsed.name || extractLeadName(lead.submission_data);
+        const phone = parsed.phone;
+        const email = parsed.email;
         const company = extractField(lead.submission_data, "COMPANY_NAME", "COMPANY", "ORGANIZATION") || "Unknown";
-        const city = extractField(lead.submission_data, "CITY", "LOCATION", "AREA", "REGION");
+        const city = parsed.city;
         const productInterest = extractField(lead.submission_data, "PRODUCT", "PRODUCT_TYPE", "WHAT_ARE_YOU_LOOKING_FOR", "INTERESTED_IN", "MODEL");
 
         const { error: insertError } = await supabaseAdmin.from("enquiries").insert({
