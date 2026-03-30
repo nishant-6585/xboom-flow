@@ -45,12 +45,14 @@ export function GoogleAdsCampaignTab({ campaigns }: GoogleAdsCampaignTabProps) {
 
   const sorted = useMemo(() => {
     return [...enriched].sort((a, b) => {
-      const av = a[sortKey as keyof typeof a] as number;
-      const bv = b[sortKey as keyof typeof b] as number;
-      if (typeof av === "string" && typeof bv === "string") {
+      if (sortKey === "campaign_name") {
+        const av = a.campaign_name || "";
+        const bv = b.campaign_name || "";
         return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
       }
-      return sortAsc ? (av as number) - (bv as number) : (bv as number) - (av as number);
+      const av = a[sortKey] as number;
+      const bv = b[sortKey] as number;
+      return sortAsc ? av - bv : bv - av;
     });
   }, [enriched, sortKey, sortAsc]);
 

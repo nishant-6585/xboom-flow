@@ -1,224 +1,191 @@
-import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { useState, useEffect, useMemo } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { RefreshCw, CheckCircle2, XCircle, Clock, Zap, TrendingUp, AlertTriangle } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { BarChart3, Users, ScrollText, Megaphone } from "lucide-react";
+import { GoogleAdsOverviewTab } from "./google-ads/GoogleAdsOverviewTab";
+import { GoogleAdsCampaignTab } from "./google-ads/GoogleAdsCampaignTab";
+import { GoogleAdsLeadsTab } from "./google-ads/GoogleAdsLeadsTab";
+import { GoogleAdsSyncLogsTab } from "./google-ads/GoogleAdsSyncLogsTab";
+import { subDays, format } from "date-fns";
 
-interface SyncLog {
-  id: string;
-  last_synced_at: string;
-  leads_fetched: number;
-  leads_inserted: number;
-  leads_skipped: number;
-  duplicates_skipped: number;
-  errors: string[];
-  status: string;
-  sync_duration_ms: number;
+interface EnquiryRow {
+  campaign_id: string | null;
+  campaign_name: string | null;
+  lead_temperature: string | null;
+  order_outcome: string | null;
   created_at: string;
 }
 
+interface CampaignData {
+  campaign_id: string;
+  campaign_name: string;
+  leads: number;
+  conversions: number;
+  revenue: number;
+  spend: number;
+}
+
 export function GoogleAdsSyncPanel() {
-  const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const { toast } = useToast();
-
-  const fetchLogs = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("google_ads_sync_log")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(20);
-
-    if (!error && data) {
-      setSyncLogs(data as unknown as SyncLog[]);
-    }
-    setLoading(false);
-  }, []);
+  const [enquiries, setEnquiries] = useState<EnquiryRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
-
-  const triggerSync = async () => {
-    setSyncing(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
-
-      const res = await supabase.functions.invoke("google-ads-sync", {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-
-      if (res.error) throw res.error;
-
-      const result = res.data;
-      toast({
-        title: "Sync Complete",
-        description: `Fetched: ${result.fetched}, Inserted: ${result.inserted}, Skipped: ${result.skipped}`,
-      });
-      fetchLogs();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Sync failed";
-      toast({ title: "Sync Failed", description: message, variant: "destructive" });
-    } finally {
-      setSyncing(false);
+    async function load() {
+      const { data } = await supabase
+        .from("enquiries")
+        .select("campaign_id, campaign_name, lead_temperature, order_outcome, created_at")
+        .eq("lead_source", "google_ads")
+        .order("created_at", { ascending: false })
+        .limit(1000);
+      if (data) setEnquiries(data as EnquiryRow[]);
+      setLoading(false);
     }
-  };
+    load();
+  }, []);
 
-  const lastSuccess = syncLogs.find((l) => l.status === "success");
-  const todayLogs = syncLogs.filter(
-    (l) => new Date(l.created_at).toDateString() === new Date().toDateString()
-  );
-  const todayInserted = todayLogs.reduce((s, l) => s + l.leads_inserted, 0);
-  const todayFailed = todayLogs.filter((l) => l.status === "error").length;
+  // Aggregate campaign data
+  const campaigns: CampaignData[] = useMemo(() => {
+    const map = new Map<string, CampaignData>();
+    for (const e of enquiries) {
+      const cid = e.campaign_id || "unknown";
+      if (!map.has(cid)) {
+        map.set(cid, {
+          campaign_id: cid,
+          campaign_name: e.campaign_name || `Campaign ${cid}`,
+          leads: 0,
+          conversions: 0,
+          revenue: 0,
+          spend: 0,
+        });
+      }
+      const c = map.get(cid)!;
+      c.leads++;
+      if (e.order_outcome === "won") {
+        c.conversions++;
+        c.revenue += 85000; // Estimated avg order value
+      }
+      // Estimated spend per lead (Google Ads avg for India)
+      c.spend += 350;
+    }
+    return Array.from(map.values());
+  }, [enquiries]);
+
+  const totalLeads = enquiries.length;
+  const totalConversions = campaigns.reduce((s, c) => s + c.conversions, 0);
+  const totalRevenue = campaigns.reduce((s, c) => s + c.revenue, 0);
+  const totalSpend = campaigns.reduce((s, c) => s + c.spend, 0);
+
+  // Build chart data for last 14 days
+  const chartData = useMemo(() => {
+    const days: { date: string; revenue: number; spend: number }[] = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = subDays(new Date(), i);
+      const dateStr = format(d, "yyyy-MM-dd");
+      const label = format(d, "dd MMM");
+      const dayEnquiries = enquiries.filter(
+        (e) => e.created_at.slice(0, 10) === dateStr
+      );
+      const dayLeads = dayEnquiries.length;
+      const dayConversions = dayEnquiries.filter((e) => e.order_outcome === "won").length;
+      days.push({
+        date: label,
+        spend: dayLeads * 350,
+        revenue: dayConversions * 85000,
+      });
+    }
+    return days;
+  }, [enquiries]);
+
+  // AI Insights
+  const aiInsights = useMemo(() => {
+    if (campaigns.length === 0) return [];
+    const insights: string[] = [];
+
+    const bestCampaign = [...campaigns].sort((a, b) => {
+      const roasA = a.spend > 0 ? a.revenue / a.spend : 0;
+      const roasB = b.spend > 0 ? b.revenue / b.spend : 0;
+      return roasB - roasA;
+    })[0];
+
+    if (bestCampaign && bestCampaign.revenue > 0) {
+      const roas = bestCampaign.spend > 0 ? (bestCampaign.revenue / bestCampaign.spend).toFixed(1) : "∞";
+      insights.push(`"${bestCampaign.campaign_name}" is your top performer with ${roas}x ROAS. Consider increasing its budget.`);
+    }
+
+    const worstCampaign = [...campaigns]
+      .filter((c) => c.spend > 0)
+      .sort((a, b) => {
+        const roasA = a.spend > 0 ? a.revenue / a.spend : 0;
+        const roasB = b.spend > 0 ? b.revenue / b.spend : 0;
+        return roasA - roasB;
+      })[0];
+
+    if (worstCampaign && worstCampaign.conversions === 0 && worstCampaign.leads > 5) {
+      insights.push(`"${worstCampaign.campaign_name}" has ${worstCampaign.leads} leads but zero conversions. Review targeting or pause.`);
+    }
+
+    const convRate = totalLeads > 0 ? (totalConversions / totalLeads) * 100 : 0;
+    if (convRate < 5 && totalLeads > 20) {
+      insights.push(`Overall conversion rate is ${convRate.toFixed(1)}% — below the 5% benchmark. Focus on lead quality.`);
+    } else if (convRate >= 10) {
+      insights.push(`Excellent ${convRate.toFixed(1)}% conversion rate! Your lead quality is strong.`);
+    }
+
+    if (totalLeads > 0 && insights.length === 0) {
+      insights.push(`${totalLeads} leads captured from Google Ads. Track outcomes to unlock deeper insights.`);
+    }
+
+    return insights;
+  }, [campaigns, totalLeads, totalConversions]);
+
+  if (loading) {
+    return <div className="py-12 text-center text-muted-foreground">Loading Google Ads data...</div>;
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <TrendingUp className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Leads Today</p>
-                <p className="text-2xl font-bold">{todayInserted}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    <Tabs defaultValue="overview" className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="overview" className="gap-1.5">
+          <BarChart3 className="w-4 h-4" />
+          Overview
+        </TabsTrigger>
+        <TabsTrigger value="campaigns" className="gap-1.5">
+          <Megaphone className="w-4 h-4" />
+          Campaigns
+        </TabsTrigger>
+        <TabsTrigger value="leads" className="gap-1.5">
+          <Users className="w-4 h-4" />
+          Leads
+        </TabsTrigger>
+        <TabsTrigger value="sync-logs" className="gap-1.5">
+          <ScrollText className="w-4 h-4" />
+          Sync Logs
+        </TabsTrigger>
+      </TabsList>
 
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <CheckCircle2 className="w-5 h-5 text-green-500" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Total Syncs Today</p>
-                <p className="text-2xl font-bold">{todayLogs.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <TabsContent value="overview">
+        <GoogleAdsOverviewTab
+          campaigns={campaigns}
+          totalLeads={totalLeads}
+          totalConversions={totalConversions}
+          totalRevenue={totalRevenue}
+          totalSpend={totalSpend}
+          chartData={chartData}
+          aiInsights={aiInsights}
+        />
+      </TabsContent>
 
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-destructive/10">
-                <AlertTriangle className="w-5 h-5 text-destructive" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Failed Syncs</p>
-                <p className="text-2xl font-bold">{todayFailed}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <TabsContent value="campaigns">
+        <GoogleAdsCampaignTab campaigns={campaigns} />
+      </TabsContent>
 
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <Clock className="w-5 h-5 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Last Sync</p>
-                <p className="text-sm font-medium">
-                  {lastSuccess
-                    ? formatDistanceToNow(new Date(lastSuccess.last_synced_at), { addSuffix: true })
-                    : "Never"}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <TabsContent value="leads">
+        <GoogleAdsLeadsTab />
+      </TabsContent>
 
-      {/* Manual Sync */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Zap className="w-5 h-5 text-primary" />
-            Google Ads Lead Sync
-          </CardTitle>
-          <Button onClick={triggerSync} disabled={syncing} size="sm" className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Syncing..." : "Sync Now"}
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            Automatically fetches new leads from Google Ads Lead Form Extensions. Scheduled to run every 5 minutes.
-          </p>
-
-          {/* Sync History */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-muted-foreground">Recent Sync History</h4>
-            {loading ? (
-              <p className="text-sm text-muted-foreground">Loading...</p>
-            ) : syncLogs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No sync history yet. Click "Sync Now" to start.</p>
-            ) : (
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="text-left p-2 font-medium">Time</th>
-                      <th className="text-left p-2 font-medium">Status</th>
-                      <th className="text-center p-2 font-medium">Fetched</th>
-                      <th className="text-center p-2 font-medium">Inserted</th>
-                      <th className="text-center p-2 font-medium">Skipped</th>
-                      <th className="text-center p-2 font-medium">Dupes</th>
-                      <th className="text-center p-2 font-medium">Duration</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {syncLogs.map((log) => (
-                      <tr key={log.id} className="border-t hover:bg-muted/20">
-                        <td className="p-2 text-xs">
-                          {format(new Date(log.created_at), "dd MMM, HH:mm:ss")}
-                        </td>
-                        <td className="p-2">
-                          {log.status === "success" ? (
-                            <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50 text-xs">
-                              <CheckCircle2 className="w-3 h-3 mr-1" /> Success
-                            </Badge>
-                          ) : log.status === "running" ? (
-                            <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50 text-xs">
-                              <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> Running
-                            </Badge>
-                          ) : (
-                            <Badge variant="destructive" className="text-xs">
-                              <XCircle className="w-3 h-3 mr-1" /> Error
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="p-2 text-center">{log.leads_fetched}</td>
-                        <td className="p-2 text-center font-medium text-green-600">
-                          +{log.leads_inserted}
-                        </td>
-                        <td className="p-2 text-center text-muted-foreground">{log.leads_skipped}</td>
-                        <td className="p-2 text-center text-xs text-muted-foreground">{log.duplicates_skipped || 0}</td>
-                        <td className="p-2 text-center text-xs text-muted-foreground">
-                          {log.sync_duration_ms ? `${(log.sync_duration_ms / 1000).toFixed(1)}s` : "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      <TabsContent value="sync-logs">
+        <GoogleAdsSyncLogsTab />
+      </TabsContent>
+    </Tabs>
   );
 }
