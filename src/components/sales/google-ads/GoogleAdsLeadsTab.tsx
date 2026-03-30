@@ -47,15 +47,38 @@ function parseNotesField(notes: string | null): Record<string, string> {
   return parsed;
 }
 
-// Extract submission fields from raw payload
+// Extract submission fields from raw payload — handles "unknown" column names via heuristics
 function extractSubmissionFields(payload: Json | null): Record<string, string> {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return {};
   const p = payload as Record<string, unknown>;
   const fields: Record<string, string> = {};
 
-  // Try submission_data array
   const subData = p.submission_data as Array<{ column_name?: string; string_value?: string }> | undefined;
-  if (Array.isArray(subData)) {
+  if (!Array.isArray(subData)) return fields;
+
+  const allUnknown = subData.every((f) => !f.column_name || f.column_name.toLowerCase() === "unknown");
+
+  if (allUnknown) {
+    // Heuristic: classify by value pattern
+    let nameSet = false, emailSet = false, phoneSet = false, citySet = false;
+    for (const f of subData) {
+      const val = f.string_value?.trim();
+      if (!val) continue;
+      if (!emailSet && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+        fields["EMAIL"] = val;
+        emailSet = true;
+      } else if (!phoneSet && /^[\+]?\d[\d\s\-\(\)]{6,}$/.test(val.replace(/\s/g, ""))) {
+        fields["PHONE_NUMBER"] = val;
+        phoneSet = true;
+      } else if (!nameSet) {
+        fields["FULL_NAME"] = val;
+        nameSet = true;
+      } else if (!citySet) {
+        fields["CITY"] = val;
+        citySet = true;
+      }
+    }
+  } else {
     subData.forEach((f) => {
       if (f.column_name && f.string_value) {
         fields[f.column_name.toUpperCase()] = f.string_value;
