@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck, Megaphone } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -27,6 +27,7 @@ import { ProspectsPanel } from "@/components/sales/ProspectsPanel";
 import { AttentionPanel } from "@/components/sales/AttentionPanel";
 import { FollowupsPanel } from "@/components/sales/FollowupsPanel";
 import { CallbacksPanel } from "@/components/sales/CallbacksPanel";
+import { GoogleAdsSyncPanel } from "@/components/sales/GoogleAdsSyncPanel";
 
 
 export default function Sales() {
@@ -123,6 +124,10 @@ export default function Sales() {
                 <TabsTrigger value="outbound" className={triggerPrimary}>
                   <Phone className="w-4 h-4" />
                   Outbound
+                </TabsTrigger>
+                <TabsTrigger value="google-ads" className={triggerPrimary}>
+                  <Megaphone className="w-4 h-4" />
+                  Google Ads
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -238,6 +243,10 @@ export default function Sales() {
 
           <TabsContent value="testimonials" className="space-y-6">
             <TestimonialsPanel />
+          </TabsContent>
+
+          <TabsContent value="google-ads" className="space-y-6">
+            <GoogleAdsSyncPanel />
           </TabsContent>
 
           <TabsContent value="suggestions" className="space-y-6">

@@ -1,5 +1,8 @@
 project_id = "mxsotxddcvmeluqonuuj"
 
+[functions.google-ads-sync]
+verify_jwt = false
+
 [functions.ai-lead-scoring]
 verify_jwt = false
 
