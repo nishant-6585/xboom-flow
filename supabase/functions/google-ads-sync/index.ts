@@ -114,11 +114,13 @@ async function fetchGoogleAdsLeads(
   const query = `
     SELECT
       lead_form_submission_data.id,
-      lead_form_submission_data.campaign_id,
-      lead_form_submission_data.ad_group_id,
+      lead_form_submission_data.resource_name,
       lead_form_submission_data.lead_form_submission_fields,
       lead_form_submission_data.submission_date_time,
-      campaign.name
+      campaign.id,
+      campaign.name,
+      ad_group.id,
+      ad_group.name
     FROM lead_form_submission_data
     WHERE segments.date DURING LAST_30_DAYS${sinceFilter}
     ORDER BY lead_form_submission_data.submission_date_time DESC
