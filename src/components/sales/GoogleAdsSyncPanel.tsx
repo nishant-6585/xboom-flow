@@ -6,7 +6,7 @@ import { GoogleAdsOverviewTab } from "./google-ads/GoogleAdsOverviewTab";
 import { GoogleAdsCampaignTab } from "./google-ads/GoogleAdsCampaignTab";
 import { GoogleAdsLeadsTab } from "./google-ads/GoogleAdsLeadsTab";
 import { GoogleAdsSyncLogsTab } from "./google-ads/GoogleAdsSyncLogsTab";
-import { subDays, format } from "date-fns";
+import { subDays, format, differenceInHours } from "date-fns";
 
 interface CampaignPerformance {
   campaign_id: string;
@@ -29,17 +29,48 @@ interface DailyPerformance {
   spend: number;
 }
 
+interface SalespersonPerf {
+  salesperson_id: string;
+  salesperson_name: string;
+  leads: number;
+  conversions: number;
+  revenue: number;
+  conversion_rate: number;
+}
+
 export function GoogleAdsSyncPanel() {
   const [campaigns, setCampaigns] = useState<CampaignPerformance[]>([]);
   const [dailyData, setDailyData] = useState<DailyPerformance[]>([]);
+  const [salesPerformance, setSalesPerformance] = useState<SalespersonPerf[]>([]);
+  const [avgConversionHours, setAvgConversionHours] = useState(0);
+  const [agingLeadsCount, setAgingLeadsCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      // Fetch from the campaign_performance view
-      const [campRes, dailyRes] = await Promise.all([
+      const [campRes, dailyRes, salesRes, agingRes, convTimeRes] = await Promise.all([
         supabase.from("campaign_performance").select("*"),
         supabase.from("daily_performance").select("*").order("date", { ascending: true }).limit(30),
+        // Sales performance: group Google Ads leads by salesperson
+        supabase
+          .from("enquiries")
+          .select("sales_person_id, sales_person_name, is_converted, conversion_value")
+          .eq("lead_source", "google_ads")
+          .not("sales_person_id", "is", null),
+        // Aging leads: unconverted > 24h
+        supabase
+          .from("enquiries")
+          .select("id", { count: "exact", head: true })
+          .eq("lead_source", "google_ads")
+          .eq("is_converted", false)
+          .lt("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
+        // Conversion time
+        supabase
+          .from("enquiries")
+          .select("created_at, conversion_date")
+          .eq("lead_source", "google_ads")
+          .eq("is_converted", true)
+          .not("conversion_date", "is", null),
       ]);
 
       if (campRes.data) {
@@ -67,6 +98,46 @@ export function GoogleAdsSyncPanel() {
         })));
       }
 
+      // Aggregate sales performance
+      if (salesRes.data && salesRes.data.length > 0) {
+        const spMap = new Map<string, SalespersonPerf>();
+        salesRes.data.forEach((e: any) => {
+          const id = e.sales_person_id;
+          if (!spMap.has(id)) {
+            spMap.set(id, {
+              salesperson_id: id,
+              salesperson_name: e.sales_person_name || "Unknown",
+              leads: 0,
+              conversions: 0,
+              revenue: 0,
+              conversion_rate: 0,
+            });
+          }
+          const sp = spMap.get(id)!;
+          sp.leads += 1;
+          if (e.is_converted) {
+            sp.conversions += 1;
+            sp.revenue += Number(e.conversion_value) || 0;
+          }
+        });
+        const perfList = Array.from(spMap.values()).map((sp) => ({
+          ...sp,
+          conversion_rate: sp.leads > 0 ? (sp.conversions / sp.leads) * 100 : 0,
+        }));
+        setSalesPerformance(perfList.sort((a, b) => b.revenue - a.revenue));
+      }
+
+      // Aging count
+      setAgingLeadsCount(agingRes.count || 0);
+
+      // Avg conversion time
+      if (convTimeRes.data && convTimeRes.data.length > 0) {
+        const totalHours = convTimeRes.data.reduce((sum: number, e: any) => {
+          return sum + differenceInHours(new Date(e.conversion_date), new Date(e.created_at));
+        }, 0);
+        setAvgConversionHours(totalHours / convTimeRes.data.length);
+      }
+
       setLoading(false);
     }
     load();
@@ -78,52 +149,29 @@ export function GoogleAdsSyncPanel() {
   const totalSpend = campaigns.reduce((s, c) => s + c.total_spend, 0);
   const qualifiedLeads = campaigns.reduce((s, c) => s + c.qualified_leads, 0);
 
-  // AI Insights from real data
-  const aiInsights = useMemo(() => {
-    if (campaigns.length === 0) return [];
-    const insights: string[] = [];
-
-    const bestCampaign = [...campaigns].sort((a, b) => b.roas - a.roas)[0];
-    if (bestCampaign && bestCampaign.revenue > 0) {
-      insights.push(`"${bestCampaign.campaign_name}" is your top performer with ${bestCampaign.roas.toFixed(1)}x ROAS. Consider increasing its budget.`);
-    }
-
-    const worstCampaign = [...campaigns]
-      .filter((c) => c.total_spend > 0)
-      .sort((a, b) => a.roas - b.roas)[0];
-
-    if (worstCampaign && worstCampaign.conversions === 0 && worstCampaign.total_leads > 5) {
-      insights.push(`"${worstCampaign.campaign_name}" has ${worstCampaign.total_leads} leads but zero conversions. Review targeting or pause.`);
-    }
-
-    const convRate = totalLeads > 0 ? (totalConversions / totalLeads) * 100 : 0;
-    if (convRate < 5 && totalLeads > 20) {
-      insights.push(`Overall conversion rate is ${convRate.toFixed(1)}% — below the 5% benchmark. Focus on lead quality.`);
-    } else if (convRate >= 10) {
-      insights.push(`Excellent ${convRate.toFixed(1)}% conversion rate! Your lead quality is strong.`);
-    }
-
-    if (totalSpend > 0 && totalRevenue === 0) {
-      insights.push(`₹${totalSpend.toLocaleString("en-IN")} spent but no revenue tracked yet. Mark converted enquiries to unlock ROI insights.`);
-    }
-
-    if (totalLeads > 0 && insights.length === 0) {
-      insights.push(`${totalLeads} leads captured from Google Ads. Track outcomes to unlock deeper insights.`);
-    }
-
-    return insights;
-  }, [campaigns, totalLeads, totalConversions, totalSpend, totalRevenue]);
-
-  // Chart data from daily_performance view
   const chartData = useMemo(() => {
     if (dailyData.length > 0) return dailyData;
-    // Fallback: empty 14 days
     const days: { date: string; revenue: number; spend: number }[] = [];
     for (let i = 13; i >= 0; i--) {
       days.push({ date: format(subDays(new Date(), i), "dd MMM"), revenue: 0, spend: 0 });
     }
     return days;
   }, [dailyData]);
+
+  // AI Insights (legacy — kept for backward compatibility, decision engine is primary now)
+  const aiInsights = useMemo(() => {
+    if (campaigns.length === 0) return [];
+    const insights: string[] = [];
+    const bestCampaign = [...campaigns].sort((a, b) => b.roas - a.roas)[0];
+    if (bestCampaign && bestCampaign.revenue > 0) {
+      insights.push(`"${bestCampaign.campaign_name}" is your top performer with ${bestCampaign.roas.toFixed(1)}x ROAS.`);
+    }
+    const convRate = totalLeads > 0 ? (totalConversions / totalLeads) * 100 : 0;
+    if (convRate >= 10) {
+      insights.push(`Excellent ${convRate.toFixed(1)}% conversion rate! Your lead quality is strong.`);
+    }
+    return insights;
+  }, [campaigns, totalLeads, totalConversions]);
 
   if (loading) {
     return <div className="py-12 text-center text-muted-foreground">Loading Google Ads data...</div>;
@@ -167,6 +215,9 @@ export function GoogleAdsSyncPanel() {
           qualifiedLeads={qualifiedLeads}
           chartData={chartData}
           aiInsights={aiInsights}
+          salesPerformance={salesPerformance}
+          avgConversionHours={avgConversionHours}
+          agingLeadsCount={agingLeadsCount}
         />
       </TabsContent>
 

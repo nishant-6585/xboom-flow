@@ -5,8 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { format, differenceInHours } from "date-fns";
+import { ArrowRight, CheckCircle2, Flame } from "lucide-react";
 
 interface GoogleAdsLead {
   id: string;
@@ -55,6 +55,9 @@ export function GoogleAdsLeadsTab() {
 
   const convertedCount = leads.filter(l => l.is_converted).length;
   const unconvertedCount = leads.length - convertedCount;
+  const agingCount = leads.filter(l => !l.is_converted && differenceInHours(new Date(), new Date(l.created_at)) > 24).length;
+
+  const isAging = (lead: GoogleAdsLead) => !lead.is_converted && differenceInHours(new Date(), new Date(lead.created_at)) > 24;
 
   return (
     <Card>
@@ -65,6 +68,11 @@ export function GoogleAdsLeadsTab() {
             <Badge variant="outline" className="text-emerald-600 bg-emerald-50 border-emerald-200">
               <CheckCircle2 className="w-3 h-3 mr-1" /> {convertedCount} Converted
             </Badge>
+            {agingCount > 0 && (
+              <Badge variant="outline" className="text-amber-600 bg-amber-50 border-amber-200">
+                <Flame className="w-3 h-3 mr-1" /> {agingCount} Aging
+              </Badge>
+            )}
             <Badge variant="outline" className="text-muted-foreground">
               {unconvertedCount} Pending
             </Badge>
@@ -94,7 +102,7 @@ export function GoogleAdsLeadsTab() {
               </TableHeader>
               <TableBody>
                 {leads.map((lead) => (
-                  <TableRow key={lead.id} className={lead.is_converted ? "bg-emerald-500/5" : ""}>
+                  <TableRow key={lead.id} className={lead.is_converted ? "bg-emerald-500/5" : isAging(lead) ? "bg-amber-500/5" : ""}>
                     <TableCell className="font-medium">{lead.customer_name}</TableCell>
                     <TableCell className="text-muted-foreground">{lead.customer_company}</TableCell>
                     <TableCell>{lead.product_name}</TableCell>
@@ -110,6 +118,10 @@ export function GoogleAdsLeadsTab() {
                       {lead.is_converted ? (
                         <Badge variant="outline" className="text-xs text-emerald-600 bg-emerald-50 border-emerald-200">
                           ✓ Converted
+                        </Badge>
+                      ) : isAging(lead) ? (
+                        <Badge variant="outline" className="text-xs text-amber-600 bg-amber-50 border-amber-200">
+                          <Flame className="w-3 h-3 mr-0.5" /> Getting Cold
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="text-xs text-muted-foreground">
