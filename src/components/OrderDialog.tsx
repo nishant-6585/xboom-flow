@@ -916,6 +916,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                                     updates.procurement_rate = Number.isFinite(next) ? next : null;
                                   }
                                 }
+                                if (edits.supplier_id !== (originalItem.supplier_id || '')) {
+                                  updates.supplier_id = edits.supplier_id || null;
+                                }
                                 
                                 if (Object.keys(updates).length > 0) {
                                   const { data, error } = await supabase
