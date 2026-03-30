@@ -102,7 +102,7 @@ export function calculateTotal(entry: Partial<SalarySheetEntry>): number {
 
 /**
  * Calculate pro-rated salary based on last working date within a month.
- * Returns the pro-rated salary amount.
+ * Uses total calendar days in the month (30/31) for calculation.
  */
 export async function calculateProratedSalary(
   fullSalary: number,
@@ -117,32 +117,13 @@ export async function calculateProratedSalary(
   // Only pro-rate if LWD falls within the sheet month
   if (lwdMonth !== month || lwdYear !== year) return fullSalary;
 
-  const workingDays = await getWorkingDaysInMonth(month, year);
-  if (workingDays <= 0) return fullSalary;
-
-  // Count working days from 1st to LWD (inclusive)
   const monthStart = startOfMonth(new Date(year, month - 1));
-  const daysRange = eachDayOfInterval({ start: monthStart, end: lwd });
+  const totalDaysInMonth = endOfMonth(monthStart).getDate();
+  // Calendar days from 1st to LWD (inclusive)
+  const daysWorked = lwd.getDate();
 
-  const startStr = `${year}-${String(month).padStart(2, "0")}-01`;
-  const endStr = `${year}-${String(month).padStart(2, "0")}-${String(endOfMonth(monthStart).getDate()).padStart(2, "0")}`;
-  const { data: holidays } = await supabase
-    .from("holidays")
-    .select("date")
-    .gte("date", startStr)
-    .lte("date", endStr);
-  const holidaySet = new Set((holidays || []).map((h: any) => h.date));
-
-  const workedDays = daysRange.filter(d => {
-    const day = getDay(d);
-    if (day === 0 || day === 6) return false;
-    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    if (holidaySet.has(dateStr)) return false;
-    return true;
-  }).length;
-
-  const perDaySalary = fullSalary / workingDays;
-  return Math.round(perDaySalary * workedDays * 100) / 100;
+  const perDaySalary = fullSalary / totalDaysInMonth;
+  return Math.round(perDaySalary * daysWorked * 100) / 100;
 }
 
 export function calculateEarnings(entry: Partial<SalarySheetEntry>): number {
