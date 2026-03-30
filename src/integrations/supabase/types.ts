@@ -8949,6 +8949,8 @@ export type Database = {
         | "Consultant"
         | "Walk-in"
         | "Other"
+        | "Internshala"
+        | "Indeed"
       asset_status:
         | "assigned"
         | "returned"
@@ -9250,6 +9252,8 @@ export const Constants = {
         "Consultant",
         "Walk-in",
         "Other",
+        "Internshala",
+        "Indeed",
       ],
       asset_status: ["assigned", "returned", "lost", "damaged", "under_repair"],
       asset_type: [
