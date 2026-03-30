@@ -92,9 +92,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const checkMfaStatus = useCallback(async (_userRoles: AppRole[]) => {
+  const checkMfaStatus = useCallback(async (_userRoles: AppRole[], currentUserId?: string) => {
     try {
-      // Always check AAL level first — this is the source of truth
       const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (aalError) {
         console.error("AAL check error:", aalError);
@@ -102,13 +101,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // If already at AAL2, user is fully verified — also trust this device
       if (aalData.currentLevel === "aal2") {
         setMfaStatus("verified");
         return;
       }
 
-      // At AAL1 — check if user has TOTP factors enrolled
       const { data, error } = await supabase.auth.mfa.listFactors();
       if (error) {
         console.error("MFA factor list error:", error);
@@ -120,32 +117,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (verifiedFactors.length > 0) {
         // Check if this device is trusted (24-hour remember)
-        const trustKey = "mfa_device_trust";
-        const trustData = localStorage.getItem(trustKey);
+        const trustData = localStorage.getItem("mfa_device_trust");
         if (trustData) {
           try {
             const parsed = JSON.parse(trustData);
             const trustExpiry = new Date(parsed.expiresAt).getTime();
-            const currentUserId = supabase.auth.getUser ? undefined : undefined;
-            // Verify trust belongs to current session user
-            if (parsed.userId && trustExpiry > Date.now()) {
-              // Device is still trusted — skip MFA
+            if (parsed.userId === currentUserId && trustExpiry > Date.now()) {
               setMfaStatus("verified");
               return;
             } else {
-              // Expired — clean up
-              localStorage.removeItem(trustKey);
+              localStorage.removeItem("mfa_device_trust");
             }
           } catch {
-            localStorage.removeItem(trustKey);
+            localStorage.removeItem("mfa_device_trust");
           }
         }
-        // Has enrolled factors but AAL is not aal2 → needs verification
         setMfaStatus("verification_required");
         return;
       }
 
-      // No factors enrolled — ALL users must enroll
       setMfaStatus("enrollment_required");
     } catch (e) {
       console.error("MFA status check failed:", e);
