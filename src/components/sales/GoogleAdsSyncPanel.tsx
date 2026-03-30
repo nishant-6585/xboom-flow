@@ -8,17 +8,21 @@ import { GoogleAdsLeadsTab } from "./google-ads/GoogleAdsLeadsTab";
 import { GoogleAdsSyncLogsTab } from "./google-ads/GoogleAdsSyncLogsTab";
 import { subDays, format } from "date-fns";
 
-interface EnquiryRow {
-  campaign_id: string | null;
-  campaign_name: string | null;
-  lead_temperature: string | null;
-  order_outcome: string | null;
-  created_at: string;
-}
-
-interface CampaignData {
+interface CampaignPerformance {
   campaign_id: string;
   campaign_name: string;
+  total_spend: number;
+  total_leads: number;
+  qualified_leads: number;
+  conversions: number;
+  revenue: number;
+  cpl: number;
+  roas: number;
+  profit: number;
+}
+
+interface DailyPerformance {
+  date: string;
   leads: number;
   conversions: number;
   revenue: number;
@@ -26,102 +30,70 @@ interface CampaignData {
 }
 
 export function GoogleAdsSyncPanel() {
-  const [enquiries, setEnquiries] = useState<EnquiryRow[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignPerformance[]>([]);
+  const [dailyData, setDailyData] = useState<DailyPerformance[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from("enquiries")
-        .select("campaign_id, campaign_name, lead_temperature, order_outcome, created_at")
-        .eq("lead_source", "google_ads")
-        .order("created_at", { ascending: false })
-        .limit(1000);
-      if (data) setEnquiries(data as EnquiryRow[]);
+      // Fetch from the campaign_performance view
+      const [campRes, dailyRes] = await Promise.all([
+        supabase.from("campaign_performance").select("*"),
+        supabase.from("daily_performance").select("*").order("date", { ascending: true }).limit(30),
+      ]);
+
+      if (campRes.data) {
+        setCampaigns(campRes.data.map((c: any) => ({
+          campaign_id: c.campaign_id || "unknown",
+          campaign_name: c.campaign_name || "Unknown Campaign",
+          total_spend: Number(c.total_spend) || 0,
+          total_leads: Number(c.total_leads) || 0,
+          qualified_leads: Number(c.qualified_leads) || 0,
+          conversions: Number(c.conversions) || 0,
+          revenue: Number(c.revenue) || 0,
+          cpl: Number(c.cpl) || 0,
+          roas: Number(c.roas) || 0,
+          profit: Number(c.profit) || 0,
+        })));
+      }
+
+      if (dailyRes.data) {
+        setDailyData(dailyRes.data.map((d: any) => ({
+          date: format(new Date(d.date), "dd MMM"),
+          leads: Number(d.leads) || 0,
+          conversions: Number(d.conversions) || 0,
+          revenue: Number(d.revenue) || 0,
+          spend: Number(d.spend) || 0,
+        })));
+      }
+
       setLoading(false);
     }
     load();
   }, []);
 
-  // Aggregate campaign data
-  const campaigns: CampaignData[] = useMemo(() => {
-    const map = new Map<string, CampaignData>();
-    for (const e of enquiries) {
-      const cid = e.campaign_id || "unknown";
-      if (!map.has(cid)) {
-        map.set(cid, {
-          campaign_id: cid,
-          campaign_name: e.campaign_name || `Campaign ${cid}`,
-          leads: 0,
-          conversions: 0,
-          revenue: 0,
-          spend: 0,
-        });
-      }
-      const c = map.get(cid)!;
-      c.leads++;
-      if (e.order_outcome === "won") {
-        c.conversions++;
-        c.revenue += 85000; // Estimated avg order value
-      }
-      // Estimated spend per lead (Google Ads avg for India)
-      c.spend += 350;
-    }
-    return Array.from(map.values());
-  }, [enquiries]);
-
-  const totalLeads = enquiries.length;
+  const totalLeads = campaigns.reduce((s, c) => s + c.total_leads, 0);
   const totalConversions = campaigns.reduce((s, c) => s + c.conversions, 0);
   const totalRevenue = campaigns.reduce((s, c) => s + c.revenue, 0);
-  const totalSpend = campaigns.reduce((s, c) => s + c.spend, 0);
+  const totalSpend = campaigns.reduce((s, c) => s + c.total_spend, 0);
+  const qualifiedLeads = campaigns.reduce((s, c) => s + c.qualified_leads, 0);
 
-  // Build chart data for last 14 days
-  const chartData = useMemo(() => {
-    const days: { date: string; revenue: number; spend: number }[] = [];
-    for (let i = 13; i >= 0; i--) {
-      const d = subDays(new Date(), i);
-      const dateStr = format(d, "yyyy-MM-dd");
-      const label = format(d, "dd MMM");
-      const dayEnquiries = enquiries.filter(
-        (e) => e.created_at.slice(0, 10) === dateStr
-      );
-      const dayLeads = dayEnquiries.length;
-      const dayConversions = dayEnquiries.filter((e) => e.order_outcome === "won").length;
-      days.push({
-        date: label,
-        spend: dayLeads * 350,
-        revenue: dayConversions * 85000,
-      });
-    }
-    return days;
-  }, [enquiries]);
-
-  // AI Insights
+  // AI Insights from real data
   const aiInsights = useMemo(() => {
     if (campaigns.length === 0) return [];
     const insights: string[] = [];
 
-    const bestCampaign = [...campaigns].sort((a, b) => {
-      const roasA = a.spend > 0 ? a.revenue / a.spend : 0;
-      const roasB = b.spend > 0 ? b.revenue / b.spend : 0;
-      return roasB - roasA;
-    })[0];
-
+    const bestCampaign = [...campaigns].sort((a, b) => b.roas - a.roas)[0];
     if (bestCampaign && bestCampaign.revenue > 0) {
-      const roas = bestCampaign.spend > 0 ? (bestCampaign.revenue / bestCampaign.spend).toFixed(1) : "∞";
-      insights.push(`"${bestCampaign.campaign_name}" is your top performer with ${roas}x ROAS. Consider increasing its budget.`);
+      insights.push(`"${bestCampaign.campaign_name}" is your top performer with ${bestCampaign.roas.toFixed(1)}x ROAS. Consider increasing its budget.`);
     }
 
     const worstCampaign = [...campaigns]
-      .filter((c) => c.spend > 0)
-      .sort((a, b) => {
-        const roasA = a.spend > 0 ? a.revenue / a.spend : 0;
-        const roasB = b.spend > 0 ? b.revenue / b.spend : 0;
-        return roasA - roasB;
-      })[0];
+      .filter((c) => c.total_spend > 0)
+      .sort((a, b) => a.roas - b.roas)[0];
 
-    if (worstCampaign && worstCampaign.conversions === 0 && worstCampaign.leads > 5) {
-      insights.push(`"${worstCampaign.campaign_name}" has ${worstCampaign.leads} leads but zero conversions. Review targeting or pause.`);
+    if (worstCampaign && worstCampaign.conversions === 0 && worstCampaign.total_leads > 5) {
+      insights.push(`"${worstCampaign.campaign_name}" has ${worstCampaign.total_leads} leads but zero conversions. Review targeting or pause.`);
     }
 
     const convRate = totalLeads > 0 ? (totalConversions / totalLeads) * 100 : 0;
@@ -131,12 +103,27 @@ export function GoogleAdsSyncPanel() {
       insights.push(`Excellent ${convRate.toFixed(1)}% conversion rate! Your lead quality is strong.`);
     }
 
+    if (totalSpend > 0 && totalRevenue === 0) {
+      insights.push(`₹${totalSpend.toLocaleString("en-IN")} spent but no revenue tracked yet. Mark converted enquiries to unlock ROI insights.`);
+    }
+
     if (totalLeads > 0 && insights.length === 0) {
       insights.push(`${totalLeads} leads captured from Google Ads. Track outcomes to unlock deeper insights.`);
     }
 
     return insights;
-  }, [campaigns, totalLeads, totalConversions]);
+  }, [campaigns, totalLeads, totalConversions, totalSpend, totalRevenue]);
+
+  // Chart data from daily_performance view
+  const chartData = useMemo(() => {
+    if (dailyData.length > 0) return dailyData;
+    // Fallback: empty 14 days
+    const days: { date: string; revenue: number; spend: number }[] = [];
+    for (let i = 13; i >= 0; i--) {
+      days.push({ date: format(subDays(new Date(), i), "dd MMM"), revenue: 0, spend: 0 });
+    }
+    return days;
+  }, [dailyData]);
 
   if (loading) {
     return <div className="py-12 text-center text-muted-foreground">Loading Google Ads data...</div>;
@@ -165,18 +152,33 @@ export function GoogleAdsSyncPanel() {
 
       <TabsContent value="overview">
         <GoogleAdsOverviewTab
-          campaigns={campaigns}
+          campaigns={campaigns.map(c => ({
+            campaign_id: c.campaign_id,
+            campaign_name: c.campaign_name,
+            leads: c.total_leads,
+            conversions: c.conversions,
+            revenue: c.revenue,
+            spend: c.total_spend,
+          }))}
           totalLeads={totalLeads}
           totalConversions={totalConversions}
           totalRevenue={totalRevenue}
           totalSpend={totalSpend}
+          qualifiedLeads={qualifiedLeads}
           chartData={chartData}
           aiInsights={aiInsights}
         />
       </TabsContent>
 
       <TabsContent value="campaigns">
-        <GoogleAdsCampaignTab campaigns={campaigns} />
+        <GoogleAdsCampaignTab campaigns={campaigns.map(c => ({
+          campaign_id: c.campaign_id,
+          campaign_name: c.campaign_name,
+          leads: c.total_leads,
+          conversions: c.conversions,
+          revenue: c.revenue,
+          spend: c.total_spend,
+        }))} />
       </TabsContent>
 
       <TabsContent value="leads">

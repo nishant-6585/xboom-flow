@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, DollarSign, Target, Users, BarChart3, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Target, Users, BarChart3, ArrowUpRight, ArrowDownRight, Filter } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 interface CampaignData {
@@ -17,11 +17,13 @@ interface GoogleAdsOverviewTabProps {
   totalConversions: number;
   totalRevenue: number;
   totalSpend: number;
+  qualifiedLeads: number;
   chartData: { date: string; revenue: number; spend: number }[];
   aiInsights: string[];
 }
 
 function formatINR(value: number): string {
+  if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
   if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
   if (value >= 1000) return `₹${(value / 1000).toFixed(1)}K`;
   return `₹${value.toFixed(0)}`;
@@ -37,13 +39,14 @@ export function GoogleAdsOverviewTab({
   totalConversions,
   totalRevenue,
   totalSpend,
+  qualifiedLeads,
   chartData,
   aiInsights,
 }: GoogleAdsOverviewTabProps) {
   const profit = totalRevenue - totalSpend;
   const roas = safeDivide(totalRevenue, totalSpend);
   const conversionRate = safeDivide(totalConversions, totalLeads) * 100;
-  const qualifiedLeads = Math.round(totalLeads * 0.35); // Estimate based on warm/hot leads
+  const revenuePerLead = safeDivide(totalRevenue, totalLeads);
 
   const businessMetrics = [
     {
@@ -91,7 +94,7 @@ export function GoogleAdsOverviewTab({
     {
       label: "Qualified Leads",
       value: qualifiedLeads.toString(),
-      icon: Target,
+      icon: Filter,
       color: "text-blue-500",
       bgColor: "bg-blue-500/10",
     },

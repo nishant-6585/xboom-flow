@@ -483,9 +483,61 @@ Deno.serve(async (req) => {
       }).eq("id", lockId);
     }
 
+    // --- Fetch campaign spend data from Google Ads Reporting API ---
+    try {
+      const spendQuery = `SELECT campaign.id, campaign.name, metrics.cost_micros, metrics.impressions, metrics.clicks, segments.date FROM campaign WHERE segments.date DURING LAST_30_DAYS ORDER BY segments.date DESC`;
+      console.log("[Google Ads] Fetching campaign spend data...");
+
+      const customIdFormatted = customerId.replace(/\D/g, "");
+      const spendUrl = `https://googleads.googleapis.com/v23/customers/${customIdFormatted}/googleAds:searchStream`;
+      const spendRes = await fetchWithRetry(spendUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "developer-token": developerToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query: spendQuery }),
+      });
+
+      if (spendRes.ok) {
+        const spendData = await spendRes.json();
+        const spendBatches = Array.isArray(spendData) ? spendData : [spendData];
+        let spendUpserted = 0;
+
+        for (const batch of spendBatches) {
+          for (const result of (batch.results || [])) {
+            const camp = result.campaign;
+            const metrics = result.metrics;
+            const segDate = result.segments?.date;
+            if (!camp?.id || !segDate) continue;
+
+            const spendAmount = (metrics?.costMicros ? Number(metrics.costMicros) / 1000000 : 0);
+
+            const { error: spendErr } = await supabaseAdmin
+              .from("campaign_spend")
+              .upsert({
+                campaign_id: String(camp.id),
+                campaign_name: camp.name || null,
+                spend: spendAmount,
+                impressions: metrics?.impressions ? Number(metrics.impressions) : 0,
+                clicks: metrics?.clicks ? Number(metrics.clicks) : 0,
+                date: segDate,
+              }, { onConflict: "campaign_id,date" });
+
+            if (!spendErr) spendUpserted++;
+          }
+        }
+        console.log(`[Google Ads] Upserted ${spendUpserted} campaign spend records`);
+      } else {
+        console.error("[Google Ads] Failed to fetch spend data:", await spendRes.text());
+      }
+    } catch (spendErr) {
+      console.error("[Google Ads] Spend fetch error (non-fatal):", spendErr);
+    }
+
     // #6: Alert on errors
     if (finalStatus === "error") {
-      // Count consecutive failures
       const { data: recentLogs } = await supabaseAdmin
         .from("google_ads_sync_log")
         .select("status")
