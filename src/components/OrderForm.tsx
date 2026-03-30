@@ -162,7 +162,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
   }, [orderItems, formData.delivery_charges, formData.discount_amount]);
 
   const respondedEnquiries = enquiries.filter(e => 
-    e.status === 'responded' || e.status === 'moved_to_pipeline' || e.lead_source === 'google_ads'
+    e.status === 'responded' || e.status === 'moved_to_pipeline' || e.status === 'pending'
   );
   const activeSuppliers = suppliers.filter(s => s.is_active);
 
