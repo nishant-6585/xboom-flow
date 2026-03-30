@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, DollarSign, Target, Users, BarChart3, ArrowUpRight, ArrowDownRight, Filter } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Target, Users, BarChart3, ArrowUpRight, ArrowDownRight, Filter, AlertTriangle } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 interface CampaignData {
@@ -116,6 +116,26 @@ export function GoogleAdsOverviewTab({
 
   return (
     <div className="space-y-6">
+      {/* Unconverted Spend Alert */}
+      {totalSpend > 0 && totalConversions === 0 && (
+        <Card className="border-destructive/30 bg-destructive/5">
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-destructive/10 shrink-0">
+                <AlertTriangle className="w-5 h-5 text-destructive" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-destructive">High Spend – Zero Conversions</p>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {formatINR(totalSpend)} spent across {campaigns.length} campaign(s) with {totalLeads} leads but no conversions tracked.
+                  Use "Convert to Order" in the Leads tab to link orders and start tracking ROI.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* AI Insights */}
       {aiInsights.length > 0 && (
         <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
