@@ -481,12 +481,59 @@ export function SalesCommandCenter() {
 
   // Call stats
   const callStats = useMemo(() => {
-    const answered = filtered.calls.filter((c: any) => {
+    const isAnswered = (c: any) => {
       const payload = c.raw_payload;
       if (!payload?._ld || !Array.isArray(payload._ld)) return c.call_status === 'answered';
       return (payload._ld as any[]).some((l: any) => l._ac === 'received');
-    }).length;
-    return { total: filtered.calls.length, answered, missed: filtered.calls.length - answered };
+    };
+    const answered = filtered.calls.filter(isAnswered).length;
+    const missed = filtered.calls.length - answered;
+    const answerRate = filtered.calls.length > 0 ? ((answered / filtered.calls.length) * 100).toFixed(1) : '0';
+
+    // Agent-wise breakdown
+    const agentMap = new Map<string, { total: number; answered: number; missed: number }>();
+    filtered.calls.forEach((c: any) => {
+      const agent = c.assigned_agent_name || c.agent_name || 'Unassigned';
+      if (!agentMap.has(agent)) agentMap.set(agent, { total: 0, answered: 0, missed: 0 });
+      const entry = agentMap.get(agent)!;
+      entry.total++;
+      if (isAnswered(c)) entry.answered++;
+      else entry.missed++;
+    });
+    const agentBreakdown = Array.from(agentMap.entries())
+      .map(([name, data]) => ({ name, ...data, answerRate: data.total > 0 ? ((data.answered / data.total) * 100).toFixed(1) : '0' }))
+      .sort((a, b) => b.total - a.total);
+
+    // Daily trend (last 7 days)
+    const dailyCallTrend = Array.from({ length: 7 }, (_, i) => {
+      const date = format(subDays(new Date(), 6 - i), 'yyyy-MM-dd');
+      const dayCalls = filtered.calls.filter((c: any) => c.created_at?.startsWith(date));
+      const dayAnswered = dayCalls.filter(isAnswered).length;
+      return {
+        date: format(subDays(new Date(), 6 - i), 'MMM d'),
+        received: dayCalls.length,
+        answered: dayAnswered,
+        missed: dayCalls.length - dayAnswered,
+      };
+    });
+
+    // Hourly distribution
+    const hourlyDist = Array.from({ length: 12 }, (_, i) => {
+      const hour = i + 8; // 8 AM to 7 PM
+      const hourCalls = filtered.calls.filter((c: any) => {
+        const st = c.start_time || c.created_at;
+        if (!st) return false;
+        const h = new Date(st).getHours();
+        return h === hour;
+      });
+      return {
+        hour: `${hour > 12 ? hour - 12 : hour}${hour >= 12 ? 'PM' : 'AM'}`,
+        calls: hourCalls.length,
+        answered: hourCalls.filter(isAnswered).length,
+      };
+    });
+
+    return { total: filtered.calls.length, answered, missed, answerRate, agentBreakdown, dailyCallTrend, hourlyDist };
   }, [filtered.calls]);
 
   // Expected Payments Timeline (30 days)
@@ -863,7 +910,111 @@ export function SalesCommandCenter() {
         </Card>
       </div>
 
-      {/* ============ CATEGORY BREAKDOWN (List Style) ============ */}
+      {/* ============ MYOPERATOR CALL ANALYTICS ============ */}
+      {callStats.total > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+          {/* Call Summary Cards */}
+          <Card className="md:col-span-3">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Phone className="w-4 h-4 text-primary" />
+                MyOperator Call Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center p-4 rounded-lg bg-muted/50">
+                <p className="text-3xl font-bold">{callStats.total}</p>
+                <p className="text-xs text-muted-foreground">Total Calls Received</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="text-center p-3 rounded-lg bg-emerald-500/10">
+                  <p className="text-xl font-bold text-emerald-600">{callStats.answered}</p>
+                  <p className="text-xs text-muted-foreground">Attended</p>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-destructive/10">
+                  <p className="text-xl font-bold text-destructive">{callStats.missed}</p>
+                  <p className="text-xs text-muted-foreground">Missed</p>
+                </div>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-primary/10">
+                <p className="text-lg font-bold text-primary">{callStats.answerRate}%</p>
+                <p className="text-xs text-muted-foreground">Answer Rate</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 7-Day Call Trend */}
+          <Card className="md:col-span-5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Activity className="w-4 h-4 text-primary" />
+                Call Trend (Last 7 Days)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={callStats.dailyCallTrend} barGap={2}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <Tooltip
+                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+                  />
+                  <Bar dataKey="answered" name="Attended" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} stackId="calls" />
+                  <Bar dataKey="missed" name="Missed" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} stackId="calls" />
+                  <Legend wrapperStyle={{ fontSize: '11px' }} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Agent-wise Breakdown */}
+          <Card className="md:col-span-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Users className="w-4 h-4 text-primary" />
+                Agent Performance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[220px]">
+                <div className="space-y-2">
+                  {callStats.agentBreakdown.filter(a => a.name !== 'Unassigned').map(agent => (
+                    <div key={agent.name} className="p-2.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium truncate max-w-[120px]">{agent.name}</span>
+                        <span className="text-xs text-muted-foreground">{agent.total} calls</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 rounded-full bg-muted/60 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-emerald-500 transition-all"
+                            style={{ width: `${agent.answerRate}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium min-w-[32px] text-right">{agent.answerRate}%</span>
+                      </div>
+                      <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                        <span className="text-emerald-600">✓ {agent.answered}</span>
+                        <span className="text-destructive">✗ {agent.missed}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {callStats.agentBreakdown.filter(a => a.name === 'Unassigned').length > 0 && (
+                    <div className="p-2 rounded-lg bg-muted/30 text-center">
+                      <span className="text-xs text-muted-foreground">
+                        {callStats.agentBreakdown.find(a => a.name === 'Unassigned')?.total || 0} unassigned calls
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+
       {categoryBreakdown.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
