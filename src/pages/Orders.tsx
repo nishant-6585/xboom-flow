@@ -40,7 +40,8 @@ export default function Orders() {
   const enquiryIdFromUrl = searchParams.get('enquiry_id');
   const tabFromUrl = searchParams.get('tab');
   
-  const [activeTab, setActiveTab] = useState(tabFromUrl === 'pipeline' ? 'pipeline' : 'list');
+  const preSelectEnquiryId = searchParams.get('preSelectEnquiry');
+  const [activeTab, setActiveTab] = useState(tabFromUrl === 'pipeline' ? 'pipeline' : tabFromUrl === 'new' ? 'new' : 'list');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [paymentTermsFilter, setPaymentTermsFilter] = useState<string>('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all');
@@ -78,6 +79,8 @@ export default function Orders() {
   useEffect(() => {
     if (tabFromUrl === 'pipeline') {
       setActiveTab('pipeline');
+    } else if (tabFromUrl === 'new') {
+      setActiveTab('new');
     }
   }, [tabFromUrl]);
 
@@ -1003,6 +1006,7 @@ export default function Orders() {
                 suppliers={suppliers}
                 showProcurementRate={false}
                 userRole={role || 'sales'}
+                preSelectEnquiryId={preSelectEnquiryId || undefined}
               />
             </TabsContent>
           )}
