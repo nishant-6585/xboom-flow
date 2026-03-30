@@ -109,21 +109,25 @@ async function fetchGoogleAdsLeads(
     ? new Date(new Date(lastSyncedAt).getTime() - BUFFER_WINDOW_MINUTES * 60 * 1000)
     : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  // Format as 'YYYY-MM-DD HH:MM:SS' for GAQL compatibility (no T, no Z, no ms)
+  // Format as YYYY-MM-DD HH:MM:SS+00:00 for GAQL datetime compatibility
   const pad = (n: number) => String(n).padStart(2, "0");
   const d = baselineTime;
-  const startTimeFormatted = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+  const startTimeFormatted = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}+00:00`;
 
-  const query = `SELECT lead_form_submission_data.id, lead_form_submission_data.create_time, lead_form_submission_data.campaign, lead_form_submission_data.ad_group, lead_form_submission_data.asset, lead_form_submission_data.lead_form_user_submission_data FROM lead_form_submission_data WHERE lead_form_submission_data.create_time >= '${startTimeFormatted}' ORDER BY lead_form_submission_data.create_time DESC`;
+  // Use only supported lead_form_submission_data fields for v23
+  const query = `SELECT lead_form_submission_data.id, lead_form_submission_data.submission_date_time, lead_form_submission_data.campaign, lead_form_submission_data.ad_group, lead_form_submission_data.asset, lead_form_submission_data.lead_form_submission_fields FROM lead_form_submission_data WHERE lead_form_submission_data.submission_date_time >= '${startTimeFormatted}' ORDER BY lead_form_submission_data.submission_date_time DESC`;
 
   console.log("[GAQL] Final query:", query);
 
-  // Ensure customer ID is numeric only (no dashes), use the direct account ID not MCC
-  const customIdFormatted = customerId.replace(/-/g, "").replace(/\s/g, "");
+  // Ensure customer ID is a direct account ID (digits only), not MCC format
+  const customIdFormatted = customerId.replace(/\D/g, "");
+  if (!customIdFormatted) {
+    throw new Error("Invalid GOOGLE_ADS_CUSTOMER_ID: must contain digits only");
+  }
+
   console.log("[Google Ads] Using customer ID:", customIdFormatted);
 
-  // Use v16 API (stable, widely supported for lead form submissions)
-  const apiUrl = `https://googleads.googleapis.com/v16/customers/${customIdFormatted}/googleAds:searchStream`;
+  const apiUrl = `https://googleads.googleapis.com/v23/customers/${customIdFormatted}/googleAds:searchStream`;
   console.log("[Google Ads] API URL:", apiUrl);
 
   // #3: Use retry wrapper
@@ -146,7 +150,7 @@ async function fetchGoogleAdsLeads(
   const data = await res.json();
   const leads: GoogleAdsLead[] = [];
 
-  // searchStream returns an array of batches
+  // searchStream returns an array of result batches; empty means no leads
   const batches = Array.isArray(data) ? data : [data];
   for (const batch of batches) {
     const results = batch.results || [];
@@ -154,22 +158,23 @@ async function fetchGoogleAdsLeads(
       const sub = result.leadFormSubmissionData;
       if (!sub) continue;
 
-      // Extract submission fields from lead_form_user_submission_data
-      const userSubmission = sub.leadFormUserSubmissionData || {};
-      const submissionFields = (userSubmission.userSubmissionFields || []).map(
-        (f: { fieldName: string; fieldValue: string }) => ({
-          column_name: f.fieldName,
-          string_value: f.fieldValue,
-        })
-      );
+      const submissionFields = (sub.leadFormSubmissionFields || [])
+        .map((f: { fieldName?: string; fieldValue?: string; columnName?: string; stringValue?: string }) => ({
+          column_name: f.fieldName || f.columnName || "unknown",
+          string_value: f.fieldValue || f.stringValue || "",
+        }))
+        .filter((f: { column_name: string; string_value: string }) => f.column_name && f.string_value);
+
+      const campaignResource = sub.campaign || "";
+      const adGroupResource = sub.adGroup || "";
 
       leads.push({
         lead_id: sub.id || sub.resourceName || "",
-        campaign_id: sub.campaign ? sub.campaign.split("/").pop() || "" : "",
+        campaign_id: campaignResource ? campaignResource.split("/").pop() || "" : "",
         campaign_name: "",
-        ad_group_id: sub.adGroup ? sub.adGroup.split("/").pop() || "" : "",
+        ad_group_id: adGroupResource ? adGroupResource.split("/").pop() || "" : "",
         submission_data: submissionFields,
-        created_at: sub.createTime || new Date().toISOString(),
+        created_at: sub.submissionDateTime || new Date().toISOString(),
       });
     }
   }
