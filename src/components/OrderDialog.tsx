@@ -867,6 +867,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             status: item.status,
                             notes: item.notes || '',
                             procurement_rate: item.procurement_rate || '',
+                            supplier_id: item.supplier_id || '',
                           };
                         });
                         setEditedOrderItems(initialEdits);
@@ -914,6 +915,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                                     const next = Number(raw);
                                     updates.procurement_rate = Number.isFinite(next) ? next : null;
                                   }
+                                }
+                                if (edits.supplier_id !== (originalItem.supplier_id || '')) {
+                                  updates.supplier_id = edits.supplier_id || null;
                                 }
                                 
                                 if (Object.keys(updates).length > 0) {
@@ -992,6 +996,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <TableRow>
                       <TableHead>Product</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Supplier</TableHead>
                       <TableHead className="text-right">Qty</TableHead>
                       <TableHead className="text-right">Unit Price</TableHead>
                       {canSeeProcurement && <TableHead className="text-right">Procurement</TableHead>}
@@ -1066,6 +1071,38 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                             <Badge variant="outline" className="text-xs">
                               {ORDER_ITEM_STATUSES.find(s => s.value === item.status)?.label || item.status}
                             </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {editingOrderItems ? (
+                            <Select
+                              value={editedOrderItems[item.id]?.supplier_id || 'none'}
+                              onValueChange={(v) => setEditedOrderItems(prev => ({
+                                ...prev,
+                                [item.id]: { ...prev[item.id], supplier_id: v === 'none' ? '' : v }
+                              }))}
+                            >
+                              <SelectTrigger className="h-8 w-[160px] text-sm">
+                                <SelectValue placeholder="Select supplier" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">No Supplier</SelectItem>
+                                {suppliers.map(s => (
+                                  <SelectItem key={s.id} value={s.id}>
+                                    {s.name} {s.brand_name ? `(${s.brand_name})` : ''}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            (() => {
+                              const sup = suppliers.find(s => s.id === item.supplier_id);
+                              return sup ? (
+                                <span className="text-sm">{sup.name}</span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              );
+                            })()
                           )}
                         </TableCell>
                         <TableCell className="text-right">
