@@ -2435,6 +2435,7 @@ export type Database = {
       }
       enquiries: {
         Row: {
+          ad_group_id: string | null
           admin_response: string | null
           admin_response_at: string | null
           admin_response_by: string | null
@@ -2443,6 +2444,8 @@ export type Database = {
           ai_last_scored_at: string | null
           ai_priority_level: string | null
           ai_score: number | null
+          campaign_id: string | null
+          campaign_name: string | null
           created_at: string
           customer_company: string
           customer_name: string
@@ -2451,10 +2454,12 @@ export type Database = {
           escalated_by: string | null
           escalated_by_name: string | null
           escalation_reason: string | null
+          google_lead_id: string | null
           id: string
           is_escalated: boolean
           is_mega_deal: boolean | null
           is_prospect: boolean | null
+          lead_source: string | null
           lead_temperature: string | null
           lost_reason: string | null
           lost_reason_notes: string | null
@@ -2467,6 +2472,7 @@ export type Database = {
           product_code: string
           product_name: string
           quantity: number
+          raw_google_payload: Json | null
           requested_timeline: string | null
           responded_at: string | null
           responded_by: string | null
@@ -2482,6 +2488,7 @@ export type Database = {
           urgency: string
         }
         Insert: {
+          ad_group_id?: string | null
           admin_response?: string | null
           admin_response_at?: string | null
           admin_response_by?: string | null
@@ -2490,6 +2497,8 @@ export type Database = {
           ai_last_scored_at?: string | null
           ai_priority_level?: string | null
           ai_score?: number | null
+          campaign_id?: string | null
+          campaign_name?: string | null
           created_at?: string
           customer_company: string
           customer_name: string
@@ -2498,10 +2507,12 @@ export type Database = {
           escalated_by?: string | null
           escalated_by_name?: string | null
           escalation_reason?: string | null
+          google_lead_id?: string | null
           id?: string
           is_escalated?: boolean
           is_mega_deal?: boolean | null
           is_prospect?: boolean | null
+          lead_source?: string | null
           lead_temperature?: string | null
           lost_reason?: string | null
           lost_reason_notes?: string | null
@@ -2514,6 +2525,7 @@ export type Database = {
           product_code: string
           product_name: string
           quantity: number
+          raw_google_payload?: Json | null
           requested_timeline?: string | null
           responded_at?: string | null
           responded_by?: string | null
@@ -2529,6 +2541,7 @@ export type Database = {
           urgency: string
         }
         Update: {
+          ad_group_id?: string | null
           admin_response?: string | null
           admin_response_at?: string | null
           admin_response_by?: string | null
@@ -2537,6 +2550,8 @@ export type Database = {
           ai_last_scored_at?: string | null
           ai_priority_level?: string | null
           ai_score?: number | null
+          campaign_id?: string | null
+          campaign_name?: string | null
           created_at?: string
           customer_company?: string
           customer_name?: string
@@ -2545,10 +2560,12 @@ export type Database = {
           escalated_by?: string | null
           escalated_by_name?: string | null
           escalation_reason?: string | null
+          google_lead_id?: string | null
           id?: string
           is_escalated?: boolean
           is_mega_deal?: boolean | null
           is_prospect?: boolean | null
+          lead_source?: string | null
           lead_temperature?: string | null
           lost_reason?: string | null
           lost_reason_notes?: string | null
@@ -2561,6 +2578,7 @@ export type Database = {
           product_code?: string
           product_name?: string
           quantity?: number
+          raw_google_payload?: Json | null
           requested_timeline?: string | null
           responded_at?: string | null
           responded_by?: string | null
@@ -3273,6 +3291,42 @@ export type Database = {
           is_active?: boolean
           name?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      google_ads_sync_log: {
+        Row: {
+          created_at: string
+          errors: string[] | null
+          id: string
+          last_synced_at: string
+          leads_fetched: number
+          leads_inserted: number
+          leads_skipped: number
+          status: string
+          sync_duration_ms: number | null
+        }
+        Insert: {
+          created_at?: string
+          errors?: string[] | null
+          id?: string
+          last_synced_at?: string
+          leads_fetched?: number
+          leads_inserted?: number
+          leads_skipped?: number
+          status?: string
+          sync_duration_ms?: number | null
+        }
+        Update: {
+          created_at?: string
+          errors?: string[] | null
+          id?: string
+          last_synced_at?: string
+          leads_fetched?: number
+          leads_inserted?: number
+          leads_skipped?: number
+          status?: string
+          sync_duration_ms?: number | null
         }
         Relationships: []
       }
