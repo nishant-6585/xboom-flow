@@ -63,6 +63,7 @@ export function ProcurementOrderItems({
   procurementCurrency,
   suppliers = [],
   onSupplierChange,
+  orderProductData,
 }: ProcurementOrderItemsProps) {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
