@@ -204,18 +204,30 @@ export function ProcurementOrderItems({
       
       for (const item of items) {
         const edited = editedItems[item.id];
+        const updateData: Record<string, any> = {
+          procurement_rate: edited.procurement_rate ? parseFloat(edited.procurement_rate) : null,
+          procurement_date: edited.procurement_date || null,
+          status: edited.status,
+          supplier_id: edited.supplier_id || null,
+          quantity_procured: edited.quantity_procured ? parseInt(edited.quantity_procured) : 0,
+          procurement_gst_percent: edited.procurement_gst_percent ? parseFloat(edited.procurement_gst_percent) : 0,
+          procurement_gst_amount: edited.procurement_gst_amount ? parseFloat(edited.procurement_gst_amount) : 0,
+          procurement_price_includes_gst: edited.procurement_price_includes_gst || false,
+        };
+        // Save product name changes
+        if (edited.product_name_edit !== undefined && edited.product_name_edit !== item.product_name) {
+          updateData.product_name = edited.product_name_edit;
+        }
+        // Save quantity changes
+        if (edited.quantity_edit !== undefined) {
+          const newQty = parseInt(edited.quantity_edit);
+          if (!isNaN(newQty) && newQty > 0) {
+            updateData.quantity = newQty;
+          }
+        }
         const { error } = await supabase
           .from('order_items')
-          .update({
-            procurement_rate: edited.procurement_rate ? parseFloat(edited.procurement_rate) : null,
-            procurement_date: edited.procurement_date || null,
-            status: edited.status,
-            supplier_id: edited.supplier_id || null,
-            quantity_procured: edited.quantity_procured ? parseInt(edited.quantity_procured) : 0,
-            procurement_gst_percent: edited.procurement_gst_percent ? parseFloat(edited.procurement_gst_percent) : 0,
-            procurement_gst_amount: edited.procurement_gst_amount ? parseFloat(edited.procurement_gst_amount) : 0,
-            procurement_price_includes_gst: edited.procurement_price_includes_gst || false,
-          })
+          .update(updateData)
           .eq('id', item.id);
         
         if (error) throw error;
