@@ -32,7 +32,7 @@ import { EnquiryConvertButton } from './EnquiryConvertButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadsPanel } from './EmailLeadsPanel';
 import { FormsLeadsPanel } from './FormsLeadsPanel';
-import { Mail, FileText } from 'lucide-react';
+import { Mail, FileText, Megaphone } from 'lucide-react';
 import { MyOperatorAnalytics } from './MyOperatorAnalytics';
 import { MyOperatorTabContent } from './MyOperatorTabContent';
 import { InteraktAnalytics } from './InteraktAnalytics';
