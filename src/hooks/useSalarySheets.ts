@@ -163,7 +163,7 @@ function countCalendarDaysBetween(
 /**
  * Fetch the effective salary for an employee for a given month/year from salary_history.
  * If there's a mid-month salary change, automatically pro-rates between old and new salary
- * based on working days before and after the change date.
+ * based on total calendar days (30/31) before and after the change date.
  * Falls back to employees.monthly_salary if no history exists.
  */
 export async function getEmployeeProfileData(
