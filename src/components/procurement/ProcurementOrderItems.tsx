@@ -506,7 +506,19 @@ export function ProcurementOrderItems({
                       Stock: {availableStock}
                     </Badge>
                   )}
-                  <Badge variant="secondary">Qty: {item.quantity}</Badge>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={editedItems[item.id]?.quantity_edit ?? item.quantity.toString()}
+                    onChange={(e) => {
+                      setEditedItems(prev => ({
+                        ...prev,
+                        [item.id]: { ...prev[item.id], quantity_edit: e.target.value }
+                      }));
+                    }}
+                    className="h-7 w-16 text-xs text-center"
+                    placeholder="Qty"
+                  />
                   <Badge className={statusColors[editedItems[item.id]?.status || 'pending']}>
                     {ORDER_ITEM_STATUSES.find(s => s.value === editedItems[item.id]?.status)?.label || 'Pending'}
                   </Badge>
