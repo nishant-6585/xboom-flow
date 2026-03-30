@@ -19,6 +19,55 @@ interface GoogleAdsLead {
   created_at: string;
 }
 
+// Detect if all column_names are "unknown" — if so, use heuristic parsing
+function parseSubmissionFields(data: { column_name: string; string_value: string }[]): {
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  extras: Record<string, string>;
+} {
+  const allUnknown = data.every(d => d.column_name.toLowerCase() === "unknown" || !d.column_name);
+  
+  if (allUnknown) {
+    // Heuristic: classify each value by pattern
+    let name: string | null = null;
+    let email: string | null = null;
+    let phone: string | null = null;
+    let city: string | null = null;
+    const extras: Record<string, string> = {};
+
+    for (const field of data) {
+      const val = field.string_value?.trim();
+      if (!val) continue;
+      
+      if (!email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+        email = val;
+      } else if (!phone && /^[\+]?\d[\d\s\-\(\)]{6,}$/.test(val.replace(/\s/g, ''))) {
+        phone = val;
+      } else if (!name) {
+        // First non-email, non-phone value is likely the name
+        name = val;
+      } else if (!city) {
+        // Next unmatched value is likely city/location
+        city = val;
+      } else {
+        extras[`field_${Object.keys(extras).length + 1}`] = val;
+      }
+    }
+    return { name, email, phone, city, extras };
+  }
+
+  // Standard extraction when column names are known
+  return {
+    name: extractField(data, "FULL_NAME", "NAME", "FIRST_NAME"),
+    email: extractField(data, "EMAIL", "EMAIL_ADDRESS", "WORK_EMAIL"),
+    phone: extractField(data, "PHONE_NUMBER", "PHONE", "MOBILE", "CONTACT_NUMBER"),
+    city: extractField(data, "CITY", "LOCATION", "AREA", "REGION"),
+    extras: {},
+  };
+}
+
 function extractField(data: { column_name: string; string_value: string }[], ...names: string[]): string | null {
   for (const name of names) {
     const found = data.find(
@@ -29,22 +78,11 @@ function extractField(data: { column_name: string; string_value: string }[], ...
   return null;
 }
 
-// #4: Robust name extraction with fallbacks
+// #4: Robust name extraction using parseSubmissionFields
 function extractLeadName(data: { column_name: string; string_value: string }[]): string {
-  const fullName = extractField(data, "FULL_NAME", "NAME");
-  if (fullName) return fullName;
-
-  const firstName = extractField(data, "FIRST_NAME");
-  const lastName = extractField(data, "LAST_NAME");
-  if (firstName && lastName) return `${firstName} ${lastName}`;
-  if (firstName) return firstName;
-
-  const company = extractField(data, "COMPANY_NAME", "COMPANY");
-  if (company) return `Lead from ${company}`;
-
-  const email = extractField(data, "EMAIL", "EMAIL_ADDRESS");
-  if (email) return email.split("@")[0];
-
+  const parsed = parseSubmissionFields(data);
+  if (parsed.name) return parsed.name;
+  if (parsed.email) return parsed.email.split("@")[0];
   return "Google Ads Lead";
 }
 
