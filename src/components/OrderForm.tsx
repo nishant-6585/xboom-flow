@@ -59,6 +59,36 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     };
     fetchSalesTeam();
   }, []);
+
+  // Auto-select enquiry if preSelectEnquiryId is provided (e.g. from "Convert to Order" flow)
+  useEffect(() => {
+    if (preSelectEnquiryId && enquiries.length > 0) {
+      const enquiry = enquiries.find(e => e.id === preSelectEnquiryId);
+      if (enquiry) {
+        setFormData(prev => ({
+          ...prev,
+          enquiry_id: preSelectEnquiryId,
+          product_name: enquiry.product_name,
+          product_category: enquiry.product_category,
+          quantity: enquiry.quantity,
+          customer_name: enquiry.customer_name,
+          customer_company: enquiry.customer_company,
+          sales_person_id: enquiry.sales_person_id || '',
+          sales_person_name: enquiry.sales_person_name,
+          committed_timeline: enquiry.requested_timeline || '',
+        }));
+        setOrderItems([{
+          product_name: enquiry.product_name,
+          product_code: enquiry.product_code,
+          product_category: enquiry.product_category,
+          quantity: enquiry.quantity,
+          unit_price: undefined,
+          procurement_rate: undefined,
+          notes: '',
+        }]);
+      }
+    }
+  }, [preSelectEnquiryId, enquiries]);
   
   const invoiceInputRef = useRef<HTMLInputElement>(null);
   const poInputRef = useRef<HTMLInputElement>(null);
