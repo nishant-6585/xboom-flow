@@ -13,6 +13,7 @@ interface SyncLog {
   leads_fetched: number;
   leads_inserted: number;
   leads_skipped: number;
+  duplicates_skipped: number;
   errors: string[];
   status: string;
   sync_duration_ms: number;
@@ -175,6 +176,7 @@ export function GoogleAdsSyncPanel() {
                       <th className="text-center p-2 font-medium">Fetched</th>
                       <th className="text-center p-2 font-medium">Inserted</th>
                       <th className="text-center p-2 font-medium">Skipped</th>
+                      <th className="text-center p-2 font-medium">Dupes</th>
                       <th className="text-center p-2 font-medium">Duration</th>
                     </tr>
                   </thead>
@@ -189,6 +191,10 @@ export function GoogleAdsSyncPanel() {
                             <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50 text-xs">
                               <CheckCircle2 className="w-3 h-3 mr-1" /> Success
                             </Badge>
+                          ) : log.status === "running" ? (
+                            <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50 text-xs">
+                              <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> Running
+                            </Badge>
                           ) : (
                             <Badge variant="destructive" className="text-xs">
                               <XCircle className="w-3 h-3 mr-1" /> Error
@@ -200,6 +206,7 @@ export function GoogleAdsSyncPanel() {
                           +{log.leads_inserted}
                         </td>
                         <td className="p-2 text-center text-muted-foreground">{log.leads_skipped}</td>
+                        <td className="p-2 text-center text-xs text-muted-foreground">{log.duplicates_skipped || 0}</td>
                         <td className="p-2 text-center text-xs text-muted-foreground">
                           {log.sync_duration_ms ? `${(log.sync_duration_ms / 1000).toFixed(1)}s` : "—"}
                         </td>
