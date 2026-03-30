@@ -102,7 +102,7 @@ export function calculateTotal(entry: Partial<SalarySheetEntry>): number {
 
 /**
  * Calculate pro-rated salary based on last working date within a month.
- * Returns the pro-rated salary amount.
+ * Uses total calendar days in the month (30/31) for calculation.
  */
 export async function calculateProratedSalary(
   fullSalary: number,
@@ -117,32 +117,13 @@ export async function calculateProratedSalary(
   // Only pro-rate if LWD falls within the sheet month
   if (lwdMonth !== month || lwdYear !== year) return fullSalary;
 
-  const workingDays = await getWorkingDaysInMonth(month, year);
-  if (workingDays <= 0) return fullSalary;
-
-  // Count working days from 1st to LWD (inclusive)
   const monthStart = startOfMonth(new Date(year, month - 1));
-  const daysRange = eachDayOfInterval({ start: monthStart, end: lwd });
+  const totalDaysInMonth = endOfMonth(monthStart).getDate();
+  // Calendar days from 1st to LWD (inclusive)
+  const daysWorked = lwd.getDate();
 
-  const startStr = `${year}-${String(month).padStart(2, "0")}-01`;
-  const endStr = `${year}-${String(month).padStart(2, "0")}-${String(endOfMonth(monthStart).getDate()).padStart(2, "0")}`;
-  const { data: holidays } = await supabase
-    .from("holidays")
-    .select("date")
-    .gte("date", startStr)
-    .lte("date", endStr);
-  const holidaySet = new Set((holidays || []).map((h: any) => h.date));
-
-  const workedDays = daysRange.filter(d => {
-    const day = getDay(d);
-    if (day === 0 || day === 6) return false;
-    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    if (holidaySet.has(dateStr)) return false;
-    return true;
-  }).length;
-
-  const perDaySalary = fullSalary / workingDays;
-  return Math.round(perDaySalary * workedDays * 100) / 100;
+  const perDaySalary = fullSalary / totalDaysInMonth;
+  return Math.round(perDaySalary * daysWorked * 100) / 100;
 }
 
 export function calculateEarnings(entry: Partial<SalarySheetEntry>): number {
@@ -168,27 +149,21 @@ export function calculateDeduction(salary: number, unpaidLeaves: number, working
 }
 
 /**
- * Count working days between two dates (inclusive), excluding weekends and holidays.
+ * Count calendar days between two dates (inclusive).
  */
-async function countWorkingDaysBetween(
+function countCalendarDaysBetween(
   fromDate: Date,
   toDate: Date,
-  holidaySet: Set<string>
-): Promise<number> {
+): number {
   if (fromDate > toDate) return 0;
   const days = eachDayOfInterval({ start: fromDate, end: toDate });
-  return days.filter(d => {
-    const day = getDay(d);
-    if (day === 0 || day === 6) return false;
-    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    return !holidaySet.has(dateStr);
-  }).length;
+  return days.length;
 }
 
 /**
  * Fetch the effective salary for an employee for a given month/year from salary_history.
  * If there's a mid-month salary change, automatically pro-rates between old and new salary
- * based on working days before and after the change date.
+ * based on total calendar days (30/31) before and after the change date.
  * Falls back to employees.monthly_salary if no history exists.
  */
 export async function getEmployeeProfileData(
@@ -235,17 +210,9 @@ export async function getEmployeeProfileData(
       // No mid-month change — use the latest salary effective before the month
       salary = startingSalary;
     } else {
-      // Mid-month salary change(s) detected — pro-rate!
-      // Fetch holidays for the month
-      const { data: holidays } = await supabase
-        .from("holidays")
-        .select("date")
-        .gte("date", monthStartStr)
-        .lte("date", monthEndStr);
-      const holidaySet = new Set((holidays || []).map((h: any) => h.date));
-
-      const totalWorkingDays = await countWorkingDaysBetween(monthStart, monthEnd, holidaySet);
-      if (totalWorkingDays <= 0) {
+      // Mid-month salary change(s) detected — pro-rate using calendar days!
+      const totalDaysInMonth = endOfMonth(monthStart).getDate();
+      if (totalDaysInMonth <= 0) {
         salary = startingSalary;
       } else {
         // Build salary segments: [{salary, fromDate, toDate}, ...]
@@ -272,11 +239,11 @@ export async function getEmployeeProfileData(
         // Final segment: from last change date to end of month
         segments.push({ salary: currentSal, from: segStart, to: monthEnd });
 
-        // Calculate weighted salary
+        // Calculate weighted salary using calendar days
         let weightedTotal = 0;
         for (const seg of segments) {
-          const days = await countWorkingDaysBetween(seg.from, seg.to, holidaySet);
-          weightedTotal += seg.salary * (days / totalWorkingDays);
+          const days = countCalendarDaysBetween(seg.from, seg.to);
+          weightedTotal += seg.salary * (days / totalDaysInMonth);
         }
 
         salary = Math.round(weightedTotal * 100) / 100;
