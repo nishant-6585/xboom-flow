@@ -460,10 +460,20 @@ export function ProcurementOrderItems({
           return (
             <div key={item.id} className="p-3 bg-muted/30 rounded-lg space-y-3">
               <div className="flex items-start justify-between">
-                <div>
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
-                    <span className="font-medium">{item.product_name}</span>
+                    <Input
+                      value={editedItems[item.id]?.product_name_edit ?? item.product_name}
+                      onChange={(e) => {
+                        setEditedItems(prev => ({
+                          ...prev,
+                          [item.id]: { ...prev[item.id], product_name_edit: e.target.value }
+                        }));
+                      }}
+                      className="h-7 text-sm font-medium max-w-[300px]"
+                      placeholder="Product / Component name"
+                    />
                     {isFromStock && (
                       <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 text-xs">
                         <Warehouse className="h-3 w-3 mr-1" />
@@ -471,22 +481,31 @@ export function ProcurementOrderItems({
                       </Badge>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
+                  <div className="text-xs text-muted-foreground mt-1 ml-[60px]">
                     {item.product_category} • Code: {item.product_code || '-'}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* Stock indicator */}
                   {stockItem && (
                     <Badge variant="outline" className="text-xs gap-1">
                       <Warehouse className="h-3 w-3" />
                       Stock: {availableStock}
                     </Badge>
                   )}
-                  <Badge variant="secondary">Order Qty: {item.quantity}</Badge>
+                  <Badge variant="secondary">Qty: {item.quantity}</Badge>
                   <Badge className={statusColors[editedItems[item.id]?.status || 'pending']}>
                     {ORDER_ITEM_STATUSES.find(s => s.value === editedItems[item.id]?.status)?.label || 'Pending'}
                   </Badge>
+                  {items.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteItem(item.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               </div>
 
