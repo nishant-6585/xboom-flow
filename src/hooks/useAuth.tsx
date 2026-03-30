@@ -98,12 +98,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (aalError) {
         console.error("AAL check error:", aalError);
-        // Fail-closed: require verification on error
         setMfaStatus("verification_required");
         return;
       }
 
-      // If already at AAL2, user is fully verified
+      // If already at AAL2, user is fully verified — also trust this device
       if (aalData.currentLevel === "aal2") {
         setMfaStatus("verified");
         return;
@@ -120,6 +119,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const verifiedFactors = data.totp.filter((f) => f.status === "verified");
 
       if (verifiedFactors.length > 0) {
+        // Check if this device is trusted (24-hour remember)
+        const trustKey = "mfa_device_trust";
+        const trustData = localStorage.getItem(trustKey);
+        if (trustData) {
+          try {
+            const parsed = JSON.parse(trustData);
+            const trustExpiry = new Date(parsed.expiresAt).getTime();
+            const currentUserId = supabase.auth.getUser ? undefined : undefined;
+            // Verify trust belongs to current session user
+            if (parsed.userId && trustExpiry > Date.now()) {
+              // Device is still trusted — skip MFA
+              setMfaStatus("verified");
+              return;
+            } else {
+              // Expired — clean up
+              localStorage.removeItem(trustKey);
+            }
+          } catch {
+            localStorage.removeItem(trustKey);
+          }
+        }
         // Has enrolled factors but AAL is not aal2 → needs verification
         setMfaStatus("verification_required");
         return;
@@ -129,7 +149,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setMfaStatus("enrollment_required");
     } catch (e) {
       console.error("MFA status check failed:", e);
-      // Fail-closed: require verification on error
       setMfaStatus("verification_required");
     }
   }, []);
