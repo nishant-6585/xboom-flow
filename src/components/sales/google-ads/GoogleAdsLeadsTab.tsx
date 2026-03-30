@@ -16,6 +16,8 @@ interface GoogleAdsLead {
   status: string;
   created_at: string;
   order_outcome: string | null;
+  is_converted: boolean;
+  conversion_value: number;
 }
 
 export function GoogleAdsLeadsTab() {
@@ -26,10 +28,10 @@ export function GoogleAdsLeadsTab() {
     async function fetchLeads() {
       const { data } = await supabase
         .from("enquiries")
-        .select("id, customer_name, customer_company, product_name, campaign_name, campaign_id, lead_temperature, status, created_at, order_outcome")
+        .select("id, customer_name, customer_company, product_name, campaign_name, campaign_id, lead_temperature, status, created_at, order_outcome, is_converted, conversion_value")
         .eq("lead_source", "google_ads")
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(200);
 
       if (data) setLeads(data as GoogleAdsLead[]);
       setLoading(false);
@@ -64,7 +66,8 @@ export function GoogleAdsLeadsTab() {
                   <TableHead>Campaign</TableHead>
                   <TableHead>Temperature</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Outcome</TableHead>
+                  <TableHead>Converted</TableHead>
+                  <TableHead>Value</TableHead>
                   <TableHead>Date</TableHead>
                 </TableRow>
               </TableHeader>
@@ -86,11 +89,16 @@ export function GoogleAdsLeadsTab() {
                       <Badge variant="outline" className="text-xs">{lead.status}</Badge>
                     </TableCell>
                     <TableCell>
-                      {lead.order_outcome ? (
-                        <Badge variant="outline" className={`text-xs ${lead.order_outcome === "won" ? "text-emerald-600 bg-emerald-50" : lead.order_outcome === "lost" ? "text-destructive bg-destructive/5" : ""}`}>
-                          {lead.order_outcome}
+                      {lead.is_converted ? (
+                        <Badge variant="outline" className="text-xs text-emerald-600 bg-emerald-50 border-emerald-200">
+                          ✓ Converted
                         </Badge>
-                      ) : "—"}
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {lead.conversion_value > 0 ? `₹${lead.conversion_value.toLocaleString("en-IN")}` : "—"}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {format(new Date(lead.created_at), "dd MMM yyyy")}

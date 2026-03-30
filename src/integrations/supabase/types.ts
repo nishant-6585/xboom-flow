@@ -1132,6 +1132,39 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_spend: {
+        Row: {
+          campaign_id: string
+          campaign_name: string | null
+          clicks: number | null
+          created_at: string
+          date: string
+          id: string
+          impressions: number | null
+          spend: number
+        }
+        Insert: {
+          campaign_id: string
+          campaign_name?: string | null
+          clicks?: number | null
+          created_at?: string
+          date: string
+          id?: string
+          impressions?: number | null
+          spend?: number
+        }
+        Update: {
+          campaign_id?: string
+          campaign_name?: string | null
+          clicks?: number | null
+          created_at?: string
+          date?: string
+          id?: string
+          impressions?: number | null
+          spend?: number
+        }
+        Relationships: []
+      }
       candidate_documents: {
         Row: {
           candidate_id: string
@@ -2446,6 +2479,8 @@ export type Database = {
           ai_score: number | null
           campaign_id: string | null
           campaign_name: string | null
+          conversion_date: string | null
+          conversion_value: number
           created_at: string
           customer_company: string
           customer_name: string
@@ -2456,6 +2491,7 @@ export type Database = {
           escalation_reason: string | null
           google_lead_id: string | null
           id: string
+          is_converted: boolean
           is_escalated: boolean
           is_mega_deal: boolean | null
           is_prospect: boolean | null
@@ -2499,6 +2535,8 @@ export type Database = {
           ai_score?: number | null
           campaign_id?: string | null
           campaign_name?: string | null
+          conversion_date?: string | null
+          conversion_value?: number
           created_at?: string
           customer_company: string
           customer_name: string
@@ -2509,6 +2547,7 @@ export type Database = {
           escalation_reason?: string | null
           google_lead_id?: string | null
           id?: string
+          is_converted?: boolean
           is_escalated?: boolean
           is_mega_deal?: boolean | null
           is_prospect?: boolean | null
@@ -2552,6 +2591,8 @@ export type Database = {
           ai_score?: number | null
           campaign_id?: string | null
           campaign_name?: string | null
+          conversion_date?: string | null
+          conversion_value?: number
           created_at?: string
           customer_company?: string
           customer_name?: string
@@ -2562,6 +2603,7 @@ export type Database = {
           escalation_reason?: string | null
           google_lead_id?: string | null
           id?: string
+          is_converted?: boolean
           is_escalated?: boolean
           is_mega_deal?: boolean | null
           is_prospect?: boolean | null
@@ -5351,6 +5393,7 @@ export type Database = {
           actual_delivery: string | null
           additional_details: string | null
           amount_paid: number | null
+          campaign_id: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
@@ -5424,6 +5467,7 @@ export type Database = {
           actual_delivery?: string | null
           additional_details?: string | null
           amount_paid?: number | null
+          campaign_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -5497,6 +5541,7 @@ export type Database = {
           actual_delivery?: string | null
           additional_details?: string | null
           amount_paid?: number | null
+          campaign_id?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -8580,6 +8625,31 @@ export type Database = {
       }
     }
     Views: {
+      campaign_performance: {
+        Row: {
+          campaign_id: string | null
+          campaign_name: string | null
+          conversions: number | null
+          cpl: number | null
+          profit: number | null
+          qualified_leads: number | null
+          revenue: number | null
+          roas: number | null
+          total_leads: number | null
+          total_spend: number | null
+        }
+        Relationships: []
+      }
+      daily_performance: {
+        Row: {
+          conversions: number | null
+          date: string | null
+          leads: number | null
+          revenue: number | null
+          spend: number | null
+        }
+        Relationships: []
+      }
       forms_public: {
         Row: {
           description: string | null
