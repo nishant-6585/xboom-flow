@@ -149,21 +149,15 @@ export function calculateDeduction(salary: number, unpaidLeaves: number, working
 }
 
 /**
- * Count working days between two dates (inclusive), excluding weekends and holidays.
+ * Count calendar days between two dates (inclusive).
  */
-async function countWorkingDaysBetween(
+function countCalendarDaysBetween(
   fromDate: Date,
   toDate: Date,
-  holidaySet: Set<string>
-): Promise<number> {
+): number {
   if (fromDate > toDate) return 0;
   const days = eachDayOfInterval({ start: fromDate, end: toDate });
-  return days.filter(d => {
-    const day = getDay(d);
-    if (day === 0 || day === 6) return false;
-    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    return !holidaySet.has(dateStr);
-  }).length;
+  return days.length;
 }
 
 /**
