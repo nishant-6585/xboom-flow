@@ -52,6 +52,7 @@ export function ManagerDashboard() {
     leads: e.leads_handled,
     orders: e.orders_won,
     points: e.total_points,
+    orderValue: Number(e.total_order_value) / 1000, // in thousands
   })) || [];
 
   const pipelineStatusData = [
@@ -153,6 +154,7 @@ export function ManagerDashboard() {
                 />
                 <Bar dataKey="leads" fill="hsl(var(--primary))" name="Leads" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="orders" fill="#22c55e" name="Orders" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="orderValue" fill="#f59e0b" name="Order Value (₹K)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

@@ -9374,6 +9374,7 @@ export type Database = {
           orders_won: number
           pipeline_created: number
           rank: number
+          total_order_value: number
           total_pipeline_value: number
           total_points: number
           user_id: string
