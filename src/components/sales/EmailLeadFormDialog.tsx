@@ -32,6 +32,13 @@ const PURPOSE_OPTIONS = [
   'Security & Surveillance', 'Delivery & Logistics', 'Entertainment & Events', 'Other',
 ];
 
+const CUSTOMER_TYPES = [
+  { value: 'B2C', label: 'B2C (Consumer)' },
+  { value: 'B2B', label: 'B2B (Business)' },
+  { value: 'B2G', label: 'B2G (Government)' },
+  { value: 'Reseller', label: 'Reseller' },
+];
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
