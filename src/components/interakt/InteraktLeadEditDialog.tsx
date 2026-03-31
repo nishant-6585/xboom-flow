@@ -52,6 +52,7 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
     urgency: 'medium',
     requested_timeline: '',
     purpose_of_purchase: '',
+    customer_type: '',
     status: 'new',
     notes: '',
   });
