@@ -74,6 +74,7 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
         urgency: (lead as any).urgency || 'medium',
         requested_timeline: (lead as any).requested_timeline || '',
         purpose_of_purchase: (lead as any).purpose_of_purchase || '',
+        customer_type: (lead as any).customer_type || '',
         status: lead.status || 'new',
         notes: lead.notes || '',
       });
