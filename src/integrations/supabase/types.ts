@@ -9227,6 +9227,48 @@ export type Database = {
           retry_after_seconds: number
         }[]
       }
+      claim_pending_email_leads: {
+        Args: { p_batch_size?: number; p_specific_lead_id?: string }
+        Returns: {
+          ai_confidence: number | null
+          ai_extracted_json: Json | null
+          ai_processed: boolean
+          city: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          customer_company: string | null
+          customer_name: string
+          email: string | null
+          error_message: string | null
+          id: string
+          is_a_category: boolean | null
+          is_prospect: boolean | null
+          lead_source: string | null
+          mail_source: string
+          notes: string | null
+          phone_number: string | null
+          processing_status: string
+          product_category: string | null
+          product_code: string | null
+          product_name: string | null
+          purpose_of_purchase: string | null
+          quantity: number | null
+          requested_timeline: string | null
+          sales_person_id: string | null
+          sales_person_name: string | null
+          status: string | null
+          updated_at: string
+          updated_by: string | null
+          urgency: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "email_leads"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       count_admins: { Args: never; Returns: number }
       credit_monthly_el: {
         Args: { p_credit_amount?: number; p_month: number; p_year: number }
