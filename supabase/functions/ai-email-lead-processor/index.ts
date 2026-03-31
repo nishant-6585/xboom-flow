@@ -8,7 +8,6 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 
 interface AIExtractionResult {
   is_lead: boolean;
@@ -25,79 +24,7 @@ interface AIExtractionResult {
   summary: string;
 }
 
-async function callAI(emailContent: string): Promise<AIExtractionResult> {
-  const systemPrompt = `You are a lead extraction AI for XBoom, a drone and technology company. Analyze the email content and extract structured lead information.
-
-You MUST respond with valid JSON matching this exact schema:
-{
-  "is_lead": true/false,
-  "confidence": 0.0-1.0,
-  "name": "sender's name or 'Unknown'",
-  "company": "company name or 'Unknown'",
-  "phone": "phone number if found or empty string",
-  "email": "email address if found or empty string",
-  "product_interest": "specific product/drone mentioned or 'General Enquiry'",
-  "product_category": "one of: Consumer Drones, Enterprise Drones, Agriculture Drones, FPV Drones, Camera Drones, Drone Parts, Drone Accessories, Other",
-  "quantity": 1,
-  "urgency": "one of: high, medium, low",
-  "city": "city if mentioned or empty string",
-  "summary": "one-line summary of the enquiry"
-}
-
-Rules:
-- Auto-replies, newsletters, OOO messages, promotional emails → is_lead: false
-- Price enquiries, bulk orders, product questions → is_lead: true
-- If urgency words like "urgent", "asap", "immediately" → urgency: "high"
-- If timeline mentioned (weeks/months) → urgency: "medium"
-- Default urgency: "low"`;
-
-  const res = await fetch("https://ai.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: `Analyze this email and extract lead information:\n\n${emailContent}` },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.1,
-    }),
-  });
-
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`AI API error ${res.status}: ${errText}`);
-  }
-
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Empty AI response");
-
-  const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const jsonStr = jsonMatch ? jsonMatch[1].trim() : content.trim();
-  return JSON.parse(jsonStr) as AIExtractionResult;
-}
-
-const INTENT_KEYWORDS = ["buy", "price", "quotation", "urgent", "require", "purchase", "order", "quote", "need"];
 const MAX_RETRIES = 3;
-
-function determineStatus(aiResult: AIExtractionResult, emailText: string): "processed" | "needs_review" | "rejected" {
-  const hasStrongIntent = INTENT_KEYWORDS.some((kw) => emailText.toLowerCase().includes(kw));
-
-  if (!aiResult.is_lead && !hasStrongIntent) {
-    if (aiResult.confidence >= 0.5) return "needs_review";
-    return "rejected";
-  }
-
-  // is_lead = true OR has strong intent
-  if (aiResult.confidence >= 0.7 || hasStrongIntent) return "processed";
-  if (aiResult.confidence >= 0.5) return "needs_review";
-  return "needs_review"; // Don't auto-reject leads with intent
-}
 
 async function createEnquiryFromLead(
   supabase: ReturnType<typeof createClient>,
@@ -176,50 +103,70 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const specificLeadId = body.lead_id;
-    const batchSize = Math.min(body.batch_size || 10, 50);
+    const action = body.action || "process"; // "claim", "save_results", or legacy "process"
 
-    // Atomically claim pending leads (FOR UPDATE SKIP LOCKED)
-    const { data: pendingLeads, error: fetchError } = await supabase.rpc(
-      "claim_pending_email_leads",
-      {
-        p_batch_size: batchSize,
-        ...(specificLeadId ? { p_specific_lead_id: specificLeadId } : {}),
-      }
-    );
-    if (fetchError) throw fetchError;
+    // ========== ACTION: CLAIM ==========
+    if (action === "claim") {
+      const specificLeadId = body.lead_id;
+      const batchSize = Math.min(body.batch_size || 10, 50);
 
-    if (!pendingLeads || pendingLeads.length === 0) {
-      return new Response(JSON.stringify({ message: "No pending leads to process", processed: 0 }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const { data: pendingLeads, error: fetchError } = await supabase.rpc(
+        "claim_pending_email_leads",
+        {
+          p_batch_size: batchSize,
+          ...(specificLeadId ? { p_specific_lead_id: specificLeadId } : {}),
+        }
+      );
+      if (fetchError) throw fetchError;
+
+      return new Response(
+        JSON.stringify({ leads: pendingLeads || [] }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    let processed = 0;
-    let enquiriesCreated = 0;
-    let rejected = 0;
-    let needsReview = 0;
-    let failed = 0;
-    let totalConfidence = 0;
-    const results: any[] = [];
+    // ========== ACTION: SAVE RESULTS ==========
+    if (action === "save_results") {
+      const resultsToSave = body.results || [];
+      if (!Array.isArray(resultsToSave) || resultsToSave.length === 0) {
+        return new Response(
+          JSON.stringify({ processed: 0, enquiries_created: 0, rejected: 0 }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
-    for (const lead of pendingLeads) {
-      const currentRetryCount = (lead.retry_count || 0);
-      try {
-        const emailContent = [
-          `Customer Name: ${lead.customer_name}`,
-          lead.email ? `Email: ${lead.email}` : "",
-          lead.phone_number ? `Phone: ${lead.phone_number}` : "",
-          lead.customer_company ? `Company: ${lead.customer_company}` : "",
-          lead.product_name ? `Product: ${lead.product_name}` : "",
-          lead.notes ? `\nEmail Content:\n${lead.notes}` : "",
-        ].filter(Boolean).join("\n");
+      let processed = 0;
+      let enquiriesCreated = 0;
+      let rejected = 0;
+      let needsReview = 0;
+      let failed = 0;
 
-        const aiResult = await callAI(emailContent);
-        totalConfidence += aiResult.confidence;
+      for (const item of resultsToSave) {
+        const { lead_id, ai_result, status, error: itemError } = item;
+        if (!lead_id) continue;
 
-        const emailText = lead.notes || "";
-        const status = determineStatus(aiResult, emailText);
+        if (status === "error" || !ai_result) {
+          // AI call failed on client, increment retry
+          const { data: currentLead } = await supabase
+            .from("email_leads")
+            .select("retry_count")
+            .eq("id", lead_id)
+            .single();
+          const currentRetry = currentLead?.retry_count || 0;
+          const newRetry = currentRetry + 1;
+          const newStatus = newRetry >= MAX_RETRIES ? "failed" : "pending";
+
+          await supabase.from("email_leads").update({
+            processing_status: newStatus,
+            retry_count: newRetry,
+            error_message: itemError || "AI processing failed on client",
+          }).eq("id", lead_id);
+
+          if (newStatus === "failed") failed++;
+          continue;
+        }
+
+        const aiResult = ai_result as AIExtractionResult;
 
         const updatePayload: Record<string, unknown> = {
           ai_processed: true,
@@ -230,68 +177,58 @@ Deno.serve(async (req) => {
         };
 
         if (status === "processed") {
-          const result = await createEnquiryFromLead(supabase, lead, aiResult);
-          if (result.error) {
-            updatePayload.error_message = `Enquiry creation failed: ${result.error}`;
-            updatePayload.processing_status = "pending";
-          } else if (result.created) {
-            enquiriesCreated++;
+          // Fetch lead data for enquiry creation
+          const { data: lead } = await supabase
+            .from("email_leads")
+            .select("*")
+            .eq("id", lead_id)
+            .single();
+
+          if (lead) {
+            const result = await createEnquiryFromLead(supabase, lead, aiResult);
+            if (result.error) {
+              updatePayload.error_message = `Enquiry creation failed: ${result.error}`;
+              updatePayload.processing_status = "pending";
+            } else if (result.created) {
+              enquiriesCreated++;
+            }
           }
-          // If not created (already exists), still mark processed
         } else if (status === "needs_review") {
           needsReview++;
-        } else {
+        } else if (status === "rejected") {
           rejected++;
         }
 
-        await supabase.from("email_leads").update(updatePayload).eq("id", lead.id);
+        await supabase.from("email_leads").update(updatePayload).eq("id", lead_id);
         processed++;
-        results.push({
-          id: lead.id,
-          is_lead: aiResult.is_lead,
-          confidence: aiResult.confidence,
-          status: updatePayload.processing_status,
-        });
-      } catch (leadErr) {
-        console.error(`Error processing lead ${lead.id}:`, leadErr);
-        const newRetryCount = currentRetryCount + 1;
-        const newStatus = newRetryCount >= MAX_RETRIES ? "failed" : "pending";
-
-        await supabase.from("email_leads").update({
-          processing_status: newStatus,
-          retry_count: newRetryCount,
-          error_message: `AI processing error (attempt ${newRetryCount}/${MAX_RETRIES}): ${String(leadErr)}`,
-        }).eq("id", lead.id);
-
-        if (newStatus === "failed") failed++;
-        results.push({ id: lead.id, error: String(leadErr), retry_count: newRetryCount, status: newStatus });
       }
-    }
 
-    // Log metrics to gmail_sync_logs
-    const avgConfidence = processed > 0 ? totalConfidence / processed : 0;
-    console.log(JSON.stringify({
-      event: "ai_processing_complete",
-      processed,
-      enquiries_created: enquiriesCreated,
-      rejected,
-      needs_review: needsReview,
-      failed,
-      avg_confidence: avgConfidence.toFixed(2),
-    }));
-
-    return new Response(
-      JSON.stringify({
-        success: true,
+      console.log(JSON.stringify({
+        event: "ai_processing_complete",
         processed,
         enquiries_created: enquiriesCreated,
         rejected,
         needs_review: needsReview,
         failed,
-        avg_confidence: Number(avgConfidence.toFixed(2)),
-        results,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      }));
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          processed,
+          enquiries_created: enquiriesCreated,
+          rejected,
+          needs_review: needsReview,
+          failed,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Legacy fallback
+    return new Response(
+      JSON.stringify({ error: "Unknown action. Use 'claim' or 'save_results'." }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
     console.error("AI email lead processing error:", err);
