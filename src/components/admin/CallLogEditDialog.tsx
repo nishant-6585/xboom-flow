@@ -28,6 +28,12 @@ const URGENCY_LEVELS = [
   { value: 'critical', label: 'Critical' },
 ];
 const PURPOSE_OF_PURCHASE = ['Personal Use', 'Business Operations', 'Government Project', 'Research & Development', 'Training & Education', 'Survey & Mapping', 'Agriculture', 'Inspection & Maintenance', 'Photography & Videography', 'Security & Surveillance', 'Delivery & Logistics', 'Entertainment & Events', 'Other'];
+const CUSTOMER_TYPES = [
+  { value: 'B2C', label: 'B2C (Consumer)' },
+  { value: 'B2B', label: 'B2B (Business)' },
+  { value: 'B2G', label: 'B2G (Government)' },
+  { value: 'Reseller', label: 'Reseller' },
+];
 
 export function CallLogEditDialog({ open, onOpenChange, callLog, onSuccess }: CallLogEditDialogProps) {
   const [saving, setSaving] = useState(false);

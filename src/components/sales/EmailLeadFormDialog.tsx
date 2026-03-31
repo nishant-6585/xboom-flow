@@ -114,6 +114,7 @@ export function EmailLeadFormDialog({ open, onOpenChange, lead, onSuccess }: Pro
         notes: '',
         status: 'pending',
         sales_person_name: profile?.name || '',
+        customer_type: '',
       });
       setSelectedProduct('');
     }

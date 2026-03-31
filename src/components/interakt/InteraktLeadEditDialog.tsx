@@ -146,10 +146,20 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>City</Label>
                 <Input value={form.city} onChange={(e) => setForm(f => ({ ...f, city: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Customer Type</Label>
+                <Select value={form.customer_type || 'none'} onValueChange={(v) => setForm(f => ({ ...f, customer_type: v === 'none' ? '' : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">-- None --</SelectItem>
+                    {CUSTOMER_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Lead Source</Label>
