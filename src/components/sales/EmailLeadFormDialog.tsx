@@ -190,6 +190,16 @@ export function EmailLeadFormDialog({ open, onOpenChange, lead, onSuccess }: Pro
             <Label>Sales Person</Label>
             <Input value={form.sales_person_name} onChange={(e) => setForm(f => ({ ...f, sales_person_name: e.target.value }))} />
           </div>
+          <div>
+            <Label>Customer Type</Label>
+            <Select value={form.customer_type || 'none'} onValueChange={(v) => setForm(f => ({ ...f, customer_type: v === 'none' ? '' : v }))}>
+              <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">-- None --</SelectItem>
+                {CUSTOMER_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="md:col-span-2">
             <Label>Product (from Pricelist)</Label>
