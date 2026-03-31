@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, CheckCircle } from "lucide-react";
+import { Loader2, ArrowLeft, CheckCircle, ShieldCheck } from "lucide-react";
 import { z } from "zod";
 import logoIcon from "@/assets/logo-icon.jpeg";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,13 +24,15 @@ const Auth = () => {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isResetPassword, setIsResetPassword] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
+  const [needsMfaForReset, setNeedsMfaForReset] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [team, setTeam] = useState<AppRole>("sales");
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; name?: string; confirmPassword?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; name?: string; confirmPassword?: string; mfa?: string }>({});
 
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
@@ -102,6 +104,71 @@ const Auth = () => {
 
     setLoading(true);
     try {
+      // Check if MFA is enrolled and we need AAL2
+      const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      
+      if (aalData && aalData.currentLevel === "aal1" && aalData.nextLevel === "aal2") {
+        // User has MFA enrolled but is at AAL1 — need TOTP verification first
+        setNeedsMfaForReset(true);
+        setLoading(false);
+        return;
+      }
+
+      // Either no MFA or already at AAL2 — proceed with password update
+      await performPasswordUpdate();
+    } catch {
+      setLoading(false);
+    }
+  };
+
+  const handleMfaVerifyForReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaCode || mfaCode.length !== 6) {
+      setErrors({ mfa: "Please enter a valid 6-digit code" });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Get TOTP factors
+      const { data: factorsData } = await supabase.auth.mfa.listFactors();
+      const totpFactor = factorsData?.totp?.[0];
+
+      if (!totpFactor) {
+        toast({ title: "Error", description: "No MFA factor found.", variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+
+      // Create challenge and verify
+      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: totpFactor.id });
+      if (challengeError) {
+        toast({ title: "Error", description: challengeError.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId: totpFactor.id,
+        challengeId: challengeData.id,
+        code: mfaCode,
+      });
+
+      if (verifyError) {
+        setErrors({ mfa: "Invalid verification code. Please try again." });
+        setLoading(false);
+        return;
+      }
+
+      // Now at AAL2 — update password
+      await performPasswordUpdate();
+    } catch {
+      setLoading(false);
+    }
+  };
+
+  const performPasswordUpdate = async () => {
+    try {
       const { error } = await supabase.auth.updateUser({ password });
 
       if (error) {
@@ -112,18 +179,18 @@ const Auth = () => {
         });
       } else {
         setResetSuccess(true);
+        setNeedsMfaForReset(false);
         toast({
           title: "Password updated!",
           description: "Your password has been successfully reset.",
         });
-        // Sign out and redirect to login after 2 seconds
         setTimeout(async () => {
           await supabase.auth.signOut();
           setIsResetPassword(false);
           setResetSuccess(false);
           setPassword("");
           setConfirmPassword("");
-          // Clear URL hash
+          setMfaCode("");
           window.history.replaceState(null, "", window.location.pathname);
         }, 2000);
       }
@@ -247,6 +314,14 @@ const Auth = () => {
                   Redirecting you to sign in...
                 </CardDescription>
               </>
+            ) : needsMfaForReset ? (
+              <>
+                <ShieldCheck className="w-10 h-10 text-primary mx-auto mb-2" />
+                <CardTitle className="text-2xl font-display text-gradient">Verify Identity</CardTitle>
+                <CardDescription className="text-muted-foreground/80">
+                  Enter your authenticator code to continue
+                </CardDescription>
+              </>
             ) : (
               <>
                 <CardTitle className="text-2xl font-display text-gradient">Set New Password</CardTitle>
@@ -256,7 +331,35 @@ const Auth = () => {
               </>
             )}
           </CardHeader>
-          {!resetSuccess && (
+          {!resetSuccess && needsMfaForReset && (
+            <CardContent>
+              <form onSubmit={handleMfaVerifyForReset} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="mfaCode">6-Digit Code</Label>
+                  <Input
+                    id="mfaCode"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={mfaCode}
+                    onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    disabled={loading}
+                    className="h-11 text-center text-lg tracking-widest"
+                    autoFocus
+                  />
+                  {errors.mfa && (
+                    <p className="text-sm text-destructive">{errors.mfa}</p>
+                  )}
+                </div>
+                <Button type="submit" className="w-full h-11 font-semibold shadow-md hover:shadow-lg transition-shadow" disabled={loading || mfaCode.length !== 6}>
+                  {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Verify & Update Password
+                </Button>
+              </form>
+            </CardContent>
+          )}
+          {!resetSuccess && !needsMfaForReset && (
             <CardContent>
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <div className="space-y-2">
