@@ -70,6 +70,7 @@ export function CallLogEditDialog({ open, onOpenChange, callLog, onSuccess }: Ca
         requested_timeline: callLog.requested_timeline || '',
         purpose_of_purchase: callLog.purpose_of_purchase || '',
         notes: callLog.notes || '',
+        customer_type: callLog.customer_type || '',
       });
     }
   }, [callLog]);
