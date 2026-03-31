@@ -673,7 +673,7 @@ export default function Orders() {
               </div>
               <div>
                 <h2 className="text-lg font-semibold">Shopify Orders</h2>
-                <p className="text-xs text-muted-foreground">{shopifyOrders.length.toLocaleString()} orders synced from Shopify (separate database)</p>
+                <p className="text-xs text-muted-foreground">{shopifyTotalCount.toLocaleString()} orders synced from Shopify (separate database)</p>
               </div>
             </div>
 
