@@ -1,0 +1,1 @@
+ALTER TABLE public.enquiries ADD COLUMN IF NOT EXISTS email_lead_id uuid REFERENCES public.email_leads(id);

@@ -2570,6 +2570,7 @@ export type Database = {
           customer_company: string
           customer_name: string
           customer_state: string | null
+          email_lead_id: string | null
           escalated_at: string | null
           escalated_by: string | null
           escalated_by_name: string | null
@@ -2626,6 +2627,7 @@ export type Database = {
           customer_company: string
           customer_name: string
           customer_state?: string | null
+          email_lead_id?: string | null
           escalated_at?: string | null
           escalated_by?: string | null
           escalated_by_name?: string | null
@@ -2682,6 +2684,7 @@ export type Database = {
           customer_company?: string
           customer_name?: string
           customer_state?: string | null
+          email_lead_id?: string | null
           escalated_at?: string | null
           escalated_by?: string | null
           escalated_by_name?: string | null
@@ -2720,7 +2723,15 @@ export type Database = {
           updated_at?: string
           urgency?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "enquiries_email_lead_id_fkey"
+            columns: ["email_lead_id"]
+            isOneToOne: false
+            referencedRelation: "email_leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       enquiry_items: {
         Row: {
