@@ -107,6 +107,7 @@ export function EmailLeadsPanel() {
               <SelectContent>
                 <SelectItem value="all">All Sources</SelectItem>
                 {MAIL_SOURCES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                <SelectItem value="gmail">📧 Gmail</SelectItem>
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
