@@ -5,12 +5,15 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useEmailLeads, MAIL_SOURCES, EmailLead } from '@/hooks/useEmailLeads';
 import { useProspects } from '@/hooks/useProspects';
 import { useAttentionItems } from '@/hooks/useAttentionItems';
 import { useAuth } from '@/hooks/useAuth';
-import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
-import { Search, Plus, Mail, Loader2, Filter, RefreshCw, Brain, CheckCircle, XCircle, AlertTriangle, Clock, TrendingUp, BarChart3 } from 'lucide-react';
+import { Search, Plus, Mail, Loader2, Filter, RefreshCw, Brain, CheckCircle, XCircle, AlertTriangle, Clock, TrendingUp, BarChart3, ChevronDown, ChevronRight, Eye, ArrowUpDown, Zap, Target, Inbox, ShieldCheck, Users } from 'lucide-react';
 import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { format } from 'date-fns';
 import { ProspectButton, ACategoryButton } from './ProspectButton';
@@ -20,6 +23,10 @@ import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadFormDialog } from './EmailLeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { GmailIntegrationCard } from './GmailIntegrationCard';
+import { toast } from 'sonner';
+
+type SortField = 'created_at' | 'customer_name' | 'ai_confidence' | 'processing_status';
+type SortDir = 'asc' | 'desc';
 
 export function EmailLeadsPanel() {
   const { leads, loading, refetch, approveLead, approving, rejectLead, rejecting, metrics } = useEmailLeads();
@@ -35,9 +42,13 @@ export function EmailLeadsPanel() {
   const [editLead, setEditLead] = useState<EmailLead | null>(null);
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
+  const [sortField, setSortField] = useState<SortField>('created_at');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   const filteredLeads = useMemo(() => {
-    return leads.filter((lead) => {
+    const filtered = leads.filter((lead) => {
       const matchesSearch = !search || 
         lead.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
         lead.email?.toLowerCase().includes(search.toLowerCase()) ||
@@ -51,7 +62,92 @@ export function EmailLeadsPanel() {
         (!endDate || new Date(lead.created_at) <= endDate);
       return matchesSearch && matchesMail && matchesStatus && matchesProcessing && matchesDate;
     });
-  }, [leads, search, mailSourceFilter, statusFilter, processingFilter, startDate, endDate]);
+
+    return filtered.sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case 'customer_name':
+          cmp = (a.customer_name || '').localeCompare(b.customer_name || '');
+          break;
+        case 'ai_confidence':
+          cmp = (a.ai_confidence ?? -1) - (b.ai_confidence ?? -1);
+          break;
+        case 'processing_status':
+          cmp = (a.processing_status || '').localeCompare(b.processing_status || '');
+          break;
+        default:
+          cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+      return sortDir === 'desc' ? -cmp : cmp;
+    });
+  }, [leads, search, mailSourceFilter, statusFilter, processingFilter, startDate, endDate, sortField, sortDir]);
+
+  // Source breakdown
+  const sourceBreakdown = useMemo(() => {
+    const map: Record<string, number> = {};
+    leads.forEach(l => {
+      const src = l.mail_source?.startsWith('gmail:') ? 'Gmail' : l.mail_source || 'Unknown';
+      map[src] = (map[src] || 0) + 1;
+    });
+    return Object.entries(map).sort((a, b) => b[1] - a[1]);
+  }, [leads]);
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('desc');
+    }
+  };
+
+  const toggleRow = (id: string) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedLeads(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedLeads.size === filteredLeads.length) {
+      setSelectedLeads(new Set());
+    } else {
+      setSelectedLeads(new Set(filteredLeads.map(l => l.id)));
+    }
+  };
+
+  const handleBulkApprove = async () => {
+    const reviewLeads = filteredLeads.filter(l => selectedLeads.has(l.id) && l.processing_status === 'needs_review');
+    if (reviewLeads.length === 0) {
+      toast.error('No selected leads are in "needs_review" status');
+      return;
+    }
+    for (const lead of reviewLeads) {
+      try { await approveLead(lead.id); } catch {}
+    }
+    setSelectedLeads(new Set());
+  };
+
+  const handleBulkReject = async () => {
+    const reviewLeads = filteredLeads.filter(l => selectedLeads.has(l.id) && l.processing_status === 'needs_review');
+    if (reviewLeads.length === 0) {
+      toast.error('No selected leads are in "needs_review" status');
+      return;
+    }
+    for (const lead of reviewLeads) {
+      try { await rejectLead(lead.id); } catch {}
+    }
+    setSelectedLeads(new Set());
+  };
 
   const statusColor = (status: string) => {
     switch (status) {
@@ -75,7 +171,20 @@ export function EmailLeadsPanel() {
     }
   };
 
+  const processingStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending': return <Clock className="w-3 h-3" />;
+      case 'processing': return <Loader2 className="w-3 h-3 animate-spin" />;
+      case 'processed': return <CheckCircle className="w-3 h-3" />;
+      case 'needs_review': return <Eye className="w-3 h-3" />;
+      case 'rejected': return <XCircle className="w-3 h-3" />;
+      case 'failed': return <AlertTriangle className="w-3 h-3" />;
+      default: return null;
+    }
+  };
+
   const mailBadgeColor = (source: string) => {
+    if (source?.startsWith('gmail:')) return 'bg-red-500/10 text-red-600 border-red-500/30';
     switch (source) {
       case 'hello@xboom.in': return 'bg-primary/10 text-primary border-primary/30';
       case 'contact@xboom.in': return 'bg-blue-500/10 text-blue-600 border-blue-500/30';
@@ -84,46 +193,173 @@ export function EmailLeadsPanel() {
     }
   };
 
+  const confidenceBar = (confidence: number | null) => {
+    if (confidence == null) return <span className="text-xs text-muted-foreground">—</span>;
+    const pct = Math.round(confidence * 100);
+    const color = pct >= 70 ? 'bg-green-500' : pct >= 50 ? 'bg-orange-500' : 'bg-red-500';
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-2 min-w-[80px]">
+              <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+              </div>
+              <span className={`text-xs font-semibold tabular-nums ${
+                pct >= 70 ? 'text-green-600' : pct >= 50 ? 'text-orange-600' : 'text-red-500'
+              }`}>{pct}%</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="text-xs">AI Confidence: {pct}%</p>
+            <p className="text-xs text-muted-foreground">
+              {pct >= 70 ? 'Auto-approved' : pct >= 50 ? 'Needs review' : 'Low confidence'}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
+
   const isProspect = (leadId: string) => prospects.some(p => p.source_id === leadId && p.source_type === 'email');
   const isAttention = (leadId: string) => attentionItems.some(a => a.source_id === leadId && a.source_type === 'email');
 
   const canManage = role === 'admin' || role === 'sales_manager';
 
+  // Pipeline funnel
+  const funnelStages = metrics ? [
+    { label: 'Total', value: metrics.total, icon: Inbox, color: 'text-foreground' },
+    { label: 'Pending', value: metrics.pending, icon: Clock, color: 'text-yellow-600' },
+    { label: 'Processing', value: metrics.processing, icon: Zap, color: 'text-blue-600' },
+    { label: 'Processed', value: metrics.processed, icon: CheckCircle, color: 'text-green-600' },
+    { label: 'Review', value: metrics.needsReview, icon: Eye, color: 'text-orange-600' },
+    { label: 'Rejected', value: metrics.rejected, icon: XCircle, color: 'text-muted-foreground' },
+    { label: 'Failed', value: metrics.failed, icon: AlertTriangle, color: 'text-destructive' },
+  ] : [];
+
+  const needsReviewCount = metrics?.needsReview ?? 0;
+
   return (
     <div className="space-y-6">
       <GmailIntegrationCard />
 
-      {/* Pipeline Metrics */}
+      {/* Pipeline Funnel with visual flow */}
       {metrics && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          <Card className="p-3">
-            <div className="text-xs text-muted-foreground">Total</div>
-            <div className="text-xl font-bold">{metrics.total}</div>
-          </Card>
-          <Card className="p-3">
-            <div className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> Pending</div>
-            <div className="text-xl font-bold text-yellow-600">{metrics.pending}</div>
-          </Card>
-          <Card className="p-3">
-            <div className="text-xs text-muted-foreground flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Processed</div>
-            <div className="text-xl font-bold text-green-600">{metrics.processed}</div>
-          </Card>
-          <Card className="p-3">
-            <div className="text-xs text-muted-foreground flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Review</div>
-            <div className="text-xl font-bold text-orange-600">{metrics.needsReview}</div>
-          </Card>
-          <Card className="p-3">
-            <div className="text-xs text-muted-foreground flex items-center gap-1"><XCircle className="w-3 h-3" /> Rejected</div>
-            <div className="text-xl font-bold text-muted-foreground">{metrics.rejected}</div>
-          </Card>
-          <Card className="p-3">
-            <div className="text-xs text-destructive flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Failed</div>
-            <div className="text-xl font-bold text-destructive">{metrics.failed}</div>
-          </Card>
-          <Card className="p-3">
-            <div className="text-xs text-muted-foreground flex items-center gap-1"><TrendingUp className="w-3 h-3" /> Avg AI</div>
-            <div className="text-xl font-bold">{(metrics.avgConfidence * 100).toFixed(0)}%</div>
-          </Card>
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Target className="w-5 h-5 text-primary" />
+            <h3 className="font-semibold text-sm">Lead Pipeline</h3>
+            <Badge variant="outline" className="ml-auto text-xs">
+              Avg AI Confidence: {(metrics.avgConfidence * 100).toFixed(0)}%
+            </Badge>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+            {funnelStages.map((stage, i) => {
+              const Icon = stage.icon;
+              const widthPct = metrics.total > 0 ? Math.max(15, (stage.value / metrics.total) * 100) : 0;
+              return (
+                <Card 
+                  key={stage.label} 
+                  className={`p-3 relative overflow-hidden cursor-pointer transition-all hover:shadow-md ${
+                    stage.label === 'Review' && needsReviewCount > 0 ? 'ring-2 ring-orange-500/50' : ''
+                  }`}
+                  onClick={() => {
+                    const filterMap: Record<string, string> = {
+                      'Total': 'all', 'Pending': 'pending', 'Processing': 'processing',
+                      'Processed': 'processed', 'Review': 'needs_review', 'Rejected': 'rejected', 'Failed': 'failed'
+                    };
+                    setProcessingFilter(filterMap[stage.label] || 'all');
+                  }}
+                >
+                  {/* Background bar */}
+                  <div 
+                    className="absolute bottom-0 left-0 h-1 bg-primary/20 transition-all" 
+                    style={{ width: `${widthPct}%` }} 
+                  />
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Icon className={`w-3.5 h-3.5 ${stage.color}`} />
+                    <span className="text-[11px] text-muted-foreground">{stage.label}</span>
+                    {stage.label === 'Review' && needsReviewCount > 0 && (
+                      <span className="ml-auto flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[10px] text-white font-bold animate-pulse">
+                        {needsReviewCount}
+                      </span>
+                    )}
+                  </div>
+                  <div className={`text-xl font-bold ${stage.color}`}>{stage.value}</div>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Source Breakdown + AI Success Rate */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Source Breakdown</span>
+              </div>
+              <div className="space-y-2">
+                {sourceBreakdown.map(([src, count]) => (
+                  <div key={src} className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground w-32 truncate">{src}</span>
+                    <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                      <div 
+                        className="h-full rounded-full bg-primary/60 transition-all" 
+                        style={{ width: `${leads.length > 0 ? (count / leads.length) * 100 : 0}%` }} 
+                      />
+                    </div>
+                    <span className="text-xs font-semibold tabular-nums w-8 text-right">{count}</span>
+                  </div>
+                ))}
+                {sourceBreakdown.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No data yet</p>
+                )}
+              </div>
+            </Card>
+
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <ShieldCheck className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium">AI Processing Health</span>
+              </div>
+              <div className="space-y-3">
+                {metrics.total > 0 && (
+                  <>
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-muted-foreground">Success Rate</span>
+                        <span className="font-medium text-green-600">
+                          {Math.round((metrics.processed / Math.max(metrics.processed + metrics.failed, 1)) * 100)}%
+                        </span>
+                      </div>
+                      <Progress 
+                        value={(metrics.processed / Math.max(metrics.processed + metrics.failed, 1)) * 100} 
+                        className="h-2"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-muted-foreground">Pipeline Throughput</span>
+                        <span className="font-medium">
+                          {Math.round(((metrics.processed + metrics.rejected) / metrics.total) * 100)}%
+                        </span>
+                      </div>
+                      <Progress 
+                        value={((metrics.processed + metrics.rejected) / metrics.total) * 100} 
+                        className="h-2"
+                      />
+                    </div>
+                    <div className="flex gap-4 text-xs text-muted-foreground pt-1">
+                      <span>✅ {metrics.processed} processed</span>
+                      <span>⚠️ {metrics.failed} failed</span>
+                      <span>🔄 {metrics.processing} in-flight</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </Card>
+          </div>
         </div>
       )}
 
@@ -136,8 +372,28 @@ export function EmailLeadsPanel() {
               <Mail className="w-5 h-5 text-primary" />
               Email Leads
               <Badge variant="secondary" className="ml-2">{filteredLeads.length}</Badge>
+              {needsReviewCount > 0 && (
+                <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 animate-pulse">
+                  {needsReviewCount} needs review
+                </Badge>
+              )}
             </CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Bulk Actions */}
+              {selectedLeads.size > 0 && canManage && (
+                <div className="flex items-center gap-1 border border-border rounded-lg px-2 py-1 bg-muted/30">
+                  <span className="text-xs text-muted-foreground mr-1">{selectedLeads.size} selected</span>
+                  <Button variant="outline" size="sm" className="h-7 text-xs text-green-600 border-green-500/30" onClick={handleBulkApprove} disabled={approving}>
+                    <CheckCircle className="w-3 h-3 mr-1" /> Approve
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-7 text-xs text-destructive border-destructive/30" onClick={handleBulkReject} disabled={rejecting}>
+                    <XCircle className="w-3 h-3 mr-1" /> Reject
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedLeads(new Set())}>
+                    Clear
+                  </Button>
+                </div>
+              )}
               <Button variant="outline" size="sm" onClick={() => refetch()}>
                 <RefreshCw className="w-4 h-4 mr-1" /> Refresh
               </Button>
@@ -224,146 +480,213 @@ export function EmailLeadsPanel() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="sticky top-0 bg-background z-10">
+                    <TableHead className="w-10">
+                      <Checkbox 
+                        checked={selectedLeads.size === filteredLeads.length && filteredLeads.length > 0}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
+                    <TableHead className="w-8" />
                     <TableHead className="w-[100px]">P / A / ⚠</TableHead>
-                    <TableHead>Customer</TableHead>
+                    <TableHead>
+                      <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('customer_name')}>
+                        Customer
+                        <ArrowUpDown className="w-3 h-3" />
+                      </button>
+                    </TableHead>
                     <TableHead>Company</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Mail Source</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Source</TableHead>
                     <TableHead>Product</TableHead>
-                    <TableHead>AI Status</TableHead>
-                    <TableHead>Confidence</TableHead>
+                    <TableHead>
+                      <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('processing_status')}>
+                        AI Status
+                        <ArrowUpDown className="w-3 h-3" />
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('ai_confidence')}>
+                        Confidence
+                        <ArrowUpDown className="w-3 h-3" />
+                      </button>
+                    </TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Date</TableHead>
+                    <TableHead>
+                      <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('created_at')}>
+                        Date
+                        <ArrowUpDown className="w-3 h-3" />
+                      </button>
+                    </TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredLeads.map((lead) => (
-                    <TableRow key={lead.id} className={lead.processing_status === 'needs_review' ? 'bg-orange-500/5' : ''}>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <ProspectButton
-                            sourceType="email"
-                            sourceId={lead.id}
-                            customerName={lead.customer_name}
-                            phoneNumber={lead.phone_number}
-                            email={lead.email}
-                            company={lead.customer_company}
-                            city={lead.city}
-                            productName={lead.product_name}
-                            notes={lead.notes}
-                            isAlreadyProspect={isProspect(lead.id)}
-                          />
-                          <ACategoryButton
-                            sourceType="email"
-                            sourceId={lead.id}
-                            isACategory={lead.is_a_category}
-                          />
-                          <AttentionButton
-                            sourceType="email"
-                            sourceId={lead.id}
-                            customerName={lead.customer_name}
-                            phoneNumber={lead.phone_number}
-                            email={lead.email}
-                            company={lead.customer_company}
-                            city={lead.city}
-                            productName={lead.product_name}
-                            notes={lead.notes}
-                            isAlreadyAttention={isAttention(lead.id)}
-                          />
-                          <EnquiryConvertButton
-                            sourceType="email"
-                            sourceId={lead.id}
-                            customerName={lead.customer_name}
-                            phoneNumber={lead.phone_number}
-                            email={lead.email}
-                            company={lead.customer_company}
-                            city={lead.city}
-                            productName={lead.product_name}
-                            productCategory={lead.product_category}
-                            productCode={lead.product_code}
-                            quantity={lead.quantity}
-                            urgency={lead.urgency}
-                            requestedTimeline={lead.requested_timeline}
-                            purposeOfPurchase={lead.purpose_of_purchase}
-                            notes={lead.notes}
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium">{lead.customer_name}</TableCell>
-                      <TableCell>{lead.customer_company || '-'}</TableCell>
-                      <TableCell>{lead.email || '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={mailBadgeColor(lead.mail_source)}>
-                          {lead.mail_source}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{lead.product_name || '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={processingStatusColor(lead.processing_status)}>
-                          {lead.processing_status}
-                        </Badge>
-                        {lead.retry_count > 0 && (
-                          <span className="text-[10px] text-muted-foreground ml-1">r{lead.retry_count}</span>
+                  {filteredLeads.map((lead) => {
+                    const isExpanded = expandedRows.has(lead.id);
+                    const isSelected = selectedLeads.has(lead.id);
+                    return (
+                      <>
+                        <TableRow 
+                          key={lead.id} 
+                          className={`${lead.processing_status === 'needs_review' ? 'bg-orange-500/5' : ''} ${isSelected ? 'bg-primary/5' : ''}`}
+                        >
+                          <TableCell>
+                            <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(lead.id)} />
+                          </TableCell>
+                          <TableCell>
+                            <button onClick={() => toggleRow(lead.id)} className="p-0.5 hover:bg-muted rounded">
+                              {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                            </button>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <ProspectButton sourceType="email" sourceId={lead.id} customerName={lead.customer_name} phoneNumber={lead.phone_number} email={lead.email} company={lead.customer_company} city={lead.city} productName={lead.product_name} notes={lead.notes} isAlreadyProspect={isProspect(lead.id)} />
+                              <ACategoryButton sourceType="email" sourceId={lead.id} isACategory={lead.is_a_category} />
+                              <AttentionButton sourceType="email" sourceId={lead.id} customerName={lead.customer_name} phoneNumber={lead.phone_number} email={lead.email} company={lead.customer_company} city={lead.city} productName={lead.product_name} notes={lead.notes} isAlreadyAttention={isAttention(lead.id)} />
+                              <EnquiryConvertButton sourceType="email" sourceId={lead.id} customerName={lead.customer_name} phoneNumber={lead.phone_number} email={lead.email} company={lead.customer_company} city={lead.city} productName={lead.product_name} productCategory={lead.product_category} productCode={lead.product_code} quantity={lead.quantity} urgency={lead.urgency} requestedTimeline={lead.requested_timeline} purposeOfPurchase={lead.purpose_of_purchase} notes={lead.notes} />
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="font-medium cursor-default">{lead.customer_name}</span>
+                                </TooltipTrigger>
+                                <TooltipContent side="right" className="max-w-xs">
+                                  <div className="space-y-1 text-xs">
+                                    <p><strong>{lead.customer_name}</strong></p>
+                                    {lead.customer_company && <p>🏢 {lead.customer_company}</p>}
+                                    {lead.email && <p>📧 {lead.email}</p>}
+                                    {lead.phone_number && <p>📱 {lead.phone_number}</p>}
+                                    {lead.city && <p>📍 {lead.city}</p>}
+                                    {lead.product_name && <p>📦 {lead.product_name}</p>}
+                                    {lead.urgency && <p>⚡ {lead.urgency}</p>}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableCell>
+                          <TableCell className="text-sm">{lead.customer_company || '-'}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-0.5">
+                              {lead.email && <span className="text-xs text-muted-foreground truncate max-w-[140px]">{lead.email}</span>}
+                              {lead.phone_number && <span className="text-xs text-muted-foreground">{lead.phone_number}</span>}
+                              {!lead.email && !lead.phone_number && <span className="text-xs text-muted-foreground">-</span>}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={`text-[10px] ${mailBadgeColor(lead.mail_source)}`}>
+                              {lead.mail_source?.startsWith('gmail:') ? '📧 Gmail' : lead.mail_source}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">{lead.product_name || '-'}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={`gap-1 ${processingStatusColor(lead.processing_status)}`}>
+                              {processingStatusIcon(lead.processing_status)}
+                              {lead.processing_status}
+                            </Badge>
+                            {lead.retry_count > 0 && (
+                              <span className="text-[10px] text-muted-foreground ml-1">r{lead.retry_count}</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{confidenceBar(lead.ai_confidence)}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={statusColor(lead.status)}>
+                              {lead.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                            {format(new Date(lead.created_at), 'dd MMM yyyy')}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              {lead.processing_status === 'needs_review' && canManage && (
+                                <>
+                                  <Button variant="outline" size="sm" className="text-green-600 border-green-500/30 h-7 px-2 text-xs" onClick={() => approveLead(lead.id)} disabled={approving}>
+                                    {approving ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3 mr-1" />}
+                                    Approve
+                                  </Button>
+                                  <Button variant="outline" size="sm" className="text-destructive border-destructive/30 h-7 px-2 text-xs" onClick={() => rejectLead(lead.id)} disabled={rejecting}>
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    Reject
+                                  </Button>
+                                </>
+                              )}
+                              {lead.processing_status === 'failed' && lead.error_message && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="text-[10px] text-destructive max-w-[80px] truncate cursor-help">
+                                        {lead.error_message}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-sm">
+                                      <p className="text-xs">{lead.error_message}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setEditLead(lead); setFormOpen(true); }}>
+                                Edit
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+
+                        {/* Expandable Detail Row */}
+                        {isExpanded && (
+                          <TableRow key={`${lead.id}-detail`} className="bg-muted/20 hover:bg-muted/30">
+                            <TableCell colSpan={13} className="p-4">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                <div className="space-y-2">
+                                  <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Lead Details</h4>
+                                  <div className="space-y-1">
+                                    {lead.lead_source && <p><span className="text-muted-foreground">Source:</span> {lead.lead_source}</p>}
+                                    {lead.quantity && <p><span className="text-muted-foreground">Qty:</span> {lead.quantity}</p>}
+                                    {lead.product_category && <p><span className="text-muted-foreground">Category:</span> {lead.product_category}</p>}
+                                    {lead.product_code && <p><span className="text-muted-foreground">Code:</span> {lead.product_code}</p>}
+                                    {lead.urgency && <p><span className="text-muted-foreground">Urgency:</span> <Badge variant="outline" className="text-[10px]">{lead.urgency}</Badge></p>}
+                                    {lead.requested_timeline && <p><span className="text-muted-foreground">Timeline:</span> {lead.requested_timeline}</p>}
+                                    {lead.purpose_of_purchase && <p><span className="text-muted-foreground">Purpose:</span> {lead.purpose_of_purchase}</p>}
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Assignment & Notes</h4>
+                                  <div className="space-y-1">
+                                    {lead.sales_person_name && <p><span className="text-muted-foreground">Sales:</span> {lead.sales_person_name}</p>}
+                                    {lead.created_by_name && <p><span className="text-muted-foreground">Created by:</span> {lead.created_by_name}</p>}
+                                    {lead.notes && (
+                                      <div>
+                                        <span className="text-muted-foreground">Notes:</span>
+                                        <p className="text-xs mt-0.5 bg-muted/50 rounded p-2 whitespace-pre-wrap">{lead.notes}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">AI Extraction</h4>
+                                  {lead.ai_extracted_json ? (
+                                    <pre className="text-[11px] bg-muted/50 rounded p-2 overflow-auto max-h-40 whitespace-pre-wrap font-mono">
+                                      {JSON.stringify(lead.ai_extracted_json, null, 2)}
+                                    </pre>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground">No AI data extracted</p>
+                                  )}
+                                  {lead.error_message && (
+                                    <div className="mt-2">
+                                      <span className="text-xs text-destructive font-medium">Error:</span>
+                                      <p className="text-xs text-destructive/80 bg-destructive/5 rounded p-2 mt-0.5">{lead.error_message}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        {lead.ai_confidence != null ? (
-                          <span className={`text-sm font-medium ${
-                            lead.ai_confidence >= 0.7 ? 'text-green-600' :
-                            lead.ai_confidence >= 0.5 ? 'text-orange-600' : 'text-muted-foreground'
-                          }`}>
-                            {(lead.ai_confidence * 100).toFixed(0)}%
-                          </span>
-                        ) : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={statusColor(lead.status)}>
-                          {lead.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {format(new Date(lead.created_at), 'dd MMM yyyy')}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          {lead.processing_status === 'needs_review' && canManage && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-green-600 border-green-500/30 h-7 px-2 text-xs"
-                                onClick={() => approveLead(lead.id)}
-                                disabled={approving}
-                              >
-                                {approving ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3 mr-1" />}
-                                Approve
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-destructive border-destructive/30 h-7 px-2 text-xs"
-                                onClick={() => rejectLead(lead.id)}
-                                disabled={rejecting}
-                              >
-                                <XCircle className="w-3 h-3 mr-1" />
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                          {lead.processing_status === 'failed' && lead.error_message && (
-                            <span className="text-[10px] text-destructive max-w-[120px] truncate" title={lead.error_message}>
-                              {lead.error_message}
-                            </span>
-                          )}
-                          <Button variant="ghost" size="sm" onClick={() => { setEditLead(lead); setFormOpen(true); }}>
-                            Edit
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                      </>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
