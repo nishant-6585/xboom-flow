@@ -1,4 +1,4 @@
-import { Trophy, Medal, Crown, Star, TrendingUp, Target, Zap } from "lucide-react";
+import { Trophy, Medal, Crown, Star, TrendingUp, Target, Zap, IndianRupee } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSalesLeaderboard } from "@/hooks/useSalesGamification";
 import { useAuth } from "@/hooks/useAuth";
