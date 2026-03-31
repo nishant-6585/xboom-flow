@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SalesLeaderboard } from "./SalesLeaderboard";
 import { SuggestionBox } from "./SuggestionBox";
 import { WeightedForecastWidget } from "./WeightedForecastWidget";
+import { CustomerTypeAnalytics } from "./CustomerTypeAnalytics";
 import { useSalesLeaderboard } from "@/hooks/useSalesGamification";
 import { useOrders } from "@/hooks/useOrders";
 import { usePipelineOrders } from "@/hooks/usePipelineOrders";
@@ -224,6 +225,9 @@ export function ManagerDashboard() {
         {/* Leaderboard */}
         <SalesLeaderboard startDate={startDate} endDate={endDate} />
       </div>
+
+      {/* Customer Type Analytics */}
+      <CustomerTypeAnalytics />
 
       {/* Revenue Forecast */}
       <WeightedForecastWidget />
