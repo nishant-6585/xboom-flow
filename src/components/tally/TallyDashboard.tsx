@@ -140,7 +140,7 @@ export function TallyDashboard() {
   const orders = useMemo(() => {
     const { start, end } = getDateRange(timePeriod);
     return allOrders.filter((o) => {
-      const d = new Date(o.created_at);
+      const d = new Date(o.order_date || o.created_at);
       const inRange = isWithinInterval(d, { start: startOfDay(start), end });
       const matchesPerson = salesPersonFilter === "all" || o.sales_person_name === salesPersonFilter;
       return inRange && matchesPerson;
