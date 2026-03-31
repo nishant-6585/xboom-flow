@@ -40,6 +40,7 @@ export interface EmailLead {
   error_message: string | null;
   ai_confidence: number | null;
   ai_extracted_json: Record<string, unknown> | null;
+  retry_count: number;
   created_at: string;
   updated_at: string;
 }
