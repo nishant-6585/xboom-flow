@@ -18,6 +18,7 @@ interface CallLog {
   created_at: string;
   raw_payload: unknown;
   is_prospect: boolean | null;
+  department: string | null;
 }
 
 interface LegDetail {
