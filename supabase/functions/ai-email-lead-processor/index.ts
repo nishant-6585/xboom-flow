@@ -26,6 +26,164 @@ interface AIExtractionResult {
 
 const MAX_RETRIES = 3;
 
+const INTENT_KEYWORDS = ["buy", "price", "quotation", "urgent", "require", "purchase", "order", "quote", "need", "enquiry", "inquiry", "cost", "rate", "pls", "please", "want"];
+const SPAM_KEYWORDS = ["unsubscribe", "newsletter", "marketing", "no-reply", "noreply", "mailer-daemon", "auto-reply", "out of office", "ooo", "promotion", "subscription"];
+
+const CLAUDE_PROMPT = `You are an expert sales assistant extracting leads from emails.
+
+Company context:
+We sell drones, robotics, and safety equipment.
+
+Important:
+Emails may be informal, short, broken English, or WhatsApp-style messages common in India.
+Examples:
+- "price drone"
+- "need 1 drone urgent"
+- "pls share quotation"
+- "call me 9876543210"
+- "want to buy safety helmet"
+
+Interpret intent correctly even if grammar is poor.
+
+Analyze the email and determine if it is a genuine business lead.
+
+Rules:
+- A lead shows intent to buy, request pricing, ask for quotation, or inquire about products/services
+- Do NOT reject short or informal messages if intent is clear
+- Ignore spam, newsletters, greetings without intent
+- Auto-replies, OOO messages, promotional emails → is_lead: false
+- Price enquiries, bulk orders, product questions → is_lead: true
+- If urgency words like "urgent", "asap", "immediately" → urgency: "high"
+- If timeline mentioned (weeks/months) → urgency: "medium"
+- Default urgency: "low"
+
+Extract:
+- name (if available, else "Unknown")
+- company (if available, else "Unknown")
+- phone (if available, especially Indian formats like +91 or 10-digit)
+- email (sender or mentioned)
+- product_interest (what they want)
+- product_category (one of: Consumer Drones, Enterprise Drones, Agriculture Drones, FPV Drones, Camera Drones, Drone Parts, Drone Accessories, Safety Equipment, Robotics, Other)
+- quantity (number if mentioned, else 1)
+- city (if mentioned)
+- summary (short concise summary)
+
+Return ONLY valid JSON (no explanation, no extra text):
+{
+  "is_lead": true/false,
+  "confidence": number (0-1),
+  "name": "...",
+  "company": "...",
+  "phone": "...",
+  "email": "...",
+  "product_interest": "...",
+  "product_category": "...",
+  "quantity": 1,
+  "urgency": "low|medium|high",
+  "city": "...",
+  "summary": "..."
+}`;
+
+function isSpam(text: string): boolean {
+  const lower = text.toLowerCase();
+  return SPAM_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
+function hasStrongIntent(text: string): boolean {
+  const lower = text.toLowerCase();
+  return INTENT_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
+function hasPhoneNumber(text: string): boolean {
+  return /(\+91[\s-]?\d{10}|\b\d{10}\b|\b\d{5}[\s-]\d{5}\b)/.test(text);
+}
+
+function buildEmailContent(lead: Record<string, any>): string {
+  return [
+    `Customer Name: ${lead.customer_name}`,
+    lead.email ? `Email: ${lead.email}` : "",
+    lead.phone_number ? `Phone: ${lead.phone_number}` : "",
+    lead.customer_company ? `Company: ${lead.customer_company}` : "",
+    lead.product_name ? `Product: ${lead.product_name}` : "",
+    lead.city ? `City: ${lead.city}` : "",
+    lead.notes ? `\nEmail Content:\n${lead.notes}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function safeParseJSON(content: string): AIExtractionResult | null {
+  try {
+    // Try direct parse first
+    return JSON.parse(content);
+  } catch {
+    // Try extracting JSON from markdown code blocks
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      try {
+        return JSON.parse(jsonMatch[1].trim());
+      } catch { /* fall through */ }
+    }
+    // Try finding first { ... } block
+    const braceMatch = content.match(/\{[\s\S]*\}/);
+    if (braceMatch) {
+      try {
+        return JSON.parse(braceMatch[0]);
+      } catch { /* fall through */ }
+    }
+    return null;
+  }
+}
+
+async function callClaude(emailContent: string): Promise<AIExtractionResult> {
+  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 500,
+      temperature: 0.1,
+      messages: [
+        { role: "user", content: `${CLAUDE_PROMPT}\n\nEmail:\n${emailContent}` },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Claude API error ${response.status}: ${errText}`);
+  }
+
+  const data = await response.json();
+  const textContent = data.content?.[0]?.text;
+  if (!textContent) throw new Error("Empty Claude response");
+
+  const parsed = safeParseJSON(textContent);
+  if (!parsed) throw new Error("Failed to parse Claude JSON response");
+
+  return parsed;
+}
+
+function determineStatus(aiResult: AIExtractionResult, emailText: string): string {
+  const intentFromText = hasStrongIntent(emailText);
+
+  if (aiResult.is_lead || intentFromText) {
+    if (aiResult.confidence >= 0.7 || intentFromText) return "processed";
+    if (aiResult.confidence >= 0.5) return "needs_review";
+    return "needs_review";
+  }
+
+  if (aiResult.confidence >= 0.5) return "needs_review";
+  return "rejected";
+}
+
 async function createEnquiryFromLead(
   supabase: ReturnType<typeof createClient>,
   lead: Record<string, any>,
@@ -103,7 +261,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const action = body.action || "process"; // "claim", "save_results", or legacy "process"
+    const action = body.action || "process";
 
     // ========== ACTION: CLAIM ==========
     if (action === "claim") {
@@ -125,7 +283,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ========== ACTION: SAVE RESULTS ==========
+    // ========== ACTION: SAVE RESULTS (legacy support) ==========
     if (action === "save_results") {
       const resultsToSave = body.results || [];
       if (!Array.isArray(resultsToSave) || resultsToSave.length === 0) {
@@ -146,7 +304,6 @@ Deno.serve(async (req) => {
         if (!lead_id) continue;
 
         if (status === "error" || !ai_result) {
-          // AI call failed on client, increment retry
           const { data: currentLead } = await supabase
             .from("email_leads")
             .select("retry_count")
@@ -159,7 +316,7 @@ Deno.serve(async (req) => {
           await supabase.from("email_leads").update({
             processing_status: newStatus,
             retry_count: newRetry,
-            error_message: itemError || "AI processing failed on client",
+            error_message: itemError || "AI processing failed",
           }).eq("id", lead_id);
 
           if (newStatus === "failed") failed++;
@@ -167,7 +324,6 @@ Deno.serve(async (req) => {
         }
 
         const aiResult = ai_result as AIExtractionResult;
-
         const updatePayload: Record<string, unknown> = {
           ai_processed: true,
           ai_confidence: aiResult.confidence,
@@ -177,7 +333,6 @@ Deno.serve(async (req) => {
         };
 
         if (status === "processed") {
-          // Fetch lead data for enquiry creation
           const { data: lead } = await supabase
             .from("email_leads")
             .select("*")
@@ -203,13 +358,158 @@ Deno.serve(async (req) => {
         processed++;
       }
 
+      return new Response(
+        JSON.stringify({ success: true, processed, enquiries_created: enquiriesCreated, rejected, needs_review: needsReview, failed }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ========== ACTION: PROCESS (Server-side Claude processing) ==========
+    if (action === "process") {
+      const specificLeadId = body.lead_id;
+      const batchSize = Math.min(body.batch_size || 10, 50);
+
+      // Step 1: Claim pending leads
+      const { data: pendingLeads, error: fetchError } = await supabase.rpc(
+        "claim_pending_email_leads",
+        {
+          p_batch_size: batchSize,
+          ...(specificLeadId ? { p_specific_lead_id: specificLeadId } : {}),
+        }
+      );
+      if (fetchError) throw fetchError;
+
+      const leads = pendingLeads || [];
+      if (leads.length === 0) {
+        return new Response(
+          JSON.stringify({ processed: 0, enquiries_created: 0, rejected: 0, needs_review: 0, failed: 0, skipped_spam: 0, skipped_direct: 0 }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      let processed = 0;
+      let enquiriesCreated = 0;
+      let rejected = 0;
+      let needsReview = 0;
+      let failed = 0;
+      let skippedSpam = 0;
+      let skippedDirect = 0;
+
+      for (const lead of leads) {
+        try {
+          const emailContent = buildEmailContent(lead);
+          const fullText = `${lead.customer_name || ""} ${lead.notes || ""} ${lead.product_name || ""}`.toLowerCase();
+
+          // ---- Hybrid Filter: Skip spam ----
+          if (isSpam(fullText)) {
+            await supabase.from("email_leads").update({
+              processing_status: "rejected",
+              ai_processed: true,
+              ai_confidence: 0,
+              ai_extracted_json: { is_lead: false, confidence: 0, summary: "Filtered as spam/newsletter by rule engine" } as unknown,
+              error_message: null,
+            }).eq("id", lead.id);
+            skippedSpam++;
+            rejected++;
+            processed++;
+            continue;
+          }
+
+          // ---- Hybrid Filter: Direct lead if strong intent + phone/product ----
+          const strongIntent = hasStrongIntent(fullText);
+          const hasPhone = hasPhoneNumber(fullText) || !!lead.phone_number;
+          const hasProduct = !!lead.product_name && lead.product_name.trim() !== "";
+
+          if (strongIntent && (hasPhone || hasProduct)) {
+            const directResult: AIExtractionResult = {
+              is_lead: true,
+              confidence: 0.85,
+              name: lead.customer_name || "Unknown",
+              company: lead.customer_company || "Unknown",
+              phone: lead.phone_number || "",
+              email: lead.email || "",
+              product_interest: lead.product_name || "General Enquiry",
+              product_category: lead.product_category || "Consumer Drones",
+              quantity: lead.quantity || 1,
+              urgency: fullText.includes("urgent") || fullText.includes("asap") ? "high" : "medium",
+              city: lead.city || "",
+              summary: `Direct lead via rule engine: strong intent keywords detected`,
+            };
+
+            await supabase.from("email_leads").update({
+              processing_status: "processed",
+              ai_processed: true,
+              ai_confidence: directResult.confidence,
+              ai_extracted_json: directResult as unknown,
+              error_message: null,
+            }).eq("id", lead.id);
+
+            const result = await createEnquiryFromLead(supabase, lead, directResult);
+            if (result.created) enquiriesCreated++;
+            skippedDirect++;
+            processed++;
+            continue;
+          }
+
+          // ---- Call Claude for uncertain/ambiguous leads ----
+          const aiResult = await callClaude(emailContent);
+          const status = determineStatus(aiResult, fullText);
+
+          const updatePayload: Record<string, unknown> = {
+            ai_processed: true,
+            ai_confidence: aiResult.confidence,
+            ai_extracted_json: aiResult as unknown,
+            error_message: null,
+            processing_status: status,
+          };
+
+          if (status === "processed") {
+            const result = await createEnquiryFromLead(supabase, lead, aiResult);
+            if (result.error) {
+              updatePayload.error_message = `Enquiry creation failed: ${result.error}`;
+              updatePayload.processing_status = "pending";
+            } else if (result.created) {
+              enquiriesCreated++;
+            }
+          } else if (status === "needs_review") {
+            needsReview++;
+          } else if (status === "rejected") {
+            rejected++;
+          }
+
+          await supabase.from("email_leads").update(updatePayload).eq("id", lead.id);
+          processed++;
+        } catch (err) {
+          console.error(`Error processing lead ${lead.id}:`, err);
+          const { data: currentLead } = await supabase
+            .from("email_leads")
+            .select("retry_count")
+            .eq("id", lead.id)
+            .single();
+          const currentRetry = currentLead?.retry_count || 0;
+          const newRetry = currentRetry + 1;
+          const newStatus = newRetry >= MAX_RETRIES ? "failed" : "pending";
+
+          await supabase.from("email_leads").update({
+            processing_status: newStatus,
+            retry_count: newRetry,
+            error_message: err instanceof Error ? err.message : String(err),
+          }).eq("id", lead.id);
+
+          if (newStatus === "failed") failed++;
+        }
+      }
+
       console.log(JSON.stringify({
         event: "ai_processing_complete",
+        engine: "anthropic-claude",
         processed,
         enquiries_created: enquiriesCreated,
         rejected,
         needs_review: needsReview,
         failed,
+        skipped_spam: skippedSpam,
+        skipped_direct: skippedDirect,
       }));
 
       return new Response(
@@ -220,14 +520,15 @@ Deno.serve(async (req) => {
           rejected,
           needs_review: needsReview,
           failed,
+          skipped_spam: skippedSpam,
+          skipped_direct: skippedDirect,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Legacy fallback
     return new Response(
-      JSON.stringify({ error: "Unknown action. Use 'claim' or 'save_results'." }),
+      JSON.stringify({ error: "Unknown action. Use 'process', 'claim', or 'save_results'." }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
