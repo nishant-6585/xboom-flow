@@ -134,6 +134,37 @@ export function useGmailIntegration() {
     },
   });
 
+  const processWithAI = useMutation({
+    mutationFn: async (leadId?: string) => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error('Not authenticated');
+
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/ai-email-lead-processor`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(leadId ? { lead_id: leadId } : {}),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'AI processing failed');
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['email-leads'] });
+      toast.success(`AI processed ${data.processed} leads: ${data.enquiries_created} enquiries created, ${data.rejected} rejected`);
+    },
+    onError: (err: Error) => {
+      toast.error(`AI processing failed: ${err.message}`);
+    },
+  });
+
   const toggleIntegration = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
       const { error } = await supabase
@@ -170,6 +201,8 @@ export function useGmailIntegration() {
     isConnecting: connectGmail.isPending,
     syncNow: syncNow.mutate,
     isSyncing: syncNow.isPending,
+    processWithAI: processWithAI.mutate,
+    isProcessingAI: processWithAI.isPending,
     toggleIntegration: toggleIntegration.mutate,
     disconnectGmail: disconnectGmail.mutate,
   };

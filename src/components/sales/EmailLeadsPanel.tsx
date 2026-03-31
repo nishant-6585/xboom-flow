@@ -90,6 +90,16 @@ export function EmailLeadsPanel() {
               <Button variant="outline" size="sm" onClick={() => refetch()}>
                 <RefreshCw className="w-4 h-4 mr-1" /> Refresh
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => processWithAI()}
+                disabled={isProcessingAI}
+                className="text-primary border-primary/30"
+              >
+                {isProcessingAI ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Brain className="w-4 h-4 mr-1" />}
+                AI Process Pending
+              </Button>
               <Button size="sm" onClick={() => { setEditLead(null); setFormOpen(true); }}>
                 <Plus className="w-4 h-4 mr-1" /> Add Email Lead
               </Button>
