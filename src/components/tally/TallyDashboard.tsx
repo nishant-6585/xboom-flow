@@ -242,7 +242,7 @@ export function TallyDashboard() {
       prevDate.setDate(day);
 
       const currentDayOrders = allOrders.filter((o) => {
-        const d = new Date(o.created_at);
+        const d = new Date(o.order_date || o.created_at);
         return d.getDate() === day &&
           d.getMonth() === currentMonthStart.getMonth() &&
           d.getFullYear() === currentMonthStart.getFullYear() &&
