@@ -69,7 +69,7 @@ export function KeyMetricsTrendChart() {
         // Aggregate data by interval
         const trendData: TrendData[] = intervals.map((interval) => {
           const ordersInPeriod = orders.filter((o) =>
-            isWithinInterval(new Date(o.created_at), { start: interval.start, end: interval.end })
+            isWithinInterval(new Date(o.order_date || o.created_at), { start: interval.start, end: interval.end })
           );
           const pipelineInPeriod = pipeline.filter((p) =>
             isWithinInterval(new Date(p.created_at), { start: interval.start, end: interval.end })

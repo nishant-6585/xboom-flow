@@ -91,7 +91,7 @@ export function KeyMetricsDashboard() {
         const orders = ordersRes.data || [];
         const activeOrders = orders.filter(o => !["delivery_done", "cancelled"].includes(o.status));
         const pendingDelivery = orders.filter(o => o.status === "procurement_done");
-        const ordersThisMonth = orders.filter(o => new Date(o.created_at) >= new Date(startOfMonth));
+        const ordersThisMonth = orders.filter(o => new Date(o.order_date || o.created_at) >= new Date(startOfMonth));
 
         // Calculate procurement metrics
         const procurements = procurementsRes.data || [];

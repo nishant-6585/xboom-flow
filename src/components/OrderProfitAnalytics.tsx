@@ -58,7 +58,7 @@ export function OrderProfitAnalytics({ orders, onCardClick }: OrderProfitAnalyti
     const mtdRevenue = mtdOrders.reduce((sum, o) => sum + o.revenue, 0);
 
     const mtdAllOrders = allValidOrders.filter(o => 
-      isWithinInterval(new Date(o.created_at), { start: monthStart, end: monthEnd })
+      isWithinInterval(new Date(o.order_date || o.created_at), { start: monthStart, end: monthEnd })
     );
     const mtdOrderValue = mtdAllOrders.reduce((sum, o) => sum + ((o.total_sales_amount || 0)), 0);
 

@@ -250,7 +250,7 @@ export function TallyDashboard() {
       });
 
       const prevDayOrders = allOrders.filter((o) => {
-        const d = new Date(o.created_at);
+        const d = new Date(o.order_date || o.created_at);
         return d.getDate() === day &&
           d.getMonth() === prevMonthStart.getMonth() &&
           d.getFullYear() === prevMonthStart.getFullYear() &&
