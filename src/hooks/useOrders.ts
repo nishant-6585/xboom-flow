@@ -244,7 +244,8 @@ export function useOrders() {
             is_escalated,
             escalated_at,
             escalated_by,
-            escalation_reason
+            escalation_reason,
+            order_date
           `)
           .order('created_at', { ascending: false })
           .limit(5000);
