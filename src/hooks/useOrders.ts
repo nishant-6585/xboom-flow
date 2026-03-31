@@ -274,7 +274,7 @@ export function useOrders() {
           last_reminder_sent_at: null,
           invoice_url: null,
           po_url: null,
-          order_date: null,
+          order_date: (order as any).order_date || null,
           is_refund_requested: false,
           refund_reason: null,
           refund_status: null,
