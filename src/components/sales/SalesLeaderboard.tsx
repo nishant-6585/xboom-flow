@@ -102,7 +102,7 @@ export function SalesLeaderboard({ startDate, endDate }: SalesLeaderboardProps) 
                         <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
                       )}
                     </div>
-                    <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
                       <span className="flex items-center gap-1">
                         <Target className="w-3 h-3" />
                         {entry.leads_handled} leads
@@ -111,6 +111,14 @@ export function SalesLeaderboard({ startDate, endDate }: SalesLeaderboardProps) 
                         <TrendingUp className="w-3 h-3" />
                         {entry.orders_won} won
                       </span>
+                      {Number(entry.total_order_value) > 0 && (
+                        <span className="flex items-center gap-1 font-medium text-green-600 dark:text-green-400">
+                          <IndianRupee className="w-3 h-3" />
+                          {Number(entry.total_order_value) >= 100000
+                            ? `${(Number(entry.total_order_value) / 100000).toFixed(1)}L`
+                            : Number(entry.total_order_value).toLocaleString('en-IN')}
+                        </span>
+                      )}
                     </div>
                   </div>
                   
