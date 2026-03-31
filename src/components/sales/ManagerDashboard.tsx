@@ -52,6 +52,7 @@ export function ManagerDashboard() {
     leads: e.leads_handled,
     orders: e.orders_won,
     points: e.total_points,
+    orderValue: Number(e.total_order_value) / 1000, // in thousands
   })) || [];
 
   const pipelineStatusData = [
