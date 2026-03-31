@@ -70,6 +70,7 @@ export interface LeaderboardEntry {
   orders_won: number;
   pipeline_created: number;
   total_pipeline_value: number;
+  total_order_value: number;
   rank: number;
 }
 
