@@ -73,6 +73,7 @@ export function EmailLeadsPanel() {
 
   return (
     <div className="space-y-6">
+      <GmailIntegrationCard />
       <ProspectAnalyticsCards prospects={prospects} sourceType="email" />
 
       <Card>
