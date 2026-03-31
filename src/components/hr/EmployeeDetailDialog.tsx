@@ -298,9 +298,32 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
               <Badge variant="outline" className="text-xs font-mono">{employee.employee_number}</Badge>
             </DialogTitle>
             {isHROrAdmin && !editing && (
-              <Button variant="outline" size="sm" className="ml-4 gap-1.5" onClick={startEditing}>
-                <Pencil className="h-3.5 w-3.5" /> Edit
-              </Button>
+              <div className="flex items-center gap-2 ml-4">
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={startEditing}>
+                  <Pencil className="h-3.5 w-3.5" /> Edit
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" className="gap-1.5" disabled={deleting}>
+                      <Trash2 className="h-3.5 w-3.5" /> Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to remove <strong>{employee.name}</strong> from the system? This will deactivate their account and mark them as terminated. This action can be reversed by an admin.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        {deleting ? "Deleting..." : "Yes, Delete"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             )}
           </div>
         </DialogHeader>
