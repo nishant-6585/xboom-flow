@@ -52,7 +52,7 @@ export function OrderProfitAnalytics({ orders, onCardClick }: OrderProfitAnalyti
 
     // Month-to-date
     const mtdOrders = ordersWithProfitCalc.filter(o => 
-      isWithinInterval(new Date(o.created_at), { start: monthStart, end: monthEnd })
+      isWithinInterval(new Date(o.order_date || o.created_at), { start: monthStart, end: monthEnd })
     );
     const mtdProfit = mtdOrders.reduce((sum, o) => sum + o.profit, 0);
     const mtdRevenue = mtdOrders.reduce((sum, o) => sum + o.revenue, 0);
