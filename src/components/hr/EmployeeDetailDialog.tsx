@@ -310,7 +310,7 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
               ) : (
                 <ReadOnlyField label="Joining Date" value={formatDate(employee.joining_date || form.joining_date)} />
               )}
-              {renderEditableSelect({ label: "Role", fieldKey: "designation", options: orgRoles.map(r => ({ value: r.label || r.name, label: r.label || r.name })) })}
+              {renderEditableField({ label: "Designation", fieldKey: "designation" })}
               {renderEditableSelect({ label: "Department", fieldKey: "department", options: orgDepartments.map(d => ({ value: d.name, label: d.name })) })}
               {renderEditableSelect({ label: "Employee Type", fieldKey: "employee_type", options: TYPE_OPTIONS })}
               {renderEditableSelect({ label: "Mode", fieldKey: "work_location", options: MODE_OPTIONS })}
