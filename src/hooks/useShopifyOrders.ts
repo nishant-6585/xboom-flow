@@ -36,17 +36,28 @@ export interface ShopifyOrder {
 
 export function useShopifyOrders() {
   const [shopifyOrders, setShopifyOrders] = useState<ShopifyOrder[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   const fetchShopifyOrders = async () => {
     try {
       setLoading(true);
+
+      // Fetch count separately to get accurate total
+      const { count, error: countError } = await supabase
+        .from('shopify_orders')
+        .select('id', { count: 'exact', head: true });
+
+      if (countError) throw countError;
+      setTotalCount(count ?? 0);
+
+      // Fetch order data (up to Supabase max per request)
       const { data, error } = await supabase
         .from('shopify_orders')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(10000);
+        .limit(1000);
 
       if (error) throw error;
       setShopifyOrders(data || []);
@@ -78,5 +89,5 @@ export function useShopifyOrders() {
     };
   }, []);
 
-  return { shopifyOrders, loading, refetch: fetchShopifyOrders };
+  return { shopifyOrders, totalCount, loading, refetch: fetchShopifyOrders };
 }

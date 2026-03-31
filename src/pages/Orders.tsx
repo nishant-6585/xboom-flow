@@ -32,7 +32,7 @@ export default function Orders() {
   const { role, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
-  const { shopifyOrders, loading: shopifyLoading } = useShopifyOrders();
+  const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
@@ -296,7 +296,7 @@ export default function Orders() {
                   <ShoppingBag className="h-4 w-4" />
                   <span className="hidden sm:inline font-medium">Shopify</span>
                   <Badge variant="secondary" className="ml-1 h-5 px-2 text-xs bg-primary/10 text-primary font-semibold">
-                    {filteredShopifyOrders.length}
+                    {shopifyTotalCount.toLocaleString()}
                   </Badge>
                 </TabsTrigger>
                 <TabsTrigger value="pipeline" className="gap-2">
@@ -673,7 +673,7 @@ export default function Orders() {
               </div>
               <div>
                 <h2 className="text-lg font-semibold">Shopify Orders</h2>
-                <p className="text-xs text-muted-foreground">{shopifyOrders.length.toLocaleString()} orders synced from Shopify (separate database)</p>
+                <p className="text-xs text-muted-foreground">{shopifyTotalCount.toLocaleString()} orders synced from Shopify (separate database)</p>
               </div>
             </div>
 
