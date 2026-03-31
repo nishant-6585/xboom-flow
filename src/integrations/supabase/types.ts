@@ -1918,6 +1918,7 @@ export type Database = {
           purpose_of_purchase: string | null
           quantity: number | null
           requested_timeline: string | null
+          retry_count: number
           sales_person_id: string | null
           sales_person_name: string | null
           status: string | null
@@ -1951,6 +1952,7 @@ export type Database = {
           purpose_of_purchase?: string | null
           quantity?: number | null
           requested_timeline?: string | null
+          retry_count?: number
           sales_person_id?: string | null
           sales_person_name?: string | null
           status?: string | null
@@ -1984,6 +1986,7 @@ export type Database = {
           purpose_of_purchase?: string | null
           quantity?: number | null
           requested_timeline?: string | null
+          retry_count?: number
           sales_person_id?: string | null
           sales_person_name?: string | null
           status?: string | null
@@ -9255,6 +9258,7 @@ export type Database = {
           purpose_of_purchase: string | null
           quantity: number | null
           requested_timeline: string | null
+          retry_count: number
           sales_person_id: string | null
           sales_person_name: string | null
           status: string | null
