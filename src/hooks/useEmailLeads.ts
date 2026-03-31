@@ -40,6 +40,7 @@ export interface EmailLead {
   error_message: string | null;
   ai_confidence: number | null;
   ai_extracted_json: Record<string, unknown> | null;
+  retry_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -94,6 +95,81 @@ export function useEmailLeads() {
     },
   });
 
+  const approveLead = useMutation({
+    mutationFn: async (leadId: string) => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error('Not authenticated');
+
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/ai-email-lead-processor`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ lead_id: leadId }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Approval failed');
+
+      // Force status to processed if AI didn't auto-create
+      await supabase.from('email_leads').update({ processing_status: 'processed' }).eq('id', leadId);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['email-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['email-lead-metrics'] });
+      toast.success('Lead approved and enquiry created');
+    },
+    onError: (error: Error) => {
+      toast.error(`Approval failed: ${error.message}`);
+    },
+  });
+
+  const rejectLead = useMutation({
+    mutationFn: async (leadId: string) => {
+      const { error } = await supabase
+        .from('email_leads')
+        .update({ processing_status: 'rejected' })
+        .eq('id', leadId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['email-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['email-lead-metrics'] });
+      toast.success('Lead rejected');
+    },
+  });
+
+  // Pipeline metrics
+  const { data: metrics } = useQuery({
+    queryKey: ['email-lead-metrics'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('email_leads')
+        .select('processing_status, ai_confidence');
+      if (error) throw error;
+
+      const total = data.length;
+      const processed = data.filter((l: any) => l.processing_status === 'processed').length;
+      const pending = data.filter((l: any) => l.processing_status === 'pending').length;
+      const needsReview = data.filter((l: any) => l.processing_status === 'needs_review').length;
+      const rejected = data.filter((l: any) => l.processing_status === 'rejected').length;
+      const failed = data.filter((l: any) => l.processing_status === 'failed').length;
+      const processing = data.filter((l: any) => l.processing_status === 'processing').length;
+      const withConfidence = data.filter((l: any) => l.ai_confidence != null);
+      const avgConfidence = withConfidence.length > 0
+        ? withConfidence.reduce((s: number, l: any) => s + l.ai_confidence, 0) / withConfidence.length
+        : 0;
+
+      return { total, processed, pending, needsReview, rejected, failed, processing, avgConfidence };
+    },
+  });
+
   return {
     leads,
     loading,
@@ -102,5 +178,10 @@ export function useEmailLeads() {
     creating: createMutation.isPending,
     updateLead: updateMutation.mutateAsync,
     updating: updateMutation.isPending,
+    approveLead: approveLead.mutateAsync,
+    approving: approveLead.isPending,
+    rejectLead: rejectLead.mutateAsync,
+    rejecting: rejectLead.isPending,
+    metrics,
   };
 }
