@@ -93,6 +93,7 @@ export function EmailLeadFormDialog({ open, onOpenChange, lead, onSuccess }: Pro
         notes: lead.notes || '',
         status: lead.status || 'pending',
         sales_person_name: lead.sales_person_name || '',
+        customer_type: (lead as any).customer_type || '',
       });
     } else {
       setForm({
