@@ -18,6 +18,7 @@ import { EnquiryConvertButton } from './EnquiryConvertButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadFormDialog } from './EmailLeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
+import { GmailIntegrationCard } from './GmailIntegrationCard';
 
 export function EmailLeadsPanel() {
   const { leads, loading, refetch } = useEmailLeads();
@@ -40,7 +41,7 @@ export function EmailLeadsPanel() {
         lead.phone_number?.toLowerCase().includes(search.toLowerCase()) ||
         lead.product_name?.toLowerCase().includes(search.toLowerCase()) ||
         lead.customer_company?.toLowerCase().includes(search.toLowerCase());
-      const matchesMail = mailSourceFilter === 'all' || lead.mail_source === mailSourceFilter;
+      const matchesMail = mailSourceFilter === 'all' || (mailSourceFilter === 'gmail' ? lead.mail_source?.startsWith('gmail:') : lead.mail_source === mailSourceFilter);
       const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
       const matchesDate = (!startDate || new Date(lead.created_at) >= startDate) &&
         (!endDate || new Date(lead.created_at) <= endDate);
@@ -72,6 +73,7 @@ export function EmailLeadsPanel() {
 
   return (
     <div className="space-y-6">
+      <GmailIntegrationCard />
       <ProspectAnalyticsCards prospects={prospects} sourceType="email" />
 
       <Card>
@@ -105,6 +107,7 @@ export function EmailLeadsPanel() {
               <SelectContent>
                 <SelectItem value="all">All Sources</SelectItem>
                 {MAIL_SOURCES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                <SelectItem value="gmail">📧 Gmail</SelectItem>
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
