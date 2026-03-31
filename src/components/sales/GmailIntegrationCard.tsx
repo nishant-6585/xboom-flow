@@ -32,7 +32,7 @@ export function GmailIntegrationCard() {
     disconnectGmail,
   } = useGmailIntegration();
 
-  const canManage = role === 'admin' || role === 'marketing';
+  const canManage = role === 'admin' || role === 'marketing' || role === 'sales_manager';
 
   if (!canManage) return null;
 
