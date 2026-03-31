@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS enquiries_email_lead_id_unique ON public.enquiries (email_lead_id) WHERE email_lead_id IS NOT NULL;
