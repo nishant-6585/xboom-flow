@@ -184,7 +184,12 @@ Deno.serve(async (req) => {
           error_message: null,
         };
 
-        if (aiResult.is_lead && aiResult.confidence >= 0.7) {
+        const INTENT_KEYWORDS = ["buy", "price", "quotation", "urgent", "require", "purchase", "order", "quote", "need"];
+        const emailText = (lead.notes || "").toLowerCase();
+        const hasStrongIntent = INTENT_KEYWORDS.some((kw) => emailText.includes(kw));
+        const isQualified = aiResult.is_lead && (aiResult.confidence >= 0.7 || hasStrongIntent);
+
+        if (isQualified) {
           // Idempotency check: skip if enquiry already exists for this email lead
           const { data: existingEnquiry } = await supabase
             .from("enquiries")
