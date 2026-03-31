@@ -1,4 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import type { EmployeeRecord } from "./EmployeesPanel";
 import { useState, useEffect } from "react";
 import { EditHistoryPanel } from "@/components/EditHistoryPanel";
@@ -50,6 +51,33 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
   const { departments: orgDepartments } = useOrgDepartments();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("employees")
+        .update({ is_active: false, employment_status: "terminated", updated_at: new Date().toISOString() })
+        .eq("id", employee.id);
+      if (error) throw error;
+
+      // Log the deletion in edit history
+      await recordChanges("employees", employee.id, {
+        is_active: { old: "true", new: "false" },
+        employment_status: { old: employee.employment_status, new: "terminated" },
+      }, profile?.name || "Unknown");
+
+      toast.success(`Employee "${employee.name}" has been removed`);
+      onOpenChange(false);
+      onSaved?.();
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Failed to delete employee");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const formatDate = (d: string | null) => d ? format(new Date(d), "dd MMM yyyy") : null;
   const formatType = (t: string | null) => t ? t.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : null;
@@ -270,9 +298,32 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
               <Badge variant="outline" className="text-xs font-mono">{employee.employee_number}</Badge>
             </DialogTitle>
             {isHROrAdmin && !editing && (
-              <Button variant="outline" size="sm" className="ml-4 gap-1.5" onClick={startEditing}>
-                <Pencil className="h-3.5 w-3.5" /> Edit
-              </Button>
+              <div className="flex items-center gap-2 ml-4">
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={startEditing}>
+                  <Pencil className="h-3.5 w-3.5" /> Edit
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" className="gap-1.5" disabled={deleting}>
+                      <Trash2 className="h-3.5 w-3.5" /> Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to remove <strong>{employee.name}</strong> from the system? This will deactivate their account and mark them as terminated. This action can be reversed by an admin.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        {deleting ? "Deleting..." : "Yes, Delete"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             )}
           </div>
         </DialogHeader>
