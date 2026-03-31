@@ -32,6 +32,7 @@ interface TallyOrder {
   payment_status: string;
   status: string;
   created_at: string;
+  order_date: string | null;
   selling_price: number | null;
   procurement_rate: number | null;
   sales_person_name: string;
@@ -110,7 +111,7 @@ export function TallyDashboard() {
         const [ordersRes, procRes] = await Promise.all([
           supabase
             .from("orders")
-            .select("id, order_number, product_name, product_category, quantity, customer_name, customer_company, total_sales_amount, amount_paid, payment_status, status, created_at, selling_price, procurement_rate, sales_person_name, sales_person_id")
+            .select("id, order_number, product_name, product_category, quantity, customer_name, customer_company, total_sales_amount, amount_paid, payment_status, status, created_at, order_date, selling_price, procurement_rate, sales_person_name, sales_person_id")
             .not("status", "eq", "cancelled")
             .order("created_at", { ascending: false }),
           supabase
@@ -140,7 +141,7 @@ export function TallyDashboard() {
   const orders = useMemo(() => {
     const { start, end } = getDateRange(timePeriod);
     return allOrders.filter((o) => {
-      const d = new Date(o.created_at);
+      const d = new Date(o.order_date || o.created_at);
       const inRange = isWithinInterval(d, { start: startOfDay(start), end });
       const matchesPerson = salesPersonFilter === "all" || o.sales_person_name === salesPersonFilter;
       return inRange && matchesPerson;
@@ -242,7 +243,7 @@ export function TallyDashboard() {
       prevDate.setDate(day);
 
       const currentDayOrders = allOrders.filter((o) => {
-        const d = new Date(o.created_at);
+        const d = new Date(o.order_date || o.created_at);
         return d.getDate() === day &&
           d.getMonth() === currentMonthStart.getMonth() &&
           d.getFullYear() === currentMonthStart.getFullYear() &&
@@ -250,7 +251,7 @@ export function TallyDashboard() {
       });
 
       const prevDayOrders = allOrders.filter((o) => {
-        const d = new Date(o.created_at);
+        const d = new Date(o.order_date || o.created_at);
         return d.getDate() === day &&
           d.getMonth() === prevMonthStart.getMonth() &&
           d.getFullYear() === prevMonthStart.getFullYear() &&

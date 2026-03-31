@@ -57,7 +57,7 @@ export function KeyMetricsTrendChart() {
 
         // Fetch all data
         const [ordersRes, pipelineRes, paymentsRes] = await Promise.all([
-          supabase.from("orders").select("id, created_at, total_sales_amount"),
+          supabase.from("orders").select("id, created_at, order_date, total_sales_amount"),
           supabase.from("pipeline_orders").select("id, created_at, expected_price"),
           supabase.from("payment_records").select("id, created_at, amount, status").eq("status", "approved"),
         ]);
@@ -69,7 +69,7 @@ export function KeyMetricsTrendChart() {
         // Aggregate data by interval
         const trendData: TrendData[] = intervals.map((interval) => {
           const ordersInPeriod = orders.filter((o) =>
-            isWithinInterval(new Date(o.created_at), { start: interval.start, end: interval.end })
+            isWithinInterval(new Date(o.order_date || o.created_at), { start: interval.start, end: interval.end })
           );
           const pipelineInPeriod = pipeline.filter((p) =>
             isWithinInterval(new Date(p.created_at), { start: interval.start, end: interval.end })

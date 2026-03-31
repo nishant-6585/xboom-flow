@@ -74,7 +74,7 @@ export function KeyMetricsDashboard() {
           expectedPaymentsRes
         ] = await Promise.all([
           supabase.from("pipeline_orders").select("id, expected_price, probability, status"),
-          supabase.from("orders").select("id, status, created_at, payment_status, total_sales_amount, amount_paid"),
+          supabase.from("orders").select("id, status, created_at, order_date, payment_status, total_sales_amount, amount_paid"),
           supabase.from("inventory_procurements").select("id, payment_status"),
           supabase.from("supplier_payments").select("id, amount, payment_date"),
           supabase.from("payment_records").select("id, amount, status, created_at"),
@@ -91,7 +91,7 @@ export function KeyMetricsDashboard() {
         const orders = ordersRes.data || [];
         const activeOrders = orders.filter(o => !["delivery_done", "cancelled"].includes(o.status));
         const pendingDelivery = orders.filter(o => o.status === "procurement_done");
-        const ordersThisMonth = orders.filter(o => new Date(o.created_at) >= new Date(startOfMonth));
+        const ordersThisMonth = orders.filter(o => new Date(o.order_date || o.created_at) >= new Date(startOfMonth));
 
         // Calculate procurement metrics
         const procurements = procurementsRes.data || [];

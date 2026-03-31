@@ -62,7 +62,7 @@ export function OrdersDashboardStats({
     const { start, end } = getDateRange(timePeriod);
     return orders.filter((o) => {
       if (o.status === "cancelled") return false;
-      const d = new Date(o.created_at);
+      const d = new Date(o.order_date || o.created_at);
       const inRange = isWithinInterval(d, { start: startOfDay(start), end });
       const matchesPerson = salesPersonFilter === "all" || o.sales_person_name === salesPersonFilter;
       return inRange && matchesPerson;
@@ -120,7 +120,7 @@ export function OrdersDashboardStats({
     return days.map((day) => {
       const currentDayOrders = orders.filter((o) => {
         if (o.status === "cancelled") return false;
-        const d = new Date(o.created_at);
+        const d = new Date(o.order_date || o.created_at);
         return d.getDate() === day &&
           d.getMonth() === currentMonthStart.getMonth() &&
           d.getFullYear() === currentMonthStart.getFullYear() &&
@@ -128,7 +128,7 @@ export function OrdersDashboardStats({
       });
       const prevDayOrders = orders.filter((o) => {
         if (o.status === "cancelled") return false;
-        const d = new Date(o.created_at);
+        const d = new Date(o.order_date || o.created_at);
         return d.getDate() === day &&
           d.getMonth() === prevMonthStart.getMonth() &&
           d.getFullYear() === prevMonthStart.getFullYear() &&

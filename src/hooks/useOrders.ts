@@ -244,7 +244,8 @@ export function useOrders() {
             is_escalated,
             escalated_at,
             escalated_by,
-            escalation_reason
+            escalation_reason,
+            order_date
           `)
           .order('created_at', { ascending: false })
           .limit(5000);
@@ -273,7 +274,7 @@ export function useOrders() {
           last_reminder_sent_at: null,
           invoice_url: null,
           po_url: null,
-          order_date: null,
+          order_date: (order as any).order_date || null,
           is_refund_requested: false,
           refund_reason: null,
           refund_status: null,
