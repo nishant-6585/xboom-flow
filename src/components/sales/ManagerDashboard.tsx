@@ -226,6 +226,9 @@ export function ManagerDashboard() {
         <SalesLeaderboard startDate={startDate} endDate={endDate} />
       </div>
 
+      {/* Customer Type Analytics */}
+      <CustomerTypeAnalytics />
+
       {/* Revenue Forecast */}
       <WeightedForecastWidget />
 
