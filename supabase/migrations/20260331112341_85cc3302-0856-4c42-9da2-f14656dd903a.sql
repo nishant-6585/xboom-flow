@@ -1,0 +1,1 @@
+UPDATE public.email_leads SET processing_status = 'pending', retry_count = 0, error_message = NULL WHERE processing_status IN ('pending', 'processing', 'failed') AND retry_count > 0;
