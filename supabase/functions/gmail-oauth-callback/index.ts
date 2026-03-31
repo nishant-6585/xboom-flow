@@ -73,7 +73,13 @@ Deno.serve(async (req) => {
       oauthUrl.searchParams.set("prompt", "consent");
       oauthUrl.searchParams.set("state", state);
 
-      return new Response(JSON.stringify({ url: oauthUrl.toString() }), {
+      const finalUrl = oauthUrl.toString();
+      console.log("[Gmail OAuth] Generated URL:", finalUrl);
+      console.log("[Gmail OAuth] Callback URL:", callbackUrl);
+      console.log("[Gmail OAuth] Client ID:", GMAIL_CLIENT_ID?.substring(0, 20) + "...");
+      console.log("[Gmail OAuth] Frontend redirect:", redirectUri);
+
+      return new Response(JSON.stringify({ url: finalUrl }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
