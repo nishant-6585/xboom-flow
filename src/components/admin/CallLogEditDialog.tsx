@@ -51,6 +51,7 @@ export function CallLogEditDialog({ open, onOpenChange, callLog, onSuccess }: Ca
     requested_timeline: '',
     purpose_of_purchase: '',
     notes: '',
+    customer_type: '',
   });
 
   useEffect(() => {
