@@ -95,6 +95,7 @@ export function CallLogEditDialog({ open, onOpenChange, callLog, onSuccess }: Ca
           requested_timeline: form.requested_timeline.trim() || null,
           purpose_of_purchase: form.purpose_of_purchase || null,
           notes: form.notes.trim() || null,
+          customer_type: form.customer_type || null,
         } as Record<string, unknown>)
         .eq('id', callLog.id);
 
