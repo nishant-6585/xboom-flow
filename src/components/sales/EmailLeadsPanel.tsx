@@ -41,7 +41,7 @@ export function EmailLeadsPanel() {
         lead.phone_number?.toLowerCase().includes(search.toLowerCase()) ||
         lead.product_name?.toLowerCase().includes(search.toLowerCase()) ||
         lead.customer_company?.toLowerCase().includes(search.toLowerCase());
-      const matchesMail = mailSourceFilter === 'all' || lead.mail_source === mailSourceFilter;
+      const matchesMail = mailSourceFilter === 'all' || (mailSourceFilter === 'gmail' ? lead.mail_source?.startsWith('gmail:') : lead.mail_source === mailSourceFilter);
       const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
       const matchesDate = (!startDate || new Date(lead.created_at) >= startDate) &&
         (!endDate || new Date(lead.created_at) <= endDate);
