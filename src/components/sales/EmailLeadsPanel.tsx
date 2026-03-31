@@ -93,7 +93,7 @@ export function EmailLeadsPanel() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => processWithAI()}
+                onClick={() => processWithAI(undefined)}
                 disabled={isProcessingAI}
                 className="text-primary border-primary/30"
               >
