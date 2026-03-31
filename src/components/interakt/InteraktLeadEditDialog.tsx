@@ -99,6 +99,7 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
       urgency: form.urgency,
       requested_timeline: form.requested_timeline.trim() || null,
       purpose_of_purchase: form.purpose_of_purchase || null,
+      customer_type: form.customer_type || null,
       status: form.status,
       notes: form.notes.trim() || null,
     } as any);
