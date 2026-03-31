@@ -32,7 +32,7 @@ export default function Orders() {
   const { role, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
-  const { shopifyOrders, loading: shopifyLoading } = useShopifyOrders();
+  const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
