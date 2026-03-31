@@ -35,6 +35,11 @@ export interface EmailLead {
   created_by: string | null;
   created_by_name: string | null;
   updated_by: string | null;
+  processing_status: string;
+  ai_processed: boolean;
+  error_message: string | null;
+  ai_confidence: number | null;
+  ai_extracted_json: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
