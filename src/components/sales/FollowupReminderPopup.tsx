@@ -39,15 +39,22 @@ export function FollowupReminderPopup() {
   const { followups } = useFollowups();
   const [activeReminder, setActiveReminder] = useState<Followup | null>(null);
   const dismissedIds = useRef<Set<string>>(new Set());
+  const snoozedUntil = useRef<Map<string, number>>(new Map());
   const checkIntervalRef = useRef<ReturnType<typeof setInterval>>();
+  const soundPlayedIds = useRef<Set<string>>(new Set());
 
   const checkReminders = useCallback(() => {
-    if (!followups.length) return;
+    if (!followups.length || activeReminder) return;
     const now = new Date();
+    const nowMs = now.getTime();
     
     for (const f of followups) {
       if (f.status !== 'pending') continue;
       if (dismissedIds.current.has(f.id)) continue;
+      
+      // Check if snoozed
+      const snoozeEnd = snoozedUntil.current.get(f.id);
+      if (snoozeEnd && nowMs < snoozeEnd) continue;
       
       const followupTime = new Date(f.followup_at);
       const minsUntil = differenceInMinutes(followupTime, now);
@@ -55,17 +62,20 @@ export function FollowupReminderPopup() {
       // Show reminder 10 minutes before or if it's due now (within last 5 mins)
       if (minsUntil <= 10 && minsUntil >= -5) {
         setActiveReminder(f);
-        playNotificationSound();
+        // Only play sound once per followup
+        if (!soundPlayedIds.current.has(f.id)) {
+          playNotificationSound();
+          soundPlayedIds.current.add(f.id);
+        }
         break;
       }
     }
-  }, [followups]);
+  }, [followups, activeReminder]);
 
   useEffect(() => {
     if (!user) return;
-    // Check every 30 seconds
     checkReminders();
-    checkIntervalRef.current = setInterval(checkReminders, 30000);
+    checkIntervalRef.current = setInterval(checkReminders, 60000);
     return () => {
       if (checkIntervalRef.current) clearInterval(checkIntervalRef.current);
     };
@@ -79,7 +89,10 @@ export function FollowupReminderPopup() {
   };
 
   const handleSnooze = () => {
-    // Dismiss and it'll remind again next check cycle if still in range
+    if (activeReminder) {
+      // Snooze for 10 minutes
+      snoozedUntil.current.set(activeReminder.id, Date.now() + 10 * 60 * 1000);
+    }
     setActiveReminder(null);
   };
 
