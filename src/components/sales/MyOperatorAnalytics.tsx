@@ -420,6 +420,52 @@ export function MyOperatorAnalytics({ logs, prospects = [] }: MyOperatorAnalytic
           </ResponsiveContainer>
         </CardContent>
       </Card>
+
+      {/* Sales vs Support Calls */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Phone className="h-4 w-4 text-primary" />
+              Sales vs Support Calls (Daily)
+            </CardTitle>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              {(() => {
+                const totals = salesVsSupportData.reduce((acc, d) => ({ sales: acc.sales + d.sales, support: acc.support + d.support, total: acc.total + d.total }), { sales: 0, support: 0, total: 0 });
+                const salesPct = totals.total > 0 ? Math.round((totals.sales / totals.total) * 100) : 0;
+                const supportPct = totals.total > 0 ? Math.round((totals.support / totals.total) * 100) : 0;
+                return (
+                  <>
+                    <Badge variant="secondary" className="bg-chart-3/20 text-chart-3 border-chart-3/30">Sales {salesPct}%</Badge>
+                    <Badge variant="secondary" className="bg-chart-1/20 text-chart-1 border-chart-1/30">Support {supportPct}%</Badge>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={salesVsSupportData} barGap={2}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+              <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+              <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+              <Tooltip
+                contentStyle={customTooltipStyle}
+                formatter={(value: number, name: string, props: any) => {
+                  const total = props.payload.total;
+                  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+                  return [`${value} (${pct}%)`, name];
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar dataKey="sales" stackId="dept" fill="hsl(var(--chart-3))" name="Sales" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="support" stackId="dept" fill="hsl(var(--chart-1))" name="Support" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="other" stackId="dept" fill="hsl(var(--chart-4))" name="Uncategorized" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
     </div>
   );
 }
