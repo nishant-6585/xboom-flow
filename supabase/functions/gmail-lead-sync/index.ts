@@ -217,11 +217,13 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Search Gmail for potential lead emails
-      const searchQuery = "newer_than:1d (subject:(enquiry OR quote OR interested OR price OR drone) OR \"need quote\" OR \"interested in\" OR \"want to buy\")";
-      const listUrl = `https://www.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(searchQuery)}&maxResults=20`;
+      // Search Gmail for potential lead emails — broader query to catch more leads
+      // AI processor will filter out non-leads, so cast a wide net here
+      const searchQuery = "newer_than:1d is:inbox -category:promotions -category:social -category:updates -category:forums";
+      const listUrl = `https://www.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(searchQuery)}&maxResults=50`;
 
       try {
+        console.log(`[Gmail Sync] Fetching emails for ${integration.email} with query: ${searchQuery}`);
         const listRes = await fetch(listUrl, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
@@ -229,7 +231,7 @@ Deno.serve(async (req) => {
         if (!listRes.ok) {
           const errBody = await listRes.text();
           errors = `Gmail API error: ${listRes.status}`;
-          console.error("Gmail API error:", errBody);
+          console.error(`[Gmail Sync] API error for ${integration.email}:`, errBody);
           await supabase.from("gmail_sync_logs").insert({
             integration_id: integration.id,
             emails_fetched: 0,
@@ -243,6 +245,7 @@ Deno.serve(async (req) => {
         const listData = await listRes.json();
         const messageIds: string[] = (listData.messages || []).map((m: any) => m.id);
         emailsFetched = messageIds.length;
+        console.log(`[Gmail Sync] Found ${emailsFetched} emails for ${integration.email}`);
 
         for (const msgId of messageIds) {
           try {
