@@ -292,6 +292,8 @@ Deno.serve(async (req) => {
               lead_source: "gmail",
               notes: `Subject: ${subject}\n\n${bodyText.substring(0, 500)}`,
               status: "pending",
+              processing_status: "pending",
+              ai_processed: false,
             });
 
             if (!insertError) {
