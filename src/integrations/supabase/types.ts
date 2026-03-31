@@ -1893,6 +1893,9 @@ export type Database = {
       }
       email_leads: {
         Row: {
+          ai_confidence: number | null
+          ai_extracted_json: Json | null
+          ai_processed: boolean
           city: string | null
           created_at: string
           created_by: string | null
@@ -1900,6 +1903,7 @@ export type Database = {
           customer_company: string | null
           customer_name: string
           email: string | null
+          error_message: string | null
           id: string
           is_a_category: boolean | null
           is_prospect: boolean | null
@@ -1907,6 +1911,7 @@ export type Database = {
           mail_source: string
           notes: string | null
           phone_number: string | null
+          processing_status: string
           product_category: string | null
           product_code: string | null
           product_name: string | null
@@ -1921,6 +1926,9 @@ export type Database = {
           urgency: string | null
         }
         Insert: {
+          ai_confidence?: number | null
+          ai_extracted_json?: Json | null
+          ai_processed?: boolean
           city?: string | null
           created_at?: string
           created_by?: string | null
@@ -1928,6 +1936,7 @@ export type Database = {
           customer_company?: string | null
           customer_name: string
           email?: string | null
+          error_message?: string | null
           id?: string
           is_a_category?: boolean | null
           is_prospect?: boolean | null
@@ -1935,6 +1944,7 @@ export type Database = {
           mail_source?: string
           notes?: string | null
           phone_number?: string | null
+          processing_status?: string
           product_category?: string | null
           product_code?: string | null
           product_name?: string | null
@@ -1949,6 +1959,9 @@ export type Database = {
           urgency?: string | null
         }
         Update: {
+          ai_confidence?: number | null
+          ai_extracted_json?: Json | null
+          ai_processed?: boolean
           city?: string | null
           created_at?: string
           created_by?: string | null
@@ -1956,6 +1969,7 @@ export type Database = {
           customer_company?: string | null
           customer_name?: string
           email?: string | null
+          error_message?: string | null
           id?: string
           is_a_category?: boolean | null
           is_prospect?: boolean | null
@@ -1963,6 +1977,7 @@ export type Database = {
           mail_source?: string
           notes?: string | null
           phone_number?: string | null
+          processing_status?: string
           product_category?: string | null
           product_code?: string | null
           product_name?: string | null
