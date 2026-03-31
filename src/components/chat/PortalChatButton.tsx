@@ -7,18 +7,6 @@ import { cn } from '@/lib/utils';
 export function PortalChatButton() {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Auto-open once per day on login
-  useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const lastShown = localStorage.getItem('askAiLastAutoOpen');
-    if (lastShown !== today) {
-      const timer = setTimeout(() => {
-        setIsOpen(true);
-        localStorage.setItem('askAiLastAutoOpen', today);
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, []);
 
   return (
     <>
