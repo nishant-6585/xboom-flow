@@ -925,7 +925,7 @@ export default function Orders() {
             {shopifyTotalPages > 1 && (
               <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
                 <p className="text-sm text-muted-foreground">
-                  Showing <span className="font-semibold text-foreground">{((shopifyPage - 1) * SHOPIFY_PAGE_SIZE) + 1}–{Math.min(shopifyPage * SHOPIFY_PAGE_SIZE, filteredShopifyOrders.length)}</span> of <span className="font-semibold text-foreground">{filteredShopifyOrders.length}</span> orders
+                  Showing <span className="font-semibold text-foreground">{((shopifyPage - 1) * SHOPIFY_PAGE_SIZE) + 1}–{Math.min(shopifyPage * SHOPIFY_PAGE_SIZE, filteredShopifyOrders.length)}</span> of <span className="font-semibold text-foreground">{shopifyTotalCount.toLocaleString()}</span> orders
                 </p>
                 <div className="flex items-center gap-1.5">
                   <Button
