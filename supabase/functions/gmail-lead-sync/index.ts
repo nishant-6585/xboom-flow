@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
         .select("role")
         .eq("user_id", user.id);
       const userRoles = (roles || []).map((r: any) => r.role);
-      if (!userRoles.includes("admin") && !userRoles.includes("marketing")) {
+      if (!userRoles.includes("admin") && !userRoles.includes("sales_manager")) {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
