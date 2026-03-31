@@ -70,6 +70,7 @@ export function EmailLeadFormDialog({ open, onOpenChange, lead, onSuccess }: Pro
     notes: '',
     status: 'pending',
     sales_person_name: '',
+    customer_type: '',
   });
 
   useEffect(() => {
