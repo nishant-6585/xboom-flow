@@ -63,10 +63,10 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
       if (error) throw error;
 
       // Log the deletion in edit history
-      await recordChanges("employees", employee.id, profile?.name || "Unknown", {
-        is_active: { oldValue: "true", newValue: "false" },
-        employment_status: { oldValue: employee.employment_status, newValue: "terminated" },
-      });
+      await recordChanges("employees", employee.id, {
+        is_active: { old: "true", new: "false" },
+        employment_status: { old: employee.employment_status, new: "terminated" },
+      }, profile?.name || "Unknown");
 
       toast.success(`Employee "${employee.name}" has been removed`);
       onOpenChange(false);
