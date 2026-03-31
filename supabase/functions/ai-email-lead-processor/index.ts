@@ -185,6 +185,21 @@ Deno.serve(async (req) => {
         };
 
         if (aiResult.is_lead && aiResult.confidence >= 0.7) {
+          // Idempotency check: skip if enquiry already exists for this email lead
+          const { data: existingEnquiry } = await supabase
+            .from("enquiries")
+            .select("id")
+            .eq("email_lead_id", lead.id)
+            .limit(1);
+
+          if (existingEnquiry && existingEnquiry.length > 0) {
+            updatePayload.processing_status = "processed";
+            await supabase.from("email_leads").update(updatePayload).eq("id", lead.id);
+            processed++;
+            results.push({ id: lead.id, status: "already_processed", skipped: true });
+            continue;
+          }
+
           updatePayload.processing_status = "processed";
 
           const enquiryData: Record<string, unknown> = {
