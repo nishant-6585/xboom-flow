@@ -28,6 +28,12 @@ const URGENCY_LEVELS = [
   { value: 'high', label: 'High' },
   { value: 'critical', label: 'Critical' },
 ];
+const CUSTOMER_TYPES = [
+  { value: 'B2C', label: 'B2C (Consumer)' },
+  { value: 'B2B', label: 'B2B (Business)' },
+  { value: 'B2G', label: 'B2G (Government)' },
+  { value: 'Reseller', label: 'Reseller' },
+];
 const PURPOSE_OF_PURCHASE = ['Personal Use', 'Business Operations', 'Government Project', 'Research & Development', 'Training & Education', 'Survey & Mapping', 'Agriculture', 'Inspection & Maintenance', 'Photography & Videography', 'Security & Surveillance', 'Delivery & Logistics', 'Entertainment & Events', 'Other'];
 
 export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, saving }: InteraktLeadEditDialogProps) {
@@ -46,6 +52,7 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
     urgency: 'medium',
     requested_timeline: '',
     purpose_of_purchase: '',
+    customer_type: '',
     status: 'new',
     notes: '',
   });
@@ -67,6 +74,7 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
         urgency: (lead as any).urgency || 'medium',
         requested_timeline: (lead as any).requested_timeline || '',
         purpose_of_purchase: (lead as any).purpose_of_purchase || '',
+        customer_type: (lead as any).customer_type || '',
         status: lead.status || 'new',
         notes: lead.notes || '',
       });
@@ -91,6 +99,7 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
       urgency: form.urgency,
       requested_timeline: form.requested_timeline.trim() || null,
       purpose_of_purchase: form.purpose_of_purchase || null,
+      customer_type: form.customer_type || null,
       status: form.status,
       notes: form.notes.trim() || null,
     } as any);
@@ -137,10 +146,20 @@ export function InteraktLeadEditDialog({ open, onOpenChange, lead, onSave, savin
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>City</Label>
                 <Input value={form.city} onChange={(e) => setForm(f => ({ ...f, city: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Customer Type</Label>
+                <Select value={form.customer_type || 'none'} onValueChange={(v) => setForm(f => ({ ...f, customer_type: v === 'none' ? '' : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">-- None --</SelectItem>
+                    {CUSTOMER_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Lead Source</Label>

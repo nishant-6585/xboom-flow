@@ -1037,6 +1037,7 @@ export type Database = {
           created_at: string
           customer_company: string | null
           customer_name: string | null
+          customer_type: string | null
           department: string | null
           email: string | null
           end_time: string | null
@@ -1080,6 +1081,7 @@ export type Database = {
           created_at?: string
           customer_company?: string | null
           customer_name?: string | null
+          customer_type?: string | null
           department?: string | null
           email?: string | null
           end_time?: string | null
@@ -1123,6 +1125,7 @@ export type Database = {
           created_at?: string
           customer_company?: string | null
           customer_name?: string | null
+          customer_type?: string | null
           department?: string | null
           email?: string | null
           end_time?: string | null
@@ -1902,6 +1905,7 @@ export type Database = {
           created_by_name: string | null
           customer_company: string | null
           customer_name: string
+          customer_type: string | null
           email: string | null
           error_message: string | null
           id: string
@@ -1936,6 +1940,7 @@ export type Database = {
           created_by_name?: string | null
           customer_company?: string | null
           customer_name: string
+          customer_type?: string | null
           email?: string | null
           error_message?: string | null
           id?: string
@@ -1970,6 +1975,7 @@ export type Database = {
           created_by_name?: string | null
           customer_company?: string | null
           customer_name?: string
+          customer_type?: string | null
           email?: string | null
           error_message?: string | null
           id?: string
@@ -3214,6 +3220,7 @@ export type Database = {
           company: string | null
           created_at: string
           customer_name: string
+          customer_type: string | null
           email: string | null
           form_id: string | null
           form_name: string
@@ -3232,6 +3239,7 @@ export type Database = {
           company?: string | null
           created_at?: string
           customer_name?: string
+          customer_type?: string | null
           email?: string | null
           form_id?: string | null
           form_name: string
@@ -3250,6 +3258,7 @@ export type Database = {
           company?: string | null
           created_at?: string
           customer_name?: string
+          customer_type?: string | null
           email?: string | null
           form_id?: string | null
           form_name?: string
@@ -3988,6 +3997,7 @@ export type Database = {
           created_at: string
           customer_company: string | null
           customer_name: string
+          customer_type: string | null
           email: string | null
           id: string
           interakt_created_at: string | null
@@ -4019,6 +4029,7 @@ export type Database = {
           created_at?: string
           customer_company?: string | null
           customer_name: string
+          customer_type?: string | null
           email?: string | null
           id?: string
           interakt_created_at?: string | null
@@ -4050,6 +4061,7 @@ export type Database = {
           created_at?: string
           customer_company?: string | null
           customer_name?: string
+          customer_type?: string | null
           email?: string | null
           id?: string
           interakt_created_at?: string | null
@@ -9242,6 +9254,7 @@ export type Database = {
           created_by_name: string | null
           customer_company: string | null
           customer_name: string
+          customer_type: string | null
           email: string | null
           error_message: string | null
           id: string

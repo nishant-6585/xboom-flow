@@ -28,6 +28,12 @@ const URGENCY_LEVELS = [
   { value: 'critical', label: 'Critical' },
 ];
 const PURPOSE_OF_PURCHASE = ['Personal Use', 'Business Operations', 'Government Project', 'Research & Development', 'Training & Education', 'Survey & Mapping', 'Agriculture', 'Inspection & Maintenance', 'Photography & Videography', 'Security & Surveillance', 'Delivery & Logistics', 'Entertainment & Events', 'Other'];
+const CUSTOMER_TYPES = [
+  { value: 'B2C', label: 'B2C (Consumer)' },
+  { value: 'B2B', label: 'B2B (Business)' },
+  { value: 'B2G', label: 'B2G (Government)' },
+  { value: 'Reseller', label: 'Reseller' },
+];
 
 export function CallLogEditDialog({ open, onOpenChange, callLog, onSuccess }: CallLogEditDialogProps) {
   const [saving, setSaving] = useState(false);
@@ -45,6 +51,7 @@ export function CallLogEditDialog({ open, onOpenChange, callLog, onSuccess }: Ca
     requested_timeline: '',
     purpose_of_purchase: '',
     notes: '',
+    customer_type: '',
   });
 
   useEffect(() => {
@@ -63,6 +70,7 @@ export function CallLogEditDialog({ open, onOpenChange, callLog, onSuccess }: Ca
         requested_timeline: callLog.requested_timeline || '',
         purpose_of_purchase: callLog.purpose_of_purchase || '',
         notes: callLog.notes || '',
+        customer_type: callLog.customer_type || '',
       });
     }
   }, [callLog]);
@@ -87,6 +95,7 @@ export function CallLogEditDialog({ open, onOpenChange, callLog, onSuccess }: Ca
           requested_timeline: form.requested_timeline.trim() || null,
           purpose_of_purchase: form.purpose_of_purchase || null,
           notes: form.notes.trim() || null,
+          customer_type: form.customer_type || null,
         } as Record<string, unknown>)
         .eq('id', callLog.id);
 
@@ -134,15 +143,27 @@ export function CallLogEditDialog({ open, onOpenChange, callLog, onSuccess }: Ca
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Lead Source</Label>
-              <Select value={form.lead_source || 'none'} onValueChange={(v) => setForm(f => ({ ...f, lead_source: v === 'none' ? '' : v }))}>
-                <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">-- None --</SelectItem>
-                  {LEAD_SOURCES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Customer Type</Label>
+                <Select value={form.customer_type || 'none'} onValueChange={(v) => setForm(f => ({ ...f, customer_type: v === 'none' ? '' : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">-- None --</SelectItem>
+                    {CUSTOMER_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Lead Source</Label>
+                <Select value={form.lead_source || 'none'} onValueChange={(v) => setForm(f => ({ ...f, lead_source: v === 'none' ? '' : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">-- None --</SelectItem>
+                    {LEAD_SOURCES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <Separator />

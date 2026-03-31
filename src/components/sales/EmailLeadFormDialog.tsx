@@ -32,6 +32,13 @@ const PURPOSE_OPTIONS = [
   'Security & Surveillance', 'Delivery & Logistics', 'Entertainment & Events', 'Other',
 ];
 
+const CUSTOMER_TYPES = [
+  { value: 'B2C', label: 'B2C (Consumer)' },
+  { value: 'B2B', label: 'B2B (Business)' },
+  { value: 'B2G', label: 'B2G (Government)' },
+  { value: 'Reseller', label: 'Reseller' },
+];
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -63,6 +70,7 @@ export function EmailLeadFormDialog({ open, onOpenChange, lead, onSuccess }: Pro
     notes: '',
     status: 'pending',
     sales_person_name: '',
+    customer_type: '',
   });
 
   useEffect(() => {
@@ -85,6 +93,7 @@ export function EmailLeadFormDialog({ open, onOpenChange, lead, onSuccess }: Pro
         notes: lead.notes || '',
         status: lead.status || 'pending',
         sales_person_name: lead.sales_person_name || '',
+        customer_type: (lead as any).customer_type || '',
       });
     } else {
       setForm({
@@ -105,6 +114,7 @@ export function EmailLeadFormDialog({ open, onOpenChange, lead, onSuccess }: Pro
         notes: '',
         status: 'pending',
         sales_person_name: profile?.name || '',
+        customer_type: '',
       });
       setSelectedProduct('');
     }
@@ -179,6 +189,16 @@ export function EmailLeadFormDialog({ open, onOpenChange, lead, onSuccess }: Pro
           <div>
             <Label>Sales Person</Label>
             <Input value={form.sales_person_name} onChange={(e) => setForm(f => ({ ...f, sales_person_name: e.target.value }))} />
+          </div>
+          <div>
+            <Label>Customer Type</Label>
+            <Select value={form.customer_type || 'none'} onValueChange={(v) => setForm(f => ({ ...f, customer_type: v === 'none' ? '' : v }))}>
+              <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">-- None --</SelectItem>
+                {CUSTOMER_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="md:col-span-2">
