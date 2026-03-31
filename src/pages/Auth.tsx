@@ -104,6 +104,71 @@ const Auth = () => {
 
     setLoading(true);
     try {
+      // Check if MFA is enrolled and we need AAL2
+      const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      
+      if (aalData && aalData.currentLevel === "aal1" && aalData.nextLevel === "aal2") {
+        // User has MFA enrolled but is at AAL1 — need TOTP verification first
+        setNeedsMfaForReset(true);
+        setLoading(false);
+        return;
+      }
+
+      // Either no MFA or already at AAL2 — proceed with password update
+      await performPasswordUpdate();
+    } catch {
+      setLoading(false);
+    }
+  };
+
+  const handleMfaVerifyForReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaCode || mfaCode.length !== 6) {
+      setErrors({ mfa: "Please enter a valid 6-digit code" });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Get TOTP factors
+      const { data: factorsData } = await supabase.auth.mfa.listFactors();
+      const totpFactor = factorsData?.totp?.[0];
+
+      if (!totpFactor) {
+        toast({ title: "Error", description: "No MFA factor found.", variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+
+      // Create challenge and verify
+      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: totpFactor.id });
+      if (challengeError) {
+        toast({ title: "Error", description: challengeError.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId: totpFactor.id,
+        challengeId: challengeData.id,
+        code: mfaCode,
+      });
+
+      if (verifyError) {
+        setErrors({ mfa: "Invalid verification code. Please try again." });
+        setLoading(false);
+        return;
+      }
+
+      // Now at AAL2 — update password
+      await performPasswordUpdate();
+    } catch {
+      setLoading(false);
+    }
+  };
+
+  const performPasswordUpdate = async () => {
+    try {
       const { error } = await supabase.auth.updateUser({ password });
 
       if (error) {
@@ -114,18 +179,18 @@ const Auth = () => {
         });
       } else {
         setResetSuccess(true);
+        setNeedsMfaForReset(false);
         toast({
           title: "Password updated!",
           description: "Your password has been successfully reset.",
         });
-        // Sign out and redirect to login after 2 seconds
         setTimeout(async () => {
           await supabase.auth.signOut();
           setIsResetPassword(false);
           setResetSuccess(false);
           setPassword("");
           setConfirmPassword("");
-          // Clear URL hash
+          setMfaCode("");
           window.history.replaceState(null, "", window.location.pathname);
         }, 2000);
       }
