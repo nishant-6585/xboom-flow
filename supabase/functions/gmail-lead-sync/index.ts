@@ -135,6 +135,7 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     let requestUserId: string | null = null;
+    let requestUserRoles: string[] = [];
 
     if (cronSecret && cronSecret === expectedCronSecret) {
       // Cron-triggered, process all active integrations
@@ -154,8 +155,8 @@ Deno.serve(async (req) => {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id);
-      const userRoles = (roles || []).map((r: any) => r.role);
-      if (!userRoles.includes("admin") && !userRoles.includes("sales_manager")) {
+      requestUserRoles = (roles || []).map((r: any) => r.role);
+      if (!requestUserRoles.includes("admin") && !requestUserRoles.includes("sales_manager")) {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -175,14 +176,31 @@ Deno.serve(async (req) => {
     // Fetch active integrations
     let query = supabase.from("gmail_integrations").select("*").eq("is_active", true);
     if (integrationId) query = query.eq("id", integrationId);
-    if (requestUserId) query = query.eq("user_id", requestUserId);
 
     const { data: integrations, error: intError } = await query;
     if (intError || !integrations?.length) {
+      console.log("[Gmail Sync] No active integrations resolved", {
+        integrationId: integrationId || null,
+        requestUserId,
+        requestUserRoles,
+        queryError: intError?.message || null,
+      });
+
       return new Response(JSON.stringify({ message: "No active Gmail integrations found", synced: 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    console.log("[Gmail Sync] Processing integrations", {
+      integrationId: integrationId || null,
+      requestUserId,
+      requestUserRoles,
+      integrations: integrations.map((integration) => ({
+        id: integration.id,
+        user_id: integration.user_id,
+        email: integration.email,
+      })),
+    });
 
     const results = [];
 
