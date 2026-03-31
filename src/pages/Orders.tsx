@@ -296,7 +296,7 @@ export default function Orders() {
                   <ShoppingBag className="h-4 w-4" />
                   <span className="hidden sm:inline font-medium">Shopify</span>
                   <Badge variant="secondary" className="ml-1 h-5 px-2 text-xs bg-primary/10 text-primary font-semibold">
-                    {filteredShopifyOrders.length}
+                    {shopifyTotalCount.toLocaleString()}
                   </Badge>
                 </TabsTrigger>
                 <TabsTrigger value="pipeline" className="gap-2">
