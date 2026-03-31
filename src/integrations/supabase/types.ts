@@ -3406,6 +3406,80 @@ export type Database = {
         }
         Relationships: []
       }
+      gmail_integrations: {
+        Row: {
+          access_token: string
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          last_synced_at: string | null
+          refresh_token: string
+          token_expiry: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          email: string
+          id?: string
+          is_active?: boolean
+          last_synced_at?: string | null
+          refresh_token: string
+          token_expiry?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          last_synced_at?: string | null
+          refresh_token?: string
+          token_expiry?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      gmail_sync_logs: {
+        Row: {
+          created_at: string
+          emails_fetched: number
+          errors: string | null
+          id: string
+          integration_id: string
+          leads_created: number
+        }
+        Insert: {
+          created_at?: string
+          emails_fetched?: number
+          errors?: string | null
+          id?: string
+          integration_id: string
+          leads_created?: number
+        }
+        Update: {
+          created_at?: string
+          emails_fetched?: number
+          errors?: string | null
+          id?: string
+          integration_id?: string
+          leads_created?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gmail_sync_logs_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "gmail_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       google_ads_sync_log: {
         Row: {
           created_at: string
