@@ -26,6 +26,7 @@ export function EmailLeadsPanel() {
   const { prospects } = useProspects();
   const { items: attentionItems } = useAttentionItems();
   const { role } = useAuth();
+  const { processWithAI, isProcessingAI } = useGmailIntegration();
   const [search, setSearch] = useState('');
   const [mailSourceFilter, setMailSourceFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
