@@ -62,7 +62,7 @@ export function OrdersDashboardStats({
     const { start, end } = getDateRange(timePeriod);
     return orders.filter((o) => {
       if (o.status === "cancelled") return false;
-      const d = new Date(o.created_at);
+      const d = new Date(o.order_date || o.created_at);
       const inRange = isWithinInterval(d, { start: startOfDay(start), end });
       const matchesPerson = salesPersonFilter === "all" || o.sales_person_name === salesPersonFilter;
       return inRange && matchesPerson;
