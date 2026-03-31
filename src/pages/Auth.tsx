@@ -314,6 +314,14 @@ const Auth = () => {
                   Redirecting you to sign in...
                 </CardDescription>
               </>
+            ) : needsMfaForReset ? (
+              <>
+                <ShieldCheck className="w-10 h-10 text-primary mx-auto mb-2" />
+                <CardTitle className="text-2xl font-display text-gradient">Verify Identity</CardTitle>
+                <CardDescription className="text-muted-foreground/80">
+                  Enter your authenticator code to continue
+                </CardDescription>
+              </>
             ) : (
               <>
                 <CardTitle className="text-2xl font-display text-gradient">Set New Password</CardTitle>
@@ -323,7 +331,35 @@ const Auth = () => {
               </>
             )}
           </CardHeader>
-          {!resetSuccess && (
+          {!resetSuccess && needsMfaForReset && (
+            <CardContent>
+              <form onSubmit={handleMfaVerifyForReset} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="mfaCode">6-Digit Code</Label>
+                  <Input
+                    id="mfaCode"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={mfaCode}
+                    onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    disabled={loading}
+                    className="h-11 text-center text-lg tracking-widest"
+                    autoFocus
+                  />
+                  {errors.mfa && (
+                    <p className="text-sm text-destructive">{errors.mfa}</p>
+                  )}
+                </div>
+                <Button type="submit" className="w-full h-11 font-semibold shadow-md hover:shadow-lg transition-shadow" disabled={loading || mfaCode.length !== 6}>
+                  {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Verify & Update Password
+                </Button>
+              </form>
+            </CardContent>
+          )}
+          {!resetSuccess && !needsMfaForReset && (
             <CardContent>
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <div className="space-y-2">
