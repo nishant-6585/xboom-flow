@@ -789,7 +789,7 @@ export default function Orders() {
             {shopifyTotalPages > 1 && !shopifyLoading && filteredShopifyOrders.length > 0 && (
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <p className="text-sm text-muted-foreground">
-                  Showing <span className="font-semibold text-foreground">{((shopifyPage - 1) * SHOPIFY_PAGE_SIZE) + 1}–{Math.min(shopifyPage * SHOPIFY_PAGE_SIZE, filteredShopifyOrders.length)}</span> of <span className="font-semibold text-foreground">{filteredShopifyOrders.length}</span> orders
+                  Showing <span className="font-semibold text-foreground">{((shopifyPage - 1) * SHOPIFY_PAGE_SIZE) + 1}–{Math.min(shopifyPage * SHOPIFY_PAGE_SIZE, filteredShopifyOrders.length)}</span> of <span className="font-semibold text-foreground">{shopifyTotalCount.toLocaleString()}</span> orders
                 </p>
                 <div className="flex items-center gap-1.5">
                   <Button variant="outline" size="sm" onClick={() => setShopifyPage(1)} disabled={shopifyPage === 1} className="h-8 px-3 rounded-lg text-xs">«</Button>
