@@ -10,7 +10,8 @@ import { useProspects } from '@/hooks/useProspects';
 import { useAttentionItems } from '@/hooks/useAttentionItems';
 import { useAuth } from '@/hooks/useAuth';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
-import { Search, Plus, Mail, Loader2, Filter, RefreshCw } from 'lucide-react';
+import { Search, Plus, Mail, Loader2, Filter, RefreshCw, Brain } from 'lucide-react';
+import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { format } from 'date-fns';
 import { ProspectButton, ACategoryButton } from './ProspectButton';
 import { AttentionButton } from './AttentionButton';
@@ -25,6 +26,7 @@ export function EmailLeadsPanel() {
   const { prospects } = useProspects();
   const { items: attentionItems } = useAttentionItems();
   const { role } = useAuth();
+  const { processWithAI, isProcessingAI } = useGmailIntegration();
   const [search, setSearch] = useState('');
   const [mailSourceFilter, setMailSourceFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -87,6 +89,16 @@ export function EmailLeadsPanel() {
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => refetch()}>
                 <RefreshCw className="w-4 h-4 mr-1" /> Refresh
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => processWithAI(undefined)}
+                disabled={isProcessingAI}
+                className="text-primary border-primary/30"
+              >
+                {isProcessingAI ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Brain className="w-4 h-4 mr-1" />}
+                AI Process Pending
               </Button>
               <Button size="sm" onClick={() => { setEditLead(null); setFormOpen(true); }}>
                 <Plus className="w-4 h-4 mr-1" /> Add Email Lead

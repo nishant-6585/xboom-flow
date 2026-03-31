@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.gmail-lead-sync]
 verify_jwt = false
+
+[functions.ai-email-lead-processor]
+verify_jwt = false
