@@ -18,6 +18,7 @@ import { EnquiryConvertButton } from './EnquiryConvertButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadFormDialog } from './EmailLeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
+import { GmailIntegrationCard } from './GmailIntegrationCard';
 
 export function EmailLeadsPanel() {
   const { leads, loading, refetch } = useEmailLeads();
