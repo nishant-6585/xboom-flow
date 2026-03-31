@@ -57,7 +57,7 @@ export function KeyMetricsTrendChart() {
 
         // Fetch all data
         const [ordersRes, pipelineRes, paymentsRes] = await Promise.all([
-          supabase.from("orders").select("id, created_at, total_sales_amount"),
+          supabase.from("orders").select("id, created_at, order_date, total_sales_amount"),
           supabase.from("pipeline_orders").select("id, created_at, expected_price"),
           supabase.from("payment_records").select("id, created_at, amount, status").eq("status", "approved"),
         ]);

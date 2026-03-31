@@ -32,6 +32,7 @@ interface TallyOrder {
   payment_status: string;
   status: string;
   created_at: string;
+  order_date: string | null;
   selling_price: number | null;
   procurement_rate: number | null;
   sales_person_name: string;
