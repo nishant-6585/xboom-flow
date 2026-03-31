@@ -51,6 +51,33 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
   const { departments: orgDepartments } = useOrgDepartments();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("employees")
+        .update({ is_active: false, employment_status: "terminated", updated_at: new Date().toISOString() })
+        .eq("id", employee.id);
+      if (error) throw error;
+
+      // Log the deletion in edit history
+      await recordChanges("employees", employee.id, profile?.name || "Unknown", {
+        is_active: { oldValue: "true", newValue: "false" },
+        employment_status: { oldValue: employee.employment_status, newValue: "terminated" },
+      });
+
+      toast.success(`Employee "${employee.name}" has been removed`);
+      onOpenChange(false);
+      onSaved?.();
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Failed to delete employee");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const formatDate = (d: string | null) => d ? format(new Date(d), "dd MMM yyyy") : null;
   const formatType = (t: string | null) => t ? t.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : null;
