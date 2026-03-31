@@ -130,24 +130,14 @@ Deno.serve(async (req) => {
     const specificLeadId = body.lead_id;
     const batchSize = Math.min(body.batch_size || 10, 50);
 
-    // Fetch pending email leads
-    let query = supabase
-      .from("email_leads")
-      .select("*")
-      .eq("processing_status", "pending")
-      .eq("ai_processed", false)
-      .order("created_at", { ascending: true })
-      .limit(batchSize);
-
-    if (specificLeadId) {
-      query = supabase
-        .from("email_leads")
-        .select("*")
-        .eq("id", specificLeadId)
-        .limit(1);
-    }
-
-    const { data: pendingLeads, error: fetchError } = await query;
+    // Atomically claim pending leads (FOR UPDATE SKIP LOCKED) and set status to 'processing'
+    const { data: pendingLeads, error: fetchError } = await supabase.rpc(
+      "claim_pending_email_leads",
+      {
+        p_batch_size: batchSize,
+        ...(specificLeadId ? { p_specific_lead_id: specificLeadId } : {}),
+      }
+    );
     if (fetchError) throw fetchError;
 
     if (!pendingLeads || pendingLeads.length === 0) {
