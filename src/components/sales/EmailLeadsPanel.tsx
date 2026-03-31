@@ -10,7 +10,7 @@ import { useProspects } from '@/hooks/useProspects';
 import { useAttentionItems } from '@/hooks/useAttentionItems';
 import { useAuth } from '@/hooks/useAuth';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
-import { Search, Plus, Mail, Loader2, Filter, RefreshCw, Brain } from 'lucide-react';
+import { Search, Plus, Mail, Loader2, Filter, RefreshCw, Brain, CheckCircle, XCircle, AlertTriangle, Clock, TrendingUp, BarChart3 } from 'lucide-react';
 import { useGmailIntegration } from '@/hooks/useGmailIntegration';
 import { format } from 'date-fns';
 import { ProspectButton, ACategoryButton } from './ProspectButton';
@@ -22,7 +22,7 @@ import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { GmailIntegrationCard } from './GmailIntegrationCard';
 
 export function EmailLeadsPanel() {
-  const { leads, loading, refetch } = useEmailLeads();
+  const { leads, loading, refetch, approveLead, approving, rejectLead, rejecting, metrics } = useEmailLeads();
   const { prospects } = useProspects();
   const { items: attentionItems } = useAttentionItems();
   const { role } = useAuth();
@@ -30,6 +30,7 @@ export function EmailLeadsPanel() {
   const [search, setSearch] = useState('');
   const [mailSourceFilter, setMailSourceFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [processingFilter, setProcessingFilter] = useState<string>('all');
   const [formOpen, setFormOpen] = useState(false);
   const [editLead, setEditLead] = useState<EmailLead | null>(null);
   const [startDate, setStartDate] = useState<Date | undefined>();
@@ -45,11 +46,12 @@ export function EmailLeadsPanel() {
         lead.customer_company?.toLowerCase().includes(search.toLowerCase());
       const matchesMail = mailSourceFilter === 'all' || (mailSourceFilter === 'gmail' ? lead.mail_source?.startsWith('gmail:') : lead.mail_source === mailSourceFilter);
       const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
+      const matchesProcessing = processingFilter === 'all' || lead.processing_status === processingFilter;
       const matchesDate = (!startDate || new Date(lead.created_at) >= startDate) &&
         (!endDate || new Date(lead.created_at) <= endDate);
-      return matchesSearch && matchesMail && matchesStatus && matchesDate;
+      return matchesSearch && matchesMail && matchesStatus && matchesProcessing && matchesDate;
     });
-  }, [leads, search, mailSourceFilter, statusFilter, startDate, endDate]);
+  }, [leads, search, mailSourceFilter, statusFilter, processingFilter, startDate, endDate]);
 
   const statusColor = (status: string) => {
     switch (status) {
@@ -57,6 +59,18 @@ export function EmailLeadsPanel() {
       case 'responded': return 'bg-green-500/10 text-green-600 border-green-500/30';
       case 'on_hold': return 'bg-muted text-muted-foreground';
       case 'moved_to_pipeline': return 'bg-blue-500/10 text-blue-600 border-blue-500/30';
+      default: return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  const processingStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30';
+      case 'processing': return 'bg-blue-500/10 text-blue-600 border-blue-500/30';
+      case 'processed': return 'bg-green-500/10 text-green-600 border-green-500/30';
+      case 'needs_review': return 'bg-orange-500/10 text-orange-600 border-orange-500/30';
+      case 'rejected': return 'bg-muted text-muted-foreground';
+      case 'failed': return 'bg-destructive/10 text-destructive border-destructive/30';
       default: return 'bg-muted text-muted-foreground';
     }
   };
@@ -73,9 +87,46 @@ export function EmailLeadsPanel() {
   const isProspect = (leadId: string) => prospects.some(p => p.source_id === leadId && p.source_type === 'email');
   const isAttention = (leadId: string) => attentionItems.some(a => a.source_id === leadId && a.source_type === 'email');
 
+  const canManage = role === 'admin' || role === 'sales_manager';
+
   return (
     <div className="space-y-6">
       <GmailIntegrationCard />
+
+      {/* Pipeline Metrics */}
+      {metrics && (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          <Card className="p-3">
+            <div className="text-xs text-muted-foreground">Total</div>
+            <div className="text-xl font-bold">{metrics.total}</div>
+          </Card>
+          <Card className="p-3">
+            <div className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> Pending</div>
+            <div className="text-xl font-bold text-yellow-600">{metrics.pending}</div>
+          </Card>
+          <Card className="p-3">
+            <div className="text-xs text-muted-foreground flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Processed</div>
+            <div className="text-xl font-bold text-green-600">{metrics.processed}</div>
+          </Card>
+          <Card className="p-3">
+            <div className="text-xs text-muted-foreground flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Review</div>
+            <div className="text-xl font-bold text-orange-600">{metrics.needsReview}</div>
+          </Card>
+          <Card className="p-3">
+            <div className="text-xs text-muted-foreground flex items-center gap-1"><XCircle className="w-3 h-3" /> Rejected</div>
+            <div className="text-xl font-bold text-muted-foreground">{metrics.rejected}</div>
+          </Card>
+          <Card className="p-3">
+            <div className="text-xs text-destructive flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Failed</div>
+            <div className="text-xl font-bold text-destructive">{metrics.failed}</div>
+          </Card>
+          <Card className="p-3">
+            <div className="text-xs text-muted-foreground flex items-center gap-1"><TrendingUp className="w-3 h-3" /> Avg AI</div>
+            <div className="text-xl font-bold">{(metrics.avgConfidence * 100).toFixed(0)}%</div>
+          </Card>
+        </div>
+      )}
+
       <ProspectAnalyticsCards prospects={prospects} sourceType="email" />
 
       <Card>
@@ -122,6 +173,21 @@ export function EmailLeadsPanel() {
                 <SelectItem value="gmail">📧 Gmail</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={processingFilter} onValueChange={setProcessingFilter}>
+              <SelectTrigger className="w-[180px]">
+                <BarChart3 className="w-4 h-4 mr-1" />
+                <SelectValue placeholder="Processing" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Processing</SelectItem>
+                <SelectItem value="pending">⏳ Pending</SelectItem>
+                <SelectItem value="processing">🔄 Processing</SelectItem>
+                <SelectItem value="processed">✅ Processed</SelectItem>
+                <SelectItem value="needs_review">🔍 Needs Review</SelectItem>
+                <SelectItem value="rejected">❌ Rejected</SelectItem>
+                <SelectItem value="failed">⚠️ Failed</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[160px]">
                 <SelectValue placeholder="Status" />
@@ -165,8 +231,8 @@ export function EmailLeadsPanel() {
                     <TableHead>Email</TableHead>
                     <TableHead>Mail Source</TableHead>
                     <TableHead>Product</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Qty</TableHead>
+                    <TableHead>AI Status</TableHead>
+                    <TableHead>Confidence</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Actions</TableHead>
@@ -174,7 +240,7 @@ export function EmailLeadsPanel() {
                 </TableHeader>
                 <TableBody>
                   {filteredLeads.map((lead) => (
-                    <TableRow key={lead.id}>
+                    <TableRow key={lead.id} className={lead.processing_status === 'needs_review' ? 'bg-orange-500/5' : ''}>
                       <TableCell>
                         <div className="flex gap-1">
                           <ProspectButton
@@ -234,8 +300,24 @@ export function EmailLeadsPanel() {
                         </Badge>
                       </TableCell>
                       <TableCell>{lead.product_name || '-'}</TableCell>
-                      <TableCell>{lead.product_category || '-'}</TableCell>
-                      <TableCell>{lead.quantity || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={processingStatusColor(lead.processing_status)}>
+                          {lead.processing_status}
+                        </Badge>
+                        {lead.retry_count > 0 && (
+                          <span className="text-[10px] text-muted-foreground ml-1">r{lead.retry_count}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {lead.ai_confidence != null ? (
+                          <span className={`text-sm font-medium ${
+                            lead.ai_confidence >= 0.7 ? 'text-green-600' :
+                            lead.ai_confidence >= 0.5 ? 'text-orange-600' : 'text-muted-foreground'
+                          }`}>
+                            {(lead.ai_confidence * 100).toFixed(0)}%
+                          </span>
+                        ) : '-'}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={statusColor(lead.status)}>
                           {lead.status}
@@ -245,9 +327,40 @@ export function EmailLeadsPanel() {
                         {format(new Date(lead.created_at), 'dd MMM yyyy')}
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm" onClick={() => { setEditLead(lead); setFormOpen(true); }}>
-                          Edit
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          {lead.processing_status === 'needs_review' && canManage && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-green-600 border-green-500/30 h-7 px-2 text-xs"
+                                onClick={() => approveLead(lead.id)}
+                                disabled={approving}
+                              >
+                                {approving ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3 mr-1" />}
+                                Approve
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-destructive border-destructive/30 h-7 px-2 text-xs"
+                                onClick={() => rejectLead(lead.id)}
+                                disabled={rejecting}
+                              >
+                                <XCircle className="w-3 h-3 mr-1" />
+                                Reject
+                              </Button>
+                            </>
+                          )}
+                          {lead.processing_status === 'failed' && lead.error_message && (
+                            <span className="text-[10px] text-destructive max-w-[120px] truncate" title={lead.error_message}>
+                              {lead.error_message}
+                            </span>
+                          )}
+                          <Button variant="ghost" size="sm" onClick={() => { setEditLead(lead); setFormOpen(true); }}>
+                            Edit
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
