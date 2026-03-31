@@ -77,3 +77,9 @@ verify_jwt = false
 
 [functions.slack-actions]
 verify_jwt = false
+
+[functions.gmail-oauth-callback]
+verify_jwt = false
+
+[functions.gmail-lead-sync]
+verify_jwt = false
