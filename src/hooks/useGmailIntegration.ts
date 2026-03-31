@@ -51,30 +51,49 @@ export function useGmailIntegration() {
   const connectGmail = useMutation({
     mutationFn: async () => {
       const redirectUri = window.location.origin + '/sales';
+      console.log('[Gmail OAuth] Redirect URI (frontend):', redirectUri);
+      console.log('[Gmail OAuth] Origin:', window.location.origin);
+      
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error('Not authenticated');
 
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/gmail-oauth-callback`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ redirect_uri: redirectUri }),
-        }
-      );
+      const functionUrl = `https://${projectId}.supabase.co/functions/v1/gmail-oauth-callback`;
+      console.log('[Gmail OAuth] Calling edge function:', functionUrl);
+      
+      const res = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ redirect_uri: redirectUri }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to get OAuth URL');
+      
+      console.log('[Gmail OAuth] Generated OAuth URL:', data.url);
+      
+      // Parse and log key params for debugging
+      try {
+        const oauthUrl = new URL(data.url);
+        console.log('[Gmail OAuth] Params:', {
+          client_id: oauthUrl.searchParams.get('client_id'),
+          redirect_uri: oauthUrl.searchParams.get('redirect_uri'),
+          access_type: oauthUrl.searchParams.get('access_type'),
+          prompt: oauthUrl.searchParams.get('prompt'),
+          scope: oauthUrl.searchParams.get('scope'),
+        });
+      } catch { /* ignore parse errors */ }
+      
       return data.url as string;
     },
     onSuccess: (url) => {
       window.location.href = url;
     },
     onError: (err: Error) => {
+      console.error('[Gmail OAuth] Error:', err.message);
       toast.error(`Gmail connection failed: ${err.message}`);
     },
   });
