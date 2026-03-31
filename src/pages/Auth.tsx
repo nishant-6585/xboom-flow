@@ -24,13 +24,15 @@ const Auth = () => {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isResetPassword, setIsResetPassword] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
+  const [needsMfaForReset, setNeedsMfaForReset] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [team, setTeam] = useState<AppRole>("sales");
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; name?: string; confirmPassword?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; name?: string; confirmPassword?: string; mfa?: string }>({});
 
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
