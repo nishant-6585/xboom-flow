@@ -488,7 +488,7 @@ export function EmailLeadsPanel() {
                       />
                     </TableHead>
                     <TableHead className="w-8" />
-                    <TableHead className="w-[100px]">P / A / ⚠</TableHead>
+                    <TableHead className="w-[130px]">P / E / A / ⚠</TableHead>
                     <TableHead>
                       <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('customer_name')}>
                         Customer
