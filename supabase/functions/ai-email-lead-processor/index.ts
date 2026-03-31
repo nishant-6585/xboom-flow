@@ -248,10 +248,11 @@ Deno.serve(async (req) => {
       } catch (leadErr) {
         console.error(`Error processing lead ${lead.id}:`, leadErr);
 
+        // Reset back to pending so it can be retried
         await supabase
           .from("email_leads")
           .update({
-            ai_processed: true,
+            processing_status: "pending",
             error_message: `AI processing error: ${String(leadErr)}`,
           })
           .eq("id", lead.id);
