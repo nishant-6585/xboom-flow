@@ -153,6 +153,29 @@ export function MyOperatorAnalytics({ logs, prospects = [] }: MyOperatorAnalytic
     });
   }, [enrichedLogs, myopProspects, now]);
 
+  // ---- Sales vs Support daily breakdown (last 14 days) ----
+  const salesVsSupportData = useMemo(() => {
+    const days = eachDayOfInterval({ start: subDays(now, 13), end: now });
+    return days.map(day => {
+      const dayEnd = new Date(day);
+      dayEnd.setHours(23, 59, 59, 999);
+      const dayLogs = enrichedLogs.filter(l => l.date >= day && l.date <= dayEnd);
+      const salesCalls = dayLogs.filter(l => (l as any).department?.toLowerCase() === 'sales').length;
+      const supportCalls = dayLogs.filter(l => (l as any).department?.toLowerCase() === 'support').length;
+      const otherCalls = dayLogs.length - salesCalls - supportCalls;
+      const total = dayLogs.length;
+      const salesPct = total > 0 ? Math.round((salesCalls / total) * 100) : 0;
+      return {
+        date: format(day, 'dd MMM'),
+        sales: salesCalls,
+        support: supportCalls,
+        other: otherCalls,
+        total,
+        salesPct,
+      };
+    });
+  }, [enrichedLogs, now]);
+
   // ---- Weekly data (last 8 weeks) ----
   const weeklyData = useMemo(() => {
     const weeks: { label: string; start: Date; end: Date }[] = [];
