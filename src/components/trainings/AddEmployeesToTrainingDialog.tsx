@@ -171,7 +171,7 @@ export function AddEmployeesToTrainingDialog({ open, onOpenChange, group, onAddE
           )}
 
           {/* List */}
-          <ScrollArea className="flex-1 min-h-0 max-h-[340px] border rounded-md">
+          <ScrollArea className="flex-1 min-h-[200px] max-h-[40vh] border rounded-md">
             {loadingEmps ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
