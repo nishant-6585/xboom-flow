@@ -64,6 +64,8 @@ export interface Ticket {
   resolved_by_name: string | null;
   resolved_at: string | null;
   attachment_urls: string[] | null;
+  ai_summary: string | null;
+  ai_category: string | null;
   created_at: string;
   updated_at: string;
   orders?: { order_number: string | null; customer_name: string } | null;

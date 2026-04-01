@@ -25,6 +25,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { TicketStatusBadge } from "./TicketStatusBadge";
 import { TicketPriorityBadge } from "./TicketPriorityBadge";
 import { TicketEditHistory } from "./TicketEditHistory";
+import { TicketAiSuggestionsCard } from "./TicketAiSuggestionsCard";
+import { TicketSlaAlertBanner } from "./TicketSlaAlertBanner";
 import { Ticket, useTickets, useTicketComments, useTeamMembers, UpdateTicketData } from "@/hooks/useTickets";
 import { useEditHistory } from "@/hooks/useEditHistory";
 import { useAuth } from "@/hooks/useAuth";
@@ -49,6 +51,7 @@ import {
   ExternalLink,
   Upload,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
 
@@ -449,6 +452,20 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                 </div>
               )}
 
+              {/* SLA Alert Banner */}
+              <TicketSlaAlertBanner ticketId={ticket.id} />
+
+              {/* AI Summary */}
+              {ticket.ai_summary && (
+                <div className="flex items-start gap-2 p-3 rounded-lg border bg-muted/30">
+                  <Sparkles className="w-4 h-4 text-violet-500 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase font-medium mb-1">AI Summary</p>
+                    <p className="text-sm">{ticket.ai_summary}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Meta Info */}
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="space-y-1">
@@ -526,6 +543,9 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                   <input ref={attachmentInputRef} type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp" onChange={handleFileUpload} className="hidden" />
                 </div>
               )}
+
+              {/* AI Suggestions Card */}
+              <TicketAiSuggestionsCard ticket={ticket} onUseReply={(reply) => setNewComment(reply)} />
 
               {/* Actions */}
               {canManageActions && (

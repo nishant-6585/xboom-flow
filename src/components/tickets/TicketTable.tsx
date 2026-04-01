@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TicketStatusBadge } from "./TicketStatusBadge";
 import { TicketPriorityBadge } from "./TicketPriorityBadge";
+import { TicketSlaAlertBanner } from "./TicketSlaAlertBanner";
 import { Ticket } from "@/hooks/useTickets";
+import { useTicketSlaAlerts } from "@/hooks/useTicketAi";
 import { format, formatDistanceToNow, isPast } from "date-fns";
 import { Eye, AlertTriangle, Clock, User, Building2, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -41,6 +43,10 @@ const departmentLabels: Record<string, string> = {
 };
 
 export function TicketTable({ tickets, onView }: TicketTableProps) {
+  const ticketIds = tickets.map((t) => t.id);
+  const { data: slaAlerts = [] } = useTicketSlaAlerts(ticketIds.length > 0 ? ticketIds : undefined);
+  const alertedTicketIds = new Set(slaAlerts.map((a) => a.ticket_id));
+
   const isOverdue = (ticket: Ticket) => {
     return (
       ticket.sla_breached ||
@@ -54,6 +60,12 @@ export function TicketTable({ tickets, onView }: TicketTableProps) {
 
   return (
     <div className="rounded-md border overflow-hidden">
+      {/* SLA Alert Banner at top of table */}
+      {slaAlerts.length > 0 && (
+        <div className="p-3 border-b bg-destructive/5">
+          <TicketSlaAlertBanner ticketIds={ticketIds} />
+        </div>
+      )}
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
@@ -93,6 +105,9 @@ export function TicketTable({ tickets, onView }: TicketTableProps) {
                     <div className="flex items-center gap-1">
                       {overdue && (
                         <AlertTriangle className="w-4 h-4 text-destructive" />
+                      )}
+                      {alertedTicketIds.has(ticket.id) && !overdue && (
+                        <AlertTriangle className="w-4 h-4 text-orange-500 animate-pulse" />
                       )}
                       {ticket.ticket_number}
                     </div>

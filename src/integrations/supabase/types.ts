@@ -8360,6 +8360,59 @@ export type Database = {
           },
         ]
       }
+      ticket_ai_suggestions: {
+        Row: {
+          applied: boolean
+          applied_at: string | null
+          applied_by: string | null
+          applied_by_name: string | null
+          created_at: string
+          draft_reply: string | null
+          id: string
+          priority_reason: string | null
+          suggested_assignee_id: string | null
+          suggested_assignee_name: string | null
+          suggested_priority: string | null
+          ticket_id: string
+        }
+        Insert: {
+          applied?: boolean
+          applied_at?: string | null
+          applied_by?: string | null
+          applied_by_name?: string | null
+          created_at?: string
+          draft_reply?: string | null
+          id?: string
+          priority_reason?: string | null
+          suggested_assignee_id?: string | null
+          suggested_assignee_name?: string | null
+          suggested_priority?: string | null
+          ticket_id: string
+        }
+        Update: {
+          applied?: boolean
+          applied_at?: string | null
+          applied_by?: string | null
+          applied_by_name?: string | null
+          created_at?: string
+          draft_reply?: string | null
+          id?: string
+          priority_reason?: string | null
+          suggested_assignee_id?: string | null
+          suggested_assignee_name?: string | null
+          suggested_priority?: string | null
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_ai_suggestions_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_comments: {
         Row: {
           attachment_urls: string[] | null
@@ -8401,8 +8454,51 @@ export type Database = {
           },
         ]
       }
+      ticket_sla_alerts: {
+        Row: {
+          acknowledged: boolean
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          acknowledged_by_name: string | null
+          alert_message: string
+          id: string
+          notified_at: string
+          ticket_id: string
+        }
+        Insert: {
+          acknowledged?: boolean
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          acknowledged_by_name?: string | null
+          alert_message: string
+          id?: string
+          notified_at?: string
+          ticket_id: string
+        }
+        Update: {
+          acknowledged?: boolean
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          acknowledged_by_name?: string | null
+          alert_message?: string
+          id?: string
+          notified_at?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_sla_alerts_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tickets: {
         Row: {
+          ai_category: string | null
+          ai_summary: string | null
           assigned_at: string | null
           assigned_department: Database["public"]["Enums"]["app_role"]
           assigned_to: string | null
@@ -8432,6 +8528,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_category?: string | null
+          ai_summary?: string | null
           assigned_at?: string | null
           assigned_department: Database["public"]["Enums"]["app_role"]
           assigned_to?: string | null
@@ -8461,6 +8559,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_category?: string | null
+          ai_summary?: string | null
           assigned_at?: string | null
           assigned_department?: Database["public"]["Enums"]["app_role"]
           assigned_to?: string | null
