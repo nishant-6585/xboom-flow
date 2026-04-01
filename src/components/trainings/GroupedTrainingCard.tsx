@@ -45,9 +45,9 @@ export function GroupedTrainingCard({ group, isHrOrAdmin, onAssignmentClick, onD
     return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
   };
 
-  const getEmployeeStatus = (a: TrainingAssignment) => {
+  const getEmployeeStatus = (a: TrainingAssignment): string => {
     if (a.status === "completed") return "completed";
-    if (a.status !== "completed" && new Date(a.due_date) < new Date()) return "overdue";
+    if (new Date(a.due_date) < new Date()) return "overdue";
     return a.status;
   };
 
