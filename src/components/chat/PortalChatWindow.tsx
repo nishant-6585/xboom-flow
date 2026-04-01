@@ -322,18 +322,33 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
       fetchChats();
     } catch (error) {
       console.error('Chat error:', error);
-      let errorMsg = 'Unknown error';
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') errorMsg = 'The request took too long. Please try a simpler query.';
-        else if (error.message === 'Load failed' || error.message === 'Failed to fetch') errorMsg = 'Network error — please try again.';
-        else errorMsg = error.message;
+      if (error instanceof Error && error.name === 'AbortError') {
+        // User stopped generation — keep whatever was streamed
+        if (assistantContent.trim()) {
+          assistantContent += '\n\n*— Generation stopped*';
+          setMessages(prev => {
+            const updated = [...prev];
+            if (updated.length > 0 && updated[updated.length - 1].role === 'assistant') {
+              updated[updated.length - 1] = { role: 'assistant', content: assistantContent };
+            }
+            return updated;
+          });
+          if (chatId) await addMessage(chatId, 'assistant', assistantContent);
+          fetchChats();
+        }
+      } else {
+        let errorMsg = 'Unknown error';
+        if (error instanceof Error) {
+          if (error.message === 'Load failed' || error.message === 'Failed to fetch') errorMsg = 'Network error — please try again.';
+          else errorMsg = error.message;
+        }
+        const fallback = `Sorry, I encountered an error: ${errorMsg}`;
+        setMessages(prev => [
+          ...prev.filter(m => m.content !== ''),
+          { role: 'assistant', content: fallback },
+        ]);
+        if (chatId) await addMessage(chatId, 'assistant', fallback);
       }
-      const fallback = `Sorry, I encountered an error: ${errorMsg}`;
-      setMessages(prev => [
-        ...prev.filter(m => m.content !== ''),
-        { role: 'assistant', content: fallback },
-      ]);
-      if (chatId) await addMessage(chatId, 'assistant', fallback);
     } finally {
       abortControllerRef.current = null;
       setIsLoading(false);
