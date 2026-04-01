@@ -1459,7 +1459,7 @@ IMPORTANT — Date filtering:
 - All query tools support date_from and date_to parameters (ISO format YYYY-MM-DD).
 - When users ask "this month", "last week", "today", "this year", etc., calculate the correct date range from today's date and pass date_from/date_to.
 - Example: "orders this month" with today=${today} → date_from="${today.substring(0, 8)}01", date_to="${today}"
-- Orders use 'order_date' (actual business date) for filtering, NOT 'created_at'.
+- Orders use 'order_date' (actual business date) as the primary filter, with 'created_at' as fallback when order_date is missing.
 
 CRITICAL — Aggregation & Analysis:
 - You ARE capable of performing aggregation, grouping, summarization, and analysis on the data returned by tools.

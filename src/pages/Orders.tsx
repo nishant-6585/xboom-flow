@@ -120,7 +120,7 @@ export default function Orders() {
     const matchesOutcome = outcomeFilter === 'all' || o.order_outcome === outcomeFilter;
     const matchesSalesPerson = salesPersonFilter === 'all' || o.sales_person_name === salesPersonFilter;
     
-    const orderDate = new Date(o.created_at);
+    const orderDate = new Date(o.order_date || o.created_at);
     let matchesDate = true;
     if (startDate && endDate) {
       matchesDate = isWithinInterval(orderDate, { start: startOfDay(startDate), end: endOfDay(endDate) });
