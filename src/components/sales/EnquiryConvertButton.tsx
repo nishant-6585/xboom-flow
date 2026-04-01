@@ -140,6 +140,46 @@ export function EnquiryConvertButton({
         }
       }
 
+      // Form leads: hydrate from form_leads table
+      if (sourceType === 'form_lead') {
+        const { data: formLead } = await supabase
+          .from('form_leads')
+          .select('customer_name, email, phone, company, city, product_name, notes')
+          .eq('id', sourceId)
+          .maybeSingle();
+
+        if (formLead) {
+          resolvedCustomerName = formLead.customer_name || resolvedCustomerName;
+          resolvedPhoneNumber = formLead.phone || resolvedPhoneNumber;
+          resolvedEmail = formLead.email || resolvedEmail;
+          resolvedCompany = formLead.company || resolvedCompany;
+          resolvedCity = formLead.city || resolvedCity;
+          resolvedProductName = formLead.product_name?.trim() || resolvedProductName;
+          resolvedNotes = formLead.notes || resolvedNotes;
+        }
+      }
+
+      // Google Ads leads: hydrate from enquiries table
+      if (sourceType === 'google_ads') {
+        const { data: gadsLead } = await supabase
+          .from('enquiries')
+          .select('customer_name, customer_company, product_name, product_category, product_code, quantity, urgency, requested_timeline, notes')
+          .eq('id', sourceId)
+          .maybeSingle();
+
+        if (gadsLead) {
+          resolvedCustomerName = gadsLead.customer_name || resolvedCustomerName;
+          resolvedCompany = gadsLead.customer_company || resolvedCompany;
+          resolvedProductName = gadsLead.product_name?.trim() || resolvedProductName;
+          resolvedProductCategory = gadsLead.product_category || resolvedProductCategory;
+          resolvedProductCode = gadsLead.product_code || resolvedProductCode;
+          resolvedQuantity = gadsLead.quantity ?? resolvedQuantity;
+          resolvedUrgency = gadsLead.urgency || resolvedUrgency;
+          resolvedRequestedTimeline = gadsLead.requested_timeline || resolvedRequestedTimeline;
+          resolvedNotes = gadsLead.notes || resolvedNotes;
+        }
+      }
+
       if (!resolvedProductName) {
         toast.error('Product name is required before converting to enquiry. Please save product details and retry.');
         return;
