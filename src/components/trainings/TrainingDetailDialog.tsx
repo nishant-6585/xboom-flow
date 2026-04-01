@@ -55,13 +55,6 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Employee/Team selection for edit
-  const [allEmployees, setAllEmployees] = useState<{ id: string; name: string; department: string }[]>([]);
-  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
-  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
-  const [selectionTab, setSelectionTab] = useState<"team" | "employee">("team");
-  const [existingAssignedIds, setExistingAssignedIds] = useState<string[]>([]);
-
   // Resource preview state
   const [previewResource, setPreviewResource] = useState<TrainingResource | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
