@@ -10,6 +10,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInHours } from "date-fns";
 import { ArrowRight, CheckCircle2, Flame, Phone, MessageSquare, MapPin, Briefcase, Mail, User, Zap, AlertTriangle, TrendingUp, ChevronRight } from "lucide-react";
 import { Json } from "@/integrations/supabase/types";
+import { ProspectButton, ACategoryButton } from "../ProspectButton";
+import { AttentionButton } from "../AttentionButton";
+import { EnquiryConvertButton } from "../EnquiryConvertButton";
+import { useProspects } from "@/hooks/useProspects";
+import { useAttentionItems } from "@/hooks/useAttentionItems";
 
 interface GoogleAdsLead {
   id: string;
@@ -30,6 +35,10 @@ interface GoogleAdsLead {
   customer_state: string | null;
   raw_google_payload: Json | null;
   sales_person_name: string;
+  product_category: string;
+  quantity: number;
+  urgency: string;
+  requested_timeline: string | null;
 }
 
 // Parse structured data from notes field
@@ -113,12 +122,17 @@ export function GoogleAdsLeadsTab() {
   const [loading, setLoading] = useState(true);
   const [selectedLead, setSelectedLead] = useState<GoogleAdsLead | null>(null);
   const navigate = useNavigate();
+  const { prospects } = useProspects();
+  const { items: attentionItems } = useAttentionItems();
+
+  const isProspect = (leadId: string) => prospects.some(p => p.source_id === leadId && p.source_type === 'google_ads');
+  const isAttention = (leadId: string) => attentionItems.some(a => a.source_id === leadId && a.source_type === 'google_ads');
 
   useEffect(() => {
     async function fetchLeads() {
       const { data } = await supabase
         .from("enquiries")
-        .select("id, customer_name, customer_company, product_name, product_code, campaign_name, campaign_id, ad_group_id, lead_temperature, status, created_at, order_outcome, is_converted, conversion_value, notes, customer_state, raw_google_payload, sales_person_name")
+        .select("id, customer_name, customer_company, product_name, product_code, campaign_name, campaign_id, ad_group_id, lead_temperature, status, created_at, order_outcome, is_converted, conversion_value, notes, customer_state, raw_google_payload, sales_person_name, product_category, quantity, urgency, requested_timeline")
         .eq("lead_source", "google_ads")
         .order("created_at", { ascending: false })
         .limit(200);
@@ -215,6 +229,7 @@ export function GoogleAdsLeadsTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[130px]">P / E / A / ⚠</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Location</TableHead>
@@ -241,6 +256,14 @@ export function GoogleAdsLeadsTab() {
                         className={`cursor-pointer transition-colors ${lead.is_converted ? "bg-emerald-500/5" : isAging(lead) ? "bg-amber-500/5" : ""}`}
                         onClick={() => setSelectedLead(lead)}
                       >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <div className="flex gap-1">
+                            <ProspectButton sourceType="google_ads" sourceId={lead.id} customerName={lead.customer_name} phoneNumber={phone} email={email} company={lead.customer_company !== "Unknown" ? lead.customer_company : undefined} city={city} productName={lead.product_name} notes={lead.notes} isAlreadyProspect={isProspect(lead.id)} />
+                            <ACategoryButton sourceType="google_ads" sourceId={lead.id} isACategory={false} />
+                            <AttentionButton sourceType="google_ads" sourceId={lead.id} customerName={lead.customer_name} phoneNumber={phone} email={email} company={lead.customer_company !== "Unknown" ? lead.customer_company : undefined} city={city} productName={lead.product_name} notes={lead.notes} isAlreadyAttention={isAttention(lead.id)} />
+                            <EnquiryConvertButton sourceType="google_ads" sourceId={lead.id} customerName={lead.customer_name} phoneNumber={phone} email={email} company={lead.customer_company !== "Unknown" ? lead.customer_company : undefined} city={city} productName={lead.product_name} productCategory={lead.product_category} quantity={lead.quantity} urgency={lead.urgency} requestedTimeline={lead.requested_timeline} notes={lead.notes} isAlreadyConverted={lead.is_converted} />
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <div className="space-y-0.5">
                             <div className="font-medium flex items-center gap-1.5">
