@@ -27,6 +27,9 @@ export interface EmailLead {
   requested_timeline: string | null;
   purpose_of_purchase: string | null;
   notes: string | null;
+  subject: string | null;
+  body_text: string | null;
+  body_html: string | null;
   status: string;
   sales_person_id: string | null;
   sales_person_name: string | null;

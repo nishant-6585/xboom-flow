@@ -282,7 +282,7 @@ Deno.serve(async (req) => {
             const from = getHeader(msg.payload.headers, "From");
             const subject = getHeader(msg.payload.headers, "Subject");
             const dateStr = getHeader(msg.payload.headers, "Date");
-            const bodyText = extractBody(msg.payload);
+            const { text: bodyText, html: bodyHtml } = extractBodyParts(msg.payload);
 
             // Skip spam/newsletter
             if (isSpam(from, subject, bodyText)) continue;
@@ -315,6 +315,9 @@ Deno.serve(async (req) => {
               product_name: product,
               mail_source: `gmail:${integration.email}`,
               lead_source: "gmail",
+              subject: subject || null,
+              body_text: bodyText ? bodyText.substring(0, 10000) : null,
+              body_html: bodyHtml ? bodyHtml.substring(0, 50000) : null,
               notes: `Subject: ${subject}\n\n${bodyText.substring(0, 500)}`,
               status: "pending",
               processing_status: "pending",
