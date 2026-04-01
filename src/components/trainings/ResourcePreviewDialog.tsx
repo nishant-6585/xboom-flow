@@ -81,6 +81,11 @@ function getEmbedUrl(resource: TrainingResource): string | null {
     if (match) return `https://www.youtube.com/embed/${match[1]}`;
   }
 
+  // Office files via Microsoft Office Online Viewer
+  if (isOfficeFile(url)) {
+    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+  }
+
   return url;
 }
 
