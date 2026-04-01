@@ -118,8 +118,6 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
     }
   };
 
-  const [isDeleting, setIsDeleting] = useState(false);
-
   const handleDelete = async () => {
     if (!assignment) return;
     setIsDeleting(true);
