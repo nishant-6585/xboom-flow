@@ -84,7 +84,7 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
   const isResourceViewed = (resourceId: string) =>
     tracking.some(t => t.resource_id === resourceId && t.is_viewed);
   const viewedCount = tracking.filter(t => t.is_viewed).length;
-  const canComplete = viewedCount > 0 && assignment.status !== "completed";
+  const canComplete = viewedCount > 0 && assignment.progress_percentage < 100 && assignment.status !== "completed";
   const isOwner = assignment.employee_id === employeeId;
 
   const startEditing = () => {
@@ -167,6 +167,7 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
 
   const handleMarkCompleted = async () => {
     await markCompleted(assignment.id);
+    refetch();
     onOpenChange(false);
   };
 

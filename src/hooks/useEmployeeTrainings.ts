@@ -284,7 +284,6 @@ export function useEmployeeTrainings() {
         last_accessed: new Date().toISOString(),
       };
 
-      // Auto-derive status from progress
       if (progress === 100) {
         updateData.status = "completed";
         updateData.completed_at = new Date().toISOString();
@@ -297,12 +296,26 @@ export function useEmployeeTrainings() {
         .update(updateData)
         .eq("id", assignmentId);
 
+      // Immediately update local state
+      setAssignments(prev => prev.map(a =>
+        a.id === assignmentId
+          ? { ...a, ...updateData }
+          : a
+      ));
+
     } catch (error: any) {
       console.error("Error marking resource viewed:", error);
     }
   };
 
   const markCompleted = async (assignmentId: string) => {
+    // Optimistic update
+    setAssignments(prev => prev.map(a =>
+      a.id === assignmentId
+        ? { ...a, status: "completed" as const, progress_percentage: 100, completed_at: new Date().toISOString() }
+        : a
+    ));
+
     try {
       const { error } = await supabase
         .from("training_assignments")
@@ -315,7 +328,10 @@ export function useEmployeeTrainings() {
 
       if (error) throw error;
       toast({ title: "Success", description: "Training marked as completed" });
+      await fetchAssignments();
     } catch (error: any) {
+      // Rollback
+      await fetchAssignments();
       toast({ title: "Error", description: "Failed to mark as completed", variant: "destructive" });
     }
   };
