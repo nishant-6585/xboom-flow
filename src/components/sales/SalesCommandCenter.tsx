@@ -140,7 +140,7 @@ interface Suggestion {
 function generatePerformanceSuggestions(
   sp: { id: string; name: string; leads: number; prospects: number; pipelineValue: number; ordersWon: number; revenue: number },
   allSp: typeof sp[],
-  targets: { name: string; revenuePct: number; revenueTarget: number; revenueAchieved: number; ordersTarget: number; ordersAchieved: number; pipelineAchieved: number; prospectsCount: number }[]
+  targets: { name: string; fullName?: string; revenuePct: number; revenueTarget: number; revenueAchieved: number; ordersTarget: number; ordersAchieved: number; pipelineAchieved: number; pipelinePct?: number }[]
 ): Suggestion[] {
   const suggestions: Suggestion[] = [];
   const firstName = sp.name.split(' ')[0];
@@ -155,8 +155,8 @@ function generatePerformanceSuggestions(
   const conversionRate = sp.leads > 0 ? (sp.prospects / sp.leads) * 100 : 0;
   const prospectToPipeline = sp.prospects > 0 ? (sp.pipelineValue > 0 ? 'active' : 'none') : 'na';
 
-  // Target comparison
-  const target = targets.find(t => t.name === sp.name);
+  // Target comparison — match by first name or full name
+  const target = targets.find(t => t.name === sp.name.split(' ')[0] || t.fullName === sp.name);
 
   // Strengths
   if (sp.revenue > avgRevenue * 1.3 && sp.revenue > 0) {
@@ -215,6 +215,7 @@ export function SalesCommandCenter() {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('this_month');
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
+  const [targetViewPeriod, setTargetViewPeriod] = useState<'monthly' | 'quarterly'>('monthly');
   const isManager = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
 
   // Drill-down dialog
@@ -400,22 +401,30 @@ export function SalesCommandCenter() {
   const targetComparison = useMemo(() => {
     const now = new Date();
     return targets
-      .filter(t => new Date(t.period_start) <= now && new Date(t.period_end) >= now)
+      .filter(t => t.target_period === targetViewPeriod && new Date(t.period_start) <= now && new Date(t.period_end) >= now)
       .map(t => {
-        const spOrders = orders.filter(o => o.sales_person_id === t.user_id);
-        const spPipeline = pipelineOrders.filter(p => p.sales_person_id === t.user_id && p.status !== 'won' && p.status !== 'lost');
-        const spProspects = prospects.filter((p: any) => p.created_by === t.user_id);
+        // Filter orders/pipeline by the target's period range
+        const pStart = new Date(t.period_start);
+        const pEnd = new Date(t.period_end);
+        const spOrders = orders.filter(o => o.sales_person_id === t.user_id && new Date(o.created_at) >= pStart && new Date(o.created_at) <= pEnd);
+        const spPipeline = pipelineOrders.filter(p => p.sales_person_id === t.user_id && p.status !== 'won' && p.status !== 'lost' && new Date(p.created_at) >= pStart && new Date(p.created_at) <= pEnd);
         const revenue = spOrders.reduce((s, o) => s + (o.total_sales_amount || 0), 0);
         const pipeVal = spPipeline.reduce((s, p) => s + (p.expected_price || 0), 0);
         return {
-          name: t.user_name, revenueTarget: t.revenue_target, revenueAchieved: revenue,
-          ordersTarget: t.orders_target, ordersAchieved: spOrders.length,
-          pipelineTarget: t.pipeline_target, pipelineAchieved: pipeVal,
-          prospectsCount: spProspects.length,
+          name: t.user_name.split(' ')[0], // First name for chart
+          fullName: t.user_name,
+          revenueTarget: t.revenue_target,
+          revenueAchieved: revenue,
+          ordersTarget: t.orders_target,
+          ordersAchieved: spOrders.length,
+          pipelineTarget: t.pipeline_target,
+          pipelineAchieved: pipeVal,
           revenuePct: t.revenue_target > 0 ? Math.round((revenue / t.revenue_target) * 100) : 0,
+          pipelinePct: t.pipeline_target > 0 ? Math.round((pipeVal / t.pipeline_target) * 100) : 0,
         };
-      });
-  }, [targets, orders, pipelineOrders, prospects]);
+      })
+      .sort((a, b) => b.revenueAchieved - a.revenueAchieved);
+  }, [targets, orders, pipelineOrders, targetViewPeriod]);
 
   // ============ Funnel ============
   const funnelData = [
@@ -815,6 +824,85 @@ export function SalesCommandCenter() {
         <KPICard label="Win Rate" value={`${winRate}%`} icon={Percent} gradient="from-teal-500 to-emerald-600" isText />
       </div>
 
+      {/* ============ TARGET VS ACHIEVED (Revenue & Pipeline) — TOP ============ */}
+      {isManager && targetComparison.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Target className="w-4 h-4 text-primary" />
+                Target vs Achieved
+              </CardTitle>
+              <div className="flex gap-1">
+                {(['monthly', 'quarterly'] as const).map(p => (
+                  <Button
+                    key={p}
+                    variant={targetViewPeriod === p ? 'default' : 'outline'}
+                    size="sm"
+                    className="text-xs h-7 px-3"
+                    onClick={() => setTargetViewPeriod(p)}
+                  >
+                    {p === 'monthly' ? 'Monthly' : 'Quarterly'}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Revenue Target vs Achieved */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-1.5">
+                  <DollarSign className="w-3.5 h-3.5" /> Revenue — Target vs Achieved
+                </p>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={targetComparison} layout="vertical" barGap={2}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                    <XAxis type="number" className="text-xs" tickFormatter={(v) => formatCurrency(v)} />
+                    <YAxis type="category" dataKey="name" className="text-xs" width={70} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => formatCurrency(v)} />
+                    <Legend />
+                    <Bar dataKey="revenueTarget" name="Target" fill="hsl(var(--muted-foreground) / 0.25)" radius={[0, 4, 4, 0]} barSize={14} />
+                    <Bar dataKey="revenueAchieved" name="Achieved" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} barSize={14} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Pipeline Target vs Achieved */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5" /> Pipeline — Target vs Achieved
+                </p>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={targetComparison} layout="vertical" barGap={2}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                    <XAxis type="number" className="text-xs" tickFormatter={(v) => formatCurrency(v)} />
+                    <YAxis type="category" dataKey="name" className="text-xs" width={70} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => formatCurrency(v)} />
+                    <Legend />
+                    <Bar dataKey="pipelineTarget" name="Target" fill="hsl(var(--muted-foreground) / 0.25)" radius={[0, 4, 4, 0]} barSize={14} />
+                    <Bar dataKey="pipelineAchieved" name="Achieved" fill="hsl(var(--chart-4))" radius={[0, 4, 4, 0]} barSize={14} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Summary badges */}
+            <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-border/30">
+              {targetComparison.map(t => (
+                <Badge
+                  key={t.name}
+                  variant={t.revenuePct >= 100 ? 'default' : t.revenuePct >= 70 ? 'secondary' : 'destructive'}
+                  className="text-xs gap-1"
+                >
+                  {t.name}: {t.revenuePct}% Rev · {t.pipelinePct}% Pipe
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ============ ENQUIRIES RECEIVED vs ACHIEVED + LEAD SOURCES + QUICK STATS ============ */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
         <Card className="md:col-span-4">
@@ -1054,54 +1142,6 @@ export function SalesCommandCenter() {
         </Card>
       )}
 
-      {/* ============ TARGET VS ACHIEVED ============ */}
-      {isManager && targetComparison.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Target className="w-4 h-4 text-primary" />
-              Salesperson Target vs Achieved (Current Period)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border/50">
-                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Person</th>
-                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Rev Target</th>
-                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Achieved</th>
-                    <th className="text-center py-2 px-3 font-medium text-muted-foreground">Progress</th>
-                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Pipeline</th>
-                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Prospects</th>
-                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Orders</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {targetComparison.map(t => (
-                    <tr key={t.name} className="border-b border-border/30 hover:bg-muted/30">
-                      <td className="py-2.5 px-3 font-medium">{t.name}</td>
-                      <td className="py-2.5 px-3 text-right">{formatCurrency(t.revenueTarget)}</td>
-                      <td className="py-2.5 px-3 text-right font-semibold">{formatCurrency(t.revenueAchieved)}</td>
-                      <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-2">
-                          <Progress value={Math.min(100, t.revenuePct)} className="h-2 flex-1" />
-                          <Badge variant={t.revenuePct >= 100 ? 'default' : t.revenuePct >= 70 ? 'secondary' : 'destructive'} className="text-xs min-w-[40px] justify-center">
-                            {t.revenuePct}%
-                          </Badge>
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">{formatCurrency(t.pipelineAchieved)}</td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">{t.prospectsCount}</td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">{t.ordersAchieved}/{t.ordersTarget}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* ============ SALESPERSON COMPARISON ============ */}
       {isManager && salesPersonPerformance.length > 0 && (
