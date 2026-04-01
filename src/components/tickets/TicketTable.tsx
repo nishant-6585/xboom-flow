@@ -43,6 +43,10 @@ const departmentLabels: Record<string, string> = {
 };
 
 export function TicketTable({ tickets, onView }: TicketTableProps) {
+  const ticketIds = tickets.map((t) => t.id);
+  const { data: slaAlerts = [] } = useTicketSlaAlerts(ticketIds.length > 0 ? ticketIds : undefined);
+  const alertedTicketIds = new Set(slaAlerts.map((a) => a.ticket_id));
+
   const isOverdue = (ticket: Ticket) => {
     return (
       ticket.sla_breached ||
@@ -56,6 +60,12 @@ export function TicketTable({ tickets, onView }: TicketTableProps) {
 
   return (
     <div className="rounded-md border overflow-hidden">
+      {/* SLA Alert Banner at top of table */}
+      {slaAlerts.length > 0 && (
+        <div className="p-3 border-b bg-destructive/5">
+          <TicketSlaAlertBanner ticketIds={ticketIds} />
+        </div>
+      )}
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
