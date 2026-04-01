@@ -311,6 +311,7 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
   const newEmployeeCount = selectedEmployeeIds.filter(id => !existingAssignedIds.includes(id)).length;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
