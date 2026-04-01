@@ -59,10 +59,14 @@ export function ProductSelect({
 
   const handleInputChange = (newValue: string) => {
     setSearchQuery(newValue);
-    // Allow typing custom value
-    if (newValue && !items.some(p => p.product_name === newValue)) {
-      onChange(newValue, undefined);
+    if (!newValue) {
+      onChange('', undefined);
+      return;
     }
+
+    // Always persist typed value (exact-match or custom), so dialogs don't lose user input.
+    const matchedProduct = items.find(p => p.product_name.toLowerCase() === newValue.toLowerCase());
+    onChange(newValue, matchedProduct);
   };
 
   return (
