@@ -100,7 +100,7 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
     setDescription("");
     setDueDate("");
     setPriority("medium");
-    setResources([]);
+    setResources([{ resource_type: "document", title: "", url_or_file_path: "", description: "" }]);
   };
 
   const addResource = () => {
