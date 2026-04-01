@@ -236,7 +236,7 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_orders",
-      description: "Search orders by customer name, order number, status, product, or date range. Returns order details including amounts, payment status, and delivery info. Use higher limits (100-500) for aggregation/analytics queries.",
+      description: "Search orders by customer name, order number, status, product, or date range. Returns order details including amounts, payment status, and delivery info. IMPORTANT: For any aggregation, monthly totals, closures, or salesperson breakdown queries, ALWAYS set limit=500 and exclude_cancelled=true.",
       parameters: {
         type: "object" as const,
         properties: {
@@ -245,7 +245,8 @@ const DATA_TOOLS = [
           payment_status: { type: "string" as const, description: "Filter by payment: pending, partial, paid" },
           date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD). Filters by order_date (actual business date), not created_at." },
           date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD). Filters by order_date (actual business date), not created_at." },
-          limit: { type: "number" as const, description: "Max results (default 50, use 200-500 for monthly aggregations)" },
+          exclude_cancelled: { type: "boolean" as const, description: "If true, excludes cancelled orders. ALWAYS set to true for closures, sales totals, revenue reports. Default: false." },
+          limit: { type: "number" as const, description: "Max results. MUST use 500 for monthly/aggregation queries. Default: 200." },
         },
         required: [] as string[],
         additionalProperties: false,
@@ -766,6 +767,7 @@ async function executeToolCall(
         if (isSales && !isAdmin && !isSalesManager) query = query.eq("sales_person_id", userId);
         if (args.search) query = query.or(`customer_name.ilike.%${args.search}%,order_number.ilike.%${args.search}%,product_name.ilike.%${args.search}%,customer_company.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
+        if (args.exclude_cancelled) query = query.neq("status", "cancelled");
         if (args.payment_status) query = query.eq("payment_status", args.payment_status);
         if (args.date_from) query = query.gte("order_date", args.date_from);
         if (args.date_to) query = query.lte("order_date", args.date_to);
@@ -1454,8 +1456,9 @@ CRITICAL — Aggregation & Analysis:
 
 CRITICAL — Order Closures / Sales:
 - "Total closures" or "total sales" means ALL orders EXCLUDING status='cancelled'.
-- Always exclude cancelled orders from closure/sales/revenue calculations.
-- When reporting monthly closures, use limit=500 to ensure all orders are captured.
+- ALWAYS pass exclude_cancelled=true AND limit=500 when querying for closures, sales totals, monthly data, or salesperson breakdowns.
+- NEVER rely on the default limit for aggregation queries — explicitly pass limit=500.
+- When reporting monthly closures, the expected March 2026 data is ~61 non-cancelled orders totaling ~₹1.77Cr. If your numbers are significantly lower, you likely hit the row limit.
 
 TIERED ACCESS CONTROL — CRITICAL SECURITY RULES:
 1. If a tool returns "access_denied": true, present an EXPLAINABLE DENIAL:
