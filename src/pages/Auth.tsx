@@ -34,10 +34,17 @@ const Auth = () => {
   const [team, setTeam] = useState<AppRole>("sales");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; name?: string; confirmPassword?: string; mfa?: string }>({});
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Live clock
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Check for password reset flow on mount
   useEffect(() => {
