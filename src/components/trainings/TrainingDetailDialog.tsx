@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrainingAssignment, TrainingResource, TrainingResourceTracking, useEmployeeTrainings } from "@/hooks/useEmployeeTrainings";
+import { ResourcePreviewDialog } from "./ResourcePreviewDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
