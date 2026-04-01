@@ -116,6 +116,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
   const startRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const { chats, fetchChats, createChat, renameChat, deleteChat, fetchMessages, addMessage, autoTitleChat } = useAIChats();
 
   // Resize handlers
