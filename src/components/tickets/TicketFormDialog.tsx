@@ -194,7 +194,16 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
       assigned_to_name: member?.name || null,
     };
 
-    await createTicket.mutateAsync(data);
+    const createdTicket = await createTicket.mutateAsync(data);
+    
+    // Trigger AI analysis in background
+    if (createdTicket?.id) {
+      setIsAnalyzing(true);
+      analyzeTicket.mutate(createdTicket.id, {
+        onSettled: () => setIsAnalyzing(false),
+      });
+    }
+    
     handleClose();
   };
 
