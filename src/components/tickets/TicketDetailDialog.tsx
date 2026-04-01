@@ -51,6 +51,7 @@ import {
   ExternalLink,
   Upload,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
 
