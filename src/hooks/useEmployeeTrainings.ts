@@ -24,9 +24,26 @@ export interface TrainingAssignment {
   employee_department?: string;
   resources?: TrainingResource[];
   tracking?: TrainingResourceTracking[];
-  // Computed display fields
-  assignee_display?: string;
-  batch_size?: number;
+}
+
+export interface GroupedTraining {
+  key: string;
+  training_title: string;
+  description: string | null;
+  assigned_by_name: string;
+  due_date: string;
+  priority: "low" | "medium" | "high";
+  created_at: string;
+  assignments: TrainingAssignment[];
+  // Aggregated
+  total_employees: number;
+  overall_progress: number;
+  completed_count: number;
+  in_progress_count: number;
+  assigned_count: number;
+  overdue_count: number;
+  grouped_status: "completed" | "in_progress" | "assigned" | "overdue";
+  teams: string[];
 }
 
 export interface TrainingResource {
