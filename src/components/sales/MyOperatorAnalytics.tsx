@@ -346,12 +346,25 @@ export function MyOperatorAnalytics({ logs, prospects = [] }: MyOperatorAnalytic
         {/* Agent Breakdown */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Agent Performance
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Agent Performance
+              </CardTitle>
+              <div className="flex gap-1">
+                {(['day', 'week', 'month'] as const).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setAgentPeriod(p)}
+                    className={`px-2.5 py-1 text-[11px] rounded-md transition-colors ${agentPeriod === p ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                  >
+                    {p === 'day' ? 'Daily' : p === 'week' ? 'Weekly' : 'Monthly'}
+                  </button>
+                ))}
+              </div>
+            </div>
             <p className="text-xs text-muted-foreground">
-              {period === 'day' ? 'Today' : period === 'week' ? 'This Week' : 'This Month'}
+              {agentPeriod === 'day' ? 'Today' : agentPeriod === 'week' ? 'This Week' : 'This Month'}
             </p>
           </CardHeader>
           <CardContent>
