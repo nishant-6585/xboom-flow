@@ -36,7 +36,7 @@ interface GroupedTrainingCardProps {
   onAddEmployees?: (group: GroupedTraining) => void;
 }
 
-export function GroupedTrainingCard({ group, isHrOrAdmin, onAssignmentClick, onDeleteAssignment }: GroupedTrainingCardProps) {
+export function GroupedTrainingCard({ group, isHrOrAdmin, onAssignmentClick, onDeleteAssignment, onAddEmployees }: GroupedTrainingCardProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const statusCfg = STATUS_CONFIG[group.grouped_status] || STATUS_CONFIG.assigned;
