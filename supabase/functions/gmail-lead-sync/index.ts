@@ -42,18 +42,22 @@ function getHeader(headers: Array<{ name: string; value: string }>, name: string
   return headers.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value || "";
 }
 
-function extractBody(payload: GmailMessage["payload"]): string {
-  if (payload.body?.data) return decodeBase64Url(payload.body.data);
+function extractBodyParts(payload: GmailMessage["payload"]): { text: string; html: string } {
+  let text = "";
+  let html = "";
+  if (payload.body?.data) {
+    text = decodeBase64Url(payload.body.data);
+  }
   if (payload.parts) {
     const textPart = payload.parts.find((p) => p.mimeType === "text/plain");
-    if (textPart?.body?.data) return decodeBase64Url(textPart.body.data);
+    if (textPart?.body?.data) text = decodeBase64Url(textPart.body.data);
     const htmlPart = payload.parts.find((p) => p.mimeType === "text/html");
-    if (htmlPart?.body?.data) {
-      const html = decodeBase64Url(htmlPart.body.data);
-      return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-    }
+    if (htmlPart?.body?.data) html = decodeBase64Url(htmlPart.body.data);
   }
-  return "";
+  if (!text && html) {
+    text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  }
+  return { text, html };
 }
 
 function extractPhone(text: string): string | null {
