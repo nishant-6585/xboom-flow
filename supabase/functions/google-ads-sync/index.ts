@@ -426,7 +426,7 @@ Deno.serve(async (req) => {
         // #2: Pre-check duplicate in code before insert attempt
         if (lead.lead_id) {
           const { data: existing } = await supabaseAdmin
-            .from("enquiries")
+            .from("google_ads_leads")
             .select("id")
             .eq("google_lead_id", lead.lead_id)
             .maybeSingle();
