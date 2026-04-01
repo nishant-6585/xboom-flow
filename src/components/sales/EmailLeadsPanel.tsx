@@ -708,6 +708,20 @@ export function EmailLeadsPanel() {
         lead={editLead}
         onSuccess={() => { setFormOpen(false); refetch(); }}
       />
+
+      <EmailLeadDetailDrawer
+        lead={detailLead}
+        open={!!detailLead}
+        onOpenChange={(open) => { if (!open) setDetailLead(null); }}
+        onApprove={(id) => { approveLead(id); setDetailLead(null); }}
+        onReject={(id) => { rejectLead(id); setDetailLead(null); }}
+        onEdit={(lead) => { setDetailLead(null); setEditLead(lead); setFormOpen(true); }}
+        approving={approving}
+        rejecting={rejecting}
+        canManage={canManage}
+        isProspect={detailLead ? isProspect(detailLead.id) : false}
+        isAttention={detailLead ? isAttention(detailLead.id) : false}
+      />
     </div>
   );
 }
