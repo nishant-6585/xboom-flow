@@ -165,10 +165,35 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
               {isEditing ? "Edit Training" : assignment.training_title}
             </DialogTitle>
             {isHrOrAdmin && !isEditing && (
-              <Button variant="outline" size="sm" onClick={startEditing}>
-                <Edit2 className="h-4 w-4 mr-1" />
-                Edit
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={startEditing}>
+                  <Edit2 className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="text-destructive border-destructive/50 hover:bg-destructive/10">
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Training</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete this training assignment and all its resources. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             )}
           </div>
         </DialogHeader>
