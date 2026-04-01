@@ -46,7 +46,7 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
   const [employees, setEmployees] = useState<{ id: string; name: string; department: string }[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const [selectionMode, setSelectionMode] = useState<SelectionMode>("individual");
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>("team");
   const [employeeId, setEmployeeId] = useState("");
   const [selectedTeam, setSelectedTeam] = useState("");
   const [title, setTitle] = useState("");
