@@ -335,9 +335,17 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
       ]);
       if (chatId) await addMessage(chatId, 'assistant', fallback);
     } finally {
+      abortControllerRef.current = null;
       setIsLoading(false);
     }
   }, [messages, activeChatId, createChat, addMessage, autoTitleChat, fetchChats]);
+
+  const handleStopGeneration = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
