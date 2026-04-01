@@ -194,13 +194,13 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
                 setSelectedTeam("");
               }}>
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="individual" className="gap-2">
-                    <User className="h-4 w-4" />
-                    Individual
-                  </TabsTrigger>
                   <TabsTrigger value="team" className="gap-2">
                     <Users className="h-4 w-4" />
-                    Team / Department
+                    Team
+                  </TabsTrigger>
+                  <TabsTrigger value="individual" className="gap-2">
+                    <User className="h-4 w-4" />
+                    Employee
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
