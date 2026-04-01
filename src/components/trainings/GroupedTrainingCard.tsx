@@ -153,8 +153,8 @@ export function GroupedTrainingCard({ group, isHrOrAdmin, onAssignmentClick, onD
 
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1 text-xs">
-                {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                {isOpen ? "Collapse" : "View Employees"}
+                {isOpen ? "Hide Employees" : "View Employees"}
+                <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
               </Button>
             </CollapsibleTrigger>
           </div>
