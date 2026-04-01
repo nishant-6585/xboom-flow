@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,19 +40,18 @@ interface Props {
 
 export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) {
   const { user } = useAuth();
-  const { markResourceViewed, markCompleted, fetchAssignmentDetails, isHrOrAdmin, refetch, assignTraining } = useEmployeeTrainings();
+  const { markResourceViewed, markCompleted, fetchAssignmentDetails, isHrOrAdmin, refetch } = useEmployeeTrainings();
   const [resources, setResources] = useState<TrainingResource[]>([]);
   const [tracking, setTracking] = useState<TrainingResourceTracking[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
 
-  // Edit state
+  // Edit state (metadata only)
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editDueDate, setEditDueDate] = useState("");
   const [editPriority, setEditPriority] = useState<"low" | "medium" | "high">("medium");
-  const [editStatus, setEditStatus] = useState("assigned");
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -78,77 +78,7 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
     }
   }, [assignment?.id, open]);
 
-  // Fetch employees when editing starts
-  useEffect(() => {
-    if (isEditing && assignment) {
-      supabase
-        .from("employees")
-        .select("id, name, department")
-        .eq("is_active", true)
-        .order("name")
-        .then(({ data }) => setAllEmployees(data || []));
-
-      // Find all employees with the same training_id
-      supabase
-        .from("training_assignments")
-        .select("employee_id")
-        .eq("training_id", assignment.training_id)
-        .then(({ data }) => {
-          const ids = (data || []).map(d => d.employee_id);
-          setExistingAssignedIds(ids);
-          setSelectedEmployeeIds(ids);
-        });
-    }
-  }, [isEditing, assignment?.training_id]);
-
-  const teams = useMemo(() => {
-    const deptMap = new Map<string, number>();
-    allEmployees.forEach(e => {
-      const dept = e.department || "General";
-      deptMap.set(dept, (deptMap.get(dept) || 0) + 1);
-    });
-    return Array.from(deptMap.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [allEmployees]);
-
   if (!assignment) return null;
-
-  const getTeamEmployees = (team: string) =>
-    allEmployees.filter(e => (e.department || "General") === team);
-
-  const toggleTeam = (teamName: string) => {
-    const teamEmpIds = getTeamEmployees(teamName).map(e => e.id);
-    const isSelected = selectedTeams.includes(teamName);
-
-    if (isSelected) {
-      setSelectedTeams(prev => prev.filter(t => t !== teamName));
-      setSelectedEmployeeIds(prev => prev.filter(id => !teamEmpIds.includes(id)));
-    } else {
-      setSelectedTeams(prev => [...prev, teamName]);
-      setSelectedEmployeeIds(prev => [...new Set([...prev, ...teamEmpIds])]);
-    }
-  };
-
-  const toggleEmployee = (empId: string) => {
-    setSelectedEmployeeIds(prev =>
-      prev.includes(empId) ? prev.filter(id => id !== empId) : [...prev, empId]
-    );
-    const emp = allEmployees.find(e => e.id === empId);
-    if (emp) {
-      const dept = emp.department || "General";
-      const teamEmpIds = getTeamEmployees(dept).map(e => e.id);
-      const updatedSelection = selectedEmployeeIds.includes(empId)
-        ? selectedEmployeeIds.filter(id => id !== empId)
-        : [...selectedEmployeeIds, empId];
-      const allSelected = teamEmpIds.every(id => updatedSelection.includes(id));
-      if (allSelected && !selectedTeams.includes(dept)) {
-        setSelectedTeams(prev => [...prev, dept]);
-      } else if (!allSelected && selectedTeams.includes(dept)) {
-        setSelectedTeams(prev => prev.filter(t => t !== dept));
-      }
-    }
-  };
 
   const isOverdue = assignment.status !== "completed" && new Date(assignment.due_date) < new Date();
   const isResourceViewed = (resourceId: string) =>
@@ -162,9 +92,6 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
     setEditDescription(assignment.description || "");
     setEditDueDate(assignment.due_date);
     setEditPriority(assignment.priority as "low" | "medium" | "high");
-    setEditStatus(assignment.status);
-    setSelectedTeams([]);
-    setSelectionTab("team");
     setIsEditing(true);
   };
 
@@ -172,7 +99,7 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
     if (!user) return;
     setIsSaving(true);
     try {
-      // Update master training
+      // Update master training metadata
       if (assignment.training_id) {
         await supabase
           .from("employee_trainings")
@@ -195,70 +122,7 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
         })
         .eq("training_id", assignment.training_id);
 
-      // Update individual assignment status if changed
-      if (editStatus !== assignment.status) {
-        const statusUpdate: any = { status: editStatus };
-        if (editStatus === "completed") {
-          statusUpdate.progress_percentage = 100;
-          statusUpdate.completed_at = new Date().toISOString();
-        }
-        await supabase
-          .from("training_assignments")
-          .update(statusUpdate)
-          .eq("id", assignment.id);
-      }
-
-      // Find new employees to assign
-      const newEmployeeIds = selectedEmployeeIds.filter(id => !existingAssignedIds.includes(id));
-
-      // Get master resources to duplicate for new assignments
-      const { data: masterResources } = await supabase
-        .from("employee_training_resources")
-        .select("*")
-        .eq("training_id", assignment.training_id)
-        .order("resource_order");
-
-      for (const empId of newEmployeeIds) {
-        const { data: newAssignment, error: assignError } = await supabase
-          .from("training_assignments")
-          .insert({
-            training_id: assignment.training_id,
-            employee_id: empId,
-            training_title: editTitle,
-            description: editDescription || null,
-            due_date: editDueDate,
-            priority: editPriority,
-            assigned_by: user.id,
-            assigned_by_name: assignment.assigned_by_name,
-            status: "assigned",
-            progress_percentage: 0,
-          })
-          .select()
-          .single();
-
-        if (assignError) throw assignError;
-
-        // Duplicate resources for tracking
-        if (masterResources && masterResources.length > 0 && newAssignment) {
-          const resourceRows = masterResources.map((r: any) => ({
-            training_assignment_id: newAssignment.id,
-            resource_type: r.resource_type,
-            title: r.title,
-            url_or_file_path: r.url_or_file_path,
-            description: r.description,
-            resource_order: r.resource_order,
-          }));
-
-          await supabase.from("training_resources").insert(resourceRows);
-        }
-      }
-
-      const addedCount = newEmployeeIds.length;
-      const message = addedCount > 0
-        ? `Training updated and assigned to ${addedCount} additional employee${addedCount > 1 ? 's' : ''}`
-        : "Training updated successfully";
-
-      toast.success(message);
+      toast.success("Training updated successfully");
       setIsEditing(false);
       refetch();
       onOpenChange(false);
@@ -306,8 +170,6 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
     onOpenChange(false);
   };
 
-  const newEmployeeCount = selectedEmployeeIds.filter(id => !existingAssignedIds.includes(id)).length;
-
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -353,7 +215,7 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
         <ScrollArea className="flex-1 max-h-[calc(90vh-80px)]">
           <div className="space-y-5 pb-4 px-1 pr-5">
             {isEditing ? (
-              /* Edit Form */
+              /* Edit Form — metadata only */
               <div className="space-y-4">
                 <div>
                   <Label>Training Title *</Label>
@@ -363,7 +225,7 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
                   <Label>Description</Label>
                   <Textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} rows={3} />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Due Date *</Label>
                     <Input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} />
@@ -379,99 +241,11 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label>Status</Label>
-                    <Select value={editStatus} onValueChange={setEditStatus}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="assigned">Assigned</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
 
-                {/* Add Employees/Teams */}
-                <Separator />
-                <div>
-                  <Label className="text-base font-semibold mb-2 block">Add More Employees / Teams</Label>
-                  <Tabs value={selectionTab} onValueChange={(v) => setSelectionTab(v as "team" | "employee")}>
-                    <TabsList className="grid w-full grid-cols-2 mb-3">
-                      <TabsTrigger value="team" className="gap-2">
-                        <Users className="h-4 w-4" /> Team
-                      </TabsTrigger>
-                      <TabsTrigger value="employee" className="gap-2">
-                        <User className="h-4 w-4" /> Employee
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-
-                  {selectionTab === "team" ? (
-                    <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3">
-                      {teams.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No teams found.</p>
-                      ) : teams.map(t => {
-                        const teamEmpIds = getTeamEmployees(t.name).map(e => e.id);
-                        const allSelected = teamEmpIds.every(id => selectedEmployeeIds.includes(id));
-                        const someSelected = teamEmpIds.some(id => selectedEmployeeIds.includes(id));
-                        const alreadyAssignedCount = teamEmpIds.filter(id => existingAssignedIds.includes(id)).length;
-
-                        return (
-                          <div key={t.name} className="flex items-center gap-3 py-1.5 px-1 rounded hover:bg-accent/50">
-                            <Checkbox
-                              checked={allSelected}
-                              onCheckedChange={() => toggleTeam(t.name)}
-                            />
-                            <div className="flex-1">
-                              <span className="text-sm font-medium">{t.name}</span>
-                              <span className="text-xs text-muted-foreground ml-2">
-                                ({t.count} {t.count === 1 ? 'member' : 'members'})
-                              </span>
-                            </div>
-                            {alreadyAssignedCount > 0 && (
-                              <Badge variant="secondary" className="text-xs">
-                                {alreadyAssignedCount} assigned
-                              </Badge>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="space-y-1 max-h-48 overflow-y-auto border rounded-md p-3">
-                      {allEmployees.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No employees found.</p>
-                      ) : allEmployees.map(e => {
-                        const isAlreadyAssigned = existingAssignedIds.includes(e.id);
-                        return (
-                          <div key={e.id} className="flex items-center gap-3 py-1.5 px-1 rounded hover:bg-accent/50">
-                            <Checkbox
-                              checked={selectedEmployeeIds.includes(e.id)}
-                              onCheckedChange={() => toggleEmployee(e.id)}
-                            />
-                            <div className="flex-1">
-                              <span className="text-sm">{e.name}</span>
-                              <span className="text-xs text-muted-foreground ml-2">({e.department || "General"})</span>
-                            </div>
-                            {isAlreadyAssigned && (
-                              <Badge variant="secondary" className="text-xs">Assigned</Badge>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {selectedEmployeeIds.length > 0 && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {selectedEmployeeIds.length} employee{selectedEmployeeIds.length > 1 ? 's' : ''} selected
-                      {newEmployeeCount > 0 && (
-                        <span className="text-primary font-medium"> · {newEmployeeCount} new</span>
-                      )}
-                    </p>
-                  )}
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  To add or remove employees, use the "+ Add" button on the training card.
+                </p>
 
                 <div className="flex gap-2 justify-end pt-2">
                   <Button variant="outline" onClick={() => setIsEditing(false)} disabled={isSaving}>
@@ -479,10 +253,7 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
                   </Button>
                   <Button onClick={handleSaveEdit} disabled={isSaving || !editTitle || !editDueDate}>
                     {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
-                    {newEmployeeCount > 0
-                      ? `Save & Assign ${newEmployeeCount} New`
-                      : "Save Changes"
-                    }
+                    Save Changes
                   </Button>
                 </div>
               </div>
