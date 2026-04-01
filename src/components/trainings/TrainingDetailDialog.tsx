@@ -106,8 +106,6 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
     }
   }, [isEditing, assignment?.training_title]);
 
-  if (!assignment) return null;
-
   const teams = useMemo(() => {
     const deptMap = new Map<string, number>();
     allEmployees.forEach(e => {
@@ -118,6 +116,8 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [allEmployees]);
+
+  if (!assignment) return null;
 
   const getTeamEmployees = (team: string) =>
     allEmployees.filter(e => (e.department || "General") === team);
