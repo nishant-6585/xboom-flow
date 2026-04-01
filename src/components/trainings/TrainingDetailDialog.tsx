@@ -17,8 +17,9 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import {
   Youtube, Video, FileText, Link, StickyNote, MonitorPlay, CheckCircle2, Circle,
-  ExternalLink, Play, Loader2, Calendar, User, AlertTriangle, Edit2, Save, X
+  ExternalLink, Play, Loader2, Calendar, User, AlertTriangle, Edit2, Save, X, Trash2
 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const RESOURCE_ICONS: Record<string, React.ReactNode> = {
   youtube: <Youtube className="h-5 w-5 text-red-500" />,
