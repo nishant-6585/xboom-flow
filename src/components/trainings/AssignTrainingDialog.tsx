@@ -53,7 +53,7 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
-  const [resources, setResources] = useState<ResourceInput[]>([]);
+  const [resources, setResources] = useState<ResourceInput[]>([{ resource_type: "document", title: "", url_or_file_path: "", description: "" }]);
 
   useEffect(() => {
     if (open) {
@@ -100,7 +100,7 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
     setDescription("");
     setDueDate("");
     setPriority("medium");
-    setResources([]);
+    setResources([{ resource_type: "document", title: "", url_or_file_path: "", description: "" }]);
   };
 
   const addResource = () => {
@@ -274,16 +274,7 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
 
             {/* Resources */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <Label className="text-base font-semibold">Training Resources</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addResource}>
-                  <Plus className="h-4 w-4 mr-1" /> Add Resource
-                </Button>
-              </div>
-
-              {resources.length === 0 && (
-                <p className="text-sm text-muted-foreground">No resources added yet. Click "Add Resource" to include learning materials.</p>
-              )}
+              <Label className="text-base font-semibold mb-2 block">Training Resources</Label>
 
               <div className="space-y-3">
                 {resources.map((r, i) => (
@@ -352,6 +343,10 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
                   </Card>
                 ))}
               </div>
+
+              <Button type="button" variant="outline" size="sm" onClick={addResource} className="w-full mt-2">
+                <Plus className="h-4 w-4 mr-1" /> Add Resource
+              </Button>
             </div>
 
             <div className="flex gap-2 justify-end pt-4">
