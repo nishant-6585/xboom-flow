@@ -21,6 +21,7 @@ import { AttentionButton } from './AttentionButton';
 import { EnquiryConvertButton } from './EnquiryConvertButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadFormDialog } from './EmailLeadFormDialog';
+import { EmailLeadDetailDrawer } from './EmailLeadDetailDrawer';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { GmailIntegrationCard } from './GmailIntegrationCard';
 import { toast } from 'sonner';
@@ -46,6 +47,7 @@ export function EmailLeadsPanel() {
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [detailLead, setDetailLead] = useState<EmailLead | null>(null);
 
   const filteredLeads = useMemo(() => {
     const filtered = leads.filter((lead) => {
@@ -529,7 +531,13 @@ export function EmailLeadsPanel() {
                       <>
                         <TableRow 
                           key={lead.id} 
-                          className={`${lead.processing_status === 'needs_review' ? 'bg-orange-500/5' : ''} ${isSelected ? 'bg-primary/5' : ''}`}
+                          className={`cursor-pointer ${lead.processing_status === 'needs_review' ? 'bg-orange-500/5' : ''} ${isSelected ? 'bg-primary/5' : ''} hover:bg-muted/50 transition-colors`}
+                          onClick={(e) => {
+                            // Don't open drawer when clicking checkboxes, buttons, or expand toggles
+                            const target = e.target as HTMLElement;
+                            if (target.closest('button') || target.closest('[role="checkbox"]') || target.closest('a')) return;
+                            setDetailLead(lead);
+                          }}
                         >
                           <TableCell>
                             <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(lead.id)} />
@@ -699,6 +707,20 @@ export function EmailLeadsPanel() {
         onOpenChange={setFormOpen}
         lead={editLead}
         onSuccess={() => { setFormOpen(false); refetch(); }}
+      />
+
+      <EmailLeadDetailDrawer
+        lead={detailLead}
+        open={!!detailLead}
+        onOpenChange={(open) => { if (!open) setDetailLead(null); }}
+        onApprove={(id) => { approveLead(id); setDetailLead(null); }}
+        onReject={(id) => { rejectLead(id); setDetailLead(null); }}
+        onEdit={(lead) => { setDetailLead(null); setEditLead(lead); setFormOpen(true); }}
+        approving={approving}
+        rejecting={rejecting}
+        canManage={canManage}
+        isProspect={detailLead ? isProspect(detailLead.id) : false}
+        isAttention={detailLead ? isAttention(detailLead.id) : false}
       />
     </div>
   );

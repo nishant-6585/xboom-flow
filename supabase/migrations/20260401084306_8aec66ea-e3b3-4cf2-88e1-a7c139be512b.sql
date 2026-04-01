@@ -1,0 +1,4 @@
+ALTER TABLE public.email_leads
+  ADD COLUMN IF NOT EXISTS subject TEXT,
+  ADD COLUMN IF NOT EXISTS body_text TEXT,
+  ADD COLUMN IF NOT EXISTS body_html TEXT;

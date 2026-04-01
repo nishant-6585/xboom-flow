@@ -1899,6 +1899,8 @@ export type Database = {
           ai_confidence: number | null
           ai_extracted_json: Json | null
           ai_processed: boolean
+          body_html: string | null
+          body_text: string | null
           city: string | null
           created_at: string
           created_by: string | null
@@ -1926,6 +1928,7 @@ export type Database = {
           sales_person_id: string | null
           sales_person_name: string | null
           status: string | null
+          subject: string | null
           updated_at: string
           updated_by: string | null
           urgency: string | null
@@ -1934,6 +1937,8 @@ export type Database = {
           ai_confidence?: number | null
           ai_extracted_json?: Json | null
           ai_processed?: boolean
+          body_html?: string | null
+          body_text?: string | null
           city?: string | null
           created_at?: string
           created_by?: string | null
@@ -1961,6 +1966,7 @@ export type Database = {
           sales_person_id?: string | null
           sales_person_name?: string | null
           status?: string | null
+          subject?: string | null
           updated_at?: string
           updated_by?: string | null
           urgency?: string | null
@@ -1969,6 +1975,8 @@ export type Database = {
           ai_confidence?: number | null
           ai_extracted_json?: Json | null
           ai_processed?: boolean
+          body_html?: string | null
+          body_text?: string | null
           city?: string | null
           created_at?: string
           created_by?: string | null
@@ -1996,6 +2004,7 @@ export type Database = {
           sales_person_id?: string | null
           sales_person_name?: string | null
           status?: string | null
+          subject?: string | null
           updated_at?: string
           updated_by?: string | null
           urgency?: string | null
@@ -9345,6 +9354,8 @@ export type Database = {
           ai_confidence: number | null
           ai_extracted_json: Json | null
           ai_processed: boolean
+          body_html: string | null
+          body_text: string | null
           city: string | null
           created_at: string
           created_by: string | null
@@ -9372,6 +9383,7 @@ export type Database = {
           sales_person_id: string | null
           sales_person_name: string | null
           status: string | null
+          subject: string | null
           updated_at: string
           updated_by: string | null
           urgency: string | null
