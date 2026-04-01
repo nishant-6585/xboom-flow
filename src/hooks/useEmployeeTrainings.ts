@@ -227,6 +227,7 @@ export function useEmployeeTrainings() {
       }
 
       toast({ title: "Success", description: "Training assigned successfully" });
+      await fetchAssignments();
       return assignment;
     } catch (error: any) {
       console.error("Error assigning training:", error);
