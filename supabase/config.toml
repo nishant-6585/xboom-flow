@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.check-sla-risk]
 verify_jwt = false
+
+[functions.resolve-ticket-ai]
+verify_jwt = false

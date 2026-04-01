@@ -81,6 +81,8 @@ export interface TicketComment {
   commented_by_name: string;
   is_internal: boolean | null;
   attachment_urls: string[] | null;
+  ai_generated: boolean;
+  comment_type: string;
   created_at: string;
 }
 
