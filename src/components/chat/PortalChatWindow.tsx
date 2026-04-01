@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Bot, Send, X, Loader2, Sparkles, Zap, BarChart3, Package, ClipboardList, BrainCircuit, Volume2, VolumeX, Mic, PanelLeftClose, PanelLeft, Plus, RefreshCw, Users, DollarSign, Truck, Calendar } from 'lucide-react';
+import { Bot, Send, X, Loader2, Sparkles, Zap, BarChart3, Package, ClipboardList, BrainCircuit, Volume2, VolumeX, Mic, PanelLeftClose, PanelLeft, Plus, RefreshCw, Users, DollarSign, Truck, Calendar, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
@@ -116,6 +116,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
   const startRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const { chats, fetchChats, createChat, renameChat, deleteChat, fetchMessages, addMessage, autoTitleChat } = useAIChats();
 
   // Resize handlers
@@ -222,6 +223,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
       if (!session?.access_token) throw new Error('Please log in to use the AI assistant');
 
       const controller = new AbortController();
+      abortControllerRef.current = controller;
       const timeoutId = setTimeout(() => controller.abort(), 90000);
 
       const response = await fetch(CHAT_URL, {
@@ -320,22 +322,45 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
       fetchChats();
     } catch (error) {
       console.error('Chat error:', error);
-      let errorMsg = 'Unknown error';
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') errorMsg = 'The request took too long. Please try a simpler query.';
-        else if (error.message === 'Load failed' || error.message === 'Failed to fetch') errorMsg = 'Network error — please try again.';
-        else errorMsg = error.message;
+      if (error instanceof Error && error.name === 'AbortError') {
+        // User stopped generation — keep whatever was streamed
+        if (assistantContent.trim()) {
+          assistantContent += '\n\n*— Generation stopped*';
+          setMessages(prev => {
+            const updated = [...prev];
+            if (updated.length > 0 && updated[updated.length - 1].role === 'assistant') {
+              updated[updated.length - 1] = { role: 'assistant', content: assistantContent };
+            }
+            return updated;
+          });
+          if (chatId) await addMessage(chatId, 'assistant', assistantContent);
+          fetchChats();
+        }
+      } else {
+        let errorMsg = 'Unknown error';
+        if (error instanceof Error) {
+          if (error.message === 'Load failed' || error.message === 'Failed to fetch') errorMsg = 'Network error — please try again.';
+          else errorMsg = error.message;
+        }
+        const fallback = `Sorry, I encountered an error: ${errorMsg}`;
+        setMessages(prev => [
+          ...prev.filter(m => m.content !== ''),
+          { role: 'assistant', content: fallback },
+        ]);
+        if (chatId) await addMessage(chatId, 'assistant', fallback);
       }
-      const fallback = `Sorry, I encountered an error: ${errorMsg}`;
-      setMessages(prev => [
-        ...prev.filter(m => m.content !== ''),
-        { role: 'assistant', content: fallback },
-      ]);
-      if (chatId) await addMessage(chatId, 'assistant', fallback);
     } finally {
+      abortControllerRef.current = null;
       setIsLoading(false);
     }
   }, [messages, activeChatId, createChat, addMessage, autoTitleChat, fetchChats]);
+
+  const handleStopGeneration = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -683,7 +708,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Ask about orders, leads, inventory..."
-                  disabled={isLoading}
+                  disabled={false}
                   rows={1}
                   className={cn(
                     "w-full resize-none rounded-xl border border-border/60 bg-card",
@@ -692,20 +717,31 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                     "disabled:opacity-50 transition-all"
                   )}
                 />
-                <Button
-                  type="submit"
-                  disabled={isLoading || !input.trim()}
-                  size="icon"
-                  className={cn(
-                    "absolute right-1.5 bottom-1.5 h-8 w-8 rounded-lg",
-                    "transition-all duration-200",
-                    input.trim() && !isLoading
-                      ? "bg-primary text-primary-foreground shadow-md hover:shadow-lg"
-                      : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                </Button>
+                {isLoading ? (
+                  <Button
+                    type="button"
+                    onClick={handleStopGeneration}
+                    size="icon"
+                    className="absolute right-1.5 bottom-1.5 h-8 w-8 rounded-lg bg-destructive text-destructive-foreground shadow-md hover:bg-destructive/90 transition-all duration-200"
+                  >
+                    <Square className="w-3.5 h-3.5 fill-current" />
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    disabled={!input.trim()}
+                    size="icon"
+                    className={cn(
+                      "absolute right-1.5 bottom-1.5 h-8 w-8 rounded-lg",
+                      "transition-all duration-200",
+                      input.trim()
+                        ? "bg-primary text-primary-foreground shadow-md hover:shadow-lg"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
             </form>
             <p className="text-[9px] text-muted-foreground text-center mt-1 tracking-wide">
