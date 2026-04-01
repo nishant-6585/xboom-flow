@@ -638,7 +638,11 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                       const isEditingThis = editingCommentId === comment.id;
 
                       return (
-                        <div key={comment.id} className={`p-3 rounded-lg text-sm ${isOwn ? "bg-primary/10 ml-8" : "bg-muted mr-8"}`}>
+                        <div key={comment.id} className={`p-3 rounded-lg text-sm ${
+                          comment.ai_generated
+                            ? "bg-violet-50/80 dark:bg-violet-950/30 border border-violet-200/50 dark:border-violet-800/30 mr-4"
+                            : isOwn ? "bg-primary/10 ml-8" : "bg-muted mr-8"
+                        }`}>
                           <div className="flex items-center justify-between mb-1">
                             <span className="font-medium text-xs">{comment.commented_by_name}</span>
                             <div className="flex items-center gap-2">
