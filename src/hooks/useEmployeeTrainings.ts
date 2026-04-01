@@ -315,8 +315,53 @@ export function useEmployeeTrainings() {
     return publicUrl;
   };
 
+  const groupedTrainings = useMemo((): GroupedTraining[] => {
+    const groupMap = new Map<string, TrainingAssignment[]>();
+    assignments.forEach(a => {
+      const key = `${a.training_title}||${a.assigned_by}||${a.due_date}`;
+      if (!groupMap.has(key)) groupMap.set(key, []);
+      groupMap.get(key)!.push(a);
+    });
+
+    return Array.from(groupMap.entries()).map(([key, group]) => {
+      const first = group[0];
+      const now = new Date();
+      const completedCount = group.filter(a => a.status === "completed").length;
+      const inProgressCount = group.filter(a => a.status === "in_progress").length;
+      const overdueCount = group.filter(a => a.status !== "completed" && new Date(a.due_date) < now).length;
+      const assignedCount = group.filter(a => a.status === "assigned").length;
+      const avgProgress = group.reduce((sum, a) => sum + a.progress_percentage, 0) / group.length;
+      const teams = [...new Set(group.map(a => a.employee_department).filter(Boolean))] as string[];
+
+      let groupedStatus: GroupedTraining["grouped_status"] = "assigned";
+      if (completedCount === group.length) groupedStatus = "completed";
+      else if (overdueCount > 0) groupedStatus = "overdue";
+      else if (inProgressCount > 0) groupedStatus = "in_progress";
+
+      return {
+        key,
+        training_title: first.training_title,
+        description: first.description,
+        assigned_by_name: first.assigned_by_name,
+        due_date: first.due_date,
+        priority: first.priority,
+        created_at: first.created_at,
+        assignments: group,
+        total_employees: group.length,
+        overall_progress: Math.round(avgProgress),
+        completed_count: completedCount,
+        in_progress_count: inProgressCount,
+        assigned_count: assignedCount,
+        overdue_count: overdueCount,
+        grouped_status: groupedStatus,
+        teams,
+      };
+    }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [assignments]);
+
   return {
     assignments,
+    groupedTrainings,
     loading,
     isHrOrAdmin,
     assignTraining,
