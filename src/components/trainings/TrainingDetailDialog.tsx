@@ -90,7 +90,7 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
   const startEditing = () => {
     setEditTitle(assignment.training_title);
     setEditDescription(assignment.description || "");
-    setEditDueDate(assignment.due_date);
+    setEditDueDate(assignment.due_date?.split("T")[0] || "");
     setEditPriority(assignment.priority as "low" | "medium" | "high");
     setIsEditing(true);
   };
