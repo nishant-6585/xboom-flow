@@ -274,16 +274,7 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
 
             {/* Resources */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <Label className="text-base font-semibold">Training Resources</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addResource}>
-                  <Plus className="h-4 w-4 mr-1" /> Add Resource
-                </Button>
-              </div>
-
-              {resources.length === 0 && (
-                <p className="text-sm text-muted-foreground">No resources added yet. Click "Add Resource" to include learning materials.</p>
-              )}
+              <Label className="text-base font-semibold mb-2 block">Training Resources</Label>
 
               <div className="space-y-3">
                 {resources.map((r, i) => (
