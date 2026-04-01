@@ -115,6 +115,35 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Missed call round-robin recipients (Narsimha & Mushtaq)
+    const missedCallAssignees = [
+      { user_id: 'a790b58d-8e3d-4333-b6d6-08be631c865d', name: 'Narasimha' },
+      { user_id: '457fc2d5-9fc5-439a-938e-5b998549b811', name: 'mohammed musthak' },
+    ];
+
+    // Get last assigned missed call to determine round-robin position
+    const { data: lastMissedAssignment } = await supabase
+      .from('call_logs')
+      .select('sales_person_id')
+      .eq('call_status', 'missed')
+      .not('sales_person_id', 'is', null)
+      .in('sales_person_id', missedCallAssignees.map(a => a.user_id))
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let missedRoundRobinIndex = 0;
+    if (lastMissedAssignment?.sales_person_id === missedCallAssignees[0].user_id) {
+      missedRoundRobinIndex = 1; // Last was Narsimha, next is Mushtaq
+    }
+
+    // Pre-fetch all sales profiles for answered call matching
+    const { data: salesProfiles } = await supabase
+      .from('profiles')
+      .select('user_id, name')
+      .eq('is_approved', true)
+      .in('user_id', (await supabase.from('user_roles').select('user_id').eq('role', 'sales')).data?.map((r: { user_id: string }) => r.user_id) || []);
+
     let inserted = 0;
     let skipped = 0;
     let updated = 0;
@@ -203,7 +232,30 @@ Deno.serve(async (req) => {
         const agentDisplay = allAgents.length > 0 ? allAgents.join(', ') : assignedAgentName;
         const effectiveCallId = callId || crypto.randomUUID();
 
-        const record = {
+        // === LEAD ASSIGNMENT LOGIC ===
+        let salesPersonId: string | null = null;
+        let salesPersonName: string | null = null;
+
+        if (callStatus === 'answered' && assignedAgentName && salesProfiles) {
+          // Assign to the person who picked up the call
+          const matchedProfile = salesProfiles.find((p: { user_id: string; name: string }) =>
+            p.name.toLowerCase() === assignedAgentName!.toLowerCase() ||
+            p.name.toLowerCase().includes(assignedAgentName!.toLowerCase()) ||
+            assignedAgentName!.toLowerCase().includes(p.name.toLowerCase())
+          );
+          if (matchedProfile) {
+            salesPersonId = matchedProfile.user_id;
+            salesPersonName = matchedProfile.name;
+          }
+        } else if (callStatus === 'missed') {
+          // Round-robin between Narsimha & Mushtaq
+          const assignee = missedCallAssignees[missedRoundRobinIndex % missedCallAssignees.length];
+          salesPersonId = assignee.user_id;
+          salesPersonName = assignee.name;
+          missedRoundRobinIndex++;
+        }
+
+        const record: Record<string, unknown> = {
           call_id: effectiveCallId,
           caller_number: storedCaller,
           full_number: fullNumber,
@@ -220,6 +272,12 @@ Deno.serve(async (req) => {
           end_time: endTime,
           raw_payload: entry,
         };
+
+        // Add sales person assignment for new records
+        if (!existingId && salesPersonId) {
+          record.sales_person_id = salesPersonId;
+          record.sales_person_name = salesPersonName;
+        }
 
         if (existingId) {
           // Update existing record with potentially richer data
