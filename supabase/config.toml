@@ -86,3 +86,9 @@ verify_jwt = false
 
 [functions.ai-email-lead-processor]
 verify_jwt = false
+
+[functions.analyze-ticket]
+verify_jwt = false
+
+[functions.check-sla-risk]
+verify_jwt = false
