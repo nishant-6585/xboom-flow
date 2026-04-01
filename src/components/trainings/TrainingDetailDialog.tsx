@@ -285,17 +285,21 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
     }
   };
 
-  const handleOpenResource = async (resource: TrainingResource) => {
-    if (isOwner && employeeId && !isResourceViewed(resource.id)) {
-      await markResourceViewed(assignment.id, resource.id, employeeId);
-      const { tracking: t } = await fetchAssignmentDetails(assignment.id);
-      setTracking(t);
-    }
+  // Resource preview state
+  const [previewResource, setPreviewResource] = useState<TrainingResource | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
-    if (resource.resource_type === "note") return;
-    if (resource.url_or_file_path) {
-      window.open(resource.url_or_file_path, "_blank");
-    }
+  const handleOpenResource = (resource: TrainingResource) => {
+    setPreviewResource(resource);
+    setPreviewOpen(true);
+  };
+
+  const handleMarkResourceViewed = async () => {
+    if (!previewResource || !employeeId) return;
+    await markResourceViewed(assignment.id, previewResource.id, employeeId);
+    const { tracking: t } = await fetchAssignmentDetails(assignment.id);
+    setTracking(t);
+    refetch();
   };
 
   const handleMarkCompleted = async () => {
