@@ -43,6 +43,7 @@ interface CallLog {
   lead_created: boolean;
   lead_id: string | null;
   created_at: string;
+  sales_person_name: string | null;
 }
 
 interface LegDetail {
