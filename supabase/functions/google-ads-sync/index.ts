@@ -448,6 +448,10 @@ Deno.serve(async (req) => {
         const city = parsed.city;
         const productInterest = extractField(lead.submission_data, "PRODUCT", "PRODUCT_TYPE", "WHAT_ARE_YOU_LOOKING_FOR", "INTERESTED_IN", "MODEL");
 
+        // Pick the next assignee in round-robin
+        const assignee = roundRobinAssignees[rrIndex % roundRobinAssignees.length];
+        rrIndex++;
+
         const { error: insertError } = await supabaseAdmin.from("enquiries").insert({
           customer_name: name,
           customer_company: company,
@@ -456,8 +460,8 @@ Deno.serve(async (req) => {
           product_category: "Consumer Drones",
           quantity: 1,
           urgency: "medium",
-          sales_person_id: defaultAssigneeId,
-          sales_person_name: defaultAssigneeName,
+          sales_person_id: assignee.user_id,
+          sales_person_name: assignee.name,
           status: "pending",
           lead_temperature: "warm",
           notes: [
