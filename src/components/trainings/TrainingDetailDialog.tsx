@@ -290,9 +290,6 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
     }
   };
 
-  // Resource preview state
-  const [previewResource, setPreviewResource] = useState<TrainingResource | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
 
   const handleOpenResource = (resource: TrainingResource) => {
     setPreviewResource(resource);
