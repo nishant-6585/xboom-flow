@@ -53,6 +53,7 @@ import {
   Upload,
   Trash2,
   Sparkles,
+  Bot,
 } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
 

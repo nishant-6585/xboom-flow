@@ -166,17 +166,13 @@ export function TicketAiSuggestionsCard({ ticket, onUseReply }: TicketAiSuggesti
 
       {/* Draft Reply */}
       {latestSuggestion.draft_reply && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground uppercase font-medium">Draft Reply</p>
-          </div>
-          <Textarea
-            value={editedReply ?? latestSuggestion.draft_reply}
-            onChange={(e) => setEditedReply(e.target.value)}
-            rows={3}
-            className="text-sm bg-background/80"
-          />
+        <DraftReplySection
+          value={editedReply ?? latestSuggestion.draft_reply}
+          onChange={(v) => setEditedReply(v)}
+          isLocked={isLocked}
+          onUseReply={onUseReply ? handleUseReply : undefined}
+        />
+      )}
           {!isLocked && onUseReply && (
             <Button size="sm" variant="outline" className="text-xs" onClick={handleUseReply}>
               <MessageSquare className="w-3 h-3 mr-1" />
