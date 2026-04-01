@@ -3,8 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  CheckCircle2, ExternalLink, FileText, Link, Youtube, Video, MonitorPlay,
-  Play, StickyNote, Loader2
+  CheckCircle2, Download, FileText, Link, Youtube, Video, MonitorPlay,
+  Play, StickyNote, Loader2, FileDown
 } from "lucide-react";
 import { TrainingResource } from "@/hooks/useEmployeeTrainings";
 
@@ -18,6 +18,9 @@ const RESOURCE_ICONS: Record<string, React.ReactNode> = {
   note: <StickyNote className="h-5 w-5 text-yellow-500" />,
 };
 
+const EMBEDDABLE_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp"];
+const VIDEO_EXTENSIONS = [".mp4", ".webm", ".ogg"];
+
 interface Props {
   resource: TrainingResource | null;
   open: boolean;
@@ -25,6 +28,44 @@ interface Props {
   isViewed: boolean;
   isOwner: boolean;
   onMarkViewed: () => Promise<void>;
+}
+
+function getFileExtension(url: string): string {
+  try {
+    const pathname = new URL(url).pathname;
+    const ext = pathname.substring(pathname.lastIndexOf(".")).toLowerCase();
+    return ext;
+  } catch {
+    return "";
+  }
+}
+
+function isEmbeddableUrl(resource: TrainingResource): boolean {
+  const url = resource.url_or_file_path;
+  if (!url) return false;
+
+  // YouTube is always embeddable
+  if (resource.resource_type === "youtube" || url.includes("youtube.com") || url.includes("youtu.be")) {
+    return true;
+  }
+
+  // Check file extension for documents/uploads
+  if (resource.resource_type === "document" || resource.resource_type === "upload_video") {
+    const ext = getFileExtension(url);
+    return EMBEDDABLE_EXTENSIONS.includes(ext) || VIDEO_EXTENSIONS.includes(ext);
+  }
+
+  // Links - try to embed
+  if (resource.resource_type === "link") {
+    return true;
+  }
+
+  return false;
+}
+
+function isVideoUrl(url: string): boolean {
+  const ext = getFileExtension(url);
+  return VIDEO_EXTENSIONS.includes(ext);
 }
 
 function getEmbedUrl(resource: TrainingResource): string | null {
@@ -37,26 +78,36 @@ function getEmbedUrl(resource: TrainingResource): string | null {
     if (match) return `https://www.youtube.com/embed/${match[1]}`;
   }
 
-  // For documents (PDF), use direct URL in iframe
-  if (resource.resource_type === "document" && url) {
-    return url;
-  }
-
-  // For links, embed directly
-  if (resource.resource_type === "link") {
-    return url;
-  }
-
   return url;
 }
 
-function canEmbed(resource: TrainingResource): boolean {
-  if (resource.resource_type === "note") return false;
-  if (resource.resource_type === "youtube") return true;
-  if (resource.resource_type === "document") return true;
-  if (resource.resource_type === "link") return true;
-  if (resource.resource_type === "upload_video") return true;
-  return false;
+function getFileName(resource: TrainingResource): string {
+  const url = resource.url_or_file_path;
+  if (!url) return resource.title;
+  try {
+    const pathname = new URL(url).pathname;
+    const segments = pathname.split("/");
+    const lastSegment = segments[segments.length - 1];
+    // Remove the timestamp prefix (e.g., "1775019557027-slbv3.docx" → "slbv3.docx")
+    const cleaned = lastSegment.replace(/^\d+-[a-z0-9]+\./, (match) => {
+      const ext = match.substring(match.lastIndexOf("."));
+      return `file${ext}`;
+    });
+    return decodeURIComponent(lastSegment);
+  } catch {
+    return resource.title;
+  }
+}
+
+function handleDownload(url: string, title: string) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = title;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 export function ResourcePreviewDialog({ resource, open, onOpenChange, isViewed, isOwner, onMarkViewed }: Props) {
@@ -65,8 +116,11 @@ export function ResourcePreviewDialog({ resource, open, onOpenChange, isViewed, 
 
   if (!resource) return null;
 
-  const embedUrl = getEmbedUrl(resource);
-  const embeddable = canEmbed(resource);
+  const embeddable = resource.resource_type !== "note" && isEmbeddableUrl(resource);
+  const embedUrl = embeddable ? getEmbedUrl(resource) : null;
+  const isVideo = resource.url_or_file_path ? isVideoUrl(resource.url_or_file_path) : false;
+  const fileName = getFileName(resource);
+  const isDownloadable = resource.url_or_file_path && resource.resource_type !== "note";
 
   const handleMarkViewed = async () => {
     setMarking(true);
@@ -93,14 +147,14 @@ export function ResourcePreviewDialog({ resource, open, onOpenChange, isViewed, 
                   Viewed
                 </Badge>
               )}
-              {resource.url_or_file_path && resource.resource_type !== "note" && (
+              {isDownloadable && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => window.open(resource.url_or_file_path!, "_blank")}
+                  onClick={() => handleDownload(resource.url_or_file_path!, fileName)}
                 >
-                  <ExternalLink className="h-4 w-4 mr-1" />
-                  Open in New Tab
+                  <Download className="h-4 w-4 mr-1" />
+                  Download
                 </Button>
               )}
             </div>
@@ -114,28 +168,47 @@ export function ResourcePreviewDialog({ resource, open, onOpenChange, isViewed, 
               <p className="text-sm whitespace-pre-wrap">{resource.url_or_file_path}</p>
             </div>
           ) : embeddable && embedUrl ? (
-            <div className="relative w-full h-[60vh] bg-muted/30 rounded-md overflow-hidden">
-              {iframeLoading && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-              )}
-              <iframe
-                src={embedUrl}
-                className="w-full h-full border-0 rounded-md"
-                onLoad={() => setIframeLoading(false)}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-              />
-            </div>
+            isVideo ? (
+              <div className="w-full max-h-[60vh] bg-muted/30 rounded-md overflow-hidden flex items-center justify-center">
+                <video
+                  src={embedUrl}
+                  controls
+                  className="max-w-full max-h-[60vh] rounded-md"
+                />
+              </div>
+            ) : (
+              <div className="relative w-full h-[60vh] bg-muted/30 rounded-md overflow-hidden">
+                {iframeLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+                <iframe
+                  src={embedUrl}
+                  className="w-full h-full border-0 rounded-md"
+                  onLoad={() => setIframeLoading(false)}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                />
+              </div>
+            )
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 gap-4">
-              <p className="text-sm text-muted-foreground">This resource cannot be previewed inline.</p>
+            /* Non-embeddable file (docx, xlsx, pptx, etc.) - show download prompt */
+            <div className="flex flex-col items-center justify-center py-16 gap-4">
+              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
+                <FileDown className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-sm font-medium">{fileName}</p>
+                <p className="text-xs text-muted-foreground">
+                  This file type cannot be previewed. Please download to view.
+                </p>
+              </div>
               {resource.url_or_file_path && (
-                <Button onClick={() => window.open(resource.url_or_file_path!, "_blank")}>
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Open Resource
+                <Button onClick={() => handleDownload(resource.url_or_file_path!, fileName)}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download File
                 </Button>
               )}
             </div>
