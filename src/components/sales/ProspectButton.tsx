@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { FollowupScheduleDialog } from './FollowupScheduleDialog';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProspectButtonProps {
   sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads';
@@ -42,7 +43,32 @@ export function ProspectButton({
   const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (added || !user || !profile) return;
-    if (!productName || productName.trim() === '') {
+
+    let resolvedProductName = productName?.trim() || '';
+
+    // MyOperator rows can be grouped by call session, so hydrate latest data before validation.
+    if (!resolvedProductName && sourceType === 'myoperator') {
+      const { data: latestLog } = await supabase
+        .from('call_logs')
+        .select('id, call_id, product_name, updated_at')
+        .eq('id', sourceId)
+        .maybeSingle();
+
+      resolvedProductName = latestLog?.product_name?.trim() || '';
+
+      if (!resolvedProductName && latestLog?.call_id) {
+        const { data: relatedLogs } = await supabase
+          .from('call_logs')
+          .select('product_name, updated_at')
+          .eq('call_id', latestLog.call_id)
+          .order('updated_at', { ascending: false })
+          .limit(20);
+
+        resolvedProductName = relatedLogs?.find((log) => log.product_name?.trim())?.product_name?.trim() || '';
+      }
+    }
+
+    if (!resolvedProductName) {
       toast.error('Product name is required before marking as Prospect. Please edit the lead and fill the Product field.');
       return;
     }
@@ -56,7 +82,7 @@ export function ProspectButton({
         email: email || null,
         company: company || null,
         city: city || null,
-        product_name: productName || null,
+        product_name: resolvedProductName,
         notes: notes || null,
         is_a_category: false,
         status: 'new',
