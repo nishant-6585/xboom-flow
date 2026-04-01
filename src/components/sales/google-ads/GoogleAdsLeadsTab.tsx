@@ -229,6 +229,7 @@ export function GoogleAdsLeadsTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[130px]">P / E / A / ⚠</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Location</TableHead>
