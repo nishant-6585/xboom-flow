@@ -224,7 +224,7 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
                 <div>
                   <Label>Team *</Label>
                   <Select value={selectedTeam} onValueChange={setSelectedTeam}>
-                    <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
+                    <SelectTrigger className="w-full text-left"><SelectValue placeholder="Select team" /></SelectTrigger>
                     <SelectContent>
                       {teams.map(t => (
                         <SelectItem key={t.name} value={t.name}>
