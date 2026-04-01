@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,8 +56,23 @@ export function TicketAiResolutionPanel({ ticket }: TicketAiResolutionPanelProps
   const rejectResolution = useRejectResolution();
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectInput, setShowRejectInput] = useState(false);
+  const autoTriggeredRef = useRef(false);
 
   const canView = role === "admin" || role === "hr" || ticket.assigned_to === user?.id;
+
+  // Auto-trigger for IT/technical_support + open tickets with no existing resolution
+  useEffect(() => {
+    if (autoTriggeredRef.current) return;
+    if (!canView || isLoading) return;
+    if (resolution) return; // already has resolution
+    if (ticket.ai_resolution_status === "analyzing") return;
+    if (ticket.status !== "open") return;
+    if (ticket.category !== "technical_support") return;
+    
+    autoTriggeredRef.current = true;
+    runResolution.mutate(ticket.id);
+  }, [canView, isLoading, resolution, ticket.id, ticket.status, ticket.category, ticket.ai_resolution_status]);
+
   if (!canView) return null;
 
   const isAnalyzing = ticket.ai_resolution_status === "analyzing";

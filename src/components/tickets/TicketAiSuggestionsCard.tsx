@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -166,24 +166,54 @@ export function TicketAiSuggestionsCard({ ticket, onUseReply }: TicketAiSuggesti
 
       {/* Draft Reply */}
       {latestSuggestion.draft_reply && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground uppercase font-medium">Draft Reply</p>
-          </div>
-          <Textarea
-            value={editedReply ?? latestSuggestion.draft_reply}
-            onChange={(e) => setEditedReply(e.target.value)}
-            rows={3}
-            className="text-sm bg-background/80"
-          />
-          {!isLocked && onUseReply && (
-            <Button size="sm" variant="outline" className="text-xs" onClick={handleUseReply}>
-              <MessageSquare className="w-3 h-3 mr-1" />
-              Use This Reply
-            </Button>
-          )}
-        </div>
+        <DraftReplySection
+          value={editedReply ?? latestSuggestion.draft_reply}
+          onChange={(v) => setEditedReply(v)}
+          isLocked={isLocked}
+          onUseReply={onUseReply ? handleUseReply : undefined}
+        />
+      )}
+    </div>
+  );
+}
+
+function DraftReplySection({
+  value,
+  onChange,
+  isLocked,
+  onUseReply,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  isLocked: boolean;
+  onUseReply?: () => void;
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.scrollTop = 0;
+    }
+  }, [value]);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+        <p className="text-xs text-muted-foreground uppercase font-medium">Draft Reply</p>
+      </div>
+      <Textarea
+        ref={textareaRef}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={4}
+        className="text-sm bg-background/80"
+      />
+      {!isLocked && onUseReply && (
+        <Button size="sm" variant="outline" className="text-xs" onClick={onUseReply}>
+          <MessageSquare className="w-3 h-3 mr-1" />
+          Use This Reply
+        </Button>
       )}
     </div>
   );
