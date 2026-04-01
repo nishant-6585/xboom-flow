@@ -38,13 +38,18 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) {
+export function TrainingDetailDialog({ assignment: assignmentProp, open, onOpenChange }: Props) {
   const { user } = useAuth();
-  const { markResourceViewed, markCompleted, fetchAssignmentDetails, isHrOrAdmin, refetch } = useEmployeeTrainings();
+  const { markResourceViewed, markCompleted, fetchAssignmentDetails, isHrOrAdmin, refetch, assignments } = useEmployeeTrainings();
   const [resources, setResources] = useState<TrainingResource[]>([]);
   const [tracking, setTracking] = useState<TrainingResourceTracking[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
+
+  // Always use the freshest assignment data from the hook's state
+  const assignment = assignmentProp
+    ? assignments.find(a => a.id === assignmentProp.id) || assignmentProp
+    : null;
 
   // Edit state (metadata only)
   const [isEditing, setIsEditing] = useState(false);
@@ -60,10 +65,10 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
   const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
-    if (assignment && open) {
+    if (assignmentProp && open) {
       setLoadingDetails(true);
       setIsEditing(false);
-      fetchAssignmentDetails(assignment.id).then(({ resources: r, tracking: t }) => {
+      fetchAssignmentDetails(assignmentProp.id).then(({ resources: r, tracking: t }) => {
         setResources(r);
         setTracking(t);
         setLoadingDetails(false);
@@ -76,7 +81,7 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
         .single()
         .then(({ data }) => setEmployeeId(data?.id || null));
     }
-  }, [assignment?.id, open]);
+  }, [assignmentProp?.id, open]);
 
   if (!assignment) return null;
 
@@ -158,17 +163,20 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
   };
 
   const handleMarkResourceViewed = async () => {
-    if (!previewResource || !employeeId) return;
+    if (!previewResource || !employeeId || !assignment) return;
     await markResourceViewed(assignment.id, previewResource.id, employeeId);
-    const { tracking: t } = await fetchAssignmentDetails(assignment.id);
+    // Refresh tracking and resources to get updated view counts
+    const { tracking: t, resources: r } = await fetchAssignmentDetails(assignment.id);
     setTracking(t);
-    refetch();
+    setResources(r);
   };
 
   const handleMarkCompleted = async () => {
+    if (!assignment) return;
     await markCompleted(assignment.id);
-    refetch();
-    onOpenChange(false);
+    // Refetch tracking so dialog shows updated state
+    const { tracking: t } = await fetchAssignmentDetails(assignment.id);
+    setTracking(t);
   };
 
   return (
