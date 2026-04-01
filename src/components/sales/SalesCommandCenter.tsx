@@ -155,8 +155,8 @@ function generatePerformanceSuggestions(
   const conversionRate = sp.leads > 0 ? (sp.prospects / sp.leads) * 100 : 0;
   const prospectToPipeline = sp.prospects > 0 ? (sp.pipelineValue > 0 ? 'active' : 'none') : 'na';
 
-  // Target comparison
-  const target = targets.find(t => t.name === sp.name);
+  // Target comparison — match by first name or full name
+  const target = targets.find(t => t.name === sp.name.split(' ')[0] || t.fullName === sp.name);
 
   // Strengths
   if (sp.revenue > avgRevenue * 1.3 && sp.revenue > 0) {
