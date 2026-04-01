@@ -2443,6 +2443,83 @@ export type Database = {
           },
         ]
       }
+      employee_training_resources: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          resource_order: number
+          resource_type: string
+          thumbnail_url: string | null
+          title: string
+          training_id: string
+          url_or_file_path: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          resource_order?: number
+          resource_type: string
+          thumbnail_url?: string | null
+          title: string
+          training_id: string
+          url_or_file_path?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          resource_order?: number
+          resource_type?: string
+          thumbnail_url?: string | null
+          title?: string
+          training_id?: string
+          url_or_file_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_training_resources_training_id_fkey"
+            columns: ["training_id"]
+            isOneToOne: false
+            referencedRelation: "employee_trainings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_trainings: {
+        Row: {
+          created_at: string
+          created_by: string
+          created_by_name: string
+          description: string | null
+          id: string
+          priority: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          created_by_name: string
+          description?: string | null
+          id?: string
+          priority?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          description?: string | null
+          id?: string
+          priority?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           bank_account: string | null
@@ -8435,6 +8512,7 @@ export type Database = {
           priority: string
           progress_percentage: number
           status: string
+          training_id: string
           training_title: string
           updated_at: string
         }
@@ -8452,6 +8530,7 @@ export type Database = {
           priority?: string
           progress_percentage?: number
           status?: string
+          training_id: string
           training_title: string
           updated_at?: string
         }
@@ -8469,6 +8548,7 @@ export type Database = {
           priority?: string
           progress_percentage?: number
           status?: string
+          training_id?: string
           training_title?: string
           updated_at?: string
         }
@@ -8487,6 +8567,13 @@ export type Database = {
             referencedRelation: "employees_directory"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "training_assignments_training_id_fkey"
+            columns: ["training_id"]
+            isOneToOne: false
+            referencedRelation: "employee_trainings"
+            referencedColumns: ["id"]
+          },
         ]
       }
       training_resource_tracking: {
@@ -8495,6 +8582,7 @@ export type Database = {
           employee_id: string
           id: string
           is_viewed: boolean
+          master_resource_id: string | null
           resource_id: string
           training_assignment_id: string
           viewed_at: string | null
@@ -8504,6 +8592,7 @@ export type Database = {
           employee_id: string
           id?: string
           is_viewed?: boolean
+          master_resource_id?: string | null
           resource_id: string
           training_assignment_id: string
           viewed_at?: string | null
@@ -8513,6 +8602,7 @@ export type Database = {
           employee_id?: string
           id?: string
           is_viewed?: boolean
+          master_resource_id?: string | null
           resource_id?: string
           training_assignment_id?: string
           viewed_at?: string | null
@@ -8530,6 +8620,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_resource_tracking_master_resource_id_fkey"
+            columns: ["master_resource_id"]
+            isOneToOne: false
+            referencedRelation: "employee_training_resources"
             referencedColumns: ["id"]
           },
           {
