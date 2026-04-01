@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { GroupedTraining, TrainingAssignment } from "@/hooks/useEmployeeTrainings";
 import { format } from "date-fns";
-import { ChevronDown, ChevronRight, Users, Trash2, CheckCircle2, Clock, AlertTriangle, User, UserPlus } from "lucide-react";
+import { ChevronDown, Users, Trash2, CheckCircle2, Clock, AlertTriangle, User, UserPlus } from "lucide-react";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   assigned: { label: "Assigned", variant: "outline" },
@@ -153,8 +153,8 @@ export function GroupedTrainingCard({ group, isHrOrAdmin, onAssignmentClick, onD
 
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1 text-xs">
-                {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                {isOpen ? "Collapse" : "View Employees"}
+                {isOpen ? "Hide Employees" : "View Employees"}
+                <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
               </Button>
             </CollapsibleTrigger>
           </div>
