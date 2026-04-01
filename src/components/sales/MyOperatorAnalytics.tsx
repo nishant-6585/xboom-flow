@@ -78,6 +78,7 @@ interface MyOperatorAnalyticsProps {
 
 export function MyOperatorAnalytics({ logs, prospects = [] }: MyOperatorAnalyticsProps) {
   const [period, setPeriod] = useState<'day' | 'week' | 'month'>('week');
+  const [agentPeriod, setAgentPeriod] = useState<'day' | 'week' | 'month'>('week');
 
   const enrichedLogs = useMemo(() => {
     return logs.map(log => ({
