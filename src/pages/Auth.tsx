@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, CheckCircle, ShieldCheck } from "lucide-react";
+import { Loader2, ArrowLeft, CheckCircle, ShieldCheck, Calendar, Clock } from "lucide-react";
 import { z } from "zod";
 import logoIcon from "@/assets/logo-icon.jpeg";
+import authBg from "@/assets/auth-wallpaper.png";
 import { supabase } from "@/integrations/supabase/client";
 
 type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketing" | "hr";
