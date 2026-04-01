@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 import { toast } from 'sonner';
 
 interface EnquiryConvertButtonProps {
-  sourceType: 'interakt' | 'myoperator' | 'email' | 'form_lead';
+  sourceType: 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads';
   sourceId: string;
   customerName: string;
   phoneNumber?: string | null;
