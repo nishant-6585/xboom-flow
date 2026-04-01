@@ -46,7 +46,7 @@ export function ProspectButton({
 
     let resolvedProductName = productName?.trim() || '';
 
-    // MyOperator rows can be grouped by call session, so hydrate latest data before validation.
+    // Hydrate from DB for MyOperator and Email leads to avoid stale props
     if (!resolvedProductName && sourceType === 'myoperator') {
       const { data: latestLog } = await supabase
         .from('call_logs')
@@ -66,6 +66,17 @@ export function ProspectButton({
 
         resolvedProductName = relatedLogs?.find((log) => log.product_name?.trim())?.product_name?.trim() || '';
       }
+    }
+
+    // Email leads: hydrate from email_leads table
+    if (!resolvedProductName && sourceType === 'email') {
+      const { data: emailLead } = await supabase
+        .from('email_leads')
+        .select('product_name')
+        .eq('id', sourceId)
+        .maybeSingle();
+
+      resolvedProductName = emailLead?.product_name?.trim() || '';
     }
 
     if (!resolvedProductName) {
