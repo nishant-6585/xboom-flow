@@ -140,7 +140,7 @@ interface Suggestion {
 function generatePerformanceSuggestions(
   sp: { id: string; name: string; leads: number; prospects: number; pipelineValue: number; ordersWon: number; revenue: number },
   allSp: typeof sp[],
-  targets: { name: string; revenuePct: number; revenueTarget: number; revenueAchieved: number; ordersTarget: number; ordersAchieved: number; pipelineAchieved: number; prospectsCount: number }[]
+  targets: { name: string; fullName?: string; revenuePct: number; revenueTarget: number; revenueAchieved: number; ordersTarget: number; ordersAchieved: number; pipelineAchieved: number; pipelinePct?: number }[]
 ): Suggestion[] {
   const suggestions: Suggestion[] = [];
   const firstName = sp.name.split(' ')[0];
