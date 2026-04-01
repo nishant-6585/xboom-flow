@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { FollowupScheduleDialog } from './FollowupScheduleDialog';
 
 interface ProspectButtonProps {
-  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead';
+  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads';
   sourceId: string;
   customerName: string;
   phoneNumber?: string | null;
