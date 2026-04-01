@@ -55,6 +55,7 @@ import {
   Sparkles,
   Bot,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Database } from "@/integrations/supabase/types";
 
 type TicketStatus = Database["public"]["Enums"]["ticket_status"];
