@@ -1427,6 +1427,7 @@ serve(async (req) => {
 
     // Extract last user message for audit logging
     const lastUserMessage = messages.filter(m => m.role === "user").pop()?.content || "";
+    const isFreshDataQuery = /\b(show|what|how many|total|count|sum|revenue|sales|closure|closures|orders?|enquiries?|leads?|pipeline|inventory|payments?|pending|profit|margin|breakdown|report|dashboard|month|monthly|week|weekly|today|yesterday|mtd|qtd|year|salesperson)\b/i.test(lastUserMessage);
 
     // Filter tools based on role
     const allAllowedTools = new Set<string>();
