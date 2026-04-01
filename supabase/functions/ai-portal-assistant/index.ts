@@ -767,6 +767,7 @@ async function executeToolCall(
         if (isSales && !isAdmin && !isSalesManager) query = query.eq("sales_person_id", userId);
         if (args.search) query = query.or(`customer_name.ilike.%${args.search}%,order_number.ilike.%${args.search}%,product_name.ilike.%${args.search}%,customer_company.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
+        if (args.exclude_cancelled) query = query.neq("status", "cancelled");
         if (args.payment_status) query = query.eq("payment_status", args.payment_status);
         if (args.date_from) query = query.gte("order_date", args.date_from);
         if (args.date_to) query = query.lte("order_date", args.date_to);
