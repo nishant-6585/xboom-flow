@@ -531,7 +531,13 @@ export function EmailLeadsPanel() {
                       <>
                         <TableRow 
                           key={lead.id} 
-                          className={`${lead.processing_status === 'needs_review' ? 'bg-orange-500/5' : ''} ${isSelected ? 'bg-primary/5' : ''}`}
+                          className={`cursor-pointer ${lead.processing_status === 'needs_review' ? 'bg-orange-500/5' : ''} ${isSelected ? 'bg-primary/5' : ''} hover:bg-muted/50 transition-colors`}
+                          onClick={(e) => {
+                            // Don't open drawer when clicking checkboxes, buttons, or expand toggles
+                            const target = e.target as HTMLElement;
+                            if (target.closest('button') || target.closest('[role="checkbox"]') || target.closest('a')) return;
+                            setDetailLead(lead);
+                          }}
                         >
                           <TableCell>
                             <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(lead.id)} />
