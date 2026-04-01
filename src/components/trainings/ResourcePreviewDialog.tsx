@@ -20,6 +20,7 @@ const RESOURCE_ICONS: Record<string, React.ReactNode> = {
 
 const EMBEDDABLE_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp"];
 const VIDEO_EXTENSIONS = [".mp4", ".webm", ".ogg"];
+const OFFICE_EXTENSIONS = [".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt"];
 
 interface Props {
   resource: TrainingResource | null;
