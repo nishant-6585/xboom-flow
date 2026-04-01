@@ -407,9 +407,8 @@ Deno.serve(async (req) => {
 
     // Determine round-robin start index from last assigned Google Ads lead
     const { data: lastAssigned } = await supabaseAdmin
-      .from('enquiries')
+      .from('google_ads_leads')
       .select('sales_person_id')
-      .eq('lead_source', 'google_ads')
       .not('sales_person_id', 'is', null)
       .in('sales_person_id', roundRobinAssignees.map(a => a.user_id))
       .order('created_at', { ascending: false })
