@@ -398,7 +398,6 @@ export function SalesCommandCenter() {
   }, [isManager, salesTeam, filtered]);
 
   // ============ Target vs Achieved ============
-  const [targetViewPeriod, setTargetViewPeriod] = useState<'monthly' | 'quarterly'>('monthly');
   const targetComparison = useMemo(() => {
     const now = new Date();
     return targets
