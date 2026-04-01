@@ -21,6 +21,7 @@ import { AttentionButton } from './AttentionButton';
 import { EnquiryConvertButton } from './EnquiryConvertButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadFormDialog } from './EmailLeadFormDialog';
+import { EmailLeadDetailDrawer } from './EmailLeadDetailDrawer';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { GmailIntegrationCard } from './GmailIntegrationCard';
 import { toast } from 'sonner';
