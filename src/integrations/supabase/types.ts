@@ -3314,6 +3314,8 @@ export type Database = {
           notes: string | null
           phone: string | null
           product_name: string | null
+          sales_person_id: string | null
+          sales_person_name: string | null
           status: string
           submission_id: string | null
           updated_at: string
@@ -3333,6 +3335,8 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           product_name?: string | null
+          sales_person_id?: string | null
+          sales_person_name?: string | null
           status?: string
           submission_id?: string | null
           updated_at?: string
@@ -3352,6 +3356,8 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           product_name?: string | null
+          sales_person_id?: string | null
+          sales_person_name?: string | null
           status?: string
           submission_id?: string | null
           updated_at?: string
