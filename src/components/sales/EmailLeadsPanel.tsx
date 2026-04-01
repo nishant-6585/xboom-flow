@@ -514,6 +514,7 @@ export function EmailLeadsPanel() {
                       </button>
                     </TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Assigned To</TableHead>
                     <TableHead>
                       <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('created_at')}>
                         Date

@@ -239,6 +239,7 @@ export function GoogleAdsLeadsTab() {
                     <TableHead>Location</TableHead>
                     <TableHead>Product</TableHead>
                     <TableHead>Campaign</TableHead>
+                    <TableHead>Assigned To</TableHead>
                     <TableHead>Priority</TableHead>
                     <TableHead>Conversion</TableHead>
                     <TableHead className="text-right">Value</TableHead>

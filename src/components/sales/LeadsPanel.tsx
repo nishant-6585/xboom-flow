@@ -824,6 +824,7 @@ export function LeadsPanel() {
                           <TableHead className="w-[120px]">Product</TableHead>
                           <TableHead className="w-[150px]">Email</TableHead>
                           <TableHead className="w-[80px]">Status</TableHead>
+                          <TableHead className="w-[100px]">Assigned To</TableHead>
                           <TableHead className="w-[100px]">Created On</TableHead>
                           {canEditInteraktLeads && <TableHead className="w-[60px]">Action</TableHead>}
                         </TableRow>

@@ -364,6 +364,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                   <TableHead className="w-[40px]">P</TableHead>
                   <TableHead>Who</TableHead>
                   <TableHead>What</TableHead>
+                  <TableHead>Assigned To</TableHead>
                   <TableHead>When</TableHead>
                   <TableHead>Duration</TableHead>
                   <TableHead>Recording</TableHead>
