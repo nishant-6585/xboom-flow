@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Bot, Send, X, Loader2, Sparkles, Zap, BarChart3, Package, ClipboardList, BrainCircuit, Volume2, VolumeX, Mic, PanelLeftClose, PanelLeft, Plus, RefreshCw, Users, DollarSign, Truck, Calendar, Square } from 'lucide-react';
+import { Bot, Send, X, Loader2, Sparkles, Zap, BarChart3, Package, ClipboardList, BrainCircuit, Volume2, VolumeX, Mic, PanelLeftClose, PanelLeft, Plus, RefreshCw, Users, DollarSign, Truck, Calendar, Square, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,45 +30,52 @@ const ROLE_QUICK_PROMPTS: Record<string, { icon: React.ElementType; label: strin
   hr: [
     { icon: Users, label: "Attendance today", prompt: "Show today's attendance summary — who's absent, late, or missing checkout" },
     { icon: Calendar, label: "Leave requests", prompt: "Show pending leave requests" },
-    { icon: ClipboardList, label: "My tasks", prompt: "What tasks are assigned to me?" },
+    { icon: TrendingUp, label: "This month sales", prompt: "Show me total orders for this month salesperson wise" },
+    { icon: TrendingUp, label: "Last month sales", prompt: "Show me total orders for last month salesperson wise" },
     { icon: BrainCircuit, label: "People briefing", prompt: "Give me my daily briefing — attendance anomalies, pending leaves, and payroll status" },
   ],
   sales: [
     { icon: Zap, label: "Hot leads", prompt: "Show me all hot leads" },
     { icon: BarChart3, label: "My pipeline", prompt: "Show my active pipeline deals" },
-    { icon: ClipboardList, label: "My tasks", prompt: "What tasks are assigned to me?" },
+    { icon: TrendingUp, label: "This month sales", prompt: "Show me total orders for this month salesperson wise" },
+    { icon: TrendingUp, label: "Last month sales", prompt: "Show me total orders for last month salesperson wise" },
     { icon: BrainCircuit, label: "Sales briefing", prompt: "Give me my daily briefing — hot leads, stalled deals, and follow-ups needed" },
   ],
   sales_manager: [
     { icon: BarChart3, label: "Team performance", prompt: "Show sales team performance this month — orders and pipeline by salesperson" },
-    { icon: Zap, label: "Hot leads", prompt: "Show all hot leads across the team" },
+    { icon: TrendingUp, label: "This month sales", prompt: "Show me total orders for this month salesperson wise" },
+    { icon: TrendingUp, label: "Last month sales", prompt: "Show me total orders for last month salesperson wise" },
     { icon: DollarSign, label: "Overdue payments", prompt: "Show overdue payments" },
     { icon: BrainCircuit, label: "Revenue briefing", prompt: "Give me my daily briefing — pipeline health, overdue payments, and hot leads" },
   ],
   finance: [
     { icon: DollarSign, label: "Overdue payments", prompt: "Show all overdue payments with aging analysis" },
     { icon: BarChart3, label: "Cashflow", prompt: "Show expected payments and cashflow this week" },
-    { icon: Package, label: "Pending expenses", prompt: "Show pending expense approvals" },
+    { icon: TrendingUp, label: "This month sales", prompt: "Show me total orders for this month salesperson wise" },
+    { icon: TrendingUp, label: "Last month sales", prompt: "Show me total orders for last month salesperson wise" },
     { icon: BrainCircuit, label: "Finance briefing", prompt: "Give me my daily briefing — overdue payments, cashflow gaps, and high-risk customers" },
   ],
   supply_chain: [
     { icon: Package, label: "Low stock", prompt: "Show low stock inventory items" },
     { icon: Truck, label: "Delayed procurement", prompt: "Show delayed procurement orders" },
-    { icon: BarChart3, label: "Order status", prompt: "Show orders pending dispatch" },
+    { icon: TrendingUp, label: "This month sales", prompt: "Show me total orders for this month salesperson wise" },
+    { icon: TrendingUp, label: "Last month sales", prompt: "Show me total orders for last month salesperson wise" },
     { icon: BrainCircuit, label: "Supply briefing", prompt: "Give me my daily briefing — low stock, delayed procurements, and pending orders" },
   ],
   admin: [
     { icon: BarChart3, label: "Dashboard summary", prompt: "Show me today's dashboard summary" },
+    { icon: TrendingUp, label: "This month sales", prompt: "Show me total orders for this month salesperson wise" },
+    { icon: TrendingUp, label: "Last month sales", prompt: "Show me total orders for last month salesperson wise" },
     { icon: Package, label: "Pending orders", prompt: "What are the pending orders?" },
     { icon: Zap, label: "Hot leads", prompt: "Show me all hot leads" },
-    { icon: ClipboardList, label: "My tasks", prompt: "What tasks are assigned to me?" },
     { icon: BrainCircuit, label: "Daily briefing", prompt: "Give me my daily briefing — overdue payments, stalled deals, pending approvals, and any anomalies" },
   ],
 };
 
 const DEFAULT_QUICK_PROMPTS = [
   { icon: BarChart3, label: "Dashboard summary", prompt: "Show me today's dashboard summary" },
-  { icon: ClipboardList, label: "My tasks", prompt: "What tasks are assigned to me?" },
+  { icon: TrendingUp, label: "This month sales", prompt: "Show me total orders for this month salesperson wise" },
+  { icon: TrendingUp, label: "Last month sales", prompt: "Show me total orders for last month salesperson wise" },
   { icon: BrainCircuit, label: "Daily briefing", prompt: "Give me my daily briefing" },
 ];
 
