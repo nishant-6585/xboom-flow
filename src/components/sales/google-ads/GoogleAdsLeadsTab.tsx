@@ -132,7 +132,7 @@ export function GoogleAdsLeadsTab() {
     async function fetchLeads() {
       const { data } = await supabase
         .from("enquiries")
-        .select("id, customer_name, customer_company, product_name, product_code, campaign_name, campaign_id, ad_group_id, lead_temperature, status, created_at, order_outcome, is_converted, conversion_value, notes, customer_state, raw_google_payload, sales_person_name, is_a_category, city, phone_number, email, product_category, quantity, urgency, requested_timeline, purpose_of_purchase")
+        .select("id, customer_name, customer_company, product_name, product_code, campaign_name, campaign_id, ad_group_id, lead_temperature, status, created_at, order_outcome, is_converted, conversion_value, notes, customer_state, raw_google_payload, sales_person_name, product_category, quantity, urgency, requested_timeline")
         .eq("lead_source", "google_ads")
         .order("created_at", { ascending: false })
         .limit(200);
