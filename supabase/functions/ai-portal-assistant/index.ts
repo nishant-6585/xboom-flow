@@ -243,8 +243,8 @@ const DATA_TOOLS = [
           search: { type: "string" as const, description: "Search term (customer name, order number, product)" },
           status: { type: "string" as const, description: "Filter by order status: po_received, procurement_to_plan, in_transit, delivery_done, payment_received, partial_payment_received, cancelled" },
           payment_status: { type: "string" as const, description: "Filter by payment: pending, partial, paid" },
-          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD). Filters by order_date (actual business date), not created_at." },
-          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD). Filters by order_date (actual business date), not created_at." },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD). Filters by order_date first, with created_at fallback when order_date is missing." },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD). Filters by order_date first, with created_at fallback when order_date is missing." },
           exclude_cancelled: { type: "boolean" as const, description: "If true, excludes cancelled orders. ALWAYS set to true for closures, sales totals, revenue reports. Default: false." },
           limit: { type: "number" as const, description: "Max results. MUST use 500 for monthly/aggregation queries. Default: 200." },
         },
@@ -773,12 +773,16 @@ async function executeToolCall(
         if (args.status) {
           query = query.eq("status", args.status);
         } else if (args.exclude_cancelled !== false) {
-          // Auto-exclude cancelled orders unless explicitly asked for all statuses
           query = query.neq("status", "cancelled");
         }
         if (args.payment_status) query = query.eq("payment_status", args.payment_status);
-        if (args.date_from) query = query.gte("order_date", args.date_from);
-        if (args.date_to) query = query.lte("order_date", args.date_to);
+        if (args.date_from && args.date_to) {
+          query = query.or(`and(order_date.gte.${args.date_from},order_date.lte.${args.date_to}),and(order_date.is.null,created_at.gte.${args.date_from}T00:00:00,created_at.lte.${args.date_to}T23:59:59)`);
+        } else if (args.date_from) {
+          query = query.or(`order_date.gte.${args.date_from},and(order_date.is.null,created_at.gte.${args.date_from}T00:00:00)`);
+        } else if (args.date_to) {
+          query = query.or(`order_date.lte.${args.date_to},and(order_date.is.null,created_at.lte.${args.date_to}T23:59:59)`);
+        }
         const { data, error } = await query;
         if (error) throw error;
         const records = (data || []) as Record<string, unknown>[];
@@ -1455,7 +1459,7 @@ IMPORTANT — Date filtering:
 - All query tools support date_from and date_to parameters (ISO format YYYY-MM-DD).
 - When users ask "this month", "last week", "today", "this year", etc., calculate the correct date range from today's date and pass date_from/date_to.
 - Example: "orders this month" with today=${today} → date_from="${today.substring(0, 8)}01", date_to="${today}"
-- Orders use 'order_date' (actual business date) for filtering, NOT 'created_at'.
+- Orders use 'order_date' (actual business date) as the primary filter, with 'created_at' as fallback when order_date is missing.
 
 CRITICAL — Aggregation & Analysis:
 - You ARE capable of performing aggregation, grouping, summarization, and analysis on the data returned by tools.
