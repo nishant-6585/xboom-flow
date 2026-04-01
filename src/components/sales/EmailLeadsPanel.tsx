@@ -514,6 +514,7 @@ export function EmailLeadsPanel() {
                       </button>
                     </TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Assigned To</TableHead>
                     <TableHead>
                       <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('created_at')}>
                         Date
@@ -603,6 +604,9 @@ export function EmailLeadsPanel() {
                             <Badge variant="outline" className={statusColor(lead.status)}>
                               {lead.status}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {lead.sales_person_name || '—'}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                             {format(new Date(lead.created_at), 'dd MMM yyyy')}

@@ -4211,6 +4211,8 @@ export type Database = {
           purpose_of_purchase: string | null
           quantity: number | null
           requested_timeline: string | null
+          sales_person_id: string | null
+          sales_person_name: string | null
           source: string
           status: string
           synced_at: string
@@ -4243,6 +4245,8 @@ export type Database = {
           purpose_of_purchase?: string | null
           quantity?: number | null
           requested_timeline?: string | null
+          sales_person_id?: string | null
+          sales_person_name?: string | null
           source?: string
           status?: string
           synced_at?: string
@@ -4275,6 +4279,8 @@ export type Database = {
           purpose_of_purchase?: string | null
           quantity?: number | null
           requested_timeline?: string | null
+          sales_person_id?: string | null
+          sales_person_name?: string | null
           source?: string
           status?: string
           synced_at?: string

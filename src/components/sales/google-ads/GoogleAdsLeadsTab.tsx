@@ -239,6 +239,7 @@ export function GoogleAdsLeadsTab() {
                     <TableHead>Location</TableHead>
                     <TableHead>Product</TableHead>
                     <TableHead>Campaign</TableHead>
+                    <TableHead>Assigned To</TableHead>
                     <TableHead>Priority</TableHead>
                     <TableHead>Conversion</TableHead>
                     <TableHead className="text-right">Value</TableHead>
@@ -317,6 +318,9 @@ export function GoogleAdsLeadsTab() {
                               <div className="text-muted-foreground truncate max-w-[120px]">AG: {lead.ad_group_id}</div>
                             )}
                           </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {lead.sales_person_name || '—'}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className={`text-xs gap-1 ${priority.className}`}>

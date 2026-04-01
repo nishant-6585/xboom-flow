@@ -43,6 +43,7 @@ interface CallLog {
   lead_created: boolean;
   lead_id: string | null;
   created_at: string;
+  sales_person_name: string | null;
 }
 
 interface LegDetail {
@@ -364,6 +365,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                   <TableHead className="w-[40px]">P</TableHead>
                   <TableHead>Who</TableHead>
                   <TableHead>What</TableHead>
+                  <TableHead>Assigned To</TableHead>
                   <TableHead>When</TableHead>
                   <TableHead>Duration</TableHead>
                   <TableHead>Recording</TableHead>
@@ -446,6 +448,9 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                               )}
                             </div>
                           )}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          <span className="text-muted-foreground">{log.sales_person_name || log.assigned_agent_name || log.agent_name || '—'}</span>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                           <div>{formatCallTime(info.startTime, log.created_at)}</div>

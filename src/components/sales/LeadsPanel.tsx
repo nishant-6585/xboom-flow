@@ -824,6 +824,7 @@ export function LeadsPanel() {
                           <TableHead className="w-[120px]">Product</TableHead>
                           <TableHead className="w-[150px]">Email</TableHead>
                           <TableHead className="w-[80px]">Status</TableHead>
+                          <TableHead className="w-[100px]">Assigned To</TableHead>
                           <TableHead className="w-[100px]">Created On</TableHead>
                           {canEditInteraktLeads && <TableHead className="w-[60px]">Action</TableHead>}
                         </TableRow>
@@ -908,6 +909,9 @@ export function LeadsPanel() {
                               <Badge variant="secondary" className="capitalize text-xs">
                                 {lead.status}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm text-muted-foreground">{(lead as any).sales_person_name || '—'}</span>
                             </TableCell>
                             <TableCell>
                               <span className="text-xs text-muted-foreground">
