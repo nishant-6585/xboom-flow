@@ -163,6 +163,7 @@ export function Header() {
             {(role === 'admin' || role === 'supply_chain' || role === 'finance' || role === 'it') && (
               <NotificationPanel />
             )}
+            <TicketNotificationBell />
 
             <div className="w-px h-6 bg-border/60 mx-1" />
 
