@@ -512,6 +512,7 @@ export function useEmployeeTrainings() {
     loading,
     isHrOrAdmin,
     assignTraining,
+    addEmployeesToTraining,
     fetchAssignmentDetails,
     markResourceViewed,
     markCompleted,
