@@ -227,6 +227,7 @@ export function useEmployeeTrainings() {
       }
 
       toast({ title: "Success", description: "Training assigned successfully" });
+      await fetchAssignments();
       return assignment;
     } catch (error: any) {
       console.error("Error assigning training:", error);
@@ -392,6 +393,9 @@ export function useEmployeeTrainings() {
         title: "Success",
         description: `Training assigned to ${newIds.length} new employee${newIds.length > 1 ? "s" : ""}`,
       });
+
+      // Force immediate refetch to update UI
+      await fetchAssignments();
     } catch (error: any) {
       console.error("Error adding employees to training:", error);
       toast({ title: "Error", description: error.message || "Failed to add employees", variant: "destructive" });
