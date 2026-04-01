@@ -99,41 +99,11 @@ export function useEmployeeTrainings() {
 
       if (error) throw error;
 
-      const base = (data || []).map((a: any) => ({
+      const transformed = (data || []).map((a: any) => ({
         ...a,
         employee_name: a.employees?.name,
         employee_department: a.employees?.department,
       }));
-
-      // Group by training batch (same title + assigned_by + due_date) to compute team display
-      const batchMap = new Map<string, typeof base>();
-      base.forEach((a: any) => {
-        const key = `${a.training_title}||${a.assigned_by}||${a.due_date}`;
-        if (!batchMap.has(key)) batchMap.set(key, []);
-        batchMap.get(key)!.push(a);
-      });
-
-      const transformed = base.map((a: any) => {
-        const key = `${a.training_title}||${a.assigned_by}||${a.due_date}`;
-        const batch = batchMap.get(key) || [a];
-        const batchSize = batch.length;
-
-        let assigneeDisplay = a.employee_name || "Unknown";
-
-        if (batchSize > 1) {
-          // Check if all in same department
-          const departments = [...new Set(batch.map((b: any) => b.employee_department).filter(Boolean))];
-          if (departments.length === 1) {
-            assigneeDisplay = `${departments[0]} Team (${batchSize} members)`;
-          } else if (departments.length > 1) {
-            assigneeDisplay = `${a.employee_name} (${a.employee_department || "No Team"})`;
-          }
-        } else {
-          assigneeDisplay = `${a.employee_name}${a.employee_department ? ` (${a.employee_department})` : ""}`;
-        }
-
-        return { ...a, assignee_display: assigneeDisplay, batch_size: batchSize };
-      });
 
       setAssignments(transformed);
     } catch (error: any) {
