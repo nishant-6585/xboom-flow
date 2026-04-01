@@ -236,7 +236,7 @@ const DATA_TOOLS = [
     type: "function" as const,
     function: {
       name: "query_orders",
-      description: "Search orders by customer name, order number, status, product, or date range. Returns order details including amounts, payment status, and delivery info. Use higher limits (100-500) for aggregation/analytics queries.",
+      description: "Search orders by customer name, order number, status, product, or date range. Returns order details including amounts, payment status, and delivery info. IMPORTANT: For any aggregation, monthly totals, closures, or salesperson breakdown queries, ALWAYS set limit=500 and exclude_cancelled=true.",
       parameters: {
         type: "object" as const,
         properties: {
@@ -245,7 +245,8 @@ const DATA_TOOLS = [
           payment_status: { type: "string" as const, description: "Filter by payment: pending, partial, paid" },
           date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD). Filters by order_date (actual business date), not created_at." },
           date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD). Filters by order_date (actual business date), not created_at." },
-          limit: { type: "number" as const, description: "Max results (default 50, use 200-500 for monthly aggregations)" },
+          exclude_cancelled: { type: "boolean" as const, description: "If true, excludes cancelled orders. ALWAYS set to true for closures, sales totals, revenue reports. Default: false." },
+          limit: { type: "number" as const, description: "Max results. MUST use 500 for monthly/aggregation queries. Default: 200." },
         },
         required: [] as string[],
         additionalProperties: false,
