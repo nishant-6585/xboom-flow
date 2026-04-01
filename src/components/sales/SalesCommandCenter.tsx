@@ -1063,50 +1063,80 @@ export function SalesCommandCenter() {
         </Card>
       )}
 
-      {/* ============ TARGET VS ACHIEVED ============ */}
+      {/* ============ TARGET VS ACHIEVED (Revenue & Pipeline) ============ */}
       {isManager && targetComparison.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Target className="w-4 h-4 text-primary" />
-              Salesperson Target vs Achieved (Current Period)
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Target className="w-4 h-4 text-primary" />
+                Target vs Achieved
+              </CardTitle>
+              <div className="flex gap-1">
+                {(['monthly', 'quarterly'] as const).map(p => (
+                  <Button
+                    key={p}
+                    variant={targetViewPeriod === p ? 'default' : 'outline'}
+                    size="sm"
+                    className="text-xs h-7 px-3"
+                    onClick={() => setTargetViewPeriod(p)}
+                  >
+                    {p === 'monthly' ? 'Monthly' : 'Quarterly'}
+                  </Button>
+                ))}
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border/50">
-                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Person</th>
-                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Rev Target</th>
-                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Achieved</th>
-                    <th className="text-center py-2 px-3 font-medium text-muted-foreground">Progress</th>
-                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Pipeline</th>
-                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Prospects</th>
-                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Orders</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {targetComparison.map(t => (
-                    <tr key={t.name} className="border-b border-border/30 hover:bg-muted/30">
-                      <td className="py-2.5 px-3 font-medium">{t.name}</td>
-                      <td className="py-2.5 px-3 text-right">{formatCurrency(t.revenueTarget)}</td>
-                      <td className="py-2.5 px-3 text-right font-semibold">{formatCurrency(t.revenueAchieved)}</td>
-                      <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-2">
-                          <Progress value={Math.min(100, t.revenuePct)} className="h-2 flex-1" />
-                          <Badge variant={t.revenuePct >= 100 ? 'default' : t.revenuePct >= 70 ? 'secondary' : 'destructive'} className="text-xs min-w-[40px] justify-center">
-                            {t.revenuePct}%
-                          </Badge>
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">{formatCurrency(t.pipelineAchieved)}</td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">{t.prospectsCount}</td>
-                      <td className="py-2.5 px-3 text-right text-muted-foreground">{t.ordersAchieved}/{t.ordersTarget}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Revenue Target vs Achieved */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-1.5">
+                  <DollarSign className="w-3.5 h-3.5" /> Revenue — Target vs Achieved
+                </p>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={targetComparison} layout="vertical" barGap={2}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                    <XAxis type="number" className="text-xs" tickFormatter={(v) => formatCurrency(v)} />
+                    <YAxis type="category" dataKey="name" className="text-xs" width={70} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => formatCurrency(v)} />
+                    <Legend />
+                    <Bar dataKey="revenueTarget" name="Target" fill="hsl(var(--muted-foreground) / 0.25)" radius={[0, 4, 4, 0]} barSize={14} />
+                    <Bar dataKey="revenueAchieved" name="Achieved" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} barSize={14} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Pipeline Target vs Achieved */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-1.5">
+                  <PieChart className="w-3.5 h-3.5" /> Pipeline — Target vs Achieved
+                </p>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={targetComparison} layout="vertical" barGap={2}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                    <XAxis type="number" className="text-xs" tickFormatter={(v) => formatCurrency(v)} />
+                    <YAxis type="category" dataKey="name" className="text-xs" width={70} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => formatCurrency(v)} />
+                    <Legend />
+                    <Bar dataKey="pipelineTarget" name="Target" fill="hsl(var(--muted-foreground) / 0.25)" radius={[0, 4, 4, 0]} barSize={14} />
+                    <Bar dataKey="pipelineAchieved" name="Achieved" fill="hsl(var(--chart-4))" radius={[0, 4, 4, 0]} barSize={14} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Summary badges */}
+            <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-border/30">
+              {targetComparison.map(t => (
+                <Badge
+                  key={t.name}
+                  variant={t.revenuePct >= 100 ? 'default' : t.revenuePct >= 70 ? 'secondary' : 'destructive'}
+                  className="text-xs gap-1"
+                >
+                  {t.name}: {t.revenuePct}% Rev · {t.pipelinePct}% Pipe
+                </Badge>
+              ))}
             </div>
           </CardContent>
         </Card>
