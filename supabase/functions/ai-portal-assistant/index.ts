@@ -243,9 +243,9 @@ const DATA_TOOLS = [
           search: { type: "string" as const, description: "Search term (customer name, order number, product)" },
           status: { type: "string" as const, description: "Filter by order status: po_received, procurement_to_plan, in_transit, delivery_done, payment_received, partial_payment_received, cancelled" },
           payment_status: { type: "string" as const, description: "Filter by payment: pending, partial, paid" },
-          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD)" },
-          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD)" },
-          limit: { type: "number" as const, description: "Max results (default 20)" },
+          date_from: { type: "string" as const, description: "Start date filter (ISO format YYYY-MM-DD). Filters by order_date (actual business date), not created_at." },
+          date_to: { type: "string" as const, description: "End date filter (ISO format YYYY-MM-DD). Filters by order_date (actual business date), not created_at." },
+          limit: { type: "number" as const, description: "Max results (default 50, use 200-500 for monthly aggregations)" },
         },
         required: [] as string[],
         additionalProperties: false,
@@ -762,13 +762,13 @@ async function executeToolCall(
 
     switch (toolName) {
       case "query_orders": {
-        let query = client.from("orders").select("id, order_number, customer_name, customer_company, product_name, product_code, product_category, quantity, total_sales_amount, amount_paid, discount_amount, payment_status, status, sales_person_name, created_at, payment_due_date, shipping_address").order("created_at", { ascending: false }).limit(limit);
+        let query = client.from("orders").select("id, order_number, customer_name, customer_company, product_name, product_code, product_category, quantity, total_sales_amount, amount_paid, discount_amount, payment_status, status, sales_person_name, order_date, created_at, payment_due_date, shipping_address").order("order_date", { ascending: false }).limit(limit);
         if (isSales && !isAdmin && !isSalesManager) query = query.eq("sales_person_id", userId);
         if (args.search) query = query.or(`customer_name.ilike.%${args.search}%,order_number.ilike.%${args.search}%,product_name.ilike.%${args.search}%,customer_company.ilike.%${args.search}%`);
         if (args.status) query = query.eq("status", args.status);
         if (args.payment_status) query = query.eq("payment_status", args.payment_status);
-        if (args.date_from) query = query.gte("created_at", `${args.date_from}T00:00:00`);
-        if (args.date_to) query = query.lte("created_at", `${args.date_to}T23:59:59`);
+        if (args.date_from) query = query.gte("order_date", args.date_from);
+        if (args.date_to) query = query.lte("order_date", args.date_to);
         const { data, error } = await query;
         if (error) throw error;
         const records = (data || []) as Record<string, unknown>[];
@@ -1444,12 +1444,18 @@ IMPORTANT — Date filtering:
 - All query tools support date_from and date_to parameters (ISO format YYYY-MM-DD).
 - When users ask "this month", "last week", "today", "this year", etc., calculate the correct date range from today's date and pass date_from/date_to.
 - Example: "orders this month" with today=${today} → date_from="${today.substring(0, 8)}01", date_to="${today}"
+- Orders use 'order_date' (actual business date) for filtering, NOT 'created_at'.
 
 CRITICAL — Aggregation & Analysis:
 - You ARE capable of performing aggregation, grouping, summarization, and analysis on the data returned by tools.
 - When the user asks for breakdowns, fetch data with a HIGH limit (200-500) and group/aggregate yourself.
 - Present aggregated results in markdown tables with proper totals.
 - Common aggregation patterns: Group by product/category/salesperson/status → count + sum of amounts.
+
+CRITICAL — Order Closures / Sales:
+- "Total closures" or "total sales" means ALL orders EXCLUDING status='cancelled'.
+- Always exclude cancelled orders from closure/sales/revenue calculations.
+- When reporting monthly closures, use limit=500 to ensure all orders are captured.
 
 TIERED ACCESS CONTROL — CRITICAL SECURITY RULES:
 1. If a tool returns "access_denied": true, present an EXPLAINABLE DENIAL:
