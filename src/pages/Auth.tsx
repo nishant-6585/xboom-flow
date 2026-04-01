@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, CheckCircle, ShieldCheck, Calendar, Clock } from "lucide-react";
 import { z } from "zod";
 import logoIcon from "@/assets/logo-icon.jpeg";
-import authBg from "@/assets/auth-wallpaper.png";
+import XboomLoginBackground from "@/components/auth/XboomLoginBackground";
 import { supabase } from "@/integrations/supabase/client";
 
 type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketing" | "hr";
