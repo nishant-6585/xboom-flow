@@ -79,6 +79,28 @@ export function ProspectButton({
       resolvedProductName = emailLead?.product_name?.trim() || '';
     }
 
+    // Form leads: hydrate from form_leads table
+    if (!resolvedProductName && sourceType === 'form_lead') {
+      const { data: formLead } = await supabase
+        .from('form_leads')
+        .select('product_name')
+        .eq('id', sourceId)
+        .maybeSingle();
+
+      resolvedProductName = formLead?.product_name?.trim() || '';
+    }
+
+    // Google Ads leads: hydrate from enquiries table
+    if (!resolvedProductName && sourceType === 'google_ads') {
+      const { data: gadsLead } = await supabase
+        .from('enquiries')
+        .select('product_name')
+        .eq('id', sourceId)
+        .maybeSingle();
+
+      resolvedProductName = gadsLead?.product_name?.trim() || '';
+    }
+
     if (!resolvedProductName) {
       toast.error('Product name is required before marking as Prospect. Please edit the lead and fill the Product field.');
       return;
