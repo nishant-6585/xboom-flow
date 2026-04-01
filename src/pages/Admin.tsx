@@ -196,7 +196,11 @@ const Admin = () => {
         body: { invitation_id: invitationId },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Try to extract the actual error message from the response
+        const errorMsg = data?.error || error.message || "Failed to approve invitation";
+        throw new Error(errorMsg);
+      }
       if (data?.error) throw new Error(data.error);
 
       // Log audit with comment
