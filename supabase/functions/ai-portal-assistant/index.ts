@@ -721,7 +721,7 @@ async function executeToolCall(
   roles: string[],
   lastUserMessage: string
 ): Promise<string> {
-  const limit = Math.min(Number(args.limit) || 50, 500);
+  const limit = Math.min(Number(args.limit) || 200, 500);
   const isAdmin = roles.includes("admin");
   const isSalesManager = roles.includes("sales_manager");
   const isSales = roles.includes("sales");
