@@ -106,6 +106,9 @@ export function TicketTable({ tickets, onView }: TicketTableProps) {
                       {overdue && (
                         <AlertTriangle className="w-4 h-4 text-destructive" />
                       )}
+                      {alertedTicketIds.has(ticket.id) && !overdue && (
+                        <AlertTriangle className="w-4 h-4 text-orange-500 animate-pulse" />
+                      )}
                       {ticket.ticket_number}
                     </div>
                   </TableCell>
