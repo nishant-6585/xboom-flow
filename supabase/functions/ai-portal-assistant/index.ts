@@ -1427,6 +1427,7 @@ serve(async (req) => {
 
     // Extract last user message for audit logging
     const lastUserMessage = messages.filter(m => m.role === "user").pop()?.content || "";
+    const isFreshDataQuery = /\b(show|what|how many|total|count|sum|revenue|sales|closure|closures|orders?|enquiries?|leads?|pipeline|inventory|payments?|pending|profit|margin|breakdown|report|dashboard|month|monthly|week|weekly|today|yesterday|mtd|qtd|year|salesperson)\b/i.test(lastUserMessage);
 
     // Filter tools based on role
     const allAllowedTools = new Set<string>();
@@ -1544,6 +1545,13 @@ Chart types: "bar", "pie", "line"
 
 Available modules: ${Array.from(allAllowedTools).map(t => t.replace("query_", "").replace("get_", "")).join(", ")}`;
 
+    const step1Messages = isFreshDataQuery
+      ? [
+          { role: "system" as const, content: `${systemPrompt}\n\nCRITICAL: This is a live data/reporting query. Ignore any previous assistant answers in the conversation and recompute using fresh tool calls only. Do not reuse earlier numbers unless confirmed by tool results.` },
+          { role: "user" as const, content: lastUserMessage },
+        ]
+      : [{ role: "system" as const, content: systemPrompt }, ...messages];
+
     // Step 1: Send to AI with tools
     const step1Response = await fetch(GATEWAY_URL, {
       method: "POST",
@@ -1553,9 +1561,9 @@ Available modules: ${Array.from(allAllowedTools).map(t => t.replace("query_", ""
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        messages: [{ role: "system", content: systemPrompt }, ...messages],
+        messages: step1Messages,
         tools: filteredTools,
-        tool_choice: "auto",
+        tool_choice: isFreshDataQuery ? "required" : "auto",
         stream: false,
       }),
     });
@@ -1681,7 +1689,7 @@ RULES:
 
     const step3Messages = [
       { role: "system", content: structuredSystemPrompt },
-      ...messages,
+      ...(isFreshDataQuery ? [{ role: "user", content: lastUserMessage }] : messages),
       assistantMessage,
       ...toolResults,
     ];
