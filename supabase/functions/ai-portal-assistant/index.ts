@@ -1891,6 +1891,11 @@ RULES:
       finalMessage = rawContent;
     }
 
+    const deterministicBreakdown = buildOrderSalespersonBreakdownMessage(lastUserMessage, assistantMessage, toolResults);
+    if (deterministicBreakdown) {
+      finalMessage = deterministicBreakdown;
+    }
+
     // Clean up any residual formatting
     finalMessage = finalMessage.replace(/\n{3,}/g, "\n\n").trim();
 
