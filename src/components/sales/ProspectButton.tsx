@@ -68,6 +68,17 @@ export function ProspectButton({
       }
     }
 
+    // Email leads: hydrate from email_leads table
+    if (!resolvedProductName && sourceType === 'email') {
+      const { data: emailLead } = await supabase
+        .from('email_leads')
+        .select('product_name')
+        .eq('id', sourceId)
+        .maybeSingle();
+
+      resolvedProductName = emailLead?.product_name?.trim() || '';
+    }
+
     if (!resolvedProductName) {
       toast.error('Product name is required before marking as Prospect. Please edit the lead and fill the Product field.');
       return;

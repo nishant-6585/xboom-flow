@@ -115,6 +115,31 @@ export function EnquiryConvertButton({
         }
       }
 
+      // Email leads: hydrate from email_leads table
+      if (sourceType === 'email') {
+        const { data: emailLead } = await supabase
+          .from('email_leads')
+          .select('customer_name, customer_company, email, phone_number, city, product_name, product_category, product_code, quantity, urgency, requested_timeline, purpose_of_purchase, notes')
+          .eq('id', sourceId)
+          .maybeSingle();
+
+        if (emailLead) {
+          resolvedCustomerName = emailLead.customer_name || resolvedCustomerName;
+          resolvedPhoneNumber = emailLead.phone_number || resolvedPhoneNumber;
+          resolvedEmail = emailLead.email || resolvedEmail;
+          resolvedCompany = emailLead.customer_company || resolvedCompany;
+          resolvedCity = emailLead.city || resolvedCity;
+          resolvedProductName = emailLead.product_name?.trim() || resolvedProductName;
+          resolvedProductCategory = emailLead.product_category || resolvedProductCategory;
+          resolvedProductCode = emailLead.product_code || resolvedProductCode;
+          resolvedQuantity = emailLead.quantity ?? resolvedQuantity;
+          resolvedUrgency = emailLead.urgency || resolvedUrgency;
+          resolvedRequestedTimeline = emailLead.requested_timeline || resolvedRequestedTimeline;
+          resolvedPurposeOfPurchase = emailLead.purpose_of_purchase || resolvedPurposeOfPurchase;
+          resolvedNotes = emailLead.notes || resolvedNotes;
+        }
+      }
+
       if (!resolvedProductName) {
         toast.error('Product name is required before converting to enquiry. Please save product details and retry.');
         return;
