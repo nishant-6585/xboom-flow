@@ -167,6 +167,7 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
 
   const handleMarkCompleted = async () => {
     await markCompleted(assignment.id);
+    refetch();
     onOpenChange(false);
   };
 
