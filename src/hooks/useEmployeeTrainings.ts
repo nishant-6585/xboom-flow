@@ -319,6 +319,86 @@ export function useEmployeeTrainings() {
     }
   };
 
+  const addEmployeesToTraining = async (trainingId: string, employeeIds: string[], dueDate: string) => {
+    try {
+      // Get master training info
+      const { data: training } = await supabase
+        .from("employee_trainings")
+        .select("*")
+        .eq("id", trainingId)
+        .single();
+
+      if (!training) throw new Error("Training not found");
+
+      // Get already assigned employee IDs to prevent duplicates
+      const { data: existing } = await supabase
+        .from("training_assignments")
+        .select("employee_id")
+        .eq("training_id", trainingId);
+
+      const existingSet = new Set((existing || []).map(e => e.employee_id));
+      const newIds = employeeIds.filter(id => !existingSet.has(id));
+
+      if (newIds.length === 0) {
+        toast({ title: "Info", description: "All selected employees are already assigned" });
+        return;
+      }
+
+      // Get master resources
+      const { data: masterResources } = await supabase
+        .from("employee_training_resources")
+        .select("*")
+        .eq("training_id", trainingId)
+        .order("resource_order");
+
+      const userName = user?.user_metadata?.name || user?.email || "Unknown";
+
+      for (const empId of newIds) {
+        const { data: assignment, error } = await supabase
+          .from("training_assignments")
+          .insert({
+            training_id: trainingId,
+            employee_id: empId,
+            training_title: training.title,
+            description: training.description || null,
+            due_date: dueDate,
+            priority: training.priority,
+            assigned_by: user!.id,
+            assigned_by_name: userName,
+            status: "assigned",
+            progress_percentage: 0,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Duplicate resources for per-employee tracking
+        if (masterResources && masterResources.length > 0 && assignment) {
+          const resourceRows = masterResources.map((r: any) => ({
+            training_assignment_id: assignment.id,
+            resource_type: r.resource_type,
+            title: r.title,
+            url_or_file_path: r.url_or_file_path,
+            description: r.description,
+            resource_order: r.resource_order,
+          }));
+
+          await supabase.from("training_resources").insert(resourceRows);
+        }
+      }
+
+      toast({
+        title: "Success",
+        description: `Training assigned to ${newIds.length} new employee${newIds.length > 1 ? "s" : ""}`,
+      });
+    } catch (error: any) {
+      console.error("Error adding employees to training:", error);
+      toast({ title: "Error", description: error.message || "Failed to add employees", variant: "destructive" });
+      throw error;
+    }
+  };
+
   const deleteAssignment = async (assignmentId: string) => {
     try {
       const assignment = assignments.find(a => a.id === assignmentId);
