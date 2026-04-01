@@ -1110,7 +1110,7 @@ export function SalesCommandCenter() {
               {/* Pipeline Target vs Achieved */}
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-1.5">
-                  <PieChart className="w-3.5 h-3.5" /> Pipeline — Target vs Achieved
+                  <TrendingUp className="w-3.5 h-3.5" /> Pipeline — Target vs Achieved
                 </p>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={targetComparison} layout="vertical" barGap={2}>
