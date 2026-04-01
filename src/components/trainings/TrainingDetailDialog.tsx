@@ -124,9 +124,9 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
     setIsDeleting(true);
     try {
       // Delete resources first, then assignment
-      await supabase.from("training_resource_tracking").delete().eq("assignment_id", assignment.id);
-      await supabase.from("training_resources").delete().eq("assignment_id", assignment.id);
-      const { error } = await supabase.from("training_assignments").delete().eq("id", assignment.id);
+      await supabase.from("training_resource_tracking" as any).delete().eq("assignment_id", assignment.id);
+      await supabase.from("training_resources" as any).delete().eq("assignment_id", assignment.id);
+      const { error } = await supabase.from("training_assignments" as any).delete().eq("id", assignment.id);
       if (error) throw error;
       toast.success("Training deleted successfully");
       refetch();
