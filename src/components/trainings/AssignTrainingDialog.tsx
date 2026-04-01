@@ -122,12 +122,11 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
     setSaving(true);
     try {
       const resourceData = resources
-        .filter(r => r.title)
-        .map(r => ({
+        .map((r, i) => ({
           resource_type: r.resource_type,
-          title: r.title,
+          title: r.title || r.file?.name?.replace(/\.[^/.]+$/, "") || `Resource ${i + 1}`,
           url_or_file_path: r.resource_type === "upload_video" || r.resource_type === "document" ? "" : r.url_or_file_path,
-          description: r.description,
+          description: "",
         }));
 
       // Assign to each selected employee
