@@ -20,6 +20,7 @@ const RESOURCE_ICONS: Record<string, React.ReactNode> = {
 
 const EMBEDDABLE_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp"];
 const VIDEO_EXTENSIONS = [".mp4", ".webm", ".ogg"];
+const OFFICE_EXTENSIONS = [".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt"];
 
 interface Props {
   resource: TrainingResource | null;
@@ -44,23 +45,25 @@ function isEmbeddableUrl(resource: TrainingResource): boolean {
   const url = resource.url_or_file_path;
   if (!url) return false;
 
-  // YouTube is always embeddable
   if (resource.resource_type === "youtube" || url.includes("youtube.com") || url.includes("youtu.be")) {
     return true;
   }
 
-  // Check file extension for documents/uploads
   if (resource.resource_type === "document" || resource.resource_type === "upload_video") {
     const ext = getFileExtension(url);
-    return EMBEDDABLE_EXTENSIONS.includes(ext) || VIDEO_EXTENSIONS.includes(ext);
+    return EMBEDDABLE_EXTENSIONS.includes(ext) || VIDEO_EXTENSIONS.includes(ext) || OFFICE_EXTENSIONS.includes(ext);
   }
 
-  // Links - try to embed
   if (resource.resource_type === "link") {
     return true;
   }
 
   return false;
+}
+
+function isOfficeFile(url: string): boolean {
+  const ext = getFileExtension(url);
+  return OFFICE_EXTENSIONS.includes(ext);
 }
 
 function isVideoUrl(url: string): boolean {
@@ -76,6 +79,11 @@ function getEmbedUrl(resource: TrainingResource): string | null {
   if (resource.resource_type === "youtube" || url.includes("youtube.com") || url.includes("youtu.be")) {
     const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/);
     if (match) return `https://www.youtube.com/embed/${match[1]}`;
+  }
+
+  // Office files via Microsoft Office Online Viewer
+  if (isOfficeFile(url)) {
+    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
   }
 
   return url;
