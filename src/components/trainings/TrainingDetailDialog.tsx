@@ -65,6 +65,10 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
   const [selectionTab, setSelectionTab] = useState<"team" | "employee">("team");
   const [existingAssignedIds, setExistingAssignedIds] = useState<string[]>([]);
 
+  // Resource preview state
+  const [previewResource, setPreviewResource] = useState<TrainingResource | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
   useEffect(() => {
     if (assignment && open) {
       setLoadingDetails(true);
