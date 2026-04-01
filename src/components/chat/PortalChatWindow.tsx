@@ -702,20 +702,31 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                     "disabled:opacity-50 transition-all"
                   )}
                 />
-                <Button
-                  type="submit"
-                  disabled={isLoading || !input.trim()}
-                  size="icon"
-                  className={cn(
-                    "absolute right-1.5 bottom-1.5 h-8 w-8 rounded-lg",
-                    "transition-all duration-200",
-                    input.trim() && !isLoading
-                      ? "bg-primary text-primary-foreground shadow-md hover:shadow-lg"
-                      : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                </Button>
+                {isLoading ? (
+                  <Button
+                    type="button"
+                    onClick={handleStopGeneration}
+                    size="icon"
+                    className="absolute right-1.5 bottom-1.5 h-8 w-8 rounded-lg bg-destructive text-destructive-foreground shadow-md hover:bg-destructive/90 transition-all duration-200"
+                  >
+                    <Square className="w-3.5 h-3.5 fill-current" />
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    disabled={!input.trim()}
+                    size="icon"
+                    className={cn(
+                      "absolute right-1.5 bottom-1.5 h-8 w-8 rounded-lg",
+                      "transition-all duration-200",
+                      input.trim()
+                        ? "bg-primary text-primary-foreground shadow-md hover:shadow-lg"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
             </form>
             <p className="text-[9px] text-muted-foreground text-center mt-1 tracking-wide">
