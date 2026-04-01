@@ -64,7 +64,20 @@ export function GroupedTrainingCard({ group, isHrOrAdmin, onAssignmentClick, onD
                 <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{group.description}</p>
               )}
             </div>
-            <Badge variant={statusCfg.variant}>{statusCfg.label}</Badge>
+            <div className="flex items-center gap-2 shrink-0">
+              {isHrOrAdmin && onAddEmployees && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 text-xs h-7"
+                  onClick={e => { e.stopPropagation(); onAddEmployees(group); }}
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  Add
+                </Button>
+              )}
+              <Badge variant={statusCfg.variant}>{statusCfg.label}</Badge>
+            </div>
           </div>
 
           {/* Meta row */}
