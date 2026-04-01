@@ -46,7 +46,7 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
   const [employees, setEmployees] = useState<{ id: string; name: string; department: string }[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const [selectionMode, setSelectionMode] = useState<SelectionMode>("individual");
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>("team");
   const [employeeId, setEmployeeId] = useState("");
   const [selectedTeam, setSelectedTeam] = useState("");
   const [title, setTitle] = useState("");
@@ -194,13 +194,13 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
                 setSelectedTeam("");
               }}>
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="individual" className="gap-2">
-                    <User className="h-4 w-4" />
-                    Individual
-                  </TabsTrigger>
                   <TabsTrigger value="team" className="gap-2">
                     <Users className="h-4 w-4" />
-                    Team / Department
+                    Team
+                  </TabsTrigger>
+                  <TabsTrigger value="individual" className="gap-2">
+                    <User className="h-4 w-4" />
+                    Employee
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -222,7 +222,7 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
                 </div>
               ) : (
                 <div>
-                  <Label>Team / Department *</Label>
+                  <Label>Team *</Label>
                   <Select value={selectedTeam} onValueChange={setSelectedTeam}>
                     <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
                     <SelectContent>
