@@ -8371,6 +8371,9 @@ export type Database = {
           created_at: string | null
           estimated_complexity: string | null
           id: string
+          implementation_report: Json | null
+          implementation_status: string | null
+          implemented_at: string | null
           lovable_prompt: string | null
           needs_human_review: boolean | null
           rejection_reason: string | null
@@ -8391,6 +8394,9 @@ export type Database = {
           created_at?: string | null
           estimated_complexity?: string | null
           id?: string
+          implementation_report?: Json | null
+          implementation_status?: string | null
+          implemented_at?: string | null
           lovable_prompt?: string | null
           needs_human_review?: boolean | null
           rejection_reason?: string | null
@@ -8411,6 +8417,9 @@ export type Database = {
           created_at?: string | null
           estimated_complexity?: string | null
           id?: string
+          implementation_report?: Json | null
+          implementation_status?: string | null
+          implemented_at?: string | null
           lovable_prompt?: string | null
           needs_human_review?: boolean | null
           rejection_reason?: string | null
