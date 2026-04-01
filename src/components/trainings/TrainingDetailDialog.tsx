@@ -17,8 +17,9 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import {
   Youtube, Video, FileText, Link, StickyNote, MonitorPlay, CheckCircle2, Circle,
-  ExternalLink, Play, Loader2, Calendar, User, AlertTriangle, Edit2, Save, X
+  ExternalLink, Play, Loader2, Calendar, User, AlertTriangle, Edit2, Save, X, Trash2
 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const RESOURCE_ICONS: Record<string, React.ReactNode> = {
   youtube: <Youtube className="h-5 w-5 text-red-500" />,
@@ -116,6 +117,27 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
     }
   };
 
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!assignment) return;
+    setIsDeleting(true);
+    try {
+      // Delete resources first, then assignment
+      await supabase.from("training_resource_tracking" as any).delete().eq("assignment_id", assignment.id);
+      await supabase.from("training_resources" as any).delete().eq("assignment_id", assignment.id);
+      const { error } = await supabase.from("training_assignments" as any).delete().eq("id", assignment.id);
+      if (error) throw error;
+      toast.success("Training deleted successfully");
+      refetch();
+      onOpenChange(false);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete training");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleOpenResource = async (resource: TrainingResource) => {
     if (isOwner && employeeId && !isResourceViewed(resource.id)) {
       await markResourceViewed(assignment.id, resource.id, employeeId);
@@ -143,10 +165,35 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
               {isEditing ? "Edit Training" : assignment.training_title}
             </DialogTitle>
             {isHrOrAdmin && !isEditing && (
-              <Button variant="outline" size="sm" onClick={startEditing}>
-                <Edit2 className="h-4 w-4 mr-1" />
-                Edit
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={startEditing}>
+                  <Edit2 className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="text-destructive border-destructive/50 hover:bg-destructive/10">
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Training</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete this training assignment and all its resources. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             )}
           </div>
         </DialogHeader>
