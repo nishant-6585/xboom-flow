@@ -397,25 +397,34 @@ export function SalesCommandCenter() {
   }, [isManager, salesTeam, filtered]);
 
   // ============ Target vs Achieved ============
+  const [targetViewPeriod, setTargetViewPeriod] = useState<'monthly' | 'quarterly'>('monthly');
   const targetComparison = useMemo(() => {
     const now = new Date();
     return targets
-      .filter(t => new Date(t.period_start) <= now && new Date(t.period_end) >= now)
+      .filter(t => t.target_period === targetViewPeriod && new Date(t.period_start) <= now && new Date(t.period_end) >= now)
       .map(t => {
-        const spOrders = orders.filter(o => o.sales_person_id === t.user_id);
-        const spPipeline = pipelineOrders.filter(p => p.sales_person_id === t.user_id && p.status !== 'won' && p.status !== 'lost');
-        const spProspects = prospects.filter((p: any) => p.created_by === t.user_id);
+        // Filter orders/pipeline by the target's period range
+        const pStart = new Date(t.period_start);
+        const pEnd = new Date(t.period_end);
+        const spOrders = orders.filter(o => o.sales_person_id === t.user_id && new Date(o.created_at) >= pStart && new Date(o.created_at) <= pEnd);
+        const spPipeline = pipelineOrders.filter(p => p.sales_person_id === t.user_id && p.status !== 'won' && p.status !== 'lost' && new Date(p.created_at) >= pStart && new Date(p.created_at) <= pEnd);
         const revenue = spOrders.reduce((s, o) => s + (o.total_sales_amount || 0), 0);
         const pipeVal = spPipeline.reduce((s, p) => s + (p.expected_price || 0), 0);
         return {
-          name: t.user_name, revenueTarget: t.revenue_target, revenueAchieved: revenue,
-          ordersTarget: t.orders_target, ordersAchieved: spOrders.length,
-          pipelineTarget: t.pipeline_target, pipelineAchieved: pipeVal,
-          prospectsCount: spProspects.length,
+          name: t.user_name.split(' ')[0], // First name for chart
+          fullName: t.user_name,
+          revenueTarget: t.revenue_target,
+          revenueAchieved: revenue,
+          ordersTarget: t.orders_target,
+          ordersAchieved: spOrders.length,
+          pipelineTarget: t.pipeline_target,
+          pipelineAchieved: pipeVal,
           revenuePct: t.revenue_target > 0 ? Math.round((revenue / t.revenue_target) * 100) : 0,
+          pipelinePct: t.pipeline_target > 0 ? Math.round((pipeVal / t.pipeline_target) * 100) : 0,
         };
-      });
-  }, [targets, orders, pipelineOrders, prospects]);
+      })
+      .sort((a, b) => b.revenueAchieved - a.revenueAchieved);
+  }, [targets, orders, pipelineOrders, targetViewPeriod]);
 
   // ============ Funnel ============
   const funnelData = [
