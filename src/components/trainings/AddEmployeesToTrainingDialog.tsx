@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Loader2, Search, Users, User, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -171,7 +171,7 @@ export function AddEmployeesToTrainingDialog({ open, onOpenChange, group, onAddE
           )}
 
           {/* List */}
-          <ScrollArea className="flex-1 min-h-[200px] max-h-[40vh] border rounded-md">
+          <div className="flex-1 min-h-0 max-h-[45vh] overflow-y-auto overscroll-contain border rounded-md">
             {loadingEmps ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -228,7 +228,7 @@ export function AddEmployeesToTrainingDialog({ open, onOpenChange, group, onAddE
                 ))}
               </div>
             )}
-          </ScrollArea>
+          </div>
 
           {/* Selection summary */}
           {selectedIds.length > 0 && (
