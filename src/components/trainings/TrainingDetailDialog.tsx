@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrainingAssignment, TrainingResource, TrainingResourceTracking, useEmployeeTrainings } from "@/hooks/useEmployeeTrainings";
+import { ResourcePreviewDialog } from "./ResourcePreviewDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -63,6 +64,10 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
   const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const [selectionTab, setSelectionTab] = useState<"team" | "employee">("team");
   const [existingAssignedIds, setExistingAssignedIds] = useState<string[]>([]);
+
+  // Resource preview state
+  const [previewResource, setPreviewResource] = useState<TrainingResource | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (assignment && open) {
@@ -285,17 +290,18 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
     }
   };
 
-  const handleOpenResource = async (resource: TrainingResource) => {
-    if (isOwner && employeeId && !isResourceViewed(resource.id)) {
-      await markResourceViewed(assignment.id, resource.id, employeeId);
-      const { tracking: t } = await fetchAssignmentDetails(assignment.id);
-      setTracking(t);
-    }
 
-    if (resource.resource_type === "note") return;
-    if (resource.url_or_file_path) {
-      window.open(resource.url_or_file_path, "_blank");
-    }
+  const handleOpenResource = (resource: TrainingResource) => {
+    setPreviewResource(resource);
+    setPreviewOpen(true);
+  };
+
+  const handleMarkResourceViewed = async () => {
+    if (!previewResource || !employeeId) return;
+    await markResourceViewed(assignment.id, previewResource.id, employeeId);
+    const { tracking: t } = await fetchAssignmentDetails(assignment.id);
+    setTracking(t);
+    refetch();
   };
 
   const handleMarkCompleted = async () => {
@@ -306,6 +312,7 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
   const newEmployeeCount = selectedEmployeeIds.filter(id => !existingAssignedIds.includes(id)).length;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
@@ -597,5 +604,18 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
         </ScrollArea>
       </DialogContent>
     </Dialog>
+
+      <ResourcePreviewDialog
+        resource={previewResource}
+        open={previewOpen}
+        onOpenChange={(open) => {
+          setPreviewOpen(open);
+          if (!open) setPreviewResource(null);
+        }}
+        isViewed={previewResource ? isResourceViewed(previewResource.id) : false}
+        isOwner={isOwner}
+        onMarkViewed={handleMarkResourceViewed}
+      />
+    </>
   );
 }
