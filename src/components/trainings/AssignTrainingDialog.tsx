@@ -179,11 +179,11 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Assign Training to Employee</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="max-h-[calc(90vh-100px)] pr-4">
+        <ScrollArea className="flex-1 max-h-[calc(90vh-80px)] pr-4">
           <div className="space-y-4 pb-4">
             {/* Selection Mode Toggle */}
             <div>
