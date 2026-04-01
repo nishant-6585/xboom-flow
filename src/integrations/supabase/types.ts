@@ -8360,6 +8360,77 @@ export type Database = {
           },
         ]
       }
+      ticket_ai_resolutions: {
+        Row: {
+          applied_at: string | null
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
+          approved_by_name: string | null
+          confidence_score: number | null
+          created_at: string | null
+          estimated_complexity: string | null
+          id: string
+          lovable_prompt: string | null
+          needs_human_review: boolean | null
+          rejection_reason: string | null
+          resolution_comment: string | null
+          resolution_plan: string | null
+          resolution_type: string | null
+          review_reason: string | null
+          root_cause: string | null
+          ticket_id: string
+        }
+        Insert: {
+          applied_at?: string | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          estimated_complexity?: string | null
+          id?: string
+          lovable_prompt?: string | null
+          needs_human_review?: boolean | null
+          rejection_reason?: string | null
+          resolution_comment?: string | null
+          resolution_plan?: string | null
+          resolution_type?: string | null
+          review_reason?: string | null
+          root_cause?: string | null
+          ticket_id: string
+        }
+        Update: {
+          applied_at?: string | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          estimated_complexity?: string | null
+          id?: string
+          lovable_prompt?: string | null
+          needs_human_review?: boolean | null
+          rejection_reason?: string | null
+          resolution_comment?: string | null
+          resolution_plan?: string | null
+          resolution_type?: string | null
+          review_reason?: string | null
+          root_cause?: string | null
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_ai_resolutions_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_ai_suggestions: {
         Row: {
           applied: boolean
@@ -8415,8 +8486,10 @@ export type Database = {
       }
       ticket_comments: {
         Row: {
+          ai_generated: boolean | null
           attachment_urls: string[] | null
           comment: string
+          comment_type: string | null
           commented_by: string
           commented_by_name: string
           created_at: string
@@ -8425,8 +8498,10 @@ export type Database = {
           ticket_id: string
         }
         Insert: {
+          ai_generated?: boolean | null
           attachment_urls?: string[] | null
           comment: string
+          comment_type?: string | null
           commented_by: string
           commented_by_name: string
           created_at?: string
@@ -8435,8 +8510,10 @@ export type Database = {
           ticket_id: string
         }
         Update: {
+          ai_generated?: boolean | null
           attachment_urls?: string[] | null
           comment?: string
+          comment_type?: string | null
           commented_by?: string
           commented_by_name?: string
           created_at?: string
@@ -8447,6 +8524,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "ticket_comments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+          read: boolean | null
+          ticket_id: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+          read?: boolean | null
+          ticket_id: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+          read?: boolean | null
+          ticket_id?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_notifications_ticket_id_fkey"
             columns: ["ticket_id"]
             isOneToOne: false
             referencedRelation: "tickets"
@@ -8498,6 +8613,7 @@ export type Database = {
       tickets: {
         Row: {
           ai_category: string | null
+          ai_resolution_status: string | null
           ai_summary: string | null
           assigned_at: string | null
           assigned_department: Database["public"]["Enums"]["app_role"]
@@ -8529,6 +8645,7 @@ export type Database = {
         }
         Insert: {
           ai_category?: string | null
+          ai_resolution_status?: string | null
           ai_summary?: string | null
           assigned_at?: string | null
           assigned_department: Database["public"]["Enums"]["app_role"]
@@ -8560,6 +8677,7 @@ export type Database = {
         }
         Update: {
           ai_category?: string | null
+          ai_resolution_status?: string | null
           ai_summary?: string | null
           assigned_at?: string | null
           assigned_department?: Database["public"]["Enums"]["app_role"]
