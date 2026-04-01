@@ -772,16 +772,32 @@ async function executeToolCall(
         if (args.search) query = query.or(`customer_name.ilike.%${args.search}%,order_number.ilike.%${args.search}%,product_name.ilike.%${args.search}%,customer_company.ilike.%${args.search}%`);
         if (args.status) {
           query = query.eq("status", args.status);
-        } else if (args.exclude_cancelled !== false) {
-          query = query.neq("status", "cancelled");
         }
         if (args.payment_status) query = query.eq("payment_status", args.payment_status);
+        
+        // Build date + status filter together to avoid PostgREST OR/AND conflict
+        const excludeCancelled = !args.status && args.exclude_cancelled !== false;
         if (args.date_from && args.date_to) {
-          query = query.or(`and(order_date.gte.${args.date_from},order_date.lte.${args.date_to}),and(order_date.is.null,created_at.gte.${args.date_from}T00:00:00,created_at.lte.${args.date_to}T23:59:59)`);
+          if (excludeCancelled) {
+            query = query.or(`and(order_date.gte.${args.date_from},order_date.lte.${args.date_to},status.neq.cancelled),and(order_date.is.null,created_at.gte.${args.date_from}T00:00:00,created_at.lte.${args.date_to}T23:59:59,status.neq.cancelled)`);
+          } else {
+            query = query.or(`and(order_date.gte.${args.date_from},order_date.lte.${args.date_to}),and(order_date.is.null,created_at.gte.${args.date_from}T00:00:00,created_at.lte.${args.date_to}T23:59:59)`);
+          }
         } else if (args.date_from) {
-          query = query.or(`order_date.gte.${args.date_from},and(order_date.is.null,created_at.gte.${args.date_from}T00:00:00)`);
+          if (excludeCancelled) {
+            query = query.or(`and(order_date.gte.${args.date_from},status.neq.cancelled),and(order_date.is.null,created_at.gte.${args.date_from}T00:00:00,status.neq.cancelled)`);
+          } else {
+            query = query.or(`order_date.gte.${args.date_from},and(order_date.is.null,created_at.gte.${args.date_from}T00:00:00)`);
+          }
         } else if (args.date_to) {
-          query = query.or(`order_date.lte.${args.date_to},and(order_date.is.null,created_at.lte.${args.date_to}T23:59:59)`);
+          if (excludeCancelled) {
+            query = query.or(`and(order_date.lte.${args.date_to},status.neq.cancelled),and(order_date.is.null,created_at.lte.${args.date_to}T23:59:59,status.neq.cancelled)`);
+          } else {
+            query = query.or(`order_date.lte.${args.date_to},and(order_date.is.null,created_at.lte.${args.date_to}T23:59:59)`);
+          }
+        } else if (excludeCancelled) {
+          // No date filter, just exclude cancelled
+          query = query.neq("status", "cancelled");
         }
         const { data, error } = await query;
         if (error) throw error;
