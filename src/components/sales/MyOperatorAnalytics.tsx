@@ -120,7 +120,7 @@ export function MyOperatorAnalytics({ logs, prospects = [] }: MyOperatorAnalytic
   // ---- Agent breakdown ----
   const agentData = useMemo(() => {
     const map = new Map<string, { answered: number; missed: number; total: number }>();
-    const targetLogs = period === 'day' ? todayLogs : period === 'week' ? weekLogs : monthLogs;
+    const targetLogs = agentPeriod === 'day' ? todayLogs : agentPeriod === 'week' ? weekLogs : monthLogs;
     for (const l of targetLogs) {
       const entry = map.get(l.agent) || { answered: 0, missed: 0, total: 0 };
       entry.total++;
@@ -131,7 +131,7 @@ export function MyOperatorAnalytics({ logs, prospects = [] }: MyOperatorAnalytic
     return Array.from(map.entries())
       .map(([name, d]) => ({ name, ...d }))
       .sort((a, b) => b.total - a.total);
-  }, [period, todayLogs, weekLogs, monthLogs]);
+  }, [agentPeriod, todayLogs, weekLogs, monthLogs]);
 
   // ---- Daily call volume chart (last 14 days) ----
   const dailyData = useMemo(() => {
