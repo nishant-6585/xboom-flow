@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 export interface TrainingAssignment {
   id: string;
+  training_id: string;
   employee_id: string;
   training_title: string;
   description: string | null;
@@ -28,6 +29,7 @@ export interface TrainingAssignment {
 
 export interface GroupedTraining {
   key: string;
+  training_id: string;
   training_title: string;
   description: string | null;
   assigned_by_name: string;
@@ -49,6 +51,18 @@ export interface GroupedTraining {
 export interface TrainingResource {
   id: string;
   training_assignment_id: string;
+  resource_type: "youtube" | "zoom" | "gmeet" | "upload_video" | "document" | "link" | "note";
+  title: string;
+  url_or_file_path: string | null;
+  description: string | null;
+  thumbnail_url: string | null;
+  resource_order: number;
+  created_at: string;
+}
+
+export interface MasterTrainingResource {
+  id: string;
+  training_id: string;
   resource_type: "youtube" | "zoom" | "gmeet" | "upload_video" | "document" | "link" | "note";
   title: string;
   url_or_file_path: string | null;
@@ -125,11 +139,58 @@ export function useEmployeeTrainings() {
     return () => { supabase.removeChannel(channel); };
   }, [fetchAssignments]);
 
+  // Find or create a master training, then create assignment
   const assignTraining = async (data: AssignTrainingData, userId: string, userName: string) => {
     try {
+      // Check if a master training with this title already exists
+      let trainingId: string;
+
+      const { data: existing } = await supabase
+        .from("employee_trainings")
+        .select("id")
+        .eq("title", data.training_title)
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        trainingId = existing.id;
+      } else {
+        // Create new master training
+        const { data: newTraining, error: tErr } = await supabase
+          .from("employee_trainings")
+          .insert({
+            title: data.training_title,
+            description: data.description || null,
+            priority: data.priority,
+            created_by: userId,
+            created_by_name: userName,
+          })
+          .select()
+          .single();
+
+        if (tErr) throw tErr;
+        trainingId = newTraining.id;
+
+        // Insert master resources
+        if (data.resources.length > 0) {
+          const masterResRows = data.resources.map((r, i) => ({
+            training_id: trainingId,
+            resource_type: r.resource_type,
+            title: r.title || `Resource ${i + 1}`,
+            url_or_file_path: r.url_or_file_path || null,
+            description: r.description || null,
+            resource_order: i,
+          }));
+
+          await supabase.from("employee_training_resources").insert(masterResRows);
+        }
+      }
+
+      // Create assignment linked to master training
       const { data: assignment, error } = await supabase
         .from("training_assignments")
         .insert({
+          training_id: trainingId,
           employee_id: data.employee_id,
           training_title: data.training_title,
           description: data.description || null,
@@ -145,22 +206,24 @@ export function useEmployeeTrainings() {
 
       if (error) throw error;
 
-      // Insert resources
-      if (data.resources.length > 0) {
-        const resourceRows = data.resources.map((r, i) => ({
+      // Get master resources and duplicate for this assignment (for per-employee tracking)
+      const { data: masterResources } = await supabase
+        .from("employee_training_resources")
+        .select("*")
+        .eq("training_id", trainingId)
+        .order("resource_order");
+
+      if (masterResources && masterResources.length > 0) {
+        const resourceRows = masterResources.map((r: any) => ({
           training_assignment_id: assignment.id,
           resource_type: r.resource_type,
           title: r.title,
-          url_or_file_path: r.url_or_file_path || null,
-          description: r.description || null,
-          resource_order: i,
+          url_or_file_path: r.url_or_file_path,
+          description: r.description,
+          resource_order: r.resource_order,
         }));
 
-        const { error: resError } = await supabase
-          .from("training_resources")
-          .insert(resourceRows);
-
-        if (resError) throw resError;
+        await supabase.from("training_resources").insert(resourceRows);
       }
 
       toast({ title: "Success", description: "Training assigned successfully" });
@@ -220,9 +283,11 @@ export function useEmployeeTrainings() {
         last_accessed: new Date().toISOString(),
       };
 
-      // Auto set in_progress
-      const assignment = assignments.find(a => a.id === assignmentId);
-      if (assignment?.status === "assigned") {
+      // Auto-derive status from progress
+      if (progress === 100) {
+        updateData.status = "completed";
+        updateData.completed_at = new Date().toISOString();
+      } else if (progress > 0) {
         updateData.status = "in_progress";
       }
 
@@ -256,7 +321,6 @@ export function useEmployeeTrainings() {
 
   const deleteAssignment = async (assignmentId: string) => {
     try {
-      // Capture assignment details before deletion for audit trail
       const assignment = assignments.find(a => a.id === assignmentId);
 
       const { error } = await supabase
@@ -266,7 +330,6 @@ export function useEmployeeTrainings() {
 
       if (error) throw error;
 
-      // Log deletion to security audit log
       if (user) {
         await supabase.from("security_audit_log").insert({
           user_id: user.id,
@@ -315,31 +378,35 @@ export function useEmployeeTrainings() {
     return publicUrl;
   };
 
+  // Group by training_id (master training) — each training appears ONCE
   const groupedTrainings = useMemo((): GroupedTraining[] => {
     const groupMap = new Map<string, TrainingAssignment[]>();
     assignments.forEach(a => {
-      const key = `${a.training_title}||${a.assigned_by}||${a.due_date}`;
+      const key = a.training_id;
       if (!groupMap.has(key)) groupMap.set(key, []);
       groupMap.get(key)!.push(a);
     });
 
-    return Array.from(groupMap.entries()).map(([key, group]) => {
+    return Array.from(groupMap.entries()).map(([trainingId, group]) => {
       const first = group[0];
       const now = new Date();
-      const completedCount = group.filter(a => a.status === "completed").length;
-      const inProgressCount = group.filter(a => a.status === "in_progress").length;
-      const overdueCount = group.filter(a => a.status !== "completed" && new Date(a.due_date) < now).length;
-      const assignedCount = group.filter(a => a.status === "assigned").length;
-      const avgProgress = group.reduce((sum, a) => sum + a.progress_percentage, 0) / group.length;
+
+      // Derive status from progress_percentage, not just status field
+      const completedCount = group.filter(a => a.progress_percentage >= 100 || a.status === "completed").length;
+      const overdueCount = group.filter(a => a.progress_percentage < 100 && a.status !== "completed" && new Date(a.due_date) < now).length;
+      const inProgressCount = group.filter(a => a.progress_percentage > 0 && a.progress_percentage < 100 && a.status !== "completed").length;
+      const assignedCount = group.filter(a => a.progress_percentage === 0 && a.status !== "completed" && new Date(a.due_date) >= now).length;
+      const avgProgress = group.reduce((sum, a) => sum + Number(a.progress_percentage), 0) / group.length;
       const teams = [...new Set(group.map(a => a.employee_department).filter(Boolean))] as string[];
 
       let groupedStatus: GroupedTraining["grouped_status"] = "assigned";
       if (completedCount === group.length) groupedStatus = "completed";
       else if (overdueCount > 0) groupedStatus = "overdue";
-      else if (inProgressCount > 0) groupedStatus = "in_progress";
+      else if (inProgressCount > 0 || completedCount > 0) groupedStatus = "in_progress";
 
       return {
-        key,
+        key: trainingId,
+        training_id: trainingId,
         training_title: first.training_title,
         description: first.description,
         assigned_by_name: first.assigned_by_name,
