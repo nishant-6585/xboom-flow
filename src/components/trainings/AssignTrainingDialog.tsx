@@ -343,6 +343,10 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
                   </Card>
                 ))}
               </div>
+
+              <Button type="button" variant="outline" size="sm" onClick={addResource} className="w-full mt-2">
+                <Plus className="h-4 w-4 mr-1" /> Add Resource
+              </Button>
             </div>
 
             <div className="flex gap-2 justify-end pt-4">
