@@ -97,9 +97,14 @@ Deno.serve(async (req) => {
 
     if (createError) {
       if (createError.message?.includes("already been registered") || createError.message?.includes("already exists")) {
-        // Find existing user
-        const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers();
+        // Find existing user by email using filtered listUsers
+        const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers({
+          page: 1,
+          perPage: 1,
+          filter: invitation.email,
+        } as any);
         if (listError) {
+          console.error("listUsers error:", listError.message);
           return new Response(JSON.stringify({ error: "Failed to look up existing user" }), {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -115,6 +120,7 @@ Deno.serve(async (req) => {
         targetUserId = existingUser.id;
         isExistingUser = true;
       } else {
+        console.error("createUser error:", createError.message);
         return new Response(JSON.stringify({ error: createError.message }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
