@@ -24,6 +24,9 @@ export interface TrainingAssignment {
   employee_department?: string;
   resources?: TrainingResource[];
   tracking?: TrainingResourceTracking[];
+  // Computed display fields
+  assignee_display?: string;
+  batch_size?: number;
 }
 
 export interface TrainingResource {
