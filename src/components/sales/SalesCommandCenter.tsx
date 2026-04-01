@@ -215,6 +215,7 @@ export function SalesCommandCenter() {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('this_month');
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
+  const [targetViewPeriod, setTargetViewPeriod] = useState<'monthly' | 'quarterly'>('monthly');
   const isManager = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
 
   // Drill-down dialog
