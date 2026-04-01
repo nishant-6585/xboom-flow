@@ -47,6 +47,7 @@ export function EmailLeadsPanel() {
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [detailLead, setDetailLead] = useState<EmailLead | null>(null);
 
   const filteredLeads = useMemo(() => {
     const filtered = leads.filter((lead) => {
