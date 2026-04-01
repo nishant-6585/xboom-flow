@@ -322,7 +322,7 @@ const Auth = () => {
       <div className="min-h-[100dvh] flex items-center justify-center p-4 overflow-y-auto relative" style={{ backgroundImage: `url(${authBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
         <DateTimeBanner />
-        <Card className="w-full max-w-md glass-strong animate-fade-in my-auto shadow-lg relative">
+        <Card className="w-full max-w-md glass-strong animate-fade-in my-auto shadow-lg relative bg-background/80 backdrop-blur-md">
           <CardHeader className="text-center pb-4">
             <div className="flex justify-center mb-5">
               <div className="relative">
