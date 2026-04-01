@@ -773,12 +773,16 @@ async function executeToolCall(
         if (args.status) {
           query = query.eq("status", args.status);
         } else if (args.exclude_cancelled !== false) {
-          // Auto-exclude cancelled orders unless explicitly asked for all statuses
           query = query.neq("status", "cancelled");
         }
         if (args.payment_status) query = query.eq("payment_status", args.payment_status);
-        if (args.date_from) query = query.gte("order_date", args.date_from);
-        if (args.date_to) query = query.lte("order_date", args.date_to);
+        if (args.date_from && args.date_to) {
+          query = query.or(`and(order_date.gte.${args.date_from},order_date.lte.${args.date_to}),and(order_date.is.null,created_at.gte.${args.date_from}T00:00:00,created_at.lte.${args.date_to}T23:59:59)`);
+        } else if (args.date_from) {
+          query = query.or(`order_date.gte.${args.date_from},and(order_date.is.null,created_at.gte.${args.date_from}T00:00:00)`);
+        } else if (args.date_to) {
+          query = query.or(`order_date.lte.${args.date_to},and(order_date.is.null,created_at.lte.${args.date_to}T23:59:59)`);
+        }
         const { data, error } = await query;
         if (error) throw error;
         const records = (data || []) as Record<string, unknown>[];
