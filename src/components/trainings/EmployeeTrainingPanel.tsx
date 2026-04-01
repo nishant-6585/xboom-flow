@@ -4,17 +4,19 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
-import { useEmployeeTrainings, TrainingAssignment } from "@/hooks/useEmployeeTrainings";
+import { useEmployeeTrainings, TrainingAssignment, GroupedTraining } from "@/hooks/useEmployeeTrainings";
 import { AssignTrainingDialog } from "./AssignTrainingDialog";
 import { TrainingDetailDialog } from "./TrainingDetailDialog";
 import { GroupedTrainingCard } from "./GroupedTrainingCard";
-import { Plus, Search, GraduationCap, Clock, CheckCircle2, AlertTriangle, Loader2, BookOpen, Users } from "lucide-react";
+import { AddEmployeesToTrainingDialog } from "./AddEmployeesToTrainingDialog";
+import { Plus, Search, Clock, CheckCircle2, AlertTriangle, Loader2, BookOpen, Users } from "lucide-react";
 
 export function EmployeeTrainingPanel() {
   const { user, profile } = useAuth();
-  const { assignments, groupedTrainings, loading, isHrOrAdmin, assignTraining, deleteAssignment, uploadTrainingFile } = useEmployeeTrainings();
+  const { assignments, groupedTrainings, loading, isHrOrAdmin, assignTraining, addEmployeesToTraining, deleteAssignment, uploadTrainingFile } = useEmployeeTrainings();
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<TrainingAssignment | null>(null);
+  const [addEmployeesGroup, setAddEmployeesGroup] = useState<GroupedTraining | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -131,6 +133,7 @@ export function EmployeeTrainingPanel() {
               isHrOrAdmin={isHrOrAdmin}
               onAssignmentClick={setSelectedAssignment}
               onDeleteAssignment={deleteAssignment}
+              onAddEmployees={setAddEmployeesGroup}
             />
           ))}
         </div>
@@ -147,6 +150,13 @@ export function EmployeeTrainingPanel() {
         assignment={selectedAssignment}
         open={!!selectedAssignment}
         onOpenChange={open => !open && setSelectedAssignment(null)}
+      />
+
+      <AddEmployeesToTrainingDialog
+        open={!!addEmployeesGroup}
+        onOpenChange={open => !open && setAddEmployeesGroup(null)}
+        group={addEmployeesGroup}
+        onAddEmployees={addEmployeesToTraining}
       />
     </div>
   );

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { GroupedTraining, TrainingAssignment } from "@/hooks/useEmployeeTrainings";
 import { format } from "date-fns";
-import { ChevronDown, ChevronRight, Users, Trash2, CheckCircle2, Clock, AlertTriangle, User } from "lucide-react";
+import { ChevronDown, ChevronRight, Users, Trash2, CheckCircle2, Clock, AlertTriangle, User, UserPlus } from "lucide-react";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   assigned: { label: "Assigned", variant: "outline" },
@@ -33,9 +33,10 @@ interface GroupedTrainingCardProps {
   isHrOrAdmin: boolean;
   onAssignmentClick: (assignment: TrainingAssignment) => void;
   onDeleteAssignment: (id: string) => void;
+  onAddEmployees?: (group: GroupedTraining) => void;
 }
 
-export function GroupedTrainingCard({ group, isHrOrAdmin, onAssignmentClick, onDeleteAssignment }: GroupedTrainingCardProps) {
+export function GroupedTrainingCard({ group, isHrOrAdmin, onAssignmentClick, onDeleteAssignment, onAddEmployees }: GroupedTrainingCardProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const statusCfg = STATUS_CONFIG[group.grouped_status] || STATUS_CONFIG.assigned;
@@ -63,7 +64,20 @@ export function GroupedTrainingCard({ group, isHrOrAdmin, onAssignmentClick, onD
                 <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{group.description}</p>
               )}
             </div>
-            <Badge variant={statusCfg.variant}>{statusCfg.label}</Badge>
+            <div className="flex items-center gap-2 shrink-0">
+              {isHrOrAdmin && onAddEmployees && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 text-xs h-7"
+                  onClick={e => { e.stopPropagation(); onAddEmployees(group); }}
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  Add
+                </Button>
+              )}
+              <Badge variant={statusCfg.variant}>{statusCfg.label}</Badge>
+            </div>
           </div>
 
           {/* Meta row */}
