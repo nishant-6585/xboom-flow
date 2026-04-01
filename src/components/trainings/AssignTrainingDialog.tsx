@@ -222,7 +222,7 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
                 </div>
               ) : (
                 <div>
-                  <Label>Team / Department *</Label>
+                  <Label>Team *</Label>
                   <Select value={selectedTeam} onValueChange={setSelectedTeam}>
                     <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
                     <SelectContent>
