@@ -117,6 +117,27 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
     }
   };
 
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!assignment) return;
+    setIsDeleting(true);
+    try {
+      // Delete resources first, then assignment
+      await supabase.from("training_resource_tracking").delete().eq("assignment_id", assignment.id);
+      await supabase.from("training_resources").delete().eq("assignment_id", assignment.id);
+      const { error } = await supabase.from("training_assignments").delete().eq("id", assignment.id);
+      if (error) throw error;
+      toast.success("Training deleted successfully");
+      refetch();
+      onOpenChange(false);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete training");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleOpenResource = async (resource: TrainingResource) => {
     if (isOwner && employeeId && !isResourceViewed(resource.id)) {
       await markResourceViewed(assignment.id, resource.id, employeeId);
