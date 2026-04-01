@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import logoFull from "@/assets/logo-full.jpeg";
 import { NotificationPanel } from "@/components/NotificationPanel";
+import { TicketNotificationBell } from "@/components/tickets/TicketNotificationBell";
 import { AttendanceWidget } from "@/components/attendance/AttendanceWidget";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
