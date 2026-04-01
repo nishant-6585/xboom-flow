@@ -763,11 +763,19 @@ async function executeToolCall(
 
     switch (toolName) {
       case "query_orders": {
-        let query = client.from("orders").select("id, order_number, customer_name, customer_company, product_name, product_code, product_category, quantity, total_sales_amount, amount_paid, discount_amount, payment_status, status, sales_person_name, order_date, created_at, payment_due_date, shipping_address").order("order_date", { ascending: false }).limit(limit);
+        // Auto-boost limit for date-range queries (aggregation/monthly reports)
+        const hasDateRange = args.date_from || args.date_to;
+        const effectiveLimit = hasDateRange ? Math.min(Math.max(Number(args.limit) || 500, 500), 1000) : limit;
+        
+        let query = client.from("orders").select("id, order_number, customer_name, customer_company, product_name, product_code, product_category, quantity, total_sales_amount, amount_paid, discount_amount, payment_status, status, sales_person_name, order_date, created_at, payment_due_date, shipping_address").order("order_date", { ascending: false }).limit(effectiveLimit);
         if (isSales && !isAdmin && !isSalesManager) query = query.eq("sales_person_id", userId);
         if (args.search) query = query.or(`customer_name.ilike.%${args.search}%,order_number.ilike.%${args.search}%,product_name.ilike.%${args.search}%,customer_company.ilike.%${args.search}%`);
-        if (args.status) query = query.eq("status", args.status);
-        if (args.exclude_cancelled) query = query.neq("status", "cancelled");
+        if (args.status) {
+          query = query.eq("status", args.status);
+        } else if (args.exclude_cancelled !== false) {
+          // Auto-exclude cancelled orders unless explicitly asked for all statuses
+          query = query.neq("status", "cancelled");
+        }
         if (args.payment_status) query = query.eq("payment_status", args.payment_status);
         if (args.date_from) query = query.gte("order_date", args.date_from);
         if (args.date_to) query = query.lte("order_date", args.date_to);
