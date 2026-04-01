@@ -708,7 +708,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Ask about orders, leads, inventory..."
-                  disabled={isLoading}
+                  disabled={false}
                   rows={1}
                   className={cn(
                     "w-full resize-none rounded-xl border border-border/60 bg-card",
