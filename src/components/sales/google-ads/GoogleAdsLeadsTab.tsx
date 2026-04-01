@@ -35,15 +35,10 @@ interface GoogleAdsLead {
   customer_state: string | null;
   raw_google_payload: Json | null;
   sales_person_name: string;
-  is_a_category: boolean;
-  city: string | null;
-  phone_number: string | null;
-  email: string | null;
-  product_category: string | null;
-  quantity: number | null;
-  urgency: string | null;
+  product_category: string;
+  quantity: number;
+  urgency: string;
   requested_timeline: string | null;
-  purpose_of_purchase: string | null;
 }
 
 // Parse structured data from notes field
