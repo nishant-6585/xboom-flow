@@ -397,38 +397,29 @@ Deno.serve(async (req) => {
     let duplicatesSkipped = 0;
     const errors: string[] = [];
 
-    // Ensure every enquiry has a valid assignee to satisfy downstream task trigger constraints
-    let defaultAssigneeId: string | null = null;
-    let defaultAssigneeName = "Unassigned";
+    // Round-robin assignment between Arjav, Suman, Narsimha & Mushtaq
+    const roundRobinAssignees = [
+      { user_id: 'e05f9afe-0160-4956-bb1f-496028386062', name: 'Arjav chauhan' },
+      { user_id: '456e91f8-34cc-4f92-a1c1-a092f2bbed39', name: 'suman das' },
+      { user_id: 'a790b58d-8e3d-4333-b6d6-08be631c865d', name: 'Narasimha' },
+      { user_id: '457fc2d5-9fc5-439a-938e-5b998549b811', name: 'mohammed musthak' },
+    ];
 
-    const { data: salesRoleUser } = await supabaseAdmin
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "sales")
+    // Determine round-robin start index from last assigned Google Ads lead
+    const { data: lastAssigned } = await supabaseAdmin
+      .from('enquiries')
+      .select('sales_person_id')
+      .eq('lead_source', 'google_ads')
+      .not('sales_person_id', 'is', null)
+      .in('sales_person_id', roundRobinAssignees.map(a => a.user_id))
+      .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (salesRoleUser?.user_id) {
-      defaultAssigneeId = salesRoleUser.user_id;
-    } else {
-      const { data: adminRoleUser } = await supabaseAdmin
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "admin")
-        .limit(1)
-        .maybeSingle();
-      defaultAssigneeId = adminRoleUser?.user_id ?? null;
-    }
-
-    if (defaultAssigneeId) {
-      const { data: assigneeProfile } = await supabaseAdmin
-        .from("profiles")
-        .select("name")
-        .eq("user_id", defaultAssigneeId)
-        .maybeSingle();
-      defaultAssigneeName = assigneeProfile?.name || "Auto-assigned";
-    } else {
-      throw new Error("No eligible user found to assign imported leads.");
+    let rrIndex = 0;
+    if (lastAssigned?.sales_person_id) {
+      const lastIdx = roundRobinAssignees.findIndex(a => a.user_id === lastAssigned.sales_person_id);
+      if (lastIdx >= 0) rrIndex = (lastIdx + 1) % roundRobinAssignees.length;
     }
 
     for (const lead of leads) {
@@ -457,6 +448,10 @@ Deno.serve(async (req) => {
         const city = parsed.city;
         const productInterest = extractField(lead.submission_data, "PRODUCT", "PRODUCT_TYPE", "WHAT_ARE_YOU_LOOKING_FOR", "INTERESTED_IN", "MODEL");
 
+        // Pick the next assignee in round-robin
+        const assignee = roundRobinAssignees[rrIndex % roundRobinAssignees.length];
+        rrIndex++;
+
         const { error: insertError } = await supabaseAdmin.from("enquiries").insert({
           customer_name: name,
           customer_company: company,
@@ -465,8 +460,8 @@ Deno.serve(async (req) => {
           product_category: "Consumer Drones",
           quantity: 1,
           urgency: "medium",
-          sales_person_id: defaultAssigneeId,
-          sales_person_name: defaultAssigneeName,
+          sales_person_id: assignee.user_id,
+          sales_person_name: assignee.name,
           status: "pending",
           lead_temperature: "warm",
           notes: [
