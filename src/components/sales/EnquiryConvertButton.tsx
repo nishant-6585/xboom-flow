@@ -51,30 +51,72 @@ export function EnquiryConvertButton({
     e.stopPropagation();
     if (converted || !user || !profile) return;
 
-    if (!productName || productName.trim() === '') {
-      toast.error('Product name is required before converting to enquiry. Please edit the lead and fill the Product field.');
-      return;
-    }
-
     setLoading(true);
     try {
+      let resolvedCustomerName = customerName;
+      let resolvedPhoneNumber = phoneNumber;
+      let resolvedEmail = email;
+      let resolvedCompany = company;
+      let resolvedCity = city;
+      let resolvedProductName = productName?.trim() || '';
+      let resolvedProductCategory = productCategory;
+      let resolvedProductCode = productCode;
+      let resolvedQuantity = quantity;
+      let resolvedUrgency = urgency;
+      let resolvedRequestedTimeline = requestedTimeline;
+      let resolvedPurposeOfPurchase = purposeOfPurchase;
+      let resolvedNotes = notes;
+
+      // MyOperator rows can be grouped/updated asynchronously in UI.
+      // Re-fetch latest call_log row once before validating product_name.
+      if (sourceType === 'myoperator' && !resolvedProductName) {
+        const { data: latestLog } = await supabase
+          .from('call_logs')
+          .select(
+            'customer_name, customer_company, email, city, product_name, product_category, product_code, quantity, urgency, requested_timeline, purpose_of_purchase, notes, full_number, caller_number'
+          )
+          .eq('id', sourceId)
+          .maybeSingle();
+
+        if (latestLog) {
+          resolvedCustomerName = latestLog.customer_name || resolvedCustomerName;
+          resolvedPhoneNumber = latestLog.full_number || latestLog.caller_number || resolvedPhoneNumber;
+          resolvedEmail = latestLog.email || resolvedEmail;
+          resolvedCompany = latestLog.customer_company || resolvedCompany;
+          resolvedCity = latestLog.city || resolvedCity;
+          resolvedProductName = latestLog.product_name?.trim() || resolvedProductName;
+          resolvedProductCategory = latestLog.product_category || resolvedProductCategory;
+          resolvedProductCode = latestLog.product_code || resolvedProductCode;
+          resolvedQuantity = latestLog.quantity ?? resolvedQuantity;
+          resolvedUrgency = latestLog.urgency || resolvedUrgency;
+          resolvedRequestedTimeline = latestLog.requested_timeline || resolvedRequestedTimeline;
+          resolvedPurposeOfPurchase = latestLog.purpose_of_purchase || resolvedPurposeOfPurchase;
+          resolvedNotes = latestLog.notes || resolvedNotes;
+        }
+      }
+
+      if (!resolvedProductName) {
+        toast.error('Product name is required before converting to enquiry. Please save product details and retry.');
+        return;
+      }
+
       const { error } = await supabase.from('enquiries').insert({
-        product_name: productName || 'Unknown Product',
-        product_code: productCode || '',
-        product_category: productCategory || 'Consumer Drones',
-        quantity: quantity || 1,
-        customer_name: customerName,
-        customer_company: company || '',
+        product_name: resolvedProductName,
+        product_code: resolvedProductCode || '',
+        product_category: resolvedProductCategory || 'Consumer Drones',
+        quantity: resolvedQuantity || 1,
+        customer_name: resolvedCustomerName,
+        customer_company: resolvedCompany || '',
         sales_person_id: user.id,
         sales_person_name: profile.name,
-        urgency: urgency || 'medium',
-        requested_timeline: requestedTimeline || null,
+        urgency: resolvedUrgency || 'medium',
+        requested_timeline: resolvedRequestedTimeline || null,
         notes: [
-          notes,
-          purposeOfPurchase ? `Purpose: ${purposeOfPurchase}` : null,
-          email ? `Email: ${email}` : null,
-          phoneNumber ? `Phone: ${phoneNumber}` : null,
-          city ? `City: ${city}` : null,
+          resolvedNotes,
+          resolvedPurposeOfPurchase ? `Purpose: ${resolvedPurposeOfPurchase}` : null,
+          resolvedEmail ? `Email: ${resolvedEmail}` : null,
+          resolvedPhoneNumber ? `Phone: ${resolvedPhoneNumber}` : null,
+          resolvedCity ? `City: ${resolvedCity}` : null,
           `Converted from ${sourceType} (ID: ${sourceId})`,
         ].filter(Boolean).join('\n'),
         status: 'pending',
