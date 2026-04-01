@@ -39,6 +39,9 @@ interface GoogleAdsLead {
   quantity: number;
   urgency: string;
   requested_timeline: string | null;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
 }
 
 // Parse structured data from notes field
