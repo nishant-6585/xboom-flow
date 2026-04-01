@@ -39,6 +39,9 @@ interface GoogleAdsLead {
   quantity: number;
   urgency: string;
   requested_timeline: string | null;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
 }
 
 // Parse structured data from notes field
@@ -131,9 +134,8 @@ export function GoogleAdsLeadsTab() {
   useEffect(() => {
     async function fetchLeads() {
       const { data } = await supabase
-        .from("enquiries")
-        .select("id, customer_name, customer_company, product_name, product_code, campaign_name, campaign_id, ad_group_id, lead_temperature, status, created_at, order_outcome, is_converted, conversion_value, notes, customer_state, raw_google_payload, sales_person_name, product_category, quantity, urgency, requested_timeline")
-        .eq("lead_source", "google_ads")
+        .from("google_ads_leads")
+        .select("id, customer_name, customer_company, product_name, product_code, campaign_name, campaign_id, ad_group_id, lead_temperature, status, created_at, order_outcome, is_converted, conversion_value, notes, customer_state, raw_google_payload, sales_person_name, product_category, quantity, urgency, requested_timeline, email, phone, city")
         .order("created_at", { ascending: false })
         .limit(200);
 
@@ -169,7 +171,7 @@ export function GoogleAdsLeadsTab() {
   };
 
   const getPhone = (lead: GoogleAdsLead): string | null => {
-    // product_code stores phone from sync
+    if (lead.phone) return lead.phone;
     if (lead.product_code && lead.product_code !== "N/A") return lead.product_code;
     const parsed = parseNotesField(lead.notes);
     if (parsed["Phone"]) return parsed["Phone"];
@@ -178,6 +180,7 @@ export function GoogleAdsLeadsTab() {
   };
 
   const getEmail = (lead: GoogleAdsLead): string | null => {
+    if (lead.email) return lead.email;
     const parsed = parseNotesField(lead.notes);
     if (parsed["Email"]) return parsed["Email"];
     const fields = extractSubmissionFields(lead.raw_google_payload);
@@ -185,6 +188,7 @@ export function GoogleAdsLeadsTab() {
   };
 
   const getCity = (lead: GoogleAdsLead): string | null => {
+    if (lead.city) return lead.city;
     const parsed = parseNotesField(lead.notes);
     if (parsed["City"]) return parsed["City"];
     if (lead.customer_state) return lead.customer_state;

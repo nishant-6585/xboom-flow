@@ -53,22 +53,19 @@ export function GoogleAdsSyncPanel() {
         supabase.from("daily_performance").select("*").order("date", { ascending: true }).limit(30),
         // Sales performance: group Google Ads leads by salesperson
         supabase
-          .from("enquiries")
+          .from("google_ads_leads")
           .select("sales_person_id, sales_person_name, is_converted, conversion_value")
-          .eq("lead_source", "google_ads")
           .not("sales_person_id", "is", null),
         // Aging leads: unconverted > 24h
         supabase
-          .from("enquiries")
+          .from("google_ads_leads")
           .select("id", { count: "exact", head: true })
-          .eq("lead_source", "google_ads")
           .eq("is_converted", false)
           .lt("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
         // Conversion time
         supabase
-          .from("enquiries")
+          .from("google_ads_leads")
           .select("created_at, conversion_date")
-          .eq("lead_source", "google_ads")
           .eq("is_converted", true)
           .not("conversion_date", "is", null),
       ]);

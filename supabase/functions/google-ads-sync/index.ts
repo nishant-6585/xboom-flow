@@ -407,9 +407,8 @@ Deno.serve(async (req) => {
 
     // Determine round-robin start index from last assigned Google Ads lead
     const { data: lastAssigned } = await supabaseAdmin
-      .from('enquiries')
+      .from('google_ads_leads')
       .select('sales_person_id')
-      .eq('lead_source', 'google_ads')
       .not('sales_person_id', 'is', null)
       .in('sales_person_id', roundRobinAssignees.map(a => a.user_id))
       .order('created_at', { ascending: false })
@@ -427,7 +426,7 @@ Deno.serve(async (req) => {
         // #2: Pre-check duplicate in code before insert attempt
         if (lead.lead_id) {
           const { data: existing } = await supabaseAdmin
-            .from("enquiries")
+            .from("google_ads_leads")
             .select("id")
             .eq("google_lead_id", lead.lead_id)
             .maybeSingle();
@@ -452,7 +451,7 @@ Deno.serve(async (req) => {
         const assignee = roundRobinAssignees[rrIndex % roundRobinAssignees.length];
         rrIndex++;
 
-        const { error: insertError } = await supabaseAdmin.from("enquiries").insert({
+        const { error: insertError } = await supabaseAdmin.from("google_ads_leads").insert({
           customer_name: name,
           customer_company: company,
           product_name: productInterest || "Google Ads Enquiry",
@@ -460,6 +459,9 @@ Deno.serve(async (req) => {
           product_category: "Consumer Drones",
           quantity: 1,
           urgency: "medium",
+          email: email,
+          phone: phone,
+          city: city,
           sales_person_id: assignee.user_id,
           sales_person_name: assignee.name,
           status: "pending",

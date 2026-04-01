@@ -3610,6 +3610,111 @@ export type Database = {
           },
         ]
       }
+      google_ads_leads: {
+        Row: {
+          ad_group_id: string | null
+          campaign_id: string | null
+          campaign_name: string | null
+          city: string | null
+          conversion_date: string | null
+          conversion_value: number | null
+          created_at: string | null
+          customer_company: string | null
+          customer_name: string
+          customer_state: string | null
+          email: string | null
+          google_lead_id: string | null
+          id: string
+          is_a_category: boolean | null
+          is_converted: boolean | null
+          is_prospect: boolean | null
+          lead_source: string | null
+          lead_temperature: string | null
+          notes: string | null
+          order_outcome: string | null
+          phone: string | null
+          product_category: string | null
+          product_code: string | null
+          product_name: string | null
+          quantity: number | null
+          raw_google_payload: Json | null
+          requested_timeline: string | null
+          sales_person_id: string | null
+          sales_person_name: string | null
+          status: string | null
+          updated_at: string | null
+          urgency: string | null
+        }
+        Insert: {
+          ad_group_id?: string | null
+          campaign_id?: string | null
+          campaign_name?: string | null
+          city?: string | null
+          conversion_date?: string | null
+          conversion_value?: number | null
+          created_at?: string | null
+          customer_company?: string | null
+          customer_name?: string
+          customer_state?: string | null
+          email?: string | null
+          google_lead_id?: string | null
+          id?: string
+          is_a_category?: boolean | null
+          is_converted?: boolean | null
+          is_prospect?: boolean | null
+          lead_source?: string | null
+          lead_temperature?: string | null
+          notes?: string | null
+          order_outcome?: string | null
+          phone?: string | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name?: string | null
+          quantity?: number | null
+          raw_google_payload?: Json | null
+          requested_timeline?: string | null
+          sales_person_id?: string | null
+          sales_person_name?: string | null
+          status?: string | null
+          updated_at?: string | null
+          urgency?: string | null
+        }
+        Update: {
+          ad_group_id?: string | null
+          campaign_id?: string | null
+          campaign_name?: string | null
+          city?: string | null
+          conversion_date?: string | null
+          conversion_value?: number | null
+          created_at?: string | null
+          customer_company?: string | null
+          customer_name?: string
+          customer_state?: string | null
+          email?: string | null
+          google_lead_id?: string | null
+          id?: string
+          is_a_category?: boolean | null
+          is_converted?: boolean | null
+          is_prospect?: boolean | null
+          lead_source?: string | null
+          lead_temperature?: string | null
+          notes?: string | null
+          order_outcome?: string | null
+          phone?: string | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name?: string | null
+          quantity?: number | null
+          raw_google_payload?: Json | null
+          requested_timeline?: string | null
+          sales_person_id?: string | null
+          sales_person_name?: string | null
+          status?: string | null
+          updated_at?: string | null
+          urgency?: string | null
+        }
+        Relationships: []
+      }
       google_ads_sync_log: {
         Row: {
           created_at: string
