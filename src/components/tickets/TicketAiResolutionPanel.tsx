@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +15,7 @@ import {
   useRunAiResolution,
   useApproveResolution,
   useRejectResolution,
+  ImplementationReport,
 } from "@/hooks/useTicketResolution";
 import {
   Bot,
@@ -27,7 +27,8 @@ import {
   RefreshCw,
   Sparkles,
   Shield,
-  AlertTriangle,
+  FileCode,
+  ClipboardCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -64,7 +65,7 @@ export function TicketAiResolutionPanel({ ticket }: TicketAiResolutionPanelProps
   useEffect(() => {
     if (autoTriggeredRef.current) return;
     if (!canView || isLoading) return;
-    if (resolution) return; // already has resolution
+    if (resolution) return;
     if (ticket.ai_resolution_status === "analyzing") return;
     if (ticket.status !== "open") return;
     if (ticket.category !== "technical_support") return;
@@ -84,6 +85,13 @@ export function TicketAiResolutionPanel({ ticket }: TicketAiResolutionPanelProps
     if (resolution?.lovable_prompt) {
       navigator.clipboard.writeText(resolution.lovable_prompt);
       toast.success("Lovable prompt copied to clipboard");
+    }
+  };
+
+  const handleCopyReport = () => {
+    if (resolution?.implementation_report) {
+      navigator.clipboard.writeText(JSON.stringify(resolution.implementation_report, null, 2));
+      toast.success("Implementation report copied to clipboard");
     }
   };
 
@@ -152,13 +160,14 @@ export function TicketAiResolutionPanel({ ticket }: TicketAiResolutionPanelProps
 
   if (isLoading || !resolution) return null;
 
-  // APPROVED state
+  // APPROVED state — show implementation report
   if (resolution.approval_status === "approved") {
+    const report = resolution.implementation_report as ImplementationReport | null;
     return (
-      <div className="border rounded-lg p-4 bg-green-50/50 dark:bg-green-950/20 space-y-3">
+      <div className="border rounded-lg p-4 bg-green-50/50 dark:bg-green-950/20 space-y-4">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="w-5 h-5 text-green-600" />
-          <h4 className="font-medium text-sm">✅ Resolved via AI</h4>
+          <h4 className="font-medium text-sm">✅ AI Resolution Applied</h4>
           {resolution.approved_at && (
             <span className="text-xs text-muted-foreground ml-auto">
               Approved by {resolution.approved_by_name} on{" "}
@@ -166,23 +175,69 @@ export function TicketAiResolutionPanel({ ticket }: TicketAiResolutionPanelProps
             </span>
           )}
         </div>
+
+        {report && (
+          <>
+            {/* Changes Summary */}
+            {report.changes_summary && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase font-medium">Changes Made</p>
+                <p className="text-sm bg-muted/30 p-3 rounded-md">{report.changes_summary}</p>
+              </div>
+            )}
+
+            {/* Files Modified */}
+            {report.files_changed && report.files_changed.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase font-medium flex items-center gap-1">
+                  <FileCode className="w-3 h-3" /> Files Modified
+                </p>
+                <ul className="text-sm bg-muted/30 p-3 rounded-md space-y-0.5">
+                  {report.files_changed.map((file, i) => (
+                    <li key={i} className="font-mono text-xs">• {file}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Test Steps */}
+            {report.test_steps && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase font-medium flex items-center gap-1">
+                  <ClipboardCheck className="w-3 h-3" /> How to Verify
+                </p>
+                <p className="text-sm bg-muted/30 p-3 rounded-md whitespace-pre-wrap">{report.test_steps}</p>
+              </div>
+            )}
+
+            {/* Notes */}
+            {report.notes && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase font-medium">Notes</p>
+                <p className="text-sm bg-muted/30 p-3 rounded-md">{report.notes}</p>
+              </div>
+            )}
+
+            <Button size="sm" variant="outline" onClick={handleCopyReport}>
+              <Copy className="w-3 h-3 mr-1" />
+              📋 Copy Full Implementation Report
+            </Button>
+          </>
+        )}
+
+        {/* Lovable Prompt still visible */}
         {resolution.lovable_prompt && (
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground uppercase font-medium">Lovable Prompt</p>
-            <div className="relative">
-              <pre className="text-xs bg-muted/50 p-3 rounded-md overflow-auto max-h-40 whitespace-pre-wrap">
-                {resolution.lovable_prompt}
-              </pre>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="absolute top-1 right-1 h-7"
-                onClick={handleCopyPrompt}
-              >
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground uppercase font-medium">Lovable Prompt</p>
+              <Button size="sm" variant="ghost" className="h-7" onClick={handleCopyPrompt}>
                 <Copy className="w-3 h-3 mr-1" />
                 Copy
               </Button>
             </div>
+            <pre className="text-xs bg-muted/50 p-3 rounded-md overflow-auto max-h-40 whitespace-pre-wrap font-mono">
+              {resolution.lovable_prompt}
+            </pre>
           </div>
         )}
       </div>
@@ -214,7 +269,9 @@ export function TicketAiResolutionPanel({ ticket }: TicketAiResolutionPanelProps
     );
   }
 
-  // PENDING APPROVAL state
+  // PENDING APPROVAL state — applying state
+  const isApplying = approveResolution.isPending;
+
   return (
     <div className="border rounded-lg p-4 bg-gradient-to-br from-violet-50/50 to-indigo-50/50 dark:from-violet-950/20 dark:to-indigo-950/20 space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
@@ -243,9 +300,9 @@ export function TicketAiResolutionPanel({ ticket }: TicketAiResolutionPanelProps
         </div>
       )}
 
-      {/* Root Cause */}
+      {/* Root Cause — default open */}
       {resolution.root_cause && (
-        <Collapsible>
+        <Collapsible defaultOpen>
           <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground uppercase font-medium hover:text-foreground transition-colors">
             <ChevronDown className="w-3 h-3" />
             Root Cause
@@ -256,9 +313,9 @@ export function TicketAiResolutionPanel({ ticket }: TicketAiResolutionPanelProps
         </Collapsible>
       )}
 
-      {/* Resolution Plan */}
+      {/* Resolution Plan — default open */}
       {resolution.resolution_plan && (
-        <Collapsible>
+        <Collapsible defaultOpen>
           <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground uppercase font-medium hover:text-foreground transition-colors">
             <ChevronDown className="w-3 h-3" />
             Resolution Plan
@@ -279,24 +336,19 @@ export function TicketAiResolutionPanel({ ticket }: TicketAiResolutionPanelProps
         </div>
       )}
 
-      {/* Lovable Prompt */}
+      {/* Lovable Prompt — copy button ABOVE the text box */}
       {resolution.lovable_prompt && (
         <div className="space-y-1">
-          <p className="text-xs text-muted-foreground uppercase font-medium">Lovable Prompt</p>
-          <div className="relative">
-            <pre className="text-xs bg-muted/50 p-3 rounded-md overflow-auto max-h-48 whitespace-pre-wrap font-mono">
-              {resolution.lovable_prompt}
-            </pre>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="absolute top-1 right-1 h-7"
-              onClick={handleCopyPrompt}
-            >
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground uppercase font-medium">Lovable Prompt</p>
+            <Button size="sm" variant="ghost" className="h-7" onClick={handleCopyPrompt}>
               <Copy className="w-3 h-3 mr-1" />
               📋 Copy
             </Button>
           </div>
+          <pre className="text-xs bg-muted/50 p-3 rounded-md overflow-auto max-h-48 whitespace-pre-wrap font-mono">
+            {resolution.lovable_prompt}
+          </pre>
         </div>
       )}
 
@@ -314,20 +366,26 @@ export function TicketAiResolutionPanel({ ticket }: TicketAiResolutionPanelProps
           size="sm"
           className="bg-green-600 hover:bg-green-700 text-white"
           onClick={handleApprove}
-          disabled={approveResolution.isPending}
+          disabled={isApplying || rejectResolution.isPending}
         >
-          {approveResolution.isPending ? (
-            <Loader2 className="w-3 h-3 animate-spin mr-1" />
+          {isApplying ? (
+            <>
+              <Loader2 className="w-3 h-3 animate-spin mr-1" />
+              ⏳ Applying resolution in Lovable...
+            </>
           ) : (
-            <CheckCircle2 className="w-3 h-3 mr-1" />
+            <>
+              <CheckCircle2 className="w-3 h-3 mr-1" />
+              Approve & Resolve Ticket
+            </>
           )}
-          Approve & Resolve Ticket
         </Button>
         {!showRejectInput ? (
           <Button
             size="sm"
             variant="destructive"
             onClick={() => setShowRejectInput(true)}
+            disabled={isApplying || rejectResolution.isPending}
           >
             <XCircle className="w-3 h-3 mr-1" />
             Reject
