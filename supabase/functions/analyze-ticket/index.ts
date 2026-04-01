@@ -203,11 +203,34 @@ Return ONLY this JSON structure:
       console.error("Failed to insert AI suggestion:", suggestError);
     }
 
+    // Check if ticket is eligible for auto-resolution (IT/technical tickets)
+    const isItTicket = ticket.category === "technical_support" || ticket.assigned_department === "it";
+    let autoResolutionTriggered = false;
+
+    if (isItTicket && ticket.status === "open") {
+      try {
+        // Trigger resolve-ticket-ai
+        const resolveUrl = `${SUPABASE_URL}/functions/v1/resolve-ticket-ai`;
+        const resolveResp = await fetch(resolveUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": authHeader!,
+          },
+          body: JSON.stringify({ ticket_id }),
+        });
+        autoResolutionTriggered = resolveResp.ok;
+      } catch (e) {
+        console.error("Auto-resolution trigger failed:", e);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         ai_summary: aiResult.ai_summary,
         ai_category: aiResult.ai_category,
+        auto_resolution_triggered: autoResolutionTriggered,
       }),
       {
         status: 200,
