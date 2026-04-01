@@ -10,6 +10,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInHours } from "date-fns";
 import { ArrowRight, CheckCircle2, Flame, Phone, MessageSquare, MapPin, Briefcase, Mail, User, Zap, AlertTriangle, TrendingUp, ChevronRight } from "lucide-react";
 import { Json } from "@/integrations/supabase/types";
+import { ProspectButton, ACategoryButton } from "../ProspectButton";
+import { AttentionButton } from "../AttentionButton";
+import { EnquiryConvertButton } from "../EnquiryConvertButton";
+import { useProspects } from "@/hooks/useProspects";
+import { useAttentionItems } from "@/hooks/useAttentionItems";
 
 interface GoogleAdsLead {
   id: string;
