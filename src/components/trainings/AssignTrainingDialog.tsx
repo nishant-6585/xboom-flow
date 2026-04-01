@@ -53,7 +53,7 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
-  const [resources, setResources] = useState<ResourceInput[]>([]);
+  const [resources, setResources] = useState<ResourceInput[]>([{ resource_type: "document", title: "", url_or_file_path: "", description: "" }]);
 
   useEffect(() => {
     if (open) {
