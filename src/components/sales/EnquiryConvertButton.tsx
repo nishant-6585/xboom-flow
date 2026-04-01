@@ -67,31 +67,51 @@ export function EnquiryConvertButton({
       let resolvedPurposeOfPurchase = purposeOfPurchase;
       let resolvedNotes = notes;
 
-      // MyOperator rows can be grouped/updated asynchronously in UI.
-      // Re-fetch latest call_log row once before validating product_name.
-      if (sourceType === 'myoperator' && !resolvedProductName) {
+      // MyOperator rows can be grouped/duplicated by call session.
+      // Always hydrate from latest DB row and, if needed, sibling rows with same call_id.
+      if (sourceType === 'myoperator') {
+        const applyLogData = (log: any) => {
+          resolvedCustomerName = log.customer_name || resolvedCustomerName;
+          resolvedPhoneNumber = log.full_number || log.caller_number || resolvedPhoneNumber;
+          resolvedEmail = log.email || resolvedEmail;
+          resolvedCompany = log.customer_company || resolvedCompany;
+          resolvedCity = log.city || resolvedCity;
+          resolvedProductName = log.product_name?.trim() || resolvedProductName;
+          resolvedProductCategory = log.product_category || resolvedProductCategory;
+          resolvedProductCode = log.product_code || resolvedProductCode;
+          resolvedQuantity = log.quantity ?? resolvedQuantity;
+          resolvedUrgency = log.urgency || resolvedUrgency;
+          resolvedRequestedTimeline = log.requested_timeline || resolvedRequestedTimeline;
+          resolvedPurposeOfPurchase = log.purpose_of_purchase || resolvedPurposeOfPurchase;
+          resolvedNotes = log.notes || resolvedNotes;
+        };
+
         const { data: latestLog } = await supabase
           .from('call_logs')
           .select(
-            'customer_name, customer_company, email, city, product_name, product_category, product_code, quantity, urgency, requested_timeline, purpose_of_purchase, notes, full_number, caller_number'
+            'id, call_id, customer_name, customer_company, email, city, product_name, product_category, product_code, quantity, urgency, requested_timeline, purpose_of_purchase, notes, full_number, caller_number, updated_at'
           )
           .eq('id', sourceId)
           .maybeSingle();
 
         if (latestLog) {
-          resolvedCustomerName = latestLog.customer_name || resolvedCustomerName;
-          resolvedPhoneNumber = latestLog.full_number || latestLog.caller_number || resolvedPhoneNumber;
-          resolvedEmail = latestLog.email || resolvedEmail;
-          resolvedCompany = latestLog.customer_company || resolvedCompany;
-          resolvedCity = latestLog.city || resolvedCity;
-          resolvedProductName = latestLog.product_name?.trim() || resolvedProductName;
-          resolvedProductCategory = latestLog.product_category || resolvedProductCategory;
-          resolvedProductCode = latestLog.product_code || resolvedProductCode;
-          resolvedQuantity = latestLog.quantity ?? resolvedQuantity;
-          resolvedUrgency = latestLog.urgency || resolvedUrgency;
-          resolvedRequestedTimeline = latestLog.requested_timeline || resolvedRequestedTimeline;
-          resolvedPurposeOfPurchase = latestLog.purpose_of_purchase || resolvedPurposeOfPurchase;
-          resolvedNotes = latestLog.notes || resolvedNotes;
+          applyLogData(latestLog);
+
+          if (!resolvedProductName && latestLog.call_id) {
+            const { data: relatedLogs } = await supabase
+              .from('call_logs')
+              .select(
+                'id, call_id, customer_name, customer_company, email, city, product_name, product_category, product_code, quantity, urgency, requested_timeline, purpose_of_purchase, notes, full_number, caller_number, updated_at'
+              )
+              .eq('call_id', latestLog.call_id)
+              .order('updated_at', { ascending: false })
+              .limit(20);
+
+            if (relatedLogs && relatedLogs.length > 0) {
+              const bestRelatedLog = relatedLogs.find((log) => log.product_name?.trim()) || relatedLogs[0];
+              applyLogData(bestRelatedLog);
+            }
+          }
         }
       }
 
