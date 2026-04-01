@@ -299,11 +299,29 @@ const Auth = () => {
     }
   };
 
+  const dateStr = currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const timeStr = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  const DateTimeBanner = () => (
+    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-4 px-5 py-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white shadow-lg">
+      <div className="flex items-center gap-1.5 text-sm font-medium">
+        <Calendar className="w-4 h-4 text-orange-400" />
+        <span>{dateStr}</span>
+      </div>
+      <div className="w-px h-4 bg-white/20" />
+      <div className="flex items-center gap-1.5 text-sm font-mono font-medium">
+        <Clock className="w-4 h-4 text-orange-400" />
+        <span>{timeStr}</span>
+      </div>
+    </div>
+  );
+
   // Reset Password View (after clicking email link)
   if (isResetPassword) {
     return (
-      <div className="min-h-[100dvh] bg-background flex items-center justify-center p-4 overflow-y-auto">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/3 pointer-events-none" />
+      <div className="min-h-[100dvh] flex items-center justify-center p-4 overflow-y-auto relative" style={{ backgroundImage: `url(${authBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+        <DateTimeBanner />
         <Card className="w-full max-w-md glass-strong animate-fade-in my-auto shadow-lg relative">
           <CardHeader className="text-center pb-4">
             <div className="flex justify-center mb-5">
