@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrainingAssignment, TrainingResource, TrainingResourceTracking, useEmployeeTrainings } from "@/hooks/useEmployeeTrainings";
+import { TrainingAssignment, TrainingResource, TrainingResourceTracking } from "@/hooks/useEmployeeTrainings";
 import { ResourcePreviewDialog } from "./ResourcePreviewDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,11 +36,26 @@ interface Props {
   assignment: TrainingAssignment | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  assignments: TrainingAssignment[];
+  fetchAssignmentDetails: (assignmentId: string) => Promise<{ resources: TrainingResource[]; tracking: TrainingResourceTracking[] }>;
+  markResourceViewed: (assignmentId: string, resourceId: string, employeeId: string) => Promise<void>;
+  markCompleted: (assignmentId: string) => Promise<void>;
+  isHrOrAdmin: boolean;
+  refetch: () => Promise<void>;
 }
 
-export function TrainingDetailDialog({ assignment: assignmentProp, open, onOpenChange }: Props) {
+export function TrainingDetailDialog({
+  assignment: assignmentProp,
+  open,
+  onOpenChange,
+  assignments,
+  fetchAssignmentDetails,
+  markResourceViewed,
+  markCompleted,
+  isHrOrAdmin,
+  refetch,
+}: Props) {
   const { user } = useAuth();
-  const { markResourceViewed, markCompleted, fetchAssignmentDetails, isHrOrAdmin, refetch, assignments } = useEmployeeTrainings();
   const [resources, setResources] = useState<TrainingResource[]>([]);
   const [tracking, setTracking] = useState<TrainingResourceTracking[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
