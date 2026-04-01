@@ -53,6 +53,7 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
   const [editPriority, setEditPriority] = useState<"low" | "medium" | "high">("medium");
   const [editStatus, setEditStatus] = useState("assigned");
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (assignment && open) {
@@ -116,8 +117,6 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
       setIsSaving(false);
     }
   };
-
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {
     if (!assignment) return;
