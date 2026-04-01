@@ -66,7 +66,6 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
     }
   }, [open]);
 
-  // Get unique departments/teams from employees
   const teams = useMemo(() => {
     const deptMap = new Map<string, number>();
     employees.forEach(e => {
@@ -78,13 +77,11 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [employees]);
 
-  // Get employees for selected team
   const teamEmployees = useMemo(() => {
     if (!selectedTeam) return [];
     return employees.filter(e => (e.department || "General") === selectedTeam);
   }, [employees, selectedTeam]);
 
-  // Get selected employee IDs based on mode
   const selectedEmployeeIds = useMemo(() => {
     if (selectionMode === "individual") {
       return employeeId ? [employeeId] : [];
@@ -93,7 +90,7 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
   }, [selectionMode, employeeId, teamEmployees]);
 
   const resetForm = () => {
-    setSelectionMode("individual");
+    setSelectionMode("team");
     setEmployeeId("");
     setSelectedTeam("");
     setTitle("");
@@ -129,7 +126,8 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
           description: "",
         }));
 
-      // Assign to each selected employee
+      // The first call creates the master training + resources; subsequent calls reuse it
+      let firstAssignment: any = null;
       for (const empId of selectedEmployeeIds) {
         const assignment = await onSubmit(
           { employee_id: empId, training_title: title, description, due_date: dueDate, priority, resources: resourceData },
@@ -137,25 +135,52 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
           profile.name || "Unknown"
         );
 
-        // Upload files for upload_video/document types
-        if (assignment) {
+        if (!firstAssignment) firstAssignment = assignment;
+
+        // Upload files for first assignment only (master resources get the URL)
+        if (assignment && empId === selectedEmployeeIds[0]) {
           for (let i = 0; i < resources.length; i++) {
             const r = resources[i];
             if ((r.resource_type === "upload_video" || r.resource_type === "document") && r.file) {
               const url = await uploadFile(r.file, assignment.id);
               if (url) {
-                const { data: resData } = await supabase
-                  .from("training_resources")
+                // Update master resource
+                const { data: masterRes } = await supabase
+                  .from("employee_training_resources")
                   .select("id")
-                  .eq("training_assignment_id", assignment.id)
+                  .eq("training_id", assignment.training_id)
                   .eq("resource_order", i)
                   .single();
 
-                if (resData) {
+                if (masterRes) {
                   await supabase
-                    .from("training_resources")
+                    .from("employee_training_resources")
                     .update({ url_or_file_path: url })
-                    .eq("id", resData.id);
+                    .eq("id", masterRes.id);
+                }
+
+                // Update all per-assignment resources with this URL
+                const { data: allAssignments } = await supabase
+                  .from("training_assignments")
+                  .select("id")
+                  .eq("training_id", assignment.training_id);
+
+                if (allAssignments) {
+                  for (const ta of allAssignments) {
+                    const { data: resData } = await supabase
+                      .from("training_resources")
+                      .select("id")
+                      .eq("training_assignment_id", ta.id)
+                      .eq("resource_order", i)
+                      .single();
+
+                    if (resData) {
+                      await supabase
+                        .from("training_resources")
+                        .update({ url_or_file_path: url })
+                        .eq("id", resData.id);
+                    }
+                  }
                 }
               }
             }
@@ -318,7 +343,6 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
                               const file = e.target.files?.[0];
                               if (file) {
                                 updateResource(i, "file", file);
-                                // Auto-set title from file name if empty
                                 if (!r.title) {
                                   updateResource(i, "title", file.name.replace(/\.[^/.]+$/, ""));
                                 }

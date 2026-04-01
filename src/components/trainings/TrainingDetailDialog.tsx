@@ -98,18 +98,18 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
         .order("name")
         .then(({ data }) => setAllEmployees(data || []));
 
-      // Find all employees who already have this same training title assigned
+      // Find all employees with the same training_id
       supabase
         .from("training_assignments")
         .select("employee_id")
-        .eq("training_title", assignment.training_title)
+        .eq("training_id", assignment.training_id)
         .then(({ data }) => {
           const ids = (data || []).map(d => d.employee_id);
           setExistingAssignedIds(ids);
           setSelectedEmployeeIds(ids);
         });
     }
-  }, [isEditing, assignment?.training_title]);
+  }, [isEditing, assignment?.training_id]);
 
   const teams = useMemo(() => {
     const deptMap = new Map<string, number>();
@@ -144,7 +144,6 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
     setSelectedEmployeeIds(prev =>
       prev.includes(empId) ? prev.filter(id => id !== empId) : [...prev, empId]
     );
-    // Sync team selection state
     const emp = allEmployees.find(e => e.id === empId);
     if (emp) {
       const dept = emp.department || "General";
@@ -183,49 +182,57 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
     if (!user) return;
     setIsSaving(true);
     try {
-      // Update existing assignment
-      const { error } = await supabase
+      // Update master training
+      if (assignment.training_id) {
+        await supabase
+          .from("employee_trainings")
+          .update({
+            title: editTitle,
+            description: editDescription || null,
+            priority: editPriority,
+          })
+          .eq("id", assignment.training_id);
+      }
+
+      // Update all assignments under this training_id
+      await supabase
         .from("training_assignments")
         .update({
           training_title: editTitle,
           description: editDescription || null,
           due_date: editDueDate,
           priority: editPriority,
-          status: editStatus,
         })
-        .eq("id", assignment.id);
+        .eq("training_id", assignment.training_id);
 
-      if (error) throw error;
-
-      // Also update all other assignments with the same original title
-      if (editTitle !== assignment.training_title || editDescription !== (assignment.description || "") || editDueDate !== assignment.due_date || editPriority !== assignment.priority) {
+      // Update individual assignment status if changed
+      if (editStatus !== assignment.status) {
+        const statusUpdate: any = { status: editStatus };
+        if (editStatus === "completed") {
+          statusUpdate.progress_percentage = 100;
+          statusUpdate.completed_at = new Date().toISOString();
+        }
         await supabase
           .from("training_assignments")
-          .update({
-            training_title: editTitle,
-            description: editDescription || null,
-            due_date: editDueDate,
-            priority: editPriority,
-          })
-          .eq("training_title", assignment.training_title)
-          .neq("id", assignment.id);
+          .update(statusUpdate)
+          .eq("id", assignment.id);
       }
 
-      // Find new employees to assign (not in existingAssignedIds)
+      // Find new employees to assign
       const newEmployeeIds = selectedEmployeeIds.filter(id => !existingAssignedIds.includes(id));
 
-      // Get resources from current assignment to duplicate
-      const { data: currentResources } = await supabase
-        .from("training_resources")
+      // Get master resources to duplicate for new assignments
+      const { data: masterResources } = await supabase
+        .from("employee_training_resources")
         .select("*")
-        .eq("training_assignment_id", assignment.id)
+        .eq("training_id", assignment.training_id)
         .order("resource_order");
 
-      // Create new assignments for new employees
       for (const empId of newEmployeeIds) {
         const { data: newAssignment, error: assignError } = await supabase
           .from("training_assignments")
           .insert({
+            training_id: assignment.training_id,
             employee_id: empId,
             training_title: editTitle,
             description: editDescription || null,
@@ -241,9 +248,9 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
 
         if (assignError) throw assignError;
 
-        // Duplicate resources
-        if (currentResources && currentResources.length > 0 && newAssignment) {
-          const resourceRows = currentResources.map((r: any) => ({
+        // Duplicate resources for tracking
+        if (masterResources && masterResources.length > 0 && newAssignment) {
+          const resourceRows = masterResources.map((r: any) => ({
             training_assignment_id: newAssignment.id,
             resource_type: r.resource_type,
             title: r.title,
@@ -276,11 +283,12 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
     if (!assignment) return;
     setIsDeleting(true);
     try {
-      await supabase.from("training_resource_tracking" as any).delete().eq("assignment_id", assignment.id);
-      await supabase.from("training_resources" as any).delete().eq("assignment_id", assignment.id);
-      const { error } = await supabase.from("training_assignments" as any).delete().eq("id", assignment.id);
+      const { error } = await supabase
+        .from("training_assignments")
+        .delete()
+        .eq("id", assignment.id);
       if (error) throw error;
-      toast.success("Training deleted successfully");
+      toast.success("Training assignment deleted successfully");
       refetch();
       onOpenChange(false);
     } catch (error: any) {
@@ -289,7 +297,6 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
       setIsDeleting(false);
     }
   };
-
 
   const handleOpenResource = (resource: TrainingResource) => {
     setPreviewResource(resource);
@@ -424,8 +431,6 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
                           <div key={t.name} className="flex items-center gap-3 py-1.5 px-1 rounded hover:bg-accent/50">
                             <Checkbox
                               checked={allSelected}
-                              // @ts-ignore
-                              indeterminate={someSelected && !allSelected}
                               onCheckedChange={() => toggleTeam(t.name)}
                             />
                             <div className="flex-1">
