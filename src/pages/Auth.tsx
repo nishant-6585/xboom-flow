@@ -435,8 +435,8 @@ const Auth = () => {
   // Forgot Password View
   if (isForgotPassword) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center p-4 overflow-y-auto relative" style={{ backgroundImage: `url(${authBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="min-h-[100dvh] flex items-center justify-center p-4 overflow-y-auto relative bg-[#0a0e1a]">
+        <XboomLoginBackground />
         <DateTimeBanner />
         <Card className="w-full max-w-md glass-strong animate-fade-in my-auto shadow-lg relative bg-background/80 backdrop-blur-md">
           <CardHeader className="text-center pb-4">
