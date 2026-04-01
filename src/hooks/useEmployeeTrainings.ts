@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,9 +24,26 @@ export interface TrainingAssignment {
   employee_department?: string;
   resources?: TrainingResource[];
   tracking?: TrainingResourceTracking[];
-  // Computed display fields
-  assignee_display?: string;
-  batch_size?: number;
+}
+
+export interface GroupedTraining {
+  key: string;
+  training_title: string;
+  description: string | null;
+  assigned_by_name: string;
+  due_date: string;
+  priority: "low" | "medium" | "high";
+  created_at: string;
+  assignments: TrainingAssignment[];
+  // Aggregated
+  total_employees: number;
+  overall_progress: number;
+  completed_count: number;
+  in_progress_count: number;
+  assigned_count: number;
+  overdue_count: number;
+  grouped_status: "completed" | "in_progress" | "assigned" | "overdue";
+  teams: string[];
 }
 
 export interface TrainingResource {
@@ -82,41 +99,11 @@ export function useEmployeeTrainings() {
 
       if (error) throw error;
 
-      const base = (data || []).map((a: any) => ({
+      const transformed = (data || []).map((a: any) => ({
         ...a,
         employee_name: a.employees?.name,
         employee_department: a.employees?.department,
       }));
-
-      // Group by training batch (same title + assigned_by + due_date) to compute team display
-      const batchMap = new Map<string, typeof base>();
-      base.forEach((a: any) => {
-        const key = `${a.training_title}||${a.assigned_by}||${a.due_date}`;
-        if (!batchMap.has(key)) batchMap.set(key, []);
-        batchMap.get(key)!.push(a);
-      });
-
-      const transformed = base.map((a: any) => {
-        const key = `${a.training_title}||${a.assigned_by}||${a.due_date}`;
-        const batch = batchMap.get(key) || [a];
-        const batchSize = batch.length;
-
-        let assigneeDisplay = a.employee_name || "Unknown";
-
-        if (batchSize > 1) {
-          // Check if all in same department
-          const departments = [...new Set(batch.map((b: any) => b.employee_department).filter(Boolean))];
-          if (departments.length === 1) {
-            assigneeDisplay = `${departments[0]} Team (${batchSize} members)`;
-          } else if (departments.length > 1) {
-            assigneeDisplay = `${a.employee_name} (${a.employee_department || "No Team"})`;
-          }
-        } else {
-          assigneeDisplay = `${a.employee_name}${a.employee_department ? ` (${a.employee_department})` : ""}`;
-        }
-
-        return { ...a, assignee_display: assigneeDisplay, batch_size: batchSize };
-      });
 
       setAssignments(transformed);
     } catch (error: any) {
@@ -328,8 +315,53 @@ export function useEmployeeTrainings() {
     return publicUrl;
   };
 
+  const groupedTrainings = useMemo((): GroupedTraining[] => {
+    const groupMap = new Map<string, TrainingAssignment[]>();
+    assignments.forEach(a => {
+      const key = `${a.training_title}||${a.assigned_by}||${a.due_date}`;
+      if (!groupMap.has(key)) groupMap.set(key, []);
+      groupMap.get(key)!.push(a);
+    });
+
+    return Array.from(groupMap.entries()).map(([key, group]) => {
+      const first = group[0];
+      const now = new Date();
+      const completedCount = group.filter(a => a.status === "completed").length;
+      const inProgressCount = group.filter(a => a.status === "in_progress").length;
+      const overdueCount = group.filter(a => a.status !== "completed" && new Date(a.due_date) < now).length;
+      const assignedCount = group.filter(a => a.status === "assigned").length;
+      const avgProgress = group.reduce((sum, a) => sum + a.progress_percentage, 0) / group.length;
+      const teams = [...new Set(group.map(a => a.employee_department).filter(Boolean))] as string[];
+
+      let groupedStatus: GroupedTraining["grouped_status"] = "assigned";
+      if (completedCount === group.length) groupedStatus = "completed";
+      else if (overdueCount > 0) groupedStatus = "overdue";
+      else if (inProgressCount > 0) groupedStatus = "in_progress";
+
+      return {
+        key,
+        training_title: first.training_title,
+        description: first.description,
+        assigned_by_name: first.assigned_by_name,
+        due_date: first.due_date,
+        priority: first.priority,
+        created_at: first.created_at,
+        assignments: group,
+        total_employees: group.length,
+        overall_progress: Math.round(avgProgress),
+        completed_count: completedCount,
+        in_progress_count: inProgressCount,
+        assigned_count: assignedCount,
+        overdue_count: overdueCount,
+        grouped_status: groupedStatus,
+        teams,
+      };
+    }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [assignments]);
+
   return {
     assignments,
+    groupedTrainings,
     loading,
     isHrOrAdmin,
     assignTraining,
