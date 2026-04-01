@@ -1,0 +1,1 @@
+ALTER TABLE public.interakt_leads ADD COLUMN IF NOT EXISTS sales_person_id text, ADD COLUMN IF NOT EXISTS sales_person_name text;
