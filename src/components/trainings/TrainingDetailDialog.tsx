@@ -602,5 +602,18 @@ export function TrainingDetailDialog({ assignment, open, onOpenChange }: Props) 
         </ScrollArea>
       </DialogContent>
     </Dialog>
+
+      <ResourcePreviewDialog
+        resource={previewResource}
+        open={previewOpen}
+        onOpenChange={(open) => {
+          setPreviewOpen(open);
+          if (!open) setPreviewResource(null);
+        }}
+        isViewed={previewResource ? isResourceViewed(previewResource.id) : false}
+        isOwner={isOwner}
+        onMarkViewed={handleMarkResourceViewed}
+      />
+    </>
   );
 }
