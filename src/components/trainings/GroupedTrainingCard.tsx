@@ -33,6 +33,7 @@ interface GroupedTrainingCardProps {
   isHrOrAdmin: boolean;
   onAssignmentClick: (assignment: TrainingAssignment) => void;
   onDeleteAssignment: (id: string) => void;
+  onAddEmployees?: (group: GroupedTraining) => void;
 }
 
 export function GroupedTrainingCard({ group, isHrOrAdmin, onAssignmentClick, onDeleteAssignment }: GroupedTrainingCardProps) {
