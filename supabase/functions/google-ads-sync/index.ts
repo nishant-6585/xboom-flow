@@ -451,7 +451,7 @@ Deno.serve(async (req) => {
         const assignee = roundRobinAssignees[rrIndex % roundRobinAssignees.length];
         rrIndex++;
 
-        const { error: insertError } = await supabaseAdmin.from("enquiries").insert({
+        const { error: insertError } = await supabaseAdmin.from("google_ads_leads").insert({
           customer_name: name,
           customer_company: company,
           product_name: productInterest || "Google Ads Enquiry",
@@ -459,6 +459,9 @@ Deno.serve(async (req) => {
           product_category: "Consumer Drones",
           quantity: 1,
           urgency: "medium",
+          email: email,
+          phone: phone,
+          city: city,
           sales_person_id: assignee.user_id,
           sales_person_name: assignee.name,
           status: "pending",
