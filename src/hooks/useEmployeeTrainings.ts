@@ -284,7 +284,6 @@ export function useEmployeeTrainings() {
         last_accessed: new Date().toISOString(),
       };
 
-      // Auto-derive status from progress
       if (progress === 100) {
         updateData.status = "completed";
         updateData.completed_at = new Date().toISOString();
@@ -296,6 +295,13 @@ export function useEmployeeTrainings() {
         .from("training_assignments")
         .update(updateData)
         .eq("id", assignmentId);
+
+      // Immediately update local state
+      setAssignments(prev => prev.map(a =>
+        a.id === assignmentId
+          ? { ...a, ...updateData }
+          : a
+      ));
 
     } catch (error: any) {
       console.error("Error marking resource viewed:", error);
