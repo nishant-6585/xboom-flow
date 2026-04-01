@@ -78,6 +78,7 @@ interface MyOperatorAnalyticsProps {
 
 export function MyOperatorAnalytics({ logs, prospects = [] }: MyOperatorAnalyticsProps) {
   const [period, setPeriod] = useState<'day' | 'week' | 'month'>('week');
+  const [agentPeriod, setAgentPeriod] = useState<'day' | 'week' | 'month'>('week');
 
   const enrichedLogs = useMemo(() => {
     return logs.map(log => ({
@@ -119,7 +120,7 @@ export function MyOperatorAnalytics({ logs, prospects = [] }: MyOperatorAnalytic
   // ---- Agent breakdown ----
   const agentData = useMemo(() => {
     const map = new Map<string, { answered: number; missed: number; total: number }>();
-    const targetLogs = period === 'day' ? todayLogs : period === 'week' ? weekLogs : monthLogs;
+    const targetLogs = agentPeriod === 'day' ? todayLogs : agentPeriod === 'week' ? weekLogs : monthLogs;
     for (const l of targetLogs) {
       const entry = map.get(l.agent) || { answered: 0, missed: 0, total: 0 };
       entry.total++;
@@ -130,7 +131,7 @@ export function MyOperatorAnalytics({ logs, prospects = [] }: MyOperatorAnalytic
     return Array.from(map.entries())
       .map(([name, d]) => ({ name, ...d }))
       .sort((a, b) => b.total - a.total);
-  }, [period, todayLogs, weekLogs, monthLogs]);
+  }, [agentPeriod, todayLogs, weekLogs, monthLogs]);
 
   // ---- Daily call volume chart (last 14 days) ----
   const dailyData = useMemo(() => {
@@ -345,12 +346,25 @@ export function MyOperatorAnalytics({ logs, prospects = [] }: MyOperatorAnalytic
         {/* Agent Breakdown */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Agent Performance
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Agent Performance
+              </CardTitle>
+              <div className="flex gap-1">
+                {(['day', 'week', 'month'] as const).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setAgentPeriod(p)}
+                    className={`px-2.5 py-1 text-[11px] rounded-md transition-colors ${agentPeriod === p ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                  >
+                    {p === 'day' ? 'Daily' : p === 'week' ? 'Weekly' : 'Monthly'}
+                  </button>
+                ))}
+              </div>
+            </div>
             <p className="text-xs text-muted-foreground">
-              {period === 'day' ? 'Today' : period === 'week' ? 'This Week' : 'This Month'}
+              {agentPeriod === 'day' ? 'Today' : agentPeriod === 'week' ? 'This Week' : 'This Month'}
             </p>
           </CardHeader>
           <CardContent>
