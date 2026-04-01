@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { GroupedTraining, TrainingAssignment } from "@/hooks/useEmployeeTrainings";
 import { format } from "date-fns";
-import { ChevronDown, ChevronRight, Users, Trash2, CheckCircle2, Clock, AlertTriangle, User, UserPlus } from "lucide-react";
+import { ChevronDown, Users, Trash2, CheckCircle2, Clock, AlertTriangle, User, UserPlus } from "lucide-react";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   assigned: { label: "Assigned", variant: "outline" },
