@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Trash2, Loader2, Youtube, Video, FileText, Link, StickyNote, MonitorPlay } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Trash2, Loader2, Youtube, Video, FileText, Link, StickyNote, MonitorPlay, Users, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { AssignTrainingData, TrainingResource } from "@/hooks/useEmployeeTrainings";
@@ -37,12 +39,16 @@ interface Props {
   uploadFile: (file: File, assignmentId: string) => Promise<string | null>;
 }
 
+type SelectionMode = "individual" | "team";
+
 export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile }: Props) {
   const { user, profile } = useAuth();
   const [employees, setEmployees] = useState<{ id: string; name: string; department: string }[]>([]);
   const [saving, setSaving] = useState(false);
 
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>("individual");
   const [employeeId, setEmployeeId] = useState("");
+  const [selectedTeam, setSelectedTeam] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -60,8 +66,36 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
     }
   }, [open]);
 
+  // Get unique departments/teams from employees
+  const teams = useMemo(() => {
+    const deptMap = new Map<string, number>();
+    employees.forEach(e => {
+      const dept = e.department || "General";
+      deptMap.set(dept, (deptMap.get(dept) || 0) + 1);
+    });
+    return Array.from(deptMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [employees]);
+
+  // Get employees for selected team
+  const teamEmployees = useMemo(() => {
+    if (!selectedTeam) return [];
+    return employees.filter(e => (e.department || "General") === selectedTeam);
+  }, [employees, selectedTeam]);
+
+  // Get selected employee IDs based on mode
+  const selectedEmployeeIds = useMemo(() => {
+    if (selectionMode === "individual") {
+      return employeeId ? [employeeId] : [];
+    }
+    return teamEmployees.map(e => e.id);
+  }, [selectionMode, employeeId, teamEmployees]);
+
   const resetForm = () => {
+    setSelectionMode("individual");
     setEmployeeId("");
+    setSelectedTeam("");
     setTitle("");
     setDescription("");
     setDueDate("");
@@ -84,10 +118,9 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
   };
 
   const handleSubmit = async () => {
-    if (!user || !profile || !employeeId || !title || !dueDate) return;
+    if (!user || !profile || selectedEmployeeIds.length === 0 || !title || !dueDate) return;
     setSaving(true);
     try {
-      // First create the assignment with resources that have URLs
       const resourceData = resources
         .filter(r => r.title)
         .map(r => ({
@@ -97,32 +130,34 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
           description: r.description,
         }));
 
-      const assignment = await onSubmit(
-        { employee_id: employeeId, training_title: title, description, due_date: dueDate, priority, resources: resourceData },
-        user.id,
-        profile.name || "Unknown"
-      );
+      // Assign to each selected employee
+      for (const empId of selectedEmployeeIds) {
+        const assignment = await onSubmit(
+          { employee_id: empId, training_title: title, description, due_date: dueDate, priority, resources: resourceData },
+          user.id,
+          profile.name || "Unknown"
+        );
 
-      // Upload files for upload_video/document types
-      if (assignment) {
-        for (let i = 0; i < resources.length; i++) {
-          const r = resources[i];
-          if ((r.resource_type === "upload_video" || r.resource_type === "document") && r.file) {
-            const url = await uploadFile(r.file, assignment.id);
-            if (url) {
-              // Update the resource with the file URL
-              const { data: resData } = await supabase
-                .from("training_resources")
-                .select("id")
-                .eq("training_assignment_id", assignment.id)
-                .eq("resource_order", i)
-                .single();
-
-              if (resData) {
-                await supabase
+        // Upload files for upload_video/document types
+        if (assignment) {
+          for (let i = 0; i < resources.length; i++) {
+            const r = resources[i];
+            if ((r.resource_type === "upload_video" || r.resource_type === "document") && r.file) {
+              const url = await uploadFile(r.file, assignment.id);
+              if (url) {
+                const { data: resData } = await supabase
                   .from("training_resources")
-                  .update({ url_or_file_path: url })
-                  .eq("id", resData.id);
+                  .select("id")
+                  .eq("training_assignment_id", assignment.id)
+                  .eq("resource_order", i)
+                  .single();
+
+                if (resData) {
+                  await supabase
+                    .from("training_resources")
+                    .update({ url_or_file_path: url })
+                    .eq("id", resData.id);
+                }
               }
             }
           }
@@ -141,6 +176,8 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
   const needsUrl = (type: string) => !["upload_video", "document", "note"].includes(type);
   const needsFile = (type: string) => ["upload_video", "document"].includes(type);
 
+  const isValid = selectedEmployeeIds.length > 0 && title && dueDate;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden">
@@ -149,19 +186,65 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
         </DialogHeader>
         <ScrollArea className="max-h-[calc(90vh-100px)] pr-4">
           <div className="space-y-4 pb-4">
-            {/* Basic Details */}
+            {/* Selection Mode Toggle */}
+            <div>
+              <Label className="mb-2 block">Assign To</Label>
+              <Tabs value={selectionMode} onValueChange={(v) => {
+                setSelectionMode(v as SelectionMode);
+                setEmployeeId("");
+                setSelectedTeam("");
+              }}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="individual" className="gap-2">
+                    <User className="h-4 w-4" />
+                    Individual
+                  </TabsTrigger>
+                  <TabsTrigger value="team" className="gap-2">
+                    <Users className="h-4 w-4" />
+                    Team / Department
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            {/* Employee or Team Selection */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Employee *</Label>
-                <Select value={employeeId} onValueChange={setEmployeeId}>
-                  <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
-                  <SelectContent>
-                    {employees.map(e => (
-                      <SelectItem key={e.id} value={e.id}>{e.name} ({e.department})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {selectionMode === "individual" ? (
+                <div>
+                  <Label>Employee *</Label>
+                  <Select value={employeeId} onValueChange={setEmployeeId}>
+                    <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                    <SelectContent>
+                      {employees.map(e => (
+                        <SelectItem key={e.id} value={e.id}>{e.name} ({e.department})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div>
+                  <Label>Team / Department *</Label>
+                  <Select value={selectedTeam} onValueChange={setSelectedTeam}>
+                    <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
+                    <SelectContent>
+                      {teams.map(t => (
+                        <SelectItem key={t.name} value={t.name}>
+                          {t.name} ({t.count} {t.count === 1 ? 'member' : 'members'})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedTeam && teamEmployees.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {teamEmployees.map(e => (
+                        <Badge key={e.id} variant="secondary" className="text-xs">
+                          {e.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <div>
                 <Label>Priority</Label>
                 <Select value={priority} onValueChange={(v: any) => setPriority(v)}>
@@ -279,9 +362,12 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
 
             <div className="flex gap-2 justify-end pt-4">
               <Button variant="outline" onClick={() => { resetForm(); onOpenChange(false); }}>Cancel</Button>
-              <Button onClick={handleSubmit} disabled={saving || !employeeId || !title || !dueDate}>
+              <Button onClick={handleSubmit} disabled={saving || !isValid}>
                 {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Assign Training
+                {selectionMode === "team" && selectedEmployeeIds.length > 1
+                  ? `Assign to ${selectedEmployeeIds.length} Members`
+                  : "Assign Training"
+                }
               </Button>
             </div>
           </div>
