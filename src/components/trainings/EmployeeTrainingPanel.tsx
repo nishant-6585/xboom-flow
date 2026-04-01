@@ -125,16 +125,17 @@ export function EmployeeTrainingPanel() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="columns-1 lg:columns-2 gap-4 space-y-4">
           {filtered.map(group => (
-            <GroupedTrainingCard
-              key={group.key}
-              group={group}
-              isHrOrAdmin={isHrOrAdmin}
-              onAssignmentClick={setSelectedAssignment}
-              onDeleteAssignment={deleteAssignment}
-              onAddEmployees={setAddEmployeesGroup}
-            />
+            <div key={group.key} className="break-inside-avoid">
+              <GroupedTrainingCard
+                group={group}
+                isHrOrAdmin={isHrOrAdmin}
+                onAssignmentClick={setSelectedAssignment}
+                onDeleteAssignment={deleteAssignment}
+                onAddEmployees={setAddEmployeesGroup}
+              />
+            </div>
           ))}
         </div>
       )}
