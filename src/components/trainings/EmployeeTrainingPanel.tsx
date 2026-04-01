@@ -153,10 +153,10 @@ export function EmployeeTrainingPanel() {
                     <Badge variant={statusCfg.variant}>{statusCfg.label}</Badge>
                   </div>
 
-                  {isHrOrAdmin && a.employee_name && (
+                  {isHrOrAdmin && a.assignee_display && (
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <Users className="h-3.5 w-3.5" />
-                      {a.employee_name} {a.employee_department ? `(${a.employee_department})` : ""}
+                      {a.assignee_display}
                     </div>
                   )}
 
