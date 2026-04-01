@@ -1689,7 +1689,7 @@ RULES:
 
     const step3Messages = [
       { role: "system", content: structuredSystemPrompt },
-      ...messages,
+      ...(isFreshDataQuery ? [{ role: "user", content: lastUserMessage }] : messages),
       assistantMessage,
       ...toolResults,
     ];
