@@ -256,6 +256,14 @@ export function GoogleAdsLeadsTab() {
                         className={`cursor-pointer transition-colors ${lead.is_converted ? "bg-emerald-500/5" : isAging(lead) ? "bg-amber-500/5" : ""}`}
                         onClick={() => setSelectedLead(lead)}
                       >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <div className="flex gap-1">
+                            <ProspectButton sourceType="google_ads" sourceId={lead.id} customerName={lead.customer_name} phoneNumber={phone} email={email} company={lead.customer_company !== "Unknown" ? lead.customer_company : undefined} city={city} productName={lead.product_name} notes={lead.notes} isAlreadyProspect={isProspect(lead.id)} />
+                            <ACategoryButton sourceType="google_ads" sourceId={lead.id} isACategory={false} />
+                            <AttentionButton sourceType="google_ads" sourceId={lead.id} customerName={lead.customer_name} phoneNumber={phone} email={email} company={lead.customer_company !== "Unknown" ? lead.customer_company : undefined} city={city} productName={lead.product_name} notes={lead.notes} isAlreadyAttention={isAttention(lead.id)} />
+                            <EnquiryConvertButton sourceType="google_ads" sourceId={lead.id} customerName={lead.customer_name} phoneNumber={phone} email={email} company={lead.customer_company !== "Unknown" ? lead.customer_company : undefined} city={city} productName={lead.product_name} productCategory={lead.product_category} quantity={lead.quantity} urgency={lead.urgency} requestedTimeline={lead.requested_timeline} notes={lead.notes} isAlreadyConverted={lead.is_converted} />
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <div className="space-y-0.5">
                             <div className="font-medium flex items-center gap-1.5">
