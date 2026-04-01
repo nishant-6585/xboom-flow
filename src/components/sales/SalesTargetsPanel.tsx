@@ -4,8 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -28,322 +26,249 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Target, Plus, Edit, Trash2, TrendingUp, DollarSign, ShoppingCart, PieChart } from 'lucide-react';
-import { useSalesTargets, SalesTargetFormData, TargetPeriod } from '@/hooks/useSalesTargets';
+import { Target, Plus, Edit, TrendingUp, DollarSign, PieChart } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, addMonths, addQuarters } from 'date-fns';
+import { toast } from 'sonner';
+import { format, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
 
 interface SalesTeamMember {
   user_id: string;
   name: string;
 }
 
+interface TargetRow {
+  id: string;
+  user_id: string;
+  user_name: string;
+  target_period: string;
+  period_start: string;
+  period_end: string;
+  revenue_target: number;
+  orders_target: number;
+  pipeline_target: number;
+  revenue_achieved: number;
+  orders_achieved: number;
+  pipeline_achieved: number;
+  notes: string | null;
+}
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
+
 export function SalesTargetsPanel() {
   const { user, role } = useAuth();
-  const { targets, loading, createTarget, updateTarget, deleteTarget } = useSalesTargets();
   const isAdmin = role === 'admin';
-  
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingTarget, setEditingTarget] = useState<string | null>(null);
+
+  const [targets, setTargets] = useState<TargetRow[]>([]);
   const [salesTeam, setSalesTeam] = useState<SalesTeamMember[]>([]);
-  const [periodFilter, setPeriodFilter] = useState<'all' | 'monthly' | 'quarterly'>('all');
-  
-  const [formData, setFormData] = useState<SalesTargetFormData>({
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const [form, setForm] = useState({
     user_id: '',
     user_name: '',
-    target_period: 'monthly',
-    period_start: '',
-    period_end: '',
+    target_period: 'monthly' as 'monthly' | 'quarterly',
     revenue_target: 0,
     orders_target: 0,
     pipeline_target: 0,
   });
 
-  // Fetch sales team
-  useEffect(() => {
-    const fetchSalesTeam = async () => {
-      const { data, error } = await supabase.rpc('get_sales_team');
-      if (!error && data) {
-        setSalesTeam(data as SalesTeamMember[]);
+  const fetchAll = async () => {
+    setLoading(true);
+    const [teamRes, targetsRes] = await Promise.all([
+      supabase.rpc('get_sales_team'),
+      supabase.from('sales_targets').select('*').order('user_name').order('target_period'),
+    ]);
+    if (teamRes.data) setSalesTeam(teamRes.data as SalesTeamMember[]);
+    if (targetsRes.data) setTargets(targetsRes.data as TargetRow[]);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchAll(); }, []);
+
+  // Group targets by user for display
+  const grouped = useMemo(() => {
+    const map = new Map<string, { name: string; monthly: TargetRow | null; quarterly: TargetRow | null }>();
+    salesTeam.forEach(sp => map.set(sp.user_id, { name: sp.name, monthly: null, quarterly: null }));
+    
+    const now = new Date();
+    targets.forEach(t => {
+      // Show the most recent/current target for each period type
+      const entry = map.get(t.user_id);
+      if (!entry) {
+        map.set(t.user_id, { name: t.user_name, monthly: null, quarterly: null });
       }
-    };
-    fetchSalesTeam();
-  }, []);
+      const e = map.get(t.user_id)!;
+      if (t.target_period === 'monthly') {
+        if (!e.monthly || new Date(t.period_start) > new Date(e.monthly.period_start)) e.monthly = t;
+      } else {
+        if (!e.quarterly || new Date(t.period_start) > new Date(e.quarterly.period_start)) e.quarterly = t;
+      }
+    });
+    return Array.from(map.entries()).map(([id, data]) => ({ user_id: id, ...data }));
+  }, [salesTeam, targets]);
 
-  const filteredTargets = useMemo(() => {
-    if (periodFilter === 'all') return targets;
-    return targets.filter(t => t.target_period === periodFilter);
-  }, [targets, periodFilter]);
-
-  const myTargets = useMemo(() => {
-    if (!user) return [];
-    const now = new Date();
-    return targets.filter(t => 
-      t.user_id === user.id &&
-      new Date(t.period_start) <= now &&
-      new Date(t.period_end) >= now
-    );
-  }, [targets, user]);
-
-  const handlePeriodChange = (period: TargetPeriod) => {
-    const now = new Date();
-    let start: Date, end: Date;
-    
-    if (period === 'monthly') {
-      start = startOfMonth(now);
-      end = endOfMonth(now);
-    } else {
-      start = startOfQuarter(now);
-      end = endOfQuarter(now);
-    }
-    
-    setFormData(prev => ({
-      ...prev,
-      target_period: period,
-      period_start: format(start, 'yyyy-MM-dd'),
-      period_end: format(end, 'yyyy-MM-dd'),
-    }));
-  };
-
-  const handleUserChange = (userId: string) => {
-    const member = salesTeam.find(m => m.user_id === userId);
-    setFormData(prev => ({
-      ...prev,
+  const openSetTarget = (userId: string, userName: string, period: 'monthly' | 'quarterly', existing?: TargetRow | null) => {
+    setEditingId(existing?.id || null);
+    setForm({
       user_id: userId,
-      user_name: member?.name || '',
-    }));
-  };
-
-  const handleSubmit = async () => {
-    if (!formData.user_id || !formData.period_start || !formData.period_end) {
-      return;
-    }
-
-    if (editingTarget) {
-      await updateTarget(editingTarget, {
-        revenue_target: formData.revenue_target,
-        orders_target: formData.orders_target,
-        pipeline_target: formData.pipeline_target,
-        notes: formData.notes || null,
-      });
-    } else {
-      await createTarget(formData);
-    }
-    
-    setDialogOpen(false);
-    resetForm();
-  };
-
-  const handleEdit = (target: typeof targets[0]) => {
-    setEditingTarget(target.id);
-    setFormData({
-      user_id: target.user_id,
-      user_name: target.user_name,
-      target_period: target.target_period as TargetPeriod,
-      period_start: target.period_start,
-      period_end: target.period_end,
-      revenue_target: target.revenue_target,
-      orders_target: target.orders_target,
-      pipeline_target: target.pipeline_target,
-      notes: target.notes || undefined,
+      user_name: userName,
+      target_period: period,
+      revenue_target: existing?.revenue_target || 0,
+      orders_target: existing?.orders_target || 0,
+      pipeline_target: existing?.pipeline_target || 0,
     });
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this target?')) {
-      await deleteTarget(id);
+  const handleSave = async () => {
+    if (!user || !isAdmin) return;
+
+    const now = new Date();
+    const periodStart = form.target_period === 'monthly'
+      ? format(startOfMonth(now), 'yyyy-MM-dd')
+      : format(startOfQuarter(now), 'yyyy-MM-dd');
+    const periodEnd = form.target_period === 'monthly'
+      ? format(endOfMonth(now), 'yyyy-MM-dd')
+      : format(endOfQuarter(now), 'yyyy-MM-dd');
+
+    try {
+      if (editingId) {
+        const { error } = await supabase.from('sales_targets').update({
+          revenue_target: form.revenue_target,
+          orders_target: form.orders_target,
+          pipeline_target: form.pipeline_target,
+        }).eq('id', editingId);
+        if (error) throw error;
+        toast.success('Target updated');
+      } else {
+        const { error } = await supabase.from('sales_targets').insert({
+          user_id: form.user_id,
+          user_name: form.user_name,
+          target_period: form.target_period,
+          period_start: periodStart,
+          period_end: periodEnd,
+          revenue_target: form.revenue_target,
+          orders_target: form.orders_target,
+          pipeline_target: form.pipeline_target,
+          created_by: user.id,
+        });
+        if (error) throw error;
+        toast.success('Target created — applies until changed');
+      }
+      setDialogOpen(false);
+      fetchAll();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save target');
     }
-  };
-
-  const resetForm = () => {
-    setEditingTarget(null);
-    setFormData({
-      user_id: '',
-      user_name: '',
-      target_period: 'monthly',
-      period_start: '',
-      period_end: '',
-      revenue_target: 0,
-      orders_target: 0,
-      pipeline_target: 0,
-    });
-  };
-
-  const getProgress = (achieved: number, target: number) => {
-    if (target === 0) return 0;
-    return Math.min(100, Math.round((achieved / target) * 100));
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0,
-    }).format(amount);
   };
 
   return (
     <div className="space-y-6">
-      {/* Current User's Targets Summary */}
-      {myTargets.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {myTargets.map(target => (
-            <Card key={target.id} className="border-primary/20">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Target className="w-4 h-4 text-primary" />
-                  {target.target_period === 'monthly' ? 'Monthly' : 'Quarterly'} Target
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="flex items-center gap-1">
-                      <DollarSign className="w-3 h-3" /> Revenue
-                    </span>
-                    <span>{getProgress(target.revenue_achieved, target.revenue_target)}%</span>
-                  </div>
-                  <Progress value={getProgress(target.revenue_achieved, target.revenue_target)} className="h-2" />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {formatCurrency(target.revenue_achieved)} / {formatCurrency(target.revenue_target)}
-                  </p>
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="flex items-center gap-1">
-                      <ShoppingCart className="w-3 h-3" /> Orders
-                    </span>
-                    <span>{getProgress(target.orders_achieved, target.orders_target)}%</span>
-                  </div>
-                  <Progress value={getProgress(target.orders_achieved, target.orders_target)} className="h-2" />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {target.orders_achieved} / {target.orders_target} orders
-                  </p>
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="flex items-center gap-1">
-                      <PieChart className="w-3 h-3" /> Pipeline
-                    </span>
-                    <span>{getProgress(target.pipeline_achieved, target.pipeline_target)}%</span>
-                  </div>
-                  <Progress value={getProgress(target.pipeline_achieved, target.pipeline_target)} className="h-2" />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {formatCurrency(target.pipeline_achieved)} / {formatCurrency(target.pipeline_target)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* All Targets Table (Admin) */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
+              <TrendingUp className="w-5 h-5 text-primary" />
               Sales Targets
             </CardTitle>
-            <div className="flex items-center gap-2">
-              <Select value={periodFilter} onValueChange={(v) => setPeriodFilter(v as any)}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Periods</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="quarterly">Quarterly</SelectItem>
-                </SelectContent>
-              </Select>
-              {isAdmin && (
-                <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Target
-                </Button>
-              )}
-            </div>
+            <p className="text-xs text-muted-foreground">Targets persist until changed by Admin</p>
           </div>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex justify-center p-8">
-              <div className="animate-pulse text-muted-foreground">Loading targets...</div>
-            </div>
-          ) : filteredTargets.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No targets found
+              <div className="animate-pulse text-muted-foreground">Loading...</div>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Sales Person</TableHead>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead className="text-right">Revenue Target</TableHead>
-                  <TableHead className="text-right">Orders Target</TableHead>
-                  <TableHead className="text-right">Pipeline Target</TableHead>
-                  {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                  <TableHead className="text-center">Monthly Revenue Target</TableHead>
+                  <TableHead className="text-center">Monthly Pipeline Target</TableHead>
+                  <TableHead className="text-center">Monthly Orders</TableHead>
+                  {isAdmin && <TableHead className="text-center w-[80px]">Edit</TableHead>}
+                  <TableHead className="text-center">Quarterly Revenue Target</TableHead>
+                  <TableHead className="text-center">Quarterly Pipeline Target</TableHead>
+                  <TableHead className="text-center">Quarterly Orders</TableHead>
+                  {isAdmin && <TableHead className="text-center w-[80px]">Edit</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTargets.map((target) => (
-                  <TableRow key={target.id}>
-                    <TableCell className="font-medium">{target.user_name}</TableCell>
-                    <TableCell>
-                      <Badge variant={target.target_period === 'monthly' ? 'secondary' : 'outline'}>
-                        {target.target_period === 'monthly' ? 'Monthly' : 'Quarterly'}
-                      </Badge>
+                {grouped.map(sp => (
+                  <TableRow key={sp.user_id}>
+                    <TableCell className="font-medium">{sp.name}</TableCell>
+                    
+                    {/* Monthly */}
+                    <TableCell className="text-center">
+                      {sp.monthly ? (
+                        <span className="font-semibold">{formatCurrency(sp.monthly.revenue_target)}</span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">Not set</span>
+                      )}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {format(new Date(target.period_start), 'MMM d')} - {format(new Date(target.period_end), 'MMM d, yyyy')}
+                    <TableCell className="text-center">
+                      {sp.monthly ? (
+                        <span className="font-semibold">{formatCurrency(sp.monthly.pipeline_target)}</span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">Not set</span>
+                      )}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div>
-                        {formatCurrency(target.revenue_target)}
-                        <div className="text-xs text-muted-foreground">
-                          Achieved: {formatCurrency(target.revenue_achieved)}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div>
-                        {target.orders_target}
-                        <div className="text-xs text-muted-foreground">
-                          Achieved: {target.orders_achieved}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div>
-                        {formatCurrency(target.pipeline_target)}
-                        <div className="text-xs text-muted-foreground">
-                          Achieved: {formatCurrency(target.pipeline_achieved)}
-                        </div>
-                      </div>
+                    <TableCell className="text-center">
+                      {sp.monthly ? (
+                        <span className="font-semibold">{sp.monthly.orders_target}</span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
                     </TableCell>
                     {isAdmin && (
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(target)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(target.id)}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => openSetTarget(sp.user_id, sp.name, 'monthly', sp.monthly)}
+                        >
+                          {sp.monthly ? <Edit className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                        </Button>
+                      </TableCell>
+                    )}
+
+                    {/* Quarterly */}
+                    <TableCell className="text-center">
+                      {sp.quarterly ? (
+                        <span className="font-semibold">{formatCurrency(sp.quarterly.revenue_target)}</span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">Not set</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {sp.quarterly ? (
+                        <span className="font-semibold">{formatCurrency(sp.quarterly.pipeline_target)}</span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">Not set</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {sp.quarterly ? (
+                        <span className="font-semibold">{sp.quarterly.orders_target}</span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </TableCell>
+                    {isAdmin && (
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => openSetTarget(sp.user_id, sp.name, 'quarterly', sp.quarterly)}
+                        >
+                          {sp.quarterly ? <Edit className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                        </Button>
                       </TableCell>
                     )}
                   </TableRow>
@@ -354,112 +279,59 @@ export function SalesTargetsPanel() {
         </CardContent>
       </Card>
 
-      {/* Add/Edit Dialog */}
+      {/* Set/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingTarget ? 'Edit Target' : 'Add Sales Target'}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="w-5 h-5 text-primary" />
+              {editingId ? 'Edit' : 'Set'} {form.target_period === 'monthly' ? 'Monthly' : 'Quarterly'} Target
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Sales Person</Label>
-                <Select
-                  value={formData.user_id}
-                  onValueChange={handleUserChange}
-                  disabled={!!editingTarget}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select person" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {salesTeam.map((member) => (
-                      <SelectItem key={member.user_id} value={member.user_id}>
-                        {member.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Target Period</Label>
-                <Select
-                  value={formData.target_period}
-                  onValueChange={(v) => handlePeriodChange(v as TargetPeriod)}
-                  disabled={!!editingTarget}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="quarterly">Quarterly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Period Start</Label>
-                <Input
-                  type="date"
-                  value={formData.period_start}
-                  onChange={(e) => setFormData(prev => ({ ...prev, period_start: e.target.value }))}
-                  disabled={!!editingTarget}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Period End</Label>
-                <Input
-                  type="date"
-                  value={formData.period_end}
-                  onChange={(e) => setFormData(prev => ({ ...prev, period_end: e.target.value }))}
-                  disabled={!!editingTarget}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Revenue Target (₹)</Label>
-                <Input
-                  type="number"
-                  value={formData.revenue_target}
-                  onChange={(e) => setFormData(prev => ({ ...prev, revenue_target: Number(e.target.value) }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Orders Target</Label>
-                <Input
-                  type="number"
-                  value={formData.orders_target}
-                  onChange={(e) => setFormData(prev => ({ ...prev, orders_target: Number(e.target.value) }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Pipeline Target (₹)</Label>
-                <Input
-                  type="number"
-                  value={formData.pipeline_target}
-                  onChange={(e) => setFormData(prev => ({ ...prev, pipeline_target: Number(e.target.value) }))}
-                />
-              </div>
+          <div className="space-y-4 py-2">
+            <div className="p-3 rounded-lg bg-muted/50">
+              <p className="text-sm font-medium">{form.user_name}</p>
+              <p className="text-xs text-muted-foreground">
+                {form.target_period === 'monthly' ? 'Monthly' : 'Quarterly'} target — applies every {form.target_period === 'monthly' ? 'month' : 'quarter'} until changed
+              </p>
             </div>
             <div className="space-y-2">
-              <Label>Notes</Label>
-              <Textarea
-                value={formData.notes || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                placeholder="Optional notes about this target..."
+              <Label className="flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5" /> Revenue Target (₹)
+              </Label>
+              <Input
+                type="number"
+                value={form.revenue_target || ''}
+                onChange={(e) => setForm(p => ({ ...p, revenue_target: Number(e.target.value) }))}
+                placeholder="e.g. 500000"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <PieChart className="w-3.5 h-3.5" /> Pipeline Target (₹)
+              </Label>
+              <Input
+                type="number"
+                value={form.pipeline_target || ''}
+                onChange={(e) => setForm(p => ({ ...p, pipeline_target: Number(e.target.value) }))}
+                placeholder="e.g. 1000000"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Target className="w-3.5 h-3.5" /> Orders Target
+              </Label>
+              <Input
+                type="number"
+                value={form.orders_target || ''}
+                onChange={(e) => setForm(p => ({ ...p, orders_target: Number(e.target.value) }))}
+                placeholder="e.g. 10"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit}>
-              {editingTarget ? 'Update' : 'Create'} Target
-            </Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave}>{editingId ? 'Update' : 'Set'} Target</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
