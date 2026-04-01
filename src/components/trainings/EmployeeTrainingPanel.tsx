@@ -149,8 +149,14 @@ export function EmployeeTrainingPanel() {
 
       <TrainingDetailDialog
         assignment={selectedAssignment}
+        assignments={assignments}
         open={!!selectedAssignment}
         onOpenChange={open => !open && setSelectedAssignment(null)}
+        fetchAssignmentDetails={fetchAssignmentDetails}
+        markResourceViewed={markResourceViewed}
+        markCompleted={markCompleted}
+        isHrOrAdmin={isHrOrAdmin}
+        refetch={refetch}
       />
 
       <AddEmployeesToTrainingDialog
