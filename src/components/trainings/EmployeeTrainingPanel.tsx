@@ -13,7 +13,20 @@ import { Plus, Search, Clock, CheckCircle2, AlertTriangle, Loader2, BookOpen, Us
 
 export function EmployeeTrainingPanel() {
   const { user, profile } = useAuth();
-  const { assignments, groupedTrainings, loading, isHrOrAdmin, assignTraining, addEmployeesToTraining, deleteAssignment, uploadTrainingFile } = useEmployeeTrainings();
+  const {
+    assignments,
+    groupedTrainings,
+    loading,
+    isHrOrAdmin,
+    assignTraining,
+    addEmployeesToTraining,
+    deleteAssignment,
+    uploadTrainingFile,
+    fetchAssignmentDetails,
+    markResourceViewed,
+    markCompleted,
+    refetch,
+  } = useEmployeeTrainings();
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<TrainingAssignment | null>(null);
   const [addEmployeesGroup, setAddEmployeesGroup] = useState<GroupedTraining | null>(null);
