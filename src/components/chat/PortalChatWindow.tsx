@@ -223,6 +223,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
       if (!session?.access_token) throw new Error('Please log in to use the AI assistant');
 
       const controller = new AbortController();
+      abortControllerRef.current = controller;
       const timeoutId = setTimeout(() => controller.abort(), 90000);
 
       const response = await fetch(CHAT_URL, {
