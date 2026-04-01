@@ -88,6 +88,8 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
   const { enquiries } = useEnquiries();
   const { data: teamMembers = [] } = useTeamMembers();
   const { roles: orgRoles } = useOrgRoles();
+  const analyzeTicket = useAnalyzeTicket();
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<{
