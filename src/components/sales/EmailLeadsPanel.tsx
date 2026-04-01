@@ -605,6 +605,9 @@ export function EmailLeadsPanel() {
                               {lead.status}
                             </Badge>
                           </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {lead.sales_person_name || '—'}
+                          </TableCell>
                           <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                             {format(new Date(lead.created_at), 'dd MMM yyyy')}
                           </TableCell>

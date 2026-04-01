@@ -448,6 +448,9 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                             </div>
                           )}
                         </TableCell>
+                        <TableCell className="text-sm">
+                          <span className="text-muted-foreground">{log.sales_person_name || log.assigned_agent_name || log.agent_name || '—'}</span>
+                        </TableCell>
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                           <div>{formatCallTime(info.startTime, log.created_at)}</div>
                           <div className="text-xs">{formatCallDate(info.startTime, log.created_at)}</div>

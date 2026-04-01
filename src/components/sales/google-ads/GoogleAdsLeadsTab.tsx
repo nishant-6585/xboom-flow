@@ -319,6 +319,9 @@ export function GoogleAdsLeadsTab() {
                             )}
                           </div>
                         </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {lead.sales_person_name || '—'}
+                        </TableCell>
                         <TableCell>
                           <Badge variant="outline" className={`text-xs gap-1 ${priority.className}`}>
                             {priority.icon}

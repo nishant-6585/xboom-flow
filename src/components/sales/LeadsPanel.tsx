@@ -911,6 +911,9 @@ export function LeadsPanel() {
                               </Badge>
                             </TableCell>
                             <TableCell>
+                              <span className="text-sm text-muted-foreground">{(lead as any).sales_person_name || '—'}</span>
+                            </TableCell>
+                            <TableCell>
                               <span className="text-xs text-muted-foreground">
                                 {lead.interakt_created_at
                                   ? format(new Date(lead.interakt_created_at), 'dd/MM/yyyy')
