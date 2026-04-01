@@ -171,7 +171,7 @@ export function GoogleAdsLeadsTab() {
   };
 
   const getPhone = (lead: GoogleAdsLead): string | null => {
-    // product_code stores phone from sync
+    if (lead.phone) return lead.phone;
     if (lead.product_code && lead.product_code !== "N/A") return lead.product_code;
     const parsed = parseNotesField(lead.notes);
     if (parsed["Phone"]) return parsed["Phone"];
@@ -180,6 +180,7 @@ export function GoogleAdsLeadsTab() {
   };
 
   const getEmail = (lead: GoogleAdsLead): string | null => {
+    if (lead.email) return lead.email;
     const parsed = parseNotesField(lead.notes);
     if (parsed["Email"]) return parsed["Email"];
     const fields = extractSubmissionFields(lead.raw_google_payload);
@@ -187,6 +188,7 @@ export function GoogleAdsLeadsTab() {
   };
 
   const getCity = (lead: GoogleAdsLead): string | null => {
+    if (lead.city) return lead.city;
     const parsed = parseNotesField(lead.notes);
     if (parsed["City"]) return parsed["City"];
     if (lead.customer_state) return lead.customer_state;
