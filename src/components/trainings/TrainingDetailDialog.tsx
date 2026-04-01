@@ -163,17 +163,20 @@ export function TrainingDetailDialog({ assignment: assignmentProp, open, onOpenC
   };
 
   const handleMarkResourceViewed = async () => {
-    if (!previewResource || !employeeId) return;
+    if (!previewResource || !employeeId || !assignment) return;
     await markResourceViewed(assignment.id, previewResource.id, employeeId);
-    const { tracking: t } = await fetchAssignmentDetails(assignment.id);
+    // Refresh tracking and resources to get updated view counts
+    const { tracking: t, resources: r } = await fetchAssignmentDetails(assignment.id);
     setTracking(t);
-    refetch();
+    setResources(r);
   };
 
   const handleMarkCompleted = async () => {
+    if (!assignment) return;
     await markCompleted(assignment.id);
-    refetch();
-    onOpenChange(false);
+    // Refetch tracking so dialog shows updated state
+    const { tracking: t } = await fetchAssignmentDetails(assignment.id);
+    setTracking(t);
   };
 
   return (
