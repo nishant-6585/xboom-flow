@@ -297,24 +297,18 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
                         </Button>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <Label>Type</Label>
-                          <Select value={r.resource_type} onValueChange={(v: any) => updateResource(i, "resource_type", v)}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {RESOURCE_TYPE_OPTIONS.map(opt => (
-                                <SelectItem key={opt.value} value={opt.value}>
-                                  <span className="flex items-center gap-2">{opt.icon} {opt.label}</span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Title</Label>
-                          <Input value={r.title} onChange={e => updateResource(i, "title", e.target.value)} placeholder="Resource title" />
-                        </div>
+                      <div>
+                        <Label>Type</Label>
+                        <Select value={r.resource_type} onValueChange={(v: any) => updateResource(i, "resource_type", v)}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {RESOURCE_TYPE_OPTIONS.map(opt => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                <span className="flex items-center gap-2">{opt.icon} {opt.label}</span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       {needsUrl(r.resource_type) && (
@@ -332,7 +326,13 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
                             accept={r.resource_type === "upload_video" ? "video/*" : ".pdf,.ppt,.pptx,.doc,.docx"}
                             onChange={e => {
                               const file = e.target.files?.[0];
-                              if (file) updateResource(i, "file", file);
+                              if (file) {
+                                updateResource(i, "file", file);
+                                // Auto-set title from file name if empty
+                                if (!r.title) {
+                                  updateResource(i, "title", file.name.replace(/\.[^/.]+$/, ""));
+                                }
+                              }
                             }}
                           />
                         </div>
@@ -349,11 +349,6 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
                           />
                         </div>
                       )}
-
-                      <div>
-                        <Label>Description (optional)</Label>
-                        <Input value={r.description} onChange={e => updateResource(i, "description", e.target.value)} placeholder="Brief description" />
-                      </div>
                     </CardContent>
                   </Card>
                 ))}
