@@ -137,7 +137,7 @@ export function useEnquiries() {
       const { data, error } = await supabase
         .from("enquiries")
         .select("*")
-        .neq("lead_source", "google_ads")
+        .or("lead_source.is.null,lead_source.neq.google_ads")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
