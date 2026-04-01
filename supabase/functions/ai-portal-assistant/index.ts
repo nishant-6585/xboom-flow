@@ -227,6 +227,136 @@ async function logAccess(
   }
 }
 
+function formatIndianNumber(value: number): string {
+  return new Intl.NumberFormat("en-IN", {
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function escapeMarkdownCell(value: string): string {
+  return value.replace(/\|/g, "\\|");
+}
+
+function isOrdersSalespersonBreakdownQuery(query: string): boolean {
+  const normalized = query.toLowerCase();
+  const mentionsOrders = /\b(order|orders|sales|closures?)\b/.test(normalized);
+  const mentionsSalesperson =
+    /salesperson/.test(normalized) ||
+    /sales person/.test(normalized) ||
+    /salesperson[-\s]?wise/.test(normalized) ||
+    /by salesperson/.test(normalized) ||
+    /salesperson vise/.test(normalized);
+
+  return mentionsOrders && mentionsSalesperson;
+}
+
+function formatPeriodLabel(dateFrom?: string, dateTo?: string): string {
+  if (dateFrom && dateTo && dateFrom.slice(0, 7) === dateTo.slice(0, 7)) {
+    const [year, month] = dateFrom.split("-").map(Number);
+    return new Date(Date.UTC(year, month - 1, 1)).toLocaleString("en-US", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  }
+
+  if (dateFrom && dateTo) return `${dateFrom} to ${dateTo}`;
+  if (dateFrom) return `from ${dateFrom}`;
+  if (dateTo) return `up to ${dateTo}`;
+  return "the selected period";
+}
+
+function buildOrderSalespersonBreakdownMessage(
+  lastUserMessage: string,
+  assistantMessage: { tool_calls?: Array<{ id: string; function: { name: string; arguments?: string } }> },
+  toolResults: { role: string; tool_call_id: string; content: string }[]
+): string | null {
+  if (!isOrdersSalespersonBreakdownQuery(lastUserMessage)) return null;
+
+  const queryOrdersCall = assistantMessage.tool_calls?.find(
+    (toolCall) => toolCall.function?.name === "query_orders"
+  );
+  if (!queryOrdersCall) return null;
+
+  const toolResult = toolResults.find((result) => result.tool_call_id === queryOrdersCall.id);
+  if (!toolResult) return null;
+
+  let parsedArgs: Record<string, unknown> = {};
+  let parsedResult: { records?: Record<string, unknown>[]; count?: number } = {};
+
+  try {
+    parsedArgs = JSON.parse(queryOrdersCall.function.arguments || "{}");
+    parsedResult = JSON.parse(toolResult.content || "{}");
+  } catch {
+    return null;
+  }
+
+  const records = Array.isArray(parsedResult.records) ? parsedResult.records : [];
+  if (records.length === 0) {
+    return `I couldn’t find any orders for ${formatPeriodLabel(
+      typeof parsedArgs.date_from === "string" ? parsedArgs.date_from : undefined,
+      typeof parsedArgs.date_to === "string" ? parsedArgs.date_to : undefined,
+    )}.`;
+  }
+
+  const grouped = new Map<string, { orders: number; totalSales: number }>();
+  let grandTotalOrders = 0;
+  let grandTotalSales = 0;
+  let unassignedOrders = 0;
+
+  for (const record of records) {
+    const salesperson = typeof record.sales_person_name === "string" && record.sales_person_name.trim()
+      ? record.sales_person_name.trim()
+      : "Unassigned";
+    const totalSalesAmount = Number(record.total_sales_amount ?? 0) || 0;
+    const current = grouped.get(salesperson) ?? { orders: 0, totalSales: 0 };
+
+    current.orders += 1;
+    current.totalSales += totalSalesAmount;
+    grouped.set(salesperson, current);
+
+    grandTotalOrders += 1;
+    grandTotalSales += totalSalesAmount;
+    if (salesperson === "Unassigned") unassignedOrders += 1;
+  }
+
+  const rows = Array.from(grouped.entries()).sort((a, b) => {
+    if (b[1].orders !== a[1].orders) return b[1].orders - a[1].orders;
+    if (b[1].totalSales !== a[1].totalSales) return b[1].totalSales - a[1].totalSales;
+    return a[0].localeCompare(b[0]);
+  });
+
+  const dateFrom = typeof parsedArgs.date_from === "string" ? parsedArgs.date_from : undefined;
+  const dateTo = typeof parsedArgs.date_to === "string" ? parsedArgs.date_to : undefined;
+  const excludeCancelled = parsedArgs.status ? false : parsedArgs.exclude_cancelled !== false;
+  const heading = `Salesperson-wise order breakdown for ${formatPeriodLabel(dateFrom, dateTo)}${excludeCancelled ? " (excluding cancelled orders)" : ""}:`;
+
+  const messageLines = [
+    heading,
+    "",
+    "| Salesperson | Total Orders | Total Sales Amount (₹) |",
+    "| --- | ---: | ---: |",
+    ...rows.map(([salesperson, summary]) => `| ${escapeMarkdownCell(salesperson)} | ${summary.orders} | ${formatIndianNumber(summary.totalSales)} |`),
+    `| **Grand Total** | **${grandTotalOrders}** | **${formatIndianNumber(grandTotalSales)}** |`,
+  ];
+
+  if (unassignedOrders > 0) {
+    messageLines.push(
+      "",
+      `Note: ${unassignedOrders} ${unassignedOrders === 1 ? "order was" : "orders were"} grouped under **Unassigned** because the salesperson name was blank.`,
+    );
+  }
+
+  messageLines.push(
+    "",
+    `This summary is calculated directly from **${grandTotalOrders}** order records returned by the database.`,
+  );
+
+  return messageLines.join("\n");
+}
+
+
 // =====================================================
 // TOOL DEFINITIONS
 // =====================================================
@@ -1759,6 +1889,11 @@ RULES:
     } catch {
       // JSON parse failed — use raw content as message (graceful fallback)
       finalMessage = rawContent;
+    }
+
+    const deterministicBreakdown = buildOrderSalespersonBreakdownMessage(lastUserMessage, assistantMessage, toolResults);
+    if (deterministicBreakdown) {
+      finalMessage = deterministicBreakdown;
     }
 
     // Clean up any residual formatting
