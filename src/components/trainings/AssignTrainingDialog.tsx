@@ -104,7 +104,7 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
   };
 
   const addResource = () => {
-    setResources([...resources, { resource_type: "youtube", title: "", url_or_file_path: "", description: "" }]);
+    setResources([...resources, { resource_type: "document", title: "", url_or_file_path: "", description: "" }]);
   };
 
   const updateResource = (index: number, field: keyof ResourceInput, value: any) => {
