@@ -14,7 +14,7 @@ import { TicketSlaAlertBanner } from "./TicketSlaAlertBanner";
 import { Ticket } from "@/hooks/useTickets";
 import { useTicketSlaAlerts } from "@/hooks/useTicketAi";
 import { format, formatDistanceToNow, isPast } from "date-fns";
-import { Eye, AlertTriangle, Clock, User, Building2, Link2 } from "lucide-react";
+import { Eye, AlertTriangle, Clock, User, Building2, Link2, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TicketTableProps {
@@ -113,8 +113,17 @@ export function TicketTable({ tickets, onView }: TicketTableProps) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="max-w-[250px] truncate font-medium">
+                    <div className="max-w-[250px] truncate font-medium flex items-center gap-1.5">
                       {ticket.subject}
+                      {ticket.ai_resolution_status && (
+                        <Bot className={cn(
+                          "w-3.5 h-3.5 shrink-0",
+                          ticket.ai_resolution_status === "analyzing" && "text-yellow-500 animate-pulse",
+                          ticket.ai_resolution_status === "pending_approval" && "text-blue-500",
+                          ticket.ai_resolution_status === "approved" && "text-green-500",
+                          ticket.ai_resolution_status === "rejected" && "text-destructive",
+                        )} />
+                      )}
                     </div>
                     {(ticket.orders || ticket.enquiries) && (
                       <div className="flex items-center gap-1 text-xs text-primary mt-1">

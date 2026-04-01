@@ -26,6 +26,7 @@ import { TicketStatusBadge } from "./TicketStatusBadge";
 import { TicketPriorityBadge } from "./TicketPriorityBadge";
 import { TicketEditHistory } from "./TicketEditHistory";
 import { TicketAiSuggestionsCard } from "./TicketAiSuggestionsCard";
+import { TicketAiResolutionPanel } from "./TicketAiResolutionPanel";
 import { TicketSlaAlertBanner } from "./TicketSlaAlertBanner";
 import { Ticket, useTickets, useTicketComments, useTeamMembers, UpdateTicketData } from "@/hooks/useTickets";
 import { useEditHistory } from "@/hooks/useEditHistory";
@@ -547,6 +548,9 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
               {/* AI Suggestions Card */}
               <TicketAiSuggestionsCard ticket={ticket} onUseReply={(reply) => setNewComment(reply)} />
 
+              {/* AI Resolution Panel */}
+              <TicketAiResolutionPanel ticket={ticket} />
+
               {/* Actions */}
               {canManageActions && (
                 <>
@@ -634,9 +638,18 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                       const isEditingThis = editingCommentId === comment.id;
 
                       return (
-                        <div key={comment.id} className={`p-3 rounded-lg text-sm ${isOwn ? "bg-primary/10 ml-8" : "bg-muted mr-8"}`}>
+                        <div key={comment.id} className={`p-3 rounded-lg text-sm ${
+                          comment.ai_generated
+                            ? "bg-violet-50/80 dark:bg-violet-950/30 border border-violet-200/50 dark:border-violet-800/30 mr-4"
+                            : isOwn ? "bg-primary/10 ml-8" : "bg-muted mr-8"
+                        }`}>
                           <div className="flex items-center justify-between mb-1">
-                            <span className="font-medium text-xs">{comment.commented_by_name}</span>
+                            <span className="font-medium text-xs">
+                              {comment.ai_generated ? "🤖 Xboom AI" : comment.commented_by_name}
+                            </span>
+                            {comment.ai_generated && (
+                              <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300">AI Generated</Badge>
+                            )}
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-muted-foreground">{format(new Date(comment.created_at), "dd MMM yyyy, HH:mm")}</span>
                               {isOwn && canAddComments && !isEditingThis && (

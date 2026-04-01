@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import logoFull from "@/assets/logo-full.jpeg";
 import { NotificationPanel } from "@/components/NotificationPanel";
+import { TicketNotificationBell } from "@/components/tickets/TicketNotificationBell";
 import { AttendanceWidget } from "@/components/attendance/AttendanceWidget";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
@@ -162,6 +163,7 @@ export function Header() {
             {(role === 'admin' || role === 'supply_chain' || role === 'finance' || role === 'it') && (
               <NotificationPanel />
             )}
+            <TicketNotificationBell />
 
             <div className="w-px h-6 bg-border/60 mx-1" />
 
