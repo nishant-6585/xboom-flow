@@ -52,7 +52,7 @@ export function useTicketResolution(ticketId: string | null) {
         .maybeSingle();
 
       if (error) throw error;
-      return data as TicketAiResolution | null;
+      return data as unknown as TicketAiResolution | null;
     },
     enabled: !!ticketId && !!user,
   });
