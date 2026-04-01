@@ -420,9 +420,13 @@ export function useEmployeeTrainings() {
   };
 
   const deleteAssignment = async (assignmentId: string) => {
-    try {
-      const assignment = assignments.find(a => a.id === assignmentId);
+    const previousAssignments = assignments;
+    const assignment = assignments.find(a => a.id === assignmentId);
 
+    // Optimistic UI update so cards refresh instantly
+    setAssignments(prev => prev.filter(a => a.id !== assignmentId));
+
+    try {
       const { error } = await supabase
         .from("training_assignments")
         .delete()
@@ -431,7 +435,7 @@ export function useEmployeeTrainings() {
       if (error) throw error;
 
       if (user) {
-        await supabase.from("security_audit_log").insert({
+        const { error: auditError } = await supabase.from("security_audit_log").insert({
           user_id: user.id,
           user_name: user.user_metadata?.name || user.email || "Unknown",
           action: "training_assignment_deleted",
@@ -443,10 +447,17 @@ export function useEmployeeTrainings() {
           },
           user_agent: navigator.userAgent,
         });
+
+        if (auditError) {
+          console.error("Error logging training assignment deletion:", auditError);
+        }
       }
 
       toast({ title: "Success", description: "Training assignment deleted" });
+      await fetchAssignments();
     } catch (error: any) {
+      console.error("Error deleting training assignment:", error);
+      setAssignments(previousAssignments);
       toast({ title: "Error", description: "Failed to delete assignment", variant: "destructive" });
     }
   };
