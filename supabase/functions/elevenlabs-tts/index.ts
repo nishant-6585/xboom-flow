@@ -25,6 +25,13 @@ serve(async (req) => {
       });
     }
 
+    // Remove control characters, unpaired surrogates, and non-UTF8 safe chars
+    const cleanedText = text
+      .replace(/[\x00-\x1F\x7F]/g, '')
+      .replace(/[\uD800-\uDFFF]/g, '')
+      .replace(/[^\p{L}\p{N}\p{P}\p{Z}\p{S}]/gu, '')
+      .trim();
+
     // Sarah - natural female voice
     const selectedVoice = voiceId || 'EXAVITQu4vr4xnSDxMaL';
 
