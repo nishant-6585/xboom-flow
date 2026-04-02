@@ -11,9 +11,12 @@ import { FlowTemplateEditor } from './FlowTemplateEditor';
 import { TemplateBrowser } from './TemplateBrowser';
 import { DailyFlowEntryTable } from './DailyFlowEntryTable';
 import { DailyFlowAnalytics } from './DailyFlowAnalytics';
-import { format, startOfMonth, subDays, addDays } from 'date-fns';
-import { ChevronLeft, ChevronRight, Upload } from 'lucide-react';
 import { DailyFlowImportModal } from './DailyFlowImportModal';
+import { DailyFlowAISuggestions } from './DailyFlowAISuggestions';
+import { TemplateLibrary } from './TemplateLibrary';
+import { format, startOfMonth, subDays, addDays } from 'date-fns';
+import { ChevronLeft, ChevronRight, Upload, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface Employee {
   id: string;
@@ -35,7 +38,7 @@ export function DailyFlowPanel() {
   const [tab, setTab] = useState('daily');
   const [rangeEntries, setRangeEntries] = useState<any[]>([]);
   const [importModalOpen, setImportModalOpen] = useState(false);
-  // Fetch employees list
+
   useEffect(() => {
     const fetchEmployees = async () => {
       const { data } = await supabase
@@ -60,7 +63,6 @@ export function DailyFlowPanel() {
     fetchEmployees();
   }, [user, isManager]);
 
-  // Load data when employee/date changes
   useEffect(() => {
     if (selectedEmployee) {
       fetchTemplates(selectedEmployee);
@@ -68,7 +70,6 @@ export function DailyFlowPanel() {
     }
   }, [selectedEmployee, selectedDate, fetchTemplates, fetchEntries]);
 
-  // Load range entries for analytics
   useEffect(() => {
     if (selectedEmployee && tab === 'analytics') {
       const from = format(startOfMonth(new Date(selectedDate)), 'yyyy-MM-dd');
@@ -94,17 +95,9 @@ export function DailyFlowPanel() {
     }
   };
 
-  const goToPrevDay = () => {
-    setSelectedDate(format(subDays(new Date(selectedDate), 1), 'yyyy-MM-dd'));
-  };
-
-  const goToNextDay = () => {
-    setSelectedDate(format(addDays(new Date(selectedDate), 1), 'yyyy-MM-dd'));
-  };
-
-  const goToToday = () => {
-    setSelectedDate(format(new Date(), 'yyyy-MM-dd'));
-  };
+  const goToPrevDay = () => setSelectedDate(format(subDays(new Date(selectedDate), 1), 'yyyy-MM-dd'));
+  const goToNextDay = () => setSelectedDate(format(addDays(new Date(selectedDate), 1), 'yyyy-MM-dd'));
+  const goToToday = () => setSelectedDate(format(new Date(), 'yyyy-MM-dd'));
 
   const templateName = templates.length > 0 ? (templates[0] as any).template_name || 'Default Template' : null;
 
@@ -114,6 +107,36 @@ export function DailyFlowPanel() {
       fetchEntries(selectedEmployee, selectedDate);
     }
   };
+
+  const exportCurrentTemplate = () => {
+    if (!templates.length || !selectedEmployeeName) return;
+    const rows = templates.map((t: any) => ({
+      'Employee Name': selectedEmployeeName,
+      'Task Name': t.description,
+      'Sub Tasks': (t.sub_items || []).join(', '),
+      'Start Time': t.time_from,
+      'End Time': t.time_to,
+      'Frequency': t.frequency || 'daily',
+      'Target': t.target_value || 0,
+    }));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 20 }, { wch: 25 }, { wch: 25 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 8 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    XLSX.writeFile(wb, `template_${selectedEmployeeName.replace(/\s+/g, '_')}_${selectedDate}.xlsx`);
+  };
+
+  // AI suggestion items for analysis
+  const aiItems = (tab === 'daily' ? entries : templates).map((item: any) => ({
+    sl_no: item.sl_no,
+    description: item.description,
+    time_from: item.time_from,
+    time_to: item.time_to,
+    duration_mins: item.duration_mins,
+    target_value: item.target_value || 0,
+    is_break: item.is_break || false,
+    frequency: item.frequency || 'daily',
+  }));
 
   return (
     <div className="space-y-4">
@@ -138,84 +161,102 @@ export function DailyFlowPanel() {
             <Button size="icon" variant="outline" className="h-10 w-8" onClick={goToPrevDay}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={e => setSelectedDate(e.target.value)}
-              className="w-[160px]"
-            />
+            <Input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="w-[160px]" />
             <Button size="icon" variant="outline" className="h-10 w-8" onClick={goToNextDay}>
               <ChevronRight className="h-4 w-4" />
             </Button>
-            <Button size="sm" variant="ghost" onClick={goToToday} className="text-xs">
-              Today
-            </Button>
+            <Button size="sm" variant="ghost" onClick={goToToday} className="text-xs">Today</Button>
           </div>
         </div>
-        {isManager && (
-          <Button variant="outline" size="sm" onClick={() => setImportModalOpen(true)} className="ml-auto">
-            <Upload className="h-4 w-4 mr-1" /> Import from Excel
-          </Button>
-        )}
-        {templateName && selectedEmployee && (
-          <div className={`text-sm text-muted-foreground ${!isManager ? 'ml-auto' : ''}`}>
-            Template: <span className="font-medium text-foreground">{templateName}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2 ml-auto">
+          {isManager && (
+            <>
+              <Button variant="outline" size="sm" onClick={() => setImportModalOpen(true)}>
+                <Upload className="h-4 w-4 mr-1" /> Import
+              </Button>
+              {templates.length > 0 && (
+                <Button variant="outline" size="sm" onClick={exportCurrentTemplate}>
+                  <Download className="h-4 w-4 mr-1" /> Export
+                </Button>
+              )}
+            </>
+          )}
+          {templateName && selectedEmployee && (
+            <div className="text-sm text-muted-foreground">
+              Template: <span className="font-medium text-foreground">{templateName}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {selectedEmployee ? (
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList>
-            <TabsTrigger value="daily">Daily Report</TabsTrigger>
-            {isManager && <TabsTrigger value="template">Template & Targets</TabsTrigger>}
-            {isManager && <TabsTrigger value="browse">Browse Templates</TabsTrigger>}
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          </TabsList>
+        <>
+          <Tabs value={tab} onValueChange={setTab}>
+            <TabsList>
+              <TabsTrigger value="daily">Daily Report</TabsTrigger>
+              {isManager && <TabsTrigger value="template">Template & Targets</TabsTrigger>}
+              {isManager && <TabsTrigger value="browse">Browse Templates</TabsTrigger>}
+              {isManager && <TabsTrigger value="library">Template Library</TabsTrigger>}
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="daily" className="mt-4">
-            <DailyFlowEntryTable
-              entries={entries}
-              date={selectedDate}
-              employeeName={selectedEmployeeName}
-              onUpdateEntry={updateEntry}
-              onRefresh={handleRefresh}
-              onGenerate={handleGenerate}
-              hasTemplate={templates.length > 0}
-            />
-          </TabsContent>
-
-          {isManager && (
-            <TabsContent value="template" className="mt-4">
-              <FlowTemplateEditor
-                employeeId={selectedEmployee}
+            <TabsContent value="daily" className="mt-4 space-y-4">
+              <DailyFlowEntryTable
+                entries={entries}
+                date={selectedDate}
                 employeeName={selectedEmployeeName}
-                templates={templates}
-                onSave={saveTemplate}
+                onUpdateEntry={updateEntry}
+                onRefresh={handleRefresh}
+                onGenerate={handleGenerate}
+                hasTemplate={templates.length > 0}
               />
+              {entries.length > 0 && (
+                <DailyFlowAISuggestions items={aiItems} employeeName={selectedEmployeeName} />
+              )}
             </TabsContent>
-          )}
 
-          {isManager && (
-            <TabsContent value="browse" className="mt-4">
-              <TemplateBrowser
-                onSelectTemplate={(empId, empName) => {
-                  handleEmployeeChange(empId);
-                  setTab('template');
-                }}
-              />
+            {isManager && (
+              <TabsContent value="template" className="mt-4 space-y-4">
+                <FlowTemplateEditor
+                  employeeId={selectedEmployee}
+                  employeeName={selectedEmployeeName}
+                  templates={templates}
+                  onSave={saveTemplate}
+                />
+                {templates.length > 0 && (
+                  <DailyFlowAISuggestions items={aiItems} employeeName={selectedEmployeeName} />
+                )}
+              </TabsContent>
+            )}
+
+            {isManager && (
+              <TabsContent value="browse" className="mt-4">
+                <TemplateBrowser
+                  onSelectTemplate={(empId, empName) => {
+                    handleEmployeeChange(empId);
+                    setTab('template');
+                  }}
+                />
+              </TabsContent>
+            )}
+
+            {isManager && (
+              <TabsContent value="library" className="mt-4">
+                <TemplateLibrary />
+              </TabsContent>
+            )}
+
+            <TabsContent value="analytics" className="mt-4">
+              <DailyFlowAnalytics entries={entries} rangeEntries={rangeEntries} />
             </TabsContent>
-          )}
-
-          <TabsContent value="analytics" className="mt-4">
-            <DailyFlowAnalytics entries={entries} rangeEntries={rangeEntries} />
-          </TabsContent>
-        </Tabs>
+          </Tabs>
+        </>
       ) : (
         <div className="text-center py-12 text-muted-foreground">
           Select an employee to view or plan their daily flow.
         </div>
       )}
+
       {isManager && (
         <DailyFlowImportModal
           open={importModalOpen}
