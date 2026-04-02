@@ -1,0 +1,2 @@
+ALTER TABLE public.attention_items DROP CONSTRAINT IF EXISTS attention_items_source_type_check;
+ALTER TABLE public.attention_items ADD CONSTRAINT attention_items_source_type_check CHECK (source_type IN ('enquiry', 'interakt', 'myoperator', 'email', 'form_lead', 'google_ads'));
