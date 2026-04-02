@@ -97,20 +97,27 @@ Deno.serve(async (req) => {
 
     if (createError) {
       if (createError.message?.includes("already been registered") || createError.message?.includes("already exists")) {
-        // Find existing user by email using filtered listUsers
-        const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers({
-          page: 1,
-          perPage: 1,
-          filter: invitation.email,
-        } as any);
-        if (listError) {
-          console.error("listUsers error:", listError.message);
-          return new Response(JSON.stringify({ error: "Failed to look up existing user" }), {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+        // Find existing user by email using paginated listUsers
+        let existingUser: any = null;
+        let page = 1;
+        const perPage = 50;
+        while (!existingUser) {
+          const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers({
+            page,
+            perPage,
           });
+          if (listError) {
+            console.error("listUsers error:", listError.message);
+            return new Response(JSON.stringify({ error: "Failed to look up existing user" }), {
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          existingUser = users?.find((u: any) => u.email === invitation.email);
+          if (existingUser) break;
+          if (!users || users.length < perPage) break;
+          page++;
         }
-        const existingUser = users?.find((u: any) => u.email === invitation.email);
         if (!existingUser) {
           return new Response(JSON.stringify({ error: "User already registered but could not be found" }), {
             status: 400,
