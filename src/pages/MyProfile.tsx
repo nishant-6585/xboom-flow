@@ -198,12 +198,12 @@ const MyProfile = () => {
                 <p className="text-sm font-medium">{department}</p>
               </div>
 
-              {employeeId && (
+              {(employeeNumber || employeeId) && (
                 <div className="space-y-1">
                   <Label className="flex items-center gap-1.5 text-muted-foreground">
                     <Hash className="w-3.5 h-3.5" /> Employee ID
                   </Label>
-                  <p className="text-sm font-medium font-mono">{employeeId.slice(0, 8).toUpperCase()}</p>
+                  <p className="text-sm font-medium font-mono">{employeeNumber || employeeId?.slice(0, 8).toUpperCase()}</p>
                 </div>
               )}
             </div>
