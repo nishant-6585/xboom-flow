@@ -216,6 +216,14 @@ export function DailyFlowPanel() {
           Select an employee to view or plan their daily flow.
         </div>
       )}
+      {isManager && (
+        <DailyFlowImportModal
+          open={importModalOpen}
+          onOpenChange={setImportModalOpen}
+          onImportComplete={handleImportComplete}
+          selectedDate={selectedDate}
+        />
+      )}
     </div>
   );
 }
