@@ -14,8 +14,9 @@ import { RepairCard } from "@/components/repairs/RepairCard";
 import { RepairForm } from "@/components/repairs/RepairForm";
 import { RepairImportDialog } from "@/components/repairs/RepairImportDialog";
 import { RepairDialog } from "@/components/repairs/RepairDialog";
-import { Plus, Search, Wrench, IndianRupee, Clock, CheckCircle, Upload } from "lucide-react";
-import { Loader2 } from "lucide-react";
+import { Plus, Search, Wrench, IndianRupee, Clock, CheckCircle, Upload, Download, Loader2 } from "lucide-react";
+import { exportRepairsToExcel } from "@/utils/repairExportHelpers";
+import { toast } from "sonner";
 
 export default function Repairs() {
   const { user, profile } = useAuth();
@@ -27,6 +28,19 @@ export default function Repairs() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [issueFilter, setIssueFilter] = useState<string>("all");
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const filename = exportRepairsToExcel(filteredRepairs);
+      toast.success(`Exported ${filteredRepairs.length} repairs to ${filename}`);
+    } catch (err: any) {
+      toast.error(err.message || "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Filter repairs
   const filteredRepairs = repairs.filter((repair) => {
@@ -79,6 +93,10 @@ export default function Repairs() {
             <p className="text-muted-foreground">Track and manage drone repair jobs</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExport} disabled={exporting || filteredRepairs.length === 0}>
+              {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+              Export Excel
+            </Button>
             <Button variant="outline" onClick={() => setShowImportDialog(true)}>
               <Upload className="h-4 w-4 mr-2" />
               Import Excel
