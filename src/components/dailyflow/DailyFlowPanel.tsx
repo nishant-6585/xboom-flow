@@ -145,8 +145,13 @@ export function DailyFlowPanel() {
             </Button>
           </div>
         </div>
+        {isManager && (
+          <Button variant="outline" size="sm" onClick={() => setImportModalOpen(true)} className="ml-auto">
+            <Upload className="h-4 w-4 mr-1" /> Import from Excel
+          </Button>
+        )}
         {templateName && selectedEmployee && (
-          <div className="ml-auto text-sm text-muted-foreground">
+          <div className={`text-sm text-muted-foreground ${!isManager ? 'ml-auto' : ''}`}>
             Template: <span className="font-medium text-foreground">{templateName}</span>
           </div>
         )}
