@@ -642,6 +642,14 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                   ));
                 })()}
               </div>
+
+              <div className="mt-3 flex justify-center">
+                <QuickReportsGrid
+                  roles={roles}
+                  onSelectPrompt={(p) => !isLoading && streamChat(p)}
+                  disabled={isLoading}
+                />
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
