@@ -14,6 +14,7 @@ import { DailyFlowAnalytics } from './DailyFlowAnalytics';
 import { DailyFlowImportModal } from './DailyFlowImportModal';
 import { DailyFlowAISuggestions } from './DailyFlowAISuggestions';
 import { TemplateLibrary } from './TemplateLibrary';
+import { TeamProductivityDashboard } from './TeamProductivityDashboard';
 import { format, startOfMonth, subDays, addDays } from 'date-fns';
 import { ChevronLeft, ChevronRight, Upload, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
