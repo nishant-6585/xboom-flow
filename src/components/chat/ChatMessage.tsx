@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, User, Volume2, VolumeX, Download } from 'lucide-react';
+import { Bot, User, Volume2, VolumeX, Download, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
@@ -8,6 +8,7 @@ import { ChatActionButtons } from './ChatActionButtons';
 import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { speakText as elevenLabsSpeak, stopSpeaking as elevenLabsStop } from '@/lib/elevenLabsTTS';
 
 interface AIAction {
   label: string;
@@ -24,117 +25,13 @@ interface ChatMessageProps {
   onSpeakingDone?: () => void;
 }
 
-/** Strip markdown + tables into natural speech-friendly text */
-function stripForSpeech(md: string): string {
-  let text = md;
-  text = text.replace(/```chart[\s\S]*?```/g, '');
-  text = text.replace(/```[\s\S]*?```/g, '');
-  text = text.replace(/`([^`]+)`/g, '$1');
-  text = text.replace(/\*\*([^*]+)\*\*/g, '$1');
-  text = text.replace(/\*([^*]+)\*/g, '$1');
-  text = text.replace(/#{1,6}\s+/g, '');
-  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
-  
-  const lines = text.split('\n');
-  const spokenLines: string[] = [];
-  let inTable = false;
-  let headers: string[] = [];
-  
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
-      const cells = trimmed.split('|').filter(c => c.trim()).map(c => c.trim());
-      if (cells.every(c => /^[-:]+$/.test(c))) continue;
-      
-      if (!inTable) {
-        headers = cells;
-        inTable = true;
-      } else {
-        const parts = cells.map((cell, i) => {
-          const header = headers[i] || '';
-          return `${header}: ${cell}`;
-        });
-        spokenLines.push(parts.join(', ') + '.');
-      }
-    } else {
-      if (inTable) {
-        inTable = false;
-        headers = [];
-      }
-      if (trimmed) spokenLines.push(trimmed);
-    }
-  }
-  
-  text = spokenLines.join(' ');
-  text = text.replace(/^[-•*]\s+/gm, '');
-  text = text.replace(/[🔴📊⚡📦🔥✅❌⚠️🌟💰📈📉🎯]/g, '');
-  text = text.replace(/\n+/g, '. ');
-  text = text.replace(/\s+/g, ' ');
-  text = text.replace(/\.\s*\./g, '.');
-  return text.trim();
-}
-
-function getBestVoice(): SpeechSynthesisVoice | null {
-  const voices = window.speechSynthesis.getVoices();
-  if (!voices.length) return null;
-  const premium = [
-    'Microsoft Jenny Online', 'Microsoft Aria Online', 'Google UK English Female',
-    'Samantha', 'Karen', 'Moira', 'Tessa', 'Google US English', 'Microsoft Zira', 'Victoria',
-  ];
-  for (const name of premium) {
-    const v = voices.find(v => v.name.includes(name));
-    if (v) return v;
-  }
-  const neural = voices.find(v => v.lang.startsWith('en') && /online|neural|natural|premium/i.test(v.name));
-  if (neural) return neural;
-  const female = voices.find(v => v.lang.startsWith('en') && /female|woman|samantha|karen|zira|victoria|jenny|aria/i.test(v.name));
-  if (female) return female;
-  return voices.find(v => v.lang.startsWith('en')) || voices[0] || null;
-}
-
-function chunkText(text: string, maxLen = 200): string[] {
-  if (text.length <= maxLen) return [text];
-  const sentences = text.match(/[^.!?]+[.!?]+\s*/g) || [text];
-  const chunks: string[] = [];
-  let current = '';
-  for (const s of sentences) {
-    if ((current + s).length > maxLen && current) {
-      chunks.push(current.trim());
-      current = s;
-    } else {
-      current += s;
-    }
-  }
-  if (current.trim()) chunks.push(current.trim());
-  return chunks;
-}
-
-export function speakText(text: string, onEnd?: () => void): SpeechSynthesisUtterance | null {
-  if (!text || typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
-  const plainText = stripForSpeech(text);
-  if (!plainText) return null;
-  window.speechSynthesis.cancel();
-  const voice = getBestVoice();
-  const chunks = chunkText(plainText);
-  chunks.forEach((chunk, i) => {
-    const utterance = new SpeechSynthesisUtterance(chunk);
-    if (voice) utterance.voice = voice;
-    utterance.rate = 0.95;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-    if (i === chunks.length - 1 && onEnd) {
-      utterance.onend = onEnd;
-      utterance.onerror = onEnd;
-    }
-    window.speechSynthesis.speak(utterance);
-  });
-  return null;
+// Re-export for backward compatibility
+export function speakText(text: string, onEnd?: () => void) {
+  elevenLabsSpeak(text, onEnd);
 }
 
 export function stopSpeaking() {
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
-  }
+  elevenLabsStop();
 }
 
 /** Parse markdown tables from content for PDF export */
@@ -326,6 +223,7 @@ function downloadResponseAsPdf(content: string) {
 export function ChatMessage({ role, content, actions: structuredActions, isStreaming, autoSpeak, onSpeakingDone }: ChatMessageProps) {
   const isUser = role === 'user';
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const hasAutoSpokenRef = useRef(false);
   const prevContentLenRef = useRef(0);
 
@@ -340,9 +238,11 @@ export function ChatMessage({ role, content, actions: structuredActions, isStrea
   useEffect(() => {
     if (!autoSpeak || isUser || !content || isStreaming || hasAutoSpokenRef.current) return;
     hasAutoSpokenRef.current = true;
+    setIsLoadingAudio(true);
     setIsSpeaking(true);
-    speakText(content, () => {
+    elevenLabsSpeak(content, () => {
       setIsSpeaking(false);
+      setIsLoadingAudio(false);
       onSpeakingDone?.();
     });
   }, [isStreaming, autoSpeak, isUser, content, onSpeakingDone]);
@@ -350,17 +250,20 @@ export function ChatMessage({ role, content, actions: structuredActions, isStrea
   const handleSpeak = useCallback(() => {
     if (!content || isStreaming) return;
     if (isSpeaking) {
-      stopSpeaking();
+      elevenLabsStop();
       setIsSpeaking(false);
+      setIsLoadingAudio(false);
       return;
     }
+    setIsLoadingAudio(true);
     setIsSpeaking(true);
-    speakText(content, () => {
+    elevenLabsSpeak(content, () => {
       setIsSpeaking(false);
+      setIsLoadingAudio(false);
     });
   }, [content, isStreaming, isSpeaking]);
 
-  const showSpeaker = !isUser && content && !isStreaming && typeof window !== 'undefined' && 'speechSynthesis' in window;
+  const showSpeaker = !isUser && content && !isStreaming;
   const showDownload = !isUser && content && !isStreaming && content.length > 50;
 
   const renderAssistantContent = () => {
@@ -489,9 +392,15 @@ export function ChatMessage({ role, content, actions: structuredActions, isStrea
                     ? "text-primary bg-primary/10 hover:bg-primary/20"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
-                title={isSpeaking ? "Stop speaking" : "Read aloud"}
+                title={isSpeaking ? "Stop speaking" : "Read aloud (ElevenLabs)"}
               >
-                {isSpeaking ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                {isLoadingAudio && !isSpeaking ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : isSpeaking ? (
+                  <VolumeX className="w-3 h-3" />
+                ) : (
+                  <Volume2 className="w-3 h-3" />
+                )}
               </Button>
             )}
             {showDownload && (

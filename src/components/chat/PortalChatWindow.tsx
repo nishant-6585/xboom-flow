@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { ChatMessage, stopSpeaking } from './ChatMessage';
+import { isVoiceEnabled, setVoiceEnabled } from '@/lib/elevenLabsTTS';
 import { VoiceInputButton } from './VoiceInputButton';
 import { VoiceVisualizer } from './VoiceVisualizer';
 import { AIChatSidebar } from './AIChatSidebar';
@@ -113,7 +114,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [voiceMode, setVoiceMode] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(() => isVoiceEnabled());
   const [aiSpeaking, setAiSpeaking] = useState(false);
   const [readyToListen, setReadyToListen] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -394,8 +395,10 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
 
   const toggleVoiceMode = useCallback(() => {
     setVoiceMode(prev => {
+      const next = !prev;
+      setVoiceEnabled(next);
       if (prev) { stopSpeaking(); setReadyToListen(false); setAiSpeaking(false); }
-      return !prev;
+      return next;
     });
   }, []);
 
