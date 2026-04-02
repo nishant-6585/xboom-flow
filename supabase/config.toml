@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.resolve-ticket-ai]
 verify_jwt = false
+
+[functions.fetch-code-context]
+verify_jwt = false
