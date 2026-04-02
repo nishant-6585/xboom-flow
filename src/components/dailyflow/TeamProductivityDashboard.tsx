@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -12,11 +12,14 @@ import {
   Cell, Legend, PieChart, Pie,
 } from 'recharts';
 import {
-  Users, Clock, TrendingUp, AlertTriangle, Award, Activity,
+  Users, Clock, TrendingUp, TrendingDown, AlertTriangle, Award, Activity,
+  Brain, Lightbulb, ArrowUpRight, ArrowDownRight, Minus, Zap, RefreshCw,
+  ChevronRight,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 
-interface EmployeeFlowData {
+interface EmployeeMetric {
   employeeId: string;
   employeeName: string;
   department: string;
@@ -31,6 +34,36 @@ interface EmployeeFlowData {
   efficiencyScore: number;
 }
 
+interface Insight {
+  type: 'underutilized' | 'overloaded' | 'trend' | 'risk' | 'optimization';
+  message: string;
+  impact: 'low' | 'medium' | 'high';
+  recommendation: string;
+  affectedEmployees?: string[];
+  actionType?: 'reassign' | 'apply_template' | 'auto_optimize' | 'review';
+}
+
+interface TrendData {
+  utilization: { current: number; previous: number; change: number };
+  efficiency: { current: number; previous: number; change: number };
+  gaps: { current: number; previous: number; change: number };
+  activeEmployees: { current: number; previous: number; change: number };
+}
+
+interface MetricsResponse {
+  metrics: EmployeeMetric[];
+  summary: {
+    avgUtilization: number;
+    avgIdleTime: number;
+    totalGaps: number;
+    activeCount: number;
+    totalCount: number;
+  };
+  heatmap: { grid: Record<string, Record<number, number>>; days: string[] };
+  departments: string[];
+  deptDistribution: { name: string; value: number }[];
+}
+
 const COLORS = [
   'hsl(var(--primary))',
   'hsl(var(--accent))',
@@ -42,155 +75,128 @@ const COLORS = [
   'hsl(328, 85%, 46%)',
 ];
 
-const STANDARD_WORK_MINUTES = 480; // 8 hours
+const IMPACT_COLORS = {
+  high: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800',
+  medium: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800',
+  low: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-950/50 dark:text-green-300 dark:border-green-800',
+};
+
+const INSIGHT_ICONS: Record<string, React.ReactNode> = {
+  underutilized: <Users className="h-4 w-4" />,
+  overloaded: <AlertTriangle className="h-4 w-4" />,
+  trend: <TrendingUp className="h-4 w-4" />,
+  risk: <Zap className="h-4 w-4" />,
+  optimization: <Lightbulb className="h-4 w-4" />,
+};
 
 export function TeamProductivityDashboard() {
   const [loading, setLoading] = useState(true);
-  const [employees, setEmployees] = useState<{ id: string; name: string; department: string }[]>([]);
-  const [entries, setEntries] = useState<any[]>([]);
-  const [templates, setTemplates] = useState<any[]>([]);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [data, setData] = useState<MetricsResponse | null>(null);
+  const [prevData, setPrevData] = useState<MetricsResponse | null>(null);
+  const [insights, setInsights] = useState<Insight[]>([]);
+  const [trends, setTrends] = useState<TrendData | null>(null);
   const [dateFrom, setDateFrom] = useState(format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
   const [dateTo, setDateTo] = useState(format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
   const [departmentFilter, setDepartmentFilter] = useState('all');
 
-  useEffect(() => {
-    fetchData();
-  }, [dateFrom, dateTo]);
+  const fetchMetrics = useCallback(async (from: string, to: string, dept: string) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (!token) return null;
 
-  const fetchData = async () => {
+    const { data: result, error } = await supabase.functions.invoke('compute-team-metrics', {
+      body: { dateFrom: from, dateTo: to, department: dept },
+    });
+    if (error) throw error;
+    return result as MetricsResponse;
+  }, []);
+
+  const fetchInsights = useCallback(async (current: EmployeeMetric[], previous: EmployeeMetric[] | null) => {
+    setInsightsLoading(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke('analyze-team-productivity', {
+        body: { currentMetrics: current, previousMetrics: previous },
+      });
+      if (error) throw error;
+      setInsights(result.insights || []);
+      setTrends(result.trends || null);
+    } catch {
+      // Insights are non-critical
+    } finally {
+      setInsightsLoading(false);
+    }
+  }, []);
+
+  const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [empRes, entryRes, templateRes] = await Promise.all([
-      supabase.from('employees').select('id, name, department').eq('is_active', true).order('name'),
-      supabase.from('daily_flow_entries').select('*').gte('flow_date', dateFrom).lte('flow_date', dateTo),
-      supabase.from('daily_flow_templates').select('*'),
-    ]);
-    setEmployees(empRes.data || []);
-    setEntries(entryRes.data || []);
-    setTemplates(templateRes.data || []);
-    setLoading(false);
+    try {
+      // Calculate previous period (same duration shifted back)
+      const fromDate = new Date(dateFrom);
+      const toDate = new Date(dateTo);
+      const durationDays = Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24));
+      const prevFrom = format(subDays(fromDate, durationDays + 1), 'yyyy-MM-dd');
+      const prevTo = format(subDays(fromDate, 1), 'yyyy-MM-dd');
+
+      const [currentResult, previousResult] = await Promise.all([
+        fetchMetrics(dateFrom, dateTo, departmentFilter),
+        fetchMetrics(prevFrom, prevTo, departmentFilter),
+      ]);
+
+      setData(currentResult);
+      setPrevData(previousResult);
+
+      if (currentResult) {
+        fetchInsights(currentResult.metrics, previousResult?.metrics || null);
+      }
+    } catch (err: any) {
+      toast.error('Failed to load metrics');
+    } finally {
+      setLoading(false);
+    }
+  }, [dateFrom, dateTo, departmentFilter, fetchMetrics, fetchInsights]);
+
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  const handleAction = (actionType: string, affectedEmployees?: string[]) => {
+    switch (actionType) {
+      case 'apply_template':
+        toast.info('Navigate to Template Library to assign templates to these employees');
+        break;
+      case 'reassign':
+        toast.info(`Review workload for: ${affectedEmployees?.slice(0, 3).join(', ') || 'affected employees'}`);
+        break;
+      case 'auto_optimize':
+        toast.info('Use Auto Optimize in individual employee flow views');
+        break;
+      default:
+        toast.info('Review the affected employees in the team breakdown below');
+    }
   };
 
-  const departments = useMemo(() => {
-    const depts = new Set(employees.map(e => e.department).filter(Boolean));
-    return Array.from(depts).sort();
-  }, [employees]);
-
-  const employeeData: EmployeeFlowData[] = useMemo(() => {
-    const filtered = departmentFilter === 'all'
-      ? employees
-      : employees.filter(e => e.department === departmentFilter);
-
-    return filtered.map(emp => {
-      const empEntries = entries.filter(e => e.employee_id === emp.id);
-      const empTemplates = templates.filter(t => t.employee_id === emp.id);
-
-      const totalPlannedMinutes = empEntries.reduce((sum, e) => sum + (e.duration_mins || 0), 0);
-      const breakMinutes = empEntries.filter(e => e.is_break).reduce((sum, e) => sum + (e.duration_mins || 0), 0);
-      const uniqueDays = new Set(empEntries.map(e => e.flow_date)).size;
-
-      // Calculate gaps & overlaps
-      let gapMinutes = 0;
-      let overlapMinutes = 0;
-      const dayGroups: Record<string, typeof empEntries> = {};
-      empEntries.forEach(e => {
-        if (!dayGroups[e.flow_date]) dayGroups[e.flow_date] = [];
-        dayGroups[e.flow_date].push(e);
-      });
-
-      Object.values(dayGroups).forEach(dayEntries => {
-        const sorted = dayEntries.sort((a, b) => a.time_from.localeCompare(b.time_from));
-        for (let i = 1; i < sorted.length; i++) {
-          const prevEnd = sorted[i - 1].time_to;
-          const currStart = sorted[i].time_from;
-          if (prevEnd < currStart) {
-            const gapMs = timeToMinutes(currStart) - timeToMinutes(prevEnd);
-            if (gapMs > 5) gapMinutes += gapMs;
-          } else if (prevEnd > currStart) {
-            overlapMinutes += timeToMinutes(prevEnd) - timeToMinutes(currStart);
-          }
-        }
-      });
-
-      const avgDailyPlanned = uniqueDays > 0 ? totalPlannedMinutes / uniqueDays : 0;
-      const utilizationPct = uniqueDays > 0
-        ? Math.min(100, (avgDailyPlanned / STANDARD_WORK_MINUTES) * 100)
-        : 0;
-
-      // Efficiency score: penalize gaps and overlaps
-      const gapPenalty = Math.min(30, (gapMinutes / Math.max(1, totalPlannedMinutes)) * 100);
-      const overlapPenalty = Math.min(20, (overlapMinutes / Math.max(1, totalPlannedMinutes)) * 100);
-      const hasTemplate = empTemplates.length > 0 ? 10 : 0;
-      const efficiencyScore = Math.max(0, Math.min(100,
-        Math.round(utilizationPct * 0.6 + hasTemplate + (50 - gapPenalty - overlapPenalty))
-      ));
-
-      return {
-        employeeId: emp.id,
-        employeeName: emp.name,
-        department: emp.department || 'Unassigned',
-        totalPlannedMinutes,
-        totalEntries: empEntries.length,
-        breakMinutes,
-        gapMinutes: Math.round(gapMinutes),
-        overlapMinutes: Math.round(overlapMinutes),
-        uniqueDays,
-        avgDailyPlanned: Math.round(avgDailyPlanned),
-        utilizationPct: Math.round(utilizationPct),
-        efficiencyScore,
-      };
-    }).sort((a, b) => b.efficiencyScore - a.efficiencyScore);
-  }, [employees, entries, templates, departmentFilter]);
-
-  const activeEmployees = employeeData.filter(e => e.uniqueDays > 0);
-  const avgUtilization = activeEmployees.length > 0
-    ? Math.round(activeEmployees.reduce((s, e) => s + e.utilizationPct, 0) / activeEmployees.length)
-    : 0;
-  const avgIdleTime = activeEmployees.length > 0
-    ? Math.round(activeEmployees.reduce((s, e) => s + (STANDARD_WORK_MINUTES - e.avgDailyPlanned), 0) / activeEmployees.length)
-    : 0;
-  const totalGaps = activeEmployees.reduce((s, e) => s + e.gapMinutes, 0);
+  const activeEmployees = useMemo(() => data?.metrics.filter(e => e.uniqueDays > 0) || [], [data]);
   const topPerformers = activeEmployees.slice(0, 3);
-  const underUtilized = [...activeEmployees].sort((a, b) => a.utilizationPct - b.utilizationPct).slice(0, 3);
+  const underUtilized = useMemo(() =>
+    [...activeEmployees].sort((a, b) => a.utilizationPct - b.utilizationPct).slice(0, 3),
+    [activeEmployees]
+  );
 
-  // Chart data
-  const barChartData = activeEmployees.map(e => ({
-    name: e.employeeName.split(' ')[0],
-    fullName: e.employeeName,
-    utilization: e.utilizationPct,
-    efficiency: e.efficiencyScore,
-  }));
-
-  const deptDistribution = useMemo(() => {
-    const deptMap: Record<string, number> = {};
-    activeEmployees.forEach(e => {
-      deptMap[e.department] = (deptMap[e.department] || 0) + e.totalPlannedMinutes;
-    });
-    return Object.entries(deptMap).map(([name, value]) => ({ name, value: Math.round(value / 60) }));
-  }, [activeEmployees]);
-
-  // Heatmap data: hours of day vs days of week
-  const heatmapData = useMemo(() => {
-    const grid: Record<string, Record<number, number>> = {};
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    days.forEach(d => { grid[d] = {}; for (let h = 8; h <= 20; h++) grid[d][h] = 0; });
-
-    entries.forEach(entry => {
-      const date = new Date(entry.flow_date);
-      const dayIdx = (date.getDay() + 6) % 7; // Mon=0
-      if (dayIdx >= 6) return;
-      const dayName = days[dayIdx];
-      const startHour = timeToMinutes(entry.time_from) / 60;
-      const endHour = timeToMinutes(entry.time_to) / 60;
-      for (let h = Math.floor(startHour); h < Math.ceil(endHour) && h <= 20; h++) {
-        if (h >= 8) grid[dayName][h] = (grid[dayName][h] || 0) + 1;
-      }
-    });
-    return { grid, days };
-  }, [entries]);
+  const barChartData = useMemo(() =>
+    activeEmployees.map(e => ({
+      name: e.employeeName.split(' ')[0],
+      fullName: e.employeeName,
+      utilization: e.utilizationPct,
+      efficiency: e.efficiencyScore,
+    })),
+    [activeEmployees]
+  );
 
   if (loading) {
     return (
       <div className="space-y-4">
+        <Skeleton className="h-24 rounded-xl" />
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28 rounded-xl" />)}
         </div>
@@ -214,12 +220,10 @@ export function TeamProductivityDashboard() {
         <div className="space-y-1">
           <Label className="text-xs">Department</Label>
           <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Departments</SelectItem>
-              {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              {(data?.departments || []).map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -232,44 +236,113 @@ export function TeamProductivityDashboard() {
             setDateFrom(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
             setDateTo(format(new Date(), 'yyyy-MM-dd'));
           }}>Last 30 Days</Button>
+          <Button variant="ghost" size="sm" onClick={fetchAll}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* AI Insights Panel */}
+      {(insights.length > 0 || insightsLoading) && (
+        <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Brain className="h-5 w-5 text-primary" />
+              AI Insights
+              {insightsLoading && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />}
+              {insights.length > 0 && (
+                <Badge variant="secondary" className="text-xs ml-2">
+                  {insights.length} finding{insights.length !== 1 ? 's' : ''}
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {insightsLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-16 rounded-lg" />
+                <Skeleton className="h-16 rounded-lg" />
+              </div>
+            ) : (
+              insights.map((insight, idx) => (
+                <div
+                  key={idx}
+                  className={`flex items-start gap-3 p-3 rounded-lg border ${IMPACT_COLORS[insight.impact]}`}
+                >
+                  <div className="mt-0.5">{INSIGHT_ICONS[insight.type]}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium text-sm">{insight.message}</p>
+                      <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
+                        {insight.impact}
+                      </Badge>
+                    </div>
+                    <p className="text-xs mt-1 opacity-80">{insight.recommendation}</p>
+                    {insight.affectedEmployees && insight.affectedEmployees.length > 0 && (
+                      <p className="text-[11px] mt-1 opacity-60">
+                        Affected: {insight.affectedEmployees.slice(0, 4).join(', ')}
+                        {insight.affectedEmployees.length > 4 && ` +${insight.affectedEmployees.length - 4} more`}
+                      </p>
+                    )}
+                  </div>
+                  {insight.actionType && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 text-xs"
+                      onClick={() => handleAction(insight.actionType!, insight.affectedEmployees)}
+                    >
+                      {insight.actionType === 'apply_template' ? 'Apply Template' :
+                       insight.actionType === 'reassign' ? 'Reassign' :
+                       insight.actionType === 'auto_optimize' ? 'Optimize' : 'Review'}
+                      <ChevronRight className="h-3 w-3 ml-1" />
+                    </Button>
+                  )}
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* KPI Cards with Trends */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           icon={<Activity className="h-5 w-5" />}
           title="Avg Utilization"
-          value={`${avgUtilization}%`}
-          subtitle={`${activeEmployees.length} active employees`}
+          value={`${data?.summary.avgUtilization || 0}%`}
+          subtitle={`${data?.summary.activeCount || 0} active employees`}
           color="text-primary"
+          trend={trends?.utilization}
         />
         <KPICard
           icon={<Clock className="h-5 w-5" />}
           title="Avg Idle Time"
-          value={`${avgIdleTime}m`}
+          value={`${data?.summary.avgIdleTime || 0}m`}
           subtitle="Per employee per day"
           color="text-amber-500"
+          trend={null}
         />
         <KPICard
           icon={<AlertTriangle className="h-5 w-5" />}
           title="Total Gaps Found"
-          value={`${totalGaps}m`}
+          value={`${data?.summary.totalGaps || 0}m`}
           subtitle="Across all employees"
           color="text-destructive"
+          trend={trends?.gaps ? { ...trends.gaps, invertColor: true } : null}
         />
         <KPICard
-          icon={<Users className="h-5 w-5" />}
-          title="Employees Tracked"
-          value={`${activeEmployees.length}/${employeeData.length}`}
-          subtitle="With flow entries"
+          icon={<Award className="h-5 w-5" />}
+          title="Avg Efficiency"
+          value={`${trends?.efficiency?.current || 0}`}
+          subtitle="Team efficiency score"
           color="text-primary"
+          trend={trends?.efficiency}
         />
       </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Utilization Bar Chart */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Employee Utilization & Efficiency</CardTitle>
@@ -284,7 +357,7 @@ export function TeamProductivityDashboard() {
                   <Tooltip
                     contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, color: 'hsl(var(--popover-foreground))' }}
                     formatter={(value: number, name: string) => [`${value}%`, name === 'utilization' ? 'Utilization' : 'Efficiency']}
-                    labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
+                    labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || ''}
                   />
                   <Legend />
                   <Bar dataKey="utilization" name="Utilization %" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
@@ -299,17 +372,16 @@ export function TeamProductivityDashboard() {
           </CardContent>
         </Card>
 
-        {/* Department Distribution */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Hours by Department</CardTitle>
           </CardHeader>
           <CardContent>
-            {deptDistribution.length > 0 ? (
+            {(data?.deptDistribution?.length || 0) > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
-                    data={deptDistribution}
+                    data={data!.deptDistribution}
                     cx="50%"
                     cy="50%"
                     innerRadius={55}
@@ -318,7 +390,7 @@ export function TeamProductivityDashboard() {
                     label={({ name, value }) => `${name}: ${value}h`}
                     labelLine={false}
                   >
-                    {deptDistribution.map((_, idx) => (
+                    {data!.deptDistribution.map((_, idx) => (
                       <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
                     ))}
                   </Pie>
@@ -338,56 +410,58 @@ export function TeamProductivityDashboard() {
       </div>
 
       {/* Activity Heatmap */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Activity Heatmap (Time vs Day)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <div className="min-w-[600px]">
-              <div className="flex">
-                <div className="w-12" />
-                {Array.from({ length: 13 }, (_, i) => i + 8).map(h => (
-                  <div key={h} className="flex-1 text-center text-[10px] text-muted-foreground font-medium pb-1">
-                    {h > 12 ? `${h - 12}PM` : h === 12 ? '12PM' : `${h}AM`}
+      {data?.heatmap && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Activity Heatmap (Time vs Day)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <div className="min-w-[600px]">
+                <div className="flex">
+                  <div className="w-12" />
+                  {Array.from({ length: 13 }, (_, i) => i + 8).map(h => (
+                    <div key={h} className="flex-1 text-center text-[10px] text-muted-foreground font-medium pb-1">
+                      {h > 12 ? `${h - 12}PM` : h === 12 ? '12PM' : `${h}AM`}
+                    </div>
+                  ))}
+                </div>
+                {data.heatmap.days.map(day => (
+                  <div key={day} className="flex items-center">
+                    <div className="w-12 text-xs text-muted-foreground font-medium">{day}</div>
+                    {Array.from({ length: 13 }, (_, i) => i + 8).map(h => {
+                      const count = data.heatmap.grid[day]?.[h] || 0;
+                      const maxCount = Math.max(1, ...Object.values(data.heatmap.grid).flatMap(d => Object.values(d)));
+                      const intensity = count / maxCount;
+                      return (
+                        <div
+                          key={h}
+                          className="flex-1 aspect-[2/1] m-0.5 rounded-sm border border-border transition-colors"
+                          style={{
+                            backgroundColor: count > 0
+                              ? `hsl(var(--primary) / ${0.15 + intensity * 0.75})`
+                              : 'hsl(var(--muted) / 0.3)',
+                          }}
+                          title={`${day} ${h}:00 — ${count} tasks`}
+                        />
+                      );
+                    })}
                   </div>
                 ))}
-              </div>
-              {heatmapData.days.map(day => (
-                <div key={day} className="flex items-center">
-                  <div className="w-12 text-xs text-muted-foreground font-medium">{day}</div>
-                  {Array.from({ length: 13 }, (_, i) => i + 8).map(h => {
-                    const count = heatmapData.grid[day]?.[h] || 0;
-                    const maxCount = Math.max(1, ...Object.values(heatmapData.grid).flatMap(d => Object.values(d)));
-                    const intensity = count / maxCount;
-                    return (
-                      <div
-                        key={h}
-                        className="flex-1 aspect-[2/1] m-0.5 rounded-sm border border-border transition-colors"
-                        style={{
-                          backgroundColor: count > 0
-                            ? `hsl(var(--primary) / ${0.15 + intensity * 0.75})`
-                            : 'hsl(var(--muted) / 0.3)',
-                        }}
-                        title={`${day} ${h}:00 — ${count} tasks`}
-                      />
-                    );
-                  })}
+                <div className="flex items-center justify-end gap-2 mt-2">
+                  <span className="text-[10px] text-muted-foreground">Low</span>
+                  {[0.15, 0.35, 0.55, 0.75, 0.9].map((o, i) => (
+                    <div key={i} className="w-4 h-3 rounded-sm" style={{ backgroundColor: `hsl(var(--primary) / ${o})` }} />
+                  ))}
+                  <span className="text-[10px] text-muted-foreground">High</span>
                 </div>
-              ))}
-              <div className="flex items-center justify-end gap-2 mt-2">
-                <span className="text-[10px] text-muted-foreground">Low</span>
-                {[0.15, 0.35, 0.55, 0.75, 0.9].map((o, i) => (
-                  <div key={i} className="w-4 h-3 rounded-sm" style={{ backgroundColor: `hsl(var(--primary) / ${o})` }} />
-                ))}
-                <span className="text-[10px] text-muted-foreground">High</span>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Leaderboard & Under-Utilized */}
+      {/* Leaderboard & Needs Attention */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2">
@@ -403,9 +477,7 @@ export function TeamProductivityDashboard() {
                     idx === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' :
                     idx === 1 ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' :
                     'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300'
-                  }`}>
-                    #{idx + 1}
-                  </div>
+                  }`}>#{idx + 1}</div>
                   <div>
                     <p className="font-medium text-sm">{emp.employeeName}</p>
                     <p className="text-xs text-muted-foreground">{emp.department}</p>
@@ -416,16 +488,14 @@ export function TeamProductivityDashboard() {
                   <p className="text-xs text-muted-foreground">Score</p>
                 </div>
               </div>
-            )) : (
-              <p className="text-sm text-muted-foreground">No data for this period</p>
-            )}
+            )) : <p className="text-sm text-muted-foreground">No data for this period</p>}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-destructive" /> Needs Attention
+              <TrendingDown className="h-4 w-4 text-destructive" /> Needs Attention
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -435,25 +505,17 @@ export function TeamProductivityDashboard() {
                   <p className="font-medium text-sm">{emp.employeeName}</p>
                   <p className="text-xs text-muted-foreground">{emp.department}</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="text-xs">
-                    {emp.utilizationPct}% utilized
-                  </Badge>
-                  {emp.gapMinutes > 30 && (
-                    <Badge variant="destructive" className="text-xs">
-                      {emp.gapMinutes}m gaps
-                    </Badge>
-                  )}
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">{emp.utilizationPct}% utilized</Badge>
+                  {emp.gapMinutes > 30 && <Badge variant="destructive" className="text-xs">{emp.gapMinutes}m gaps</Badge>}
                 </div>
               </div>
-            )) : (
-              <p className="text-sm text-muted-foreground">No data for this period</p>
-            )}
+            )) : <p className="text-sm text-muted-foreground">No data for this period</p>}
           </CardContent>
         </Card>
       </div>
 
-      {/* Full Leaderboard Table */}
+      {/* Full Team Breakdown */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Full Team Breakdown</CardTitle>
@@ -475,28 +537,36 @@ export function TeamProductivityDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {employeeData.map((emp, idx) => (
-                  <tr key={emp.employeeId} className="border-b border-border/50 hover:bg-muted/30">
-                    <td className="py-2 px-3 text-muted-foreground">{idx + 1}</td>
-                    <td className="py-2 px-3 font-medium">{emp.employeeName}</td>
-                    <td className="py-2 px-3 text-muted-foreground">{emp.department}</td>
-                    <td className="py-2 px-3 text-right">{emp.uniqueDays}</td>
-                    <td className="py-2 px-3 text-right">{emp.avgDailyPlanned}</td>
-                    <td className="py-2 px-3 text-right">
-                      <span className={emp.utilizationPct >= 75 ? 'text-green-600 dark:text-green-400' : emp.utilizationPct >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive'}>
-                        {emp.utilizationPct}%
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 text-right">{emp.gapMinutes || '—'}</td>
-                    <td className="py-2 px-3 text-right">{emp.overlapMinutes || '—'}</td>
-                    <td className="py-2 px-3 text-right">
-                      <Badge variant={emp.efficiencyScore >= 70 ? 'default' : emp.efficiencyScore >= 40 ? 'secondary' : 'destructive'} className="text-xs">
-                        {emp.efficiencyScore}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-                {employeeData.length === 0 && (
+                {(data?.metrics || []).map((emp, idx) => {
+                  const isHighlighted = insights.some(i =>
+                    i.impact === 'high' && i.affectedEmployees?.includes(emp.employeeName)
+                  );
+                  return (
+                    <tr key={emp.employeeId} className={`border-b border-border/50 hover:bg-muted/30 ${isHighlighted ? 'bg-red-50/50 dark:bg-red-950/10' : ''}`}>
+                      <td className="py-2 px-3 text-muted-foreground">{idx + 1}</td>
+                      <td className="py-2 px-3 font-medium">
+                        {emp.employeeName}
+                        {isHighlighted && <AlertTriangle className="inline h-3 w-3 ml-1 text-destructive" />}
+                      </td>
+                      <td className="py-2 px-3 text-muted-foreground">{emp.department}</td>
+                      <td className="py-2 px-3 text-right">{emp.uniqueDays}</td>
+                      <td className="py-2 px-3 text-right">{emp.avgDailyPlanned}</td>
+                      <td className="py-2 px-3 text-right">
+                        <span className={emp.utilizationPct >= 75 ? 'text-green-600 dark:text-green-400' : emp.utilizationPct >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive'}>
+                          {emp.utilizationPct}%
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-right">{emp.gapMinutes || '—'}</td>
+                      <td className="py-2 px-3 text-right">{emp.overlapMinutes || '—'}</td>
+                      <td className="py-2 px-3 text-right">
+                        <Badge variant={emp.efficiencyScore >= 70 ? 'default' : emp.efficiencyScore >= 40 ? 'secondary' : 'destructive'} className="text-xs">
+                          {emp.efficiencyScore}
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {(!data?.metrics || data.metrics.length === 0) && (
                   <tr>
                     <td colSpan={9} className="text-center py-8 text-muted-foreground">
                       No employees found for the selected filters
@@ -512,7 +582,17 @@ export function TeamProductivityDashboard() {
   );
 }
 
-function KPICard({ icon, title, value, subtitle, color }: { icon: React.ReactNode; title: string; value: string; subtitle: string; color: string }) {
+function KPICard({ icon, title, value, subtitle, color, trend }: {
+  icon: React.ReactNode;
+  title: string;
+  value: string;
+  subtitle: string;
+  color: string;
+  trend?: { current: number; previous: number; change: number; invertColor?: boolean } | null;
+}) {
+  const isPositive = trend ? (trend.invertColor ? trend.change < 0 : trend.change > 0) : null;
+  const isNeutral = trend?.change === 0;
+
   return (
     <Card>
       <CardContent className="pt-5 pb-4">
@@ -522,14 +602,24 @@ function KPICard({ icon, title, value, subtitle, color }: { icon: React.ReactNod
             <p className="text-2xl font-bold mt-1">{value}</p>
             <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
           </div>
-          <div className={`${color} p-2 rounded-lg bg-muted/50`}>{icon}</div>
+          <div className="flex flex-col items-end gap-1">
+            <div className={`${color} p-2 rounded-lg bg-muted/50`}>{icon}</div>
+            {trend && !isNeutral && (
+              <div className={`flex items-center gap-0.5 text-[11px] font-medium ${
+                isPositive ? 'text-green-600 dark:text-green-400' : 'text-destructive'
+              }`}>
+                {isPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                {Math.abs(trend.change)}{typeof trend.current === 'number' && trend.current <= 100 ? '%' : ''}
+              </div>
+            )}
+            {trend && isNeutral && (
+              <div className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
+                <Minus className="h-3 w-3" /> No change
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
   );
-}
-
-function timeToMinutes(time: string): number {
-  const [h, m] = time.split(':').map(Number);
-  return (h || 0) * 60 + (m || 0);
 }
