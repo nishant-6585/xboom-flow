@@ -115,7 +115,6 @@ export function HRAttendanceEditModal({
             check_in_time: checkInISO,
             check_out_time: checkOutISO,
             status,
-            working_hours: workingHours,
             source: 'hr_manual',
             notes: `HR override by ${userName}: ${reason}`,
             corrected_by: user.id,
