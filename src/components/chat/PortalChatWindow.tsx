@@ -458,17 +458,18 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
       )}
 
       {/* Main Chat Panel */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <div className="relative overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 relative">
+        {/* Header — always on top */}
+        <div className="relative z-20 shrink-0 overflow-hidden">
           <div className={cn(
             "absolute inset-0 transition-all duration-500",
             voiceMode
               ? "bg-gradient-to-r from-primary/15 via-primary/10 to-violet-500/10"
               : "bg-gradient-to-r from-primary/10 via-primary/5 to-transparent"
           )} />
-          <div className="relative flex items-center justify-between px-3 py-2.5 border-b border-border/40">
-            <div className="flex items-center gap-2 min-w-0">
+          <div className="relative flex items-center justify-between px-3 py-2.5 border-b border-border/40 gap-3">
+            {/* LEFT section */}
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               <Button
                 variant="ghost"
                 size="icon"
@@ -494,7 +495,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                     : "bg-emerald-500"
                 )} />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 overflow-hidden">
                 <h3 className="text-xs font-bold text-foreground leading-none truncate">
                   {voiceMode ? 'Voice Assistant' : (activeChatId ? (chats.find(c => c.id === activeChatId)?.title || 'Chat') : getRoleAITitle(roles))}
                 </h3>
@@ -506,7 +507,13 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-0.5 shrink-0">
+            {/* RIGHT section */}
+            <div className="flex items-center gap-1 shrink-0">
+              {voiceMode && (
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground rounded-lg" onClick={toggleVoiceMode}>
+                  Exit Voice
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
@@ -516,20 +523,20 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
               >
                 <Plus className="w-3.5 h-3.5" />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  "h-7 w-7 rounded-lg transition-all duration-300",
-                  voiceMode
-                    ? "text-primary bg-primary/15 hover:bg-primary/25 ring-1 ring-primary/20"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                )}
-                onClick={toggleVoiceMode}
-                title={voiceMode ? "Exit voice mode" : "Enter voice mode"}
-              >
-                {voiceMode ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-              </Button>
+              {!voiceMode && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "h-7 w-7 rounded-lg transition-all duration-300",
+                    "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                  onClick={toggleVoiceMode}
+                  title="Enter voice mode"
+                >
+                  <VolumeX className="w-3.5 h-3.5" />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
@@ -542,9 +549,9 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
           </div>
         </div>
 
-        {/* Voice Mode Overlay */}
+        {/* Voice Mode Overlay — below header, fills remaining space */}
         {voiceMode && (
-          <div className="absolute inset-0 z-10 flex flex-col overflow-hidden bg-background/98 backdrop-blur-2xl">
+          <div className="absolute inset-0 top-[calc(2.5rem+1.25rem)] z-10 flex flex-col overflow-hidden bg-background/98 backdrop-blur-2xl">
             <div className={cn(
               "absolute inset-0 transition-opacity duration-1000",
               isListening
@@ -553,20 +560,6 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                   ? "bg-gradient-to-b from-primary/5 via-transparent to-violet-500/5 opacity-100"
                   : "bg-gradient-to-b from-primary/3 via-transparent to-transparent opacity-60"
             )} />
-            <div className="relative flex items-center justify-between px-4 py-3 border-b border-border/20">
-              <div className="flex items-center gap-2">
-                <div className={cn("p-1.5 rounded-lg", isListening ? "bg-emerald-500/15" : "bg-primary/15")}>
-                  <Mic className={cn("w-4 h-4", isListening ? "text-emerald-500" : "text-primary")} />
-                </div>
-                <span className="text-sm font-semibold text-foreground">Voice Mode</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-foreground rounded-lg" onClick={toggleVoiceMode}>Exit Voice</Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground" onClick={onClose}>
-                  <X className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-            </div>
             <div className="relative flex-1 flex flex-col items-center justify-center px-6">
               <VoiceVisualizer state={getVoiceState()} />
               {messages.length > 0 && (
@@ -585,7 +578,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                 </div>
               )}
             </div>
-            <div className="relative px-4 py-4 border-t border-border/20 flex items-center justify-center gap-3">
+            <div className="relative px-4 py-4 border-t border-border/20 flex items-center justify-center gap-3 shrink-0">
               <VoiceInputButton
                 onTranscript={handleVoiceTranscript}
                 disabled={isLoading || aiSpeaking}
@@ -601,7 +594,6 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
             </div>
           </div>
         )}
-
         {/* Messages */}
         <ScrollArea className="flex-1 px-4 py-3" ref={scrollRef}>
           {isNewChat ? (
