@@ -44,6 +44,7 @@ const MyProfile = () => {
     if (empRes.data) {
       setDepartment(empRes.data.department || "General");
       setEmployeeId(empRes.data.id);
+      setEmployeeNumber(empRes.data.employee_number || null);
     }
   };
 
