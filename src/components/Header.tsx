@@ -82,6 +82,7 @@ export function Header() {
     { path: "/buyback", label: "Buyback", icon: RotateCcw, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance"] },
     { path: "/model-review", label: "Model Review", icon: Activity, roles: ["admin", "supply_chain", "finance"] },
     { path: "/daily-flow", label: "Daily Flow", icon: CalendarClock, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
+    { path: "/ai-dashboard", label: "AI Dashboard", icon: BrainCircuit, roles: ["admin"] },
   ];
 
   const filteredMainNavItems = mainNavItems.filter((item) => item.roles.includes(role || ""));
