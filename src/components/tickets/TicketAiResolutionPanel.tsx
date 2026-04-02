@@ -119,6 +119,11 @@ export function TicketAiResolutionPanel({ ticket }: TicketAiResolutionPanelProps
     setRejectionReason("");
   };
 
+  const handleFeedback = (feedback: "helpful" | "not_helpful") => {
+    setFeedbackGiven(feedback);
+    submitFeedback.mutate({ ticketId: ticket.id, feedback });
+  };
+
   const handleRerun = () => {
     runResolution.mutate(ticket.id);
   };
