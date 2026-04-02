@@ -17,6 +17,7 @@ import {
   useRejectResolution,
   ImplementationReport,
 } from "@/hooks/useTicketResolution";
+import { useSubmitResolutionFeedback } from "@/hooks/useAiResolutionMetrics";
 import {
   Bot,
   Loader2,
@@ -29,6 +30,8 @@ import {
   Shield,
   FileCode,
   ClipboardCheck,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import { toast } from "sonner";
 
