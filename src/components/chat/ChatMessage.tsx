@@ -223,6 +223,7 @@ function downloadResponseAsPdf(content: string) {
 export function ChatMessage({ role, content, actions: structuredActions, isStreaming, autoSpeak, onSpeakingDone }: ChatMessageProps) {
   const isUser = role === 'user';
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const hasAutoSpokenRef = useRef(false);
   const prevContentLenRef = useRef(0);
 
@@ -237,9 +238,11 @@ export function ChatMessage({ role, content, actions: structuredActions, isStrea
   useEffect(() => {
     if (!autoSpeak || isUser || !content || isStreaming || hasAutoSpokenRef.current) return;
     hasAutoSpokenRef.current = true;
+    setIsLoadingAudio(true);
     setIsSpeaking(true);
-    speakText(content, () => {
+    elevenLabsSpeak(content, () => {
       setIsSpeaking(false);
+      setIsLoadingAudio(false);
       onSpeakingDone?.();
     });
   }, [isStreaming, autoSpeak, isUser, content, onSpeakingDone]);
@@ -247,17 +250,20 @@ export function ChatMessage({ role, content, actions: structuredActions, isStrea
   const handleSpeak = useCallback(() => {
     if (!content || isStreaming) return;
     if (isSpeaking) {
-      stopSpeaking();
+      elevenLabsStop();
       setIsSpeaking(false);
+      setIsLoadingAudio(false);
       return;
     }
+    setIsLoadingAudio(true);
     setIsSpeaking(true);
-    speakText(content, () => {
+    elevenLabsSpeak(content, () => {
       setIsSpeaking(false);
+      setIsLoadingAudio(false);
     });
   }, [content, isStreaming, isSpeaking]);
 
-  const showSpeaker = !isUser && content && !isStreaming && typeof window !== 'undefined' && 'speechSynthesis' in window;
+  const showSpeaker = !isUser && content && !isStreaming;
   const showDownload = !isUser && content && !isStreaming && content.length > 50;
 
   const renderAssistantContent = () => {
