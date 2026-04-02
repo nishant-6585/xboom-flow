@@ -217,7 +217,7 @@ export function LeaveHistoryPanel() {
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3 text-center">
-            <Clock className="h-5 w-5 mx-auto text-blue-500 mb-1" />
+            <Clock className="h-5 w-5 mx-auto text-primary/70 mb-1" />
             <p className="text-2xl font-bold">{kpis.totalDays}</p>
             <p className="text-xs text-muted-foreground">Total Days</p>
           </CardContent>
