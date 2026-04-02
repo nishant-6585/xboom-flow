@@ -1,0 +1,1 @@
+ALTER TABLE public.ai_resolution_metrics ADD COLUMN IF NOT EXISTS user_feedback TEXT DEFAULT NULL;

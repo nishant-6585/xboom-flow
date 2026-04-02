@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, BrainCircuit, Zap, Database, Bot, Target, Clock, Code, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Loader2, BrainCircuit, Zap, Database, Bot, Target, Clock, Code,
+  ChevronLeft, ChevronRight, AlertTriangle, X, Lightbulb, ThumbsUp,
+  ThumbsDown, TrendingUp, ArrowRight, Shield,
+} from "lucide-react";
 import { format, subDays } from "date-fns";
 import {
   useAiResolutionMetrics,
@@ -13,15 +17,25 @@ import {
   computeCodeContextStats,
   computeDailyData,
   computeSourceDistribution,
+  computeSmartAlerts,
+  computeInsights,
+  computeRecommendations,
   type MetricsFilters,
   type AiMetricRow,
+  type SmartAlert,
 } from "@/hooks/useAiResolutionMetrics";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Legend,
+  LineChart, Line, XAxis, YAxis, CartesianGrid,
 } from "recharts";
 
 const PAGE_SIZE = 15;
+
+const SEVERITY_STYLES: Record<SmartAlert["severity"], string> = {
+  critical: "border-destructive/50 bg-destructive/5 text-destructive",
+  warning: "border-yellow-500/50 bg-yellow-500/5 text-yellow-700 dark:text-yellow-400",
+  info: "border-primary/50 bg-primary/5 text-primary",
+};
 
 export default function AiDashboard() {
   const [filters, setFilters] = useState<MetricsFilters>({
@@ -31,6 +45,7 @@ export default function AiDashboard() {
   });
   const [dateRange, setDateRange] = useState("7d");
   const [page, setPage] = useState(0);
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
 
   const { data: rows = [], isLoading } = useAiResolutionMetrics(filters);
 
@@ -38,6 +53,11 @@ export default function AiDashboard() {
   const codeCtx = useMemo(() => computeCodeContextStats(rows), [rows]);
   const dailyData = useMemo(() => computeDailyData(rows), [rows]);
   const pieData = useMemo(() => computeSourceDistribution(rows), [rows]);
+  const alerts = useMemo(() => computeSmartAlerts(kpis), [kpis]);
+  const insights = useMemo(() => computeInsights(kpis, codeCtx), [kpis, codeCtx]);
+  const recommendations = useMemo(() => computeRecommendations(kpis, codeCtx), [kpis, codeCtx]);
+
+  const visibleAlerts = alerts.filter((a) => !dismissedAlerts.has(a.id));
 
   const pagedRows = useMemo(() => {
     const start = page * PAGE_SIZE;
@@ -73,8 +93,10 @@ export default function AiDashboard() {
     { label: "AI Calls", value: `${kpis.aiPct}%`, icon: Bot, color: "text-chart-3" },
     { label: "Cache Hits", value: `${kpis.cachePct}%`, icon: Database, color: "text-chart-2" },
     { label: "Rule Usage", value: `${kpis.rulePct}%`, icon: Zap, color: "text-chart-1" },
-    { label: "Avg Confidence", value: `${kpis.avgConfidence}%`, icon: Target, color: "text-green-600" },
-    { label: "Avg Response", value: `${kpis.avgResponseMs}ms`, icon: Clock, color: "text-amber-600" },
+    { label: "Avg Confidence", value: `${kpis.avgConfidence}%`, icon: Target, color: "text-primary" },
+    { label: "Avg Response", value: `${kpis.avgResponseMs}ms`, icon: Clock, color: "text-muted-foreground" },
+    { label: "User Accuracy", value: kpis.feedbackCount > 0 ? `${kpis.accuracyPct}%` : "—", icon: ThumbsUp, color: "text-primary" },
+    { label: "Feedback", value: kpis.feedbackCount, icon: ThumbsDown, color: "text-muted-foreground" },
   ];
 
   return (
@@ -88,7 +110,7 @@ export default function AiDashboard() {
               <BrainCircuit className="w-6 h-6 text-primary" />
               AI Observability
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">Monitor AI debugging system performance</p>
+            <p className="text-sm text-muted-foreground mt-1">Monitor & improve AI debugging performance</p>
           </div>
           <div className="flex gap-2">
             <Select value={dateRange} onValueChange={handleDateRange}>
@@ -121,20 +143,108 @@ export default function AiDashboard() {
           </div>
         ) : (
           <>
+            {/* Smart Alerts */}
+            {visibleAlerts.length > 0 && (
+              <div className="space-y-2">
+                {visibleAlerts.map((alert) => (
+                  <div
+                    key={alert.id}
+                    className={`flex items-start gap-3 p-3 rounded-lg border ${SEVERITY_STYLES[alert.severity]}`}
+                  >
+                    <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{alert.title}</p>
+                      <p className="text-xs opacity-80 mt-0.5">{alert.description}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 shrink-0 opacity-60 hover:opacity-100"
+                      onClick={() => setDismissedAlerts((prev) => new Set(prev).add(alert.id))}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
               {kpiCards.map((kpi) => (
                 <Card key={kpi.label} className="border-border/50">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <kpi.icon className={`w-4 h-4 ${kpi.color}`} />
-                      <span className="text-xs text-muted-foreground font-medium">{kpi.label}</span>
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <kpi.icon className={`w-3.5 h-3.5 ${kpi.color}`} />
+                      <span className="text-[10px] text-muted-foreground font-medium truncate">{kpi.label}</span>
                     </div>
-                    <p className="text-2xl font-bold text-foreground">{kpi.value}</p>
+                    <p className="text-xl font-bold text-foreground">{kpi.value}</p>
                   </CardContent>
                 </Card>
               ))}
             </div>
+
+            {/* Insights & Recommendations */}
+            {(insights.length > 0 || recommendations.length > 0) && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Insights */}
+                {insights.length > 0 && (
+                  <Card className="border-border/50">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <Lightbulb className="w-4 h-4 text-primary" /> AI Insights
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {insights.map((insight, i) => (
+                        <div key={i} className="flex items-start gap-2 text-sm">
+                          <span className="mt-0.5 shrink-0">
+                            {insight.type === "positive" ? (
+                              <TrendingUp className="w-3.5 h-3.5 text-primary" />
+                            ) : insight.type === "negative" ? (
+                              <AlertTriangle className="w-3.5 h-3.5 text-destructive" />
+                            ) : (
+                              <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
+                            )}
+                          </span>
+                          <span className="text-foreground/80">{insight.text}</span>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Recommendations */}
+                {recommendations.length > 0 && (
+                  <Card className="border-border/50">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-primary" /> Recommendations
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {recommendations.map((rec, i) => (
+                        <div key={i} className="flex items-start gap-2 text-sm">
+                          <Badge
+                            variant="outline"
+                            className={`text-[9px] shrink-0 mt-0.5 ${
+                              rec.priority === "high"
+                                ? "border-destructive text-destructive"
+                                : rec.priority === "medium"
+                                ? "border-yellow-500 text-yellow-600 dark:text-yellow-400"
+                                : "border-muted-foreground text-muted-foreground"
+                            }`}
+                          >
+                            {rec.priority}
+                          </Badge>
+                          <span className="text-foreground/80">{rec.text}</span>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
 
             {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -256,13 +366,14 @@ export default function AiDashboard() {
                         <TableHead className="text-xs">Confidence</TableHead>
                         <TableHead className="text-xs">Response (ms)</TableHead>
                         <TableHead className="text-xs">Code Context</TableHead>
+                        <TableHead className="text-xs">Feedback</TableHead>
                         <TableHead className="text-xs">Date</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {pagedRows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                          <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                             No metrics data available
                           </TableCell>
                         </TableRow>
@@ -295,6 +406,15 @@ export default function AiDashboard() {
                                 <Badge variant="secondary" className="text-[10px]">Yes</Badge>
                               ) : (
                                 <span className="text-muted-foreground">No</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {row.user_feedback === "helpful" ? (
+                                <span className="text-primary">👍</span>
+                              ) : row.user_feedback === "not_helpful" ? (
+                                <span className="text-destructive">👎</span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
                               )}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">

@@ -17,6 +17,7 @@ import {
   useRejectResolution,
   ImplementationReport,
 } from "@/hooks/useTicketResolution";
+import { useSubmitResolutionFeedback } from "@/hooks/useAiResolutionMetrics";
 import {
   Bot,
   Loader2,
@@ -29,6 +30,8 @@ import {
   Shield,
   FileCode,
   ClipboardCheck,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -55,8 +58,10 @@ export function TicketAiResolutionPanel({ ticket }: TicketAiResolutionPanelProps
   const runResolution = useRunAiResolution();
   const approveResolution = useApproveResolution();
   const rejectResolution = useRejectResolution();
+  const submitFeedback = useSubmitResolutionFeedback();
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectInput, setShowRejectInput] = useState(false);
+  const [feedbackGiven, setFeedbackGiven] = useState<string | null>(null);
   const autoTriggeredRef = useRef(false);
 
   const canView = role === "admin" || role === "hr" || ticket.assigned_to === user?.id;
@@ -112,6 +117,11 @@ export function TicketAiResolutionPanel({ ticket }: TicketAiResolutionPanelProps
     });
     setShowRejectInput(false);
     setRejectionReason("");
+  };
+
+  const handleFeedback = (feedback: "helpful" | "not_helpful") => {
+    setFeedbackGiven(feedback);
+    submitFeedback.mutate({ ticketId: ticket.id, feedback });
   };
 
   const handleRerun = () => {
@@ -240,6 +250,29 @@ export function TicketAiResolutionPanel({ ticket }: TicketAiResolutionPanelProps
             </pre>
           </div>
         )}
+
+        {/* Feedback */}
+        <div className="flex items-center gap-2 pt-2 border-t border-border/30">
+          <span className="text-xs text-muted-foreground">Was this resolution helpful?</span>
+          <Button
+            size="sm"
+            variant={feedbackGiven === "helpful" ? "default" : "outline"}
+            className="h-7 text-xs"
+            disabled={!!feedbackGiven || submitFeedback.isPending}
+            onClick={() => handleFeedback("helpful")}
+          >
+            <ThumbsUp className="w-3 h-3 mr-1" /> Helpful
+          </Button>
+          <Button
+            size="sm"
+            variant={feedbackGiven === "not_helpful" ? "destructive" : "outline"}
+            className="h-7 text-xs"
+            disabled={!!feedbackGiven || submitFeedback.isPending}
+            onClick={() => handleFeedback("not_helpful")}
+          >
+            <ThumbsDown className="w-3 h-3 mr-1" /> Not Helpful
+          </Button>
+        </div>
       </div>
     );
   }
@@ -410,6 +443,29 @@ export function TicketAiResolutionPanel({ ticket }: TicketAiResolutionPanelProps
             </div>
           </div>
         )}
+      </div>
+
+      {/* Feedback */}
+      <div className="flex items-center gap-2 pt-2 border-t border-border/30">
+        <span className="text-xs text-muted-foreground">Was this helpful?</span>
+        <Button
+          size="sm"
+          variant={feedbackGiven === "helpful" ? "default" : "outline"}
+          className="h-7 text-xs"
+          disabled={!!feedbackGiven || submitFeedback.isPending}
+          onClick={() => handleFeedback("helpful")}
+        >
+          <ThumbsUp className="w-3 h-3 mr-1" /> 👍
+        </Button>
+        <Button
+          size="sm"
+          variant={feedbackGiven === "not_helpful" ? "destructive" : "outline"}
+          className="h-7 text-xs"
+          disabled={!!feedbackGiven || submitFeedback.isPending}
+          onClick={() => handleFeedback("not_helpful")}
+        >
+          <ThumbsDown className="w-3 h-3 mr-1" /> 👎
+        </Button>
       </div>
     </div>
   );

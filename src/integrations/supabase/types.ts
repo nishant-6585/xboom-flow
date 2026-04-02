@@ -498,6 +498,7 @@ export type Database = {
           used_cache: boolean | null
           used_code_context: boolean | null
           used_rule: boolean | null
+          user_feedback: string | null
         }
         Insert: {
           ai_called?: boolean | null
@@ -511,6 +512,7 @@ export type Database = {
           used_cache?: boolean | null
           used_code_context?: boolean | null
           used_rule?: boolean | null
+          user_feedback?: string | null
         }
         Update: {
           ai_called?: boolean | null
@@ -524,6 +526,7 @@ export type Database = {
           used_cache?: boolean | null
           used_code_context?: boolean | null
           used_rule?: boolean | null
+          user_feedback?: string | null
         }
         Relationships: []
       }
