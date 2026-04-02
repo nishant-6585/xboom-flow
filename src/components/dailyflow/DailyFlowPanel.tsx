@@ -14,6 +14,7 @@ import { DailyFlowAnalytics } from './DailyFlowAnalytics';
 import { DailyFlowImportModal } from './DailyFlowImportModal';
 import { DailyFlowAISuggestions } from './DailyFlowAISuggestions';
 import { TemplateLibrary } from './TemplateLibrary';
+import { TeamProductivityDashboard } from './TeamProductivityDashboard';
 import { format, startOfMonth, subDays, addDays } from 'date-fns';
 import { ChevronLeft, ChevronRight, Upload, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -198,6 +199,7 @@ export function DailyFlowPanel() {
               {isManager && <TabsTrigger value="browse">Browse Templates</TabsTrigger>}
               {isManager && <TabsTrigger value="library">Template Library</TabsTrigger>}
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              {isManager && <TabsTrigger value="team-productivity">Team Productivity</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="daily" className="mt-4 space-y-4">
@@ -249,6 +251,12 @@ export function DailyFlowPanel() {
             <TabsContent value="analytics" className="mt-4">
               <DailyFlowAnalytics entries={entries} rangeEntries={rangeEntries} />
             </TabsContent>
+
+            {isManager && (
+              <TabsContent value="team-productivity" className="mt-4">
+                <TeamProductivityDashboard />
+              </TabsContent>
+            )}
           </Tabs>
         </>
       ) : (
