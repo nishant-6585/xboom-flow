@@ -81,7 +81,6 @@ export function ProvisionalCorrectionModal({
           is_provisional_checkout: false,
           corrected_by: user.id,
           corrected_at: new Date().toISOString(),
-          working_hours: newWorkingHours,
         })
         .eq('id', log.id);
 

@@ -115,7 +115,6 @@ export function HRAttendanceEditModal({
             check_in_time: checkInISO,
             check_out_time: checkOutISO,
             status,
-            working_hours: workingHours,
             source: 'hr_manual',
             notes: `HR override by ${userName}: ${reason}`,
             corrected_by: user.id,
@@ -157,7 +156,6 @@ export function HRAttendanceEditModal({
         if (needsTimes) {
           updatePayload.check_in_time = checkInISO;
           updatePayload.check_out_time = checkOutISO;
-          updatePayload.working_hours = workingHours;
           if (log?.is_provisional_checkout) {
             updatePayload.is_provisional_checkout = false;
           }

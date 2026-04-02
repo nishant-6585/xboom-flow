@@ -78,7 +78,6 @@ export function ProvisionalCheckoutBanner({ yesterdayLog, onCorrected }: Provisi
           is_provisional_checkout: false,
           corrected_by: user.id,
           corrected_at: new Date().toISOString(),
-          working_hours: newWorkingHours,
         })
         .eq('id', yesterdayLog.id);
 
