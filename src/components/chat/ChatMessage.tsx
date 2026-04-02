@@ -392,9 +392,15 @@ export function ChatMessage({ role, content, actions: structuredActions, isStrea
                     ? "text-primary bg-primary/10 hover:bg-primary/20"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
-                title={isSpeaking ? "Stop speaking" : "Read aloud"}
+                title={isSpeaking ? "Stop speaking" : "Read aloud (ElevenLabs)"}
               >
-                {isSpeaking ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                {isLoadingAudio && !isSpeaking ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : isSpeaking ? (
+                  <VolumeX className="w-3 h-3" />
+                ) : (
+                  <Volume2 className="w-3 h-3" />
+                )}
               </Button>
             )}
             {showDownload && (
