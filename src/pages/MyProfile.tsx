@@ -22,6 +22,7 @@ const MyProfile = () => {
   const [allRoles, setAllRoles] = useState<string[]>([]);
   const [department, setDepartment] = useState("General");
   const [employeeId, setEmployeeId] = useState<string | null>(null);
+  const [employeeNumber, setEmployeeNumber] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -37,12 +38,13 @@ const MyProfile = () => {
     if (!user) return;
     const [rolesRes, empRes] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", user.id),
-      supabase.from("employees").select("id, department").eq("user_id", user.id).maybeSingle(),
+      supabase.from("employees").select("id, department, employee_number").eq("user_id", user.id).maybeSingle(),
     ]);
     if (rolesRes.data) setAllRoles(rolesRes.data.map((r) => r.role as string));
     if (empRes.data) {
       setDepartment(empRes.data.department || "General");
       setEmployeeId(empRes.data.id);
+      setEmployeeNumber(empRes.data.employee_number || null);
     }
   };
 
@@ -196,12 +198,12 @@ const MyProfile = () => {
                 <p className="text-sm font-medium">{department}</p>
               </div>
 
-              {employeeId && (
+              {(employeeNumber || employeeId) && (
                 <div className="space-y-1">
                   <Label className="flex items-center gap-1.5 text-muted-foreground">
                     <Hash className="w-3.5 h-3.5" /> Employee ID
                   </Label>
-                  <p className="text-sm font-medium font-mono">{employeeId.slice(0, 8).toUpperCase()}</p>
+                  <p className="text-sm font-medium font-mono">{employeeNumber || employeeId?.slice(0, 8).toUpperCase()}</p>
                 </div>
               )}
             </div>
