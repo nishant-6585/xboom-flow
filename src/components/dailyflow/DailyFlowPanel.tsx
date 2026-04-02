@@ -108,6 +108,13 @@ export function DailyFlowPanel() {
 
   const templateName = templates.length > 0 ? (templates[0] as any).template_name || 'Default Template' : null;
 
+  const handleImportComplete = () => {
+    if (selectedEmployee) {
+      fetchTemplates(selectedEmployee);
+      fetchEntries(selectedEmployee, selectedDate);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Controls */}
