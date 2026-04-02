@@ -50,6 +50,7 @@ import PayrollReconciliation from "./pages/PayrollReconciliation";
 import SamplePayslip from "./pages/SamplePayslip";
 import DailyFlow from "./pages/DailyFlow";
 import AIAutomation from "./pages/AIAutomation";
+import AiDashboard from "./pages/AiDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
