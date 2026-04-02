@@ -12,7 +12,8 @@ import { TemplateBrowser } from './TemplateBrowser';
 import { DailyFlowEntryTable } from './DailyFlowEntryTable';
 import { DailyFlowAnalytics } from './DailyFlowAnalytics';
 import { format, startOfMonth, subDays, addDays } from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Upload } from 'lucide-react';
+import { DailyFlowImportModal } from './DailyFlowImportModal';
 
 interface Employee {
   id: string;
