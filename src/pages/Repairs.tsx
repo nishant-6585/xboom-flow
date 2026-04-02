@@ -14,8 +14,9 @@ import { RepairCard } from "@/components/repairs/RepairCard";
 import { RepairForm } from "@/components/repairs/RepairForm";
 import { RepairImportDialog } from "@/components/repairs/RepairImportDialog";
 import { RepairDialog } from "@/components/repairs/RepairDialog";
-import { Plus, Search, Wrench, IndianRupee, Clock, CheckCircle, Upload } from "lucide-react";
-import { Loader2 } from "lucide-react";
+import { Plus, Search, Wrench, IndianRupee, Clock, CheckCircle, Upload, Download, Loader2 } from "lucide-react";
+import { exportRepairsToExcel } from "@/utils/repairExportHelpers";
+import { toast } from "sonner";
 
 export default function Repairs() {
   const { user, profile } = useAuth();
