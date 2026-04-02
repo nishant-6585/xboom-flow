@@ -199,6 +199,7 @@ export function DailyFlowPanel() {
               {isManager && <TabsTrigger value="browse">Browse Templates</TabsTrigger>}
               {isManager && <TabsTrigger value="library">Template Library</TabsTrigger>}
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              {isManager && <TabsTrigger value="team-productivity">Team Productivity</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="daily" className="mt-4 space-y-4">
