@@ -224,7 +224,7 @@ export function LeaveHistoryPanel() {
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3 text-center">
-            <CheckCircle2 className="h-5 w-5 mx-auto text-green-500 mb-1" />
+            <CheckCircle2 className="h-5 w-5 mx-auto text-accent-foreground mb-1" />
             <p className="text-2xl font-bold">{kpis.approvedCount}</p>
             <p className="text-xs text-muted-foreground">Approved</p>
           </CardContent>
