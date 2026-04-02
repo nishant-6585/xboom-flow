@@ -3,13 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Upload, Download, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { Upload, Download, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, Trash2, Brain, Users, Sparkles } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface ParsedRow {
@@ -26,6 +24,7 @@ interface ParsedRow {
   is_break: boolean;
   errors?: string[];
   warning?: string;
+  parseMethod?: string;
 }
 
 interface ValidationResult {
@@ -33,6 +32,10 @@ interface ValidationResult {
   invalid_rows: ParsedRow[];
   total: number;
   existing_templates: string[];
+  detected_employees: string[];
+  parse_method: string;
+  ai_fallback_used: boolean;
+  confidence: number;
 }
 
 interface ImportResult {
@@ -194,6 +197,15 @@ export function DailyFlowImportModal({ open, onOpenChange, onImportComplete, sel
   const activeValidRows = validation?.valid_rows.filter((_, i) => !removedIndices.has(i)) || [];
   const hasConflicts = (validation?.existing_templates?.length || 0) > 0;
 
+  const parseMethodLabel = (method?: string) => {
+    switch (method) {
+      case 'flat': return 'Standard';
+      case 'structured': return 'Smart';
+      case 'ai': return 'AI';
+      default: return method || '';
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -220,7 +232,9 @@ export function DailyFlowImportModal({ open, onOpenChange, onImportComplete, sel
               <p className="text-sm font-medium">
                 {file ? file.name : 'Drag & drop your file here, or click to browse'}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">Accepts .xlsx and .csv (max 500 rows)</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Accepts .xlsx and .csv — supports structured sheets with sections & grouped data
+              </p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -246,8 +260,8 @@ export function DailyFlowImportModal({ open, onOpenChange, onImportComplete, sel
                 <Download className="h-4 w-4 mr-1" /> Download Sample Template
               </Button>
               <Button onClick={handleValidate} disabled={!file || loading}>
-                {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
-                Validate & Preview
+                {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
+                Smart Parse & Preview
               </Button>
             </div>
           </div>
@@ -256,15 +270,34 @@ export function DailyFlowImportModal({ open, onOpenChange, onImportComplete, sel
         {/* Step: Preview */}
         {step === 'preview' && validation && (
           <div className="space-y-3 flex-1 overflow-hidden flex flex-col">
-            <div className="flex gap-2 flex-wrap">
-              <Badge variant="secondary">{validation.total} total rows</Badge>
-              <Badge className="bg-green-100 text-green-800">{activeValidRows.length} valid</Badge>
-              {validation.invalid_rows.length > 0 && (
-                <Badge variant="destructive">{validation.invalid_rows.length} errors</Badge>
-              )}
-              {removedIndices.size > 0 && (
-                <Badge variant="outline">{removedIndices.size} removed</Badge>
-              )}
+            {/* Parse summary */}
+            <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="secondary" className="gap-1">
+                  {validation.parse_method === 'ai' ? <Brain className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
+                  {parseMethodLabel(validation.parse_method)} Parser
+                </Badge>
+                {validation.ai_fallback_used && (
+                  <Badge className="bg-purple-100 text-purple-800 gap-1">
+                    <Brain className="h-3 w-3" /> AI Assisted
+                  </Badge>
+                )}
+                <Badge variant="outline">{validation.total} raw rows</Badge>
+                <Badge className="bg-green-100 text-green-800">{activeValidRows.length} valid tasks</Badge>
+                {validation.invalid_rows.length > 0 && (
+                  <Badge variant="destructive">{validation.invalid_rows.length} errors</Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Users className="h-3 w-3" />
+                <span>
+                  Detected {validation.detected_employees?.length || 0} employees:
+                  {' '}
+                  <span className="font-medium text-foreground">
+                    {validation.detected_employees?.join(', ') || 'None'}
+                  </span>
+                </span>
+              </div>
             </div>
 
             <ScrollArea className="flex-1 border rounded-lg">
@@ -275,8 +308,8 @@ export function DailyFlowImportModal({ open, onOpenChange, onImportComplete, sel
                     <th className="p-2 text-left">Employee</th>
                     <th className="p-2 text-left">Task</th>
                     <th className="p-2 text-left">Time</th>
+                    <th className="p-2 text-left">Dur</th>
                     <th className="p-2 text-left">Freq</th>
-                    <th className="p-2 text-left">Target</th>
                     <th className="p-2 text-left">Status</th>
                     <th className="p-2"></th>
                   </tr>
@@ -286,11 +319,14 @@ export function DailyFlowImportModal({ open, onOpenChange, onImportComplete, sel
                     !removedIndices.has(i) && (
                       <tr key={`v-${i}`} className="border-t hover:bg-muted/50">
                         <td className="p-2">{row.rowNum}</td>
-                        <td className="p-2">{row.employee_name}</td>
-                        <td className="p-2 max-w-[150px] truncate">{row.task_name}</td>
-                        <td className="p-2">{row.start_time}–{row.end_time}</td>
+                        <td className="p-2 font-medium">{row.employee_name}</td>
+                        <td className="p-2 max-w-[150px] truncate">
+                          {row.is_break && <Badge variant="outline" className="mr-1 text-[10px] px-1 py-0">Break</Badge>}
+                          {row.task_name}
+                        </td>
+                        <td className="p-2 whitespace-nowrap">{row.start_time}–{row.end_time}</td>
+                        <td className="p-2">{row.duration_mins}m</td>
                         <td className="p-2 capitalize">{row.frequency}</td>
-                        <td className="p-2">{row.target}</td>
                         <td className="p-2">
                           {row.warning ? (
                             <span className="flex items-center gap-1 text-amber-600">
@@ -316,8 +352,8 @@ export function DailyFlowImportModal({ open, onOpenChange, onImportComplete, sel
                       <td className="p-2">{row.employee_name || '—'}</td>
                       <td className="p-2 max-w-[150px] truncate">{row.task_name || '—'}</td>
                       <td className="p-2">{row.start_time}–{row.end_time}</td>
+                      <td className="p-2">{row.duration_mins}m</td>
                       <td className="p-2 capitalize">{row.frequency}</td>
-                      <td className="p-2">{row.target}</td>
                       <td className="p-2 text-destructive">
                         <span className="flex items-center gap-1">
                           <XCircle className="h-3 w-3" />
@@ -332,9 +368,9 @@ export function DailyFlowImportModal({ open, onOpenChange, onImportComplete, sel
             </ScrollArea>
 
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep('upload')}>Back</Button>
+              <Button variant="outline" onClick={() => { setStep('upload'); setValidation(null); setRemovedIndices(new Set()); }}>Back</Button>
               <Button onClick={() => setStep('options')} disabled={activeValidRows.length === 0}>
-                Continue ({activeValidRows.length} rows)
+                Continue ({activeValidRows.length} tasks)
               </Button>
             </div>
           </div>
@@ -383,7 +419,7 @@ export function DailyFlowImportModal({ open, onOpenChange, onImportComplete, sel
               <Button variant="outline" onClick={() => setStep('preview')}>Back</Button>
               <Button onClick={handleImport} disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
-                Import {activeValidRows.length} Rows
+                Import {activeValidRows.length} Tasks
               </Button>
             </div>
           </div>
