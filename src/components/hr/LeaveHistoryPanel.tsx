@@ -238,7 +238,7 @@ export function LeaveHistoryPanel() {
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3 text-center">
-            <BarChart3 className="h-5 w-5 mx-auto text-amber-500 mb-1" />
+            <BarChart3 className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
             <p className="text-2xl font-bold">{kpis.avgDaysPerEmployee}</p>
             <p className="text-xs text-muted-foreground">Avg Days/Employee</p>
           </CardContent>
