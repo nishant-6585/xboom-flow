@@ -8,6 +8,12 @@ const corsHeaders = {
 const GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 
+// Hardcoded repo — NEVER accept from frontend
+const GITHUB_REPO = "AmanSagar0607/XBoom-Flow";
+
+// Allowed base paths — reject anything outside these
+const ALLOWED_PATHS = ["src/", "supabase/functions/"];
+
 // Module → relevant file paths mapping
 const MODULE_FILE_MAP: Record<string, string[]> = {
   tickets: [
@@ -70,7 +76,6 @@ const KEYWORD_FILE_MAP: Record<string, string[]> = {
   payment: ["src/components/orders/", "supabase/functions/payment-risk-scoring/index.ts"],
 };
 
-const GITHUB_REPO = "AmanSagar0607/XBoom-Flow"; // Update if repo name differs
 const MAX_FILES = 15;
 const MAX_LINES_PER_FILE = 200;
 
@@ -78,10 +83,40 @@ const MAX_LINES_PER_FILE = 200;
 const fileCache = new Map<string, { content: string; fetchedAt: number }>();
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
+function isPathAllowed(path: string): boolean {
+  return ALLOWED_PATHS.some((allowed) => path.startsWith(allowed));
+}
+
+async function validateRepoAccess(): Promise<boolean> {
+  if (!GITHUB_TOKEN) return false;
+  try {
+    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}`, {
+      headers: {
+        Authorization: `Bearer ${GITHUB_TOKEN}`,
+        Accept: "application/vnd.github.v3+json",
+        "User-Agent": "XboomFlow-AI",
+      },
+    });
+    await res.text(); // consume body
+    if (!res.ok) {
+      console.error("GitHub repo access validation failed:", res.status);
+      return false;
+    }
+    console.log("GitHub repo access validated successfully");
+    return true;
+  } catch (e) {
+    console.error("GitHub repo access validation error:", e);
+    return false;
+  }
+}
+
 async function fetchGithubFile(path: string): Promise<string | null> {
   if (!GITHUB_TOKEN) return null;
+  if (!isPathAllowed(path)) {
+    console.warn("Blocked fetch for disallowed path:", path);
+    return null;
+  }
 
-  // Check in-memory cache
   const cached = fileCache.get(path);
   if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
     return cached.content;
@@ -103,7 +138,7 @@ async function fetchGithubFile(path: string): Promise<string | null> {
       if (res.status === 403) {
         console.warn("GitHub rate limit hit");
       }
-      await res.text(); // consume body
+      await res.text();
       return null;
     }
 
@@ -118,6 +153,10 @@ async function fetchGithubFile(path: string): Promise<string | null> {
 
 async function fetchGithubDirectory(dirPath: string): Promise<string[]> {
   if (!GITHUB_TOKEN) return [];
+  if (!isPathAllowed(dirPath)) {
+    console.warn("Blocked directory fetch for disallowed path:", dirPath);
+    return [];
+  }
 
   try {
     const res = await fetch(
@@ -145,7 +184,8 @@ async function fetchGithubDirectory(dirPath: string): Promise<string[]> {
         (item.name.endsWith(".ts") || item.name.endsWith(".tsx"))
       )
       .map((item: { path: string }) => item.path)
-      .slice(0, 5); // Max 5 files per directory
+      .filter((p: string) => isPathAllowed(p))
+      .slice(0, 5);
   } catch {
     return [];
   }
@@ -203,9 +243,23 @@ Deno.serve(async (req) => {
 
     const { category, description } = await req.json();
 
+    // ─── Token & repo validation ─────────────────────────────────────────
     if (!GITHUB_TOKEN) {
+      console.log("GitHub token not detected — skipping code context");
       return new Response(
         JSON.stringify({ context: "", message: "GitHub token not configured" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("GitHub token detected");
+    console.log(`Fetching code context for repo: ${GITHUB_REPO}`);
+
+    const repoAccessible = await validateRepoAccess();
+    if (!repoAccessible) {
+      console.error("GitHub fetch failed — repo not accessible, returning empty context");
+      return new Response(
+        JSON.stringify({ context: "", message: "GitHub repo access failed" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -213,13 +267,11 @@ Deno.serve(async (req) => {
     // Determine files to fetch
     const filePaths = new Set<string>();
 
-    // Category-based files
     const categoryPaths = MODULE_FILE_MAP[category] || MODULE_FILE_MAP["general"];
     for (const p of categoryPaths) {
       filePaths.add(p);
     }
 
-    // Keyword-based files from description
     if (description) {
       const keywords = extractKeywords(description);
       for (const kw of keywords) {
@@ -229,13 +281,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Resolve directories and fetch files
+    // Resolve directories and fetch files — enforce path safety
     const resolvedFiles: string[] = [];
     for (const p of filePaths) {
       if (resolvedFiles.length >= MAX_FILES) break;
+      if (!isPathAllowed(p)) continue;
 
       if (p.endsWith("/")) {
-        // It's a directory — list files
         const dirFiles = await fetchGithubDirectory(p);
         for (const f of dirFiles) {
           if (resolvedFiles.length >= MAX_FILES) break;
@@ -245,6 +297,8 @@ Deno.serve(async (req) => {
         resolvedFiles.push(p);
       }
     }
+
+    console.log(`Files selected: ${resolvedFiles.length}`);
 
     // Fetch file contents in parallel (batches of 5)
     const snippets: string[] = [];
@@ -262,6 +316,12 @@ Deno.serve(async (req) => {
     }
 
     const context = snippets.join("\n\n");
+
+    if (snippets.length > 0) {
+      console.log(`GitHub fetch success — ${snippets.length} files with content`);
+    } else {
+      console.log("GitHub fetch completed but no usable file content found");
+    }
 
     return new Response(
       JSON.stringify({
