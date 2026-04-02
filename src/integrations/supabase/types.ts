@@ -3193,6 +3193,101 @@ export type Database = {
         }
         Relationships: []
       }
+      flow_template_library: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          created_by: string
+          created_by_name: string
+          description: string | null
+          id: string
+          task_count: number | null
+          template_name: string
+          total_duration_mins: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          created_by: string
+          created_by_name?: string
+          description?: string | null
+          id?: string
+          task_count?: number | null
+          template_name: string
+          total_duration_mins?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          created_by?: string
+          created_by_name?: string
+          description?: string | null
+          id?: string
+          task_count?: number | null
+          template_name?: string
+          total_duration_mins?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      flow_template_library_items: {
+        Row: {
+          created_at: string | null
+          description: string
+          duration_mins: number
+          frequency: string | null
+          frequency_days: string[] | null
+          id: string
+          is_break: boolean | null
+          library_template_id: string
+          sl_no: number
+          sub_items: string[] | null
+          target_value: number | null
+          time_from: string
+          time_to: string
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          duration_mins?: number
+          frequency?: string | null
+          frequency_days?: string[] | null
+          id?: string
+          is_break?: boolean | null
+          library_template_id: string
+          sl_no: number
+          sub_items?: string[] | null
+          target_value?: number | null
+          time_from: string
+          time_to: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          duration_mins?: number
+          frequency?: string | null
+          frequency_days?: string[] | null
+          id?: string
+          is_break?: boolean | null
+          library_template_id?: string
+          sl_no?: number
+          sub_items?: string[] | null
+          target_value?: number | null
+          time_from?: string
+          time_to?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flow_template_library_items_library_template_id_fkey"
+            columns: ["library_template_id"]
+            isOneToOne: false
+            referencedRelation: "flow_template_library"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       followups: {
         Row: {
           completed_at: string | null
