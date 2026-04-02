@@ -148,6 +148,9 @@ export default function HR() {
               {isHROrAdmin && (
                 <TabsTrigger value="offboarding" className="gap-1.5 whitespace-nowrap"><ClipboardX className="h-4 w-4 shrink-0" /><span>Offboarding</span></TabsTrigger>
               )}
+              {isHROrAdmin && (
+                <TabsTrigger value="leave_history" className="gap-1.5 whitespace-nowrap"><History className="h-4 w-4 shrink-0" /><span>Leave History</span></TabsTrigger>
+              )}
             </TabsList>
           </div>
 
