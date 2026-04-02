@@ -12,7 +12,8 @@ import { TemplateBrowser } from './TemplateBrowser';
 import { DailyFlowEntryTable } from './DailyFlowEntryTable';
 import { DailyFlowAnalytics } from './DailyFlowAnalytics';
 import { format, startOfMonth, subDays, addDays } from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Upload } from 'lucide-react';
+import { DailyFlowImportModal } from './DailyFlowImportModal';
 
 interface Employee {
   id: string;
@@ -33,7 +34,7 @@ export function DailyFlowPanel() {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [tab, setTab] = useState('daily');
   const [rangeEntries, setRangeEntries] = useState<any[]>([]);
-
+  const [importModalOpen, setImportModalOpen] = useState(false);
   // Fetch employees list
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -107,6 +108,13 @@ export function DailyFlowPanel() {
 
   const templateName = templates.length > 0 ? (templates[0] as any).template_name || 'Default Template' : null;
 
+  const handleImportComplete = () => {
+    if (selectedEmployee) {
+      fetchTemplates(selectedEmployee);
+      fetchEntries(selectedEmployee, selectedDate);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Controls */}
@@ -144,8 +152,13 @@ export function DailyFlowPanel() {
             </Button>
           </div>
         </div>
+        {isManager && (
+          <Button variant="outline" size="sm" onClick={() => setImportModalOpen(true)} className="ml-auto">
+            <Upload className="h-4 w-4 mr-1" /> Import from Excel
+          </Button>
+        )}
         {templateName && selectedEmployee && (
-          <div className="ml-auto text-sm text-muted-foreground">
+          <div className={`text-sm text-muted-foreground ${!isManager ? 'ml-auto' : ''}`}>
             Template: <span className="font-medium text-foreground">{templateName}</span>
           </div>
         )}
@@ -202,6 +215,14 @@ export function DailyFlowPanel() {
         <div className="text-center py-12 text-muted-foreground">
           Select an employee to view or plan their daily flow.
         </div>
+      )}
+      {isManager && (
+        <DailyFlowImportModal
+          open={importModalOpen}
+          onOpenChange={setImportModalOpen}
+          onImportComplete={handleImportComplete}
+          selectedDate={selectedDate}
+        />
       )}
     </div>
   );
