@@ -400,6 +400,8 @@ Deno.serve(async (req) => {
       ticket.category || "general"
     );
 
+    console.log(`Code context included: ${codeContext.length > 0}, length: ${codeContext.length} chars`);
+
     // Step 2: Call Claude
     if (!ANTHROPIC_API_KEY) {
       await supabaseAdmin.from("tickets").update({ ai_resolution_status: null }).eq("id", ticket_id);
@@ -409,7 +411,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const codeSection = codeContext
+    const codeSection = codeContext.length > 0
       ? `\n\nRELEVANT CODE CONTEXT:\n${codeContext}`
       : "";
 
