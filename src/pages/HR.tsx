@@ -32,6 +32,7 @@ import { MyFinancialDetailsPanel } from "@/components/hr/MyFinancialDetailsPanel
 import { ResignationPanel } from "@/components/hr/ResignationPanel";
 import { LeaveBalancePanel } from "@/components/hr/LeaveBalancePanel";
 import { ChecklistPanel } from "@/components/hr/ChecklistPanel";
+import { LeaveHistoryPanel } from "@/components/hr/LeaveHistoryPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { AttendanceLog } from "@/hooks/useHR";
 
@@ -147,6 +148,9 @@ export default function HR() {
               {isHROrAdmin && (
                 <TabsTrigger value="offboarding" className="gap-1.5 whitespace-nowrap"><ClipboardX className="h-4 w-4 shrink-0" /><span>Offboarding</span></TabsTrigger>
               )}
+              {isHROrAdmin && (
+                <TabsTrigger value="leave_history" className="gap-1.5 whitespace-nowrap"><History className="h-4 w-4 shrink-0" /><span>Leave History</span></TabsTrigger>
+              )}
             </TabsList>
           </div>
 
@@ -235,6 +239,7 @@ export default function HR() {
           <TabsContent value="resignation"><ResignationPanel /></TabsContent>
           {isHROrAdmin && <TabsContent value="onboarding"><ChecklistPanel checklistType="onboarding" /></TabsContent>}
           {isHROrAdmin && <TabsContent value="offboarding"><ChecklistPanel checklistType="offboarding" /></TabsContent>}
+          {isHROrAdmin && <TabsContent value="leave_history"><LeaveHistoryPanel /></TabsContent>}
         </Tabs>
       </main>
 
