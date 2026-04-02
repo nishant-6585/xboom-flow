@@ -22,6 +22,7 @@ const MyProfile = () => {
   const [allRoles, setAllRoles] = useState<string[]>([]);
   const [department, setDepartment] = useState("General");
   const [employeeId, setEmployeeId] = useState<string | null>(null);
+  const [employeeNumber, setEmployeeNumber] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile) {
