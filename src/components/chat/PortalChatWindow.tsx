@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Bot, Send, X, Loader2, Sparkles, Zap, BarChart3, Package, ClipboardList, BrainCircuit, Volume2, VolumeX, Mic, PanelLeftClose, PanelLeft, Plus, RefreshCw, Users, DollarSign, Truck, Calendar, Square, TrendingUp } from 'lucide-react';
+import { QuickReportsGrid } from './QuickReportsGrid';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
@@ -640,6 +641,14 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
                     </button>
                   ));
                 })()}
+              </div>
+
+              <div className="mt-3 flex justify-center">
+                <QuickReportsGrid
+                  roles={roles}
+                  onSelectPrompt={(p) => !isLoading && streamChat(p)}
+                  disabled={isLoading}
+                />
               </div>
             </div>
           ) : (
