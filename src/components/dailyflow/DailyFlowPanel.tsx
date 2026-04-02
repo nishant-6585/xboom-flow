@@ -251,6 +251,12 @@ export function DailyFlowPanel() {
             <TabsContent value="analytics" className="mt-4">
               <DailyFlowAnalytics entries={entries} rangeEntries={rangeEntries} />
             </TabsContent>
+
+            {isManager && (
+              <TabsContent value="team-productivity" className="mt-4">
+                <TeamProductivityDashboard />
+              </TabsContent>
+            )}
           </Tabs>
         </>
       ) : (
