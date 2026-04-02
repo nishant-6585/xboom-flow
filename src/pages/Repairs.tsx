@@ -93,6 +93,10 @@ export default function Repairs() {
             <p className="text-muted-foreground">Track and manage drone repair jobs</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExport} disabled={exporting || filteredRepairs.length === 0}>
+              {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+              Export Excel
+            </Button>
             <Button variant="outline" onClick={() => setShowImportDialog(true)}>
               <Upload className="h-4 w-4 mr-2" />
               Import Excel
