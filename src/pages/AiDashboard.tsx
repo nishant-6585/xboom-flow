@@ -228,7 +228,7 @@ export default function AiDashboard() {
                     <p className="text-xs text-muted-foreground mt-1">Requests with Code Context</p>
                   </div>
                   <div className="text-center p-4 rounded-lg bg-muted/30">
-                    <p className="text-2xl font-bold text-green-600">{codeCtx.avgConfWithCtx}%</p>
+                    <p className="text-2xl font-bold text-primary">{codeCtx.avgConfWithCtx}%</p>
                     <p className="text-xs text-muted-foreground mt-1">Avg Confidence (with context)</p>
                   </div>
                   <div className="text-center p-4 rounded-lg bg-muted/30">
