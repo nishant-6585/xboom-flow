@@ -28,6 +28,19 @@ export default function Repairs() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [issueFilter, setIssueFilter] = useState<string>("all");
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const filename = exportRepairsToExcel(filteredRepairs);
+      toast.success(`Exported ${filteredRepairs.length} repairs to ${filename}`);
+    } catch (err: any) {
+      toast.error(err.message || "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Filter repairs
   const filteredRepairs = repairs.filter((repair) => {
