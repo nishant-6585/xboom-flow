@@ -58,8 +58,10 @@ export function TicketAiResolutionPanel({ ticket }: TicketAiResolutionPanelProps
   const runResolution = useRunAiResolution();
   const approveResolution = useApproveResolution();
   const rejectResolution = useRejectResolution();
+  const submitFeedback = useSubmitResolutionFeedback();
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectInput, setShowRejectInput] = useState(false);
+  const [feedbackGiven, setFeedbackGiven] = useState<string | null>(null);
   const autoTriggeredRef = useRef(false);
 
   const canView = role === "admin" || role === "hr" || ticket.assigned_to === user?.id;
