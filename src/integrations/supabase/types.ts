@@ -485,6 +485,48 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_resolution_metrics: {
+        Row: {
+          ai_called: boolean | null
+          code_context_length: number | null
+          confidence_score: number | null
+          created_at: string | null
+          id: string
+          resolution_type: string | null
+          response_time_ms: number | null
+          ticket_id: string | null
+          used_cache: boolean | null
+          used_code_context: boolean | null
+          used_rule: boolean | null
+        }
+        Insert: {
+          ai_called?: boolean | null
+          code_context_length?: number | null
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          resolution_type?: string | null
+          response_time_ms?: number | null
+          ticket_id?: string | null
+          used_cache?: boolean | null
+          used_code_context?: boolean | null
+          used_rule?: boolean | null
+        }
+        Update: {
+          ai_called?: boolean | null
+          code_context_length?: number | null
+          confidence_score?: number | null
+          created_at?: string | null
+          id?: string
+          resolution_type?: string | null
+          response_time_ms?: number | null
+          ticket_id?: string | null
+          used_cache?: boolean | null
+          used_code_context?: boolean | null
+          used_rule?: boolean | null
+        }
+        Relationships: []
+      }
       ai_scoring_logs: {
         Row: {
           confidence: number | null
