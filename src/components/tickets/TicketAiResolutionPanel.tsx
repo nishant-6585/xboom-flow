@@ -250,6 +250,29 @@ export function TicketAiResolutionPanel({ ticket }: TicketAiResolutionPanelProps
             </pre>
           </div>
         )}
+
+        {/* Feedback */}
+        <div className="flex items-center gap-2 pt-2 border-t border-border/30">
+          <span className="text-xs text-muted-foreground">Was this resolution helpful?</span>
+          <Button
+            size="sm"
+            variant={feedbackGiven === "helpful" ? "default" : "outline"}
+            className="h-7 text-xs"
+            disabled={!!feedbackGiven || submitFeedback.isPending}
+            onClick={() => handleFeedback("helpful")}
+          >
+            <ThumbsUp className="w-3 h-3 mr-1" /> Helpful
+          </Button>
+          <Button
+            size="sm"
+            variant={feedbackGiven === "not_helpful" ? "destructive" : "outline"}
+            className="h-7 text-xs"
+            disabled={!!feedbackGiven || submitFeedback.isPending}
+            onClick={() => handleFeedback("not_helpful")}
+          >
+            <ThumbsDown className="w-3 h-3 mr-1" /> Not Helpful
+          </Button>
+        </div>
       </div>
     );
   }
