@@ -458,6 +458,33 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_resolution_cache: {
+        Row: {
+          created_at: string
+          error_signature: string
+          id: string
+          resolution: Json
+          source: string
+          ticket_category: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_signature: string
+          id?: string
+          resolution: Json
+          source?: string
+          ticket_category?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_signature?: string
+          id?: string
+          resolution?: Json
+          source?: string
+          ticket_category?: string | null
+        }
+        Relationships: []
+      }
       ai_scoring_logs: {
         Row: {
           confidence: number | null

@@ -9,6 +9,170 @@ const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// ─── Rule-Based Pre-Filter ───────────────────────────────────────────────
+interface RuleResult {
+  resolution_type: string;
+  estimated_complexity: string;
+  confidence_score: number;
+  root_cause: string;
+  resolution_plan: string;
+  resolution_comment: string;
+  lovable_prompt: string;
+  needs_human_review: boolean;
+  review_reason: string | null;
+}
+
+const RULES: Array<{
+  patterns: RegExp[];
+  result: Omit<RuleResult, "resolution_comment" | "lovable_prompt">;
+  comment: string;
+  prompt: string;
+}> = [
+  {
+    patterns: [/\bcors\b/i],
+    result: {
+      resolution_type: "bug_fix",
+      estimated_complexity: "simple",
+      confidence_score: 95,
+      root_cause: "CORS misconfiguration in edge function or API response headers",
+      resolution_plan: "1. Check the affected edge function's CORS headers\n2. Ensure Access-Control-Allow-Origin includes the requesting domain\n3. Verify OPTIONS pre-flight handler returns correct headers\n4. Check Supabase config.toml for verify_jwt settings",
+      needs_human_review: false,
+      review_reason: null,
+    },
+    comment: "This appears to be a CORS configuration issue. The fix involves updating the edge function's response headers to allow cross-origin requests properly.",
+    prompt: "Check and fix CORS headers in the affected Supabase edge function. Ensure corsHeaders include proper Access-Control-Allow-Origin, Access-Control-Allow-Headers, and that OPTIONS pre-flight requests are handled correctly.",
+  },
+  {
+    patterns: [/\b401\b/, /\b403\b/, /\bunauthorized\b/i, /\bforbidden\b/i],
+    result: {
+      resolution_type: "bug_fix",
+      estimated_complexity: "moderate",
+      confidence_score: 90,
+      root_cause: "Authentication or authorization failure — JWT validation, missing token, or insufficient permissions",
+      resolution_plan: "1. Verify JWT token is being passed in Authorization header\n2. Check Supabase RLS policies on affected tables\n3. Verify user role permissions\n4. Check edge function auth validation logic\n5. Ensure token hasn't expired",
+      needs_human_review: true,
+      review_reason: "Auth issues require manual verification of RLS policies and user permissions",
+    },
+    comment: "This is an authentication/authorization issue. We need to verify the JWT token handling and RLS policies for the affected resources.",
+    prompt: "Debug and fix the authentication/authorization error. Check Supabase RLS policies on the affected table, verify JWT validation in the edge function, and ensure the user's role grants appropriate access.",
+  },
+  {
+    patterns: [/\benvironment\s*variable\b/i, /\b\.env\b/i, /\benv\s+not\s+set\b/i, /\bmissing.*secret\b/i],
+    result: {
+      resolution_type: "bug_fix",
+      estimated_complexity: "simple",
+      confidence_score: 90,
+      root_cause: "Missing or incorrect environment variable / secret configuration",
+      resolution_plan: "1. Identify which environment variable is missing\n2. Check Supabase Edge Function secrets configuration\n3. Verify the variable name matches what the code expects\n4. Add or update the secret via Lovable Cloud secrets management",
+      needs_human_review: true,
+      review_reason: "Requires manual verification of secret values",
+    },
+    comment: "This issue is caused by a missing or misconfigured environment variable. The correct secret needs to be added to the backend configuration.",
+    prompt: "Check the edge function for missing environment variables. Verify all required secrets (API keys, tokens) are configured in Supabase Edge Function secrets. Add any missing variables.",
+  },
+  {
+    patterns: [/\bpermission\s*denied\b/i, /\brls\b/i, /\brow.level.security\b/i],
+    result: {
+      resolution_type: "bug_fix",
+      estimated_complexity: "moderate",
+      confidence_score: 90,
+      root_cause: "Row Level Security (RLS) policy blocking database query",
+      resolution_plan: "1. Identify the affected table\n2. Review existing RLS policies\n3. Check if the user's role is included in policy conditions\n4. Verify the query uses the correct auth context\n5. Add or update RLS policy to allow the intended access",
+      needs_human_review: true,
+      review_reason: "RLS changes must be reviewed for security implications",
+    },
+    comment: "This is an RLS (Row Level Security) issue where the database policy is blocking the query. The policy needs to be updated to allow legitimate access.",
+    prompt: "Review and fix RLS policies on the affected Supabase table. Ensure the policy allows the correct user roles to perform the required operation (SELECT/INSERT/UPDATE/DELETE) while maintaining security.",
+  },
+];
+
+function matchRule(subject: string, description: string): RuleResult | null {
+  const text = `${subject} ${description}`.toLowerCase();
+  for (const rule of RULES) {
+    if (rule.patterns.some((p) => p.test(text))) {
+      return {
+        ...rule.result,
+        resolution_comment: rule.comment,
+        lovable_prompt: rule.prompt,
+      };
+    }
+  }
+  return null;
+}
+
+// ─── Cache helpers ───────────────────────────────────────────────────────
+
+async function generateSignature(text: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function checkCache(
+  supabase: ReturnType<typeof createClient>,
+  signature: string
+): Promise<Record<string, unknown> | null> {
+  const { data } = await supabase
+    .from("ai_resolution_cache")
+    .select("resolution")
+    .eq("error_signature", signature)
+    .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return data?.resolution ?? null;
+}
+
+async function writeCache(
+  supabase: ReturnType<typeof createClient>,
+  signature: string,
+  resolution: Record<string, unknown>,
+  category: string | null,
+  source: string
+) {
+  await supabase.from("ai_resolution_cache").insert({
+    error_signature: signature,
+    resolution,
+    ticket_category: category,
+    source,
+  });
+}
+
+// ─── Fetch code context (best-effort) ────────────────────────────────────
+
+async function fetchCodeContext(
+  supabaseUrl: string,
+  anonKey: string,
+  token: string,
+  category: string
+): Promise<string> {
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/fetch-code-context`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        apikey: anonKey,
+      },
+      body: JSON.stringify({ category }),
+    });
+    if (!res.ok) {
+      console.warn("fetch-code-context returned", res.status);
+      return "";
+    }
+    const data = await res.json();
+    return data.context || "";
+  } catch (e) {
+    console.warn("Code context fetch failed (non-fatal):", e);
+    return "";
+  }
+}
+
+// ─── Main handler ────────────────────────────────────────────────────────
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -24,11 +188,12 @@ Deno.serve(async (req) => {
     }
 
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await createClient(
-      SUPABASE_URL,
-      Deno.env.get("SUPABASE_ANON_KEY")!
-    ).auth.getUser(token);
+    const {
+      data: { user },
+      error: authError,
+    } = await createClient(SUPABASE_URL, anonKey).auth.getUser(token);
 
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -80,6 +245,109 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ─── LAYER 1: Rule-based pre-filter ──────────────────────────────────
+    const ruleMatch = matchRule(ticket.subject || "", ticket.description || "");
+    if (ruleMatch) {
+      console.log("Rule-based match found, skipping AI call");
+
+      const { error: insertError } = await supabaseAdmin
+        .from("ticket_ai_resolutions")
+        .insert({
+          ticket_id,
+          resolution_plan: ruleMatch.resolution_plan,
+          lovable_prompt: ruleMatch.lovable_prompt,
+          confidence_score: ruleMatch.confidence_score,
+          resolution_type: ruleMatch.resolution_type,
+          estimated_complexity: ruleMatch.estimated_complexity,
+          root_cause: ruleMatch.root_cause,
+          resolution_comment: ruleMatch.resolution_comment,
+          needs_human_review: ruleMatch.needs_human_review,
+          review_reason: ruleMatch.review_reason,
+          approval_status: "pending",
+        });
+
+      if (insertError) console.error("Failed to insert rule-based resolution:", insertError);
+
+      if (ruleMatch.resolution_comment) {
+        await supabaseAdmin.from("ticket_comments").insert({
+          ticket_id,
+          comment: ruleMatch.resolution_comment,
+          commented_by: user.id,
+          commented_by_name: "🤖 Xboom AI",
+          ai_generated: true,
+          comment_type: "ai_resolution",
+        });
+      }
+
+      await supabaseAdmin
+        .from("tickets")
+        .update({ ai_resolution_status: "pending_approval" })
+        .eq("id", ticket_id);
+
+      // Cache the rule-based result too
+      const sig = await generateSignature(
+        `${ticket.subject}|${ticket.description}|${ticket.category}`
+      );
+      await writeCache(supabaseAdmin, sig, ruleMatch as unknown as Record<string, unknown>, ticket.category, "rule");
+
+      return new Response(
+        JSON.stringify({ success: true, resolution_type: ruleMatch.resolution_type, source: "rule" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ─── LAYER 2: Cache lookup ───────────────────────────────────────────
+    const errorSignature = await generateSignature(
+      `${ticket.subject}|${ticket.description}|${ticket.category}`
+    );
+    const cachedResolution = await checkCache(supabaseAdmin, errorSignature);
+
+    if (cachedResolution) {
+      console.log("Cache hit, skipping AI call");
+      const cached = cachedResolution as Record<string, unknown>;
+
+      const { error: insertError } = await supabaseAdmin
+        .from("ticket_ai_resolutions")
+        .insert({
+          ticket_id,
+          resolution_plan: cached.resolution_plan || null,
+          lovable_prompt: cached.lovable_prompt || null,
+          confidence_score: cached.confidence_score || null,
+          resolution_type: cached.resolution_type || null,
+          estimated_complexity: cached.estimated_complexity || null,
+          root_cause: cached.root_cause || null,
+          resolution_comment: cached.resolution_comment || null,
+          needs_human_review: cached.needs_human_review ?? true,
+          review_reason: cached.review_reason || null,
+          approval_status: "pending",
+        });
+
+      if (insertError) console.error("Failed to insert cached resolution:", insertError);
+
+      if (cached.resolution_comment) {
+        await supabaseAdmin.from("ticket_comments").insert({
+          ticket_id,
+          comment: cached.resolution_comment as string,
+          commented_by: user.id,
+          commented_by_name: "🤖 Xboom AI",
+          ai_generated: true,
+          comment_type: "ai_resolution",
+        });
+      }
+
+      await supabaseAdmin
+        .from("tickets")
+        .update({ ai_resolution_status: "pending_approval" })
+        .eq("id", ticket_id);
+
+      return new Response(
+        JSON.stringify({ success: true, resolution_type: cached.resolution_type, source: "cache" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ─── LAYER 3: Full AI resolution ─────────────────────────────────────
+
     // Fetch comments
     const { data: comments } = await supabaseAdmin
       .from("ticket_comments")
@@ -87,7 +355,7 @@ Deno.serve(async (req) => {
       .eq("ticket_id", ticket_id)
       .order("created_at", { ascending: true });
 
-    // Fetch similar resolved IT tickets
+    // Fetch similar resolved tickets
     const { data: similarTickets } = await supabaseAdmin
       .from("tickets")
       .select("subject, ai_summary, resolution_notes")
@@ -105,17 +373,32 @@ Deno.serve(async (req) => {
       .single();
 
     // Format comment thread
-    const commentsFormatted = (comments || [])
-      .map((c: { commented_by_name: string; comment: string; created_at: string }) =>
-        `[${c.commented_by_name}] ${c.comment}`
-      )
-      .join("\n\n") || "No comments yet.";
+    const commentsFormatted =
+      (comments || [])
+        .map(
+          (c: { commented_by_name: string; comment: string; created_at: string }) =>
+            `[${c.commented_by_name}] ${c.comment}`
+        )
+        .join("\n\n") || "No comments yet.";
 
-    const similarFormatted = (similarTickets || [])
-      .map((t: { subject: string; ai_summary: string | null; resolution_notes: string | null }, i: number) =>
-        `${i + 1}. "${t.subject}" — ${t.ai_summary || "N/A"} | Resolution: ${t.resolution_notes || "N/A"}`
-      )
-      .join("\n") || "No similar tickets found.";
+    const similarFormatted =
+      (similarTickets || [])
+        .map(
+          (
+            t: { subject: string; ai_summary: string | null; resolution_notes: string | null },
+            i: number
+          ) =>
+            `${i + 1}. "${t.subject}" — ${t.ai_summary || "N/A"} | Resolution: ${t.resolution_notes || "N/A"}`
+        )
+        .join("\n") || "No similar tickets found.";
+
+    // Fetch code context (best-effort, non-blocking failure)
+    const codeContext = await fetchCodeContext(
+      SUPABASE_URL,
+      anonKey,
+      token,
+      ticket.category || "general"
+    );
 
     // Step 2: Call Claude
     if (!ANTHROPIC_API_KEY) {
@@ -126,6 +409,10 @@ Deno.serve(async (req) => {
       });
     }
 
+    const codeSection = codeContext
+      ? `\n\nRELEVANT CODE CONTEXT:\n${codeContext}`
+      : "";
+
     const claudeResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -135,7 +422,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 2000,
+        max_tokens: 4000,
         system: `You are an expert software engineer and project manager for Xboom Utilities, specializing in the Xboom Workflow tool built on Lovable (a React + Supabase platform). Your job is to analyze IT support tickets and generate:
 1. A clear resolution plan
 2. A ready-to-use Lovable AI prompt to implement the fix
@@ -158,7 +445,7 @@ COMMENT THREAD:
 ${commentsFormatted}
 
 SIMILAR RESOLVED TICKETS (for context):
-${similarFormatted}
+${similarFormatted}${codeSection}
 
 Return this exact JSON:
 {
@@ -190,7 +477,7 @@ Return this exact JSON:
     const claudeData = await claudeResponse.json();
     const aiText = claudeData.content?.[0]?.text || "{}";
 
-    let aiResult;
+    let aiResult: Record<string, unknown>;
     try {
       const jsonMatch = aiText.match(/\{[\s\S]*\}/);
       aiResult = JSON.parse(jsonMatch ? jsonMatch[0] : aiText);
@@ -201,6 +488,13 @@ Return this exact JSON:
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Low confidence → force human review
+    const confidence = (aiResult.confidence_score as number) || 0;
+    if (confidence < 60) {
+      aiResult.needs_human_review = true;
+      aiResult.review_reason = `Low AI confidence (${confidence}%) — manual review recommended`;
     }
 
     // Step 3: Store resolution
@@ -224,11 +518,14 @@ Return this exact JSON:
       console.error("Failed to insert resolution:", insertError);
     }
 
+    // Cache the AI result for future similar tickets
+    await writeCache(supabaseAdmin, errorSignature, aiResult, ticket.category, "ai");
+
     // Post resolution comment as AI
     if (aiResult.resolution_comment) {
       await supabaseAdmin.from("ticket_comments").insert({
         ticket_id,
-        comment: aiResult.resolution_comment,
+        comment: aiResult.resolution_comment as string,
         commented_by: user.id,
         commented_by_name: "🤖 Xboom AI",
         ai_generated: true,
@@ -239,7 +536,9 @@ Return this exact JSON:
     // Update ticket status
     const updateData: Record<string, unknown> = { ai_resolution_status: "pending_approval" };
     if (!ticket.ai_summary && aiResult.resolution_plan) {
-      updateData.ai_summary = aiResult.root_cause || aiResult.resolution_plan.substring(0, 200);
+      updateData.ai_summary =
+        (aiResult.root_cause as string) ||
+        (aiResult.resolution_plan as string).substring(0, 200);
     }
     await supabaseAdmin.from("tickets").update(updateData).eq("id", ticket_id);
 
@@ -251,9 +550,8 @@ Return this exact JSON:
       message: string;
     }> = [];
 
-    const notifyMessage = `Claude has generated a resolution plan for ticket: ${ticket.subject}. Review and approve to proceed.`;
+    const notifyMessage = `AI has generated a resolution plan for ticket: ${ticket.subject}. Review and approve to proceed.`;
 
-    // Notify assignee
     if (ticket.assigned_to) {
       notifications.push({
         ticket_id,
@@ -263,7 +561,6 @@ Return this exact JSON:
       });
     }
 
-    // Notify all admins and HR
     const { data: adminHrRoles } = await supabaseAdmin
       .from("user_roles")
       .select("user_id")
@@ -287,7 +584,7 @@ Return this exact JSON:
     }
 
     return new Response(
-      JSON.stringify({ success: true, resolution_type: aiResult.resolution_type }),
+      JSON.stringify({ success: true, resolution_type: aiResult.resolution_type, source: "ai" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
