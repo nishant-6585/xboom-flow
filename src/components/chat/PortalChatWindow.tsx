@@ -114,7 +114,7 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [voiceMode, setVoiceMode] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(() => isVoiceEnabled());
   const [aiSpeaking, setAiSpeaking] = useState(false);
   const [readyToListen, setReadyToListen] = useState(false);
   const [isListening, setIsListening] = useState(false);
