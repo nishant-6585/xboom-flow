@@ -34,7 +34,7 @@ export function DailyFlowPanel() {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [tab, setTab] = useState('daily');
   const [rangeEntries, setRangeEntries] = useState<any[]>([]);
-
+  const [importModalOpen, setImportModalOpen] = useState(false);
   // Fetch employees list
   useEffect(() => {
     const fetchEmployees = async () => {
