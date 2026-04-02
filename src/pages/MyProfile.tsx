@@ -37,7 +37,7 @@ const MyProfile = () => {
     if (!user) return;
     const [rolesRes, empRes] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", user.id),
-      supabase.from("employees").select("id, department").eq("user_id", user.id).maybeSingle(),
+      supabase.from("employees").select("id, department, employee_number").eq("user_id", user.id).maybeSingle(),
     ]);
     if (rolesRes.data) setAllRoles(rolesRes.data.map((r) => r.role as string));
     if (empRes.data) {
