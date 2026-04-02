@@ -44,7 +44,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          text,
+          text: cleanedText,
           model_id: 'eleven_turbo_v2_5',
           voice_settings: {
             stability: 0.6,
