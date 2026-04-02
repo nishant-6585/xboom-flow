@@ -395,8 +395,10 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
 
   const toggleVoiceMode = useCallback(() => {
     setVoiceMode(prev => {
+      const next = !prev;
+      setVoiceEnabled(next);
       if (prev) { stopSpeaking(); setReadyToListen(false); setAiSpeaking(false); }
-      return !prev;
+      return next;
     });
   }, []);
 
