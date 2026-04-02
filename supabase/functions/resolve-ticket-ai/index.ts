@@ -9,6 +9,46 @@ const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// ─── Metrics helper ─────────────────────────────────────────────────────
+interface ResolutionMetrics {
+  ticket_id: string;
+  used_rule: boolean;
+  used_cache: boolean;
+  used_code_context: boolean;
+  code_context_length: number;
+  ai_called: boolean;
+  response_time_ms: number;
+  confidence_score: number | null;
+  resolution_type: string | null;
+}
+
+function createMetrics(ticketId: string): ResolutionMetrics {
+  return {
+    ticket_id: ticketId,
+    used_rule: false,
+    used_cache: false,
+    used_code_context: false,
+    code_context_length: 0,
+    ai_called: false,
+    response_time_ms: 0,
+    confidence_score: null,
+    resolution_type: null,
+  };
+}
+
+async function saveMetrics(
+  supabase: ReturnType<typeof createClient>,
+  metrics: ResolutionMetrics
+) {
+  try {
+    const { error } = await supabase.from("ai_resolution_metrics").insert(metrics);
+    if (error) console.error("METRICS: insert failed (non-fatal):", error.message);
+    else console.log("METRICS: saved successfully");
+  } catch (e) {
+    console.error("METRICS: insert exception (non-fatal):", e);
+  }
+}
+
 // ─── Rule-Based Pre-Filter ───────────────────────────────────────────────
 interface RuleResult {
   resolution_type: string;
@@ -178,6 +218,8 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -209,6 +251,9 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Initialize metrics
+    const metrics = createMetrics(ticket_id);
 
     // Check if already has a resolution
     const { data: existingResolution } = await supabaseAdmin
@@ -248,7 +293,11 @@ Deno.serve(async (req) => {
     // ─── LAYER 1: Rule-based pre-filter ──────────────────────────────────
     const ruleMatch = matchRule(ticket.subject || "", ticket.description || "");
     if (ruleMatch) {
-      console.log("Rule-based match found, skipping AI call");
+      console.log("METRICS: rule_used");
+      metrics.used_rule = true;
+      metrics.ai_called = false;
+      metrics.confidence_score = ruleMatch.confidence_score;
+      metrics.resolution_type = ruleMatch.resolution_type;
 
       const { error: insertError } = await supabaseAdmin
         .from("ticket_ai_resolutions")
@@ -290,6 +339,11 @@ Deno.serve(async (req) => {
       );
       await writeCache(supabaseAdmin, sig, ruleMatch as unknown as Record<string, unknown>, ticket.category, "rule");
 
+      // Save metrics
+      metrics.response_time_ms = Date.now() - startTime;
+      console.log(`METRICS: response_time_ms=${metrics.response_time_ms}`);
+      await saveMetrics(supabaseAdmin, metrics);
+
       return new Response(
         JSON.stringify({ success: true, resolution_type: ruleMatch.resolution_type, source: "rule" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -303,8 +357,12 @@ Deno.serve(async (req) => {
     const cachedResolution = await checkCache(supabaseAdmin, errorSignature);
 
     if (cachedResolution) {
-      console.log("Cache hit, skipping AI call");
+      console.log("METRICS: cache_hit");
+      metrics.used_cache = true;
+      metrics.ai_called = false;
       const cached = cachedResolution as Record<string, unknown>;
+      metrics.confidence_score = (cached.confidence_score as number) || null;
+      metrics.resolution_type = (cached.resolution_type as string) || null;
 
       const { error: insertError } = await supabaseAdmin
         .from("ticket_ai_resolutions")
@@ -339,6 +397,11 @@ Deno.serve(async (req) => {
         .from("tickets")
         .update({ ai_resolution_status: "pending_approval" })
         .eq("id", ticket_id);
+
+      // Save metrics
+      metrics.response_time_ms = Date.now() - startTime;
+      console.log(`METRICS: response_time_ms=${metrics.response_time_ms}`);
+      await saveMetrics(supabaseAdmin, metrics);
 
       return new Response(
         JSON.stringify({ success: true, resolution_type: cached.resolution_type, source: "cache" }),
@@ -400,11 +463,23 @@ Deno.serve(async (req) => {
       ticket.category || "general"
     );
 
-    console.log(`Code context included: ${codeContext.length > 0}, length: ${codeContext.length} chars`);
+    // Track code context metrics
+    if (codeContext && codeContext.length > 0) {
+      metrics.used_code_context = true;
+      metrics.code_context_length = codeContext.length;
+      console.log(`METRICS: code_context_used, length=${codeContext.length}`);
+    } else {
+      console.log("METRICS: code_context_not_used");
+    }
 
     // Step 2: Call Claude
     if (!ANTHROPIC_API_KEY) {
       await supabaseAdmin.from("tickets").update({ ai_resolution_status: null }).eq("id", ticket_id);
+
+      // Save metrics even on config failure
+      metrics.response_time_ms = Date.now() - startTime;
+      await saveMetrics(supabaseAdmin, metrics);
+
       return new Response(JSON.stringify({ error: "AI service not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -414,6 +489,9 @@ Deno.serve(async (req) => {
     const codeSection = codeContext.length > 0
       ? `\n\nRELEVANT CODE CONTEXT:\n${codeContext}`
       : "";
+
+    console.log("METRICS: ai_called");
+    metrics.ai_called = true;
 
     const claudeResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -470,6 +548,11 @@ Return this exact JSON:
       const errorText = await claudeResponse.text();
       console.error("Claude API error:", errorText);
       await supabaseAdmin.from("tickets").update({ ai_resolution_status: null }).eq("id", ticket_id);
+
+      // Save metrics on AI failure
+      metrics.response_time_ms = Date.now() - startTime;
+      await saveMetrics(supabaseAdmin, metrics);
+
       return new Response(JSON.stringify({ error: "AI analysis failed" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -486,11 +569,20 @@ Return this exact JSON:
     } catch {
       console.error("Failed to parse Claude response:", aiText);
       await supabaseAdmin.from("tickets").update({ ai_resolution_status: null }).eq("id", ticket_id);
+
+      // Save metrics on parse failure
+      metrics.response_time_ms = Date.now() - startTime;
+      await saveMetrics(supabaseAdmin, metrics);
+
       return new Response(JSON.stringify({ error: "Failed to parse AI response" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Capture AI response metrics
+    metrics.confidence_score = (aiResult.confidence_score as number) || null;
+    metrics.resolution_type = (aiResult.resolution_type as string) || null;
 
     // Low confidence → force human review
     const confidence = (aiResult.confidence_score as number) || 0;
@@ -584,6 +676,11 @@ Return this exact JSON:
     if (notifications.length > 0) {
       await supabaseAdmin.from("ticket_notifications").insert(notifications);
     }
+
+    // Save final metrics
+    metrics.response_time_ms = Date.now() - startTime;
+    console.log(`METRICS: response_time_ms=${metrics.response_time_ms}`);
+    await saveMetrics(supabaseAdmin, metrics);
 
     return new Response(
       JSON.stringify({ success: true, resolution_type: aiResult.resolution_type, source: "ai" }),
