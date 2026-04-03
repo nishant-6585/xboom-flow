@@ -207,7 +207,14 @@ RETURN THIS JSON:
   ]
 }
 
-RULES:
+CRITICAL RULES FOR outstanding_balance vs total_due:
+- "total_due" is the TOTAL AMOUNT DUE for THIS billing cycle/month only (sometimes labeled "Total Amount Due", "Statement Balance", "New Balance", "Current Month Dues").
+- "outstanding_balance" is the OVERALL OUTSTANDING amount across ALL months/cycles (sometimes labeled "Total Outstanding", "Previous Balance Carried Forward", "Cumulative Outstanding"). It may include previous unpaid balances rolled over.
+- These are TWO DIFFERENT numbers. Do NOT set them to the same value unless they truly are identical on the statement.
+- If the statement only shows one "total due" figure and no separate outstanding, set outstanding_balance = total_due.
+- If the statement shows "Previous Outstanding" or "Opening Balance" separately, outstanding_balance should reflect the full accumulated amount.
+
+OTHER RULES:
 - Extract ALL transactions visible in the statement
 - Categorize each transaction into the provided categories
 - type: debit for purchases, credit for credits/refunds, fee for charges, interest for interest, payment for payments received, emi for EMI debits
@@ -216,6 +223,7 @@ RULES:
 - If available_credit_limit not found, calculate: credit_limit - outstanding_balance
 - If multiple months in file, extract LATEST month's data
 - Detect bank from logos, headers, letterhead
+- "minimum_due" is the minimum payment required - look for "Minimum Amount Due" or "MAD"
 
 ${cardsContext ? `EXISTING CARDS IN SYSTEM:\n${cardsContext}\nIf the statement matches an existing card, use the EXACT same card_name and bank_name.` : ""}
 
