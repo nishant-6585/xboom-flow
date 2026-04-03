@@ -12,13 +12,13 @@ interface Props {
 
 const riskBadge = (level: string) => {
   if (level === 'CRITICAL') return <Badge variant="destructive">CRITICAL</Badge>;
-  if (level === 'HIGH') return <Badge className="bg-yellow-500/20 text-yellow-700 border-yellow-500/30">HIGH</Badge>;
-  return <Badge variant="outline" className="text-green-600 border-green-500/30">SAFE</Badge>;
+  if (level === 'HIGH') return <Badge variant="secondary">HIGH</Badge>;
+  return <Badge variant="outline">SAFE</Badge>;
 };
 
 const statusBadge = (status: string) => {
-  if (status === 'FULL') return <Badge variant="outline" className="text-green-600 border-green-500/30">FULL</Badge>;
-  if (status === 'PARTIAL') return <Badge className="bg-yellow-500/20 text-yellow-700 border-yellow-500/30">PARTIAL</Badge>;
+  if (status === 'FULL') return <Badge variant="outline">FULL</Badge>;
+  if (status === 'PARTIAL') return <Badge variant="secondary">PARTIAL</Badge>;
   return <Badge variant="destructive">UNPAID</Badge>;
 };
 
