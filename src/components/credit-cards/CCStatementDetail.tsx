@@ -7,9 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Document, Page, pdfjs } from 'react-pdf';
 import { CreditCard, CCStatement, CCTransaction, CCPayment, StatementFilePayload, StatementUpload } from '@/hooks/useCreditCards';
 import { Download, FileDown, Loader2, Plus, Receipt, RotateCcw, CreditCard as CardIcon, IndianRupee, Upload } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import 'react-pdf/dist/Page/TextLayer.css';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
 
 interface Props {
   open: boolean;
@@ -80,10 +85,11 @@ export function CCStatementDetail({
   const [saving, setSaving] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerLoading, setViewerLoading] = useState(false);
-  const [viewerData, setViewerData] = useState<{ url: string; fileName: string; mimeType: string; blob: Blob } | null>(null);
+  const [viewerData, setViewerData] = useState<{ fileName: string; mimeType: string; blob: Blob } | null>(null);
   const [reanalysisGuidance, setReanalysisGuidance] = useState('');
   const [reanalyzing, setReanalyzing] = useState(false);
   const [replacingFile, setReplacingFile] = useState(false);
+  const [pageCount, setPageCount] = useState(0);
   const replaceFileRef = useRef<HTMLInputElement>(null);
 
   const closeViewer = (nextOpen: boolean) => {
@@ -118,14 +124,6 @@ export function CCStatementDetail({
     }
   };
 
-  const blobToDataUrl = (blob: Blob): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-
   const handleViewFile = async () => {
     if (!upload?.id) return;
 
@@ -138,14 +136,12 @@ export function CCStatementDetail({
       return;
     }
 
-    const dataUrl = await blobToDataUrl(file.blob);
-
     setViewerData({
-      url: dataUrl,
       fileName: file.fileName || upload.file_name,
       mimeType: file.mimeType,
       blob: file.blob,
     });
+    setPageCount(0);
     setViewerOpen(true);
   };
 
@@ -403,9 +399,20 @@ export function CCStatementDetail({
             </div>
           </DialogHeader>
 
-          <div className="flex-1 rounded-lg border bg-muted/10 overflow-hidden">
+          <div className="flex-1 rounded-lg border bg-muted/10 overflow-auto">
             {canPreviewInline && viewerData ? (
-              <embed src={viewerData.url} type="application/pdf" className="h-full w-full" />
+              <div className="flex min-h-full flex-col items-center gap-4 p-4">
+                <Document
+                  file={viewerData.blob}
+                  onLoadSuccess={({ numPages }) => setPageCount(numPages)}
+                  onLoadError={() => toast({ title: 'Preview failed', description: 'Could not render this PDF preview.', variant: 'destructive' })}
+                  loading={<div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading preview…</div>}
+                >
+                  {Array.from({ length: pageCount || 0 }, (_, index) => (
+                    <Page key={index + 1} pageNumber={index + 1} width={980} renderTextLayer renderAnnotationLayer className="shadow-sm" />
+                  ))}
+                </Document>
+              </div>
             ) : (
               <div className="h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
                 <p className="text-sm text-muted-foreground">Inline preview is available for PDF statements. You can still download this file from here.</p>
