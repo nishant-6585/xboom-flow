@@ -17,8 +17,8 @@ interface Props {
 
 const defaultForm = {
   card_id: '', billing_month: '', outstanding_balance: '', total_due: '',
-  minimum_due: '', due_date: '', available_credit_limit: '', interest_charged: '0',
-  last_statement_due: '0', amount_paid: '0', payment_date: '', late_fee: '0', notes: '',
+  minimum_due: '', due_date: '', interest_charged: '0',
+  amount_paid: '0', payment_date: '', late_fee: '0', notes: '',
 };
 
 export function CCAddStatementDialog({ open, onOpenChange, onSubmit, cards }: Props) {
