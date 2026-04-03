@@ -124,14 +124,6 @@ export function CCStatementDetail({
     }
   };
 
-  const blobToDataUrl = (blob: Blob): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-
   const handleViewFile = async () => {
     if (!upload?.id) return;
 
@@ -144,14 +136,12 @@ export function CCStatementDetail({
       return;
     }
 
-    const dataUrl = await blobToDataUrl(file.blob);
-
     setViewerData({
-      url: dataUrl,
       fileName: file.fileName || upload.file_name,
       mimeType: file.mimeType,
       blob: file.blob,
     });
+    setPageCount(0);
     setViewerOpen(true);
   };
 
