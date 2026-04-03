@@ -133,6 +133,7 @@ export default function CreditCards() {
             onRecordPayment={recordPayment}
             onViewFile={getStatementFile}
             onReanalyze={reanalyzeStatement}
+            onReplaceFile={replaceStatementFile}
             upload={selectedUpload}
           />
         )}
