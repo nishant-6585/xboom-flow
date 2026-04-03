@@ -216,10 +216,17 @@ CRITICAL RULES FOR outstanding_balance vs total_due:
 - If the statement only shows available limit and credit limit, calculate outstanding_balance = credit_limit - available_credit_limit.
 - If the statement only shows outstanding and not available limit, then return the extracted outstanding and available_credit_limit as max(credit_limit - outstanding_balance, 0) when credit_limit is known.
 
+CRITICAL RULE FOR CR/CREDIT TRANSACTIONS:
+- Do NOT treat CR (credit) amounts listed in the transaction list as payments made against this statement.
+- These CR transactions (refunds, cashback, reversed charges) occurred BEFORE the statement was generated and are already factored into the statement balance.
+- The "amount_paid" field should ONLY reflect actual payments made by the cardholder AFTER this statement was generated (e.g., "Payment Received", "Online Payment", "NEFT/IMPS Payment").
+- If no post-statement payment is visible, set amount_paid to 0.
+- When categorizing transactions: CR amounts should have type "credit" or "refund" or "cashback" — NEVER "payment".
+
 OTHER RULES:
 - Extract ALL transactions visible in the statement
 - Categorize each transaction into the provided categories
-- type: debit for purchases, credit for credits/refunds, fee for charges, interest for interest, payment for payments received, emi for EMI debits
+- type: debit for purchases, credit for credits/refunds, fee for charges, interest for interest, payment for payments received (actual cardholder payments only), emi for EMI debits
 - Dates → ISO YYYY-MM-DD
 - Normalize: remove ₹/Rs/INR symbols, commas → plain numbers
 - If available_credit_limit not found, calculate: max(credit_limit - outstanding_balance, 0)
