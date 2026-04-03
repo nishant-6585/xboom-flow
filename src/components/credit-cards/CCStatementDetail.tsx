@@ -399,9 +399,20 @@ export function CCStatementDetail({
             </div>
           </DialogHeader>
 
-          <div className="flex-1 rounded-lg border bg-muted/10 overflow-hidden">
+          <div className="flex-1 rounded-lg border bg-muted/10 overflow-auto">
             {canPreviewInline && viewerData ? (
-              <embed src={viewerData.url} type="application/pdf" className="h-full w-full" />
+              <div className="flex min-h-full flex-col items-center gap-4 p-4">
+                <Document
+                  file={viewerData.blob}
+                  onLoadSuccess={({ numPages }) => setPageCount(numPages)}
+                  onLoadError={() => toast({ title: 'Preview failed', description: 'Could not render this PDF preview.', variant: 'destructive' })}
+                  loading={<div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading preview…</div>}
+                >
+                  {Array.from({ length: pageCount || 0 }, (_, index) => (
+                    <Page key={index + 1} pageNumber={index + 1} width={980} renderTextLayer renderAnnotationLayer className="shadow-sm" />
+                  ))}
+                </Document>
+              </div>
             ) : (
               <div className="h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
                 <p className="text-sm text-muted-foreground">Inline preview is available for PDF statements. You can still download this file from here.</p>
