@@ -181,6 +181,20 @@ export function CCStatementDetail({
     });
   };
 
+  const handleReplaceFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !upload?.id || !onReplaceFile) return;
+    setReplacingFile(true);
+    const result = await onReplaceFile(file, upload.id);
+    setReplacingFile(false);
+    if (e.target) e.target.value = '';
+    if (result.success) {
+      toast({ title: 'File replaced & re-analyzed', description: 'The statement has been updated with the new file.' });
+    } else {
+      toast({ title: result.password_required ? 'Password required' : 'Replace failed', description: result.error, variant: 'destructive' });
+    }
+  };
+
   const totalPaid = statement.amount_paid || 0;
   const remaining = Math.max(0, statement.total_due - totalPaid);
   const canPreviewInline = !!viewerData && (viewerData.mimeType.includes('pdf') || viewerData.fileName.toLowerCase().endsWith('.pdf'));
