@@ -1,12 +1,11 @@
 import { useState, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Upload, FileUp, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
+import { FileUp, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface Props {
-  onUpload: (file: File) => Promise<{ success: boolean; error?: string }>;
+  onUpload: (file: File) => Promise<{ success: boolean; error?: string; duplicate?: boolean }>;
   processing: boolean;
 }
 
@@ -31,7 +30,11 @@ export function CCUploadZone({ onUpload, processing }: Props) {
       return false;
     }
     if (f.size > MAX_SIZE) {
-      toast({ title: 'File too large', description: 'Max 10MB', variant: 'destructive' });
+      toast({ title: 'File too large', description: 'Maximum file size is 10MB', variant: 'destructive' });
+      return false;
+    }
+    if (f.size < 100) {
+      toast({ title: 'File too small', description: 'File appears to be empty or corrupt', variant: 'destructive' });
       return false;
     }
     return true;
@@ -60,8 +63,16 @@ export function CCUploadZone({ onUpload, processing }: Props) {
     if (result.success) {
       toast({ title: 'Statement processed', description: 'Dashboard updated automatically' });
       setFile(null);
+    } else if (result.duplicate) {
+      toast({
+        title: 'Duplicate statement',
+        description: result.error || 'This statement has already been uploaded with identical values',
+        variant: 'destructive',
+      });
+      setFile(null);
     } else {
       toast({ title: 'Processing failed', description: result.error || 'Please try again', variant: 'destructive' });
+      setFile(null);
     }
   };
 
@@ -117,7 +128,7 @@ export function CCUploadZone({ onUpload, processing }: Props) {
                 <span>• Max 10MB</span>
               </div>
               <p className="text-[10px] text-muted-foreground/70">
-                AI auto-detects bank, card, and all fields — zero manual entry
+                AI auto-detects bank, card, and all fields — duplicates are detected automatically
               </p>
             </div>
           )}
