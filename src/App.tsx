@@ -51,6 +51,7 @@ import SamplePayslip from "./pages/SamplePayslip";
 import DailyFlow from "./pages/DailyFlow";
 import AIAutomation from "./pages/AIAutomation";
 import AiDashboard from "./pages/AiDashboard";
+import CreditCards from "./pages/CreditCards";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -106,6 +107,7 @@ function AppInner() {
         <Route path="/daily-flow" element={<ProtectedRoute><DailyFlow /></ProtectedRoute>} />
         <Route path="/admin/ai-automation" element={<ProtectedRoute><AIAutomation /></ProtectedRoute>} />
         <Route path="/ai-dashboard" element={<ProtectedRoute><AiDashboard /></ProtectedRoute>} />
+        <Route path="/credit-cards" element={<ProtectedRoute><CreditCards /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <AuthGuardedWidgets isMobile={isMobile} />
