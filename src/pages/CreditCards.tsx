@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 
 export default function CreditCards() {
   const { role, loading: authLoading } = useAuth();
-  const { cards, statements, uploads, loading, uploadStatement, getSummary, refetch } = useCreditCards();
+  const { cards, statements, uploads, loading, uploadStatement, checkDuplicate, getSummary, refetch } = useCreditCards();
   const [processing, setProcessing] = useState(false);
 
   const canAccess = role === 'admin' || role === 'finance';
