@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CreditCard, CCStatement } from '@/hooks/useCreditCards';
+import { CreditCard, CCStatement, CCPayment } from '@/hooks/useCreditCards';
 import { FileText, Search, Eye } from 'lucide-react';
 
 interface Props {
