@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CreditCard, CCStatement, CCTransaction, CCPayment, StatementFilePayload, StatementUpload } from '@/hooks/useCreditCards';
-import { Download, FileDown, Loader2, Plus, Receipt, RotateCcw, CreditCard as CardIcon, IndianRupee } from 'lucide-react';
+import { Download, FileDown, Loader2, Plus, Receipt, RotateCcw, CreditCard as CardIcon, IndianRupee, Upload } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface Props {
