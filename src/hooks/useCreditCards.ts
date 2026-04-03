@@ -43,6 +43,22 @@ export interface StatementUpload {
   created_at: string;
 }
 
+// Uploads older than 5 minutes still in PROCESSING are considered stale
+const STALE_THRESHOLD_MS = 5 * 60 * 1000;
+
+function markStaleUploads(uploads: StatementUpload[]): StatementUpload[] {
+  const now = Date.now();
+  return uploads.map(u => {
+    if (u.status === 'PROCESSING') {
+      const created = new Date(u.created_at).getTime();
+      if (now - created > STALE_THRESHOLD_MS) {
+        return { ...u, status: 'FAILED', error_message: 'Processing timed out' };
+      }
+    }
+    return u;
+  });
+}
+
 export function useCreditCards() {
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [statements, setStatements] = useState<CCStatement[]>([]);
@@ -59,7 +75,7 @@ export function useCreditCards() {
       ]);
       setCards((cardsRes.data as any[]) || []);
       setStatements((stmtRes.data as any[]) || []);
-      setUploads((uploadsRes.data as any[]) || []);
+      setUploads(markStaleUploads((uploadsRes.data as any[]) || []));
     } catch (e) {
       console.error('Error fetching CC data:', e);
     } finally {
@@ -69,13 +85,32 @@ export function useCreditCards() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const uploadStatement = async (file: File): Promise<{ success: boolean; error?: string }> => {
+  // Check for duplicate statement (same card + billing month)
+  const checkDuplicate = (bankName: string, cardName: string, billingMonth: string): { isDuplicate: boolean; existingCard?: CreditCard; existingStatement?: CCStatement } => {
+    const matchedCard = cards.find(c =>
+      c.bank_name.toLowerCase() === bankName.toLowerCase() &&
+      c.card_name.toLowerCase() === cardName.toLowerCase()
+    );
+    if (!matchedCard) return { isDuplicate: false };
+
+    const existingStmt = statements.find(s =>
+      s.card_id === matchedCard.id && s.billing_month === billingMonth
+    );
+    if (!existingStmt) return { isDuplicate: false };
+
+    return { isDuplicate: true, existingCard: matchedCard, existingStatement: existingStmt };
+  };
+
+  const uploadStatement = async (file: File): Promise<{ success: boolean; error?: string; duplicate?: boolean }> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return { success: false, error: 'Not authenticated' };
 
+      // Validate file name for path traversal
+      const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      
       // Upload file
-      const filePath = `${user.id}/${Date.now()}_${file.name}`;
+      const filePath = `${user.id}/${Date.now()}_${sanitizedName}`;
       const { error: uploadError } = await supabase.storage.from('cc-statements').upload(filePath, file);
       if (uploadError) return { success: false, error: uploadError.message };
 
@@ -84,7 +119,7 @@ export function useCreditCards() {
         .from('statement_uploads' as any)
         .insert({
           file_url: filePath,
-          file_name: file.name,
+          file_name: sanitizedName,
           uploaded_by: user.id,
           status: 'PROCESSING',
         } as any)
@@ -99,27 +134,64 @@ export function useCreditCards() {
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const { data: session } = await supabase.auth.getSession();
 
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/parse-credit-card-statement`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.session?.access_token}`,
-          },
-          body: JSON.stringify({
-            upload_id: uploadRecord.id,
-            file_url: filePath,
-            file_name: file.name,
-          }),
-        }
-      );
+      let response: Response;
+      try {
+        response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/parse-credit-card-statement`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.session?.access_token}`,
+            },
+            body: JSON.stringify({
+              upload_id: uploadRecord.id,
+              file_url: filePath,
+              file_name: sanitizedName,
+            }),
+          }
+        );
+      } catch (networkError: any) {
+        // Network error — mark upload as FAILED
+        await supabase.from('statement_uploads' as any).update({
+          status: 'FAILED',
+          error_message: 'Network error: ' + (networkError.message || 'Could not reach server'),
+        } as any).eq('id', uploadRecord.id);
+        await fetchAll();
+        return { success: false, error: 'Network error. Please try again.' };
+      }
 
-      const result = await response.json();
+      let result: any;
+      try {
+        result = await response.json();
+      } catch {
+        // Non-JSON response — mark as failed
+        await supabase.from('statement_uploads' as any).update({
+          status: 'FAILED',
+          error_message: 'Invalid server response',
+        } as any).eq('id', uploadRecord.id);
+        await fetchAll();
+        return { success: false, error: 'Server returned invalid response' };
+      }
+
       await fetchAll();
 
       if (!response.ok || !result.success) {
-        return { success: false, error: result.error || 'Processing failed' };
+        // Edge function already marks upload FAILED in most cases,
+        // but ensure it's marked on the client side too as a safety net
+        if (response.status >= 500) {
+          await supabase.from('statement_uploads' as any).update({
+            status: 'FAILED',
+            error_message: result.error || 'Processing failed',
+          } as any).eq('id', uploadRecord.id);
+          await fetchAll();
+        }
+
+        return {
+          success: false,
+          error: result.error || 'Processing failed',
+          duplicate: result.duplicate || false,
+        };
       }
 
       return { success: true };
@@ -156,6 +228,6 @@ export function useCreditCards() {
 
   return {
     cards, statements, uploads, loading,
-    uploadStatement, getSummary, refetch: fetchAll,
+    uploadStatement, getSummary, checkDuplicate, refetch: fetchAll,
   };
 }
