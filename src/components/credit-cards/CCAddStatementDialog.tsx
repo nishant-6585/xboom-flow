@@ -66,9 +66,9 @@ export function CCAddStatementDialog({ open, onOpenChange, onSubmit, cards }: Pr
               <div><Label>Billing Month</Label><Input required placeholder="e.g. Apr-2026" value={form.billing_month} onChange={e => set('billing_month', e.target.value)} /></div>
               <div><Label>Due Date</Label><Input required type="date" value={form.due_date} onChange={e => set('due_date', e.target.value)} /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Credit Limit (₹)</Label><Input type="number" min="0" value={form.available_credit_limit} onChange={e => set('available_credit_limit', e.target.value)} /></div>
-              <div><Label>Available Credit (₹)</Label><Input type="number" min="0" value={form.available_credit_limit} onChange={e => set('available_credit_limit', e.target.value)} /></div>
+            <div>
+              <Label>Available Credit Limit (₹)</Label>
+              <Input type="number" min="0" value={form.available_credit_limit} onChange={e => set('available_credit_limit', e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Outstanding Balance (₹)</Label><Input required type="number" min="0" value={form.outstanding_balance} onChange={e => set('outstanding_balance', e.target.value)} /></div>
