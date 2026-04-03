@@ -80,7 +80,7 @@ export function CCStatementDetail({
   const [saving, setSaving] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerLoading, setViewerLoading] = useState(false);
-  const [viewerData, setViewerData] = useState<{ url: string; fileName: string; mimeType: string } | null>(null);
+  const [viewerData, setViewerData] = useState<{ url: string; fileName: string; mimeType: string; blob: Blob } | null>(null);
   const [reanalysisGuidance, setReanalysisGuidance] = useState('');
   const [reanalyzing, setReanalyzing] = useState(false);
   const [replacingFile, setReplacingFile] = useState(false);
