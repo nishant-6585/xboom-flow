@@ -28,6 +28,33 @@ export interface CCStatement {
   created_at: string;
 }
 
+export interface CCTransaction {
+  id: string;
+  statement_id: string;
+  card_id: string;
+  transaction_date: string;
+  description: string;
+  category: string;
+  transaction_type: string;
+  amount: number;
+  merchant_name: string;
+  created_at: string;
+}
+
+export interface CCPayment {
+  id: string;
+  statement_id: string;
+  card_id: string;
+  amount: number;
+  payment_date: string;
+  payment_mode: string;
+  reference_number: string | null;
+  notes: string | null;
+  recorded_by: string;
+  recorded_by_name: string;
+  created_at: string;
+}
+
 export interface StatementUpload {
   id: string;
   file_url: string;
@@ -43,7 +70,6 @@ export interface StatementUpload {
   created_at: string;
 }
 
-// Uploads older than 5 minutes still in PROCESSING are considered stale
 const STALE_THRESHOLD_MS = 5 * 60 * 1000;
 
 function markStaleUploads(uploads: StatementUpload[]): StatementUpload[] {
@@ -62,19 +88,25 @@ function markStaleUploads(uploads: StatementUpload[]): StatementUpload[] {
 export function useCreditCards() {
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [statements, setStatements] = useState<CCStatement[]>([]);
+  const [transactions, setTransactions] = useState<CCTransaction[]>([]);
+  const [payments, setPayments] = useState<CCPayment[]>([]);
   const [uploads, setUploads] = useState<StatementUpload[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [cardsRes, stmtRes, uploadsRes] = await Promise.all([
+      const [cardsRes, stmtRes, txnRes, payRes, uploadsRes] = await Promise.all([
         supabase.from('credit_cards' as any).select('*').order('card_name'),
         supabase.from('cc_statements' as any).select('*').order('due_date', { ascending: false }),
+        supabase.from('cc_transactions' as any).select('*').order('transaction_date', { ascending: false }).limit(1000),
+        supabase.from('cc_payments' as any).select('*').order('payment_date', { ascending: false }),
         supabase.from('statement_uploads' as any).select('*').order('created_at', { ascending: false }).limit(20),
       ]);
       setCards((cardsRes.data as any[]) || []);
       setStatements((stmtRes.data as any[]) || []);
+      setTransactions((txnRes.data as any[]) || []);
+      setPayments((payRes.data as any[]) || []);
       setUploads(markStaleUploads((uploadsRes.data as any[]) || []));
     } catch (e) {
       console.error('Error fetching CC data:', e);
@@ -85,19 +117,14 @@ export function useCreditCards() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // Check for duplicate statement (same card + billing month)
-  const checkDuplicate = (bankName: string, cardName: string, billingMonth: string): { isDuplicate: boolean; existingCard?: CreditCard; existingStatement?: CCStatement } => {
+  const checkDuplicate = (bankName: string, cardName: string, billingMonth: string) => {
     const matchedCard = cards.find(c =>
       c.bank_name.toLowerCase() === bankName.toLowerCase() &&
       c.card_name.toLowerCase() === cardName.toLowerCase()
     );
     if (!matchedCard) return { isDuplicate: false };
-
-    const existingStmt = statements.find(s =>
-      s.card_id === matchedCard.id && s.billing_month === billingMonth
-    );
+    const existingStmt = statements.find(s => s.card_id === matchedCard.id && s.billing_month === billingMonth);
     if (!existingStmt) return { isDuplicate: false };
-
     return { isDuplicate: true, existingCard: matchedCard, existingStatement: existingStmt };
   };
 
@@ -106,31 +133,19 @@ export function useCreditCards() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return { success: false, error: 'Not authenticated' };
 
-      // Validate file name for path traversal
       const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      
-      // Upload file
       const filePath = `${user.id}/${Date.now()}_${sanitizedName}`;
       const { error: uploadError } = await supabase.storage.from('cc-statements').upload(filePath, file);
       if (uploadError) return { success: false, error: uploadError.message };
 
-      // Create upload record
       const { data: upload, error: insertError } = await supabase
         .from('statement_uploads' as any)
-        .insert({
-          file_url: filePath,
-          file_name: sanitizedName,
-          uploaded_by: user.id,
-          status: 'PROCESSING',
-        } as any)
+        .insert({ file_url: filePath, file_name: sanitizedName, uploaded_by: user.id, status: 'PROCESSING' } as any)
         .select()
         .single();
-
       if (insertError) return { success: false, error: insertError.message };
 
       const uploadRecord = upload as any;
-
-      // Call edge function
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const { data: session } = await supabase.auth.getSession();
 
@@ -144,32 +159,20 @@ export function useCreditCards() {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${session?.session?.access_token}`,
             },
-            body: JSON.stringify({
-              upload_id: uploadRecord.id,
-              file_url: filePath,
-              file_name: sanitizedName,
-            }),
+            body: JSON.stringify({ upload_id: uploadRecord.id, file_url: filePath, file_name: sanitizedName }),
           }
         );
       } catch (networkError: any) {
-        // Network error — mark upload as FAILED
         await supabase.from('statement_uploads' as any).update({
-          status: 'FAILED',
-          error_message: 'Network error: ' + (networkError.message || 'Could not reach server'),
+          status: 'FAILED', error_message: 'Network error: ' + (networkError.message || 'Could not reach server'),
         } as any).eq('id', uploadRecord.id);
         await fetchAll();
         return { success: false, error: 'Network error. Please try again.' };
       }
 
       let result: any;
-      try {
-        result = await response.json();
-      } catch {
-        // Non-JSON response — mark as failed
-        await supabase.from('statement_uploads' as any).update({
-          status: 'FAILED',
-          error_message: 'Invalid server response',
-        } as any).eq('id', uploadRecord.id);
+      try { result = await response.json(); } catch {
+        await supabase.from('statement_uploads' as any).update({ status: 'FAILED', error_message: 'Invalid server response' } as any).eq('id', uploadRecord.id);
         await fetchAll();
         return { success: false, error: 'Server returned invalid response' };
       }
@@ -177,21 +180,11 @@ export function useCreditCards() {
       await fetchAll();
 
       if (!response.ok || !result.success) {
-        // Edge function already marks upload FAILED in most cases,
-        // but ensure it's marked on the client side too as a safety net
         if (response.status >= 500) {
-          await supabase.from('statement_uploads' as any).update({
-            status: 'FAILED',
-            error_message: result.error || 'Processing failed',
-          } as any).eq('id', uploadRecord.id);
+          await supabase.from('statement_uploads' as any).update({ status: 'FAILED', error_message: result.error || 'Processing failed' } as any).eq('id', uploadRecord.id);
           await fetchAll();
         }
-
-        return {
-          success: false,
-          error: result.error || 'Processing failed',
-          duplicate: result.duplicate || false,
-        };
+        return { success: false, error: result.error || 'Processing failed', duplicate: result.duplicate || false };
       }
 
       return { success: true };
@@ -200,7 +193,36 @@ export function useCreditCards() {
     }
   };
 
-  // Summary metrics
+  const recordPayment = async (data: {
+    statement_id: string;
+    card_id: string;
+    amount: number;
+    payment_date: string;
+    payment_mode: string;
+    reference_number?: string;
+    notes?: string;
+  }) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Not authenticated' };
+
+    const { data: profile } = await supabase.from('profiles' as any).select('name').eq('user_id', user.id).single();
+
+    const { error } = await supabase.from('cc_payments' as any).insert({
+      ...data,
+      recorded_by: user.id,
+      recorded_by_name: (profile as any)?.name || user.email || 'Unknown',
+    } as any);
+
+    if (error) return { success: false, error: error.message };
+    await fetchAll();
+    return { success: true };
+  };
+
+  const getStatementFile = async (fileUrl: string) => {
+    const { data } = await supabase.storage.from('cc-statements').createSignedUrl(fileUrl, 3600);
+    return data?.signedUrl || null;
+  };
+
   const getSummary = () => {
     const latestByCard = new Map<string, CCStatement>();
     statements.forEach(s => {
@@ -227,7 +249,8 @@ export function useCreditCards() {
   };
 
   return {
-    cards, statements, uploads, loading,
+    cards, statements, transactions, payments, uploads, loading,
     uploadStatement, getSummary, checkDuplicate, refetch: fetchAll,
+    recordPayment, getStatementFile,
   };
 }
