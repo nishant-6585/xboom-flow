@@ -80,6 +80,7 @@ Deno.serve(async (req: Request) => {
     upload_id = sanitizeString(body.upload_id, 36);
     const file_url = sanitizeString(body.file_url, 500);
     const file_name = sanitizeString(body.file_name, 255);
+    const pdf_password = typeof body.pdf_password === "string" ? body.pdf_password.substring(0, 200) : undefined;
 
     if (!upload_id || !file_url || !file_name) {
       return respond({ error: "Missing required fields" }, 400);
