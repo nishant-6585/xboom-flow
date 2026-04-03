@@ -85,15 +85,9 @@ export function CCStatementDetail({
   const [reanalyzing, setReanalyzing] = useState(false);
   const [replacingFile, setReplacingFile] = useState(false);
   const replaceFileRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    return () => {
-      if (viewerData?.url) URL.revokeObjectURL(viewerData.url);
-    };
-  }, [viewerData]);
 
   const closeViewer = (nextOpen: boolean) => {
-    if (!nextOpen && viewerData?.url) {
-      URL.revokeObjectURL(viewerData.url);
+    if (!nextOpen) {
       setViewerData(null);
     }
     setViewerOpen(nextOpen);
