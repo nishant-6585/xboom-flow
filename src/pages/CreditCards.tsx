@@ -41,9 +41,9 @@ export default function CreditCards() {
     );
   }
 
-  const handleUpload = async (file: File) => {
+  const handleUpload = async (file: File, password?: string) => {
     setProcessing(true);
-    const result = await uploadStatement(file);
+    const result = await uploadStatement(file, password);
     setProcessing(false);
     return result;
   };
