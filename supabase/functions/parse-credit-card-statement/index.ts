@@ -10,7 +10,6 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Auth check
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -32,7 +31,6 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Check role
     const { data: roles } = await supabaseAdmin
       .from("user_roles")
       .select("role")
@@ -47,29 +45,24 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json();
-    const { upload_id, file_url, file_name, card_id } = body;
+    const { upload_id, file_url, file_name } = body;
 
-    if (!upload_id || !file_url) {
-      return new Response(JSON.stringify({ error: "Missing upload_id or file_url" }), {
+    if (!upload_id || !file_url || !file_name) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Download file from storage
-    const filePath = file_url.replace(/^.*\/storage\/v1\/object\//, "");
-    const parts = filePath.split("/");
-    const bucket = parts[0];
-    const path = parts.slice(1).join("/");
-
+    // Download file
     const { data: fileData, error: downloadError } = await supabaseAdmin.storage
-      .from(bucket)
-      .download(path);
+      .from("cc-statements")
+      .download(file_url);
 
     if (downloadError || !fileData) {
       await supabaseAdmin.from("statement_uploads").update({
-        status: "failed",
-        error_message: "Failed to download file: " + (downloadError?.message || "Unknown"),
+        status: "FAILED",
+        error_message: "Failed to download file",
       }).eq("id", upload_id);
 
       return new Response(JSON.stringify({ error: "File download failed" }), {
@@ -78,22 +71,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Get card info if provided
-    let cardInfo = "";
-    if (card_id) {
-      const { data: card } = await supabaseAdmin
-        .from("credit_cards")
-        .select("card_name, bank_name, credit_limit")
-        .eq("id", card_id)
-        .single();
-      if (card) {
-        cardInfo = `Known card: ${card.card_name} (${card.bank_name}), Credit Limit: ${card.credit_limit}`;
-      }
-    }
-
-    // Convert file to base64 for AI processing
     const arrayBuffer = await fileData.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
     const ext = file_name.split(".").pop()?.toLowerCase() || "";
 
     let mimeType = "application/octet-stream";
@@ -101,86 +79,95 @@ Deno.serve(async (req: Request) => {
     else if (ext === "csv") mimeType = "text/csv";
     else if (ext === "xlsx" || ext === "xls") mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-    // For CSV/text files, extract text content directly
+    // For text-based files, get content
     let textContent = "";
-    if (ext === "csv" || mimeType.startsWith("text/")) {
+    if (ext === "csv") {
       textContent = new TextDecoder().decode(new Uint8Array(arrayBuffer));
     }
 
-    const systemPrompt = `You are a financial data extraction AI. Extract credit card statement data from the uploaded file.
+    // Get existing cards for context
+    const { data: existingCards } = await supabaseAdmin
+      .from("credit_cards")
+      .select("id, card_name, bank_name, credit_limit");
 
-EXTRACT ONLY THESE FIELDS (return JSON):
+    const cardsContext = (existingCards || []).map((c: any) =>
+      `${c.card_name} (${c.bank_name}) - Limit: ${c.credit_limit}`
+    ).join("\n");
+
+    const systemPrompt = `You are a financial data extraction AI specialized in Indian credit card statements. Extract data from credit card statements.
+
+EXTRACT THIS JSON:
 {
-  "billing_month": "YYYY-MM format",
-  "due_date": "YYYY-MM-DD format",
+  "bank_name": "exact bank name (e.g. HDFC, ICICI, Axis, SBI, Amex, Kotak, IndusInd, RBL, Yes Bank, Standard Chartered)",
+  "card_name": "card variant name (e.g. HDFC Regalia, ICICI Amazon Pay, Axis Flipkart)",
+  "billing_month": "YYYY-MM",
+  "due_date": "YYYY-MM-DD",
   "outstanding_balance": number,
   "total_due": number,
   "minimum_due": number,
-  "amount_paid": number or null,
+  "amount_paid": number or 0,
   "payment_date": "YYYY-MM-DD" or null,
-  "interest_charged": number,
-  "late_fee": number,
-  "credit_limit": number or null,
-  "available_credit_limit": number or null,
-  "detected_bank": "bank name" or null,
-  "detected_card": "card name/type" or null,
+  "interest_charged": number or 0,
+  "late_fee": number or 0,
+  "credit_limit": number or 0,
+  "available_credit_limit": number or 0,
   "confidence_score": 0-100,
-  "missing_fields": ["field names that could not be found"]
+  "missing_fields": ["field names not found"]
 }
 
 RULES:
-- DO NOT extract transactions
-- If multiple months, select the LATEST
-- Normalize dates to ISO format
-- Normalize currency to plain numbers (remove ₹, Rs, commas)
-- If a field is not found, use null or 0 as appropriate
-- confidence_score: 90+ if all key fields found, 70-89 if some missing, <70 if many missing
-${cardInfo ? `\n${cardInfo}` : ""}`;
+- DO NOT extract individual transactions
+- If multiple months in file, extract LATEST only
+- Normalize: remove ₹/Rs/INR symbols, commas → plain numbers
+- Dates → ISO YYYY-MM-DD
+- If available_credit_limit not found, calculate: credit_limit - outstanding_balance
+- payment_status: if amount_paid >= total_due → "FULL", elif amount_paid >= minimum_due → "PARTIAL", else "UNPAID"
+- Detect the bank and card name from logos, headers, letterhead
 
-    const userMessage = textContent
-      ? `Parse this credit card statement (CSV/text content):\n\n${textContent.substring(0, 15000)}`
-      : `Parse this credit card statement file (${file_name}).`;
+${cardsContext ? `EXISTING CARDS IN SYSTEM:\n${cardsContext}\nIf the statement matches an existing card, use the EXACT same card_name and bank_name.` : ""}
 
-    // Call Lovable AI gateway
-    const aiPayload: any = {
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: [] as any[] },
-      ],
-    };
+Return ONLY valid JSON, no markdown.`;
+
+    const userMsg = textContent
+      ? `Parse this credit card statement CSV:\n\n${textContent.substring(0, 15000)}`
+      : `Parse this credit card statement file: ${file_name}`;
+
+    const aiMessages: any[] = [
+      { role: "system", content: systemPrompt },
+    ];
 
     if (textContent) {
-      aiPayload.messages[1].content = [{ type: "text", text: userMessage }];
+      aiMessages.push({ role: "user", content: [{ type: "text", text: userMsg }] });
     } else {
-      // For PDF/Excel, send as file with base64
-      aiPayload.messages[1].content = [
-        { type: "text", text: userMessage },
-        {
-          type: "image_url",
-          image_url: { url: `data:${mimeType};base64,${base64}` },
-        },
-      ];
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      aiMessages.push({
+        role: "user",
+        content: [
+          { type: "text", text: userMsg },
+          { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
+        ],
+      });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const aiResponse = await fetch("https://ai-gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
       },
-      body: JSON.stringify(aiPayload),
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: aiMessages,
+      }),
     });
 
     if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error("AI gateway error:", errText);
+      const errBody = await aiResponse.text();
+      console.error("AI error:", errBody);
       await supabaseAdmin.from("statement_uploads").update({
-        status: "failed",
+        status: "FAILED",
         error_message: "AI processing failed",
       }).eq("id", upload_id);
-
       return new Response(JSON.stringify({ error: "AI processing failed" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -190,41 +177,143 @@ ${cardInfo ? `\n${cardInfo}` : ""}`;
     const aiResult = await aiResponse.json();
     const content = aiResult.choices?.[0]?.message?.content || "";
 
-    // Extract JSON from response
     let parsed: any = null;
     try {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[0]);
-      }
-    } catch (e) {
-      console.error("JSON parse error:", e);
+      if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+    } catch {
+      // ignore
     }
 
-    if (!parsed) {
+    if (!parsed || !parsed.bank_name) {
       await supabaseAdmin.from("statement_uploads").update({
-        status: "failed",
-        error_message: "Could not extract structured data from statement",
+        status: "FAILED",
+        error_message: "Could not extract structured data",
+        parsed_json: { raw: content },
       }).eq("id", upload_id);
-
-      return new Response(JSON.stringify({ error: "Failed to parse AI response" }), {
+      return new Response(JSON.stringify({ error: "Parsing failed" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Update upload record
+    // Auto-create or find card
+    let cardId: string | null = null;
+    const matchedCard = (existingCards || []).find((c: any) =>
+      c.bank_name.toLowerCase() === parsed.bank_name.toLowerCase() &&
+      c.card_name.toLowerCase() === parsed.card_name.toLowerCase()
+    );
+
+    if (matchedCard) {
+      cardId = matchedCard.id;
+      // Update credit limit if new one is higher
+      if (parsed.credit_limit > 0 && parsed.credit_limit !== matchedCard.credit_limit) {
+        await supabaseAdmin.from("credit_cards").update({
+          credit_limit: parsed.credit_limit,
+        }).eq("id", cardId);
+      }
+    } else {
+      // Auto-create card
+      const { data: newCard, error: cardError } = await supabaseAdmin
+        .from("credit_cards")
+        .insert({
+          card_name: parsed.card_name || `${parsed.bank_name} Card`,
+          bank_name: parsed.bank_name,
+          credit_limit: parsed.credit_limit || 0,
+        })
+        .select("id")
+        .single();
+
+      if (cardError) {
+        console.error("Card creation error:", cardError);
+        // Try fuzzy match
+        const fuzzy = (existingCards || []).find((c: any) =>
+          c.bank_name.toLowerCase().includes(parsed.bank_name.toLowerCase())
+        );
+        cardId = fuzzy?.id || null;
+      } else {
+        cardId = newCard.id;
+      }
+    }
+
+    if (!cardId) {
+      await supabaseAdmin.from("statement_uploads").update({
+        status: "FAILED",
+        error_message: "Could not match or create card",
+        parsed_json: parsed,
+      }).eq("id", upload_id);
+      return new Response(JSON.stringify({ error: "Card matching failed" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Calculate payment status
+    const amountPaid = parsed.amount_paid || 0;
+    const totalDue = parsed.total_due || 0;
+    const minimumDue = parsed.minimum_due || 0;
+    let paymentStatus = "UNPAID";
+    if (amountPaid >= totalDue && totalDue > 0) paymentStatus = "FULL";
+    else if (amountPaid >= minimumDue && minimumDue > 0) paymentStatus = "PARTIAL";
+
+    const creditLimit = parsed.credit_limit || 0;
+    const outstanding = parsed.outstanding_balance || 0;
+    const availableCredit = parsed.available_credit_limit || Math.max(0, creditLimit - outstanding);
+
+    // Insert statement (upsert on card_id + billing_month)
+    const { data: stmt, error: stmtError } = await supabaseAdmin
+      .from("cc_statements")
+      .upsert({
+        card_id: cardId,
+        billing_month: parsed.billing_month,
+        due_date: parsed.due_date,
+        outstanding_balance: outstanding,
+        total_due: totalDue,
+        minimum_due: minimumDue,
+        amount_paid: amountPaid,
+        payment_date: parsed.payment_date || null,
+        interest_charged: parsed.interest_charged || 0,
+        late_fee: parsed.late_fee || 0,
+        payment_status: paymentStatus,
+        available_credit_limit: availableCredit,
+        upload_id: upload_id,
+      }, { onConflict: "card_id,billing_month" })
+      .select("id")
+      .single();
+
+    if (stmtError) {
+      console.error("Statement insert error:", stmtError);
+      await supabaseAdmin.from("statement_uploads").update({
+        status: "FAILED",
+        error_message: "Failed to save statement: " + stmtError.message,
+        parsed_json: parsed,
+      }).eq("id", upload_id);
+      return new Response(JSON.stringify({ error: "Statement save failed" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Update upload record as SUCCESS
     await supabaseAdmin.from("statement_uploads").update({
-      status: "parsed",
-      ai_confidence_score: parsed.confidence_score || 0,
+      status: "SUCCESS",
+      confidence_score: parsed.confidence_score || 0,
       parsed_json: parsed,
-      card_id: card_id || null,
+      detected_bank: parsed.bank_name,
+      detected_card_name: parsed.card_name,
+      card_id: cardId,
+      statement_id: stmt.id,
     }).eq("id", upload_id);
 
     return new Response(JSON.stringify({
       success: true,
       upload_id,
-      parsed_data: parsed,
+      card_id: cardId,
+      statement_id: stmt.id,
+      confidence_score: parsed.confidence_score,
+      detected_bank: parsed.bank_name,
+      detected_card: parsed.card_name,
+      auto_created_card: !matchedCard,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

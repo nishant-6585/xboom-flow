@@ -1,0 +1,130 @@
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { CreditCard, CCStatement } from '@/hooks/useCreditCards';
+import { FileText, Search } from 'lucide-react';
+
+interface Props {
+  cards: CreditCard[];
+  statements: CCStatement[];
+}
+
+export function CCStatementTable({ cards, statements }: Props) {
+  const [bankFilter, setBankFilter] = useState('all');
+  const [cardFilter, setCardFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [search, setSearch] = useState('');
+
+  const banks = [...new Set(cards.map(c => c.bank_name))];
+
+  const filtered = statements.filter(s => {
+    const card = cards.find(c => c.id === s.card_id);
+    if (!card) return false;
+    if (bankFilter !== 'all' && card.bank_name !== bankFilter) return false;
+    if (cardFilter !== 'all' && s.card_id !== cardFilter) return false;
+    if (statusFilter !== 'all' && s.payment_status !== statusFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return card.card_name.toLowerCase().includes(q) || card.bank_name.toLowerCase().includes(q) || s.billing_month.includes(q);
+    }
+    return true;
+  });
+
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case 'FULL': return <Badge className="bg-green-500/10 text-green-600 border-green-500/30 text-[10px]">Paid</Badge>;
+      case 'PARTIAL': return <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/30 text-[10px]">Partial</Badge>;
+      default: return <Badge className="bg-red-500/10 text-red-600 border-red-500/30 text-[10px]">Unpaid</Badge>;
+    }
+  };
+
+  const fmt = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <FileText className="h-4 w-4" /> Statement History
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Filters */}
+        <div className="flex flex-wrap gap-2">
+          <div className="relative flex-1 min-w-[150px]">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <Input placeholder="Search…" className="pl-8 h-9 text-xs" value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <Select value={bankFilter} onValueChange={setBankFilter}>
+            <SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue placeholder="Bank" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Banks</SelectItem>
+              {banks.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={cardFilter} onValueChange={setCardFilter}>
+            <SelectTrigger className="w-[150px] h-9 text-xs"><SelectValue placeholder="Card" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Cards</SelectItem>
+              {cards.map(c => <SelectItem key={c.id} value={c.id}>{c.card_name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[120px] h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="FULL">Paid</SelectItem>
+              <SelectItem value="PARTIAL">Partial</SelectItem>
+              <SelectItem value="UNPAID">Unpaid</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Table */}
+        <div className="rounded-lg border overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs">Bank</TableHead>
+                <TableHead className="text-xs">Card</TableHead>
+                <TableHead className="text-xs">Month</TableHead>
+                <TableHead className="text-xs text-right">Total Due</TableHead>
+                <TableHead className="text-xs text-right">Outstanding</TableHead>
+                <TableHead className="text-xs">Status</TableHead>
+                <TableHead className="text-xs">Due Date</TableHead>
+                <TableHead className="text-xs text-right">Interest</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-xs text-muted-foreground py-8">
+                    No statements found. Upload a statement to get started.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filtered.map(s => {
+                  const card = cards.find(c => c.id === s.card_id);
+                  return (
+                    <TableRow key={s.id}>
+                      <TableCell className="text-xs font-medium">{card?.bank_name}</TableCell>
+                      <TableCell className="text-xs">{card?.card_name}</TableCell>
+                      <TableCell className="text-xs">{s.billing_month}</TableCell>
+                      <TableCell className="text-xs text-right">{fmt(s.total_due)}</TableCell>
+                      <TableCell className="text-xs text-right">{fmt(s.outstanding_balance)}</TableCell>
+                      <TableCell>{statusBadge(s.payment_status)}</TableCell>
+                      <TableCell className="text-xs">{new Date(s.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}</TableCell>
+                      <TableCell className="text-xs text-right">{s.interest_charged > 0 ? fmt(s.interest_charged) : '—'}</TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

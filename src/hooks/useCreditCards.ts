@@ -1,14 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
 
 export interface CreditCard {
   id: string;
   card_name: string;
   bank_name: string;
   credit_limit: number;
-  billing_cycle_start_date: number;
-  due_days_after_statement: number;
   is_active: boolean;
   created_at: string;
 }
@@ -17,36 +14,54 @@ export interface CCStatement {
   id: string;
   card_id: string;
   billing_month: string;
+  due_date: string;
   outstanding_balance: number;
   total_due: number;
   minimum_due: number;
-  due_date: string;
-  available_credit_limit: number;
-  interest_charged: number;
-  last_statement_due: number;
   amount_paid: number;
   payment_date: string | null;
-  payment_status: string;
+  interest_charged: number;
   late_fee: number;
-  notes: string | null;
+  payment_status: string;
+  available_credit_limit: number;
+  upload_id: string | null;
+  created_at: string;
+}
+
+export interface StatementUpload {
+  id: string;
+  file_url: string;
+  file_name: string;
+  detected_bank: string | null;
+  detected_card_name: string | null;
+  card_id: string | null;
+  statement_id: string | null;
+  uploaded_by: string;
+  status: string;
+  confidence_score: number | null;
+  error_message: string | null;
+  created_at: string;
 }
 
 export function useCreditCards() {
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [statements, setStatements] = useState<CCStatement[]>([]);
+  const [uploads, setUploads] = useState<StatementUpload[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [cardsRes, stmtRes] = await Promise.all([
-        supabase.from('credit_cards').select('*').order('card_name'),
-        supabase.from('cc_monthly_statements').select('*').order('due_date', { ascending: false }),
+      const [cardsRes, stmtRes, uploadsRes] = await Promise.all([
+        supabase.from('credit_cards' as any).select('*').order('card_name'),
+        supabase.from('cc_statements' as any).select('*').order('due_date', { ascending: false }),
+        supabase.from('statement_uploads' as any).select('*').order('created_at', { ascending: false }).limit(20),
       ]);
       setCards((cardsRes.data as any[]) || []);
       setStatements((stmtRes.data as any[]) || []);
+      setUploads((uploadsRes.data as any[]) || []);
     } catch (e) {
-      console.error('Error fetching credit card data:', e);
+      console.error('Error fetching CC data:', e);
     } finally {
       setLoading(false);
     }
@@ -54,106 +69,93 @@ export function useCreditCards() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const addCard = async (data: Omit<CreditCard, 'id' | 'created_at' | 'is_active'>) => {
-    const { error } = await supabase.from('credit_cards').insert(data as any);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return false; }
-    toast({ title: 'Card added' });
-    fetchAll();
-    return true;
-  };
+  const uploadStatement = async (file: File): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { success: false, error: 'Not authenticated' };
 
-  const addStatement = async (data: Omit<CCStatement, 'id'>) => {
-    // Auto-calculate payment_status
-    const paymentStatus = getPaymentStatus(data.amount_paid, data.total_due, data.minimum_due);
-    const { error } = await supabase.from('cc_monthly_statements').insert({ ...data, payment_status: paymentStatus } as any);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return false; }
-    toast({ title: 'Statement added' });
-    fetchAll();
-    return true;
-  };
+      // Upload file
+      const filePath = `${user.id}/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage.from('cc-statements').upload(filePath, file);
+      if (uploadError) return { success: false, error: uploadError.message };
 
-  const updateStatement = async (id: string, data: Partial<CCStatement>) => {
-    if (data.amount_paid !== undefined && data.total_due !== undefined && data.minimum_due !== undefined) {
-      data.payment_status = getPaymentStatus(data.amount_paid, data.total_due, data.minimum_due);
+      // Create upload record
+      const { data: upload, error: insertError } = await supabase
+        .from('statement_uploads' as any)
+        .insert({
+          file_url: filePath,
+          file_name: file.name,
+          uploaded_by: user.id,
+          status: 'PROCESSING',
+        } as any)
+        .select()
+        .single();
+
+      if (insertError) return { success: false, error: insertError.message };
+
+      const uploadRecord = upload as any;
+
+      // Call edge function
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const { data: session } = await supabase.auth.getSession();
+
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/parse-credit-card-statement`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.session?.access_token}`,
+          },
+          body: JSON.stringify({
+            upload_id: uploadRecord.id,
+            file_url: filePath,
+            file_name: file.name,
+          }),
+        }
+      );
+
+      const result = await response.json();
+      await fetchAll();
+
+      if (!response.ok || !result.success) {
+        return { success: false, error: result.error || 'Processing failed' };
+      }
+
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
     }
-    const { error } = await supabase.from('cc_monthly_statements').update(data as any).eq('id', id);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return false; }
-    toast({ title: 'Statement updated' });
-    fetchAll();
-    return true;
   };
 
-  const getPaymentStatus = (amountPaid: number, totalDue: number, minimumDue: number): string => {
-    if (amountPaid >= totalDue && totalDue > 0) return 'FULL';
-    if (amountPaid >= minimumDue && minimumDue > 0) return 'PARTIAL';
-    return 'UNPAID';
-  };
-
-  const getCardMetrics = (cardId: string) => {
-    const card = cards.find(c => c.id === cardId);
-    if (!card) return null;
-    const latestStatement = statements.filter(s => s.card_id === cardId)[0];
-    if (!latestStatement) return { card, latestStatement: null, utilization: 0, riskLevel: 'SAFE' as const, paymentStatus: 'N/A', daysUntilDue: null, interestApplicable: false, totalPaid: 0, delayDays: null };
-
-    const creditLimit = latestStatement.outstanding_balance + latestStatement.available_credit_limit || card.credit_limit;
-    const utilization = creditLimit > 0 ? (latestStatement.outstanding_balance / creditLimit) * 100 : 0;
-
-    const dueDate = new Date(latestStatement.due_date);
-    const today = new Date();
-    const daysUntilDue = Math.floor((dueDate.getTime() - today.getTime()) / 86400000);
-    const isOverdue = daysUntilDue < 0 && latestStatement.payment_status !== 'FULL';
-
-    let riskLevel: 'SAFE' | 'HIGH' | 'CRITICAL' = 'SAFE';
-    if (utilization > 90 || isOverdue) riskLevel = 'CRITICAL';
-    else if (utilization > 80 || latestStatement.payment_status === 'UNPAID') riskLevel = 'HIGH';
-
-    const interestApplicable = latestStatement.interest_charged > 0;
-
-    return {
-      card,
-      latestStatement,
-      utilization: Math.round(utilization * 10) / 10,
-      riskLevel,
-      paymentStatus: latestStatement.payment_status || 'UNPAID',
-      daysUntilDue,
-      interestApplicable,
-      totalPaid: latestStatement.amount_paid || 0,
-      delayDays: null,
-    };
-  };
-
-  const summaryMetrics = () => {
-    // Use only latest statement per card
+  // Summary metrics
+  const getSummary = () => {
     const latestByCard = new Map<string, CCStatement>();
     statements.forEach(s => {
       if (!latestByCard.has(s.card_id)) latestByCard.set(s.card_id, s);
     });
-    const latestStatements = Array.from(latestByCard.values());
+    const latest = Array.from(latestByCard.values());
 
-    const totalOutstanding = latestStatements.reduce((sum, s) => sum + s.outstanding_balance, 0);
-    const totalCreditLimit = latestStatements.reduce((sum, s) => {
+    const totalOutstanding = latest.reduce((sum, s) => sum + s.outstanding_balance, 0);
+    const totalCreditLimit = latest.reduce((sum, s) => {
       const card = cards.find(c => c.id === s.card_id);
-      return sum + (s.outstanding_balance + s.available_credit_limit || card?.credit_limit || 0);
+      return sum + (card?.credit_limit || (s.outstanding_balance + s.available_credit_limit));
     }, 0);
     const avgUtilization = totalCreditLimit > 0 ? (totalOutstanding / totalCreditLimit) * 100 : 0;
-    const totalInterest = latestStatements.reduce((sum, s) => sum + s.interest_charged, 0);
-    const riskyCards = latestStatements.filter(s => {
-      const m = getCardMetrics(s.card_id);
-      return m && (m.riskLevel === 'HIGH' || m.riskLevel === 'CRITICAL');
+    const totalInterest = latest.reduce((sum, s) => sum + s.interest_charged, 0);
+
+    const riskyCards = latest.filter(s => {
+      const card = cards.find(c => c.id === s.card_id);
+      const limit = card?.credit_limit || (s.outstanding_balance + s.available_credit_limit);
+      const util = limit > 0 ? (s.outstanding_balance / limit) * 100 : 0;
+      return util > 80 || (new Date(s.due_date) < new Date() && s.payment_status !== 'FULL');
     }).length;
 
-    return {
-      totalOutstanding,
-      totalCreditLimit,
-      avgUtilization: Math.round(avgUtilization * 10) / 10,
-      totalInterest,
-      riskyCards,
-    };
+    return { totalOutstanding, totalCreditLimit, avgUtilization: Math.round(avgUtilization * 10) / 10, totalInterest, riskyCards, totalCards: cards.length };
   };
 
   return {
-    cards, statements, loading,
-    addCard, addStatement, updateStatement,
-    getCardMetrics, summaryMetrics, refetch: fetchAll,
+    cards, statements, uploads, loading,
+    uploadStatement, getSummary, refetch: fetchAll,
   };
 }

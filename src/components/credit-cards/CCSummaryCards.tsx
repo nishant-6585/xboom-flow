@@ -1,6 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { IndianRupee, TrendingUp, AlertTriangle, Percent, CreditCard, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { TrendingDown, TrendingUp, AlertTriangle, CreditCard, Percent, IndianRupee } from 'lucide-react';
 
 interface Props {
   totalOutstanding: number;
@@ -8,82 +7,66 @@ interface Props {
   avgUtilization: number;
   totalInterest: number;
   riskyCards: number;
+  totalCards: number;
 }
 
-const utilizationColor = (v: number) => {
-  if (v > 80) return 'text-destructive';
-  if (v > 50) return 'text-yellow-500';
-  return 'text-emerald-500';
-};
+export function CCSummaryCards({ totalOutstanding, totalCreditLimit, avgUtilization, totalInterest, riskyCards, totalCards }: Props) {
+  const fmt = (n: number) => {
+    if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
+    if (n >= 1000) return `₹${(n / 1000).toFixed(1)}K`;
+    return `₹${n.toLocaleString('en-IN')}`;
+  };
 
-const utilizationBg = (v: number) => {
-  if (v > 80) return 'bg-destructive/10';
-  if (v > 50) return 'bg-yellow-500/10';
-  return 'bg-emerald-500/10';
-};
-
-export function CCSummaryCards({ totalOutstanding, totalCreditLimit, avgUtilization, totalInterest, riskyCards }: Props) {
-  const items = [
+  const cards = [
     {
-      label: 'Total Outstanding',
-      subtext: 'Across all active cards',
-      value: `₹${totalOutstanding.toLocaleString('en-IN')}`,
+      title: 'Total Outstanding',
+      value: fmt(totalOutstanding),
+      subtitle: `of ${fmt(totalCreditLimit)} limit`,
       icon: IndianRupee,
-      iconBg: 'bg-primary/10',
-      iconColor: 'text-primary',
-      valueColor: totalOutstanding > 0 ? 'text-foreground' : 'text-muted-foreground',
+      color: totalOutstanding > 0 ? 'text-orange-500' : 'text-green-500',
+      bg: totalOutstanding > 0 ? 'bg-orange-500/10' : 'bg-green-500/10',
     },
     {
-      label: 'Total Credit Limit',
-      subtext: 'Combined card limits',
-      value: `₹${totalCreditLimit.toLocaleString('en-IN')}`,
-      icon: CreditCard,
-      iconBg: 'bg-blue-500/10',
-      iconColor: 'text-blue-500',
-      valueColor: 'text-foreground',
-    },
-    {
-      label: 'Avg Utilization',
-      subtext: avgUtilization > 80 ? '⚠️ High risk zone' : avgUtilization > 50 ? 'Monitor closely' : 'Healthy range',
+      title: 'Avg Utilization',
       value: `${avgUtilization}%`,
+      subtitle: avgUtilization > 80 ? 'High risk zone' : avgUtilization > 50 ? 'Moderate' : 'Healthy',
       icon: Percent,
-      iconBg: utilizationBg(avgUtilization),
-      iconColor: utilizationColor(avgUtilization),
-      valueColor: utilizationColor(avgUtilization),
+      color: avgUtilization > 80 ? 'text-red-500' : avgUtilization > 50 ? 'text-yellow-500' : 'text-green-500',
+      bg: avgUtilization > 80 ? 'bg-red-500/10' : avgUtilization > 50 ? 'bg-yellow-500/10' : 'bg-green-500/10',
     },
     {
-      label: 'Interest Charged',
-      subtext: totalInterest > 0 ? 'Potential leakage detected' : 'No interest leakage',
-      value: `₹${totalInterest.toLocaleString('en-IN')}`,
-      icon: TrendingUp,
-      iconBg: totalInterest > 0 ? 'bg-destructive/10' : 'bg-emerald-500/10',
-      iconColor: totalInterest > 0 ? 'text-destructive' : 'text-emerald-500',
-      valueColor: totalInterest > 0 ? 'text-destructive' : 'text-muted-foreground',
+      title: 'Interest Charged',
+      value: fmt(totalInterest),
+      subtitle: totalInterest > 0 ? 'Interest leakage' : 'No interest',
+      icon: TrendingDown,
+      color: totalInterest > 0 ? 'text-red-500' : 'text-green-500',
+      bg: totalInterest > 0 ? 'bg-red-500/10' : 'bg-green-500/10',
     },
     {
-      label: 'Risky Cards',
-      subtext: riskyCards > 0 ? 'Requires immediate review' : 'All cards healthy',
-      value: riskyCards.toString(),
-      icon: AlertTriangle,
-      iconBg: riskyCards > 0 ? 'bg-destructive/10' : 'bg-emerald-500/10',
-      iconColor: riskyCards > 0 ? 'text-destructive' : 'text-emerald-500',
-      valueColor: riskyCards > 0 ? 'text-destructive font-bold' : 'text-emerald-500',
+      title: 'Active Cards',
+      value: totalCards.toString(),
+      subtitle: riskyCards > 0 ? `${riskyCards} need attention` : 'All healthy',
+      icon: riskyCards > 0 ? AlertTriangle : CreditCard,
+      color: riskyCards > 0 ? 'text-yellow-500' : 'text-primary',
+      bg: riskyCards > 0 ? 'bg-yellow-500/10' : 'bg-primary/10',
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-      {items.map(item => (
-        <Card key={item.label} className="border border-border/50 shadow-sm hover:shadow-md transition-shadow">
-          <CardContent className="pt-4 pb-3 px-4">
-            <div className="flex items-start justify-between mb-3">
-              <div className={cn('p-2 rounded-lg', item.iconBg)}>
-                <item.icon className={cn('h-4 w-4', item.iconColor)} />
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {cards.map((c, i) => (
+        <Card key={i} className="hover:shadow-md transition-shadow">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">{c.title}</p>
+                <p className="text-xl font-bold">{c.value}</p>
+                <p className="text-[10px] text-muted-foreground">{c.subtitle}</p>
+              </div>
+              <div className={`p-2 rounded-xl ${c.bg}`}>
+                <c.icon className={`h-4 w-4 ${c.color}`} />
               </div>
             </div>
-            <p className={cn('text-2xl font-bold tracking-tight', item.valueColor)}>{item.value}</p>
-            <p className="text-xs font-medium text-muted-foreground mt-1">{item.label}</p>
-            <p className="text-[10px] text-muted-foreground/70 mt-0.5">{item.subtext}</p>
           </CardContent>
         </Card>
       ))}

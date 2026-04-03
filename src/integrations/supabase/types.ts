@@ -1537,7 +1537,7 @@ export type Database = {
         }
         Relationships: []
       }
-      cc_monthly_statements: {
+      cc_statements: {
         Row: {
           amount_paid: number | null
           available_credit_limit: number
@@ -1547,15 +1547,14 @@ export type Database = {
           due_date: string
           id: string
           interest_charged: number
-          last_statement_due: number | null
-          late_fee: number | null
+          late_fee: number
           minimum_due: number
-          notes: string | null
           outstanding_balance: number
           payment_date: string | null
-          payment_status: string | null
+          payment_status: string
           total_due: number
           updated_at: string
+          upload_id: string | null
         }
         Insert: {
           amount_paid?: number | null
@@ -1566,15 +1565,14 @@ export type Database = {
           due_date: string
           id?: string
           interest_charged?: number
-          last_statement_due?: number | null
-          late_fee?: number | null
+          late_fee?: number
           minimum_due?: number
-          notes?: string | null
           outstanding_balance?: number
           payment_date?: string | null
-          payment_status?: string | null
+          payment_status?: string
           total_due?: number
           updated_at?: string
+          upload_id?: string | null
         }
         Update: {
           amount_paid?: number | null
@@ -1585,119 +1583,28 @@ export type Database = {
           due_date?: string
           id?: string
           interest_charged?: number
-          last_statement_due?: number | null
-          late_fee?: number | null
+          late_fee?: number
           minimum_due?: number
-          notes?: string | null
           outstanding_balance?: number
           payment_date?: string | null
-          payment_status?: string | null
+          payment_status?: string
           total_due?: number
           updated_at?: string
+          upload_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "cc_monthly_statements_card_id_fkey"
+            foreignKeyName: "cc_statements_card_id_fkey"
             columns: ["card_id"]
             isOneToOne: false
             referencedRelation: "credit_cards"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      cc_payments: {
-        Row: {
-          amount_paid: number
-          billing_month: string
-          card_id: string
-          created_at: string
-          created_by: string | null
-          id: string
-          notes: string | null
-          payment_date: string
-          payment_type: string
-          updated_at: string
-        }
-        Insert: {
-          amount_paid?: number
-          billing_month: string
-          card_id: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          notes?: string | null
-          payment_date?: string
-          payment_type?: string
-          updated_at?: string
-        }
-        Update: {
-          amount_paid?: number
-          billing_month?: string
-          card_id?: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          notes?: string | null
-          payment_date?: string
-          payment_type?: string
-          updated_at?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "cc_payments_card_id_fkey"
-            columns: ["card_id"]
+            foreignKeyName: "cc_statements_upload_id_fkey"
+            columns: ["upload_id"]
             isOneToOne: false
-            referencedRelation: "credit_cards"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      cc_transactions: {
-        Row: {
-          amount: number
-          campaign_id: string | null
-          card_id: string
-          category: string
-          created_at: string
-          created_by: string | null
-          department: string | null
-          description: string | null
-          id: string
-          transaction_date: string
-          updated_at: string
-        }
-        Insert: {
-          amount?: number
-          campaign_id?: string | null
-          card_id: string
-          category?: string
-          created_at?: string
-          created_by?: string | null
-          department?: string | null
-          description?: string | null
-          id?: string
-          transaction_date?: string
-          updated_at?: string
-        }
-        Update: {
-          amount?: number
-          campaign_id?: string | null
-          card_id?: string
-          category?: string
-          created_at?: string
-          created_by?: string | null
-          department?: string | null
-          description?: string | null
-          id?: string
-          transaction_date?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cc_transactions_card_id_fkey"
-            columns: ["card_id"]
-            isOneToOne: false
-            referencedRelation: "credit_cards"
+            referencedRelation: "statement_uploads"
             referencedColumns: ["id"]
           },
         ]
@@ -1735,36 +1642,27 @@ export type Database = {
       credit_cards: {
         Row: {
           bank_name: string
-          billing_cycle_start_date: number
           card_name: string
           created_at: string
-          created_by: string | null
           credit_limit: number
-          due_days_after_statement: number
           id: string
           is_active: boolean
           updated_at: string
         }
         Insert: {
           bank_name: string
-          billing_cycle_start_date?: number
           card_name: string
           created_at?: string
-          created_by?: string | null
           credit_limit?: number
-          due_days_after_statement?: number
           id?: string
           is_active?: boolean
           updated_at?: string
         }
         Update: {
           bank_name?: string
-          billing_cycle_start_date?: number
           card_name?: string
           created_at?: string
-          created_by?: string | null
           credit_limit?: number
-          due_days_after_statement?: number
           id?: string
           is_active?: boolean
           updated_at?: string
@@ -8506,9 +8404,11 @@ export type Database = {
       }
       statement_uploads: {
         Row: {
-          ai_confidence_score: number | null
           card_id: string | null
+          confidence_score: number | null
           created_at: string
+          detected_bank: string | null
+          detected_card_name: string | null
           error_message: string | null
           file_name: string
           file_url: string
@@ -8520,9 +8420,11 @@ export type Database = {
           uploaded_by: string
         }
         Insert: {
-          ai_confidence_score?: number | null
           card_id?: string | null
+          confidence_score?: number | null
           created_at?: string
+          detected_bank?: string | null
+          detected_card_name?: string | null
           error_message?: string | null
           file_name: string
           file_url: string
@@ -8534,9 +8436,11 @@ export type Database = {
           uploaded_by: string
         }
         Update: {
-          ai_confidence_score?: number | null
           card_id?: string | null
+          confidence_score?: number | null
           created_at?: string
+          detected_bank?: string | null
+          detected_card_name?: string | null
           error_message?: string | null
           file_name?: string
           file_url?: string
@@ -8559,7 +8463,7 @@ export type Database = {
             foreignKeyName: "statement_uploads_statement_id_fkey"
             columns: ["statement_id"]
             isOneToOne: false
-            referencedRelation: "cc_monthly_statements"
+            referencedRelation: "cc_statements"
             referencedColumns: ["id"]
           },
         ]

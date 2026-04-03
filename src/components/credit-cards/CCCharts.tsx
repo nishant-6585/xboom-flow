@@ -1,129 +1,122 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, CartesianGrid } from 'recharts';
-import type { CreditCard, CCStatement } from '@/hooks/useCreditCards';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from 'recharts';
+import { CreditCard, CCStatement } from '@/hooks/useCreditCards';
 
 interface Props {
   cards: CreditCard[];
   statements: CCStatement[];
-  getCardMetrics: (id: string) => any;
 }
 
-const UTIL_COLORS = { safe: '#10b981', warning: '#f59e0b', danger: '#ef4444' };
-const PIE_COLORS = { FULL: '#10b981', PARTIAL: '#f59e0b', UNPAID: '#ef4444' };
+const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#f97316', '#ef4444', '#8b5cf6', '#06b6d4'];
 
-const CustomBarShape = (props: any) => {
-  const { x, y, width, height, utilization } = props;
-  let fill = UTIL_COLORS.safe;
-  if (utilization > 80) fill = UTIL_COLORS.danger;
-  else if (utilization > 50) fill = UTIL_COLORS.warning;
-  return <rect x={x} y={y} width={width} height={height} rx={4} ry={4} fill={fill} />;
-};
+export function CCCharts({ cards, statements }: Props) {
+  if (statements.length === 0) return null;
 
-export function CCCharts({ cards, statements, getCardMetrics }: Props) {
-  const utilizationData = cards.filter(c => c.is_active).map(c => {
-    const m = getCardMetrics(c.id);
-    return { name: c.card_name, utilization: m?.utilization || 0 };
-  });
-
-  const statusMap: Record<string, number> = { FULL: 0, PARTIAL: 0, UNPAID: 0 };
+  // Utilization per card (latest statement)
   const latestByCard = new Map<string, CCStatement>();
-  statements.forEach(s => { if (!latestByCard.has(s.card_id)) latestByCard.set(s.card_id, s); });
-  Array.from(latestByCard.values()).forEach(s => {
-    const st = s.payment_status || 'UNPAID';
-    statusMap[st] = (statusMap[st] || 0) + 1;
-  });
-  const statusData = Object.entries(statusMap).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }));
-  const totalStatus = statusData.reduce((s, d) => s + d.value, 0);
-
-  const monthMap: Record<string, { outstanding: number; paid: number }> = {};
   statements.forEach(s => {
-    if (!monthMap[s.billing_month]) monthMap[s.billing_month] = { outstanding: 0, paid: 0 };
-    monthMap[s.billing_month].outstanding += s.outstanding_balance;
-    monthMap[s.billing_month].paid += (s.amount_paid || 0);
+    if (!latestByCard.has(s.card_id)) latestByCard.set(s.card_id, s);
   });
-  const trendData = Object.entries(monthMap)
-    .sort(([a], [b]) => a.localeCompare(b))
+
+  const utilizationData = Array.from(latestByCard.entries()).map(([cardId, s]) => {
+    const card = cards.find(c => c.id === cardId);
+    const limit = card?.credit_limit || (s.outstanding_balance + s.available_credit_limit);
+    const util = limit > 0 ? Math.round((s.outstanding_balance / limit) * 100) : 0;
+    return { name: card?.card_name || 'Unknown', utilization: util, outstanding: s.outstanding_balance };
+  });
+
+  // Payment status distribution
+  const statusCounts = { FULL: 0, PARTIAL: 0, UNPAID: 0 };
+  Array.from(latestByCard.values()).forEach(s => {
+    const key = (s.payment_status || 'UNPAID') as keyof typeof statusCounts;
+    if (key in statusCounts) statusCounts[key]++;
+  });
+  const statusData = [
+    { name: 'Paid Full', value: statusCounts.FULL, color: '#22c55e' },
+    { name: 'Partial', value: statusCounts.PARTIAL, color: '#f59e0b' },
+    { name: 'Unpaid', value: statusCounts.UNPAID, color: '#ef4444' },
+  ].filter(d => d.value > 0);
+
+  // Monthly trend (last 6 months)
+  const monthMap = new Map<string, { outstanding: number; interest: number }>();
+  statements.forEach(s => {
+    const existing = monthMap.get(s.billing_month) || { outstanding: 0, interest: 0 };
+    monthMap.set(s.billing_month, {
+      outstanding: existing.outstanding + s.outstanding_balance,
+      interest: existing.interest + s.interest_charged,
+    });
+  });
+  const trendData = Array.from(monthMap.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
     .slice(-6)
-    .map(([month, data]) => ({ month, ...data }));
+    .map(([month, data]) => ({
+      month: month.slice(5), // MM
+      outstanding: Math.round(data.outstanding / 1000),
+      interest: Math.round(data.interest),
+    }));
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <Card className="border-border/50 shadow-sm">
-        <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Card Utilization</CardTitle></CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={utilizationData} barCategoryGap="20%">
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
-                formatter={(v: number) => [`${v}%`, 'Utilization']}
-              />
-              <Bar dataKey="utilization" shape={<CustomBarShape />} />
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Utilization */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Utilization by Card</CardTitle>
+        </CardHeader>
+        <CardContent className="h-52">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={utilizationData} layout="vertical">
+              <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} />
+              <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 10 }} />
+              <Tooltip formatter={(v: number) => `${v}%`} />
+              <Bar dataKey="utilization" radius={[0, 4, 4, 0]}>
+                {utilizationData.map((_, i) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      <Card className="border-border/50 shadow-sm">
-        <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Payment Status</CardTitle></CardHeader>
-        <CardContent>
-          {statusData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie
-                  data={statusData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={70}
-                  innerRadius={40}
-                  dataKey="value"
-                  strokeWidth={2}
-                  stroke="hsl(var(--card))"
-                  label={({ name, value }) => `${name} (${value})`}
-                >
-                  {statusData.map((d) => <Cell key={d.name} fill={PIE_COLORS[d.name as keyof typeof PIE_COLORS] || '#6366f1'} />)}
-                </Pie>
-                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
-                <Legend
-                  formatter={(value: string) => {
-                    const count = statusMap[value] || 0;
-                    const pct = totalStatus > 0 ? Math.round((count / totalStatus) * 100) : 0;
-                    return <span className="text-xs">{value} · {count} ({pct}%)</span>;
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className="text-muted-foreground text-sm text-center py-16">No data yet</p>
-          )}
+      {/* Payment Status */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Payment Status</CardTitle>
+        </CardHeader>
+        <CardContent className="h-52">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={statusData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
+                {statusData.map((d, i) => (
+                  <Cell key={i} fill={d.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      <Card className="border-border/50 shadow-sm">
-        <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Outstanding vs Payments</CardTitle></CardHeader>
-        <CardContent>
-          {trendData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
+      {/* Monthly Trend */}
+      {trendData.length > 1 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Monthly Trend (₹K)</CardTitle>
+          </CardHeader>
+          <CardContent className="h-52">
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
-                  formatter={(v: number) => `₹${v.toLocaleString('en-IN')}`}
-                />
-                <Legend />
-                <Line type="monotone" dataKey="outstanding" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-                <Line type="monotone" dataKey="paid" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip />
+                <Legend wrapperStyle={{ fontSize: 10 }} />
+                <Line type="monotone" dataKey="outstanding" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="interest" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
-          ) : (
-            <p className="text-muted-foreground text-sm text-center py-16">No data yet</p>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
