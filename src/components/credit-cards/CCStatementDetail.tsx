@@ -21,6 +21,7 @@ interface Props {
   onRecordPayment: (data: any) => Promise<{ success: boolean; error?: string }>;
   onViewFile: (uploadId: string) => Promise<StatementFilePayload | null>;
   onReanalyze: (data: { uploadId: string; fileUrl: string; fileName: string; guidance?: string }) => Promise<{ success: boolean; error?: string; password_required?: boolean }>;
+  onReplaceFile?: (file: File, uploadId: string, password?: string) => Promise<{ success: boolean; error?: string; password_required?: boolean }>;
   upload?: Pick<StatementUpload, 'id' | 'file_url' | 'file_name'>;
 }
 
