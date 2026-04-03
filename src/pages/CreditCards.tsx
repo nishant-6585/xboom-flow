@@ -8,15 +8,16 @@ import { CCSummaryCards } from '@/components/credit-cards/CCSummaryCards';
 import { CCCharts } from '@/components/credit-cards/CCCharts';
 import { CCCardReport } from '@/components/credit-cards/CCCardReport';
 import { CCAlerts } from '@/components/credit-cards/CCAlerts';
+import { CCInsights } from '@/components/credit-cards/CCInsights';
+import { CCQuickActions } from '@/components/credit-cards/CCQuickActions';
 import { CCAddCardDialog } from '@/components/credit-cards/CCAddCardDialog';
 import { CCAddStatementDialog } from '@/components/credit-cards/CCAddStatementDialog';
-import { CreditCard, BarChart3, FileText, Plus, Lock, Loader2, Download } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { CreditCard, BarChart3, FileText, Lock, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 export default function CreditCards() {
   const { role, loading: authLoading } = useAuth();
-  const { cards, statements, loading, addCard, addStatement, getCardMetrics, summaryMetrics } = useCreditCards();
+  const { cards, statements, loading, addCard, addStatement, updateStatement, getCardMetrics, summaryMetrics } = useCreditCards();
 
   const canAccess = role === 'admin' || role === 'finance';
 
@@ -34,18 +35,15 @@ export default function CreditCards() {
         'Credit Limit': s.outstanding_balance + s.available_credit_limit,
         'Available Credit': s.available_credit_limit,
         'Outstanding': s.outstanding_balance,
-        'Last Statement Due': s.last_statement_due,
         'Minimum Due': s.minimum_due,
         'Total Due': s.total_due,
         'Amount Paid': s.amount_paid,
-        'Payment Date': s.payment_date || '',
         'Payment Status': s.payment_status,
         'Interest Charged': s.interest_charged,
         'Late Fee': s.late_fee,
         'Due Date': s.due_date,
         'Utilization %': m?.utilization || 0,
         'Risk Level': m?.riskLevel || '',
-        'Notes': s.notes || '',
       };
     });
     const ws = XLSX.utils.json_to_sheet(reportData);
@@ -73,56 +71,79 @@ export default function CreditCards() {
 
   const summary = summaryMetrics();
 
+  const overdueCount = cards.filter(c => {
+    const m = getCardMetrics(c.id);
+    return m?.daysUntilDue !== null && m.daysUntilDue < 0 && m.paymentStatus !== 'FULL';
+  }).length;
+
+  const handleMarkPaid = async (statement: any) => {
+    await updateStatement(statement.id, {
+      amount_paid: statement.total_due,
+      payment_date: new Date().toISOString().split('T')[0],
+      payment_status: 'FULL',
+      total_due: statement.total_due,
+      minimum_due: statement.minimum_due,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      <main className="container mx-auto px-4 py-6 space-y-5">
+        {/* Page Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-primary to-primary/70">
-                <CreditCard className="h-6 w-6 text-primary-foreground" />
+            <h1 className="text-2xl font-bold flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-primary/70 shadow-lg shadow-primary/20">
+                <CreditCard className="h-5 w-5 text-primary-foreground" />
               </div>
-              Credit Card Management
+              Credit Card Control Tower
             </h1>
-            <p className="text-muted-foreground mt-1">Statement-based tracking, payments & risk insights</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={exportToExcel}>
-              <Download className="h-4 w-4 mr-2" />Export
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm"><Plus className="h-4 w-4 mr-2" />Add New</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setCardOpen(true)}><CreditCard className="h-4 w-4 mr-2" />Add Card</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setStmtOpen(true)}><FileText className="h-4 w-4 mr-2" />Add Statement</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <p className="text-muted-foreground text-sm mt-1">Monitor, manage & optimize your credit card portfolio</p>
           </div>
         </div>
 
-        <CCAlerts cards={cards} getCardMetrics={getCardMetrics} />
+        {/* Summary Cards */}
+        <CCSummaryCards {...summary} />
 
-        <div className="mt-4 space-y-6">
-          <CCSummaryCards {...summary} />
-
-          <Tabs defaultValue="dashboard" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2 max-w-sm">
-              <TabsTrigger value="dashboard" className="gap-2"><BarChart3 className="h-4 w-4" />Dashboard</TabsTrigger>
-              <TabsTrigger value="report" className="gap-2"><FileText className="h-4 w-4" />Statements</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="dashboard">
-              <CCCharts cards={cards} statements={statements} getCardMetrics={getCardMetrics} />
-            </TabsContent>
-
-            <TabsContent value="report">
-              <CCCardReport cards={cards} statements={statements} getCardMetrics={getCardMetrics} />
-            </TabsContent>
-          </Tabs>
+        {/* Alerts + Insights + Quick Actions Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div className="lg:col-span-6">
+            <CCAlerts cards={cards} getCardMetrics={getCardMetrics} onAddStatement={() => setStmtOpen(true)} />
+          </div>
+          <div className="lg:col-span-4">
+            <CCInsights cards={cards} getCardMetrics={getCardMetrics} summaryMetrics={summary} />
+          </div>
+          <div className="lg:col-span-2">
+            <CCQuickActions
+              onAddStatement={() => setStmtOpen(true)}
+              onAddCard={() => setCardOpen(true)}
+              onExport={exportToExcel}
+              overdueCount={overdueCount}
+            />
+          </div>
         </div>
+
+        {/* Charts + Statements Tabs */}
+        <Tabs defaultValue="dashboard" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2 max-w-xs">
+            <TabsTrigger value="dashboard" className="gap-2 text-xs"><BarChart3 className="h-3.5 w-3.5" />Dashboard</TabsTrigger>
+            <TabsTrigger value="report" className="gap-2 text-xs"><FileText className="h-3.5 w-3.5" />Statements</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="dashboard">
+            <CCCharts cards={cards} statements={statements} getCardMetrics={getCardMetrics} />
+          </TabsContent>
+
+          <TabsContent value="report">
+            <CCCardReport
+              cards={cards}
+              statements={statements}
+              getCardMetrics={getCardMetrics}
+              onMarkPaid={handleMarkPaid}
+            />
+          </TabsContent>
+        </Tabs>
       </main>
 
       <CCAddCardDialog open={cardOpen} onOpenChange={setCardOpen} onSubmit={addCard} />
