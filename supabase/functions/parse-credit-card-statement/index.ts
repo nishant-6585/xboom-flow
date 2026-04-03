@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { encode as base64Encode } from "https://deno.land/std@0.224.0/encoding/base64.ts";
+import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -200,7 +200,7 @@ Return ONLY valid JSON, no markdown.`;
     if (textContent) {
       aiMessages.push({ role: "user", content: [{ type: "text", text: userMsg }] });
     } else {
-      const base64 = base64Encode(new Uint8Array(arrayBuffer));
+      const base64 = encodeBase64(new Uint8Array(arrayBuffer));
       aiMessages.push({
         role: "user",
         content: [
