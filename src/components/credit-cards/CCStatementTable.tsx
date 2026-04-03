@@ -51,12 +51,44 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
 
   const fmt = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
+  const handleDeleteCard = async () => {
+    if (!deleteCardId || !onDeleteCard) return;
+    setDeleting(true);
+    const result = await onDeleteCard(deleteCardId);
+    setDeleting(false);
+    setDeleteCardId(null);
+    if (result.success) {
+      toast.success('Card and all associated data deleted');
+    } else {
+      toast.error(result.error || 'Failed to delete');
+    }
+  };
+
+  const deleteCardObj = deleteCardId ? cards.find(c => c.id === deleteCardId) : null;
+
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <FileText className="h-4 w-4" /> Statement History
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <FileText className="h-4 w-4" /> Statement History
+          </CardTitle>
+          {onDeleteCard && cards.length > 0 && (
+            <Select onValueChange={(v) => setDeleteCardId(v)}>
+              <SelectTrigger className="w-auto h-8 text-xs gap-1 text-destructive border-destructive/30">
+                <Trash2 className="h-3 w-3" />
+                <span>Delete Card</span>
+              </SelectTrigger>
+              <SelectContent>
+                {cards.map(c => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.bank_name} — {c.card_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex flex-wrap gap-2">
