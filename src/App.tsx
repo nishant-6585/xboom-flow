@@ -51,6 +51,7 @@ import SamplePayslip from "./pages/SamplePayslip";
 import DailyFlow from "./pages/DailyFlow";
 import AIAutomation from "./pages/AIAutomation";
 import AiDashboard from "./pages/AiDashboard";
+import CreditCards from "./pages/CreditCards";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
