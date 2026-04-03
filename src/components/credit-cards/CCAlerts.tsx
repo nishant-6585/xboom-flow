@@ -12,19 +12,19 @@ export function CCAlerts({ cards, getCardMetrics }: Props) {
 
   cards.filter(c => c.is_active).forEach(c => {
     const m = getCardMetrics(c.id);
-    if (!m) return;
+    if (!m || !m.latestStatement) return;
 
-    if (m.daysUntilDue !== null && m.daysUntilDue <= 3 && m.daysUntilDue >= 0 && m.paymentStatus !== 'FULLY PAID') {
-      alerts.push({ icon: Clock, title: `Payment due soon: ${c.card_name}`, desc: `Due in ${m.daysUntilDue} day(s). Outstanding: ₹${m.latestStatement?.total_due?.toLocaleString('en-IN') || 0}`, variant: 'destructive' });
+    if (m.daysUntilDue !== null && m.daysUntilDue <= 3 && m.daysUntilDue >= 0 && m.paymentStatus !== 'FULL') {
+      alerts.push({ icon: Clock, title: `Payment due soon: ${c.card_name}`, desc: `Due in ${m.daysUntilDue} day(s). Total Due: ₹${m.latestStatement?.total_due?.toLocaleString('en-IN') || 0}`, variant: 'destructive' });
     }
-    if (m.daysUntilDue !== null && m.daysUntilDue < 0 && m.paymentStatus !== 'FULLY PAID') {
+    if (m.daysUntilDue !== null && m.daysUntilDue < 0 && m.paymentStatus !== 'FULL') {
       alerts.push({ icon: AlertTriangle, title: `OVERDUE: ${c.card_name}`, desc: `${Math.abs(m.daysUntilDue)} day(s) overdue!`, variant: 'destructive' });
     }
     if (m.utilization >= 80) {
       alerts.push({ icon: CreditCard, title: `High utilization: ${c.card_name}`, desc: `${m.utilization}% utilized – ${m.riskLevel}`, variant: 'destructive' });
     }
-    if (m.paymentStatus === 'SAFE' && m.interestApplicable) {
-      alerts.push({ icon: AlertTriangle, title: `Minimum payment only: ${c.card_name}`, desc: 'Interest will be charged. Pay full amount to avoid interest.', variant: 'default' });
+    if (m.paymentStatus === 'UNPAID' && m.latestStatement?.total_due > 0) {
+      alerts.push({ icon: AlertTriangle, title: `Unpaid: ${c.card_name}`, desc: `Total due ₹${m.latestStatement.total_due.toLocaleString('en-IN')} is unpaid.`, variant: 'destructive' });
     }
   });
 

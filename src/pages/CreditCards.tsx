@@ -8,55 +8,50 @@ import { CCSummaryCards } from '@/components/credit-cards/CCSummaryCards';
 import { CCCharts } from '@/components/credit-cards/CCCharts';
 import { CCCardReport } from '@/components/credit-cards/CCCardReport';
 import { CCAlerts } from '@/components/credit-cards/CCAlerts';
-import { CCTransactionsTable } from '@/components/credit-cards/CCTransactionsTable';
 import { CCAddCardDialog } from '@/components/credit-cards/CCAddCardDialog';
 import { CCAddStatementDialog } from '@/components/credit-cards/CCAddStatementDialog';
-import { CCAddTransactionDialog } from '@/components/credit-cards/CCAddTransactionDialog';
-import { CCAddPaymentDialog } from '@/components/credit-cards/CCAddPaymentDialog';
-import { CreditCard, BarChart3, FileText, Plus, Lock, Loader2, Receipt, Wallet, Download } from 'lucide-react';
+import { CreditCard, BarChart3, FileText, Plus, Lock, Loader2, Download } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import * as XLSX from 'xlsx';
 
 export default function CreditCards() {
   const { role, loading: authLoading } = useAuth();
-  const { cards, statements, transactions, payments, loading, addCard, addStatement, addTransaction, addPayment, getCardMetrics, summaryMetrics } = useCreditCards();
+  const { cards, statements, loading, addCard, addStatement, getCardMetrics, summaryMetrics } = useCreditCards();
 
   const canAccess = role === 'admin' || role === 'finance';
 
   const [cardOpen, setCardOpen] = useState(false);
   const [stmtOpen, setStmtOpen] = useState(false);
-  const [txnOpen, setTxnOpen] = useState(false);
-  const [payOpen, setPayOpen] = useState(false);
 
   const exportToExcel = () => {
-    const reportData = cards.filter(c => c.is_active).map(c => {
-      const m = getCardMetrics(c.id);
+    const reportData = statements.map(s => {
+      const card = cards.find(c => c.id === s.card_id);
+      const m = getCardMetrics(s.card_id);
       return {
-        'Card Name': c.card_name,
-        'Bank': c.bank_name,
-        'Credit Limit': c.credit_limit,
-        'Outstanding': m?.latestStatement?.outstanding_balance || 0,
+        'Card Name': card?.card_name || '',
+        'Bank': card?.bank_name || '',
+        'Billing Month': s.billing_month,
+        'Credit Limit': s.outstanding_balance + s.available_credit_limit,
+        'Available Credit': s.available_credit_limit,
+        'Outstanding': s.outstanding_balance,
+        'Last Statement Due': s.last_statement_due,
+        'Minimum Due': s.minimum_due,
+        'Total Due': s.total_due,
+        'Amount Paid': s.amount_paid,
+        'Payment Date': s.payment_date || '',
+        'Payment Status': s.payment_status,
+        'Interest Charged': s.interest_charged,
+        'Late Fee': s.late_fee,
+        'Due Date': s.due_date,
         'Utilization %': m?.utilization || 0,
-        'Payment Status': m?.paymentStatus || 'N/A',
-        'Risk Level': m?.riskLevel || 'N/A',
-        'Interest Applicable': m?.interestApplicable ? 'Yes' : 'No',
-        'Due Date': m?.latestStatement?.due_date || '',
+        'Risk Level': m?.riskLevel || '',
+        'Notes': s.notes || '',
       };
     });
     const ws = XLSX.utils.json_to_sheet(reportData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Card Report');
-
-    const txnData = transactions.map(t => ({
-      'Date': t.transaction_date,
-      'Card': cards.find(c => c.id === t.card_id)?.card_name || '',
-      'Amount': t.amount,
-      'Category': t.category,
-      'Description': t.description || '',
-      'Department': t.department || '',
-    }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(txnData), 'Transactions');
-    XLSX.writeFile(wb, `Credit_Card_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'Statements');
+    XLSX.writeFile(wb, `CC_Statements_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
@@ -90,7 +85,7 @@ export default function CreditCards() {
               </div>
               Credit Card Management
             </h1>
-            <p className="text-muted-foreground mt-1">Track usage, payments, risks & reports</p>
+            <p className="text-muted-foreground mt-1">Statement-based tracking, payments & risk insights</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={exportToExcel}>
@@ -103,8 +98,6 @@ export default function CreditCards() {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setCardOpen(true)}><CreditCard className="h-4 w-4 mr-2" />Add Card</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setStmtOpen(true)}><FileText className="h-4 w-4 mr-2" />Add Statement</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTxnOpen(true)}><Receipt className="h-4 w-4 mr-2" />Add Transaction</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setPayOpen(true)}><Wallet className="h-4 w-4 mr-2" />Record Payment</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -116,22 +109,17 @@ export default function CreditCards() {
           <CCSummaryCards {...summary} />
 
           <Tabs defaultValue="dashboard" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-3 max-w-md">
+            <TabsList className="grid w-full grid-cols-2 max-w-sm">
               <TabsTrigger value="dashboard" className="gap-2"><BarChart3 className="h-4 w-4" />Dashboard</TabsTrigger>
-              <TabsTrigger value="report" className="gap-2"><FileText className="h-4 w-4" />Reports</TabsTrigger>
-              <TabsTrigger value="transactions" className="gap-2"><Receipt className="h-4 w-4" />Transactions</TabsTrigger>
+              <TabsTrigger value="report" className="gap-2"><FileText className="h-4 w-4" />Statements</TabsTrigger>
             </TabsList>
 
             <TabsContent value="dashboard">
-              <CCCharts cards={cards} statements={statements} transactions={transactions} payments={payments} getCardMetrics={getCardMetrics} />
+              <CCCharts cards={cards} statements={statements} getCardMetrics={getCardMetrics} />
             </TabsContent>
 
             <TabsContent value="report">
-              <CCCardReport cards={cards} getCardMetrics={getCardMetrics} />
-            </TabsContent>
-
-            <TabsContent value="transactions">
-              <CCTransactionsTable transactions={transactions} cards={cards} />
+              <CCCardReport cards={cards} statements={statements} getCardMetrics={getCardMetrics} />
             </TabsContent>
           </Tabs>
         </div>
@@ -139,8 +127,6 @@ export default function CreditCards() {
 
       <CCAddCardDialog open={cardOpen} onOpenChange={setCardOpen} onSubmit={addCard} />
       <CCAddStatementDialog open={stmtOpen} onOpenChange={setStmtOpen} onSubmit={addStatement} cards={cards} />
-      <CCAddTransactionDialog open={txnOpen} onOpenChange={setTxnOpen} onSubmit={addTransaction} cards={cards} />
-      <CCAddPaymentDialog open={payOpen} onOpenChange={setPayOpen} onSubmit={addPayment} cards={cards} />
     </div>
   );
 }

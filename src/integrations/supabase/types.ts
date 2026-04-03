@@ -1539,6 +1539,7 @@ export type Database = {
       }
       cc_monthly_statements: {
         Row: {
+          amount_paid: number | null
           available_credit_limit: number
           billing_month: string
           card_id: string
@@ -1546,12 +1547,18 @@ export type Database = {
           due_date: string
           id: string
           interest_charged: number
+          last_statement_due: number | null
+          late_fee: number | null
           minimum_due: number
+          notes: string | null
           outstanding_balance: number
+          payment_date: string | null
+          payment_status: string | null
           total_due: number
           updated_at: string
         }
         Insert: {
+          amount_paid?: number | null
           available_credit_limit?: number
           billing_month: string
           card_id: string
@@ -1559,12 +1566,18 @@ export type Database = {
           due_date: string
           id?: string
           interest_charged?: number
+          last_statement_due?: number | null
+          late_fee?: number | null
           minimum_due?: number
+          notes?: string | null
           outstanding_balance?: number
+          payment_date?: string | null
+          payment_status?: string | null
           total_due?: number
           updated_at?: string
         }
         Update: {
+          amount_paid?: number | null
           available_credit_limit?: number
           billing_month?: string
           card_id?: string
@@ -1572,8 +1585,13 @@ export type Database = {
           due_date?: string
           id?: string
           interest_charged?: number
+          last_statement_due?: number | null
+          late_fee?: number | null
           minimum_due?: number
+          notes?: string | null
           outstanding_balance?: number
+          payment_date?: string | null
+          payment_status?: string | null
           total_due?: number
           updated_at?: string
         }
