@@ -196,7 +196,7 @@ export function CCStatementDetail({
     }
   };
 
-  const totalPaid = statement.amount_paid || 0;
+  const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
   const remaining = Math.max(0, statement.total_due - totalPaid);
   const canPreviewInline = !!viewerData && (viewerData.mimeType.includes('pdf') || viewerData.fileName.toLowerCase().endsWith('.pdf'));
 
