@@ -225,8 +225,9 @@ export function useCreditCards() {
   };
 
   const getStatementFile = async (fileUrl: string) => {
-    const { data } = await supabase.storage.from('cc-statements').createSignedUrl(fileUrl, 3600);
-    return data?.signedUrl || null;
+    const { data, error } = await supabase.storage.from('cc-statements').download(fileUrl);
+    if (error || !data) return null;
+    return data;
   };
 
   const getSummary = () => {

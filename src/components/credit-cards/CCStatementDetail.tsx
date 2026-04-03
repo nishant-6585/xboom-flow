@@ -18,7 +18,7 @@ interface Props {
   transactions: CCTransaction[];
   payments: CCPayment[];
   onRecordPayment: (data: any) => Promise<{ success: boolean; error?: string }>;
-  onViewFile: (fileUrl: string) => Promise<string | null>;
+  onViewFile: (fileUrl: string) => Promise<Blob | null>;
   uploadFileUrl?: string;
 }
 
@@ -91,20 +91,14 @@ export function CCStatementDetail({ open, onClose, statement, card, transactions
 
   const handleViewFile = async () => {
     if (!uploadFileUrl) return;
-    const url = await onViewFile(uploadFileUrl);
-    if (!url) {
-      toast({ title: 'Could not generate download link', variant: 'destructive' });
+    const blob = await onViewFile(uploadFileUrl);
+    if (!blob) {
+      toast({ title: 'Could not load file', variant: 'destructive' });
       return;
     }
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      window.open(blobUrl, '_blank');
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
-    } catch {
-      toast({ title: 'Could not open file', description: 'Try disabling ad-blockers or download directly.', variant: 'destructive' });
-    }
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
   };
 
   // Use the statement's amount_paid (set by AI extraction + trigger sync)
