@@ -324,6 +324,49 @@ export function useCreditCards() {
     }
   };
 
+  const replaceStatementFile = async (file: File, uploadId: string, password?: string): Promise<{ success: boolean; error?: string; password_required?: boolean }> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { success: false, error: 'Not authenticated' };
+
+      const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const filePath = `${user.id}/${Date.now()}_${sanitizedName}`;
+      const { error: uploadError } = await supabase.storage.from('cc-statements').upload(filePath, file);
+      if (uploadError) return { success: false, error: uploadError.message };
+
+      // Update the upload record with new file
+      await supabase.from('statement_uploads' as any).update({
+        file_url: filePath,
+        file_name: sanitizedName,
+        status: 'PROCESSING',
+        error_message: null,
+      } as any).eq('id', uploadId);
+
+      const accessToken = await getSessionAccessToken();
+      if (!accessToken) return { success: false, error: 'Not authenticated' };
+
+      const requestBody: any = { upload_id: uploadId, file_url: filePath, file_name: sanitizedName, force_reprocess: true };
+      if (password) requestBody.pdf_password = password;
+
+      const response = await fetch(getEdgeFunctionUrl('parse-credit-card-statement'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+        body: JSON.stringify(requestBody),
+      });
+
+      let result: any;
+      try { result = await response.json(); } catch { result = null; }
+      await fetchAll();
+
+      if (!response.ok || !result?.success) {
+        return { success: false, error: result?.error || 'Processing failed', password_required: !!result?.password_required };
+      }
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  };
+
   const getSummary = () => {
     const latestByCard = new Map<string, CCStatement>();
     statements.forEach(s => {
@@ -352,6 +395,6 @@ export function useCreditCards() {
   return {
     cards, statements, transactions, payments, uploads, loading,
     uploadStatement, getSummary, checkDuplicate, refetch: fetchAll,
-    recordPayment, getStatementFile, reanalyzeStatement,
+    recordPayment, getStatementFile, reanalyzeStatement, replaceStatementFile,
   };
 }
