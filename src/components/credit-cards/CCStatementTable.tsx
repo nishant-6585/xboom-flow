@@ -172,6 +172,24 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
             </TableBody>
           </Table>
         </div>
+
+        <AlertDialog open={!!deleteCardId} onOpenChange={(open) => !open && setDeleteCardId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Card & All Data?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete <strong>{deleteCardObj?.bank_name} — {deleteCardObj?.card_name}</strong> along with all statements, transactions, payments, and uploaded files. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteCard} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}
+                Delete Everything
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );

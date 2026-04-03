@@ -101,6 +101,7 @@ export default function CreditCards() {
               statements={statements}
               payments={payments}
               onViewStatement={setSelectedStatement}
+              onDeleteCard={deleteCardWithData}
             />
             <CCReports
               cards={cards}
