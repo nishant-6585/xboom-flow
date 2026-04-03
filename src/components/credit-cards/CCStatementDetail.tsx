@@ -83,7 +83,8 @@ export function CCStatementDetail({
   const [viewerData, setViewerData] = useState<{ url: string; fileName: string; mimeType: string } | null>(null);
   const [reanalysisGuidance, setReanalysisGuidance] = useState('');
   const [reanalyzing, setReanalyzing] = useState(false);
-
+  const [replacingFile, setReplacingFile] = useState(false);
+  const replaceFileRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     return () => {
       if (viewerData?.url) URL.revokeObjectURL(viewerData.url);
