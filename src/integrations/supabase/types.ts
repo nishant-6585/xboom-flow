@@ -8504,6 +8504,66 @@ export type Database = {
         }
         Relationships: []
       }
+      statement_uploads: {
+        Row: {
+          ai_confidence_score: number | null
+          card_id: string | null
+          created_at: string
+          error_message: string | null
+          file_name: string
+          file_url: string
+          id: string
+          parsed_json: Json | null
+          statement_id: string | null
+          status: string
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          ai_confidence_score?: number | null
+          card_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_name: string
+          file_url: string
+          id?: string
+          parsed_json?: Json | null
+          statement_id?: string | null
+          status?: string
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          ai_confidence_score?: number | null
+          card_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_name?: string
+          file_url?: string
+          id?: string
+          parsed_json?: Json | null
+          statement_id?: string | null
+          status?: string
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "statement_uploads_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "credit_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "statement_uploads_statement_id_fkey"
+            columns: ["statement_id"]
+            isOneToOne: false
+            referencedRelation: "cc_monthly_statements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_payments: {
         Row: {
           amount: number

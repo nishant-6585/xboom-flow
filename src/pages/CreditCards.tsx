@@ -12,12 +12,13 @@ import { CCInsights } from '@/components/credit-cards/CCInsights';
 import { CCQuickActions } from '@/components/credit-cards/CCQuickActions';
 import { CCAddCardDialog } from '@/components/credit-cards/CCAddCardDialog';
 import { CCAddStatementDialog } from '@/components/credit-cards/CCAddStatementDialog';
+import { CCStatementUpload } from '@/components/credit-cards/CCStatementUpload';
 import { CreditCard, BarChart3, FileText, Lock, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 export default function CreditCards() {
   const { role, loading: authLoading } = useAuth();
-  const { cards, statements, loading, addCard, addStatement, updateStatement, getCardMetrics, summaryMetrics } = useCreditCards();
+  const { cards, statements, loading, addCard, addStatement, updateStatement, getCardMetrics, summaryMetrics, refetch } = useCreditCards();
 
   const canAccess = role === 'admin' || role === 'finance';
 
@@ -102,6 +103,9 @@ export default function CreditCards() {
             <p className="text-muted-foreground text-sm mt-1">Monitor, manage & optimize your credit card portfolio</p>
           </div>
         </div>
+
+        {/* AI Statement Upload */}
+        <CCStatementUpload cards={cards} onStatementSaved={refetch} />
 
         {/* Summary Cards */}
         <CCSummaryCards {...summary} />
