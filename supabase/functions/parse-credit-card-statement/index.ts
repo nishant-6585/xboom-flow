@@ -200,7 +200,7 @@ Return ONLY valid JSON, no markdown.`;
     if (textContent) {
       aiMessages.push({ role: "user", content: [{ type: "text", text: userMsg }] });
     } else {
-      const base64 = base64Encode(new Uint8Array(arrayBuffer));
+      const base64 = encodeBase64(new Uint8Array(arrayBuffer));
       aiMessages.push({
         role: "user",
         content: [
