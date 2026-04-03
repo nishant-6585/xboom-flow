@@ -18,11 +18,13 @@ interface Props {
   onDeleteCard?: (cardId: string) => Promise<{ success: boolean; error?: string }>;
 }
 
-export function CCStatementTable({ cards, statements, payments, onViewStatement }: Props) {
+export function CCStatementTable({ cards, statements, payments, onViewStatement, onDeleteCard }: Props) {
   const [bankFilter, setBankFilter] = useState('all');
   const [cardFilter, setCardFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [deleteCardId, setDeleteCardId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const banks = [...new Set(cards.map(c => c.bank_name))];
 
