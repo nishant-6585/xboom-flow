@@ -143,10 +143,9 @@ export function CCStatementUpload({ cards, onStatementSaved }: Props) {
 
   const handleSaveStatement = async (data: any) => {
     try {
-      const cardId = autoDetect ? (selectedCardId || '') : selectedCardId;
+      // Use the card selected in preview modal
+      let finalCardId = data._selectedCardId || selectedCardId;
       
-      // Determine the card
-      let finalCardId = cardId;
       if (!finalCardId && data.detected_bank) {
         const match = cards.find(c =>
           c.bank_name.toLowerCase().includes(data.detected_bank.toLowerCase()) ||
