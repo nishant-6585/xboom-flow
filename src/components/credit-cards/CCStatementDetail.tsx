@@ -18,7 +18,7 @@ interface Props {
   transactions: CCTransaction[];
   payments: CCPayment[];
   onRecordPayment: (data: any) => Promise<{ success: boolean; error?: string }>;
-  onViewFile: (fileUrl: string) => Promise<string | null>;
+  onViewFile: (fileUrl: string) => Promise<Blob | null>;
   uploadFileUrl?: string;
 }
 
