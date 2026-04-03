@@ -10,6 +10,7 @@ import { FileText, Search, Eye } from 'lucide-react';
 interface Props {
   cards: CreditCard[];
   statements: CCStatement[];
+  payments: CCPayment[];
   onViewStatement?: (statement: CCStatement) => void;
 }
 
