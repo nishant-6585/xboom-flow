@@ -128,7 +128,7 @@ export function useCreditCards() {
     return { isDuplicate: true, existingCard: matchedCard, existingStatement: existingStmt };
   };
 
-  const uploadStatement = async (file: File): Promise<{ success: boolean; error?: string; duplicate?: boolean }> => {
+  const uploadStatement = async (file: File, password?: string): Promise<{ success: boolean; error?: string; duplicate?: boolean; password_required?: boolean }> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return { success: false, error: 'Not authenticated' };
@@ -149,6 +149,9 @@ export function useCreditCards() {
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const { data: session } = await supabase.auth.getSession();
 
+      const requestBody: any = { upload_id: uploadRecord.id, file_url: filePath, file_name: sanitizedName };
+      if (password) requestBody.pdf_password = password;
+
       let response: Response;
       try {
         response = await fetch(
@@ -159,7 +162,7 @@ export function useCreditCards() {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${session?.session?.access_token}`,
             },
-            body: JSON.stringify({ upload_id: uploadRecord.id, file_url: filePath, file_name: sanitizedName }),
+            body: JSON.stringify(requestBody),
           }
         );
       } catch (networkError: any) {
@@ -180,6 +183,9 @@ export function useCreditCards() {
       await fetchAll();
 
       if (!response.ok || !result.success) {
+        if (result.password_required) {
+          return { success: false, error: result.error, password_required: true };
+        }
         if (response.status >= 500) {
           await supabase.from('statement_uploads' as any).update({ status: 'FAILED', error_message: result.error || 'Processing failed' } as any).eq('id', uploadRecord.id);
           await fetchAll();
