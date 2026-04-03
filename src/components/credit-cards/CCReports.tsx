@@ -31,8 +31,9 @@ export function CCReports({ cards, statements, transactions, payments }: Props) 
 
   const cardHealth = Array.from(latestByCard.entries()).map(([cardId, s]) => {
     const card = cards.find(c => c.id === cardId);
-    const limit = card?.credit_limit || (s.outstanding_balance + s.available_credit_limit);
-    const util = limit > 0 ? Math.round((s.outstanding_balance / limit) * 100) : 0;
+    const limit = getStatementCreditLimit(s, card);
+    const outstanding = getStatementOutstanding(s, card);
+    const util = Math.round(getStatementUtilization(s, card));
     const cardStmts = statements.filter(st => st.card_id === cardId);
     const totalInterest = cardStmts.reduce((sum, st) => sum + st.interest_charged, 0);
     const totalLateFee = cardStmts.reduce((sum, st) => sum + st.late_fee, 0);
@@ -41,7 +42,7 @@ export function CCReports({ cards, statements, transactions, payments }: Props) 
     return {
       name: card?.card_name || 'Unknown',
       bank: card?.bank_name || '',
-      limit, outstanding: s.outstanding_balance, util, totalInterest, totalLateFee,
+      limit, outstanding, util, totalInterest, totalLateFee,
       unpaidCount, riskLevel, available: s.available_credit_limit,
       totalDue: s.total_due, paymentStatus: s.payment_status,
     };

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { CreditCard, CCStatement, CCTransaction, CCPayment, StatementFilePayload, StatementUpload } from '@/hooks/useCreditCards';
+import { getStatementOutstanding } from '@/lib/creditCardMetrics';
 import { Download, FileDown, Loader2, Plus, Receipt, RotateCcw, CreditCard as CardIcon, IndianRupee, Upload } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import 'react-pdf/dist/Page/TextLayer.css';

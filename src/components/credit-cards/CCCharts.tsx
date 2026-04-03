@@ -21,9 +21,10 @@ export function CCCharts({ cards, statements }: Props) {
 
   const utilizationData = Array.from(latestByCard.entries()).map(([cardId, s]) => {
     const card = cards.find(c => c.id === cardId);
-    const limit = card?.credit_limit || (s.outstanding_balance + s.available_credit_limit);
-    const util = limit > 0 ? Math.round((s.outstanding_balance / limit) * 100) : 0;
-    return { name: card?.card_name || 'Unknown', utilization: util, outstanding: s.outstanding_balance };
+    const limit = getStatementCreditLimit(s, card);
+    const outstanding = getStatementOutstanding(s, card);
+    const util = limit > 0 ? Math.round((outstanding / limit) * 100) : 0;
+    return { name: card?.card_name || 'Unknown', utilization: util, outstanding };
   });
 
   // Payment status distribution
