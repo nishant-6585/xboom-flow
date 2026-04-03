@@ -14,7 +14,7 @@ interface Props {
   onViewStatement?: (statement: CCStatement) => void;
 }
 
-export function CCStatementTable({ cards, statements, onViewStatement }: Props) {
+export function CCStatementTable({ cards, statements, payments, onViewStatement }: Props) {
   const [bankFilter, setBankFilter] = useState('all');
   const [cardFilter, setCardFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
