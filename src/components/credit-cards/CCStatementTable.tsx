@@ -1,17 +1,21 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { CreditCard, CCStatement, CCPayment } from '@/hooks/useCreditCards';
-import { FileText, Search, Eye } from 'lucide-react';
+import { FileText, Search, Eye, Trash2, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Props {
   cards: CreditCard[];
   statements: CCStatement[];
   payments: CCPayment[];
   onViewStatement?: (statement: CCStatement) => void;
+  onDeleteCard?: (cardId: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function CCStatementTable({ cards, statements, payments, onViewStatement }: Props) {
