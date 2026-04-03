@@ -18,7 +18,7 @@ export function CCQuickActions({ onAddStatement, onAddCard, onExport, overdueCou
           Quick Actions
         </CardTitle>
       </CardHeader>
-      <CardContent className="px-5 pb-4 grid grid-cols-2 gap-2">
+      <CardContent className="px-5 pb-4 flex flex-col gap-2">
         <Button variant="outline" size="sm" className="justify-start h-9 text-xs" onClick={onAddStatement}>
           <FileText className="h-3.5 w-3.5 mr-2" />Add Statement
         </Button>
