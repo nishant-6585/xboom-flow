@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from 'recharts';
 import { CreditCard, CCStatement } from '@/hooks/useCreditCards';
+import { getStatementCreditLimit, getStatementOutstanding } from '@/lib/creditCardMetrics';
 
 interface Props {
   cards: CreditCard[];

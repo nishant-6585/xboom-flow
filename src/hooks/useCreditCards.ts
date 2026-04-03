@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getStatementCreditLimit, getStatementOutstanding, getStatementUtilization } from '@/lib/creditCardMetrics';
 
 export interface CreditCard {
   id: string;

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { CreditCard, CCStatement, CCPayment } from '@/hooks/useCreditCards';
+import { getStatementOutstanding } from '@/lib/creditCardMetrics';
 import { FileText, Search, Eye, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 

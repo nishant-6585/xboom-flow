@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line, CartesianGrid, AreaChart, Area } from 'recharts';
 import { CreditCard, CCStatement, CCTransaction, CCPayment } from '@/hooks/useCreditCards';
+import { getStatementCreditLimit, getStatementOutstanding, getStatementUtilization } from '@/lib/creditCardMetrics';
 import { BarChart3, TrendingUp, CreditCard as CardIcon, AlertTriangle, ArrowUpDown, PieChart as PieIcon } from 'lucide-react';
 
 interface Props {
