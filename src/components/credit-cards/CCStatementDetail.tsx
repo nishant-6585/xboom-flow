@@ -92,8 +92,19 @@ export function CCStatementDetail({ open, onClose, statement, card, transactions
   const handleViewFile = async () => {
     if (!uploadFileUrl) return;
     const url = await onViewFile(uploadFileUrl);
-    if (url) window.open(url, '_blank');
-    else toast({ title: 'Could not generate download link', variant: 'destructive' });
+    if (!url) {
+      toast({ title: 'Could not generate download link', variant: 'destructive' });
+      return;
+    }
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+    } catch {
+      toast({ title: 'Could not open file', description: 'Try disabling ad-blockers or download directly.', variant: 'destructive' });
+    }
   };
 
   // Use the statement's amount_paid (set by AI extraction + trigger sync)
