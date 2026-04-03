@@ -66,6 +66,7 @@ export function CCStatementDetail({
   onRecordPayment,
   onViewFile,
   onReanalyze,
+  onReplaceFile,
   upload,
 }: Props) {
   const [showPaymentForm, setShowPaymentForm] = useState(false);
