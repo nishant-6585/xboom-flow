@@ -17,7 +17,7 @@ export default function CreditCards() {
   const {
     cards, statements, transactions, payments, uploads, loading,
     uploadStatement, checkDuplicate, getSummary, refetch,
-    recordPayment, getStatementFile,
+    recordPayment, getStatementFile, reanalyzeStatement,
   } = useCreditCards();
   const [processing, setProcessing] = useState(false);
   const [selectedStatement, setSelectedStatement] = useState<CCStatement | null>(null);
@@ -132,7 +132,8 @@ export default function CreditCards() {
             payments={selectedPayments}
             onRecordPayment={recordPayment}
             onViewFile={getStatementFile}
-            uploadFileUrl={selectedUpload?.file_url}
+            onReanalyze={reanalyzeStatement}
+            upload={selectedUpload}
           />
         )}
       </main>

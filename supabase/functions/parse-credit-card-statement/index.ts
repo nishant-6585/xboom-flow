@@ -5,6 +5,7 @@ import { PDFDocument } from "npm:pdf-lib@1.17.1";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 
 function isValidDate(d: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(d) && !isNaN(Date.parse(d));
@@ -41,7 +42,7 @@ Deno.serve(async (req: Request) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY) {
     return respond({ error: "Server configuration error" }, 500);
   }
 
@@ -55,7 +56,7 @@ Deno.serve(async (req: Request) => {
     }
 
     supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
 
@@ -81,6 +82,8 @@ Deno.serve(async (req: Request) => {
     const file_url = sanitizeString(body.file_url, 500);
     const file_name = sanitizeString(body.file_name, 255);
     const pdf_password = typeof body.pdf_password === "string" ? body.pdf_password.substring(0, 200) : undefined;
+    const force_reprocess = body.force_reprocess === true;
+    const user_guidance = typeof body.user_guidance === "string" ? sanitizeString(body.user_guidance, 1000) : "";
 
     if (!upload_id || !file_url || !file_name) {
       return respond({ error: "Missing required fields" }, 400);
@@ -92,24 +95,35 @@ Deno.serve(async (req: Request) => {
 
     const { data: uploadRecord } = await supabaseAdmin
       .from("statement_uploads")
-      .select("id, uploaded_by, status")
+      .select("id, uploaded_by, status, statement_id")
       .eq("id", upload_id)
       .single();
 
     if (!uploadRecord) return respond({ error: "Upload record not found" }, 404);
     if (uploadRecord.uploaded_by !== userId) return respond({ error: "Access denied to this upload" }, 403);
-    if (uploadRecord.status === "SUCCESS") return respond({ error: "Already processed", duplicate: true }, 409);
+    if (uploadRecord.status === "SUCCESS" && !force_reprocess) {
+      return respond({ error: "Already processed", duplicate: true }, 409);
+    }
+
+    if (force_reprocess) {
+      await supabaseAdmin.from("statement_uploads").update({
+        status: "PROCESSING",
+        error_message: null,
+      }).eq("id", upload_id);
+    }
+
+    const currentStatementId = uploadRecord.statement_id || null;
 
     const { data: fileData, error: downloadError } = await supabaseAdmin.storage
       .from("cc-statements")
-      .download(file_url);
+      .download(file_url, undefined, { cache: "no-store" });
 
     if (downloadError || !fileData) {
       await failUpload(supabaseAdmin, upload_id, "Failed to download file");
       return respond({ error: "File download failed" }, 500);
     }
 
-    let arrayBuffer = await fileData.arrayBuffer();
+    const arrayBuffer = await fileData.arrayBuffer();
     if (arrayBuffer.byteLength > 10 * 1024 * 1024) {
       await failUpload(supabaseAdmin, upload_id, "File exceeds 10MB limit");
       return respond({ error: "File too large" }, 400);
@@ -121,35 +135,23 @@ Deno.serve(async (req: Request) => {
       return respond({ error: "Unsupported file type" }, 400);
     }
 
-    // ── PASSWORD-PROTECTED PDF HANDLING ──
     if (ext === "pdf") {
       try {
-        // Try loading without password first
         await PDFDocument.load(new Uint8Array(arrayBuffer), { ignoreEncryption: false });
       } catch (encErr: any) {
         const errMsg = (encErr?.message || "").toLowerCase();
         const isEncrypted = errMsg.includes("encrypt") || errMsg.includes("password") || errMsg.includes("protected");
-        
+
         if (isEncrypted && !pdf_password) {
-          // PDF is encrypted and no password provided — ask user
           await supabaseAdmin.from("statement_uploads").update({
             status: "FAILED",
             error_message: "Password-protected PDF. Please provide the password.",
           }).eq("id", upload_id);
           return respond({ error: "This PDF is password-protected. Please provide the password.", password_required: true }, 422);
         }
-        
+
         if (isEncrypted && pdf_password) {
-          // Try decrypting with provided password using qpdf via subprocess
-          try {
-            // pdf-lib doesn't support password decryption, so we pass password context to AI
-            // The AI model (Gemini) can handle encrypted PDFs when we inform it
-            console.log("PDF is encrypted, password provided. Attempting to process with password context.");
-            // We'll add password hint to the AI prompt
-          } catch (decryptErr: any) {
-            await failUpload(supabaseAdmin, upload_id, "Failed to decrypt PDF. Incorrect password or unsupported encryption.");
-            return respond({ error: "Failed to decrypt PDF. Please check the password and try again." }, 422);
-          }
+          console.log("PDF is encrypted, password provided. Processing with password context.");
         }
       }
     }
@@ -227,6 +229,10 @@ Return ONLY valid JSON, no markdown.`;
       userMsg += `\n\nNote: This PDF is password-protected. The password is: ${pdf_password}`;
     }
 
+    if (user_guidance) {
+      userMsg += `\n\nUser correction guidance for this re-analysis: ${user_guidance}`;
+    }
+
     const aiMessages: any[] = [
       { role: "system", content: systemPrompt },
     ];
@@ -279,14 +285,15 @@ Return ONLY valid JSON, no markdown.`;
     try {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
-    } catch { /* ignore */ }
+    } catch {
+      // ignore parse error
+    }
 
     if (!parsed || !parsed.bank_name) {
       await failUpload(supabaseAdmin, upload_id, "Could not extract structured data");
       return respond({ error: "Could not extract data from statement." }, 422);
     }
 
-    // ── VALIDATION ──
     const validationErrors: string[] = [];
     parsed.bank_name = sanitizeString(parsed.bank_name, 50);
     parsed.card_name = sanitizeString(parsed.card_name, 100);
@@ -325,7 +332,6 @@ Return ONLY valid JSON, no markdown.`;
       return respond({ error: "Validation failed: " + validationErrors.join(", ") }, 422);
     }
 
-    // ── DUPLICATE DETECTION ──
     const matchedCard = (existingCards || []).find((c: any) =>
       c.bank_name.toLowerCase() === parsed.bank_name.toLowerCase() &&
       c.card_name.toLowerCase() === parsed.card_name.toLowerCase()
@@ -339,15 +345,12 @@ Return ONLY valid JSON, no markdown.`;
         .eq("billing_month", parsed.billing_month)
         .maybeSingle();
 
-      if (existingStmt) {
-        if (existingStmt.total_due === parsed.total_due && existingStmt.outstanding_balance === parsed.outstanding_balance) {
-          await failUpload(supabaseAdmin, upload_id, `Duplicate: ${parsed.card_name} ${parsed.billing_month} already exists`);
-          return respond({ error: `Statement already exists with identical values`, duplicate: true }, 409);
-        }
+      if (existingStmt && existingStmt.id !== currentStatementId) {
+        await failUpload(supabaseAdmin, upload_id, `Duplicate: ${parsed.card_name} ${parsed.billing_month} already exists`);
+        return respond({ error: "Statement already exists for this card and billing month", duplicate: true }, 409);
       }
     }
 
-    // ── AUTO-CREATE OR FIND CARD ──
     let cardId: string | null = null;
     if (matchedCard) {
       cardId = matchedCard.id;
@@ -374,7 +377,6 @@ Return ONLY valid JSON, no markdown.`;
       return respond({ error: "Card matching failed" }, 500);
     }
 
-    // ── PAYMENT STATUS ──
     const amountPaid = parsed.amount_paid || 0;
     const totalDue = parsed.total_due || 0;
     const minimumDue = parsed.minimum_due || 0;
@@ -386,44 +388,61 @@ Return ONLY valid JSON, no markdown.`;
     const outstanding = parsed.outstanding_balance || 0;
     const availableCredit = parsed.available_credit_limit || Math.max(0, creditLimit - outstanding);
 
-    // ── UPSERT STATEMENT ──
-    const { data: stmt, error: stmtError } = await supabaseAdmin
-      .from("cc_statements")
-      .upsert({
-        card_id: cardId,
-        billing_month: parsed.billing_month,
-        due_date: parsed.due_date,
-        outstanding_balance: outstanding,
-        total_due: totalDue,
-        minimum_due: minimumDue,
-        amount_paid: amountPaid,
-        payment_date: parsed.payment_date || null,
-        interest_charged: parsed.interest_charged || 0,
-        late_fee: parsed.late_fee || 0,
-        payment_status: paymentStatus,
-        available_credit_limit: availableCredit,
-        upload_id: upload_id,
-      }, { onConflict: "card_id,billing_month" })
-      .select("id")
-      .single();
+    const statementPayload = {
+      card_id: cardId,
+      billing_month: parsed.billing_month,
+      due_date: parsed.due_date,
+      outstanding_balance: outstanding,
+      total_due: totalDue,
+      minimum_due: minimumDue,
+      amount_paid: amountPaid,
+      payment_date: parsed.payment_date || null,
+      interest_charged: parsed.interest_charged || 0,
+      late_fee: parsed.late_fee || 0,
+      payment_status: paymentStatus,
+      available_credit_limit: availableCredit,
+      upload_id: upload_id,
+    };
 
-    if (stmtError) {
-      console.error("Statement insert error:", stmtError.message);
-      await failUpload(supabaseAdmin, upload_id, "Failed to save statement: " + stmtError.message);
+    let stmt: { id: string } | null = null;
+    let stmtError: { message: string } | null = null;
+
+    if (currentStatementId) {
+      const updateResult = await supabaseAdmin
+        .from("cc_statements")
+        .update(statementPayload)
+        .eq("id", currentStatementId)
+        .select("id")
+        .single();
+      stmt = updateResult.data;
+      stmtError = updateResult.error;
+    } else {
+      const insertResult = await supabaseAdmin
+        .from("cc_statements")
+        .insert(statementPayload)
+        .select("id")
+        .single();
+      stmt = insertResult.data;
+      stmtError = insertResult.error;
+    }
+
+    if (stmtError || !stmt) {
+      console.error("Statement save error:", stmtError?.message);
+      await failUpload(supabaseAdmin, upload_id, "Failed to save statement: " + (stmtError?.message || "Unknown error"));
       return respond({ error: "Statement save failed" }, 500);
     }
 
-    // ── SAVE TRANSACTIONS ──
     const transactions = Array.isArray(parsed.transactions) ? parsed.transactions : [];
     let txnCount = 0;
 
-    if (transactions.length > 0 && stmt?.id) {
-      // Delete old transactions for this statement (on re-upload)
+    if (stmt.id) {
       await supabaseAdmin.from("cc_transactions").delete().eq("statement_id", stmt.id);
+    }
 
+    if (transactions.length > 0 && stmt.id) {
       const txnRows = transactions
         .filter((t: any) => t.date && t.description && t.amount)
-        .slice(0, 500) // cap at 500 transactions
+        .slice(0, 500)
         .map((t: any) => ({
           statement_id: stmt.id,
           card_id: cardId,
@@ -439,16 +458,15 @@ Return ONLY valid JSON, no markdown.`;
         const { error: txnError } = await supabaseAdmin.from("cc_transactions").insert(txnRows);
         if (txnError) {
           console.error("Transaction insert error:", txnError.message);
-          // Non-fatal — statement was saved
         } else {
           txnCount = txnRows.length;
         }
       }
     }
 
-    // ── MARK SUCCESS ──
     await supabaseAdmin.from("statement_uploads").update({
       status: "SUCCESS",
+      error_message: null,
       confidence_score: parsed.confidence_score || 0,
       detected_bank: parsed.bank_name,
       detected_card_name: parsed.card_name,
@@ -472,7 +490,9 @@ Return ONLY valid JSON, no markdown.`;
     if (upload_id && supabaseAdmin) {
       try {
         await failUpload(supabaseAdmin, upload_id, "Unexpected error: " + (error?.message || "Unknown"));
-      } catch { /* best effort */ }
+      } catch {
+        // best effort
+      }
     }
     return respond({ error: "Internal server error" }, 500);
   }

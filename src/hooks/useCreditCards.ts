@@ -70,7 +70,14 @@ export interface StatementUpload {
   created_at: string;
 }
 
+export interface StatementFilePayload {
+  blob: Blob;
+  fileName: string;
+  mimeType: string;
+}
+
 const STALE_THRESHOLD_MS = 5 * 60 * 1000;
+const EDGE_FUNCTION_BASE_URL = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1`;
 
 function markStaleUploads(uploads: StatementUpload[]): StatementUpload[] {
   const now = Date.now();
@@ -84,6 +91,23 @@ function markStaleUploads(uploads: StatementUpload[]): StatementUpload[] {
     return u;
   });
 }
+
+const getEdgeFunctionUrl = (name: string) => `${EDGE_FUNCTION_BASE_URL}/${name}`;
+
+const getSessionAccessToken = async () => {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+};
+
+const parseContentDispositionFileName = (contentDisposition: string | null, fallback: string) => {
+  const utfMatch = contentDisposition?.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utfMatch?.[1]) return decodeURIComponent(utfMatch[1]);
+
+  const quotedMatch = contentDisposition?.match(/filename="([^"]+)"/i);
+  if (quotedMatch?.[1]) return quotedMatch[1];
+
+  return fallback;
+};
 
 export function useCreditCards() {
   const [cards, setCards] = useState<CreditCard[]>([]);
@@ -146,25 +170,22 @@ export function useCreditCards() {
       if (insertError) return { success: false, error: insertError.message };
 
       const uploadRecord = upload as any;
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const { data: session } = await supabase.auth.getSession();
+      const accessToken = await getSessionAccessToken();
+      if (!accessToken) return { success: false, error: 'Not authenticated' };
 
       const requestBody: any = { upload_id: uploadRecord.id, file_url: filePath, file_name: sanitizedName };
       if (password) requestBody.pdf_password = password;
 
       let response: Response;
       try {
-        response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/parse-credit-card-statement`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session?.session?.access_token}`,
-            },
-            body: JSON.stringify(requestBody),
-          }
-        );
+        response = await fetch(getEdgeFunctionUrl('parse-credit-card-statement'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(requestBody),
+        });
       } catch (networkError: any) {
         await supabase.from('statement_uploads' as any).update({
           status: 'FAILED', error_message: 'Network error: ' + (networkError.message || 'Could not reach server'),
@@ -174,7 +195,9 @@ export function useCreditCards() {
       }
 
       let result: any;
-      try { result = await response.json(); } catch {
+      try {
+        result = await response.json();
+      } catch {
         await supabase.from('statement_uploads' as any).update({ status: 'FAILED', error_message: 'Invalid server response' } as any).eq('id', uploadRecord.id);
         await fetchAll();
         return { success: false, error: 'Server returned invalid response' };
@@ -224,10 +247,81 @@ export function useCreditCards() {
     return { success: true };
   };
 
-  const getStatementFile = async (fileUrl: string) => {
-    const { data, error } = await supabase.storage.from('cc-statements').download(fileUrl);
-    if (error || !data) return null;
-    return data;
+  const getStatementFile = async (uploadId: string): Promise<StatementFilePayload | null> => {
+    try {
+      const accessToken = await getSessionAccessToken();
+      if (!accessToken) return null;
+
+      const response = await fetch(getEdgeFunctionUrl('view-credit-card-statement'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ upload_id: uploadId }),
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      return {
+        blob: await response.blob(),
+        mimeType: response.headers.get('content-type') || 'application/octet-stream',
+        fileName: parseContentDispositionFileName(response.headers.get('content-disposition'), 'statement'),
+      };
+    } catch (error) {
+      console.error('Failed to load statement file:', error);
+      return null;
+    }
+  };
+
+  const reanalyzeStatement = async (data: {
+    uploadId: string;
+    fileUrl: string;
+    fileName: string;
+    guidance?: string;
+  }): Promise<{ success: boolean; error?: string; password_required?: boolean }> => {
+    try {
+      const accessToken = await getSessionAccessToken();
+      if (!accessToken) return { success: false, error: 'Not authenticated' };
+
+      const response = await fetch(getEdgeFunctionUrl('parse-credit-card-statement'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          upload_id: data.uploadId,
+          file_url: data.fileUrl,
+          file_name: data.fileName,
+          force_reprocess: true,
+          user_guidance: data.guidance?.trim() || undefined,
+        }),
+      });
+
+      let result: any = null;
+      try {
+        result = await response.json();
+      } catch {
+        result = null;
+      }
+
+      await fetchAll();
+
+      if (!response.ok || !result?.success) {
+        return {
+          success: false,
+          error: result?.error || 'Re-analysis failed',
+          password_required: !!result?.password_required,
+        };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Re-analysis failed' };
+    }
   };
 
   const getSummary = () => {
@@ -258,6 +352,6 @@ export function useCreditCards() {
   return {
     cards, statements, transactions, payments, uploads, loading,
     uploadStatement, getSummary, checkDuplicate, refetch: fetchAll,
-    recordPayment, getStatementFile,
+    recordPayment, getStatementFile, reanalyzeStatement,
   };
 }
