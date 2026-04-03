@@ -219,9 +219,13 @@ ${cardsContext ? `EXISTING CARDS IN SYSTEM:\n${cardsContext}\nIf the statement m
 
 Return ONLY valid JSON, no markdown.`;
 
-    const userMsg = textContent
+    let userMsg = textContent
       ? `Parse this credit card statement CSV:\n\n${textContent.substring(0, 15000)}`
       : `Parse this credit card statement file: ${file_name}`;
+
+    if (pdf_password && ext === "pdf") {
+      userMsg += `\n\nNote: This PDF is password-protected. The password is: ${pdf_password}`;
+    }
 
     const aiMessages: any[] = [
       { role: "system", content: systemPrompt },
