@@ -132,7 +132,8 @@ export default function CreditCards() {
             payments={selectedPayments}
             onRecordPayment={recordPayment}
             onViewFile={getStatementFile}
-            uploadFileUrl={selectedUpload?.file_url}
+            onReanalyze={reanalyzeStatement}
+            upload={selectedUpload}
           />
         )}
       </main>

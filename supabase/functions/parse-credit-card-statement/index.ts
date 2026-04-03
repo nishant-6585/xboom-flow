@@ -95,11 +95,12 @@ Deno.serve(async (req: Request) => {
 
     const { data: uploadRecord } = await supabaseAdmin
       .from("statement_uploads")
-      .select("id, status, statement_id")
+      .select("id, uploaded_by, status, statement_id")
       .eq("id", upload_id)
       .single();
 
     if (!uploadRecord) return respond({ error: "Upload record not found" }, 404);
+    if (uploadRecord.uploaded_by !== userId) return respond({ error: "Access denied to this upload" }, 403);
     if (uploadRecord.status === "SUCCESS" && !force_reprocess) {
       return respond({ error: "Already processed", duplicate: true }, 409);
     }

@@ -65,7 +65,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: upload, error: uploadError } = await admin
       .from("statement_uploads")
-      .select("id, file_url, file_name")
+      .select("id, uploaded_by, file_url, file_name")
       .eq("id", uploadId)
       .single();
 
@@ -73,9 +73,13 @@ Deno.serve(async (req: Request) => {
       return respond({ error: "Statement file not found" }, 404);
     }
 
+    if (upload.uploaded_by !== userId) {
+      return respond({ error: "Access denied" }, 403);
+    }
+
     const { data: fileData, error: downloadError } = await admin.storage
       .from("cc-statements")
-      .download(upload.file_url, undefined, { cache: "no-store" });
+      .download(upload.file_url);
 
     if (downloadError || !fileData) {
       return respond({ error: "Could not load statement file" }, 500);
