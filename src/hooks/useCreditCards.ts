@@ -392,9 +392,47 @@ export function useCreditCards() {
     return { totalOutstanding, totalCreditLimit, avgUtilization: Math.round(avgUtilization * 10) / 10, totalInterest, riskyCards, totalCards: cards.length };
   };
 
+  const deleteCardWithData = async (cardId: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { success: false, error: 'Not authenticated' };
+
+      // Delete in order: transactions → payments → uploads → statements → card
+      const cardStatements = statements.filter(s => s.card_id === cardId);
+      const stmtIds = cardStatements.map(s => s.id);
+
+      if (stmtIds.length > 0) {
+        await supabase.from('cc_transactions' as any).delete().in('statement_id', stmtIds);
+        await supabase.from('cc_payments' as any).delete().in('statement_id', stmtIds);
+        
+        // Delete upload records and storage files
+        const cardUploads = uploads.filter(u => stmtIds.includes(u.statement_id || ''));
+        for (const u of cardUploads) {
+          if (u.file_url) {
+            await supabase.storage.from('cc-statements').remove([u.file_url]);
+          }
+        }
+        await supabase.from('statement_uploads' as any).delete().in('statement_id', stmtIds);
+        await supabase.from('cc_statements' as any).delete().in('id', stmtIds);
+      }
+
+      // Also delete any orphan uploads linked to this card
+      await supabase.from('statement_uploads' as any).delete().eq('card_id', cardId);
+
+      const { error } = await supabase.from('credit_cards' as any).delete().eq('id', cardId);
+      if (error) return { success: false, error: error.message };
+
+      await fetchAll();
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  };
+
   return {
     cards, statements, transactions, payments, uploads, loading,
     uploadStatement, getSummary, checkDuplicate, refetch: fetchAll,
     recordPayment, getStatementFile, reanalyzeStatement, replaceStatementFile,
+    deleteCardWithData,
   };
 }

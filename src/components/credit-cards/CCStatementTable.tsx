@@ -1,24 +1,30 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { CreditCard, CCStatement, CCPayment } from '@/hooks/useCreditCards';
-import { FileText, Search, Eye } from 'lucide-react';
+import { FileText, Search, Eye, Trash2, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Props {
   cards: CreditCard[];
   statements: CCStatement[];
   payments: CCPayment[];
   onViewStatement?: (statement: CCStatement) => void;
+  onDeleteCard?: (cardId: string) => Promise<{ success: boolean; error?: string }>;
 }
 
-export function CCStatementTable({ cards, statements, payments, onViewStatement }: Props) {
+export function CCStatementTable({ cards, statements, payments, onViewStatement, onDeleteCard }: Props) {
   const [bankFilter, setBankFilter] = useState('all');
   const [cardFilter, setCardFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [deleteCardId, setDeleteCardId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const banks = [...new Set(cards.map(c => c.bank_name))];
 
@@ -45,12 +51,44 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement 
 
   const fmt = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
+  const handleDeleteCard = async () => {
+    if (!deleteCardId || !onDeleteCard) return;
+    setDeleting(true);
+    const result = await onDeleteCard(deleteCardId);
+    setDeleting(false);
+    setDeleteCardId(null);
+    if (result.success) {
+      toast.success('Card and all associated data deleted');
+    } else {
+      toast.error(result.error || 'Failed to delete');
+    }
+  };
+
+  const deleteCardObj = deleteCardId ? cards.find(c => c.id === deleteCardId) : null;
+
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <FileText className="h-4 w-4" /> Statement History
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <FileText className="h-4 w-4" /> Statement History
+          </CardTitle>
+          {onDeleteCard && cards.length > 0 && (
+            <Select onValueChange={(v) => setDeleteCardId(v)}>
+              <SelectTrigger className="w-auto h-8 text-xs gap-1 text-destructive border-destructive/30">
+                <Trash2 className="h-3 w-3" />
+                <span>Delete Card</span>
+              </SelectTrigger>
+              <SelectContent>
+                {cards.map(c => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.bank_name} — {c.card_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex flex-wrap gap-2">
@@ -134,6 +172,24 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement 
             </TableBody>
           </Table>
         </div>
+
+        <AlertDialog open={!!deleteCardId} onOpenChange={(open) => !open && setDeleteCardId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Card & All Data?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete <strong>{deleteCardObj?.bank_name} — {deleteCardObj?.card_name}</strong> along with all statements, transactions, payments, and uploaded files. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteCard} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}
+                Delete Everything
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );
