@@ -51,9 +51,10 @@ export function CCReports({ cards, statements, transactions, payments }: Props) 
   // ── MONTHLY TRENDS ──
   const monthMap = new Map<string, { outstanding: number; interest: number; lateFee: number; paid: number }>();
   statements.forEach(s => {
+    const card = cards.find(c => c.id === s.card_id);
     const e = monthMap.get(s.billing_month) || { outstanding: 0, interest: 0, lateFee: 0, paid: 0 };
     monthMap.set(s.billing_month, {
-      outstanding: e.outstanding + s.outstanding_balance,
+      outstanding: e.outstanding + getStatementOutstanding(s, card),
       interest: e.interest + s.interest_charged,
       lateFee: e.lateFee + s.late_fee,
       paid: e.paid + (s.amount_paid || 0),

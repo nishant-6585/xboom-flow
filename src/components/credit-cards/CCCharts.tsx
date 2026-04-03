@@ -42,9 +42,10 @@ export function CCCharts({ cards, statements }: Props) {
   // Monthly trend (last 6 months)
   const monthMap = new Map<string, { outstanding: number; interest: number }>();
   statements.forEach(s => {
+    const card = cards.find(c => c.id === s.card_id);
     const existing = monthMap.get(s.billing_month) || { outstanding: 0, interest: 0 };
     monthMap.set(s.billing_month, {
-      outstanding: existing.outstanding + s.outstanding_balance,
+      outstanding: existing.outstanding + getStatementOutstanding(s, card),
       interest: existing.interest + s.interest_charged,
     });
   });

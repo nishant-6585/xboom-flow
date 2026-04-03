@@ -219,7 +219,7 @@ export function CCStatementDetail({
           <div className="grid grid-cols-2 md:grid-cols-6 gap-3 p-3 bg-muted/30 rounded-lg text-xs">
             <div><span className="text-muted-foreground block">Total Due</span><span className="font-bold">{fmt(statement.total_due)}</span></div>
             <div><span className="text-muted-foreground block">Min. Due</span><span className="font-bold">{fmt(statement.minimum_due || 0)}</span></div>
-            <div><span className="text-muted-foreground block">Outstanding</span><span className="font-bold">{fmt(statement.outstanding_balance)}</span></div>
+            <div><span className="text-muted-foreground block">Outstanding</span><span className="font-bold">{fmt(outstanding)}</span></div>
             <div><span className="text-muted-foreground block">Paid</span><span className="font-bold text-green-600">{fmt(totalPaid)}</span></div>
             <div><span className="text-muted-foreground block">Remaining</span><span className="font-bold text-red-600">{fmt(remaining)}</span></div>
             <div><span className="text-muted-foreground block">Due Date</span><span className="font-bold">{new Date(statement.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}</span></div>

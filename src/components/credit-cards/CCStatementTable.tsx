@@ -148,10 +148,7 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
               ) : (
                 filtered.map(s => {
                   const card = cards.find(c => c.id === s.card_id);
-                  const paidForStatement = payments
-                    .filter(p => p.statement_id === s.id)
-                    .reduce((sum, p) => sum + (p.amount || 0), 0);
-                  const outstanding = Math.max(0, s.total_due - paidForStatement);
+                  const outstanding = getStatementOutstanding(s, card);
                   return (
                     <TableRow key={s.id} className="cursor-pointer hover:bg-muted/60" onClick={() => onViewStatement?.(s)}>
                       <TableCell className="text-xs font-medium">{card?.bank_name}</TableCell>

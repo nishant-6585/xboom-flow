@@ -394,9 +394,15 @@ Return ONLY valid JSON, no markdown.`;
     if (amountPaid >= totalDue && totalDue > 0) paymentStatus = "FULL";
     else if (amountPaid >= minimumDue && minimumDue > 0) paymentStatus = "PARTIAL";
 
-    const creditLimit = parsed.credit_limit || 0;
-    const outstanding = parsed.outstanding_balance || 0;
-    const availableCredit = parsed.available_credit_limit || Math.max(0, creditLimit - outstanding);
+    const creditLimit = parsed.credit_limit || matchedCard?.credit_limit || 0;
+    let availableCredit = parsed.available_credit_limit || 0;
+    let outstanding = parsed.outstanding_balance || 0;
+
+    if (creditLimit > 0 && availableCredit > 0) {
+      outstanding = Math.max(0, creditLimit - availableCredit);
+    } else if (creditLimit > 0 && outstanding >= 0) {
+      availableCredit = Math.max(0, creditLimit - outstanding);
+    }
 
     const statementPayload = {
       card_id: cardId,
