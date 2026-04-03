@@ -96,7 +96,10 @@ export function CCStatementDetail({ open, onClose, statement, card, transactions
     else toast({ title: 'Could not generate download link', variant: 'destructive' });
   };
 
-  const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+  // Use the statement's amount_paid (set by AI extraction + trigger sync)
+  // If manual payments exist, they've already been synced to statement.amount_paid via trigger
+  const totalPaid = statement.amount_paid || 0;
+  const manualPaymentsTotal = payments.reduce((sum, p) => sum + p.amount, 0);
   const remaining = Math.max(0, statement.total_due - totalPaid);
 
   return (
