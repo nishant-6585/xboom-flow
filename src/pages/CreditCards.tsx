@@ -1,19 +1,26 @@
 import { useState } from 'react';
 import { Header } from '@/components/Header';
 import { useAuth } from '@/hooks/useAuth';
-import { useCreditCards } from '@/hooks/useCreditCards';
+import { useCreditCards, CCStatement } from '@/hooks/useCreditCards';
 import { CCUploadZone } from '@/components/credit-cards/CCUploadZone';
 import { CCSummaryCards } from '@/components/credit-cards/CCSummaryCards';
 import { CCCharts } from '@/components/credit-cards/CCCharts';
 import { CCStatementTable } from '@/components/credit-cards/CCStatementTable';
 import { CCUploadHistory } from '@/components/credit-cards/CCUploadHistory';
+import { CCStatementDetail } from '@/components/credit-cards/CCStatementDetail';
+import { CCReports } from '@/components/credit-cards/CCReports';
 import { CreditCard, Lock, Loader2, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 export default function CreditCards() {
   const { role, loading: authLoading } = useAuth();
-  const { cards, statements, uploads, loading, uploadStatement, checkDuplicate, getSummary, refetch } = useCreditCards();
+  const {
+    cards, statements, transactions, payments, uploads, loading,
+    uploadStatement, checkDuplicate, getSummary, refetch,
+    recordPayment, getStatementFile,
+  } = useCreditCards();
   const [processing, setProcessing] = useState(false);
+  const [selectedStatement, setSelectedStatement] = useState<CCStatement | null>(null);
 
   const canAccess = role === 'admin' || role === 'finance';
 
@@ -44,6 +51,22 @@ export default function CreditCards() {
   const summary = getSummary();
   const hasData = statements.length > 0;
 
+  // Get transactions and payments for the selected statement
+  const selectedTxns = selectedStatement
+    ? transactions.filter(t => t.statement_id === selectedStatement.id)
+    : [];
+  const selectedPayments = selectedStatement
+    ? payments.filter(p => p.statement_id === selectedStatement.id)
+    : [];
+  const selectedCard = selectedStatement
+    ? cards.find(c => c.id === selectedStatement.card_id)
+    : undefined;
+
+  // Find the upload file URL for the selected statement
+  const selectedUpload = selectedStatement
+    ? uploads.find(u => u.statement_id === selectedStatement.id)
+    : undefined;
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -60,19 +83,29 @@ export default function CreditCards() {
                 <Sparkles className="h-3 w-3" /> AI Powered
               </Badge>
             </h1>
-            <p className="text-muted-foreground text-sm">Upload statements → AI does the rest</p>
+            <p className="text-muted-foreground text-sm">Upload statements → AI extracts transactions & data automatically</p>
           </div>
         </div>
 
         {/* Upload Zone */}
         <CCUploadZone onUpload={handleUpload} processing={processing} />
 
-        {/* Dashboard — only shown when data exists */}
+        {/* Dashboard */}
         {hasData && (
           <>
             <CCSummaryCards {...summary} />
             <CCCharts cards={cards} statements={statements} />
-            <CCStatementTable cards={cards} statements={statements} />
+            <CCStatementTable
+              cards={cards}
+              statements={statements}
+              onViewStatement={setSelectedStatement}
+            />
+            <CCReports
+              cards={cards}
+              statements={statements}
+              transactions={transactions}
+              payments={payments}
+            />
           </>
         )}
 
@@ -87,6 +120,21 @@ export default function CreditCards() {
 
         {/* Upload History */}
         <CCUploadHistory uploads={uploads} cards={cards} />
+
+        {/* Statement Detail Dialog */}
+        {selectedStatement && (
+          <CCStatementDetail
+            open={!!selectedStatement}
+            onClose={() => setSelectedStatement(null)}
+            statement={selectedStatement}
+            card={selectedCard}
+            transactions={selectedTxns}
+            payments={selectedPayments}
+            onRecordPayment={recordPayment}
+            onViewFile={getStatementFile}
+            uploadFileUrl={selectedUpload?.file_url}
+          />
+        )}
       </main>
     </div>
   );

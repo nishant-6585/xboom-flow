@@ -5,14 +5,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CreditCard, CCStatement } from '@/hooks/useCreditCards';
-import { FileText, Search } from 'lucide-react';
+import { FileText, Search, Eye } from 'lucide-react';
 
 interface Props {
   cards: CreditCard[];
   statements: CCStatement[];
+  onViewStatement?: (statement: CCStatement) => void;
 }
 
-export function CCStatementTable({ cards, statements }: Props) {
+export function CCStatementTable({ cards, statements, onViewStatement }: Props) {
   const [bankFilter, setBankFilter] = useState('all');
   const [cardFilter, setCardFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -51,7 +52,6 @@ export function CCStatementTable({ cards, statements }: Props) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Filters */}
         <div className="flex flex-wrap gap-2">
           <div className="relative flex-1 min-w-[150px]">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
@@ -82,7 +82,6 @@ export function CCStatementTable({ cards, statements }: Props) {
           </Select>
         </div>
 
-        {/* Table */}
         <div className="rounded-lg border overflow-auto">
           <Table>
             <TableHeader>
@@ -95,12 +94,13 @@ export function CCStatementTable({ cards, statements }: Props) {
                 <TableHead className="text-xs">Status</TableHead>
                 <TableHead className="text-xs">Due Date</TableHead>
                 <TableHead className="text-xs text-right">Interest</TableHead>
+                <TableHead className="text-xs text-center">Details</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-xs text-muted-foreground py-8">
+                  <TableCell colSpan={9} className="text-center text-xs text-muted-foreground py-8">
                     No statements found. Upload a statement to get started.
                   </TableCell>
                 </TableRow>
@@ -108,7 +108,7 @@ export function CCStatementTable({ cards, statements }: Props) {
                 filtered.map(s => {
                   const card = cards.find(c => c.id === s.card_id);
                   return (
-                    <TableRow key={s.id}>
+                    <TableRow key={s.id} className="cursor-pointer hover:bg-muted/60" onClick={() => onViewStatement?.(s)}>
                       <TableCell className="text-xs font-medium">{card?.bank_name}</TableCell>
                       <TableCell className="text-xs">{card?.card_name}</TableCell>
                       <TableCell className="text-xs">{s.billing_month}</TableCell>
@@ -117,6 +117,9 @@ export function CCStatementTable({ cards, statements }: Props) {
                       <TableCell>{statusBadge(s.payment_status)}</TableCell>
                       <TableCell className="text-xs">{new Date(s.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}</TableCell>
                       <TableCell className="text-xs text-right">{s.interest_charged > 0 ? fmt(s.interest_charged) : '—'}</TableCell>
+                      <TableCell className="text-center">
+                        <Eye className="h-3.5 w-3.5 text-muted-foreground mx-auto" />
+                      </TableCell>
                     </TableRow>
                   );
                 })
