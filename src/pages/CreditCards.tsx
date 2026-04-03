@@ -12,6 +12,7 @@ import { CCInsights } from '@/components/credit-cards/CCInsights';
 import { CCQuickActions } from '@/components/credit-cards/CCQuickActions';
 import { CCAddCardDialog } from '@/components/credit-cards/CCAddCardDialog';
 import { CCAddStatementDialog } from '@/components/credit-cards/CCAddStatementDialog';
+import { CCStatementUpload } from '@/components/credit-cards/CCStatementUpload';
 import { CreditCard, BarChart3, FileText, Lock, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
