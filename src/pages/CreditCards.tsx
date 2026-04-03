@@ -18,7 +18,7 @@ import * as XLSX from 'xlsx';
 
 export default function CreditCards() {
   const { role, loading: authLoading } = useAuth();
-  const { cards, statements, loading, addCard, addStatement, updateStatement, getCardMetrics, summaryMetrics } = useCreditCards();
+  const { cards, statements, loading, addCard, addStatement, updateStatement, getCardMetrics, summaryMetrics, refetch } = useCreditCards();
 
   const canAccess = role === 'admin' || role === 'finance';
 
