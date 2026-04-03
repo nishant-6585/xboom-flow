@@ -1093,6 +1093,65 @@ export type Database = {
         }
         Relationships: []
       }
+      call_ai_analysis: {
+        Row: {
+          budget: string | null
+          call_log_id: string
+          confidence_score: number | null
+          created_at: string
+          id: string
+          intent: string | null
+          key_requirements: string[] | null
+          next_action: string | null
+          objections: string[] | null
+          raw_ai_response: Json | null
+          sentiment: string | null
+          summary: string | null
+          timeline: string | null
+          transcript: string | null
+        }
+        Insert: {
+          budget?: string | null
+          call_log_id: string
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          intent?: string | null
+          key_requirements?: string[] | null
+          next_action?: string | null
+          objections?: string[] | null
+          raw_ai_response?: Json | null
+          sentiment?: string | null
+          summary?: string | null
+          timeline?: string | null
+          transcript?: string | null
+        }
+        Update: {
+          budget?: string | null
+          call_log_id?: string
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          intent?: string | null
+          key_requirements?: string[] | null
+          next_action?: string | null
+          objections?: string[] | null
+          raw_ai_response?: Json | null
+          sentiment?: string | null
+          summary?: string | null
+          timeline?: string | null
+          transcript?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_ai_analysis_call_log_id_fkey"
+            columns: ["call_log_id"]
+            isOneToOne: false
+            referencedRelation: "call_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_logs: {
         Row: {
           agent_name: string | null
@@ -1113,6 +1172,7 @@ export type Database = {
           department: string | null
           email: string | null
           end_time: string | null
+          exotel_call_sid: string | null
           full_number: string | null
           id: string
           is_a_category: boolean | null
@@ -1157,6 +1217,7 @@ export type Database = {
           department?: string | null
           email?: string | null
           end_time?: string | null
+          exotel_call_sid?: string | null
           full_number?: string | null
           id?: string
           is_a_category?: boolean | null
@@ -1201,6 +1262,7 @@ export type Database = {
           department?: string | null
           email?: string | null
           end_time?: string | null
+          exotel_call_sid?: string | null
           full_number?: string | null
           id?: string
           is_a_category?: boolean | null
@@ -1225,6 +1287,36 @@ export type Database = {
           start_time?: string | null
           updated_at?: string
           urgency?: string | null
+        }
+        Relationships: []
+      }
+      call_webhook_logs: {
+        Row: {
+          call_sid: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          processing_status: string
+          raw_payload: Json
+          source: string
+        }
+        Insert: {
+          call_sid?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          processing_status?: string
+          raw_payload: Json
+          source?: string
+        }
+        Update: {
+          call_sid?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          processing_status?: string
+          raw_payload?: Json
+          source?: string
         }
         Relationships: []
       }
@@ -4352,6 +4444,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      integration_errors: {
+        Row: {
+          created_at: string
+          error_details: Json | null
+          error_message: string
+          function_name: string
+          id: string
+          integration: string
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_details?: Json | null
+          error_message: string
+          function_name: string
+          id?: string
+          integration: string
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_details?: Json | null
+          error_message?: string
+          function_name?: string
+          id?: string
+          integration?: string
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Relationships: []
       }
       interakt_leads: {
         Row: {

@@ -6,18 +6,20 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEnquiries, PRODUCT_CATEGORIES, Enquiry, ENQUIRY_STATUSES } from '@/hooks/useEnquiries';
 import { useEnquiryItems, EnquiryItem } from '@/hooks/useEnquiryItems';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Upload, FileSpreadsheet, Download, Search, Plus, Package, 
-  Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil, Trash2, IndianRupee
+  Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil, Trash2, IndianRupee, Zap
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { EnquiryFormDialog } from './EnquiryFormDialog';
+import { CallIntelligencePanel } from './CallIntelligencePanel';
 import { cn } from '@/lib/utils';
 
 interface EnquiriesPanelProps {
@@ -367,128 +369,145 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
 
       {/* View Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="h-5 w-5" />
               Enquiry Details
             </DialogTitle>
             <DialogDescription>
-              View enquiry information and product items
+              View enquiry information, product items, and call intelligence
             </DialogDescription>
           </DialogHeader>
 
           {viewingEnquiry && (
-            <div className="space-y-6">
-              {/* Customer Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Customer</p>
-                  <p className="font-medium">{viewingEnquiry.customer_name}</p>
-                  <p className="text-sm text-muted-foreground">{viewingEnquiry.customer_company}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Status</p>
-                  <Badge variant="outline" className={cn("capitalize mt-1", getStatusColor(viewingEnquiry.status))}>
-                    {viewingEnquiry.status.replace(/_/g, ' ')}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Urgency</p>
-                  <Badge variant="outline" className={cn("capitalize mt-1", getUrgencyColor(viewingEnquiry.urgency))}>
-                    {viewingEnquiry.urgency}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Created</p>
-                  <p className="font-medium">{format(new Date(viewingEnquiry.created_at), 'MMM dd, yyyy HH:mm')}</p>
-                </div>
-              </div>
+            <Tabs defaultValue="details" className="w-full">
+              <TabsList className="w-full grid grid-cols-2">
+                <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="calls" className="flex items-center gap-1">
+                  <Zap className="h-3 w-3" />
+                  Call Intelligence
+                </TabsTrigger>
+              </TabsList>
 
-              {/* Main Product */}
-              <div className="border rounded-lg p-4 bg-muted/30">
-                <h4 className="font-medium mb-2">Primary Product</h4>
-                <div className="grid grid-cols-3 gap-4 text-sm">
+              <TabsContent value="details" className="space-y-6 mt-4">
+                {/* Customer Info */}
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-muted-foreground">Product</p>
-                    <p className="font-medium">{viewingEnquiry.product_name}</p>
+                    <p className="text-sm text-muted-foreground">Customer</p>
+                    <p className="font-medium">{viewingEnquiry.customer_name}</p>
+                    <p className="text-sm text-muted-foreground">{viewingEnquiry.customer_company}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Category</p>
-                    <p className="font-medium">{viewingEnquiry.product_category}</p>
+                    <p className="text-sm text-muted-foreground">Status</p>
+                    <Badge variant="outline" className={cn("capitalize mt-1", getStatusColor(viewingEnquiry.status))}>
+                      {viewingEnquiry.status.replace(/_/g, ' ')}
+                    </Badge>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Quantity</p>
-                    <p className="font-medium">{viewingEnquiry.quantity}</p>
+                    <p className="text-sm text-muted-foreground">Urgency</p>
+                    <Badge variant="outline" className={cn("capitalize mt-1", getUrgencyColor(viewingEnquiry.urgency))}>
+                      {viewingEnquiry.urgency}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Created</p>
+                    <p className="font-medium">{format(new Date(viewingEnquiry.created_at), 'MMM dd, yyyy HH:mm')}</p>
                   </div>
                 </div>
-              </div>
 
-              {/* Additional Items */}
-              {loadingItems ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                {/* Main Product */}
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <h4 className="font-medium mb-2">Primary Product</h4>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Product</p>
+                      <p className="font-medium">{viewingEnquiry.product_name}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Category</p>
+                      <p className="font-medium">{viewingEnquiry.product_category}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Quantity</p>
+                      <p className="font-medium">{viewingEnquiry.quantity}</p>
+                    </div>
+                  </div>
                 </div>
-              ) : enquiryItems.length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="font-medium">Additional Products ({enquiryItems.length})</h4>
-                  <div className="border rounded-lg overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/50">
-                          <TableHead>Product</TableHead>
-                          <TableHead className="text-center">Qty</TableHead>
-                          <TableHead className="text-right">Unit Price</TableHead>
-                          <TableHead className="text-center">GST</TableHead>
-                          <TableHead className="text-right">Total</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {enquiryItems.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell>
-                              <p className="font-medium">{item.product_name}</p>
-                              <p className="text-xs text-muted-foreground">{item.product_category}</p>
+
+                {/* Additional Items */}
+                {loadingItems ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  </div>
+                ) : enquiryItems.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="font-medium">Additional Products ({enquiryItems.length})</h4>
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/50">
+                            <TableHead>Product</TableHead>
+                            <TableHead className="text-center">Qty</TableHead>
+                            <TableHead className="text-right">Unit Price</TableHead>
+                            <TableHead className="text-center">GST</TableHead>
+                            <TableHead className="text-right">Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {enquiryItems.map((item) => (
+                            <TableRow key={item.id}>
+                              <TableCell>
+                                <p className="font-medium">{item.product_name}</p>
+                                <p className="text-xs text-muted-foreground">{item.product_category}</p>
+                              </TableCell>
+                              <TableCell className="text-center">{item.quantity}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant="outline" className="text-xs">
+                                  {item.gst_percent}%{item.price_includes_gst ? ' (incl)' : ''}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                {formatCurrency(item.total_amount)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          <TableRow className="bg-muted/30">
+                            <TableCell colSpan={3} className="text-right font-medium">
+                              Grand Total
                             </TableCell>
-                            <TableCell className="text-center">{item.quantity}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
                             <TableCell className="text-center">
-                              <Badge variant="outline" className="text-xs">
-                                {item.gst_percent}%{item.price_includes_gst ? ' (incl)' : ''}
-                              </Badge>
+                              <span className="text-sm text-muted-foreground">
+                                GST: {formatCurrency(enquiryItems.reduce((sum, item) => sum + item.gst_amount, 0))}
+                              </span>
                             </TableCell>
-                            <TableCell className="text-right font-medium">
-                              {formatCurrency(item.total_amount)}
+                            <TableCell className="text-right font-bold text-primary">
+                              {formatCurrency(enquiryItems.reduce((sum, item) => sum + item.total_amount, 0))}
                             </TableCell>
                           </TableRow>
-                        ))}
-                        <TableRow className="bg-muted/30">
-                          <TableCell colSpan={3} className="text-right font-medium">
-                            Grand Total
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="text-sm text-muted-foreground">
-                              GST: {formatCurrency(enquiryItems.reduce((sum, item) => sum + item.gst_amount, 0))}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right font-bold text-primary">
-                            {formatCurrency(enquiryItems.reduce((sum, item) => sum + item.total_amount, 0))}
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Notes */}
-              {viewingEnquiry.notes && (
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Notes</p>
-                  <p className="text-sm bg-muted/30 p-3 rounded-lg">{viewingEnquiry.notes}</p>
-                </div>
-              )}
-            </div>
+                {/* Notes */}
+                {viewingEnquiry.notes && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Notes</p>
+                    <p className="text-sm bg-muted/30 p-3 rounded-lg">{viewingEnquiry.notes}</p>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="calls" className="mt-4">
+                <CallIntelligencePanel
+                  leadId={viewingEnquiry.id}
+                  customerName={viewingEnquiry.customer_name}
+                />
+              </TabsContent>
+            </Tabs>
           )}
         </DialogContent>
       </Dialog>
