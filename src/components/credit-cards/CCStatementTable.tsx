@@ -101,7 +101,7 @@ export function CCStatementTable({ cards, statements, onViewStatement }: Props) 
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-xs text-muted-foreground py-8">
+                   <TableCell colSpan={10} className="text-center text-xs text-muted-foreground py-8">
                     No statements found. Upload a statement to get started.
                   </TableCell>
                 </TableRow>
@@ -114,6 +114,7 @@ export function CCStatementTable({ cards, statements, onViewStatement }: Props) 
                       <TableCell className="text-xs">{card?.card_name}</TableCell>
                       <TableCell className="text-xs">{s.billing_month}</TableCell>
                       <TableCell className="text-xs text-right">{fmt(s.total_due)}</TableCell>
+                      <TableCell className="text-xs text-right">{s.minimum_due > 0 ? fmt(s.minimum_due) : '—'}</TableCell>
                       <TableCell className="text-xs text-right">{fmt(s.outstanding_balance)}</TableCell>
                       <TableCell>{statusBadge(s.payment_status)}</TableCell>
                       <TableCell className="text-xs">{new Date(s.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}</TableCell>
