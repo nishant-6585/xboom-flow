@@ -7,9 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Document, Page, pdfjs } from 'react-pdf';
 import { CreditCard, CCStatement, CCTransaction, CCPayment, StatementFilePayload, StatementUpload } from '@/hooks/useCreditCards';
 import { Download, FileDown, Loader2, Plus, Receipt, RotateCcw, CreditCard as CardIcon, IndianRupee, Upload } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import 'react-pdf/dist/Page/TextLayer.css';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
 
 interface Props {
   open: boolean;
