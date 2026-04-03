@@ -357,9 +357,26 @@ export function CCStatementDetail({
           <DialogHeader className="space-y-3">
             <div className="flex items-start justify-between gap-3 pr-8">
               <DialogTitle className="truncate">{viewerData?.fileName || upload?.file_name || 'Statement file'}</DialogTitle>
-              <Button type="button" variant="outline" size="sm" onClick={handleDownloadFile} disabled={!viewerData} className="gap-1 shrink-0">
-                <Download className="h-4 w-4" /> Download
-              </Button>
+              <div className="flex gap-2 shrink-0">
+                {onReplaceFile && upload && (
+                  <>
+                    <input
+                      ref={replaceFileRef}
+                      type="file"
+                      accept=".pdf,.csv,.xlsx,.xls"
+                      className="hidden"
+                      onChange={handleReplaceFile}
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={() => replaceFileRef.current?.click()} disabled={replacingFile} className="gap-1">
+                      {replacingFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                      Replace File
+                    </Button>
+                  </>
+                )}
+                <Button type="button" variant="outline" size="sm" onClick={handleDownloadFile} disabled={!viewerData} className="gap-1">
+                  <Download className="h-4 w-4" /> Download
+                </Button>
+              </div>
             </div>
             <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
               <div>
@@ -383,7 +400,7 @@ export function CCStatementDetail({
 
           <div className="flex-1 rounded-lg border bg-muted/10 overflow-hidden">
             {canPreviewInline && viewerData ? (
-              <iframe src={viewerData.url} title={viewerData.fileName} className="h-full w-full" />
+              <embed src={viewerData.url} type="application/pdf" className="h-full w-full" />
             ) : (
               <div className="h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
                 <p className="text-sm text-muted-foreground">Inline preview is available for PDF statements. You can still download this file from here.</p>
