@@ -1537,6 +1537,66 @@ export type Database = {
         }
         Relationships: []
       }
+      cc_payments: {
+        Row: {
+          amount: number
+          card_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          payment_date: string
+          payment_mode: string
+          recorded_by: string
+          recorded_by_name: string
+          reference_number: string | null
+          statement_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          card_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date: string
+          payment_mode?: string
+          recorded_by: string
+          recorded_by_name?: string
+          reference_number?: string | null
+          statement_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          card_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_mode?: string
+          recorded_by?: string
+          recorded_by_name?: string
+          reference_number?: string | null
+          statement_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cc_payments_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "credit_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cc_payments_statement_id_fkey"
+            columns: ["statement_id"]
+            isOneToOne: false
+            referencedRelation: "cc_statements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cc_statements: {
         Row: {
           amount_paid: number | null
@@ -1605,6 +1665,60 @@ export type Database = {
             columns: ["upload_id"]
             isOneToOne: false
             referencedRelation: "statement_uploads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cc_transactions: {
+        Row: {
+          amount: number
+          card_id: string
+          category: string | null
+          created_at: string
+          description: string
+          id: string
+          merchant_name: string | null
+          statement_id: string
+          transaction_date: string
+          transaction_type: string
+        }
+        Insert: {
+          amount?: number
+          card_id: string
+          category?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          merchant_name?: string | null
+          statement_id: string
+          transaction_date: string
+          transaction_type?: string
+        }
+        Update: {
+          amount?: number
+          card_id?: string
+          category?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          merchant_name?: string | null
+          statement_id?: string
+          transaction_date?: string
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cc_transactions_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "credit_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cc_transactions_statement_id_fkey"
+            columns: ["statement_id"]
+            isOneToOne: false
+            referencedRelation: "cc_statements"
             referencedColumns: ["id"]
           },
         ]
