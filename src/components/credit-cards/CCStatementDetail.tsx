@@ -80,20 +80,14 @@ export function CCStatementDetail({
   const [saving, setSaving] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerLoading, setViewerLoading] = useState(false);
-  const [viewerData, setViewerData] = useState<{ url: string; fileName: string; mimeType: string } | null>(null);
+  const [viewerData, setViewerData] = useState<{ url: string; fileName: string; mimeType: string; blob: Blob } | null>(null);
   const [reanalysisGuidance, setReanalysisGuidance] = useState('');
   const [reanalyzing, setReanalyzing] = useState(false);
   const [replacingFile, setReplacingFile] = useState(false);
   const replaceFileRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    return () => {
-      if (viewerData?.url) URL.revokeObjectURL(viewerData.url);
-    };
-  }, [viewerData]);
 
   const closeViewer = (nextOpen: boolean) => {
-    if (!nextOpen && viewerData?.url) {
-      URL.revokeObjectURL(viewerData.url);
+    if (!nextOpen) {
       setViewerData(null);
     }
     setViewerOpen(nextOpen);
@@ -124,6 +118,14 @@ export function CCStatementDetail({
     }
   };
 
+  const blobToDataUrl = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
   const handleViewFile = async () => {
     if (!upload?.id) return;
 
@@ -136,24 +138,27 @@ export function CCStatementDetail({
       return;
     }
 
-    if (viewerData?.url) URL.revokeObjectURL(viewerData.url);
+    const dataUrl = await blobToDataUrl(file.blob);
 
     setViewerData({
-      url: URL.createObjectURL(file.blob),
+      url: dataUrl,
       fileName: file.fileName || upload.file_name,
       mimeType: file.mimeType,
+      blob: file.blob,
     });
     setViewerOpen(true);
   };
 
   const handleDownloadFile = () => {
-    if (!viewerData) return;
+    if (!viewerData?.blob) return;
+    const blobUrl = URL.createObjectURL(viewerData.blob);
     const link = document.createElement('a');
-    link.href = viewerData.url;
+    link.href = blobUrl;
     link.download = viewerData.fileName;
     document.body.appendChild(link);
     link.click();
     link.remove();
+    URL.revokeObjectURL(blobUrl);
   };
 
   const handleReanalyze = async () => {
