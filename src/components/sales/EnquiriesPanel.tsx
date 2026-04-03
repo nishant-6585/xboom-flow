@@ -6,18 +6,20 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEnquiries, PRODUCT_CATEGORIES, Enquiry, ENQUIRY_STATUSES } from '@/hooks/useEnquiries';
 import { useEnquiryItems, EnquiryItem } from '@/hooks/useEnquiryItems';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Upload, FileSpreadsheet, Download, Search, Plus, Package, 
-  Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil, Trash2, IndianRupee
+  Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil, Trash2, IndianRupee, Zap
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { EnquiryFormDialog } from './EnquiryFormDialog';
+import { CallIntelligencePanel } from './CallIntelligencePanel';
 import { cn } from '@/lib/utils';
 
 interface EnquiriesPanelProps {
