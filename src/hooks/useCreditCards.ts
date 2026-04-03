@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getStatementCreditLimit, getStatementOutstanding, getStatementUtilization } from '@/lib/creditCardMetrics';
 
 export interface CreditCard {
   id: string;
@@ -374,18 +375,20 @@ export function useCreditCards() {
     });
     const latest = Array.from(latestByCard.values());
 
-    const totalOutstanding = latest.reduce((sum, s) => sum + s.outstanding_balance, 0);
+    const totalOutstanding = latest.reduce((sum, s) => {
+      const card = cards.find(c => c.id === s.card_id);
+      return sum + getStatementOutstanding(s, card);
+    }, 0);
     const totalCreditLimit = latest.reduce((sum, s) => {
       const card = cards.find(c => c.id === s.card_id);
-      return sum + (card?.credit_limit || (s.outstanding_balance + s.available_credit_limit));
+      return sum + getStatementCreditLimit(s, card);
     }, 0);
     const avgUtilization = totalCreditLimit > 0 ? (totalOutstanding / totalCreditLimit) * 100 : 0;
     const totalInterest = latest.reduce((sum, s) => sum + s.interest_charged, 0);
 
     const riskyCards = latest.filter(s => {
       const card = cards.find(c => c.id === s.card_id);
-      const limit = card?.credit_limit || (s.outstanding_balance + s.available_credit_limit);
-      const util = limit > 0 ? (s.outstanding_balance / limit) * 100 : 0;
+      const util = getStatementUtilization(s, card);
       return util > 80 || (new Date(s.due_date) < new Date() && s.payment_status !== 'FULL');
     }).length;
 

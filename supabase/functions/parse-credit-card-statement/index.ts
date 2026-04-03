@@ -209,10 +209,12 @@ RETURN THIS JSON:
 
 CRITICAL RULES FOR outstanding_balance vs total_due:
 - "total_due" is the TOTAL AMOUNT DUE for THIS billing cycle/month only (sometimes labeled "Total Amount Due", "Statement Balance", "New Balance", "Current Month Dues").
-- "outstanding_balance" is the OVERALL OUTSTANDING amount across ALL months/cycles (sometimes labeled "Total Outstanding", "Previous Balance Carried Forward", "Cumulative Outstanding"). It may include previous unpaid balances rolled over.
-- These are TWO DIFFERENT numbers. Do NOT set them to the same value unless they truly are identical on the statement.
-- If the statement only shows one "total due" figure and no separate outstanding, set outstanding_balance = total_due.
-- If the statement shows "Previous Outstanding" or "Opening Balance" separately, outstanding_balance should reflect the full accumulated amount.
+- "outstanding_balance" must represent TOTAL OUTSTANDING on the card, and should align with this formula whenever possible: outstanding_balance = credit_limit - available_credit_limit.
+- Prioritize extracting "available_credit_limit" / "available limit" accurately from the statement.
+- If both credit_limit and available_credit_limit are present, derive outstanding_balance from them instead of copying total_due.
+- Do NOT set outstanding_balance equal to total_due unless the statement truly implies they are the same AND available_credit_limit is not available.
+- If the statement only shows available limit and credit limit, calculate outstanding_balance = credit_limit - available_credit_limit.
+- If the statement only shows outstanding and not available limit, then return the extracted outstanding and available_credit_limit as max(credit_limit - outstanding_balance, 0) when credit_limit is known.
 
 OTHER RULES:
 - Extract ALL transactions visible in the statement
@@ -220,7 +222,7 @@ OTHER RULES:
 - type: debit for purchases, credit for credits/refunds, fee for charges, interest for interest, payment for payments received, emi for EMI debits
 - Dates → ISO YYYY-MM-DD
 - Normalize: remove ₹/Rs/INR symbols, commas → plain numbers
-- If available_credit_limit not found, calculate: credit_limit - outstanding_balance
+- If available_credit_limit not found, calculate: max(credit_limit - outstanding_balance, 0)
 - If multiple months in file, extract LATEST month's data
 - Detect bank from logos, headers, letterhead
 - "minimum_due" is the minimum payment required - look for "Minimum Amount Due" or "MAD"
@@ -392,9 +394,15 @@ Return ONLY valid JSON, no markdown.`;
     if (amountPaid >= totalDue && totalDue > 0) paymentStatus = "FULL";
     else if (amountPaid >= minimumDue && minimumDue > 0) paymentStatus = "PARTIAL";
 
-    const creditLimit = parsed.credit_limit || 0;
-    const outstanding = parsed.outstanding_balance || 0;
-    const availableCredit = parsed.available_credit_limit || Math.max(0, creditLimit - outstanding);
+    const creditLimit = parsed.credit_limit || matchedCard?.credit_limit || 0;
+    let availableCredit = parsed.available_credit_limit || 0;
+    let outstanding = parsed.outstanding_balance || 0;
+
+    if (creditLimit > 0 && availableCredit > 0) {
+      outstanding = Math.max(0, creditLimit - availableCredit);
+    } else if (creditLimit > 0 && outstanding >= 0) {
+      availableCredit = Math.max(0, creditLimit - outstanding);
+    }
 
     const statementPayload = {
       card_id: cardId,

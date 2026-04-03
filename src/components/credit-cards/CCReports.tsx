@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line, CartesianGrid, AreaChart, Area } from 'recharts';
 import { CreditCard, CCStatement, CCTransaction, CCPayment } from '@/hooks/useCreditCards';
+import { getStatementCreditLimit, getStatementOutstanding, getStatementUtilization } from '@/lib/creditCardMetrics';
 import { BarChart3, TrendingUp, CreditCard as CardIcon, AlertTriangle, ArrowUpDown, PieChart as PieIcon } from 'lucide-react';
 
 interface Props {
@@ -30,8 +31,9 @@ export function CCReports({ cards, statements, transactions, payments }: Props) 
 
   const cardHealth = Array.from(latestByCard.entries()).map(([cardId, s]) => {
     const card = cards.find(c => c.id === cardId);
-    const limit = card?.credit_limit || (s.outstanding_balance + s.available_credit_limit);
-    const util = limit > 0 ? Math.round((s.outstanding_balance / limit) * 100) : 0;
+    const limit = getStatementCreditLimit(s, card);
+    const outstanding = getStatementOutstanding(s, card);
+    const util = Math.round(getStatementUtilization(s, card));
     const cardStmts = statements.filter(st => st.card_id === cardId);
     const totalInterest = cardStmts.reduce((sum, st) => sum + st.interest_charged, 0);
     const totalLateFee = cardStmts.reduce((sum, st) => sum + st.late_fee, 0);
@@ -40,7 +42,7 @@ export function CCReports({ cards, statements, transactions, payments }: Props) 
     return {
       name: card?.card_name || 'Unknown',
       bank: card?.bank_name || '',
-      limit, outstanding: s.outstanding_balance, util, totalInterest, totalLateFee,
+      limit, outstanding, util, totalInterest, totalLateFee,
       unpaidCount, riskLevel, available: s.available_credit_limit,
       totalDue: s.total_due, paymentStatus: s.payment_status,
     };
@@ -49,9 +51,10 @@ export function CCReports({ cards, statements, transactions, payments }: Props) 
   // ── MONTHLY TRENDS ──
   const monthMap = new Map<string, { outstanding: number; interest: number; lateFee: number; paid: number }>();
   statements.forEach(s => {
+    const card = cards.find(c => c.id === s.card_id);
     const e = monthMap.get(s.billing_month) || { outstanding: 0, interest: 0, lateFee: 0, paid: 0 };
     monthMap.set(s.billing_month, {
-      outstanding: e.outstanding + s.outstanding_balance,
+      outstanding: e.outstanding + getStatementOutstanding(s, card),
       interest: e.interest + s.interest_charged,
       lateFee: e.lateFee + s.late_fee,
       paid: e.paid + (s.amount_paid || 0),

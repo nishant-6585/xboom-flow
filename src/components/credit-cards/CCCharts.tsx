@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from 'recharts';
 import { CreditCard, CCStatement } from '@/hooks/useCreditCards';
+import { getStatementCreditLimit, getStatementOutstanding } from '@/lib/creditCardMetrics';
 
 interface Props {
   cards: CreditCard[];
@@ -20,9 +21,10 @@ export function CCCharts({ cards, statements }: Props) {
 
   const utilizationData = Array.from(latestByCard.entries()).map(([cardId, s]) => {
     const card = cards.find(c => c.id === cardId);
-    const limit = card?.credit_limit || (s.outstanding_balance + s.available_credit_limit);
-    const util = limit > 0 ? Math.round((s.outstanding_balance / limit) * 100) : 0;
-    return { name: card?.card_name || 'Unknown', utilization: util, outstanding: s.outstanding_balance };
+    const limit = getStatementCreditLimit(s, card);
+    const outstanding = getStatementOutstanding(s, card);
+    const util = limit > 0 ? Math.round((outstanding / limit) * 100) : 0;
+    return { name: card?.card_name || 'Unknown', utilization: util, outstanding };
   });
 
   // Payment status distribution
@@ -40,9 +42,10 @@ export function CCCharts({ cards, statements }: Props) {
   // Monthly trend (last 6 months)
   const monthMap = new Map<string, { outstanding: number; interest: number }>();
   statements.forEach(s => {
+    const card = cards.find(c => c.id === s.card_id);
     const existing = monthMap.get(s.billing_month) || { outstanding: 0, interest: 0 };
     monthMap.set(s.billing_month, {
-      outstanding: existing.outstanding + s.outstanding_balance,
+      outstanding: existing.outstanding + getStatementOutstanding(s, card),
       interest: existing.interest + s.interest_charged,
     });
   });
