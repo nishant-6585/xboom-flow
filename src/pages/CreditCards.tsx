@@ -104,6 +104,9 @@ export default function CreditCards() {
           </div>
         </div>
 
+        {/* AI Statement Upload */}
+        <CCStatementUpload cards={cards} onStatementSaved={refetch} />
+
         {/* Summary Cards */}
         <CCSummaryCards {...summary} />
 

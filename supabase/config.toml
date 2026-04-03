@@ -98,3 +98,6 @@ verify_jwt = false
 
 [functions.fetch-code-context]
 verify_jwt = false
+
+[functions.parse-credit-card-statement]
+verify_jwt = false
