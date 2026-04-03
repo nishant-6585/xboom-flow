@@ -4,16 +4,17 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CreditCard, CCStatement } from '@/hooks/useCreditCards';
+import { CreditCard, CCStatement, CCPayment } from '@/hooks/useCreditCards';
 import { FileText, Search, Eye } from 'lucide-react';
 
 interface Props {
   cards: CreditCard[];
   statements: CCStatement[];
+  payments: CCPayment[];
   onViewStatement?: (statement: CCStatement) => void;
 }
 
-export function CCStatementTable({ cards, statements, onViewStatement }: Props) {
+export function CCStatementTable({ cards, statements, payments, onViewStatement }: Props) {
   const [bankFilter, setBankFilter] = useState('all');
   const [cardFilter, setCardFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -108,6 +109,10 @@ export function CCStatementTable({ cards, statements, onViewStatement }: Props) 
               ) : (
                 filtered.map(s => {
                   const card = cards.find(c => c.id === s.card_id);
+                  const paidForStatement = payments
+                    .filter(p => p.statement_id === s.id)
+                    .reduce((sum, p) => sum + (p.amount || 0), 0);
+                  const outstanding = Math.max(0, s.total_due - paidForStatement);
                   return (
                     <TableRow key={s.id} className="cursor-pointer hover:bg-muted/60" onClick={() => onViewStatement?.(s)}>
                       <TableCell className="text-xs font-medium">{card?.bank_name}</TableCell>
@@ -115,7 +120,7 @@ export function CCStatementTable({ cards, statements, onViewStatement }: Props) 
                       <TableCell className="text-xs">{s.billing_month}</TableCell>
                       <TableCell className="text-xs text-right">{fmt(s.total_due)}</TableCell>
                       <TableCell className="text-xs text-right">{s.minimum_due > 0 ? fmt(s.minimum_due) : '—'}</TableCell>
-                      <TableCell className="text-xs text-right">{fmt(s.outstanding_balance)}</TableCell>
+                      <TableCell className="text-xs text-right">{fmt(outstanding)}</TableCell>
                       <TableCell>{statusBadge(s.payment_status)}</TableCell>
                       <TableCell className="text-xs">{new Date(s.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}</TableCell>
                       <TableCell className="text-xs text-right">{s.interest_charged > 0 ? fmt(s.interest_charged) : '—'}</TableCell>

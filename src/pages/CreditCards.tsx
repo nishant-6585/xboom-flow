@@ -98,6 +98,7 @@ export default function CreditCards() {
             <CCStatementTable
               cards={cards}
               statements={statements}
+              payments={payments}
               onViewStatement={setSelectedStatement}
             />
             <CCReports
