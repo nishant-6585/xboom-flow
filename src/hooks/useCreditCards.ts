@@ -397,22 +397,31 @@ export function useCreditCards() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return { success: false, error: 'Not authenticated' };
 
-      // Delete in order: transactions → payments → uploads → statements → card
+      // Delete in order: transactions → payments → statements → uploads → card
       const cardStatements = statements.filter(s => s.card_id === cardId);
       const stmtIds = cardStatements.map(s => s.id);
 
       if (stmtIds.length > 0) {
+        // Delete child records first
         await supabase.from('cc_transactions' as any).delete().in('statement_id', stmtIds);
         await supabase.from('cc_payments' as any).delete().in('statement_id', stmtIds);
         
+        // Clear upload_id FK on statements before deleting uploads
+        for (const sid of stmtIds) {
+          await supabase.from('cc_statements' as any).update({ upload_id: null } as any).eq('id', sid);
+        }
+
         // Delete upload records and storage files
-        const cardUploads = uploads.filter(u => stmtIds.includes(u.statement_id || ''));
+        const cardUploads = uploads.filter(u => stmtIds.includes(u.statement_id || '') || u.card_id === cardId);
         for (const u of cardUploads) {
           if (u.file_url) {
             await supabase.storage.from('cc-statements').remove([u.file_url]);
           }
         }
         await supabase.from('statement_uploads' as any).delete().in('statement_id', stmtIds);
+        await supabase.from('statement_uploads' as any).delete().eq('card_id', cardId);
+        
+        // Now delete statements
         await supabase.from('cc_statements' as any).delete().in('id', stmtIds);
       }
 
