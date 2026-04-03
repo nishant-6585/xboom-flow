@@ -30,16 +30,19 @@ export function CCAddStatementDialog({ open, onOpenChange, onSubmit, cards }: Pr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    const selectedCard = cards.find(c => c.id === form.card_id);
+    const creditLimit = selectedCard?.credit_limit || 0;
+    const outstandingBalance = Number(form.outstanding_balance);
     const ok = await onSubmit({
       card_id: form.card_id,
       billing_month: form.billing_month,
-      outstanding_balance: Number(form.outstanding_balance),
+      outstanding_balance: outstandingBalance,
       total_due: Number(form.total_due),
       minimum_due: Number(form.minimum_due),
       due_date: form.due_date,
-      available_credit_limit: Number(form.available_credit_limit),
+      available_credit_limit: creditLimit - outstandingBalance,
       interest_charged: Number(form.interest_charged),
-      last_statement_due: Number(form.last_statement_due),
+      last_statement_due: 0,
       amount_paid: Number(form.amount_paid),
       payment_date: form.payment_date || null,
       late_fee: Number(form.late_fee),
