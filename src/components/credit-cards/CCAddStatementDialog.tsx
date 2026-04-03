@@ -17,8 +17,8 @@ interface Props {
 
 const defaultForm = {
   card_id: '', billing_month: '', outstanding_balance: '', total_due: '',
-  minimum_due: '', due_date: '', available_credit_limit: '', interest_charged: '0',
-  last_statement_due: '0', amount_paid: '0', payment_date: '', late_fee: '0', notes: '',
+  minimum_due: '', due_date: '', interest_charged: '0',
+  amount_paid: '0', payment_date: '', late_fee: '0', notes: '',
 };
 
 export function CCAddStatementDialog({ open, onOpenChange, onSubmit, cards }: Props) {
@@ -30,16 +30,19 @@ export function CCAddStatementDialog({ open, onOpenChange, onSubmit, cards }: Pr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    const selectedCard = cards.find(c => c.id === form.card_id);
+    const creditLimit = selectedCard?.credit_limit || 0;
+    const outstandingBalance = Number(form.outstanding_balance);
     const ok = await onSubmit({
       card_id: form.card_id,
       billing_month: form.billing_month,
-      outstanding_balance: Number(form.outstanding_balance),
+      outstanding_balance: outstandingBalance,
       total_due: Number(form.total_due),
       minimum_due: Number(form.minimum_due),
       due_date: form.due_date,
-      available_credit_limit: Number(form.available_credit_limit),
+      available_credit_limit: creditLimit - outstandingBalance,
       interest_charged: Number(form.interest_charged),
-      last_statement_due: Number(form.last_statement_due),
+      last_statement_due: 0,
       amount_paid: Number(form.amount_paid),
       payment_date: form.payment_date || null,
       late_fee: Number(form.late_fee),
@@ -66,13 +69,21 @@ export function CCAddStatementDialog({ open, onOpenChange, onSubmit, cards }: Pr
               <div><Label>Billing Month</Label><Input required placeholder="e.g. Apr-2026" value={form.billing_month} onChange={e => set('billing_month', e.target.value)} /></div>
               <div><Label>Due Date</Label><Input required type="date" value={form.due_date} onChange={e => set('due_date', e.target.value)} /></div>
             </div>
+            {(() => {
+              const selectedCard = cards.find(c => c.id === form.card_id);
+              const creditLimit = selectedCard?.credit_limit || 0;
+              const outstanding = Number(form.outstanding_balance) || 0;
+              const available = creditLimit - outstanding;
+              return (
+                <div className="grid grid-cols-2 gap-4">
+                  <div><Label>Total Credit Limit (₹)</Label><Input type="number" value={creditLimit} disabled className="bg-muted" /></div>
+                  <div><Label>Available Credit Limit (₹)</Label><Input type="number" value={available} disabled className="bg-muted" /></div>
+                </div>
+              );
+            })()}
             <div>
-              <Label>Available Credit Limit (₹)</Label>
-              <Input type="number" min="0" value={form.available_credit_limit} onChange={e => set('available_credit_limit', e.target.value)} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Outstanding Balance (₹)</Label><Input required type="number" min="0" value={form.outstanding_balance} onChange={e => set('outstanding_balance', e.target.value)} /></div>
-              <div><Label>Last Statement Due (₹)</Label><Input type="number" min="0" value={form.last_statement_due} onChange={e => set('last_statement_due', e.target.value)} /></div>
+              <Label>Outstanding Balance (₹)</Label>
+              <Input required type="number" min="0" value={form.outstanding_balance} onChange={e => set('outstanding_balance', e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Total Due (₹)</Label><Input required type="number" min="0" value={form.total_due} onChange={e => set('total_due', e.target.value)} /></div>
