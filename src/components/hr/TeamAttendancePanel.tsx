@@ -30,6 +30,7 @@ import { ProvisionalCorrectionModal } from '@/components/attendance/ProvisionalC
 import { PendingCorrectionApprovals } from '@/components/attendance/PendingCorrectionApprovals';
 import { AttendanceAlertsPanel, AttendanceAlertIndicator } from '@/components/hr/AttendanceAlertsPanel';
 import { HRAttendanceEditModal } from '@/components/attendance/HRAttendanceEditModal';
+import { BulkAttendanceEntryDialog } from '@/components/attendance/BulkAttendanceEntryDialog';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
