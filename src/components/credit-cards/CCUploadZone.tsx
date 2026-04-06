@@ -216,7 +216,7 @@ export function CCUploadZone({ onUpload, processing }: Props) {
             </div>
 
             {pendingFile && (
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="text-xs text-muted-foreground truncate max-w-full overflow-hidden">
                 File: {pendingFile.name}
               </p>
             )}
