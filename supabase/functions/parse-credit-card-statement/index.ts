@@ -135,9 +135,12 @@ Deno.serve(async (req: Request) => {
       return respond({ error: "Unsupported file type" }, 400);
     }
 
+    let pdfBytes = new Uint8Array(arrayBuffer);
+    let pdfDecrypted = false;
+
     if (ext === "pdf") {
       try {
-        await PDFDocument.load(new Uint8Array(arrayBuffer), { ignoreEncryption: false });
+        await PDFDocument.load(pdfBytes, { ignoreEncryption: false });
       } catch (encErr: any) {
         const errMsg = (encErr?.message || "").toLowerCase();
         const isEncrypted = errMsg.includes("encrypt") || errMsg.includes("password") || errMsg.includes("protected");
@@ -151,7 +154,48 @@ Deno.serve(async (req: Request) => {
         }
 
         if (isEncrypted && pdf_password) {
-          console.log("PDF is encrypted, password provided. Processing with password context.");
+          console.log("PDF is encrypted, attempting decryption with provided password...");
+          try {
+            // Use pdf-lib with ignoreEncryption to load, then re-save as unencrypted
+            // pdf-lib can't decrypt with password, so we extract text using a different approach
+            // Write encrypted PDF to temp file, use qpdf to decrypt
+            const tmpEncrypted = `/tmp/enc_${crypto.randomUUID()}.pdf`;
+            const tmpDecrypted = `/tmp/dec_${crypto.randomUUID()}.pdf`;
+            
+            await Deno.writeFile(tmpEncrypted, pdfBytes);
+            
+            const qpdfProcess = new Deno.Command("qpdf", {
+              args: ["--password=" + pdf_password, "--decrypt", tmpEncrypted, tmpDecrypted],
+              stdout: "piped",
+              stderr: "piped",
+            });
+            
+            const qpdfResult = await qpdfProcess.output();
+            
+            if (qpdfResult.success) {
+              pdfBytes = await Deno.readFile(tmpDecrypted);
+              pdfDecrypted = true;
+              console.log("PDF decrypted successfully with qpdf");
+            } else {
+              const stderrText = new TextDecoder().decode(qpdfResult.stderr);
+              console.error("qpdf decryption failed:", stderrText);
+              
+              if (stderrText.toLowerCase().includes("password")) {
+                await failUpload(supabaseAdmin, upload_id, "Incorrect PDF password. Please try again with the correct password.");
+                return respond({ error: "Incorrect PDF password.", password_required: true }, 422);
+              }
+              await failUpload(supabaseAdmin, upload_id, "Failed to decrypt PDF: " + stderrText.substring(0, 200));
+              return respond({ error: "Failed to decrypt PDF" }, 500);
+            }
+            
+            // Cleanup temp files
+            try { await Deno.remove(tmpEncrypted); } catch { /* ignore */ }
+            try { await Deno.remove(tmpDecrypted); } catch { /* ignore */ }
+          } catch (decErr: any) {
+            console.error("Decryption error:", decErr?.message);
+            await failUpload(supabaseAdmin, upload_id, "Failed to decrypt PDF. Ensure the password is correct.");
+            return respond({ error: "Failed to decrypt PDF. Check password." }, 422);
+          }
         }
       }
     }
