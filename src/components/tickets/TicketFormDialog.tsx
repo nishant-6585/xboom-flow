@@ -386,7 +386,9 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
                   Assign to Department *
                 </Label>
                 <div className="grid grid-cols-2 gap-2">
-                  {orgRoles.map((dept) => (
+                  {orgRoles
+                    .filter((dept) => ["admin", "hr", "finance", "supply_chain", "sales_manager", "it", "marketing", "sales"].includes(dept.name))
+                    .map((dept) => (
                     <Button
                       key={dept.name}
                       type="button"
