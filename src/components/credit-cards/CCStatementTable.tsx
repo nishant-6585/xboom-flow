@@ -155,6 +155,7 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
                 filtered.map(s => {
                   const card = cards.find(c => c.id === s.card_id);
                   const outstanding = getStatementOutstanding(s, card);
+                  const creditLimit = getStatementCreditLimit(s, card);
                   return (
                     <TableRow key={s.id} className="cursor-pointer hover:bg-muted/60" onClick={() => onViewStatement?.(s)}>
                       <TableCell className="text-xs font-medium">{card?.bank_name}</TableCell>
@@ -162,6 +163,7 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
                       <TableCell className="text-xs">{s.billing_month}</TableCell>
                       <TableCell className="text-xs text-right">{fmt(s.total_due)}</TableCell>
                       <TableCell className="text-xs text-right">{s.minimum_due > 0 ? fmt(s.minimum_due) : '—'}</TableCell>
+                      <TableCell className="text-xs text-right">{creditLimit > 0 ? fmt(creditLimit) : '—'}</TableCell>
                       <TableCell className="text-xs text-right">{fmt(outstanding)}</TableCell>
                       <TableCell>{statusBadge(s.payment_status)}</TableCell>
                       <TableCell className="text-xs">{new Date(s.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}</TableCell>
