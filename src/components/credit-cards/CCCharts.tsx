@@ -86,10 +86,10 @@ export function CCCharts({ cards, statements }: Props) {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Payment Status</CardTitle>
         </CardHeader>
-        <CardContent className="h-52">
+        <CardContent className="h-60">
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={statusData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
+            <PieChart margin={{ top: 20, right: 20, bottom: 10, left: 20 }}>
+              <Pie data={statusData} cx="50%" cy="50%" innerRadius={35} outerRadius={60} dataKey="value" label={({ name, value }) => `${name}: ${value}`} labelLine={{ strokeWidth: 1 }}>
                 {statusData.map((d, i) => (
                   <Cell key={i} fill={d.color} />
                 ))}
