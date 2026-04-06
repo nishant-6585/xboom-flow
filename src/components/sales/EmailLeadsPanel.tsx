@@ -513,6 +513,7 @@ export function EmailLeadsPanel() {
                         <ArrowUpDown className="w-3 h-3" />
                       </button>
                     </TableHead>
+                    <TableHead>Cust. Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Assigned To</TableHead>
                     <TableHead>
