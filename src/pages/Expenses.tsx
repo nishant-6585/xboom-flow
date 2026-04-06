@@ -26,6 +26,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { DocumentViewer } from "@/components/hr/DocumentViewer";
 
 export default function Expenses() {
   const { expenses, loading, createExpense, approveExpense, rejectExpense, markReimbursed, deleteExpense, canApprove, canDelete, refetch: refetchExpenses } = useExpenses();
