@@ -198,13 +198,18 @@ export function FormsLeadsPanel() {
               Forms Leads
               <Badge variant="secondary">{filtered.length}</Badge>
             </CardTitle>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              <RefreshCw className="w-4 h-4 mr-1" /> Refresh
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3 mb-4">
+            <div className="flex items-center gap-2">
+              <Button
+                variant={showAnalytics ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowAnalytics(!showAnalytics)}
+              >
+                <BarChart3 className="w-4 h-4 mr-1" /> Analytics
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                <RefreshCw className="w-4 h-4 mr-1" /> Refresh
+              </Button>
+            </div>
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input placeholder="Search name, email, phone, form..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
