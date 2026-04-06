@@ -166,8 +166,19 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
                       <TableCell className="text-center">
                         <Eye className="h-3.5 w-3.5 text-muted-foreground mx-auto" />
                       </TableCell>
-                    </TableRow>
-                  );
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditStatement(s);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3 text-muted-foreground" />
+                        </Button>
+                      </TableCell>
                 })
               )}
             </TableBody>
