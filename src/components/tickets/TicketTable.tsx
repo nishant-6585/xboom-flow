@@ -14,7 +14,7 @@ import { TicketSlaAlertBanner } from "./TicketSlaAlertBanner";
 import { Ticket } from "@/hooks/useTickets";
 import { useTicketSlaAlerts } from "@/hooks/useTicketAi";
 import { format, formatDistanceToNow, isPast } from "date-fns";
-import { Eye, AlertTriangle, Clock, User, Building2, Link2, Bot } from "lucide-react";
+import { Eye, AlertTriangle, Clock, User, Building2, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TicketTableProps {

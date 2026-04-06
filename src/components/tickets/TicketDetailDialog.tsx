@@ -50,8 +50,6 @@ import {
   ExternalLink,
   Upload,
   Trash2,
-  Sparkles,
-  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Database } from "@/integrations/supabase/types";
