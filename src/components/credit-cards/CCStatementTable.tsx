@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { CreditCard, CCStatement, CCPayment } from '@/hooks/useCreditCards';
+import { CCEditStatementDialog } from './CCEditStatementDialog';
 import { getStatementOutstanding } from '@/lib/creditCardMetrics';
-import { FileText, Search, Eye, Trash2, Loader2 } from 'lucide-react';
+import { FileText, Search, Eye, Trash2, Loader2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -17,6 +18,8 @@ interface Props {
   payments: CCPayment[];
   onViewStatement?: (statement: CCStatement) => void;
   onDeleteCard?: (cardId: string) => Promise<{ success: boolean; error?: string }>;
+  onUpdateStatement?: (id: string, updates: any) => Promise<{ success: boolean; error?: string }>;
+  onUpdateCard?: (id: string, updates: any) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function CCStatementTable({ cards, statements, payments, onViewStatement, onDeleteCard }: Props) {
