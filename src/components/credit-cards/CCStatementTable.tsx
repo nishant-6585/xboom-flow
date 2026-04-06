@@ -140,8 +140,7 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
                 <TableHead className="text-xs">Due Date</TableHead>
                 <TableHead className="text-xs text-right">Interest</TableHead>
                 <TableHead className="text-xs text-center">Details</TableHead>
-              </TableRow>
-            </TableHeader>
+                <TableHead className="text-xs text-center">Edit</TableHead>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
