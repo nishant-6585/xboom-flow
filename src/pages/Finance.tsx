@@ -208,10 +208,6 @@ export default function Finance() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate('/credit-cards')}>
-              <IndianRupee className="h-4 w-4 mr-2" />
-              Credit Cards
-            </Button>
             <Button variant="outline" onClick={() => navigate('/payroll-reconciliation')}>
               <FileSpreadsheet className="h-4 w-4 mr-2" />
               Payroll Reconciliation
@@ -219,6 +215,10 @@ export default function Finance() {
             <Button onClick={() => setFormOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Expected Payment
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/credit-cards')}>
+              <IndianRupee className="h-4 w-4 mr-2" />
+              Credit Cards
             </Button>
           </div>
         </div>
