@@ -97,7 +97,7 @@ function AppInner() {
         <Route path="/tally" element={<ProtectedRoute><Tally /></ProtectedRoute>} />
         <Route path="/buyback" element={<ProtectedRoute><Buyback /></ProtectedRoute>} />
         <Route path="/candidates" element={<ProtectedRoute><Candidates /></ProtectedRoute>} />
-        <Route path="/model-review" element={<ProtectedRoute><ModelReview /></ProtectedRoute>} />
+        
         <Route path="/profile" element={<ProtectedRoute><MyProfile /></ProtectedRoute>} />
         <Route path="/profile/security" element={<ProtectedRoute><SecuritySettings /></ProtectedRoute>} />
         <Route path="/profile/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
