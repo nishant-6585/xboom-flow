@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { CreditCard, CCStatement, CCPayment } from '@/hooks/useCreditCards';
 import { CCEditStatementDialog } from './CCEditStatementDialog';
-import { getStatementOutstanding } from '@/lib/creditCardMetrics';
+import { getStatementOutstanding, getStatementCreditLimit } from '@/lib/creditCardMetrics';
 import { FileText, Search, Eye, Trash2, Loader2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -135,6 +135,7 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
                 <TableHead className="text-xs">Month</TableHead>
                 <TableHead className="text-xs text-right">Total Due</TableHead>
                 <TableHead className="text-xs text-right">Min. Due</TableHead>
+                <TableHead className="text-xs text-right">Credit Limit</TableHead>
                 <TableHead className="text-xs text-right">Outstanding</TableHead>
                 <TableHead className="text-xs">Status</TableHead>
                 <TableHead className="text-xs">Due Date</TableHead>
@@ -146,7 +147,7 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                   <TableCell colSpan={11} className="text-center text-xs text-muted-foreground py-8">
+                   <TableCell colSpan={12} className="text-center text-xs text-muted-foreground py-8">
                     No statements found. Upload a statement to get started.
                   </TableCell>
                 </TableRow>
@@ -154,6 +155,7 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
                 filtered.map(s => {
                   const card = cards.find(c => c.id === s.card_id);
                   const outstanding = getStatementOutstanding(s, card);
+                  const creditLimit = getStatementCreditLimit(s, card);
                   return (
                     <TableRow key={s.id} className="cursor-pointer hover:bg-muted/60" onClick={() => onViewStatement?.(s)}>
                       <TableCell className="text-xs font-medium">{card?.bank_name}</TableCell>
@@ -161,6 +163,7 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
                       <TableCell className="text-xs">{s.billing_month}</TableCell>
                       <TableCell className="text-xs text-right">{fmt(s.total_due)}</TableCell>
                       <TableCell className="text-xs text-right">{s.minimum_due > 0 ? fmt(s.minimum_due) : '—'}</TableCell>
+                      <TableCell className="text-xs text-right">{creditLimit > 0 ? fmt(creditLimit) : '—'}</TableCell>
                       <TableCell className="text-xs text-right">{fmt(outstanding)}</TableCell>
                       <TableCell>{statusBadge(s.payment_status)}</TableCell>
                       <TableCell className="text-xs">{new Date(s.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}</TableCell>
