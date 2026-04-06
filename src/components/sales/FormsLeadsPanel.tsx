@@ -382,7 +382,6 @@ export function FormsLeadsPanel() {
           )}
         </CardContent>
       </Card>
-      </Card>
 
       {/* Edit Dialog */}
       <FormLeadEditDialog
