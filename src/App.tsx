@@ -109,6 +109,7 @@ function AppInner() {
         <Route path="/admin/ai-automation" element={<ProtectedRoute><AIAutomation /></ProtectedRoute>} />
         <Route path="/ai-dashboard" element={<ProtectedRoute><AiDashboard /></ProtectedRoute>} />
         <Route path="/credit-cards" element={<ProtectedRoute><CreditCards /></ProtectedRoute>} />
+        <Route path="/drone-operations" element={<ProtectedRoute><DroneOperations /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <AuthGuardedWidgets isMobile={isMobile} />
