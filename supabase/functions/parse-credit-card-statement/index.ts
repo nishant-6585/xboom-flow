@@ -157,15 +157,30 @@ Deno.serve(async (req: Request) => {
         if (isEncrypted && pdf_password) {
           console.log("PDF is encrypted, attempting text extraction with password...");
           try {
-            // Use pdf.js to load encrypted PDF with password and extract text
+            // Use pdfjs-dist with explicit options for Deno compatibility
             const pdfjsLib = await import("npm:pdfjs-dist@4.0.379/legacy/build/pdf.mjs");
             
             const loadingTask = pdfjsLib.getDocument({
-              data: pdfBytes,
+              data: new Uint8Array(pdfBytes),
               password: pdf_password,
+              useWorkerFetch: false,
+              isEvalSupported: false,
+              useSystemFonts: false,
             });
             
-            const pdfDoc = await loadingTask.promise;
+            let pdfDoc: any;
+            try {
+              pdfDoc = await loadingTask.promise;
+            } catch (loadErr: any) {
+              // pdfjs-dist may fail in Deno - fallback: send encrypted PDF to AI with password context
+              console.log("pdfjs-dist failed, falling back to AI with password context:", loadErr?.message);
+              // Mark as not decrypted - the AI will receive the raw bytes + password hint
+              pdfDecrypted = false;
+              extractedPdfText = "";
+              // Don't throw - let it proceed to AI with the raw PDF
+              throw loadErr;
+            }
+
             const pageTexts: string[] = [];
             
             for (let i = 1; i <= pdfDoc.numPages; i++) {
@@ -180,12 +195,19 @@ Deno.serve(async (req: Request) => {
             console.log(`PDF decrypted and text extracted: ${pdfDoc.numPages} pages, ${extractedPdfText.length} chars`);
           } catch (decErr: any) {
             console.error("PDF decryption/extraction error:", decErr?.message);
-            const isWrongPassword = (decErr?.message || "").toLowerCase().includes("password");
-            const errorMessage = isWrongPassword 
-              ? "Incorrect PDF password. Please try again with the correct password."
-              : "Failed to decrypt PDF. Ensure the password is correct.";
-            await failUpload(supabaseAdmin, upload_id, errorMessage);
-            return respond({ error: errorMessage, password_required: isWrongPassword }, 422);
+            const errMessage = (decErr?.message || "").toLowerCase();
+            const isWrongPassword = errMessage.includes("incorrect password") || errMessage.includes("wrong password");
+            
+            if (isWrongPassword) {
+              const errorMessage = "Incorrect PDF password. Please try again with the correct password.";
+              await failUpload(supabaseAdmin, upload_id, errorMessage);
+              return respond({ error: errorMessage, password_required: true }, 422);
+            }
+            
+            // For other errors (compatibility issues), skip decryption and let AI handle via text extraction fallback
+            console.log("PDF decryption failed but may not be wrong password - proceeding with AI fallback");
+            pdfDecrypted = false;
+            extractedPdfText = "";
           }
         }
       }
