@@ -429,6 +429,13 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
           onCorrected={() => { setCorrectionLog(null); fetchToday(); }}
         />
       )}
+
+      <BulkAttendanceEntryDialog
+        open={bulkEntryOpen}
+        onOpenChange={setBulkEntryOpen}
+        employees={employees}
+        onSaved={() => { fetchToday(); }}
+      />
     </div>
   );
 }
