@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { useAuth } from '@/hooks/useAuth';
 import { useCreditCards, CCStatement } from '@/hooks/useCreditCards';
@@ -9,10 +10,12 @@ import { CCStatementTable } from '@/components/credit-cards/CCStatementTable';
 import { CCUploadHistory } from '@/components/credit-cards/CCUploadHistory';
 import { CCStatementDetail } from '@/components/credit-cards/CCStatementDetail';
 import { CCReports } from '@/components/credit-cards/CCReports';
-import { CreditCard, Lock, Loader2, Sparkles } from 'lucide-react';
+import { CreditCard, Lock, Loader2, Sparkles, ArrowUpRight, TrendingUp, Calendar, TrendingDown, IndianRupee } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function CreditCards() {
+  const navigate = useNavigate();
   const { role, loading: authLoading } = useAuth();
   const {
     cards, statements, transactions, payments, uploads, loading,
@@ -87,6 +90,32 @@ export default function CreditCards() {
             <p className="text-muted-foreground text-sm">Upload statements → AI extracts transactions & data automatically</p>
           </div>
         </div>
+
+        {/* Finance Navigation Tabs */}
+        <Tabs value="creditcards" className="w-full">
+          <TabsList className="grid w-full grid-cols-5 max-w-3xl">
+            <TabsTrigger value="overview" className="gap-2" onClick={() => navigate('/finance')}>
+              <ArrowUpRight className="h-4 w-4" />
+              Credit / Debit
+            </TabsTrigger>
+            <TabsTrigger value="cashflow" className="gap-2" onClick={() => navigate('/finance')}>
+              <TrendingUp className="h-4 w-4" />
+              Cashflow
+            </TabsTrigger>
+            <TabsTrigger value="aging" className="gap-2" onClick={() => navigate('/finance')}>
+              <Calendar className="h-4 w-4" />
+              Invoice Aging
+            </TabsTrigger>
+            <TabsTrigger value="risk" className="gap-2" onClick={() => navigate('/finance')}>
+              <TrendingDown className="h-4 w-4" />
+              Payment Risk
+            </TabsTrigger>
+            <TabsTrigger value="creditcards" className="gap-2">
+              <IndianRupee className="h-4 w-4" />
+              Credit Cards
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         {/* Upload Zone */}
         <CCUploadZone onUpload={handleUpload} processing={processing} />
