@@ -168,6 +168,24 @@ function formatDuration(seconds: number): string {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
+/** Merge user-edited fields from source into target when target is missing them */
+function mergeEditableFields(target: CallLog, source: CallLog): CallLog {
+  const editableKeys = [
+    'customer_name', 'customer_company', 'email', 'city', 'product_name',
+    'product_category', 'product_code', 'quantity', 'lead_source', 'urgency',
+    'requested_timeline', 'purpose_of_purchase', 'notes', 'customer_type',
+    'sales_person_id', 'sales_person_name',
+  ] as const;
+  const merged = { ...target } as any;
+  const src = source as any;
+  for (const key of editableKeys) {
+    if (!merged[key] && src[key]) {
+      merged[key] = src[key];
+    }
+  }
+  return merged as CallLog;
+}
+
 /** Group logs by call_id (_ai), keeping the most complete record per call session */
 function groupLogsByCallId(logs: CallLog[]): CallLog[] {
   const grouped = new Map<string, CallLog>();
@@ -190,7 +208,11 @@ function groupLogsByCallId(logs: CallLog[]): CallLog[] {
       
       // Prefer: has recording > more legs > newer
       if ((!existingFile && newFile) || (newLegs > existingLegs)) {
-        grouped.set(key, log);
+        // New log wins for call data, but merge editable fields from existing
+        grouped.set(key, mergeEditableFields(log, existing));
+      } else {
+        // Existing wins for call data, but merge editable fields from new log
+        grouped.set(key, mergeEditableFields(existing, log));
       }
     }
   }
