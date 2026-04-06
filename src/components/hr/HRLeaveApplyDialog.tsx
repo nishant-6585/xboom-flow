@@ -202,6 +202,12 @@ export function HRLeaveApplyDialog({
             )}
           </div>
 
+          {employeeId && leaveBalance !== null && leaveBalance <= 0 && (
+            <div className="p-3 bg-destructive/10 rounded-lg text-sm text-destructive font-medium text-center">
+              Insufficient leave balance for the selected type. Cannot apply leave.
+            </div>
+          )}
+
           {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -280,7 +286,7 @@ export function HRLeaveApplyDialog({
               className="flex-1"
               onClick={handleSubmit}
               disabled={
-                submitting || !employeeId || !startDate || !endDate || !reason
+                submitting || !employeeId || !startDate || !endDate || !reason || (leaveBalance !== null && leaveBalance <= 0)
               }
             >
               {submitting ? "Applying..." : "Apply Leave"}

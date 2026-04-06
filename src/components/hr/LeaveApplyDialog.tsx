@@ -237,11 +237,17 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
                 <Button
                   onClick={handleSubmit}
                   className="flex-1"
-                  disabled={submitting}
+                  disabled={submitting || (leaveBalance !== null && leaveBalance <= 0)}
                 >
                   {submitting ? 'Submitting...' : 'Submit Request'}
                 </Button>
               </div>
+
+              {leaveBalance !== null && leaveBalance <= 0 && (
+                <div className="p-3 bg-destructive/10 rounded-lg text-sm text-destructive font-medium text-center">
+                  Insufficient leave balance. You cannot apply for this leave type.
+                </div>
+              )}
             </div>
           )}
         </div>
