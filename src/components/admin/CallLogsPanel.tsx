@@ -172,16 +172,25 @@ function formatDuration(seconds: number): string {
 function mergeEditableFields(target: CallLog, source: CallLog): CallLog {
   const editableKeys = [
     'customer_name', 'customer_company', 'email', 'city', 'product_name',
-    'product_category', 'product_code', 'quantity', 'lead_source', 'urgency',
+    'product_category', 'product_code', 'lead_source', 'urgency',
     'requested_timeline', 'purpose_of_purchase', 'notes', 'customer_type',
     'sales_person_id', 'sales_person_name',
   ] as const;
   const merged = { ...target } as any;
   const src = source as any;
+  // Prefer editable fields from the most recently updated row
+  const targetUpdated = (target as any).updated_at || '';
+  const sourceUpdated = (src as any).updated_at || '';
   for (const key of editableKeys) {
-    if (!merged[key] && src[key]) {
+    if (sourceUpdated > targetUpdated && src[key]) {
+      merged[key] = src[key];
+    } else if (!merged[key] && src[key]) {
       merged[key] = src[key];
     }
+  }
+  // Special handling for quantity (default is 1, so prefer the edited value)
+  if (src.quantity && src.quantity !== 1 && (!merged.quantity || merged.quantity === 1)) {
+    merged.quantity = src.quantity;
   }
   return merged as CallLog;
 }
