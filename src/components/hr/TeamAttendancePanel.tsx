@@ -30,6 +30,7 @@ import { ProvisionalCorrectionModal } from '@/components/attendance/ProvisionalC
 import { PendingCorrectionApprovals } from '@/components/attendance/PendingCorrectionApprovals';
 import { AttendanceAlertsPanel, AttendanceAlertIndicator } from '@/components/hr/AttendanceAlertsPanel';
 import { HRAttendanceEditModal } from '@/components/attendance/HRAttendanceEditModal';
+import { BulkAttendanceEntryDialog } from '@/components/attendance/BulkAttendanceEntryDialog';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -281,6 +282,8 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
 
   const [correctionLog, setCorrectionLog] = useState<AttendanceLog | null>(null);
 
+  const [bulkEntryOpen, setBulkEntryOpen] = useState(false);
+
   return (
     <div className="space-y-4">
       {/* Date picker bar */}
@@ -308,6 +311,7 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
           <span>Refreshed {format(lastRefresh, 'hh:mm:ss a')}</span>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={fetchToday} disabled={loadingToday}><RefreshCw className={cn('h-3.5 w-3.5', loadingToday && 'animate-spin')} /></Button>
           <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs gap-1" onClick={exportCSV}><Download className="h-3.5 w-3.5" /> Export</Button>
+          <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs gap-1" onClick={() => setBulkEntryOpen(true)}><CalendarDays className="h-3.5 w-3.5" /> Bulk Entry</Button>
         </div>
       </div>
 
@@ -425,6 +429,13 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
           onCorrected={() => { setCorrectionLog(null); fetchToday(); }}
         />
       )}
+
+      <BulkAttendanceEntryDialog
+        open={bulkEntryOpen}
+        onOpenChange={setBulkEntryOpen}
+        employees={employees}
+        onSaved={() => { fetchToday(); }}
+      />
     </div>
   );
 }
