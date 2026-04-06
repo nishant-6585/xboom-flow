@@ -91,6 +91,32 @@ export default function CreditCards() {
           </div>
         </div>
 
+        {/* Finance Navigation Tabs */}
+        <Tabs value="creditcards" className="w-full">
+          <TabsList className="grid w-full grid-cols-5 max-w-3xl">
+            <TabsTrigger value="overview" className="gap-2" onClick={() => navigate('/finance')}>
+              <ArrowUpRight className="h-4 w-4" />
+              Credit / Debit
+            </TabsTrigger>
+            <TabsTrigger value="cashflow" className="gap-2" onClick={() => navigate('/finance')}>
+              <TrendingUp className="h-4 w-4" />
+              Cashflow
+            </TabsTrigger>
+            <TabsTrigger value="aging" className="gap-2" onClick={() => navigate('/finance')}>
+              <Calendar className="h-4 w-4" />
+              Invoice Aging
+            </TabsTrigger>
+            <TabsTrigger value="risk" className="gap-2" onClick={() => navigate('/finance')}>
+              <TrendingDown className="h-4 w-4" />
+              Payment Risk
+            </TabsTrigger>
+            <TabsTrigger value="creditcards" className="gap-2">
+              <IndianRupee className="h-4 w-4" />
+              Credit Cards
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         {/* Upload Zone */}
         <CCUploadZone onUpload={handleUpload} processing={processing} />
 
