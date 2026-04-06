@@ -135,6 +135,7 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
                 <TableHead className="text-xs">Month</TableHead>
                 <TableHead className="text-xs text-right">Total Due</TableHead>
                 <TableHead className="text-xs text-right">Min. Due</TableHead>
+                <TableHead className="text-xs text-right">Credit Limit</TableHead>
                 <TableHead className="text-xs text-right">Outstanding</TableHead>
                 <TableHead className="text-xs">Status</TableHead>
                 <TableHead className="text-xs">Due Date</TableHead>
