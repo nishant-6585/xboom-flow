@@ -63,6 +63,9 @@ export function FormsLeadsPanel() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedLead, setSelectedLead] = useState<FormLead | null>(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   const { data: leads = [], isLoading, refetch } = useQuery({
     queryKey: ["form_leads"],
