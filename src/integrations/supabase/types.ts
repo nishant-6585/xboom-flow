@@ -3827,6 +3827,21 @@ export type Database = {
           },
         ]
       }
+      form_lead_contact_us_counter: {
+        Row: {
+          counter: number
+          id: number
+        }
+        Insert: {
+          counter?: number
+          id?: number
+        }
+        Update: {
+          counter?: number
+          id?: number
+        }
+        Relationships: []
+      }
       form_leads: {
         Row: {
           assigned_to: string | null
