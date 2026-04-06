@@ -274,9 +274,14 @@ ${cardsContext ? `EXISTING CARDS IN SYSTEM:\n${cardsContext}\nIf the statement m
 
 Return ONLY valid JSON, no markdown.`;
 
-    let userMsg = textContent
-      ? `Parse this credit card statement CSV:\n\n${textContent.substring(0, 15000)}`
-      : `Parse this credit card statement file: ${file_name}`;
+    let userMsg = "";
+    if (pdfDecrypted && textContent) {
+      userMsg = `Parse this credit card statement (extracted text from password-protected PDF: ${file_name}):\n\n${textContent.substring(0, 30000)}`;
+    } else if (textContent) {
+      userMsg = `Parse this credit card statement CSV:\n\n${textContent.substring(0, 15000)}`;
+    } else {
+      userMsg = `Parse this credit card statement file: ${file_name}`;
+    }
 
     if (pdf_password && ext === "pdf" && !pdfDecrypted) {
       userMsg += `\n\nNote: This PDF is password-protected. The password is: ${pdf_password}`;
