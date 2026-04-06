@@ -540,12 +540,6 @@ export function useHR() {
     }
 
     try {
-      // Calculate total days
-      const start = new Date(data.start_date);
-      const end = new Date(data.end_date);
-      let totalDays = Math.max(0, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-      if (data.leave_type.startsWith('half_day')) totalDays = 0.5;
-
       const { error } = await supabase
         .from('leave_requests')
         .insert({
@@ -555,7 +549,6 @@ export function useHR() {
           end_date: data.end_date,
           reason: data.reason,
           status: 'submitted',
-          total_days: totalDays,
         });
 
       if (error) throw error;
@@ -620,12 +613,6 @@ export function useHR() {
         return false;
       }
 
-      // Calculate total days
-      const startD = new Date(data.start_date);
-      const endD = new Date(data.end_date);
-      let totalDays = Math.max(0, Math.ceil((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-      if (data.leave_type.startsWith('half_day')) totalDays = 0.5;
-
       // Insert leave request as auto-approved
       const { error } = await supabase
         .from('leave_requests')
@@ -636,7 +623,6 @@ export function useHR() {
           end_date: data.end_date,
           reason: data.reason,
           status: 'approved',
-          total_days: totalDays,
           approver_id: user.id,
           approver_name: profile.name,
           approved_rejected_at: new Date().toISOString(),
