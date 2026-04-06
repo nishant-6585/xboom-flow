@@ -37,6 +37,7 @@ interface FormLead {
   status: string;
   assigned_to: string | null;
   assigned_to_name: string | null;
+  customer_type: string | null;
   created_at: string;
   updated_at: string;
 }
