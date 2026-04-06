@@ -46,7 +46,7 @@ const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--c
 const TOOLTIP_STYLE = { background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' };
 
 export function ProspectsPanel() {
-  const { prospects, loading, toggleACategory, updateStatus, updateProspectType, refetch } = useProspects();
+  const { prospects, loading, toggleACategory, updateStatus, updateProspectType, deleteProspect, refetch } = useProspects();
   const { user, role } = useAuth();
   const [search, setSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState('all');
