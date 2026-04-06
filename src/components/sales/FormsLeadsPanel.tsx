@@ -13,13 +13,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Search, Mail, Phone, Building2, MapPin, Package, User, Calendar, Eye, Trash2, RefreshCw, Pencil } from "lucide-react";
+import { FileText, Search, Mail, Phone, Building2, MapPin, Package, User, Calendar, Eye, Trash2, RefreshCw, Pencil, BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { ProspectButton, ACategoryButton } from "./ProspectButton";
 import { AttentionButton } from "./AttentionButton";
 import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { useProspects } from "@/hooks/useProspects";
 import { useAttentionItems } from "@/hooks/useAttentionItems";
+import { FormsLeadsAnalytics } from "./FormsLeadsAnalytics";
 
 interface FormLead {
   id: string;
@@ -62,6 +63,9 @@ export function FormsLeadsPanel() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedLead, setSelectedLead] = useState<FormLead | null>(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   const { data: leads = [], isLoading, refetch } = useQuery({
     queryKey: ["form_leads"],
@@ -172,6 +176,13 @@ export function FormsLeadsPanel() {
     return matchesSearch && matchesStatus;
   });
 
+  // Reset page when filters change
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginatedLeads = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Reset to page 1 when search/filter changes
+  useEffect(() => { setCurrentPage(1); }, [search, statusFilter]);
+
   const getStatusBadge = (status: string) => {
     const opt = STATUS_OPTIONS.find((s) => s.value === status);
     return <Badge className={opt?.color || ""}>{opt?.label || status}</Badge>;
@@ -187,12 +198,24 @@ export function FormsLeadsPanel() {
               Forms Leads
               <Badge variant="secondary">{filtered.length}</Badge>
             </CardTitle>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              <RefreshCw className="w-4 h-4 mr-1" /> Refresh
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant={showAnalytics ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowAnalytics(!showAnalytics)}
+              >
+                <BarChart3 className="w-4 h-4 mr-1" /> Analytics
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                <RefreshCw className="w-4 h-4 mr-1" /> Refresh
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
+          {showAnalytics && <FormsLeadsAnalytics leads={leads} />}
+          {!showAnalytics && (
+          <>
           <div className="flex flex-wrap gap-3 mb-4">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -232,7 +255,7 @@ export function FormsLeadsPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((lead) => (
+                  {paginatedLeads.map((lead) => (
                     <tr key={lead.id} className="border-b hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setSelectedLead(lead)}>
                       <td className="py-2.5 px-3 font-medium">{lead.customer_name}</td>
                       <td className="py-2.5 px-1" onClick={(e) => e.stopPropagation()}>
@@ -337,6 +360,25 @@ export function FormsLeadsPanel() {
                 </tbody>
               </table>
             </div>
+          )}
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-3 border-t">
+              <span className="text-sm text-muted-foreground">
+                Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
+                  <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                </Button>
+                <span className="text-sm font-medium">Page {currentPage} of {totalPages}</span>
+                <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+                  Next <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
+          </>
           )}
         </CardContent>
       </Card>
