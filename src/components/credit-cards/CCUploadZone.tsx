@@ -204,7 +204,7 @@ export function CCUploadZone({ onUpload, processing }: Props) {
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && password.trim()) handlePasswordSubmit(); }}
                 autoFocus
-                className="pr-10"
+                className="pr-10 focus-visible:ring-primary/30"
               />
               <button
                 type="button"
