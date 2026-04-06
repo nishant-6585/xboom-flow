@@ -151,16 +151,14 @@ Deno.serve(async (req: Request) => {
             status: "FAILED",
             error_message: "Password-protected PDF. Please provide the password.",
           }).eq("id", upload_id);
-          return respond({ error: "This PDF is password-protected. Please provide the password.", password_required: true }, 422);
+          return respond({ success: false, error: "This PDF is password-protected. Please provide the password.", password_required: true });
         }
 
         if (isEncrypted && pdf_password) {
           console.log("PDF is encrypted, attempting text extraction with password...");
           
-          // Try multiple approaches to extract text from password-protected PDF
           let decryptionSucceeded = false;
           
-          // Approach 1: Use pdf-parse (wraps pdfjs with better compatibility)
           if (!decryptionSucceeded) {
             try {
               const pdfParse = (await import("npm:pdf-parse@1.1.1")).default;
@@ -178,12 +176,11 @@ Deno.serve(async (req: Request) => {
               const errMsg1 = (e1?.message || "").toLowerCase();
               if (errMsg1.includes("incorrect password") || errMsg1.includes("wrong password")) {
                 await failUpload(supabaseAdmin, upload_id, "Incorrect PDF password. Please try again with the correct password.");
-                return respond({ error: "Incorrect PDF password. Please try again with the correct password.", password_required: true }, 422);
+                return respond({ success: false, error: "Incorrect PDF password. Please try again with the correct password.", password_required: true });
               }
             }
           }
           
-          // Approach 2: Use pdfjs-dist directly
           if (!decryptionSucceeded) {
             try {
               const pdfjsLib = await import("npm:pdfjs-dist@4.0.379/legacy/build/pdf.mjs");
@@ -215,16 +212,15 @@ Deno.serve(async (req: Request) => {
               const errMsg2 = (e2?.message || "").toLowerCase();
               if (errMsg2.includes("incorrect password") || errMsg2.includes("wrong password")) {
                 await failUpload(supabaseAdmin, upload_id, "Incorrect PDF password. Please try again with the correct password.");
-                return respond({ error: "Incorrect PDF password. Please try again with the correct password.", password_required: true }, 422);
+                return respond({ success: false, error: "Incorrect PDF password. Please try again with the correct password.", password_required: true });
               }
             }
           }
           
-          // If both approaches failed but not due to wrong password, report error
           if (!decryptionSucceeded) {
             console.error("All PDF decryption approaches failed");
             await failUpload(supabaseAdmin, upload_id, "Unable to decrypt this PDF. Please ensure the password is correct.");
-            return respond({ error: "Unable to decrypt this PDF. Please ensure the password is correct.", password_required: true }, 422);
+            return respond({ success: false, error: "Unable to decrypt this PDF. Please ensure the password is correct.", password_required: true });
           }
         }
       }
