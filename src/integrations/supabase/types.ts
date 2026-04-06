@@ -7424,6 +7424,7 @@ export type Database = {
           created_by_name: string
           customer_company: string | null
           customer_name: string
+          customer_type: string | null
           email: string | null
           id: string
           is_a_category: boolean
@@ -7453,6 +7454,7 @@ export type Database = {
           created_by_name: string
           customer_company?: string | null
           customer_name: string
+          customer_type?: string | null
           email?: string | null
           id?: string
           is_a_category?: boolean
@@ -7482,6 +7484,7 @@ export type Database = {
           created_by_name?: string
           customer_company?: string | null
           customer_name?: string
+          customer_type?: string | null
           email?: string | null
           id?: string
           is_a_category?: boolean
