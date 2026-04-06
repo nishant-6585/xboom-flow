@@ -25,8 +25,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { TicketStatusBadge } from "./TicketStatusBadge";
 import { TicketPriorityBadge } from "./TicketPriorityBadge";
 import { TicketEditHistory } from "./TicketEditHistory";
-import { TicketAiSuggestionsCard } from "./TicketAiSuggestionsCard";
-import { TicketAiResolutionPanel } from "./TicketAiResolutionPanel";
 import { TicketSlaAlertBanner } from "./TicketSlaAlertBanner";
 import { Ticket, useTickets, useTicketComments, useTeamMembers, UpdateTicketData } from "@/hooks/useTickets";
 import { useEditHistory } from "@/hooks/useEditHistory";
@@ -52,8 +50,6 @@ import {
   ExternalLink,
   Upload,
   Trash2,
-  Sparkles,
-  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Database } from "@/integrations/supabase/types";
@@ -358,24 +354,6 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                   <span className="text-xs font-mono text-muted-foreground">{ticket.ticket_number}</span>
                   <TicketStatusBadge status={ticket.status} />
                   <TicketPriorityBadge priority={ticket.priority} />
-                  {ticket.ai_resolution_status && (
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "text-[10px] gap-1",
-                        ticket.ai_resolution_status === "analyzing" && "border-yellow-400 text-yellow-600 dark:text-yellow-400 animate-pulse",
-                        ticket.ai_resolution_status === "pending_approval" && "border-blue-400 text-blue-600 dark:text-blue-400",
-                        ticket.ai_resolution_status === "approved" && "border-green-400 text-green-600 dark:text-green-400",
-                        ticket.ai_resolution_status === "rejected" && "border-destructive text-destructive",
-                      )}
-                    >
-                      <Bot className="w-3 h-3" />
-                      {ticket.ai_resolution_status === "analyzing" && "AI Analyzing"}
-                      {ticket.ai_resolution_status === "pending_approval" && "AI Pending Approval"}
-                      {ticket.ai_resolution_status === "approved" && "AI Resolved"}
-                      {ticket.ai_resolution_status === "rejected" && "AI Rejected"}
-                    </Badge>
-                  )}
                   {isOverdue && (
                     <Badge variant="destructive" className="text-xs">
                       <AlertCircle className="w-3 h-3 mr-1" />
@@ -476,16 +454,6 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
               {/* SLA Alert Banner */}
               <TicketSlaAlertBanner ticketId={ticket.id} />
 
-              {/* AI Summary */}
-              {ticket.ai_summary && (
-                <div className="flex items-start gap-2 p-3 rounded-lg border bg-muted/30">
-                  <Sparkles className="w-4 h-4 text-violet-500 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase font-medium mb-1">AI Summary</p>
-                    <p className="text-sm">{ticket.ai_summary}</p>
-                  </div>
-                </div>
-              )}
 
               {/* Meta Info */}
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -565,11 +533,6 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                 </div>
               )}
 
-              {/* AI Suggestions Card */}
-              <TicketAiSuggestionsCard ticket={ticket} onUseReply={(reply) => setNewComment(reply)} />
-
-              {/* AI Resolution Panel */}
-              <TicketAiResolutionPanel ticket={ticket} />
 
               {/* Actions */}
               {canManageActions && (

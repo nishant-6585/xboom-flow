@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart, Warehouse, FileSpreadsheet, Zap, IndianRupee, ListTodo, Users, CalendarDays, Receipt, ClipboardList, Wrench, GraduationCap, FileText, Ticket, BookCheck, RotateCcw, Activity, User, KeyRound, ShieldCheck, Settings, CalendarClock, ChevronRight, BrainCircuit, Cpu } from "lucide-react";
+import { LogOut, Shield, Package, Building2, Menu, Home, ShoppingCart, Warehouse, FileSpreadsheet, Zap, IndianRupee, ListTodo, Users, CalendarDays, Receipt, ClipboardList, Wrench, GraduationCap, FileText, Ticket, BookCheck, RotateCcw, Activity, User, KeyRound, ShieldCheck, Settings, CalendarClock, ChevronRight, Cpu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import logoFull from "@/assets/logo-full.jpeg";
 import { NotificationPanel } from "@/components/NotificationPanel";
-import { TicketNotificationBell } from "@/components/tickets/TicketNotificationBell";
+
 import { AttendanceWidget } from "@/components/attendance/AttendanceWidget";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
@@ -83,7 +83,7 @@ export function Header() {
     
     { path: "/daily-flow", label: "Daily Flow", icon: CalendarClock, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/drone-operations", label: "Drones & Robotics", icon: Cpu, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/ai-dashboard", label: "AI Dashboard", icon: BrainCircuit, roles: ["admin"] },
+    
   ];
 
   const filteredMainNavItems = mainNavItems.filter((item) => item.roles.includes(role || ""));
@@ -165,7 +165,7 @@ export function Header() {
             {(role === 'admin' || role === 'supply_chain' || role === 'finance' || role === 'it') && (
               <NotificationPanel />
             )}
-            <TicketNotificationBell />
+            
 
             <div className="w-px h-6 bg-border/60 mx-1" />
 

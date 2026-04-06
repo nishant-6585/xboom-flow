@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { useTickets, CreateTicketData, useTeamMembers } from "@/hooks/useTickets";
-import { useAnalyzeTicket } from "@/hooks/useTicketAi";
+
 import { useOrgRoles } from "@/hooks/useOrgRolesAndDepartments";
 import { useOrders } from "@/hooks/useOrders";
 import { useEnquiries } from "@/hooks/useEnquiries";
@@ -88,8 +88,6 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
   const { enquiries } = useEnquiries();
   const { data: teamMembers = [] } = useTeamMembers();
   const { roles: orgRoles } = useOrgRoles();
-  const analyzeTicket = useAnalyzeTicket();
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<{
@@ -196,13 +194,6 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
 
     const createdTicket = await createTicket.mutateAsync(data);
     
-    // Trigger AI analysis in background
-    if (createdTicket?.id) {
-      setIsAnalyzing(true);
-      analyzeTicket.mutate(createdTicket.id, {
-        onSettled: () => setIsAnalyzing(false),
-      });
-    }
     
     handleClose();
   };
