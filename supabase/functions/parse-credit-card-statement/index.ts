@@ -285,7 +285,7 @@ Return ONLY valid JSON, no markdown.`;
       ? `Parse this credit card statement CSV:\n\n${textContent.substring(0, 15000)}`
       : `Parse this credit card statement file: ${file_name}`;
 
-    if (pdf_password && ext === "pdf") {
+    if (pdf_password && ext === "pdf" && !pdfDecrypted) {
       userMsg += `\n\nNote: This PDF is password-protected. The password is: ${pdf_password}`;
     }
 
