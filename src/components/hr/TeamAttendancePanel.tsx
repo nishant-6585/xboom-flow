@@ -282,6 +282,8 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
 
   const [correctionLog, setCorrectionLog] = useState<AttendanceLog | null>(null);
 
+  const [bulkEntryOpen, setBulkEntryOpen] = useState(false);
+
   return (
     <div className="space-y-4">
       {/* Date picker bar */}
