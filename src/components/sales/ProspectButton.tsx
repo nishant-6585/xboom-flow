@@ -154,7 +154,7 @@ export function ProspectButton({
     setShowTypeDialog(false);
     setLoading(true);
     try {
-      const result = await addProspect({
+      const prospectData = {
         source_type: sourceType,
         source_id: sourceId,
         customer_name: customerName,
@@ -168,8 +168,9 @@ export function ProspectButton({
         status: 'new',
         created_by: user.id,
         created_by_name: profile.name,
-        customer_type: selectedCustomerType,
-      });
+      } as any;
+      prospectData.customer_type = selectedCustomerType;
+      const result = await addProspect(prospectData);
       setAdded(true);
       if (result) {
         setNewProspectId(result.id);
