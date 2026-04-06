@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function CreditCards() {
+  const navigate = useNavigate();
   const { role, loading: authLoading } = useAuth();
   const {
     cards, statements, transactions, payments, uploads, loading,
