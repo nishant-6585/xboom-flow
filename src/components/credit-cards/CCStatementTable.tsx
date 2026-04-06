@@ -147,7 +147,7 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                   <TableCell colSpan={11} className="text-center text-xs text-muted-foreground py-8">
+                   <TableCell colSpan={12} className="text-center text-xs text-muted-foreground py-8">
                     No statements found. Upload a statement to get started.
                   </TableCell>
                 </TableRow>
