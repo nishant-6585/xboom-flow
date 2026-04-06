@@ -176,6 +176,13 @@ export function FormsLeadsPanel() {
     return matchesSearch && matchesStatus;
   });
 
+  // Reset page when filters change
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginatedLeads = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Reset to page 1 when search/filter changes
+  useEffect(() => { setCurrentPage(1); }, [search, statusFilter]);
+
   const getStatusBadge = (status: string) => {
     const opt = STATUS_OPTIONS.find((s) => s.value === status);
     return <Badge className={opt?.color || ""}>{opt?.label || status}</Badge>;
