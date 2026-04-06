@@ -22,13 +22,14 @@ interface Props {
   onUpdateCard?: (id: string, updates: any) => Promise<{ success: boolean; error?: string }>;
 }
 
-export function CCStatementTable({ cards, statements, payments, onViewStatement, onDeleteCard }: Props) {
+export function CCStatementTable({ cards, statements, payments, onViewStatement, onDeleteCard, onUpdateStatement, onUpdateCard }: Props) {
   const [bankFilter, setBankFilter] = useState('all');
   const [cardFilter, setCardFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [deleteCardId, setDeleteCardId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editStatement, setEditStatement] = useState<CCStatement | null>(null);
 
   const banks = [...new Set(cards.map(c => c.bank_name))];
 
