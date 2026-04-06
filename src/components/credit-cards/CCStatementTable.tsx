@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { CreditCard, CCStatement, CCPayment } from '@/hooks/useCreditCards';
 import { CCEditStatementDialog } from './CCEditStatementDialog';
-import { getStatementOutstanding } from '@/lib/creditCardMetrics';
+import { getStatementOutstanding, getStatementCreditLimit } from '@/lib/creditCardMetrics';
 import { FileText, Search, Eye, Trash2, Loader2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
