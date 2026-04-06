@@ -1,0 +1,2 @@
+UPDATE public.profiles SET name = 'Arpit Gajendra Seth', updated_at = now() WHERE user_id = '0b1e03a8-5bec-4c97-811a-b9dbd679ee93';
+UPDATE public.employees SET name = 'Arpit Gajendra Seth', updated_at = now() WHERE user_id = '0b1e03a8-5bec-4c97-811a-b9dbd679ee93';
