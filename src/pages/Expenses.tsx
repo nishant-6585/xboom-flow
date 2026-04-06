@@ -1138,15 +1138,17 @@ export default function Expenses() {
                                 <TableCell>{expense.vendor_name || '-'}</TableCell>
                                 <TableCell>
                                   {expense.receipt_url ? (
-                                    <a
-                                      href={expense.receipt_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
+                                    <button
+                                      onClick={() => {
+                                        setReceiptViewerUrl(expense.receipt_url);
+                                        setReceiptViewerName(expense.description || 'Receipt');
+                                        setReceiptViewerOpen(true);
+                                      }}
                                       className="inline-flex items-center gap-1 text-primary hover:underline"
                                     >
                                       <FileText className="h-4 w-4" />
                                       <span className="text-xs">View</span>
-                                    </a>
+                                    </button>
                                   ) : (
                                     <span className="text-xs text-muted-foreground">-</span>
                                   )}
