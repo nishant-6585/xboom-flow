@@ -361,7 +361,27 @@ export function FormsLeadsPanel() {
               </table>
             </div>
           )}
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-3 border-t">
+              <span className="text-sm text-muted-foreground">
+                Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
+                  <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                </Button>
+                <span className="text-sm font-medium">Page {currentPage} of {totalPages}</span>
+                <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+                  Next <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
+          </>
+          )}
         </CardContent>
+      </Card>
       </Card>
 
       {/* Edit Dialog */}
