@@ -456,16 +456,6 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
               {/* SLA Alert Banner */}
               <TicketSlaAlertBanner ticketId={ticket.id} />
 
-              {/* AI Summary */}
-              {ticket.ai_summary && (
-                <div className="flex items-start gap-2 p-3 rounded-lg border bg-muted/30">
-                  <Sparkles className="w-4 h-4 text-violet-500 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase font-medium mb-1">AI Summary</p>
-                    <p className="text-sm">{ticket.ai_summary}</p>
-                  </div>
-                </div>
-              )}
 
               {/* Meta Info */}
               <div className="grid grid-cols-2 gap-4 text-sm">
