@@ -2121,6 +2121,60 @@ export type Database = {
         }
         Relationships: []
       }
+      drone_operations: {
+        Row: {
+          activity_datetime: string
+          activity_type: string
+          client_name: string
+          created_at: string
+          created_by: string | null
+          equipment_used: Json | null
+          id: string
+          location: string | null
+          project_name: string
+          remarks: string | null
+          report_file_url: string | null
+          status: string
+          team_members: string[] | null
+          updated_at: string
+          work_description: string | null
+        }
+        Insert: {
+          activity_datetime: string
+          activity_type: string
+          client_name: string
+          created_at?: string
+          created_by?: string | null
+          equipment_used?: Json | null
+          id?: string
+          location?: string | null
+          project_name: string
+          remarks?: string | null
+          report_file_url?: string | null
+          status?: string
+          team_members?: string[] | null
+          updated_at?: string
+          work_description?: string | null
+        }
+        Update: {
+          activity_datetime?: string
+          activity_type?: string
+          client_name?: string
+          created_at?: string
+          created_by?: string | null
+          equipment_used?: Json | null
+          id?: string
+          location?: string | null
+          project_name?: string
+          remarks?: string | null
+          report_file_url?: string | null
+          status?: string
+          team_members?: string[] | null
+          updated_at?: string
+          work_description?: string | null
+        }
+        Relationships: []
+      }
       drone_repair_enquiries: {
         Row: {
           admin_notes: string | null
