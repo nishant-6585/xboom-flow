@@ -285,6 +285,7 @@ export function FormsLeadsPanel() {
                             productName={lead.product_name}
                             notes={lead.notes}
                             isAlreadyProspect={prospectSourceIds.has(`form_lead:${lead.id}`)}
+                            customerType={lead.customer_type}
                           />
                           <AttentionButton
                             sourceType="form_lead"

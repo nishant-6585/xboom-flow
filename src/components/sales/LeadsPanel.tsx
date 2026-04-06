@@ -822,6 +822,7 @@ export function LeadsPanel() {
                           <TableHead className="w-[120px]">Company</TableHead>
                           <TableHead className="w-[100px]">City</TableHead>
                           <TableHead className="w-[120px]">Product</TableHead>
+                          <TableHead className="w-[100px]">Cust. Type</TableHead>
                           <TableHead className="w-[150px]">Email</TableHead>
                           <TableHead className="w-[80px]">Status</TableHead>
                           <TableHead className="w-[100px]">Assigned To</TableHead>
