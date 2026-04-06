@@ -80,7 +80,7 @@ export function Header() {
     { path: "/trainings", label: "Training", icon: GraduationCap, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/billing", label: "Billing", icon: FileText, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/buyback", label: "Buyback", icon: RotateCcw, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance"] },
-    { path: "/model-review", label: "Model Review", icon: Activity, roles: ["admin", "supply_chain", "finance"] },
+    
     { path: "/daily-flow", label: "Daily Flow", icon: CalendarClock, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/drone-operations", label: "Drones & Robotics", icon: Cpu, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/ai-dashboard", label: "AI Dashboard", icon: BrainCircuit, roles: ["admin"] },
