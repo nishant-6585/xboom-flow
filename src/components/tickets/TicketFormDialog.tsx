@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { useTickets, CreateTicketData, useTeamMembers } from "@/hooks/useTickets";
-import { useAnalyzeTicket } from "@/hooks/useTicketAi";
+
 import { useOrgRoles } from "@/hooks/useOrgRolesAndDepartments";
 import { useOrders } from "@/hooks/useOrders";
 import { useEnquiries } from "@/hooks/useEnquiries";
