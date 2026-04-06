@@ -602,6 +602,13 @@ export function EmailLeadsPanel() {
                           </TableCell>
                           <TableCell>{confidenceBar(lead.ai_confidence)}</TableCell>
                           <TableCell>
+                            {(lead as any).customer_type ? (
+                              <Badge variant="outline" className="text-xs">{(lead as any).customer_type}</Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
                             <Badge variant="outline" className={statusColor(lead.status)}>
                               {lead.status}
                             </Badge>
