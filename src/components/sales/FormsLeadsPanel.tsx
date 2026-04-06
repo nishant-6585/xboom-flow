@@ -206,8 +206,11 @@ export function FormsLeadsPanel() {
               >
                 <BarChart3 className="w-4 h-4 mr-1" /> Analytics
               </Button>
-              <Button variant="outline" size="sm" onClick={() => refetch()}>
-                <RefreshCw className="w-4 h-4 mr-1" /> Refresh
+              <Button variant="outline" size="sm" disabled={isLoading} onClick={async () => {
+                await refetch();
+                toast({ title: "Refreshed", description: `${leads.length} form leads loaded` });
+              }}>
+                <RefreshCw className={`w-4 h-4 mr-1 ${isLoading ? "animate-spin" : ""}`} /> Refresh
               </Button>
             </div>
           </div>
