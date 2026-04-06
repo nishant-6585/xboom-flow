@@ -119,6 +119,23 @@ export function useProspects() {
     },
   });
 
+  const deleteProspectMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('prospects')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prospects'] });
+      toast.success('Prospect deleted');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete: ${error.message}`);
+    },
+  });
+
   return {
     prospects,
     loading,
@@ -128,5 +145,7 @@ export function useProspects() {
     toggleACategory: toggleACategoryMutation.mutate,
     updateStatus: updateStatusMutation.mutate,
     updateProspectType: updateProspectTypeMutation.mutate,
+    deleteProspect: deleteProspectMutation.mutateAsync,
+    deletingProspect: deleteProspectMutation.isPending,
   };
 }
