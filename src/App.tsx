@@ -38,7 +38,7 @@ import Tally from "./pages/Tally";
 import Buyback from "./pages/Buyback";
 import PublicDroneRepairEnquiry from "./pages/PublicDroneRepairEnquiry";
 import Candidates from "./pages/Candidates";
-import ModelReview from "./pages/ModelReview";
+
 import SecuritySettings from "./pages/SecuritySettings";
 import AuditLogs from "./pages/AuditLogs";
 import MyProfile from "./pages/MyProfile";
