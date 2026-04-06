@@ -846,6 +846,7 @@ export function LeadsPanel() {
                                   productName={lead.product_name}
                                   notes={lead.notes}
                                   isAlreadyProspect={prospectSourceIds.has(`interakt:${lead.id}`)}
+                                  customerType={(lead as any).customer_type}
                                 />
                                 <AttentionButton
                                   sourceType="interakt"
