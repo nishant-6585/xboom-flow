@@ -67,11 +67,11 @@ export function CCCharts({ cards, statements }: Props) {
         </CardHeader>
         <CardContent className="h-52">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={utilizationData} layout="vertical">
-              <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} />
-              <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 10 }} />
+            <BarChart data={utilizationData}>
+              <XAxis type="category" dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-30} textAnchor="end" height={50} />
+              <YAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} />
               <Tooltip formatter={(v: number) => `${v}%`} />
-              <Bar dataKey="utilization" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="utilization" radius={[4, 4, 0, 0]}>
                 {utilizationData.map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
