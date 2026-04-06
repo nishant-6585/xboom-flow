@@ -255,7 +255,7 @@ export function FormsLeadsPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((lead) => (
+                  {paginatedLeads.map((lead) => (
                     <tr key={lead.id} className="border-b hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setSelectedLead(lead)}>
                       <td className="py-2.5 px-3 font-medium">{lead.customer_name}</td>
                       <td className="py-2.5 px-1" onClick={(e) => e.stopPropagation()}>
