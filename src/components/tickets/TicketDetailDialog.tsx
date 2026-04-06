@@ -25,8 +25,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { TicketStatusBadge } from "./TicketStatusBadge";
 import { TicketPriorityBadge } from "./TicketPriorityBadge";
 import { TicketEditHistory } from "./TicketEditHistory";
-import { TicketAiSuggestionsCard } from "./TicketAiSuggestionsCard";
-import { TicketAiResolutionPanel } from "./TicketAiResolutionPanel";
 import { TicketSlaAlertBanner } from "./TicketSlaAlertBanner";
 import { Ticket, useTickets, useTicketComments, useTeamMembers, UpdateTicketData } from "@/hooks/useTickets";
 import { useEditHistory } from "@/hooks/useEditHistory";
