@@ -213,7 +213,16 @@ export function FormsLeadsPanel() {
           </div>
         </CardHeader>
         <CardContent>
-          {showAnalytics && <FormsLeadsAnalytics leads={leads} />}
+          {showAnalytics && (
+            <>
+              <div className="mb-4">
+                <Button variant="outline" size="sm" onClick={() => setShowAnalytics(false)}>
+                  <ChevronLeft className="w-4 h-4 mr-1" /> Back to List
+                </Button>
+              </div>
+              <FormsLeadsAnalytics leads={leads} />
+            </>
+          )}
           {!showAnalytics && (
           <>
           <div className="flex flex-wrap gap-3 mb-4">
