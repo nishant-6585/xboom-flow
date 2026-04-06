@@ -156,36 +156,75 @@ Deno.serve(async (req: Request) => {
 
         if (isEncrypted && pdf_password) {
           console.log("PDF is encrypted, attempting text extraction with password...");
-          try {
-            // Use pdf.js to load encrypted PDF with password and extract text
-            const pdfjsLib = await import("npm:pdfjs-dist@4.0.379/legacy/build/pdf.mjs");
-            
-            const loadingTask = pdfjsLib.getDocument({
-              data: pdfBytes,
-              password: pdf_password,
-            });
-            
-            const pdfDoc = await loadingTask.promise;
-            const pageTexts: string[] = [];
-            
-            for (let i = 1; i <= pdfDoc.numPages; i++) {
-              const page = await pdfDoc.getPage(i);
-              const textContent = await page.getTextContent();
-              const pageText = textContent.items.map((item: any) => item.str).join(" ");
-              pageTexts.push(`--- Page ${i} ---\n${pageText}`);
+          
+          // Try multiple approaches to extract text from password-protected PDF
+          let decryptionSucceeded = false;
+          
+          // Approach 1: Use pdf-parse (wraps pdfjs with better compatibility)
+          if (!decryptionSucceeded) {
+            try {
+              const pdfParse = (await import("npm:pdf-parse@1.1.1")).default;
+              const buffer = Buffer.from(pdfBytes);
+              const data = await pdfParse(buffer, { password: pdf_password });
+              
+              if (data.text && data.text.trim().length > 50) {
+                extractedPdfText = data.text;
+                pdfDecrypted = true;
+                decryptionSucceeded = true;
+                console.log(`pdf-parse succeeded: ${data.numpages} pages, ${extractedPdfText.length} chars`);
+              }
+            } catch (e1: any) {
+              console.log("pdf-parse failed:", e1?.message);
+              const errMsg1 = (e1?.message || "").toLowerCase();
+              if (errMsg1.includes("incorrect password") || errMsg1.includes("wrong password")) {
+                await failUpload(supabaseAdmin, upload_id, "Incorrect PDF password. Please try again with the correct password.");
+                return respond({ error: "Incorrect PDF password. Please try again with the correct password.", password_required: true }, 422);
+              }
             }
-            
-            extractedPdfText = pageTexts.join("\n\n");
-            pdfDecrypted = true;
-            console.log(`PDF decrypted and text extracted: ${pdfDoc.numPages} pages, ${extractedPdfText.length} chars`);
-          } catch (decErr: any) {
-            console.error("PDF decryption/extraction error:", decErr?.message);
-            const isWrongPassword = (decErr?.message || "").toLowerCase().includes("password");
-            const errorMessage = isWrongPassword 
-              ? "Incorrect PDF password. Please try again with the correct password."
-              : "Failed to decrypt PDF. Ensure the password is correct.";
-            await failUpload(supabaseAdmin, upload_id, errorMessage);
-            return respond({ error: errorMessage, password_required: isWrongPassword }, 422);
+          }
+          
+          // Approach 2: Use pdfjs-dist directly
+          if (!decryptionSucceeded) {
+            try {
+              const pdfjsLib = await import("npm:pdfjs-dist@4.0.379/legacy/build/pdf.mjs");
+              
+              const loadingTask = pdfjsLib.getDocument({
+                data: new Uint8Array(pdfBytes),
+                password: pdf_password,
+                useWorkerFetch: false,
+                isEvalSupported: false,
+                useSystemFonts: false,
+              });
+              
+              const pdfDoc = await loadingTask.promise;
+              const pageTexts: string[] = [];
+              
+              for (let i = 1; i <= pdfDoc.numPages; i++) {
+                const page = await pdfDoc.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map((item: any) => item.str).join(" ");
+                pageTexts.push(`--- Page ${i} ---\n${pageText}`);
+              }
+              
+              extractedPdfText = pageTexts.join("\n\n");
+              pdfDecrypted = true;
+              decryptionSucceeded = true;
+              console.log(`pdfjs-dist succeeded: ${pdfDoc.numPages} pages, ${extractedPdfText.length} chars`);
+            } catch (e2: any) {
+              console.log("pdfjs-dist failed:", e2?.message);
+              const errMsg2 = (e2?.message || "").toLowerCase();
+              if (errMsg2.includes("incorrect password") || errMsg2.includes("wrong password")) {
+                await failUpload(supabaseAdmin, upload_id, "Incorrect PDF password. Please try again with the correct password.");
+                return respond({ error: "Incorrect PDF password. Please try again with the correct password.", password_required: true }, 422);
+              }
+            }
+          }
+          
+          // If both approaches failed but not due to wrong password, report error
+          if (!decryptionSucceeded) {
+            console.error("All PDF decryption approaches failed");
+            await failUpload(supabaseAdmin, upload_id, "Unable to decrypt this PDF. Please ensure the password is correct.");
+            return respond({ error: "Unable to decrypt this PDF. Please ensure the password is correct.", password_required: true }, 422);
           }
         }
       }
