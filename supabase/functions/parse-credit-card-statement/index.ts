@@ -199,6 +199,8 @@ Deno.serve(async (req: Request) => {
     let textContent = "";
     if (ext === "csv") {
       textContent = new TextDecoder().decode(new Uint8Array(arrayBuffer));
+    } else if (pdfDecrypted && extractedPdfText) {
+      textContent = extractedPdfText;
     }
 
     const { data: existingCards } = await supabaseAdmin
