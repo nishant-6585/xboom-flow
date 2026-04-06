@@ -905,6 +905,13 @@ export function LeadsPanel() {
                               <span className="text-sm">{lead.product_name || '—'}</span>
                             </TableCell>
                             <TableCell>
+                              {(lead as any).customer_type ? (
+                                <Badge variant="outline" className="text-xs">{(lead as any).customer_type}</Badge>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
                               <span className="text-sm text-muted-foreground">{lead.email || '—'}</span>
                             </TableCell>
                             <TableCell>
