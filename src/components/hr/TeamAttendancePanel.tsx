@@ -311,6 +311,7 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
           <span>Refreshed {format(lastRefresh, 'hh:mm:ss a')}</span>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={fetchToday} disabled={loadingToday}><RefreshCw className={cn('h-3.5 w-3.5', loadingToday && 'animate-spin')} /></Button>
           <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs gap-1" onClick={exportCSV}><Download className="h-3.5 w-3.5" /> Export</Button>
+          <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs gap-1" onClick={() => setBulkEntryOpen(true)}><CalendarDays className="h-3.5 w-3.5" /> Bulk Entry</Button>
         </div>
       </div>
 
