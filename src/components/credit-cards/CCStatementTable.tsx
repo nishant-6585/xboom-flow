@@ -178,12 +178,13 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
                         >
                           <Pencil className="h-3 w-3 text-muted-foreground" />
                         </Button>
-                      </TableCell>
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
         <AlertDialog open={!!deleteCardId} onOpenChange={(open) => !open && setDeleteCardId(null)}>
           <AlertDialogContent>
@@ -202,6 +203,17 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {editStatement && onUpdateStatement && onUpdateCard && (
+          <CCEditStatementDialog
+            open={!!editStatement}
+            onClose={() => setEditStatement(null)}
+            statement={editStatement}
+            card={cards.find(c => c.id === editStatement.card_id)}
+            onUpdateStatement={onUpdateStatement}
+            onUpdateCard={onUpdateCard}
+          />
+        )}
       </CardContent>
     </Card>
   );
