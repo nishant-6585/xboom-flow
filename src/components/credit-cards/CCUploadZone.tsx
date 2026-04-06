@@ -177,7 +177,7 @@ export function CCUploadZone({ onUpload, processing }: Props) {
       </Card>
 
       <Dialog open={showPasswordDialog} onOpenChange={(open) => { if (!open) handlePasswordCancel(); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Lock className="h-5 w-5 text-primary" />
@@ -216,7 +216,7 @@ export function CCUploadZone({ onUpload, processing }: Props) {
             </div>
 
             {pendingFile && (
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="text-xs text-muted-foreground truncate max-w-full overflow-hidden">
                 File: {pendingFile.name}
               </p>
             )}
