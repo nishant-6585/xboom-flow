@@ -67,11 +67,11 @@ export function CCCharts({ cards, statements }: Props) {
         </CardHeader>
         <CardContent className="h-52">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={utilizationData} layout="vertical">
-              <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} />
-              <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 10 }} />
+            <BarChart data={utilizationData}>
+              <XAxis type="category" dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-30} textAnchor="end" height={50} />
+              <YAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} />
               <Tooltip formatter={(v: number) => `${v}%`} />
-              <Bar dataKey="utilization" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="utilization" radius={[4, 4, 0, 0]}>
                 {utilizationData.map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
@@ -86,10 +86,10 @@ export function CCCharts({ cards, statements }: Props) {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Payment Status</CardTitle>
         </CardHeader>
-        <CardContent className="h-52">
+        <CardContent className="h-60">
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={statusData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
+            <PieChart margin={{ top: 20, right: 20, bottom: 10, left: 20 }}>
+              <Pie data={statusData} cx="50%" cy="50%" innerRadius={35} outerRadius={60} dataKey="value" label={({ name, value }) => `${name}: ${value}`} labelLine={{ strokeWidth: 1 }}>
                 {statusData.map((d, i) => (
                   <Cell key={i} fill={d.color} />
                 ))}
