@@ -1324,6 +1324,13 @@ export default function Expenses() {
           </DialogContent>
         </Dialog>
       </main>
+
+      <DocumentViewer
+        open={receiptViewerOpen}
+        onOpenChange={setReceiptViewerOpen}
+        url={receiptViewerUrl}
+        name={receiptViewerName}
+      />
     </div>
   );
 }
