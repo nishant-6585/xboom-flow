@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { CreditCard, CCStatement, CCPayment } from '@/hooks/useCreditCards';
+import { CCEditStatementDialog } from './CCEditStatementDialog';
 import { getStatementOutstanding } from '@/lib/creditCardMetrics';
-import { FileText, Search, Eye, Trash2, Loader2 } from 'lucide-react';
+import { FileText, Search, Eye, Trash2, Loader2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -17,15 +18,18 @@ interface Props {
   payments: CCPayment[];
   onViewStatement?: (statement: CCStatement) => void;
   onDeleteCard?: (cardId: string) => Promise<{ success: boolean; error?: string }>;
+  onUpdateStatement?: (id: string, updates: any) => Promise<{ success: boolean; error?: string }>;
+  onUpdateCard?: (id: string, updates: any) => Promise<{ success: boolean; error?: string }>;
 }
 
-export function CCStatementTable({ cards, statements, payments, onViewStatement, onDeleteCard }: Props) {
+export function CCStatementTable({ cards, statements, payments, onViewStatement, onDeleteCard, onUpdateStatement, onUpdateCard }: Props) {
   const [bankFilter, setBankFilter] = useState('all');
   const [cardFilter, setCardFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [deleteCardId, setDeleteCardId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editStatement, setEditStatement] = useState<CCStatement | null>(null);
 
   const banks = [...new Set(cards.map(c => c.bank_name))];
 
@@ -136,12 +140,13 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
                 <TableHead className="text-xs">Due Date</TableHead>
                 <TableHead className="text-xs text-right">Interest</TableHead>
                 <TableHead className="text-xs text-center">Details</TableHead>
+                <TableHead className="text-xs text-center">Edit</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                   <TableCell colSpan={10} className="text-center text-xs text-muted-foreground py-8">
+                   <TableCell colSpan={11} className="text-center text-xs text-muted-foreground py-8">
                     No statements found. Upload a statement to get started.
                   </TableCell>
                 </TableRow>
@@ -163,13 +168,26 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
                       <TableCell className="text-center">
                         <Eye className="h-3.5 w-3.5 text-muted-foreground mx-auto" />
                       </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditStatement(s);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3 text-muted-foreground" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   );
                 })
               )}
-            </TableBody>
-          </Table>
-        </div>
+              </TableBody>
+            </Table>
+          </div>
 
         <AlertDialog open={!!deleteCardId} onOpenChange={(open) => !open && setDeleteCardId(null)}>
           <AlertDialogContent>
@@ -188,6 +206,17 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {editStatement && onUpdateStatement && onUpdateCard && (
+          <CCEditStatementDialog
+            open={!!editStatement}
+            onClose={() => setEditStatement(null)}
+            statement={editStatement}
+            card={cards.find(c => c.id === editStatement.card_id)}
+            onUpdateStatement={onUpdateStatement}
+            onUpdateCard={onUpdateCard}
+          />
+        )}
       </CardContent>
     </Card>
   );

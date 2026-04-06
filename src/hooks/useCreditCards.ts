@@ -441,10 +441,38 @@ export function useCreditCards() {
     }
   };
 
+  const updateStatement = async (statementId: string, updates: Partial<Pick<CCStatement, 'total_due' | 'minimum_due' | 'outstanding_balance' | 'available_credit_limit' | 'interest_charged' | 'late_fee' | 'due_date' | 'billing_month'>>) => {
+    try {
+      const { error } = await supabase
+        .from('cc_statements' as any)
+        .update({ ...updates, updated_at: new Date().toISOString() } as any)
+        .eq('id', statementId);
+      if (error) return { success: false, error: error.message };
+      await fetchAll();
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  };
+
+  const updateCard = async (cardId: string, updates: Partial<Pick<CreditCard, 'bank_name' | 'card_name' | 'credit_limit'>>) => {
+    try {
+      const { error } = await supabase
+        .from('credit_cards' as any)
+        .update({ ...updates, updated_at: new Date().toISOString() } as any)
+        .eq('id', cardId);
+      if (error) return { success: false, error: error.message };
+      await fetchAll();
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  };
+
   return {
     cards, statements, transactions, payments, uploads, loading,
     uploadStatement, getSummary, checkDuplicate, refetch: fetchAll,
     recordPayment, getStatementFile, reanalyzeStatement, replaceStatementFile,
-    deleteCardWithData,
+    deleteCardWithData, updateStatement, updateCard,
   };
 }

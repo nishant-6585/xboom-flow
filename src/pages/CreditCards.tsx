@@ -18,7 +18,7 @@ export default function CreditCards() {
     cards, statements, transactions, payments, uploads, loading,
     uploadStatement, checkDuplicate, getSummary, refetch,
     recordPayment, getStatementFile, reanalyzeStatement, replaceStatementFile,
-    deleteCardWithData,
+    deleteCardWithData, updateStatement, updateCard,
   } = useCreditCards();
   const [processing, setProcessing] = useState(false);
   const [selectedStatement, setSelectedStatement] = useState<CCStatement | null>(null);
@@ -102,6 +102,8 @@ export default function CreditCards() {
               payments={payments}
               onViewStatement={setSelectedStatement}
               onDeleteCard={deleteCardWithData}
+              onUpdateStatement={updateStatement}
+              onUpdateCard={updateCard}
             />
             <CCReports
               cards={cards}
