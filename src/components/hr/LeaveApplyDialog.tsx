@@ -1,4 +1,4 @@
-import { useState, forwardRef } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,6 +17,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LeaveType } from "@/hooks/useHR";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Badge } from "@/components/ui/badge";
+import { Wallet } from "lucide-react";
 
 interface LeaveApplyDialogProps {
   open: boolean;
@@ -43,6 +47,34 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [leaveBalance, setLeaveBalance] = useState<number | null>(null);
+  const { user } = useAuth();
+
+  // Fetch balance for the selected leave type
+  useEffect(() => {
+    if (!open || !user) return;
+    const fetchBalance = async () => {
+      // Get employee id for current user
+      const { data: emp } = await supabase
+        .from('employees')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!emp) { setLeaveBalance(null); return; }
+      // Map half_day types to their base type for balance lookup
+      const baseType = leaveType.replace('half_day_', '');
+      const year = new Date().getFullYear();
+      const { data } = await supabase
+        .from('leave_balances')
+        .select('balance')
+        .eq('employee_id', emp.id)
+        .eq('leave_type', baseType)
+        .eq('year', year)
+        .maybeSingle();
+      setLeaveBalance(data?.balance ?? 0);
+    };
+    fetchBalance();
+  }, [open, user, leaveType]);
 
   const handleSubmit = async () => {
     if (!startDate || !endDate) return;
@@ -107,6 +139,16 @@ export const LeaveApplyDialog = forwardRef<HTMLDivElement, LeaveApplyDialogProps
                   </SelectContent>
                 </Select>
               </div>
+
+              {leaveBalance !== null && (
+                <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                  <Wallet className="h-4 w-4 text-primary" />
+                  <span className="text-sm text-muted-foreground">Available Balance:</span>
+                  <Badge variant={leaveBalance > 0 ? "default" : "destructive"} className="text-sm">
+                    {leaveBalance} day(s)
+                  </Badge>
+                </div>
+              )}
 
               <Button className="w-full" onClick={() => setStep(2)}>
                 Next
