@@ -322,6 +322,13 @@ export function FormsLeadsPanel() {
                         <Badge variant="outline" className="text-xs">{lead.form_name}</Badge>
                       </td>
                       <td className="py-2.5 px-3 text-muted-foreground">{lead.product_name || "-"}</td>
+                      <td className="py-2.5 px-3">
+                        {lead.customer_type ? (
+                          <Badge variant="outline" className="text-xs">{lead.customer_type}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">-</span>
+                        )}
+                      </td>
                       <td className="py-2.5 px-3" onClick={(e) => e.stopPropagation()}>
                         <Select value={lead.status} onValueChange={(val) => updateStatus.mutate({ id: lead.id, status: val })}>
                           <SelectTrigger className="h-7 w-[110px] text-xs">
