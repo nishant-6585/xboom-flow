@@ -141,6 +141,8 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
                 <TableHead className="text-xs text-right">Interest</TableHead>
                 <TableHead className="text-xs text-center">Details</TableHead>
                 <TableHead className="text-xs text-center">Edit</TableHead>
+              </TableRow>
+            </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
@@ -178,10 +180,11 @@ export function CCStatementTable({ cards, statements, payments, onViewStatement,
                         >
                           <Pencil className="h-3 w-3 text-muted-foreground" />
                         </Button>
-                      </TableRow>
-                    );
-                  })
-                )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
               </TableBody>
             </Table>
           </div>
