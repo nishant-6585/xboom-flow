@@ -57,6 +57,11 @@ export default function Expenses() {
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [selectedProcurementIds, setSelectedProcurementIds] = useState<string[]>([]);
 
+  // Receipt viewer
+  const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
+  const [receiptViewerUrl, setReceiptViewerUrl] = useState<string | null>(null);
+  const [receiptViewerName, setReceiptViewerName] = useState("");
+
   // Give petty cash dialog
   const [giveCashDialogOpen, setGiveCashDialogOpen] = useState(false);
   const [targetUserId, setTargetUserId] = useState("");
