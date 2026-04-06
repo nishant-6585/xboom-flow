@@ -83,7 +83,7 @@ export function Header() {
     
     { path: "/daily-flow", label: "Daily Flow", icon: CalendarClock, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/drone-operations", label: "Drones & Robotics", icon: Cpu, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/ai-dashboard", label: "AI Dashboard", icon: BrainCircuit, roles: ["admin"] },
+    
   ];
 
   const filteredMainNavItems = mainNavItems.filter((item) => item.roles.includes(role || ""));

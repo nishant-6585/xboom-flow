@@ -115,15 +115,6 @@ export function TicketTable({ tickets, onView }: TicketTableProps) {
                   <TableCell>
                     <div className="max-w-[250px] truncate font-medium flex items-center gap-1.5">
                       {ticket.subject}
-                      {ticket.ai_resolution_status && (
-                        <Bot className={cn(
-                          "w-3.5 h-3.5 shrink-0",
-                          ticket.ai_resolution_status === "analyzing" && "text-yellow-500 animate-pulse",
-                          ticket.ai_resolution_status === "pending_approval" && "text-blue-500",
-                          ticket.ai_resolution_status === "approved" && "text-green-500",
-                          ticket.ai_resolution_status === "rejected" && "text-destructive",
-                        )} />
-                      )}
                     </div>
                     {(ticket.orders || ticket.enquiries) && (
                       <div className="flex items-center gap-1 text-xs text-primary mt-1">

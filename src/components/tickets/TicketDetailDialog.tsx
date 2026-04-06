@@ -535,11 +535,6 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                 </div>
               )}
 
-              {/* AI Suggestions Card */}
-              <TicketAiSuggestionsCard ticket={ticket} onUseReply={(reply) => setNewComment(reply)} />
-
-              {/* AI Resolution Panel */}
-              <TicketAiResolutionPanel ticket={ticket} />
 
               {/* Actions */}
               {canManageActions && (

@@ -194,13 +194,6 @@ export function TicketFormDialog({ open, onOpenChange }: TicketFormDialogProps) 
 
     const createdTicket = await createTicket.mutateAsync(data);
     
-    // Trigger AI analysis in background
-    if (createdTicket?.id) {
-      setIsAnalyzing(true);
-      analyzeTicket.mutate(createdTicket.id, {
-        onSettled: () => setIsAnalyzing(false),
-      });
-    }
     
     handleClose();
   };
