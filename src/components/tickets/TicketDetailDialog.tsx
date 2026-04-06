@@ -356,24 +356,6 @@ export function TicketDetailDialog({ ticket: ticketProp, open, onOpenChange }: T
                   <span className="text-xs font-mono text-muted-foreground">{ticket.ticket_number}</span>
                   <TicketStatusBadge status={ticket.status} />
                   <TicketPriorityBadge priority={ticket.priority} />
-                  {ticket.ai_resolution_status && (
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "text-[10px] gap-1",
-                        ticket.ai_resolution_status === "analyzing" && "border-yellow-400 text-yellow-600 dark:text-yellow-400 animate-pulse",
-                        ticket.ai_resolution_status === "pending_approval" && "border-blue-400 text-blue-600 dark:text-blue-400",
-                        ticket.ai_resolution_status === "approved" && "border-green-400 text-green-600 dark:text-green-400",
-                        ticket.ai_resolution_status === "rejected" && "border-destructive text-destructive",
-                      )}
-                    >
-                      <Bot className="w-3 h-3" />
-                      {ticket.ai_resolution_status === "analyzing" && "AI Analyzing"}
-                      {ticket.ai_resolution_status === "pending_approval" && "AI Pending Approval"}
-                      {ticket.ai_resolution_status === "approved" && "AI Resolved"}
-                      {ticket.ai_resolution_status === "rejected" && "AI Rejected"}
-                    </Badge>
-                  )}
                   {isOverdue && (
                     <Badge variant="destructive" className="text-xs">
                       <AlertCircle className="w-3 h-3 mr-1" />
