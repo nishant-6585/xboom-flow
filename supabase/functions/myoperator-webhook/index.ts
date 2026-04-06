@@ -118,7 +118,14 @@ Deno.serve(async (req) => {
       const callId = getString(body, '_ai') || getString(body, '_id') || getString(body, 'call_id') || crypto.randomUUID();
       
       // Build agent display string
-      const agentDisplay = allAgents.length > 0 ? allAgents.join(', ') : assignedAgentName;
+      let agentDisplay = allAgents.length > 0 ? allAgents.join(', ') : assignedAgentName;
+
+      // If missed call with no known agent ("Unknown"), randomly assign to Narasimha or Mushtaq
+      if (callStatus === 'missed' && (!agentDisplay || agentDisplay === 'Unknown' || agentDisplay.trim() === '')) {
+        const missedCallAgents = ['Narasimha', 'Mushtaq'];
+        agentDisplay = missedCallAgents[Math.floor(Math.random() * missedCallAgents.length)];
+        assignedAgentName = agentDisplay;
+      }
 
       const rawPayloadForStorage = parseError
         ? { raw_body: rawBody, parse_error: parseError }
