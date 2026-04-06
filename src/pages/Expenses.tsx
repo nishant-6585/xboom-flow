@@ -26,6 +26,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { DocumentViewer } from "@/components/hr/DocumentViewer";
 
 export default function Expenses() {
   const { expenses, loading, createExpense, approveExpense, rejectExpense, markReimbursed, deleteExpense, canApprove, canDelete, refetch: refetchExpenses } = useExpenses();
@@ -55,6 +56,11 @@ export default function Expenses() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [selectedProcurementIds, setSelectedProcurementIds] = useState<string[]>([]);
+
+  // Receipt viewer
+  const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
+  const [receiptViewerUrl, setReceiptViewerUrl] = useState<string | null>(null);
+  const [receiptViewerName, setReceiptViewerName] = useState("");
 
   // Give petty cash dialog
   const [giveCashDialogOpen, setGiveCashDialogOpen] = useState(false);
@@ -1132,15 +1138,17 @@ export default function Expenses() {
                                 <TableCell>{expense.vendor_name || '-'}</TableCell>
                                 <TableCell>
                                   {expense.receipt_url ? (
-                                    <a
-                                      href={expense.receipt_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
+                                    <button
+                                      onClick={() => {
+                                        setReceiptViewerUrl(expense.receipt_url);
+                                        setReceiptViewerName(expense.description || 'Receipt');
+                                        setReceiptViewerOpen(true);
+                                      }}
                                       className="inline-flex items-center gap-1 text-primary hover:underline"
                                     >
                                       <FileText className="h-4 w-4" />
                                       <span className="text-xs">View</span>
-                                    </a>
+                                    </button>
                                   ) : (
                                     <span className="text-xs text-muted-foreground">-</span>
                                   )}
@@ -1316,6 +1324,13 @@ export default function Expenses() {
           </DialogContent>
         </Dialog>
       </main>
+
+      <DocumentViewer
+        open={receiptViewerOpen}
+        onOpenChange={setReceiptViewerOpen}
+        url={receiptViewerUrl}
+        name={receiptViewerName}
+      />
     </div>
   );
 }
