@@ -1,0 +1,1 @@
+ALTER TABLE public.prospects ADD COLUMN customer_type TEXT;

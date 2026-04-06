@@ -822,6 +822,7 @@ export function LeadsPanel() {
                           <TableHead className="w-[120px]">Company</TableHead>
                           <TableHead className="w-[100px]">City</TableHead>
                           <TableHead className="w-[120px]">Product</TableHead>
+                          <TableHead className="w-[100px]">Cust. Type</TableHead>
                           <TableHead className="w-[150px]">Email</TableHead>
                           <TableHead className="w-[80px]">Status</TableHead>
                           <TableHead className="w-[100px]">Assigned To</TableHead>
@@ -845,6 +846,7 @@ export function LeadsPanel() {
                                   productName={lead.product_name}
                                   notes={lead.notes}
                                   isAlreadyProspect={prospectSourceIds.has(`interakt:${lead.id}`)}
+                                  customerType={(lead as any).customer_type}
                                 />
                                 <AttentionButton
                                   sourceType="interakt"
@@ -901,6 +903,13 @@ export function LeadsPanel() {
                             </TableCell>
                             <TableCell>
                               <span className="text-sm">{lead.product_name || '—'}</span>
+                            </TableCell>
+                            <TableCell>
+                              {(lead as any).customer_type ? (
+                                <Badge variant="outline" className="text-xs">{(lead as any).customer_type}</Badge>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">—</span>
+                              )}
                             </TableCell>
                             <TableCell>
                               <span className="text-sm text-muted-foreground">{lead.email || '—'}</span>

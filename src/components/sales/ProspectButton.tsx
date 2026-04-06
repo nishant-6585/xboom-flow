@@ -7,6 +7,16 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 import { toast } from 'sonner';
 import { FollowupScheduleDialog } from './FollowupScheduleDialog';
 import { supabase } from '@/integrations/supabase/client';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+
+const CUSTOMER_TYPES = [
+  { value: 'B2C (Consumer)', label: 'B2C (Consumer)' },
+  { value: 'B2B (Business)', label: 'B2B (Business)' },
+  { value: 'B2G (Government)', label: 'B2G (Government)' },
+  { value: 'Reseller', label: 'Reseller' },
+];
 
 interface ProspectButtonProps {
   sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads';
@@ -19,6 +29,7 @@ interface ProspectButtonProps {
   productName?: string | null;
   notes?: string | null;
   isAlreadyProspect?: boolean;
+  customerType?: string | null;
 }
 
 export function ProspectButton({
@@ -32,6 +43,7 @@ export function ProspectButton({
   productName,
   notes,
   isAlreadyProspect = false,
+  customerType: initialCustomerType,
 }: ProspectButtonProps) {
   const { addProspect } = useProspects();
   const { user, profile } = useAuth();
@@ -39,6 +51,9 @@ export function ProspectButton({
   const [added, setAdded] = useState(isAlreadyProspect);
   const [showFollowup, setShowFollowup] = useState(false);
   const [newProspectId, setNewProspectId] = useState<string | null>(null);
+  const [showTypeDialog, setShowTypeDialog] = useState(false);
+  const [selectedCustomerType, setSelectedCustomerType] = useState(initialCustomerType || '');
+  const [resolvedProduct, setResolvedProduct] = useState('');
 
   const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -105,9 +120,41 @@ export function ProspectButton({
       toast.error('Product name is required before marking as Prospect. Please edit the lead and fill the Product field.');
       return;
     }
+
+    // Try to get customer_type from the source lead if not passed
+    let prefilledType = initialCustomerType || '';
+    if (!prefilledType) {
+      if (sourceType === 'interakt') {
+        const { data } = await supabase.from('interakt_leads').select('customer_type').eq('id', sourceId).maybeSingle();
+        prefilledType = data?.customer_type || '';
+      } else if (sourceType === 'email') {
+        const { data } = await supabase.from('email_leads').select('customer_type').eq('id', sourceId).maybeSingle();
+        prefilledType = data?.customer_type || '';
+      } else if (sourceType === 'myoperator') {
+        const { data } = await supabase.from('call_logs').select('customer_type').eq('id', sourceId).maybeSingle();
+        prefilledType = data?.customer_type || '';
+      } else if (sourceType === 'form_lead') {
+        const { data } = await supabase.from('form_leads').select('customer_type').eq('id', sourceId).maybeSingle();
+        prefilledType = (data as any)?.customer_type || '';
+      }
+    }
+
+    setResolvedProduct(resolvedProductName);
+    setSelectedCustomerType(prefilledType);
+    setShowTypeDialog(true);
+  };
+
+  const handleConfirmProspect = async () => {
+    if (!selectedCustomerType) {
+      toast.error('Please select a Customer Type before proceeding.');
+      return;
+    }
+    if (!user || !profile) return;
+
+    setShowTypeDialog(false);
     setLoading(true);
     try {
-      const result = await addProspect({
+      const prospectData = {
         source_type: sourceType,
         source_id: sourceId,
         customer_name: customerName,
@@ -115,17 +162,18 @@ export function ProspectButton({
         email: email || null,
         company: company || null,
         city: city || null,
-        product_name: resolvedProductName,
+        product_name: resolvedProduct,
         notes: notes || null,
         is_a_category: false,
         status: 'new',
         created_by: user.id,
         created_by_name: profile.name,
-      });
+      } as any;
+      prospectData.customer_type = selectedCustomerType;
+      const result = await addProspect(prospectData);
       setAdded(true);
       if (result) {
         setNewProspectId(result.id);
-        // Show follow-up dialog after adding prospect
         setShowFollowup(true);
       }
     } catch {
@@ -157,6 +205,39 @@ export function ProspectButton({
           {added ? 'Already a Prospect' : 'Move to Prospects (+10 pts)'}
         </TooltipContent>
       </Tooltip>
+
+      {/* Customer Type Selection Dialog */}
+      <Dialog open={showTypeDialog} onOpenChange={setShowTypeDialog}>
+        <DialogContent className="max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>Select Customer Type</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="text-sm text-muted-foreground">
+              Converting <span className="font-medium text-foreground">{customerName}</span> to Prospect
+            </div>
+            <div>
+              <Label>Customer Type <span className="text-destructive">*</span></Label>
+              <Select value={selectedCustomerType} onValueChange={setSelectedCustomerType}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select customer type..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {CUSTOMER_TYPES.map(t => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTypeDialog(false)}>Cancel</Button>
+            <Button onClick={handleConfirmProspect} disabled={!selectedCustomerType}>
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Follow-up Schedule Dialog */}
       <FollowupScheduleDialog

@@ -37,6 +37,7 @@ interface FormLead {
   status: string;
   assigned_to: string | null;
   assigned_to_name: string | null;
+  customer_type: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -261,6 +262,7 @@ export function FormsLeadsPanel() {
                     <th className="py-2 px-3 font-medium">Company</th>
                     <th className="py-2 px-3 font-medium">Form Source</th>
                     <th className="py-2 px-3 font-medium">Product</th>
+                    <th className="py-2 px-3 font-medium">Cust. Type</th>
                     <th className="py-2 px-3 font-medium">Status</th>
                     <th className="py-2 px-3 font-medium">Assigned</th>
                     <th className="py-2 px-3 font-medium">Actions</th>
@@ -283,6 +285,7 @@ export function FormsLeadsPanel() {
                             productName={lead.product_name}
                             notes={lead.notes}
                             isAlreadyProspect={prospectSourceIds.has(`form_lead:${lead.id}`)}
+                            customerType={lead.customer_type}
                           />
                           <AttentionButton
                             sourceType="form_lead"
@@ -320,6 +323,13 @@ export function FormsLeadsPanel() {
                         <Badge variant="outline" className="text-xs">{lead.form_name}</Badge>
                       </td>
                       <td className="py-2.5 px-3 text-muted-foreground">{lead.product_name || "-"}</td>
+                      <td className="py-2.5 px-3">
+                        {lead.customer_type ? (
+                          <Badge variant="outline" className="text-xs">{lead.customer_type}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">-</span>
+                        )}
+                      </td>
                       <td className="py-2.5 px-3" onClick={(e) => e.stopPropagation()}>
                         <Select value={lead.status} onValueChange={(val) => updateStatus.mutate({ id: lead.id, status: val })}>
                           <SelectTrigger className="h-7 w-[110px] text-xs">
