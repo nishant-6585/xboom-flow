@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,7 +18,8 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { LeaveType, Employee } from "@/hooks/useHR";
-import { UserPlus, AlertCircle } from "lucide-react";
+import { UserPlus, AlertCircle, Wallet } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface HRLeaveApplyDialogProps {
   open: boolean;
@@ -53,6 +54,22 @@ export function HRLeaveApplyDialog({
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [leaveBalance, setLeaveBalance] = useState<number | null>(null);
+
+  // Fetch balance when employee or leave type changes
+  useEffect(() => {
+    if (!employeeId || !open) { setLeaveBalance(null); return; }
+    const baseType = leaveType.replace('half_day_', '');
+    const year = new Date().getFullYear();
+    supabase
+      .from('leave_balances')
+      .select('balance')
+      .eq('employee_id', employeeId)
+      .eq('leave_type', baseType)
+      .eq('year', year)
+      .maybeSingle()
+      .then(({ data }) => setLeaveBalance(data?.balance ?? 0));
+  }, [employeeId, leaveType, open]);
 
   const activeEmployees = employees.filter((e) => e.is_active);
   const filteredEmployees = searchTerm
@@ -173,6 +190,16 @@ export function HRLeaveApplyDialog({
                 ))}
               </SelectContent>
             </Select>
+
+            {employeeId && leaveBalance !== null && (
+              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                <Wallet className="h-4 w-4 text-primary" />
+                <span className="text-sm text-muted-foreground">Available Balance:</span>
+                <Badge variant={leaveBalance > 0 ? "default" : "destructive"} className="text-sm">
+                  {leaveBalance} day(s)
+                </Badge>
+              </div>
+            )}
           </div>
 
           {/* Dates */}
