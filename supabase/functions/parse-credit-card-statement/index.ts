@@ -135,9 +135,13 @@ Deno.serve(async (req: Request) => {
       return respond({ error: "Unsupported file type" }, 400);
     }
 
+    let pdfBytes = new Uint8Array(arrayBuffer);
+    let pdfDecrypted = false;
+    let extractedPdfText = "";
+
     if (ext === "pdf") {
       try {
-        await PDFDocument.load(new Uint8Array(arrayBuffer), { ignoreEncryption: false });
+        await PDFDocument.load(pdfBytes, { ignoreEncryption: false });
       } catch (encErr: any) {
         const errMsg = (encErr?.message || "").toLowerCase();
         const isEncrypted = errMsg.includes("encrypt") || errMsg.includes("password") || errMsg.includes("protected");
@@ -151,7 +155,38 @@ Deno.serve(async (req: Request) => {
         }
 
         if (isEncrypted && pdf_password) {
-          console.log("PDF is encrypted, password provided. Processing with password context.");
+          console.log("PDF is encrypted, attempting text extraction with password...");
+          try {
+            // Use pdf.js to load encrypted PDF with password and extract text
+            const pdfjsLib = await import("npm:pdfjs-dist@4.0.379/legacy/build/pdf.mjs");
+            
+            const loadingTask = pdfjsLib.getDocument({
+              data: pdfBytes,
+              password: pdf_password,
+            });
+            
+            const pdfDoc = await loadingTask.promise;
+            const pageTexts: string[] = [];
+            
+            for (let i = 1; i <= pdfDoc.numPages; i++) {
+              const page = await pdfDoc.getPage(i);
+              const textContent = await page.getTextContent();
+              const pageText = textContent.items.map((item: any) => item.str).join(" ");
+              pageTexts.push(`--- Page ${i} ---\n${pageText}`);
+            }
+            
+            extractedPdfText = pageTexts.join("\n\n");
+            pdfDecrypted = true;
+            console.log(`PDF decrypted and text extracted: ${pdfDoc.numPages} pages, ${extractedPdfText.length} chars`);
+          } catch (decErr: any) {
+            console.error("PDF decryption/extraction error:", decErr?.message);
+            const isWrongPassword = (decErr?.message || "").toLowerCase().includes("password");
+            const errorMessage = isWrongPassword 
+              ? "Incorrect PDF password. Please try again with the correct password."
+              : "Failed to decrypt PDF. Ensure the password is correct.";
+            await failUpload(supabaseAdmin, upload_id, errorMessage);
+            return respond({ error: errorMessage, password_required: isWrongPassword }, 422);
+          }
         }
       }
     }
@@ -164,6 +199,8 @@ Deno.serve(async (req: Request) => {
     let textContent = "";
     if (ext === "csv") {
       textContent = new TextDecoder().decode(new Uint8Array(arrayBuffer));
+    } else if (pdfDecrypted && extractedPdfText) {
+      textContent = extractedPdfText;
     }
 
     const { data: existingCards } = await supabaseAdmin
@@ -237,11 +274,16 @@ ${cardsContext ? `EXISTING CARDS IN SYSTEM:\n${cardsContext}\nIf the statement m
 
 Return ONLY valid JSON, no markdown.`;
 
-    let userMsg = textContent
-      ? `Parse this credit card statement CSV:\n\n${textContent.substring(0, 15000)}`
-      : `Parse this credit card statement file: ${file_name}`;
+    let userMsg = "";
+    if (pdfDecrypted && textContent) {
+      userMsg = `Parse this credit card statement (extracted text from password-protected PDF: ${file_name}):\n\n${textContent.substring(0, 30000)}`;
+    } else if (textContent) {
+      userMsg = `Parse this credit card statement CSV:\n\n${textContent.substring(0, 15000)}`;
+    } else {
+      userMsg = `Parse this credit card statement file: ${file_name}`;
+    }
 
-    if (pdf_password && ext === "pdf") {
+    if (pdf_password && ext === "pdf" && !pdfDecrypted) {
       userMsg += `\n\nNote: This PDF is password-protected. The password is: ${pdf_password}`;
     }
 
@@ -256,7 +298,7 @@ Return ONLY valid JSON, no markdown.`;
     if (textContent) {
       aiMessages.push({ role: "user", content: [{ type: "text", text: userMsg }] });
     } else {
-      const base64 = encodeBase64(new Uint8Array(arrayBuffer));
+      const base64 = encodeBase64(pdfBytes.length > 0 ? pdfBytes : new Uint8Array(arrayBuffer));
       aiMessages.push({
         role: "user",
         content: [
