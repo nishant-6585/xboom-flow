@@ -440,7 +440,6 @@ export function FormsLeadsPanel() {
   );
 }
 
-  onClose,
   onSave,
   isSaving,
   assignableUsers,
