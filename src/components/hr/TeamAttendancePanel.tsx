@@ -431,7 +431,7 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
               <CalendarDays className="h-10 w-10 mx-auto text-muted-foreground" />
               <div>
                 <h3 className="text-sm font-semibold mb-1">Bulk Attendance Entry</h3>
-                <p className="text-xs text-muted-foreground mb-4">Mark attendance for multiple employees across a date range.</p>
+                <p className="text-xs text-muted-foreground mb-4">Mark attendance for a single employee across a date range.</p>
                 <Button onClick={() => setBulkEntryOpen(true)} className="gap-2"><CalendarDays className="h-4 w-4" /> Open Bulk Entry</Button>
               </div>
             </CardContent>
