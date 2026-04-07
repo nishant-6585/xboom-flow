@@ -4,8 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInHours } from "date-fns";
 import { ArrowRight, CheckCircle2, Flame, Phone, MessageSquare, MapPin, Briefcase, Mail, User, Zap, AlertTriangle, TrendingUp, ChevronRight } from "lucide-react";
@@ -15,6 +13,7 @@ import { AttentionButton } from "../AttentionButton";
 import { EnquiryConvertButton } from "../EnquiryConvertButton";
 import { useProspects } from "@/hooks/useProspects";
 import { useAttentionItems } from "@/hooks/useAttentionItems";
+import { LeadContactDrawer, LeadContactData } from "../LeadContactDrawer";
 
 interface GoogleAdsLead {
   id: string;
@@ -386,153 +385,41 @@ export function GoogleAdsLeadsTab() {
         </CardContent>
       </Card>
 
-      {/* Lead Detail Drawer */}
-      <Sheet open={!!selectedLead} onOpenChange={(o) => !o && setSelectedLead(null)}>
-        <SheetContent className="w-[400px] sm:w-[480px] overflow-y-auto">
-          {selectedLead && <LeadDetailPanel lead={selectedLead} onConvert={handleConvertToOrder} />}
-        </SheetContent>
-      </Sheet>
+      {/* Lead Contact Drawer */}
+      <LeadContactDrawer
+        open={!!selectedLead}
+        onOpenChange={(open) => { if (!open) setSelectedLead(null); }}
+        lead={selectedLead ? (() => {
+          const subFields = extractSubmissionFields(selectedLead.raw_google_payload);
+          const parsedNotes = parseNotesField(selectedLead.notes);
+          const phone = subFields["PHONE_NUMBER"] || subFields["PHONE"] || selectedLead.phone || parsedNotes["Phone"] || null;
+          const email = subFields["EMAIL"] || subFields["EMAIL_ADDRESS"] || selectedLead.email || parsedNotes["Email"] || null;
+          const city = subFields["CITY"] || selectedLead.city || parsedNotes["City"] || selectedLead.customer_state || null;
+          return {
+            id: selectedLead.id,
+            source_type: 'google_ads' as const,
+            customer_name: selectedLead.customer_name !== "Unknown" ? selectedLead.customer_name : "Not provided",
+            phone,
+            email,
+            company: selectedLead.customer_company !== "Unknown" ? selectedLead.customer_company : null,
+            city,
+            product_name: selectedLead.product_name,
+            notes: selectedLead.notes,
+            status: selectedLead.status,
+            assigned_to_name: selectedLead.sales_person_name,
+            created_at: selectedLead.created_at,
+            extras: {
+              campaign: selectedLead.campaign_name,
+              product_category: selectedLead.product_category,
+              urgency: selectedLead.urgency,
+              temperature: selectedLead.lead_temperature,
+              is_converted: selectedLead.is_converted ? 'Yes' : 'No',
+              conversion_value: selectedLead.conversion_value || null,
+            },
+          } satisfies LeadContactData;
+        })() : null}
+      />
     </>
   );
 }
 
-function LeadDetailPanel({ lead, onConvert }: { lead: GoogleAdsLead; onConvert: (l: GoogleAdsLead) => void }) {
-  const phone = lead.product_code !== "N/A" ? lead.product_code : null;
-  const parsedNotes = parseNotesField(lead.notes);
-  const subFields = extractSubmissionFields(lead.raw_google_payload);
-  const email = parsedNotes["Email"] || subFields["EMAIL"] || subFields["EMAIL_ADDRESS"] || null;
-  const city = parsedNotes["City"] || lead.customer_state || subFields["CITY"] || null;
-  const jobTitle = subFields["JOB_TITLE"] || subFields["DESIGNATION"] || null;
-  const priority = getLeadPriority(lead, subFields);
-  const hoursAgo = differenceInHours(new Date(), new Date(lead.created_at));
-
-  // Collect all custom question responses
-  const customResponses = Object.entries(subFields).filter(
-    ([key]) => !["FULL_NAME", "FIRST_NAME", "LAST_NAME", "PHONE_NUMBER", "PHONE", "EMAIL", "EMAIL_ADDRESS", "COMPANY_NAME", "COMPANY", "CITY", "LOCATION", "JOB_TITLE", "DESIGNATION"].includes(key)
-  );
-
-  return (
-    <div className="space-y-6">
-      <SheetHeader>
-        <SheetTitle className="flex items-center gap-2">
-          <User className="w-5 h-5" />
-          {lead.customer_name !== "Unknown" ? lead.customer_name : "Not provided"}
-        </SheetTitle>
-      </SheetHeader>
-
-      {/* Priority & Status */}
-      <div className="flex gap-2 flex-wrap">
-        <Badge variant="outline" className={`gap-1 ${priority.className}`}>
-          {priority.icon} {priority.label}
-        </Badge>
-        {lead.is_converted ? (
-          <Badge variant="outline" className="text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200">✓ Converted</Badge>
-        ) : (
-          <Badge variant="outline" className="text-muted-foreground">{lead.status}</Badge>
-        )}
-        <Badge variant="outline" className="text-xs text-muted-foreground">
-          {hoursAgo < 1 ? "Just now" : hoursAgo < 24 ? `${hoursAgo}h ago` : `${Math.floor(hoursAgo / 24)}d ago`}
-        </Badge>
-      </div>
-
-      <Separator />
-
-      {/* Contact Info */}
-      <div className="space-y-3">
-        <h4 className="text-sm font-semibold text-foreground">Contact Information</h4>
-        <div className="grid grid-cols-1 gap-2">
-          <InfoRow icon={<User className="w-4 h-4" />} label="Name" value={lead.customer_name !== "Unknown" ? lead.customer_name : "Not provided"} />
-          <InfoRow icon={<Briefcase className="w-4 h-4" />} label="Company" value={lead.customer_company !== "Unknown" ? lead.customer_company : "Not provided"} />
-          {jobTitle && <InfoRow icon={<Briefcase className="w-4 h-4" />} label="Job Title" value={jobTitle} />}
-          <InfoRow icon={<Phone className="w-4 h-4" />} label="Phone" value={phone || "Not provided"} />
-          <InfoRow icon={<Mail className="w-4 h-4" />} label="Email" value={email || "Not provided"} />
-          <InfoRow icon={<MapPin className="w-4 h-4" />} label="Location" value={city || "Not provided"} />
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      {phone && (
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="flex-1 gap-1.5" asChild>
-            <a href={`tel:${phone}`}>
-              <Phone className="w-4 h-4" /> Call
-            </a>
-          </Button>
-          <Button variant="outline" size="sm" className="flex-1 gap-1.5" asChild>
-            <a href={`https://wa.me/${phone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer">
-              <MessageSquare className="w-4 h-4" /> WhatsApp
-            </a>
-          </Button>
-        </div>
-      )}
-
-      <Separator />
-
-      {/* Attribution */}
-      <div className="space-y-3">
-        <h4 className="text-sm font-semibold text-foreground">Attribution</h4>
-        <div className="grid grid-cols-1 gap-2">
-          <InfoRow label="Campaign" value={lead.campaign_name || "Not available"} />
-          {lead.campaign_id && <InfoRow label="Campaign ID" value={lead.campaign_id} />}
-          {lead.ad_group_id && <InfoRow label="Ad Group" value={lead.ad_group_id} />}
-          <InfoRow label="Source" value="Google Ads" />
-          <InfoRow label="Assigned To" value={lead.sales_person_name} />
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* Product Interest */}
-      <div className="space-y-3">
-        <h4 className="text-sm font-semibold text-foreground">Product Interest</h4>
-        <InfoRow label="Product" value={lead.product_name} />
-      </div>
-
-      {/* Custom Responses / Lead Intent */}
-      {customResponses.length > 0 && (
-        <>
-          <Separator />
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-foreground">Lead Intent & Responses</h4>
-            <div className="space-y-2">
-              {customResponses.map(([key, val]) => (
-                <InfoRow key={key} label={key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())} value={val} />
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Conversion Info */}
-      {lead.is_converted && lead.conversion_value > 0 && (
-        <>
-          <Separator />
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-foreground">Conversion</h4>
-            <InfoRow label="Value" value={`₹${lead.conversion_value.toLocaleString("en-IN")}`} />
-          </div>
-        </>
-      )}
-
-      {/* Convert CTA */}
-      {!lead.is_converted && (
-        <>
-          <Separator />
-          <Button className="w-full gap-2" onClick={() => onConvert(lead)}>
-            Convert to Order <ArrowRight className="w-4 h-4" />
-          </Button>
-        </>
-      )}
-    </div>
-  );
-}
-
-function InfoRow({ icon, label, value }: { icon?: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="flex items-start gap-2 text-sm">
-      {icon && <span className="text-muted-foreground mt-0.5 shrink-0">{icon}</span>}
-      <span className="text-muted-foreground shrink-0 min-w-[80px]">{label}:</span>
-      <span className="text-foreground break-all">{value}</span>
-    </div>
-  );
-}

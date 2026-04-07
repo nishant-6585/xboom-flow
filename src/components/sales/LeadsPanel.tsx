@@ -26,6 +26,7 @@ import { LeadFormDialog } from './LeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { InteraktLeadEditDialog } from '@/components/interakt/InteraktLeadEditDialog';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
+import { LeadContactDrawer, LeadContactData } from './LeadContactDrawer';
 import { ProspectButton } from './ProspectButton';
 import { AttentionButton } from './AttentionButton';
 import { EnquiryConvertButton } from './EnquiryConvertButton';
@@ -93,6 +94,7 @@ export function LeadsPanel() {
   const [interaktDateEnd, setInteraktDateEnd] = useState<Date | undefined>();
   const [editingInteraktLead, setEditingInteraktLead] = useState<InteraktLead | null>(null);
   const [interaktEditOpen, setInteraktEditOpen] = useState(false);
+  const [interaktDrawerLead, setInteraktDrawerLead] = useState<InteraktLead | null>(null);
 
   // Check edit permission for Interakt leads
   const canEditInteraktLeads = role === 'admin' || role === 'sales' || role === 'sales_manager';
@@ -832,8 +834,8 @@ export function LeadsPanel() {
                       </TableHeader>
                       <TableBody>
                         {filteredInteraktLeads.map((lead) => (
-                          <TableRow key={lead.id} className="hover:bg-muted/50">
-                            <TableCell>
+                          <TableRow key={lead.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => setInteraktDrawerLead(lead)}>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
                               <div className="flex gap-1">
                                 <ProspectButton
                                   sourceType="interakt"
@@ -930,7 +932,7 @@ export function LeadsPanel() {
                               </span>
                             </TableCell>
                             {canEditInteraktLeads && (
-                              <TableCell>
+                              <TableCell onClick={(e) => e.stopPropagation()}>
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -963,6 +965,38 @@ export function LeadsPanel() {
           lead={editingInteraktLead}
           onSave={async (data) => {
             await updateLead({ ...data, updated_by: user?.id || null });
+          }}
+          saving={updating}
+        />
+
+        {/* Interakt Lead Contact Drawer */}
+        <LeadContactDrawer
+          open={!!interaktDrawerLead}
+          onOpenChange={(open) => { if (!open) setInteraktDrawerLead(null); }}
+          lead={interaktDrawerLead ? {
+            id: interaktDrawerLead.id,
+            source_type: 'interakt',
+            customer_name: interaktDrawerLead.customer_name,
+            phone: interaktDrawerLead.phone_number,
+            email: interaktDrawerLead.email,
+            company: interaktDrawerLead.company,
+            city: interaktDrawerLead.city,
+            product_name: interaktDrawerLead.product_name,
+            notes: interaktDrawerLead.notes,
+            status: interaktDrawerLead.status,
+            assigned_to_name: (interaktDrawerLead as any).sales_person_name,
+            created_at: interaktDrawerLead.interakt_created_at || interaktDrawerLead.created_at,
+            extras: {
+              source: interaktDrawerLead.source,
+              product_category: interaktDrawerLead.product_category,
+              urgency: interaktDrawerLead.urgency,
+              customer_company: interaktDrawerLead.customer_company,
+            },
+          } satisfies LeadContactData : null}
+          onSave={(updates) => {
+            if (!interaktDrawerLead) return;
+            updateLead({ ...updates, updated_by: user?.id || null } as any);
+            setInteraktDrawerLead(null);
           }}
           saving={updating}
         />

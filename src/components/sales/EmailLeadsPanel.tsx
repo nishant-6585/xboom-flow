@@ -22,6 +22,7 @@ import { EnquiryConvertButton } from './EnquiryConvertButton';
 import { ProspectAnalyticsCards } from './ProspectAnalyticsCards';
 import { EmailLeadFormDialog } from './EmailLeadFormDialog';
 import { EmailLeadDetailDrawer } from './EmailLeadDetailDrawer';
+import { LeadContactDrawer, LeadContactData } from './LeadContactDrawer';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { GmailIntegrationCard } from './GmailIntegrationCard';
 import { toast } from 'sonner';
@@ -721,18 +722,51 @@ export function EmailLeadsPanel() {
         onSuccess={() => { setFormOpen(false); refetch(); }}
       />
 
-      <EmailLeadDetailDrawer
-        lead={detailLead}
+      <LeadContactDrawer
         open={!!detailLead}
         onOpenChange={(open) => { if (!open) setDetailLead(null); }}
-        onApprove={(id) => { approveLead(id); setDetailLead(null); }}
-        onReject={(id) => { rejectLead(id); setDetailLead(null); }}
-        onEdit={(lead) => { setDetailLead(null); setEditLead(lead); setFormOpen(true); }}
-        approving={approving}
-        rejecting={rejecting}
-        canManage={canManage}
-        isProspect={detailLead ? isProspect(detailLead.id) : false}
-        isAttention={detailLead ? isAttention(detailLead.id) : false}
+        lead={detailLead ? {
+          id: detailLead.id,
+          source_type: 'email',
+          customer_name: detailLead.customer_name,
+          phone: detailLead.phone_number,
+          email: detailLead.email,
+          company: detailLead.customer_company,
+          city: detailLead.city,
+          product_name: detailLead.product_name,
+          notes: detailLead.notes,
+          status: detailLead.status,
+          assigned_to_name: detailLead.sales_person_name,
+          created_at: detailLead.created_at,
+          extras: {
+            mail_source: detailLead.mail_source,
+            product_category: detailLead.product_category,
+            urgency: detailLead.urgency,
+            ai_confidence: detailLead.ai_confidence != null ? `${Math.round(detailLead.ai_confidence * 100)}%` : null,
+            processing_status: detailLead.processing_status,
+          },
+        } satisfies LeadContactData : null}
+        extraContent={detailLead ? (
+          <div className="space-y-3">
+            {(detailLead as any).subject && (
+              <div>
+                <h4 className="text-sm font-semibold mb-1">Email Subject</h4>
+                <p className="text-sm text-muted-foreground">{(detailLead as any).subject}</p>
+              </div>
+            )}
+            {(detailLead as any).body_html ? (
+              <div>
+                <h4 className="text-sm font-semibold mb-1">Email Body</h4>
+                <div className="text-sm border rounded p-3 max-h-[200px] overflow-auto bg-muted/30" dangerouslySetInnerHTML={{ __html: (detailLead as any).body_html }} />
+              </div>
+            ) : (detailLead as any).body_text ? (
+              <div>
+                <h4 className="text-sm font-semibold mb-1">Email Body</h4>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap max-h-[200px] overflow-auto">{(detailLead as any).body_text}</p>
+              </div>
+            ) : null}
+          </div>
+        ) : undefined}
       />
     </div>
   );
