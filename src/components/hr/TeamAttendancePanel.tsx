@@ -31,6 +31,7 @@ import { PendingCorrectionApprovals } from '@/components/attendance/PendingCorre
 import { AttendanceAlertsPanel, AttendanceAlertIndicator } from '@/components/hr/AttendanceAlertsPanel';
 import { HRAttendanceEditModal } from '@/components/attendance/HRAttendanceEditModal';
 import { BulkAttendanceEntryDialog } from '@/components/attendance/BulkAttendanceEntryDialog';
+import { TeamAttendanceCalendarView } from '@/components/hr/TeamAttendanceCalendarView';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
