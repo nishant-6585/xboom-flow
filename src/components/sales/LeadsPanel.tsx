@@ -834,7 +834,7 @@ export function LeadsPanel() {
                       </TableHeader>
                       <TableBody>
                         {filteredInteraktLeads.map((lead) => (
-                          <TableRow key={lead.id} className="hover:bg-muted/50">
+                          <TableRow key={lead.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => setInteraktDrawerLead(lead)}>
                             <TableCell>
                               <div className="flex gap-1">
                                 <ProspectButton
