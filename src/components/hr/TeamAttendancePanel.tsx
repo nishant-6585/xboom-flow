@@ -141,7 +141,12 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
   const [policy, setPolicy] = useState<AttendancePolicy>(POLICY_DEFAULTS);
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const policyTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState('overview');
+  const [activeSubTab, setActiveSubTab] = useState('employees');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
+  const [empCalendarMonth, setEmpCalendarMonth] = useState<Date>(new Date());
+  const [empAttendanceLogs, setEmpAttendanceLogs] = useState<AttendanceLog[]>([]);
+  const [empApprovedLeaves, setEmpApprovedLeaves] = useState<LeaveRequest[]>([]);
+  const [loadingEmpLogs, setLoadingEmpLogs] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [datePickerOpen, setDatePickerOpen] = useState(false);
