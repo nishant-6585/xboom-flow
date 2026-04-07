@@ -465,6 +465,29 @@ export function SalesCommandCenter() {
       .slice(0, 8);
   }, [activePipeline]);
 
+  // ============ Today's Expected Closures ============
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const todaysClosures = useMemo(() => {
+    return pipelineOrders.filter(p =>
+      p.expected_closure_date === todayStr &&
+      p.status !== 'won' && p.status !== 'lost'
+    );
+  }, [pipelineOrders, todayStr]);
+
+  const todaysClosureValue = todaysClosures.reduce((s, p) => s + (p.expected_price || 0), 0);
+
+  const todaysClosuresBySp = useMemo(() => {
+    const map = new Map<string, { name: string; deals: typeof todaysClosures; total: number }>();
+    todaysClosures.forEach(p => {
+      const key = p.sales_person_id;
+      if (!map.has(key)) map.set(key, { name: p.sales_person_name, deals: [], total: 0 });
+      const entry = map.get(key)!;
+      entry.deals.push(p);
+      entry.total += p.expected_price || 0;
+    });
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [todaysClosures]);
+
   // Prospect by source
   const prospectsBySource = useMemo(() => {
     const srcMap = new Map<string, number>();
@@ -824,7 +847,57 @@ export function SalesCommandCenter() {
         <KPICard label="Win Rate" value={`${winRate}%`} icon={Percent} gradient="from-teal-500 to-emerald-600" isText />
       </div>
 
-      {/* ============ TARGET VS ACHIEVED (Revenue & Pipeline) — TOP ============ */}
+      {/* ============ TODAY'S EXPECTED CLOSURES ============ */}
+      {todaysClosures.length > 0 && (
+        <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/10">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Target className="w-4 h-4 text-amber-600" />
+                Today's Expected Closures
+                <Badge variant="secondary" className="text-xs">{todaysClosures.length} deal{todaysClosures.length !== 1 ? 's' : ''}</Badge>
+              </CardTitle>
+              <span className="text-lg font-bold text-amber-700 dark:text-amber-400">{formatCurrency(todaysClosureValue)}</span>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* Salesperson summary chips */}
+            <div className="flex flex-wrap gap-2">
+              {todaysClosuresBySp.map(sp => (
+                <Badge key={sp.name} variant="outline" className="gap-1.5 px-2.5 py-1 text-xs border-amber-300 dark:border-amber-700">
+                  <Users className="w-3 h-3" />
+                  {sp.name.split(' ')[0]}: {sp.deals.length} deal{sp.deals.length !== 1 ? 's' : ''} — {formatCurrency(sp.total)}
+                </Badge>
+              ))}
+            </div>
+            {/* Deal list */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+              {todaysClosures.map(deal => (
+                <div
+                  key={deal.id}
+                  className="flex items-center justify-between rounded-lg border border-border/50 bg-background/80 px-3 py-2 text-sm cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => {
+                    setSearchParams({ tab: 'pipeline', leadId: deal.id });
+                  }}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{deal.customer_name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{deal.product_name} • {deal.sales_person_name.split(' ')[0]}</p>
+                  </div>
+                  <div className="text-right shrink-0 ml-2">
+                    <p className="font-semibold text-amber-700 dark:text-amber-400">{formatCurrency(deal.expected_price || 0)}</p>
+                    {deal.lead_temperature && (
+                      <LeadTemperatureBadge temperature={deal.lead_temperature} />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
       {isManager && targetComparison.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
