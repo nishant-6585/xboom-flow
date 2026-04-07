@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   format, isToday, differenceInMinutes, subDays, addDays, isFuture,
-  getDay,
+  getDay, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend as isWeekendFn, parseISO, isWithinInterval,
 } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useHolidays } from '@/hooks/useHolidays';
@@ -18,20 +18,21 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Download, Users, ChevronLeft, ChevronRight,
   UserCheck, UserX, CalendarCheck, Coffee, LogOut,
   Clock, AlertTriangle, RefreshCw, Activity, Eye,
   Timer, Zap, Pencil, CalendarDays, LayoutDashboard, List,
 } from 'lucide-react';
-import { Employee, AttendanceLog } from '@/hooks/useHR';
+import { Employee, AttendanceLog, LeaveRequest } from '@/hooks/useHR';
 import { cn } from '@/lib/utils';
 import { ProvisionalCorrectionModal } from '@/components/attendance/ProvisionalCorrectionModal';
 import { PendingCorrectionApprovals } from '@/components/attendance/PendingCorrectionApprovals';
 import { AttendanceAlertsPanel, AttendanceAlertIndicator } from '@/components/hr/AttendanceAlertsPanel';
 import { HRAttendanceEditModal } from '@/components/attendance/HRAttendanceEditModal';
 import { BulkAttendanceEntryDialog } from '@/components/attendance/BulkAttendanceEntryDialog';
-import { TeamAttendanceCalendarView } from '@/components/hr/TeamAttendanceCalendarView';
+import { CorrectionRequestModal } from '@/components/attendance/CorrectionRequestModal';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -140,7 +141,12 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
   const [policy, setPolicy] = useState<AttendancePolicy>(POLICY_DEFAULTS);
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const policyTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState('overview');
+  const [activeSubTab, setActiveSubTab] = useState('employees');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
+  const [empCalendarMonth, setEmpCalendarMonth] = useState<Date>(new Date());
+  const [empAttendanceLogs, setEmpAttendanceLogs] = useState<AttendanceLog[]>([]);
+  const [empApprovedLeaves, setEmpApprovedLeaves] = useState<LeaveRequest[]>([]);
+  const [loadingEmpLogs, setLoadingEmpLogs] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -194,6 +200,30 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
     policyTimerRef.current = setInterval(() => { fetchPolicy(); }, 5 * 60_000);
     return () => { if (policyTimerRef.current) clearInterval(policyTimerRef.current); };
   }, [fetchPolicy]);
+
+  // Auto-select first employee
+  useEffect(() => {
+    if (!selectedEmployeeId && employees.length > 0) {
+      setSelectedEmployeeId(employees[0].id);
+    }
+  }, [employees, selectedEmployeeId]);
+
+  // Fetch selected employee's monthly attendance
+  const fetchEmpMonthlyLogs = useCallback(async () => {
+    if (!selectedEmployeeId) return;
+    setLoadingEmpLogs(true);
+    const monthStart = format(startOfMonth(empCalendarMonth), 'yyyy-MM-dd');
+    const monthEnd = format(endOfMonth(empCalendarMonth), 'yyyy-MM-dd');
+    const [{ data: logs }, { data: leaves }] = await Promise.all([
+      supabase.from('attendance_logs').select('*').eq('employee_id', selectedEmployeeId).gte('date', monthStart).lte('date', monthEnd).order('date'),
+      supabase.from('leave_requests').select('*').eq('employee_id', selectedEmployeeId).eq('status', 'approved').lte('start_date', monthEnd).gte('end_date', monthStart),
+    ]);
+    setEmpAttendanceLogs((logs as AttendanceLog[]) || []);
+    setEmpApprovedLeaves((leaves as LeaveRequest[]) || []);
+    setLoadingEmpLogs(false);
+  }, [selectedEmployeeId, empCalendarMonth]);
+
+  useEffect(() => { fetchEmpMonthlyLogs(); }, [fetchEmpMonthlyLogs]);
 
   const liveRows: LiveRow[] = employees.map(emp => {
     const log = todayLogs.find(l => l.employee_id === emp.id) || null;
@@ -333,8 +363,7 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
           {/* Sub Tabs */}
           <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
             <TabsList className="h-auto">
-              <TabsTrigger value="overview" className="gap-1.5 text-xs"><LayoutDashboard className="h-3.5 w-3.5" />Overview</TabsTrigger>
-              <TabsTrigger value="employees" className="gap-1.5 text-xs"><List className="h-3.5 w-3.5" />Employees</TabsTrigger>
+              <TabsTrigger value="employees" className="gap-1.5 text-xs"><Users className="h-3.5 w-3.5" />Employees</TabsTrigger>
               <TabsTrigger value="alerts" className="gap-1.5 text-xs">
                 <AlertTriangle className="h-3.5 w-3.5" />
                 Alerts
@@ -344,73 +373,19 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
               <TabsTrigger value="bulk_entry" className="gap-1.5 text-xs"><CalendarDays className="h-3.5 w-3.5" />Bulk Entry</TabsTrigger>
             </TabsList>
 
-            {/* Overview Tab */}
-            <TabsContent value="overview" className="space-y-4">
-              {/* Metrics */}
-              <div className={cn('grid gap-2', isViewingToday ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-8' : 'grid-cols-2 sm:grid-cols-5')}>
-                {[
-                  { label: 'Present', value: metrics.present, icon: UserCheck, color: 'text-green-600', bg: 'bg-green-500/10', show: true },
-                  { label: 'Absent', value: metrics.absent, icon: UserX, color: 'text-red-600', bg: 'bg-red-500/10', show: true },
-                  { label: 'Holiday', value: metrics.holiday, icon: CalendarCheck, color: 'text-blue-600', bg: 'bg-blue-500/10', show: selectedDateIsHoliday },
-                  { label: 'On Leave', value: metrics.onLeave, icon: CalendarCheck, color: 'text-purple-600', bg: 'bg-purple-500/10', show: true },
-                  { label: 'Working', value: metrics.working, icon: Activity, color: 'text-blue-600', bg: 'bg-blue-500/10', show: isViewingToday && !selectedDateIsHoliday },
-                  { label: 'On Break', value: metrics.onBreak, icon: Coffee, color: 'text-orange-600', bg: 'bg-orange-500/10', show: isViewingToday && !selectedDateIsHoliday },
-                  { label: 'Late', value: metrics.late, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-500/10', show: !selectedDateIsHoliday },
-                  { label: isViewingToday ? 'No Checkout (Yesterday)' : `No Checkout (${format(subDays(selectedDate, 1), 'dd MMM')})`, value: metrics.noCheckoutYesterday, icon: LogOut, color: 'text-rose-600', bg: 'bg-rose-500/10', show: true },
-                ].filter(m => m.show).map(({ label, value, icon: Icon, color, bg }) => (
-                  <div key={label} className={cn('flex flex-col items-start gap-1 rounded-xl px-3 py-2.5', bg)}>
-                    <div className="flex items-center gap-1.5">
-                      <Icon className={cn('h-4 w-4', color)} />
-                      <p className={cn('text-2xl font-bold leading-none', color)}>{value}</p>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Health Score */}
-              {healthScore !== null && (
-                <Card>
-                  <CardContent className="px-4 py-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Activity className="h-4 w-4 text-primary" />
-                        <span className="text-sm font-medium">Attendance Health Score</span>
-                      </div>
-                      <div className="text-right">
-                        <span className={cn('text-2xl font-bold', healthScore >= 90 ? 'text-green-600' : healthScore >= 70 ? 'text-amber-600' : healthScore >= 40 ? 'text-orange-600' : 'text-red-600')}>{healthScore}%</span>
-                        <p className={cn('text-[11px] font-medium', healthScore >= 90 ? 'text-green-600' : healthScore >= 70 ? 'text-amber-600' : healthScore >= 40 ? 'text-orange-600' : 'text-red-600')}>
-                          {healthScore >= 90 ? 'Excellent' : healthScore >= 70 ? 'Good' : healthScore >= 40 ? 'Moderate' : 'Poor'}
-                        </p>
-                      </div>
-                    </div>
-                    <Progress value={healthScore} className={cn('h-2', healthScore >= 90 ? '[&>div]:bg-green-500' : healthScore >= 70 ? '[&>div]:bg-amber-500' : healthScore >= 40 ? '[&>div]:bg-orange-500' : '[&>div]:bg-red-500')} />
-                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                      <span>{metrics.present} present</span>
-                      <span>{metrics.late} late</span>
-                      <span>{metrics.absent} absent</span>
-                      <span>{metrics.onLeave} on leave</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Team Calendar View */}
-              <TeamAttendanceCalendarView
-                totalEmployees={employees.length}
-                onDateSelect={(date) => {
-                  setSelectedDate(date);
-                  setActiveSubTab('employees');
-                }}
+            {/* Employees Tab - Calendar View */}
+            <TabsContent value="employees" className="space-y-4">
+              <EmployeeCalendarView
+                employees={employees}
+                selectedEmployeeId={selectedEmployeeId}
+                onEmployeeChange={setSelectedEmployeeId}
+                calendarMonth={empCalendarMonth}
+                onMonthChange={setEmpCalendarMonth}
+                attendanceLogs={empAttendanceLogs}
+                approvedLeaves={empApprovedLeaves}
+                loading={loadingEmpLogs}
+                onRefresh={fetchEmpMonthlyLogs}
               />
-
-              {/* Alert Indicator */}
-              <AttendanceAlertIndicator alertCount={alertCount} onNavigate={() => setActiveSubTab('alerts')} />
-            </TabsContent>
-
-            {/* Employees Tab */}
-            <TabsContent value="employees">
-              <LiveStatusTable liveRows={liveRows} loading={loadingToday} onRefresh={fetchToday} isLive={isViewingToday} selectedDate={selectedDate} isHoliday={selectedDateIsHoliday} approvedLeaves={approvedLeaves} />
             </TabsContent>
 
             {/* Alerts Tab (includes Pending Corrections) */}
@@ -476,7 +451,311 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
   );
 }
 
-// ─── Live Status Table ────────────────────────────────────────────────────────
+// ─── Employee Calendar View (per-employee, like My Attendance) ────────────────
+
+const EMP_LEAVE_LABELS: Record<string, string> = {
+  casual: 'Paid (Casual)', sick: 'Sick', paid: 'Paid', unpaid: 'Unpaid', half_day: 'Half Day',
+  half_day_casual: 'Half Day Paid', half_day_sick: 'Half Day Sick', half_day_paid: 'Half Day Paid',
+  half_day_unpaid: 'Half Day Unpaid', wfh: 'Work from Home', EL: 'Earned Leave', half_day_EL: 'Half Day Earned',
+};
+
+function EmployeeCalendarView({
+  employees, selectedEmployeeId, onEmployeeChange, calendarMonth, onMonthChange,
+  attendanceLogs, approvedLeaves, loading, onRefresh,
+}: {
+  employees: Employee[];
+  selectedEmployeeId: string;
+  onEmployeeChange: (id: string) => void;
+  calendarMonth: Date;
+  onMonthChange: (d: Date) => void;
+  attendanceLogs: AttendanceLog[];
+  approvedLeaves: LeaveRequest[];
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  const { getHoliday } = useHolidays(calendarMonth.getFullYear());
+  const [correctionLog, setCorrectionLog] = useState<AttendanceLog | null>(null);
+  const [stubLogId, setStubLogId] = useState<string | null>(null);
+  const [creatingStub, setCreatingStub] = useState(false);
+
+  const monthStart = startOfMonth(calendarMonth);
+  const monthEnd = endOfMonth(calendarMonth);
+  const allMonthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const startPadding = getDay(monthStart);
+  const paddedDays: (Date | null)[] = Array(startPadding).fill(null).concat(allMonthDays);
+
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - 4 + i);
+
+  const logsByDate: Record<string, AttendanceLog> = {};
+  attendanceLogs.forEach(log => { logsByDate[log.date] = log; });
+
+  const presentDays = attendanceLogs.filter(l => l.status === 'present').length;
+  const totalWorkHours = attendanceLogs.reduce((s, l) => s + (l.working_hours || 0), 0);
+
+  const getApprovedLeave = (dateStr: string): LeaveRequest | undefined => {
+    const d = parseISO(dateStr);
+    return approvedLeaves.find(l => isWithinInterval(d, { start: parseISO(l.start_date), end: parseISO(l.end_date) }));
+  };
+
+  const getDayInfo = (day: Date) => {
+    const dateStr = format(day, 'yyyy-MM-dd');
+    const log = logsByDate[dateStr];
+    const isWeekendDay = day.getDay() === 0 || day.getDay() === 6;
+    const holiday = getHoliday(dateStr);
+    const approvedLeave = getApprovedLeave(dateStr);
+    const dayIsFuture = isFuture(day) && !isToday(day);
+
+    let status = '';
+    let color = '';
+    let textColor = '';
+
+    if (dayIsFuture) {
+      textColor = 'text-muted-foreground';
+    } else if (log) {
+      if (log.status === 'present') { status = 'Present'; color = 'bg-green-100 dark:bg-green-950/30'; textColor = 'text-green-700 dark:text-green-400'; }
+      else if (log.status === 'on_leave') { status = 'Leave'; color = 'bg-red-100 dark:bg-red-950/30'; textColor = 'text-red-600 dark:text-red-400'; }
+      else if (log.status === 'half_day') { status = 'Half Day'; color = 'bg-yellow-100 dark:bg-yellow-950/30'; textColor = 'text-yellow-700 dark:text-yellow-400'; }
+      else { status = log.status; color = 'bg-muted/50'; }
+    } else if (approvedLeave) {
+      status = 'Leave'; color = 'bg-red-100 dark:bg-red-950/30'; textColor = 'text-red-600 dark:text-red-400';
+    } else if (holiday) {
+      status = 'Holiday'; color = 'bg-blue-100 dark:bg-blue-950/30'; textColor = 'text-blue-600 dark:text-blue-400';
+    } else if (isWeekendDay) {
+      textColor = 'text-muted-foreground/60';
+    }
+
+    return { log, isWeekendDay, holiday, approvedLeave, dayIsFuture, status, color, textColor, dateStr };
+  };
+
+  const handleDateClick = async (day: Date) => {
+    const { log, dayIsFuture, approvedLeave } = getDayInfo(day);
+    if (dayIsFuture || !selectedEmployeeId) return;
+
+    if (log) {
+      setCorrectionLog(log);
+    } else if (!approvedLeave) {
+      setCreatingStub(true);
+      try {
+        const dateStr = format(day, 'yyyy-MM-dd');
+        const { data, error } = await supabase.from('attendance_logs').insert({
+          employee_id: selectedEmployeeId, date: dateStr, status: 'present', source: 'regularization',
+        }).select().single();
+        if (error) throw error;
+        setStubLogId(data.id);
+        setCorrectionLog(data as AttendanceLog);
+      } catch (e: any) {
+        import('sonner').then(({ toast }) => toast.error(e.message || 'Failed to create attendance record'));
+      } finally {
+        setCreatingStub(false);
+      }
+    }
+  };
+
+  const selectedEmployee = employees.find(e => e.id === selectedEmployeeId);
+
+  const visibleDays = allMonthDays.filter(day => !isFuture(day) || isToday(day)).reverse();
+
+  return (
+    <div className="space-y-4">
+      {/* Employee Selector */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Select value={selectedEmployeeId} onValueChange={onEmployeeChange}>
+          <SelectTrigger className="h-9 w-64 text-sm">
+            <Users className="h-4 w-4 mr-2 text-muted-foreground" />
+            <SelectValue placeholder="Select Employee" />
+          </SelectTrigger>
+          <SelectContent>
+            {employees.map(emp => (
+              <SelectItem key={emp.id} value={emp.id}>{emp.name} — {emp.department}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {selectedEmployee && (
+          <div className="flex items-center gap-3 text-sm">
+            <Badge variant="outline" className="text-xs">{presentDays} days present</Badge>
+            <Badge variant="outline" className="text-xs">{totalWorkHours.toFixed(0)}h total</Badge>
+          </div>
+        )}
+      </div>
+
+      {/* Calendar */}
+      <Card>
+        <CardContent className="p-4">
+          {/* Month/Year navigation */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onMonthChange(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onMonthChange(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={calendarMonth.getMonth().toString()} onValueChange={v => onMonthChange(new Date(calendarMonth.getFullYear(), parseInt(v), 1))}>
+                <SelectTrigger className="h-8 w-28 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {months.map((m, i) => <SelectItem key={i} value={i.toString()}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={calendarMonth.getFullYear().toString()} onValueChange={v => onMonthChange(new Date(parseInt(v), calendarMonth.getMonth(), 1))}>
+                <SelectTrigger className="h-8 w-20 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {years.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => onMonthChange(new Date())}>Today</Button>
+          </div>
+
+          {loading ? (
+            <div className="h-64 flex items-center justify-center text-muted-foreground text-sm">Loading...</div>
+          ) : (
+            <>
+              {/* Calendar Grid */}
+              <div className="grid grid-cols-7 gap-0 border rounded-lg overflow-hidden">
+                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+                  <div key={d} className="text-center text-xs font-semibold text-muted-foreground py-2 bg-muted/40 border-b">{d}</div>
+                ))}
+                {paddedDays.map((day, idx) => {
+                  if (!day) return <div key={`pad-${idx}`} className="min-h-[60px] border-b border-r bg-muted/10" />;
+                  const info = getDayInfo(day);
+                  const isTodayDay = isToday(day);
+                  return (
+                    <Tooltip key={day.toISOString()}>
+                      <TooltipTrigger asChild>
+                        <button
+                          className={cn(
+                            'min-h-[60px] border-b border-r p-1 text-left transition-colors relative flex flex-col',
+                            info.color || 'hover:bg-muted/30',
+                            isTodayDay && 'ring-2 ring-inset ring-primary',
+                            !info.dayIsFuture && selectedEmployeeId && 'cursor-pointer',
+                            info.dayIsFuture && 'opacity-50 cursor-default',
+                            creatingStub && 'pointer-events-none',
+                          )}
+                          onClick={() => handleDateClick(day)}
+                          disabled={info.dayIsFuture || !selectedEmployeeId}
+                        >
+                          <span className={cn('text-sm font-medium', info.textColor, info.isWeekendDay && !info.status && 'text-muted-foreground/60')}>
+                            {format(day, 'd')}
+                          </span>
+                          {info.status && <span className={cn('text-[9px] font-medium mt-auto', info.textColor)}>{info.status}</span>}
+                          {info.holiday && !info.log && <span className="text-[8px] text-blue-500 truncate max-w-full">{info.holiday.name}</span>}
+                          {info.log?.check_in_time && (
+                            <span className="text-[8px] text-green-600">
+                              ⏱ {format(new Date(info.log.check_in_time), 'HH:mm')}
+                              {info.log.check_out_time && ` - ${format(new Date(info.log.check_out_time), 'HH:mm')}`}
+                            </span>
+                          )}
+                          {info.log?.working_hours && info.log.working_hours > 0 && (
+                            <span className="text-[8px] text-muted-foreground">{info.log.working_hours.toFixed(1)}h</span>
+                          )}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        {info.dayIsFuture ? 'Future date' :
+                          info.log ? `${info.status} — Click to edit` :
+                          info.approvedLeave ? `On Leave — ${EMP_LEAVE_LABELS[info.approvedLeave.leave_type] || info.approvedLeave.leave_type}` :
+                          info.holiday ? `Holiday — ${info.holiday.name}` :
+                          info.isWeekendDay ? 'Weekend — Click to mark attendance' :
+                          'Click to regularize'}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+
+              {/* Legend */}
+              <div className="flex flex-wrap gap-3 mt-3 pt-3">
+                {[
+                  ['bg-green-100', 'Present'],
+                  ['bg-red-100', 'Leave'],
+                  ['bg-yellow-100', 'Half Day'],
+                  ['bg-blue-100', 'Holiday'],
+                ].map(([bg, label]) => (
+                  <div key={label} className="flex items-center gap-1.5 text-xs">
+                    <div className={cn('w-4 h-3 rounded-sm', bg)} />
+                    <span className="text-muted-foreground">{label}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Attendance List below calendar */}
+      {!loading && visibleDays.length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="text-sm font-semibold mb-3">Attendance Records</h3>
+            <div className="overflow-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40">
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground">Date</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground">Status</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground">Check In</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground">Check Out</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground">Work Hours</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground">Break</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleDays.map(day => {
+                    const dateStr = format(day, 'yyyy-MM-dd');
+                    const log = logsByDate[dateStr];
+                    const isWeekendDay = day.getDay() === 0 || day.getDay() === 6;
+                    const holiday = getHoliday(dateStr);
+                    const leave = getApprovedLeave(dateStr);
+
+                    let status = log?.status || (leave ? 'On Leave' : holiday ? 'Holiday' : isWeekendDay ? 'Weekend' : 'Absent');
+
+                    return (
+                      <tr key={dateStr} className={cn('border-b last:border-0 hover:bg-muted/30', isToday(day) && 'bg-primary/5')}>
+                        <td className="px-3 py-2">{format(day, 'dd MMM, EEE')}</td>
+                        <td className="px-3 py-2">
+                          <Badge variant="outline" className={cn('text-xs',
+                            status === 'present' && 'border-green-300 text-green-700',
+                            status === 'Absent' && 'border-red-300 text-red-700',
+                            status === 'On Leave' && 'border-purple-300 text-purple-700',
+                            status === 'Holiday' && 'border-blue-300 text-blue-700',
+                            status === 'Weekend' && 'border-muted text-muted-foreground',
+                            status === 'half_day' && 'border-yellow-300 text-yellow-700',
+                          )}>{status}</Badge>
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">{log?.check_in_time ? format(new Date(log.check_in_time), 'hh:mm a') : '—'}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{log?.check_out_time ? format(new Date(log.check_out_time), 'hh:mm a') : '—'}</td>
+                        <td className="px-3 py-2 font-medium">{log?.working_hours ? `${log.working_hours.toFixed(1)}h` : '—'}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{log?.total_break_minutes ? `${Math.round(log.total_break_minutes)}m` : '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Correction Modal */}
+      {correctionLog && (
+        <HRAttendanceEditModal
+          log={correctionLog}
+          employeeName={selectedEmployee?.name || ''}
+          employeeId={selectedEmployeeId}
+          date={correctionLog.date}
+          open={!!correctionLog}
+          onOpenChange={open => { if (!open) { setCorrectionLog(null); if (stubLogId) { supabase.from('attendance_logs').delete().eq('id', stubLogId).then(() => setStubLogId(null)); } } }}
+          onSaved={() => { setCorrectionLog(null); setStubLogId(null); onRefresh(); }}
+        />
+      )}
+    </div>
+  );
+}
+
 
 type QuickFilter = 'all' | 'Working' | 'Not Checked In' | 'Late' | 'On Break' | 'Completed' | 'Holiday' | 'On Leave';
 
