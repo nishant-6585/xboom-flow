@@ -4,6 +4,7 @@ import { usePipelineOrders, PipelineStatus } from '@/hooks/usePipelineOrders';
 import { PipelineForm } from './PipelineForm';
 import { PipelineTable } from './PipelineTable';
 import { PipelineAnalytics } from './PipelineAnalytics';
+import { PipelineStatusDashboard } from './PipelineStatusDashboard';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, Plus, List, BarChart3, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -87,6 +88,9 @@ export function PipelineOrders({ enquiryIdFilter, selectedLeadId, statusPreFilte
         </TabsList>
 
         <TabsContent value="list">
+          {statusPreFilter && (statusPreFilter === 'won' || statusPreFilter === 'lost') && (
+            <PipelineStatusDashboard orders={pipelineOrders} status={statusPreFilter} />
+          )}
           <PipelineTable 
             orders={filteredByEnquiry} 
             onUpdate={updatePipelineOrder}
