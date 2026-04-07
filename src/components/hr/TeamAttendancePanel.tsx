@@ -342,7 +342,6 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
             Reports & Alerts
             {totalReportsAlertCount > 0 && <Badge variant="destructive" className="text-[10px] px-1.5 py-0 ml-1">{totalReportsAlertCount}</Badge>}
           </TabsTrigger>
-          </TabsTrigger>
           <TabsTrigger value="analytics" className="gap-1.5 text-xs"><BarChart3 className="h-3.5 w-3.5" />Analytics</TabsTrigger>
           <TabsTrigger value="bulk_entry" className="gap-1.5 text-xs"><CalendarDays className="h-3.5 w-3.5" />Backfill Attendance</TabsTrigger>
         </TabsList>
