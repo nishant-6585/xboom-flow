@@ -13,9 +13,10 @@ interface PipelineOrdersProps {
   enquiryIdFilter?: string | null;
   selectedLeadId?: string | null;
   statusPreFilter?: PipelineStatus;
+  megaDealsOnly?: boolean;
 }
 
-export function PipelineOrders({ enquiryIdFilter, selectedLeadId, statusPreFilter }: PipelineOrdersProps) {
+export function PipelineOrders({ enquiryIdFilter, selectedLeadId, statusPreFilter, megaDealsOnly }: PipelineOrdersProps) {
   const { role } = useAuth();
   const { pipelineOrders, loading, createPipelineOrder, updatePipelineOrder, deletePipelineOrder } = usePipelineOrders();
   const [activeTab, setActiveTab] = useState('list');
@@ -24,10 +25,14 @@ export function PipelineOrders({ enquiryIdFilter, selectedLeadId, statusPreFilte
   const canCreate = role === 'sales' || role === 'sales_manager' || role === 'supply_chain' || role === 'admin';
   const canViewAnalytics = role === 'sales' || role === 'sales_manager' || role === 'supply_chain' || role === 'admin';
 
-  // Filter by enquiry_id if provided
-  const filteredByEnquiry = enquiryIdFilter 
+  // Filter by enquiry_id and mega deals
+  let filteredByEnquiry = enquiryIdFilter 
     ? pipelineOrders.filter(o => o.enquiry_id === enquiryIdFilter)
     : pipelineOrders;
+
+  if (megaDealsOnly) {
+    filteredByEnquiry = filteredByEnquiry.filter(o => o.is_mega_deal === true);
+  }
 
   const handleAnalyticsCardClick = (filter: { type: string; value: string }) => {
     setActiveTab('list');
