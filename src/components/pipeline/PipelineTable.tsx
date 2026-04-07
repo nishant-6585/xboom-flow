@@ -626,7 +626,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                 {editOrder.status === 'lost' && (
                   <div className="space-y-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
                     <div className="text-sm font-medium text-destructive flex items-center gap-2">
-                      <AlertTriangleIcon className="h-4 w-4" />
+                      <AlertTriangle className="h-4 w-4" />
                       Reason for Losing Order (Required)
                     </div>
                     <div className="space-y-2">
