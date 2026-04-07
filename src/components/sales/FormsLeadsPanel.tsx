@@ -272,7 +272,7 @@ export function FormsLeadsPanel() {
                 </thead>
                 <tbody>
                   {paginatedLeads.map((lead) => (
-                    <tr key={lead.id} className="border-b hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setSelectedLead(lead)}>
+                    <tr key={lead.id} className="border-b hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setDrawerLead(lead)}>
                       <td className="py-2.5 px-3 font-medium">{lead.customer_name}</td>
                       <td className="py-2.5 px-1" onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1 items-center">
@@ -407,15 +407,34 @@ export function FormsLeadsPanel() {
         </CardContent>
       </Card>
 
-      {/* Edit Dialog */}
-      <FormLeadEditDialog
-        lead={selectedLead}
-        open={!!selectedLead}
-        onClose={() => setSelectedLead(null)}
-        onSave={(updates) => updateLead.mutate(updates)}
-        isSaving={updateLead.isPending}
-        assignableUsers={assignableUsers}
-        statusOptions={STATUS_OPTIONS}
+      {/* Lead Contact Drawer */}
+      <LeadContactDrawer
+        open={!!drawerLead}
+        onOpenChange={(open) => { if (!open) setDrawerLead(null); }}
+        lead={drawerLead ? {
+          id: drawerLead.id,
+          source_type: 'form_lead',
+          customer_name: drawerLead.customer_name,
+          phone: drawerLead.phone,
+          email: drawerLead.email,
+          company: drawerLead.company,
+          city: drawerLead.city,
+          product_name: drawerLead.product_name,
+          notes: drawerLead.notes,
+          status: drawerLead.status,
+          assigned_to_name: drawerLead.assigned_to_name,
+          created_at: drawerLead.created_at,
+          extras: {
+            form_source: drawerLead.form_name,
+            customer_type: drawerLead.customer_type,
+          },
+        } satisfies LeadContactData : null}
+        onSave={(updates) => {
+          if (!drawerLead) return;
+          updateLead.mutate({ id: drawerLead.id, ...updates } as Partial<FormLead> & { id: string });
+          setDrawerLead(null);
+        }}
+        saving={updateLead.isPending}
       />
     </div>
   );
