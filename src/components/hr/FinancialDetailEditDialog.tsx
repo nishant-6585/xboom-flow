@@ -629,7 +629,7 @@ export function FinancialDetailEditDialog({
                         {history.map((h, idx) => (
                           <TableRow key={h.id} className={idx === 0 ? "bg-primary/5" : ""}>
                             <TableCell className="font-medium">
-                              {format(new Date(h.effective_from), "MMM yyyy")}
+                              {format(new Date(h.effective_from), "dd MMM yyyy")}
                               {idx === 0 && <Badge variant="outline" className="ml-2 text-xs">Current</Badge>}
                             </TableCell>
                             <TableCell>₹{Number(h.salary).toLocaleString("en-IN")}</TableCell>
