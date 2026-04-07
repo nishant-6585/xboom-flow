@@ -520,6 +520,37 @@ export function SalesCommandCenter() {
     };
   }, [orders, todayStr, yesterdayStr]);
 
+  // ============ Orders Lost (Yesterday & Today) ============
+  const lostActuals = useMemo(() => {
+    const todayLost = pipelineOrders.filter(p => {
+      const d = (p.updated_at || '').slice(0, 10);
+      return p.status === 'lost' && d === todayStr;
+    });
+    const yesterdayLost = pipelineOrders.filter(p => {
+      const d = (p.updated_at || '').slice(0, 10);
+      return p.status === 'lost' && d === yesterdayStr;
+    });
+    const bySp = (list: typeof pipelineOrders) => {
+      const m = new Map<string, { name: string; count: number; total: number }>();
+      list.forEach(p => {
+        const k = p.sales_person_id || 'unassigned';
+        if (!m.has(k)) m.set(k, { name: p.sales_person_name || 'Unassigned', count: 0, total: 0 });
+        const e = m.get(k)!;
+        e.count++;
+        e.total += p.expected_price || 0;
+      });
+      return Array.from(m.values()).sort((a, b) => b.total - a.total);
+    };
+    return {
+      today: todayLost,
+      yesterday: yesterdayLost,
+      todayTotal: todayLost.reduce((s, p) => s + (p.expected_price || 0), 0),
+      yesterdayTotal: yesterdayLost.reduce((s, p) => s + (p.expected_price || 0), 0),
+      todayBySp: bySp(todayLost),
+      yesterdayBySp: bySp(yesterdayLost),
+    };
+  }, [pipelineOrders, todayStr, yesterdayStr]);
+
   // Prospect by source
   const prospectsBySource = useMemo(() => {
     const srcMap = new Map<string, number>();
@@ -983,6 +1014,59 @@ export function SalesCommandCenter() {
         </div>
       )}
 
+      {/* ============ ORDERS LOST — Yesterday & Today ============ */}
+      {(lostActuals.today.length > 0 || lostActuals.yesterday.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Today Lost */}
+          <Card className="border-red-200 dark:border-red-800 bg-red-50/30 dark:bg-red-950/10">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-600" />
+                  Today's Orders Lost
+                  <Badge variant="destructive" className="text-xs">{lostActuals.today.length}</Badge>
+                </CardTitle>
+                <span className="text-lg font-bold text-red-700 dark:text-red-400">{formatCurrency(lostActuals.todayTotal)}</span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {lostActuals.todayBySp.map(sp => (
+                <div key={sp.name} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{sp.name.split(' ')[0]}</span>
+                  <span className="font-medium">{sp.count} deal{sp.count !== 1 ? 's' : ''} — {formatCurrency(sp.total)}</span>
+                </div>
+              ))}
+              {lostActuals.today.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">No orders lost today</p>
+              )}
+            </CardContent>
+          </Card>
+          {/* Yesterday Lost */}
+          <Card className="border-orange-200 dark:border-orange-800 bg-orange-50/30 dark:bg-orange-950/10">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-orange-600" />
+                  Yesterday's Orders Lost
+                  <Badge variant="outline" className="text-xs">{lostActuals.yesterday.length}</Badge>
+                </CardTitle>
+                <span className="text-lg font-bold text-orange-700 dark:text-orange-400">{formatCurrency(lostActuals.yesterdayTotal)}</span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {lostActuals.yesterdayBySp.map(sp => (
+                <div key={sp.name} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{sp.name.split(' ')[0]}</span>
+                  <span className="font-medium">{sp.count} deal{sp.count !== 1 ? 's' : ''} — {formatCurrency(sp.total)}</span>
+                </div>
+              ))}
+              {lostActuals.yesterday.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">No orders lost yesterday</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {isManager && targetComparison.length > 0 && (
         <Card>
