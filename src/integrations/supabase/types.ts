@@ -7239,6 +7239,8 @@ export type Database = {
           is_mega_deal: boolean | null
           lead_source: string | null
           lead_temperature: string | null
+          lost_reason: string | null
+          lost_reason_notes: string | null
           priority: number | null
           probability: number | null
           product_category: string | null
@@ -7267,6 +7269,8 @@ export type Database = {
           is_mega_deal?: boolean | null
           lead_source?: string | null
           lead_temperature?: string | null
+          lost_reason?: string | null
+          lost_reason_notes?: string | null
           priority?: number | null
           probability?: number | null
           product_category?: string | null
@@ -7295,6 +7299,8 @@ export type Database = {
           is_mega_deal?: boolean | null
           lead_source?: string | null
           lead_temperature?: string | null
+          lost_reason?: string | null
+          lost_reason_notes?: string | null
           priority?: number | null
           probability?: number | null
           product_category?: string | null

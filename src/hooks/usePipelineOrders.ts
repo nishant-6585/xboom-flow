@@ -7,6 +7,18 @@ import { sendSlackNotification } from '@/hooks/useSlackSettings';
 export type PipelineStatus = 'pending_confirmation' | 'won' | 'lost' | 'negotiation' | 'follow_up';
 export type LeadTemperature = 'hot' | 'warm' | 'cold';
 
+export const PIPELINE_LOST_REASONS = [
+  { value: 'pricing', label: 'Pricing too high' },
+  { value: 'timeline', label: 'Timeline not acceptable' },
+  { value: 'competition', label: 'Lost to competition' },
+  { value: 'budget', label: 'Customer budget constraints' },
+  { value: 'specifications', label: 'Product specifications mismatch' },
+  { value: 'no_response', label: 'Customer not responding' },
+  { value: 'other', label: 'Other' },
+] as const;
+
+export type PipelineLostReason = typeof PIPELINE_LOST_REASONS[number]['value'];
+
 export interface PipelineOrder {
   id: string;
   customer_name: string;
@@ -33,6 +45,8 @@ export interface PipelineOrder {
   updated_at: string;
   created_by: string;
   enquiry_id: string | null;
+  lost_reason: string | null;
+  lost_reason_notes: string | null;
 }
 
 export interface PipelineOrderFormData {
