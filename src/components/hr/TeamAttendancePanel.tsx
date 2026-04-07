@@ -317,79 +317,95 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
 
   return (
     <div className="space-y-4">
-      {/* Date picker bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1.5">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedDate(d => subDays(d, 1))}><ChevronLeft className="h-3.5 w-3.5" /></Button>
-          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs gap-1.5">
-                <CalendarDays className="h-3.5 w-3.5" />
-                {format(selectedDate, 'dd MMM yyyy')}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <CalendarPicker mode="single" selected={selectedDate} onSelect={(date) => { if (date) { setSelectedDate(date); setDatePickerOpen(false); } }} disabled={(date) => isFuture(date) && !isToday(date)} initialFocus className="p-3 pointer-events-auto" />
-            </PopoverContent>
-          </Popover>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { const next = addDays(selectedDate, 1); if (!isFuture(next) || isToday(next)) setSelectedDate(next); }} disabled={isViewingToday}><ChevronRight className="h-3.5 w-3.5" /></Button>
-        </div>
-        {!isViewingToday && (
-          <Button variant="secondary" size="sm" className="h-7 px-2.5 text-xs gap-1" onClick={() => setSelectedDate(new Date())}><Activity className="h-3 w-3" /> Reset to Today</Button>
-        )}
-        <div className="flex items-center gap-1.5 ml-auto text-xs text-muted-foreground">
-          {isViewingToday && <Badge variant="outline" className="text-xs border-green-300 text-green-700 gap-1"><Activity className="h-3 w-3" />Live</Badge>}
-          <span>Refreshed {format(lastRefresh, 'hh:mm:ss a')}</span>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={fetchToday} disabled={loadingToday}><RefreshCw className={cn('h-3.5 w-3.5', loadingToday && 'animate-spin')} /></Button>
-        </div>
-      </div>
+      {/* Sub Tabs */}
+      <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
+        <TabsList className="h-auto">
+          <TabsTrigger value="employees" className="gap-1.5 text-xs"><Users className="h-3.5 w-3.5" />Employees</TabsTrigger>
+          <TabsTrigger value="reports_alerts" className="gap-1.5 text-xs">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Reports & Alerts
+            {alertCount > 0 && <Badge variant="destructive" className="text-[10px] px-1.5 py-0 ml-1">{alertCount}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="bulk_entry" className="gap-1.5 text-xs"><CalendarDays className="h-3.5 w-3.5" />Bulk Entry</TabsTrigger>
+        </TabsList>
 
-      {isViewingFuture ? (
-        <Card>
-          <CardContent className="py-10 text-center text-muted-foreground text-sm">
-            <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-40" />
-            No data available for future dates.
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          {selectedDateIsHoliday && holidayInfo && (
-            <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/80 dark:bg-blue-950/20 dark:border-blue-800 px-4 py-2.5">
-              <CalendarCheck className="h-4 w-4 text-blue-600 shrink-0" />
-              <p className="text-sm font-medium text-blue-700 dark:text-blue-400">🎉 Holiday — {holidayInfo.name}. Attendance tracking disabled for this date.</p>
+        {/* Employees Tab - Calendar View */}
+        <TabsContent value="employees" className="space-y-4">
+          <EmployeeCalendarView
+            employees={employees}
+            selectedEmployeeId={selectedEmployeeId}
+            onEmployeeChange={setSelectedEmployeeId}
+            calendarMonth={empCalendarMonth}
+            onMonthChange={setEmpCalendarMonth}
+            attendanceLogs={empAttendanceLogs}
+            approvedLeaves={empApprovedLeaves}
+            loading={loadingEmpLogs}
+            onRefresh={fetchEmpMonthlyLogs}
+          />
+        </TabsContent>
+
+        {/* Reports & Alerts Tab */}
+        <TabsContent value="reports_alerts" className="space-y-4">
+          {/* Date picker inside this tab */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedDate(d => subDays(d, 1))}><ChevronLeft className="h-4 w-4" /></Button>
+              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 px-3 text-sm gap-2">
+                    <CalendarDays className="h-4 w-4" />
+                    {format(selectedDate, 'dd MMM yyyy')}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarPicker mode="single" selected={selectedDate} onSelect={(date) => { if (date) { setSelectedDate(date); setDatePickerOpen(false); } }} disabled={(date) => isFuture(date) && !isToday(date)} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { const next = addDays(selectedDate, 1); if (!isFuture(next) || isToday(next)) setSelectedDate(next); }} disabled={isViewingToday}><ChevronRight className="h-4 w-4" /></Button>
             </div>
-          )}
+            {!isViewingToday && (
+              <Button variant="secondary" size="sm" className="h-8 px-3 text-xs gap-1" onClick={() => setSelectedDate(new Date())}><Activity className="h-3.5 w-3.5" /> Today</Button>
+            )}
+            <div className="flex items-center gap-1.5 ml-auto text-xs text-muted-foreground">
+              {isViewingToday && <Badge variant="outline" className="text-xs border-green-300 text-green-700 gap-1"><Activity className="h-3 w-3" />Live</Badge>}
+              <span>Refreshed {format(lastRefresh, 'hh:mm:ss a')}</span>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={fetchToday} disabled={loadingToday}><RefreshCw className={cn('h-3.5 w-3.5', loadingToday && 'animate-spin')} /></Button>
+            </div>
+          </div>
 
-          {/* Sub Tabs */}
-          <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
-            <TabsList className="h-auto">
-              <TabsTrigger value="employees" className="gap-1.5 text-xs"><Users className="h-3.5 w-3.5" />Employees</TabsTrigger>
-              <TabsTrigger value="alerts" className="gap-1.5 text-xs">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                Alerts
-                {alertCount > 0 && <Badge variant="destructive" className="text-[10px] px-1.5 py-0 ml-1">{alertCount}</Badge>}
-              </TabsTrigger>
-              <TabsTrigger value="export" className="gap-1.5 text-xs"><Download className="h-3.5 w-3.5" />Export</TabsTrigger>
-              <TabsTrigger value="bulk_entry" className="gap-1.5 text-xs"><CalendarDays className="h-3.5 w-3.5" />Bulk Entry</TabsTrigger>
-            </TabsList>
+          {isViewingFuture ? (
+            <Card>
+              <CardContent className="py-10 text-center text-muted-foreground text-sm">
+                <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                No data available for future dates.
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {selectedDateIsHoliday && holidayInfo && (
+                <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/80 dark:bg-blue-950/20 dark:border-blue-800 px-4 py-2.5">
+                  <CalendarCheck className="h-4 w-4 text-blue-600 shrink-0" />
+                  <p className="text-sm font-medium text-blue-700 dark:text-blue-400">🎉 Holiday — {holidayInfo.name}. Attendance tracking disabled for this date.</p>
+                </div>
+              )}
 
-            {/* Employees Tab - Calendar View */}
-            <TabsContent value="employees" className="space-y-4">
-              <EmployeeCalendarView
-                employees={employees}
-                selectedEmployeeId={selectedEmployeeId}
-                onEmployeeChange={setSelectedEmployeeId}
-                calendarMonth={empCalendarMonth}
-                onMonthChange={setEmpCalendarMonth}
-                attendanceLogs={empAttendanceLogs}
-                approvedLeaves={empApprovedLeaves}
-                loading={loadingEmpLogs}
-                onRefresh={fetchEmpMonthlyLogs}
-              />
-            </TabsContent>
+              {/* Export section */}
+              <Card>
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Download className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <h3 className="text-sm font-semibold">Export Attendance</h3>
+                        <p className="text-xs text-muted-foreground">Download data for {format(selectedDate, 'dd MMM yyyy')}</p>
+                      </div>
+                    </div>
+                    <Button size="sm" onClick={exportCSV} className="gap-2"><Download className="h-4 w-4" /> Download CSV</Button>
+                  </div>
+                </CardContent>
+              </Card>
 
-            {/* Alerts Tab (includes Pending Corrections) */}
-            <TabsContent value="alerts" className="space-y-4">
+              {/* Alerts & Corrections */}
               <PendingCorrectionApprovals />
               <AttendanceAlertsPanel
                 logs={todayLogs}
@@ -397,38 +413,24 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
                 selectedDate={selectedDate}
                 onCorrectCheckout={(log) => setCorrectionLog(log)}
               />
-            </TabsContent>
+            </>
+          )}
+        </TabsContent>
 
-            {/* Export Tab */}
-            <TabsContent value="export" className="space-y-4">
-              <Card>
-                <CardContent className="py-8 text-center space-y-4">
-                  <Download className="h-10 w-10 mx-auto text-muted-foreground" />
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1">Export Attendance Data</h3>
-                    <p className="text-xs text-muted-foreground mb-4">Download the attendance data for {format(selectedDate, 'dd MMM yyyy')} as a CSV file.</p>
-                    <Button onClick={exportCSV} className="gap-2"><Download className="h-4 w-4" /> Download CSV</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Bulk Entry Tab */}
-            <TabsContent value="bulk_entry" className="space-y-4">
-              <Card>
-                <CardContent className="py-8 text-center space-y-4">
-                  <CalendarDays className="h-10 w-10 mx-auto text-muted-foreground" />
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1">Bulk Attendance Entry</h3>
-                    <p className="text-xs text-muted-foreground mb-4">Mark attendance for multiple employees across a date range.</p>
-                    <Button onClick={() => setBulkEntryOpen(true)} className="gap-2"><CalendarDays className="h-4 w-4" /> Open Bulk Entry</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </>
-      )}
+        {/* Bulk Entry Tab */}
+        <TabsContent value="bulk_entry" className="space-y-4">
+          <Card>
+            <CardContent className="py-8 text-center space-y-4">
+              <CalendarDays className="h-10 w-10 mx-auto text-muted-foreground" />
+              <div>
+                <h3 className="text-sm font-semibold mb-1">Bulk Attendance Entry</h3>
+                <p className="text-xs text-muted-foreground mb-4">Mark attendance for multiple employees across a date range.</p>
+                <Button onClick={() => setBulkEntryOpen(true)} className="gap-2"><CalendarDays className="h-4 w-4" /> Open Bulk Entry</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Provisional Correction Modal */}
       {correctionLog && (
