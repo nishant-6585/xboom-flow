@@ -182,11 +182,35 @@ export async function getEmployeeProfileData(
   const baseSalary = Number(emp?.monthly_salary) || 0;
   const monthStart = startOfMonth(new Date(year, month - 1));
   const monthEnd = endOfMonth(new Date(year, month - 1));
-
-  // Fetch ALL salary history entries effective on or before end of this month
+  const totalDaysInMonth = monthEnd.getDate();
   const monthEndStr = `${year}-${String(month).padStart(2, "0")}-${String(monthEnd.getDate()).padStart(2, "0")}`;
   const monthStartStr = `${year}-${String(month).padStart(2, "0")}-01`;
 
+  // ========== Check employment_history for Intern→Full-Time transitions ==========
+  const { data: empHistory } = await supabase
+    .from("employment_history" as any)
+    .select("employment_type, salary, stipend, effective_from, effective_to")
+    .eq("employee_id", employeeId)
+    .lte("effective_from", monthEndStr)
+    .or(`effective_to.is.null,effective_to.gte.${monthStartStr}`)
+    .order("effective_from", { ascending: true });
+
+  if (empHistory && empHistory.length > 0) {
+    // Use employment_history segments for salary calculation
+    const segments = buildSegmentsForMonth(empHistory as any, monthStart, monthEnd);
+    if (segments.length > 0) {
+      const salary = calculateSegmentedSalary(segments, totalDaysInMonth, 0);
+      return {
+        salary,
+        bank_account: (emp as any)?.bank_account || null,
+        ifsc_code: (emp as any)?.ifsc_code || null,
+        designation: (emp as any)?.designation || null,
+        department: (emp as any)?.department || null,
+      };
+    }
+  }
+
+  // ========== Fallback: salary_history-based calculation ==========
   const { data: allHistory } = await supabase
     .from("salary_history")
     .select("salary, effective_from")
@@ -197,9 +221,6 @@ export async function getEmployeeProfileData(
   let salary = baseSalary;
 
   if (allHistory && allHistory.length > 0) {
-    // Find entries that create mid-month transitions
-    // "Before month" entries: effective_from < monthStart → these set the starting salary
-    // "During month" entries: effective_from within this month → these cause a mid-month change
     const beforeMonth = allHistory.filter((h: any) => h.effective_from < monthStartStr);
     const duringMonth = allHistory.filter((h: any) => h.effective_from >= monthStartStr && h.effective_from <= monthEndStr);
 
@@ -208,15 +229,11 @@ export async function getEmployeeProfileData(
       : baseSalary;
 
     if (duringMonth.length === 0) {
-      // No mid-month change — use the latest salary effective before the month
       salary = startingSalary;
     } else {
-      // Mid-month salary change(s) detected — pro-rate using calendar days!
-      const totalDaysInMonth = endOfMonth(monthStart).getDate();
       if (totalDaysInMonth <= 0) {
         salary = startingSalary;
       } else {
-        // Build salary segments: [{salary, fromDate, toDate}, ...]
         type Segment = { salary: number; from: Date; to: Date };
         const segments: Segment[] = [];
 
@@ -225,7 +242,6 @@ export async function getEmployeeProfileData(
 
         for (const entry of duringMonth) {
           const changeDate = new Date((entry as any).effective_from);
-          // Segment before this change: segStart to day before changeDate
           if (changeDate > segStart) {
             const segEnd = new Date(changeDate);
             segEnd.setDate(segEnd.getDate() - 1);
@@ -237,10 +253,8 @@ export async function getEmployeeProfileData(
           segStart = changeDate;
         }
 
-        // Final segment: from last change date to end of month
         segments.push({ salary: currentSal, from: segStart, to: monthEnd });
 
-        // Calculate weighted salary using calendar days
         let weightedTotal = 0;
         for (const seg of segments) {
           const days = countCalendarDaysBetween(seg.from, seg.to);
