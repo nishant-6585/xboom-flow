@@ -1280,12 +1280,17 @@ export function SalesCommandCenter() {
               Enquiries Received vs Achieved
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <MetricRow label="Received" value={filtered.enquiries.length} />
-            <MetricRow label="Processed" value={enquiriesProcessed} color="text-blue-500" />
-            <MetricRow label="To Pipeline" value={filtered.enquiries.filter((e: any) => e.status === 'moved_to_pipeline').length} color="text-purple-500" />
-            <MetricRow label="Won" value={enquiriesWon} color="text-green-500" />
-            <MetricRow label="Lost" value={filtered.enquiries.filter((e: any) => e.status === 'order_lost').length} color="text-destructive" />
+           <CardContent className="space-y-3">
+            <MetricRow label="Received" value={filtered.enquiries.length} onClick={() => handleFunnelClick('Total Leads')} />
+            <MetricRow label="Processed" value={enquiriesProcessed} color="text-blue-500" onClick={() => {
+              const items: DetailItem[] = filtered.enquiries.filter((e: any) => e.status !== 'pending' && e.status !== 'on_hold').slice(0, 50).map((e: any) => ({
+                id: e.id, type: 'enquiry' as const, customer_name: e.customer_name, customer_company: e.customer_company, product_name: e.product_name, value: e.quantity || 0, date: e.created_at, status: e.status, tab: 'enquiries',
+              }));
+              openDrillDown(`Processed Enquiries (${items.length})`, items);
+            }} />
+            <MetricRow label="To Pipeline" value={filtered.enquiries.filter((e: any) => e.status === 'moved_to_pipeline').length} color="text-purple-500" onClick={() => handleEnquiryStatusClick('Pipeline')} />
+            <MetricRow label="Won" value={enquiriesWon} color="text-green-500" onClick={() => handleEnquiryStatusClick('Won')} />
+            <MetricRow label="Lost" value={filtered.enquiries.filter((e: any) => e.status === 'order_lost').length} color="text-destructive" onClick={() => handleEnquiryStatusClick('Lost')} />
             <div className="pt-2 space-y-1.5">
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>Response Rate</span>
@@ -1345,12 +1350,30 @@ export function SalesCommandCenter() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
-              <MiniStat label="Calls Total" value={callStats.total} icon={Phone} />
-              <MiniStat label="Calls Answered" value={callStats.answered} icon={Phone} positive />
-              <MiniStat label="Calls Missed" value={callStats.missed} icon={Phone} negative />
-              <MiniStat label="Pipeline Won" value={pipelineWon.length} icon={ShoppingCart} positive />
-              <MiniStat label="Won Value" value={formatCurrency(pipelineWonValue)} icon={DollarSign} positive isText />
-              <MiniStat label="Pipeline Lost" value={pipelineLost.length} icon={TrendingUp} negative />
+              <MiniStat label="Calls Total" value={callStats.total} icon={Phone} onClick={() => handleLeadSourceClick('MyOperator')} />
+              <MiniStat label="Calls Answered" value={callStats.answered} icon={Phone} positive onClick={() => {
+                const items: DetailItem[] = filtered.calls.filter((c: any) => {
+                  const payload = c.raw_payload;
+                  if (!payload?._ld || !Array.isArray(payload._ld)) return c.call_status === 'answered';
+                  return (payload._ld as any[]).some((l: any) => l._ac === 'received');
+                }).slice(0, 50).map((c: any) => ({
+                  id: c.id, type: 'lead' as const, customer_name: c.customer_name || c.caller_number, customer_company: c.company || '', product_name: c.product_name || '', value: 0, date: c.created_at, status: 'answered', tab: 'leads',
+                }));
+                openDrillDown(`Answered Calls (${items.length})`, items);
+              }} />
+              <MiniStat label="Calls Missed" value={callStats.missed} icon={Phone} negative onClick={() => {
+                const items: DetailItem[] = filtered.calls.filter((c: any) => {
+                  const payload = c.raw_payload;
+                  if (!payload?._ld || !Array.isArray(payload._ld)) return c.call_status !== 'answered';
+                  return !(payload._ld as any[]).some((l: any) => l._ac === 'received');
+                }).slice(0, 50).map((c: any) => ({
+                  id: c.id, type: 'lead' as const, customer_name: c.customer_name || c.caller_number, customer_company: c.company || '', product_name: c.product_name || '', value: 0, date: c.created_at, status: 'missed', tab: 'leads',
+                }));
+                openDrillDown(`Missed Calls (${items.length})`, items);
+              }} />
+              <MiniStat label="Pipeline Won" value={pipelineWon.length} icon={ShoppingCart} positive onClick={() => handlePipelineStatusClick('Won')} />
+              <MiniStat label="Won Value" value={formatCurrency(pipelineWonValue)} icon={DollarSign} positive isText onClick={() => handlePipelineStatusClick('Won')} />
+              <MiniStat label="Pipeline Lost" value={pipelineLost.length} icon={TrendingUp} negative onClick={() => handlePipelineStatusClick('Lost')} />
             </div>
             {prospectsBySource.length > 0 && (
               <div className="pt-2 border-t border-border/30">
