@@ -11,13 +11,14 @@ import { Link } from 'react-router-dom';
 interface PipelineOrdersProps {
   enquiryIdFilter?: string | null;
   selectedLeadId?: string | null;
+  statusPreFilter?: PipelineStatus;
 }
 
-export function PipelineOrders({ enquiryIdFilter, selectedLeadId }: PipelineOrdersProps) {
+export function PipelineOrders({ enquiryIdFilter, selectedLeadId, statusPreFilter }: PipelineOrdersProps) {
   const { role } = useAuth();
   const { pipelineOrders, loading, createPipelineOrder, updatePipelineOrder, deletePipelineOrder } = usePipelineOrders();
   const [activeTab, setActiveTab] = useState('list');
-  const [statusFilter, setStatusFilter] = useState<PipelineStatus | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<PipelineStatus | 'all'>(statusPreFilter || 'all');
 
   const canCreate = role === 'sales' || role === 'sales_manager' || role === 'supply_chain' || role === 'admin';
   const canViewAnalytics = role === 'sales' || role === 'sales_manager' || role === 'supply_chain' || role === 'admin';
