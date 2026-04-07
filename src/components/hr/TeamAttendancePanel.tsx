@@ -363,8 +363,7 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
           {/* Sub Tabs */}
           <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
             <TabsList className="h-auto">
-              <TabsTrigger value="overview" className="gap-1.5 text-xs"><LayoutDashboard className="h-3.5 w-3.5" />Overview</TabsTrigger>
-              <TabsTrigger value="employees" className="gap-1.5 text-xs"><List className="h-3.5 w-3.5" />Employees</TabsTrigger>
+              <TabsTrigger value="employees" className="gap-1.5 text-xs"><Users className="h-3.5 w-3.5" />Employees</TabsTrigger>
               <TabsTrigger value="alerts" className="gap-1.5 text-xs">
                 <AlertTriangle className="h-3.5 w-3.5" />
                 Alerts
@@ -374,73 +373,19 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
               <TabsTrigger value="bulk_entry" className="gap-1.5 text-xs"><CalendarDays className="h-3.5 w-3.5" />Bulk Entry</TabsTrigger>
             </TabsList>
 
-            {/* Overview Tab */}
-            <TabsContent value="overview" className="space-y-4">
-              {/* Metrics */}
-              <div className={cn('grid gap-2', isViewingToday ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-8' : 'grid-cols-2 sm:grid-cols-5')}>
-                {[
-                  { label: 'Present', value: metrics.present, icon: UserCheck, color: 'text-green-600', bg: 'bg-green-500/10', show: true },
-                  { label: 'Absent', value: metrics.absent, icon: UserX, color: 'text-red-600', bg: 'bg-red-500/10', show: true },
-                  { label: 'Holiday', value: metrics.holiday, icon: CalendarCheck, color: 'text-blue-600', bg: 'bg-blue-500/10', show: selectedDateIsHoliday },
-                  { label: 'On Leave', value: metrics.onLeave, icon: CalendarCheck, color: 'text-purple-600', bg: 'bg-purple-500/10', show: true },
-                  { label: 'Working', value: metrics.working, icon: Activity, color: 'text-blue-600', bg: 'bg-blue-500/10', show: isViewingToday && !selectedDateIsHoliday },
-                  { label: 'On Break', value: metrics.onBreak, icon: Coffee, color: 'text-orange-600', bg: 'bg-orange-500/10', show: isViewingToday && !selectedDateIsHoliday },
-                  { label: 'Late', value: metrics.late, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-500/10', show: !selectedDateIsHoliday },
-                  { label: isViewingToday ? 'No Checkout (Yesterday)' : `No Checkout (${format(subDays(selectedDate, 1), 'dd MMM')})`, value: metrics.noCheckoutYesterday, icon: LogOut, color: 'text-rose-600', bg: 'bg-rose-500/10', show: true },
-                ].filter(m => m.show).map(({ label, value, icon: Icon, color, bg }) => (
-                  <div key={label} className={cn('flex flex-col items-start gap-1 rounded-xl px-3 py-2.5', bg)}>
-                    <div className="flex items-center gap-1.5">
-                      <Icon className={cn('h-4 w-4', color)} />
-                      <p className={cn('text-2xl font-bold leading-none', color)}>{value}</p>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Health Score */}
-              {healthScore !== null && (
-                <Card>
-                  <CardContent className="px-4 py-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Activity className="h-4 w-4 text-primary" />
-                        <span className="text-sm font-medium">Attendance Health Score</span>
-                      </div>
-                      <div className="text-right">
-                        <span className={cn('text-2xl font-bold', healthScore >= 90 ? 'text-green-600' : healthScore >= 70 ? 'text-amber-600' : healthScore >= 40 ? 'text-orange-600' : 'text-red-600')}>{healthScore}%</span>
-                        <p className={cn('text-[11px] font-medium', healthScore >= 90 ? 'text-green-600' : healthScore >= 70 ? 'text-amber-600' : healthScore >= 40 ? 'text-orange-600' : 'text-red-600')}>
-                          {healthScore >= 90 ? 'Excellent' : healthScore >= 70 ? 'Good' : healthScore >= 40 ? 'Moderate' : 'Poor'}
-                        </p>
-                      </div>
-                    </div>
-                    <Progress value={healthScore} className={cn('h-2', healthScore >= 90 ? '[&>div]:bg-green-500' : healthScore >= 70 ? '[&>div]:bg-amber-500' : healthScore >= 40 ? '[&>div]:bg-orange-500' : '[&>div]:bg-red-500')} />
-                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                      <span>{metrics.present} present</span>
-                      <span>{metrics.late} late</span>
-                      <span>{metrics.absent} absent</span>
-                      <span>{metrics.onLeave} on leave</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Team Calendar View */}
-              <TeamAttendanceCalendarView
-                totalEmployees={employees.length}
-                onDateSelect={(date) => {
-                  setSelectedDate(date);
-                  setActiveSubTab('employees');
-                }}
+            {/* Employees Tab - Calendar View */}
+            <TabsContent value="employees" className="space-y-4">
+              <EmployeeCalendarView
+                employees={employees}
+                selectedEmployeeId={selectedEmployeeId}
+                onEmployeeChange={setSelectedEmployeeId}
+                calendarMonth={empCalendarMonth}
+                onMonthChange={setEmpCalendarMonth}
+                attendanceLogs={empAttendanceLogs}
+                approvedLeaves={empApprovedLeaves}
+                loading={loadingEmpLogs}
+                onRefresh={fetchEmpMonthlyLogs}
               />
-
-              {/* Alert Indicator */}
-              <AttendanceAlertIndicator alertCount={alertCount} onNavigate={() => setActiveSubTab('alerts')} />
-            </TabsContent>
-
-            {/* Employees Tab */}
-            <TabsContent value="employees">
-              <LiveStatusTable liveRows={liveRows} loading={loadingToday} onRefresh={fetchToday} isLive={isViewingToday} selectedDate={selectedDate} isHoliday={selectedDateIsHoliday} approvedLeaves={approvedLeaves} />
             </TabsContent>
 
             {/* Alerts Tab (includes Pending Corrections) */}
