@@ -39,6 +39,7 @@ import { useFollowups } from '@/hooks/useFollowups';
 import { useCallbacks } from '@/hooks/useCallbacks';
 import { LeadTemperatureBadge } from '@/components/LeadTemperatureBadge';
 import { SalesPersonDeepDive } from '@/components/sales/SalesPersonDeepDive';
+import { LeadFunnelTracker } from '@/components/sales/LeadFunnelTracker';
 import type { DateRange } from 'react-day-picker';
 
 const formatCurrency = (value: number) => {
