@@ -910,7 +910,10 @@ export function SalesCommandCenter() {
         <KPICard label="Win Rate" value={`${winRate}%`} icon={Percent} gradient="from-teal-500 to-emerald-600" isText />
       </div>
 
-      {/* ============ MEGA DEALS PRIORITY TRACKER ============ */}
+      {/* ============ LEAD FUNNEL TRACKER ============ */}
+      <LeadFunnelTracker compact />
+
+
       {(() => {
         const megaDeals = filtered.pipeline.filter(p => p.is_mega_deal && p.status !== 'won' && p.status !== 'lost');
         const megaWon = filtered.pipeline.filter(p => p.is_mega_deal && p.status === 'won');
