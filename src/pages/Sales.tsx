@@ -126,6 +126,10 @@ export default function Sales() {
                   <Phone className="w-4 h-4" />
                   Outbound
                 </TabsTrigger>
+                <TabsTrigger value="crm" className={`${triggerBase} data-[state=active]:bg-indigo-600 data-[state=active]:text-white`}>
+                  <Contact className="w-4 h-4" />
+                  CRM
+                </TabsTrigger>
               </TabsList>
             </div>
             
