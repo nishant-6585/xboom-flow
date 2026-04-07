@@ -21,6 +21,7 @@ import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { useProspects } from "@/hooks/useProspects";
 import { useAttentionItems } from "@/hooks/useAttentionItems";
 import { FormsLeadsAnalytics } from "./FormsLeadsAnalytics";
+import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
 
 interface FormLead {
   id: string;
@@ -64,6 +65,7 @@ export function FormsLeadsPanel() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedLead, setSelectedLead] = useState<FormLead | null>(null);
+  const [drawerLead, setDrawerLead] = useState<FormLead | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 20;
