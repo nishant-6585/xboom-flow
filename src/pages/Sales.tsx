@@ -102,6 +102,10 @@ export default function Sales() {
                   <Target className="w-4 h-4" />
                   Prospects
                 </TabsTrigger>
+                <TabsTrigger value="crm" className={`${triggerBase} data-[state=active]:bg-indigo-600 data-[state=active]:text-white`}>
+                  <Contact className="w-4 h-4" />
+                  CRM
+                </TabsTrigger>
                 <TabsTrigger value="followups" className={`${triggerBase} data-[state=active]:bg-amber-600 data-[state=active]:text-white`}>
                   <CalendarCheck className="w-4 h-4" />
                   Follow-ups
