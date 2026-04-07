@@ -33,6 +33,7 @@ import { AttendanceAlertsPanel, AttendanceAlertIndicator } from '@/components/hr
 import { HRAttendanceEditModal } from '@/components/attendance/HRAttendanceEditModal';
 import { BulkAttendanceEntryDialog } from '@/components/attendance/BulkAttendanceEntryDialog';
 import { CorrectionRequestModal } from '@/components/attendance/CorrectionRequestModal';
+import { AttendanceAnalytics } from '@/components/hr/AttendanceAnalytics';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
