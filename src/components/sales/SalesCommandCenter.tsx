@@ -910,7 +910,60 @@ export function SalesCommandCenter() {
         <KPICard label="Win Rate" value={`${winRate}%`} icon={Percent} gradient="from-teal-500 to-emerald-600" isText />
       </div>
 
-      {/* ============ TODAY'S EXPECTED CLOSURES ============ */}
+      {/* ============ MEGA DEALS PRIORITY TRACKER ============ */}
+      {(() => {
+        const megaDeals = filtered.pipeline.filter(p => p.is_mega_deal && p.status !== 'won' && p.status !== 'lost');
+        const megaWon = filtered.pipeline.filter(p => p.is_mega_deal && p.status === 'won');
+        const megaLost = filtered.pipeline.filter(p => p.is_mega_deal && p.status === 'lost');
+        const megaValue = megaDeals.reduce((s, p) => s + (p.expected_price || 0), 0);
+        if (megaDeals.length === 0 && megaWon.length === 0 && megaLost.length === 0) return null;
+        return (
+          <Card className="border-amber-300 dark:border-amber-700 bg-gradient-to-r from-amber-50/50 to-yellow-50/30 dark:from-amber-950/20 dark:to-yellow-950/10">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Award className="w-4 h-4 text-amber-500 fill-amber-500" />
+                  Mega Deals Tracker
+                  <Badge className="bg-amber-500 text-white text-xs">{megaDeals.length} active</Badge>
+                  {megaWon.length > 0 && <Badge className="bg-green-600 text-white text-xs">{megaWon.length} won</Badge>}
+                  {megaLost.length > 0 && <Badge variant="destructive" className="text-xs">{megaLost.length} lost</Badge>}
+                </CardTitle>
+                <span className="text-lg font-bold text-amber-700 dark:text-amber-400">{formatCurrency(megaValue)}</span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {megaDeals.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {megaDeals.sort((a, b) => (a.priority || 3) - (b.priority || 3)).map(deal => (
+                    <div
+                      key={deal.id}
+                      className="flex items-center justify-between rounded-lg border border-amber-200 dark:border-amber-800 bg-background/80 px-3 py-2 text-sm cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => setSearchParams({ tab: 'mega_deals', leadId: deal.id })}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">{deal.customer_name}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {deal.product_name} • {deal.sales_person_name.split(' ')[0]}
+                          {deal.priority === 1 && ' • 🔴 High'}
+                          {deal.priority === 2 && ' • 🟡 Medium'}
+                          {deal.priority === 3 && ' • 🟢 Low'}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0 ml-2">
+                        <p className="font-semibold text-amber-700 dark:text-amber-400">{formatCurrency(deal.expected_price || 0)}</p>
+                        <LeadTemperatureBadge temperature={deal.lead_temperature || 'warm'} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">No active mega deals in this period</p>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {todaysClosures.length > 0 && (
         <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/10">
           <CardHeader className="pb-2">

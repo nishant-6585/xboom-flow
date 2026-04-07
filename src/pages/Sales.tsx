@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck, Contact, CheckCircle2, XCircle } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck, Contact, CheckCircle2, XCircle, Star } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -126,6 +126,10 @@ export default function Sales() {
                   <Trophy className="w-4 h-4" />
                   Leaderboard
                 </TabsTrigger>
+                <TabsTrigger value="mega_deals" className={`${triggerBase} data-[state=active]:bg-amber-500 data-[state=active]:text-white`}>
+                  <Star className="w-4 h-4" />
+                  Mega Deals
+                </TabsTrigger>
                 <TabsTrigger value="orders_won" className={`${triggerBase} data-[state=active]:bg-green-600 data-[state=active]:text-white`}>
                   <CheckCircle2 className="w-4 h-4" />
                   Orders Won
@@ -244,6 +248,10 @@ export default function Sales() {
               </div>
               <PointsDisplay />
             </div>
+          </TabsContent>
+
+          <TabsContent value="mega_deals" className="space-y-6">
+            <PipelineOrders megaDealsOnly />
           </TabsContent>
 
           <TabsContent value="orders_won" className="space-y-6">
