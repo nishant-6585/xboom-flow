@@ -465,6 +465,29 @@ export function SalesCommandCenter() {
       .slice(0, 8);
   }, [activePipeline]);
 
+  // ============ Today's Expected Closures ============
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const todaysClosures = useMemo(() => {
+    return pipelineOrders.filter(p =>
+      p.expected_closure_date === todayStr &&
+      p.status !== 'won' && p.status !== 'lost'
+    );
+  }, [pipelineOrders, todayStr]);
+
+  const todaysClosureValue = todaysClosures.reduce((s, p) => s + (p.expected_price || 0), 0);
+
+  const todaysClosuresBySp = useMemo(() => {
+    const map = new Map<string, { name: string; deals: typeof todaysClosures; total: number }>();
+    todaysClosures.forEach(p => {
+      const key = p.sales_person_id;
+      if (!map.has(key)) map.set(key, { name: p.sales_person_name, deals: [], total: 0 });
+      const entry = map.get(key)!;
+      entry.deals.push(p);
+      entry.total += p.expected_price || 0;
+    });
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [todaysClosures]);
+
   // Prospect by source
   const prospectsBySource = useMemo(() => {
     const srcMap = new Map<string, number>();
