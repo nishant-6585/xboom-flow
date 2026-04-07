@@ -488,6 +488,38 @@ export function SalesCommandCenter() {
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
   }, [todaysClosures]);
 
+  // ============ Sales Actuals (Yesterday & Today Won) ============
+  const yesterdayStr = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd');
+  const salesActuals = useMemo(() => {
+    const todayWon = orders.filter(o => {
+      const d = (o.order_date || o.created_at || '').slice(0, 10);
+      return d === todayStr;
+    });
+    const yesterdayWon = orders.filter(o => {
+      const d = (o.order_date || o.created_at || '').slice(0, 10);
+      return d === yesterdayStr;
+    });
+    const bySp = (list: typeof orders) => {
+      const m = new Map<string, { name: string; count: number; total: number }>();
+      list.forEach(o => {
+        const k = o.sales_person_id || 'unassigned';
+        if (!m.has(k)) m.set(k, { name: o.sales_person_name || 'Unassigned', count: 0, total: 0 });
+        const e = m.get(k)!;
+        e.count++;
+        e.total += o.total_sales_amount || 0;
+      });
+      return Array.from(m.values()).sort((a, b) => b.total - a.total);
+    };
+    return {
+      today: todayWon,
+      yesterday: yesterdayWon,
+      todayTotal: todayWon.reduce((s, o) => s + (o.total_sales_amount || 0), 0),
+      yesterdayTotal: yesterdayWon.reduce((s, o) => s + (o.total_sales_amount || 0), 0),
+      todayBySp: bySp(todayWon),
+      yesterdayBySp: bySp(yesterdayWon),
+    };
+  }, [orders, todayStr, yesterdayStr]);
+
   // Prospect by source
   const prospectsBySource = useMemo(() => {
     const srcMap = new Map<string, number>();
@@ -895,6 +927,60 @@ export function SalesCommandCenter() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* ============ SALES ACTUALS — Yesterday & Today ============ */}
+      {(salesActuals.today.length > 0 || salesActuals.yesterday.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Today */}
+          <Card className="border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/10">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <ShoppingCart className="w-4 h-4 text-green-600" />
+                  Today's Sales Won
+                  <Badge variant="secondary" className="text-xs">{salesActuals.today.length}</Badge>
+                </CardTitle>
+                <span className="text-lg font-bold text-green-700 dark:text-green-400">{formatCurrency(salesActuals.todayTotal)}</span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {salesActuals.todayBySp.map(sp => (
+                <div key={sp.name} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{sp.name.split(' ')[0]}</span>
+                  <span className="font-medium">{sp.count} deal{sp.count !== 1 ? 's' : ''} — {formatCurrency(sp.total)}</span>
+                </div>
+              ))}
+              {salesActuals.today.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">No sales closed today yet</p>
+              )}
+            </CardContent>
+          </Card>
+          {/* Yesterday */}
+          <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/10">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <ShoppingCart className="w-4 h-4 text-blue-600" />
+                  Yesterday's Sales Won
+                  <Badge variant="secondary" className="text-xs">{salesActuals.yesterday.length}</Badge>
+                </CardTitle>
+                <span className="text-lg font-bold text-blue-700 dark:text-blue-400">{formatCurrency(salesActuals.yesterdayTotal)}</span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {salesActuals.yesterdayBySp.map(sp => (
+                <div key={sp.name} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{sp.name.split(' ')[0]}</span>
+                  <span className="font-medium">{sp.count} deal{sp.count !== 1 ? 's' : ''} — {formatCurrency(sp.total)}</span>
+                </div>
+              ))}
+              {salesActuals.yesterday.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">No sales closed yesterday</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
 
