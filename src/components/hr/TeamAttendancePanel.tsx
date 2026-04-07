@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   format, isToday, differenceInMinutes, subDays, addDays, isFuture,
-  getDay,
+  getDay, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend as isWeekendFn, parseISO, isWithinInterval,
 } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useHolidays } from '@/hooks/useHolidays';
@@ -18,20 +18,21 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Download, Users, ChevronLeft, ChevronRight,
   UserCheck, UserX, CalendarCheck, Coffee, LogOut,
   Clock, AlertTriangle, RefreshCw, Activity, Eye,
   Timer, Zap, Pencil, CalendarDays, LayoutDashboard, List,
 } from 'lucide-react';
-import { Employee, AttendanceLog } from '@/hooks/useHR';
+import { Employee, AttendanceLog, LeaveRequest } from '@/hooks/useHR';
 import { cn } from '@/lib/utils';
 import { ProvisionalCorrectionModal } from '@/components/attendance/ProvisionalCorrectionModal';
 import { PendingCorrectionApprovals } from '@/components/attendance/PendingCorrectionApprovals';
 import { AttendanceAlertsPanel, AttendanceAlertIndicator } from '@/components/hr/AttendanceAlertsPanel';
 import { HRAttendanceEditModal } from '@/components/attendance/HRAttendanceEditModal';
 import { BulkAttendanceEntryDialog } from '@/components/attendance/BulkAttendanceEntryDialog';
-import { TeamAttendanceCalendarView } from '@/components/hr/TeamAttendanceCalendarView';
+import { CorrectionRequestModal } from '@/components/attendance/CorrectionRequestModal';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
