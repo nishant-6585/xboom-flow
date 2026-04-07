@@ -3139,6 +3139,60 @@ export type Database = {
         }
         Relationships: []
       }
+      employment_history: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          created_by_name: string | null
+          effective_from: string
+          effective_to: string | null
+          employee_id: string
+          employment_type: string
+          id: string
+          salary: number | null
+          stipend: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          created_by_name?: string | null
+          effective_from: string
+          effective_to?: string | null
+          employee_id: string
+          employment_type: string
+          id?: string
+          salary?: number | null
+          stipend?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          created_by_name?: string | null
+          effective_from?: string
+          effective_to?: string | null
+          employee_id?: string
+          employment_type?: string
+          id?: string
+          salary?: number | null
+          stipend?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employment_history_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_history_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enquiries: {
         Row: {
           ad_group_id: string | null
@@ -10481,6 +10535,7 @@ export type Database = {
         }[]
       }
       generate_payment_reminders: { Args: never; Returns: undefined }
+      generate_salary_sheets: { Args: never; Returns: undefined }
       get_direct_reports: { Args: { _manager_id: string }; Returns: string[] }
       get_employee_kpi: {
         Args: { p_employee_id: string; p_month?: string }
