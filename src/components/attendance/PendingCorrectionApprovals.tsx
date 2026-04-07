@@ -125,7 +125,11 @@ export function PendingCorrectionApprovals({ employeeLookup }: PendingCorrection
                       {empName}
                     </span>
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                      {req.attendance_log_id ? format(parseISO(req.created_at), 'dd MMM yyyy') : ''}
+                      {req.requested_check_in_time
+                        ? format(parseISO(req.requested_check_in_time), 'dd MMM yyyy')
+                        : req.requested_check_out_time
+                        ? format(parseISO(req.requested_check_out_time), 'dd MMM yyyy')
+                        : format(parseISO(req.created_at), 'dd MMM yyyy')}
                     </Badge>
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-0.5">
                       {corrType === 'checkin' && <><LogIn className="h-2.5 w-2.5" /> Check-In</>}
