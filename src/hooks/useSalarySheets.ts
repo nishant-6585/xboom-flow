@@ -249,7 +249,8 @@ export async function getEmployeeProfileData(
               segments.push({ salary: currentSal, from: segStart, to: segEnd });
             }
           }
-          currentSal = Number((entry as any).salary) || currentSal;
+          const newSal = Number((entry as any).salary);
+          currentSal = isNaN(newSal) ? currentSal : newSal;
           segStart = changeDate;
         }
 
