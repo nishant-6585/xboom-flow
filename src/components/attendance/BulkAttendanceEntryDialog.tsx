@@ -174,9 +174,9 @@ export function BulkAttendanceEntryDialog({
     <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); onOpenChange(v); }}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+           <DialogTitle className="flex items-center gap-2">
             <CalendarDays className="h-5 w-5 text-primary" />
-            Bulk Attendance Entry
+            Backfill Attendance
           </DialogTitle>
         </DialogHeader>
 

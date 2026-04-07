@@ -328,7 +328,7 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
             {alertCount > 0 && <Badge variant="destructive" className="text-[10px] px-1.5 py-0 ml-1">{alertCount}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="analytics" className="gap-1.5 text-xs"><BarChart3 className="h-3.5 w-3.5" />Analytics</TabsTrigger>
-          <TabsTrigger value="bulk_entry" className="gap-1.5 text-xs"><CalendarDays className="h-3.5 w-3.5" />Bulk Entry</TabsTrigger>
+          <TabsTrigger value="bulk_entry" className="gap-1.5 text-xs"><CalendarDays className="h-3.5 w-3.5" />Backfill Attendance</TabsTrigger>
         </TabsList>
 
         {/* Employees Tab - Calendar View */}
@@ -424,15 +424,15 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
           <AttendanceAnalytics employees={employees} />
         </TabsContent>
 
-        {/* Bulk Entry Tab */}
+        {/* Backfill Attendance Tab */}
         <TabsContent value="bulk_entry" className="space-y-4">
           <Card>
             <CardContent className="py-8 text-center space-y-4">
               <CalendarDays className="h-10 w-10 mx-auto text-muted-foreground" />
               <div>
-                <h3 className="text-sm font-semibold mb-1">Bulk Attendance Entry</h3>
+                <h3 className="text-sm font-semibold mb-1">Backfill Attendance</h3>
                 <p className="text-xs text-muted-foreground mb-4">Mark attendance for a single employee across a date range.</p>
-                <Button onClick={() => setBulkEntryOpen(true)} className="gap-2"><CalendarDays className="h-4 w-4" /> Open Bulk Entry</Button>
+                <Button onClick={() => setBulkEntryOpen(true)} className="gap-2"><CalendarDays className="h-4 w-4" /> Open Backfill</Button>
               </div>
             </CardContent>
           </Card>
