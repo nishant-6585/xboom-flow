@@ -225,8 +225,8 @@ export async function getEmployeeProfileData(
     const duringMonth = allHistory.filter((h: any) => h.effective_from >= monthStartStr && h.effective_from <= monthEndStr);
 
     const startingSalary = beforeMonth.length > 0
-      ? Number((beforeMonth[beforeMonth.length - 1] as any).salary) || baseSalary
-      : baseSalary;
+      ? (Number((beforeMonth[beforeMonth.length - 1] as any).salary) ?? baseSalary)
+      : (duringMonth.length > 0 ? 0 : baseSalary);
 
     if (duringMonth.length === 0) {
       salary = startingSalary;
