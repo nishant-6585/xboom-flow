@@ -520,6 +520,37 @@ export function SalesCommandCenter() {
     };
   }, [orders, todayStr, yesterdayStr]);
 
+  // ============ Orders Lost (Yesterday & Today) ============
+  const lostActuals = useMemo(() => {
+    const todayLost = pipelineOrders.filter(p => {
+      const d = (p.updated_at || '').slice(0, 10);
+      return p.status === 'lost' && d === todayStr;
+    });
+    const yesterdayLost = pipelineOrders.filter(p => {
+      const d = (p.updated_at || '').slice(0, 10);
+      return p.status === 'lost' && d === yesterdayStr;
+    });
+    const bySp = (list: typeof pipelineOrders) => {
+      const m = new Map<string, { name: string; count: number; total: number }>();
+      list.forEach(p => {
+        const k = p.sales_person_id || 'unassigned';
+        if (!m.has(k)) m.set(k, { name: p.sales_person_name || 'Unassigned', count: 0, total: 0 });
+        const e = m.get(k)!;
+        e.count++;
+        e.total += p.expected_price || 0;
+      });
+      return Array.from(m.values()).sort((a, b) => b.total - a.total);
+    };
+    return {
+      today: todayLost,
+      yesterday: yesterdayLost,
+      todayTotal: todayLost.reduce((s, p) => s + (p.expected_price || 0), 0),
+      yesterdayTotal: yesterdayLost.reduce((s, p) => s + (p.expected_price || 0), 0),
+      todayBySp: bySp(todayLost),
+      yesterdayBySp: bySp(yesterdayLost),
+    };
+  }, [pipelineOrders, todayStr, yesterdayStr]);
+
   // Prospect by source
   const prospectsBySource = useMemo(() => {
     const srcMap = new Map<string, number>();
