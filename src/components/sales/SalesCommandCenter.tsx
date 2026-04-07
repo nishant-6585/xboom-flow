@@ -901,14 +901,28 @@ export function SalesCommandCenter() {
 
       {/* ============ TOP KPI CARDS ============ */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-        <KPICard label="Total Leads" value={totalLeadsAll} icon={Users} gradient="from-indigo-500 to-blue-600" />
-        <KPICard label="Prospects" value={totalProspects} icon={Target} gradient="from-amber-500 to-orange-600" />
-        <KPICard label="A-Category" value={aCategory} icon={Award} gradient="from-rose-500 to-pink-600" />
-        <KPICard label="Hot Leads" value={hotLeads} icon={Zap} gradient="from-red-500 to-orange-600" />
-        <KPICard label="Active Pipeline" value={activePipeline.length} icon={TrendingUp} gradient="from-blue-500 to-cyan-600" subText={formatCurrency(pipelineValue)} />
-        <KPICard label="Orders Won" value={ordersWon} icon={ShoppingCart} gradient="from-green-500 to-emerald-600" subText={formatCurrency(ordersValue)} />
-        <KPICard label="Avg Deal" value={formatCurrency(avgDealSize)} icon={DollarSign} gradient="from-purple-500 to-violet-600" isText />
-        <KPICard label="Win Rate" value={`${winRate}%`} icon={Percent} gradient="from-teal-500 to-emerald-600" isText />
+        <KPICard label="Total Leads" value={totalLeadsAll} icon={Users} gradient="from-indigo-500 to-blue-600" onClick={() => handleFunnelClick('Total Leads')} />
+        <KPICard label="Prospects" value={totalProspects} icon={Target} gradient="from-amber-500 to-orange-600" onClick={() => handleFunnelClick('Prospects')} />
+        <KPICard label="A-Category" value={aCategory} icon={Award} gradient="from-rose-500 to-pink-600" onClick={() => {
+          const items: DetailItem[] = filtered.prospects.filter((p: any) => p.is_a_category).slice(0, 50).map((p: any) => ({
+            id: p.id, type: 'prospect' as const, customer_name: p.customer_name,
+            customer_company: p.company || '', product_name: p.product_name || '',
+            value: 0, date: p.created_at, status: 'A-Category', tab: 'prospects',
+          }));
+          openDrillDown(`A-Category Prospects (${items.length})`, items);
+        }} />
+        <KPICard label="Hot Leads" value={hotLeads} icon={Zap} gradient="from-red-500 to-orange-600" onClick={() => handleTemperatureClick('Hot')} />
+        <KPICard label="Active Pipeline" value={activePipeline.length} icon={TrendingUp} gradient="from-blue-500 to-cyan-600" subText={formatCurrency(pipelineValue)} onClick={() => handleFunnelClick('Pipeline')} />
+        <KPICard label="Orders Won" value={ordersWon} icon={ShoppingCart} gradient="from-green-500 to-emerald-600" subText={formatCurrency(ordersValue)} onClick={() => handleFunnelClick('Orders Won')} />
+        <KPICard label="Avg Deal" value={formatCurrency(avgDealSize)} icon={DollarSign} gradient="from-purple-500 to-violet-600" isText onClick={() => handleFunnelClick('Orders Won')} />
+        <KPICard label="Win Rate" value={`${winRate}%`} icon={Percent} gradient="from-teal-500 to-emerald-600" isText onClick={() => {
+          const wonItems: DetailItem[] = filtered.enquiries.filter((e: any) => e.status === 'order_won').slice(0, 50).map((e: any) => ({
+            id: e.id, type: 'enquiry' as const, customer_name: e.customer_name,
+            customer_company: e.customer_company, product_name: e.product_name,
+            value: e.quantity || 0, date: e.created_at, status: e.status, tab: 'enquiries',
+          }));
+          openDrillDown(`Won Enquiries (${wonItems.length}) — Win Rate: ${winRate}%`, wonItems);
+        }} />
       </div>
 
       {/* ============ LEAD FUNNEL TRACKER ============ */}
@@ -1266,12 +1280,17 @@ export function SalesCommandCenter() {
               Enquiries Received vs Achieved
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <MetricRow label="Received" value={filtered.enquiries.length} />
-            <MetricRow label="Processed" value={enquiriesProcessed} color="text-blue-500" />
-            <MetricRow label="To Pipeline" value={filtered.enquiries.filter((e: any) => e.status === 'moved_to_pipeline').length} color="text-purple-500" />
-            <MetricRow label="Won" value={enquiriesWon} color="text-green-500" />
-            <MetricRow label="Lost" value={filtered.enquiries.filter((e: any) => e.status === 'order_lost').length} color="text-destructive" />
+           <CardContent className="space-y-3">
+            <MetricRow label="Received" value={filtered.enquiries.length} onClick={() => handleFunnelClick('Total Leads')} />
+            <MetricRow label="Processed" value={enquiriesProcessed} color="text-blue-500" onClick={() => {
+              const items: DetailItem[] = filtered.enquiries.filter((e: any) => e.status !== 'pending' && e.status !== 'on_hold').slice(0, 50).map((e: any) => ({
+                id: e.id, type: 'enquiry' as const, customer_name: e.customer_name, customer_company: e.customer_company, product_name: e.product_name, value: e.quantity || 0, date: e.created_at, status: e.status, tab: 'enquiries',
+              }));
+              openDrillDown(`Processed Enquiries (${items.length})`, items);
+            }} />
+            <MetricRow label="To Pipeline" value={filtered.enquiries.filter((e: any) => e.status === 'moved_to_pipeline').length} color="text-purple-500" onClick={() => handleEnquiryStatusClick('Pipeline')} />
+            <MetricRow label="Won" value={enquiriesWon} color="text-green-500" onClick={() => handleEnquiryStatusClick('Won')} />
+            <MetricRow label="Lost" value={filtered.enquiries.filter((e: any) => e.status === 'order_lost').length} color="text-destructive" onClick={() => handleEnquiryStatusClick('Lost')} />
             <div className="pt-2 space-y-1.5">
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>Response Rate</span>
@@ -1331,12 +1350,30 @@ export function SalesCommandCenter() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
-              <MiniStat label="Calls Total" value={callStats.total} icon={Phone} />
-              <MiniStat label="Calls Answered" value={callStats.answered} icon={Phone} positive />
-              <MiniStat label="Calls Missed" value={callStats.missed} icon={Phone} negative />
-              <MiniStat label="Pipeline Won" value={pipelineWon.length} icon={ShoppingCart} positive />
-              <MiniStat label="Won Value" value={formatCurrency(pipelineWonValue)} icon={DollarSign} positive isText />
-              <MiniStat label="Pipeline Lost" value={pipelineLost.length} icon={TrendingUp} negative />
+              <MiniStat label="Calls Total" value={callStats.total} icon={Phone} onClick={() => handleLeadSourceClick('MyOperator')} />
+              <MiniStat label="Calls Answered" value={callStats.answered} icon={Phone} positive onClick={() => {
+                const items: DetailItem[] = filtered.calls.filter((c: any) => {
+                  const payload = c.raw_payload;
+                  if (!payload?._ld || !Array.isArray(payload._ld)) return c.call_status === 'answered';
+                  return (payload._ld as any[]).some((l: any) => l._ac === 'received');
+                }).slice(0, 50).map((c: any) => ({
+                  id: c.id, type: 'lead' as const, customer_name: c.customer_name || c.caller_number, customer_company: c.company || '', product_name: c.product_name || '', value: 0, date: c.created_at, status: 'answered', tab: 'leads',
+                }));
+                openDrillDown(`Answered Calls (${items.length})`, items);
+              }} />
+              <MiniStat label="Calls Missed" value={callStats.missed} icon={Phone} negative onClick={() => {
+                const items: DetailItem[] = filtered.calls.filter((c: any) => {
+                  const payload = c.raw_payload;
+                  if (!payload?._ld || !Array.isArray(payload._ld)) return c.call_status !== 'answered';
+                  return !(payload._ld as any[]).some((l: any) => l._ac === 'received');
+                }).slice(0, 50).map((c: any) => ({
+                  id: c.id, type: 'lead' as const, customer_name: c.customer_name || c.caller_number, customer_company: c.company || '', product_name: c.product_name || '', value: 0, date: c.created_at, status: 'missed', tab: 'leads',
+                }));
+                openDrillDown(`Missed Calls (${items.length})`, items);
+              }} />
+              <MiniStat label="Pipeline Won" value={pipelineWon.length} icon={ShoppingCart} positive onClick={() => handlePipelineStatusClick('Won')} />
+              <MiniStat label="Won Value" value={formatCurrency(pipelineWonValue)} icon={DollarSign} positive isText onClick={() => handlePipelineStatusClick('Won')} />
+              <MiniStat label="Pipeline Lost" value={pipelineLost.length} icon={TrendingUp} negative onClick={() => handlePipelineStatusClick('Lost')} />
             </div>
             {prospectsBySource.length > 0 && (
               <div className="pt-2 border-t border-border/30">
@@ -1935,11 +1972,11 @@ export function SalesCommandCenter() {
 
 // ============ Sub-components ============
 
-function KPICard({ label, value, icon: Icon, gradient, subText, isText }: {
-  label: string; value: number | string; icon: any; gradient: string; subText?: string; isText?: boolean;
+function KPICard({ label, value, icon: Icon, gradient, subText, isText, onClick }: {
+  label: string; value: number | string; icon: any; gradient: string; subText?: string; isText?: boolean; onClick?: () => void;
 }) {
   return (
-    <Card className="overflow-hidden">
+    <Card className={`overflow-hidden ${onClick ? 'cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all' : ''}`} onClick={onClick}>
       <CardContent className={`p-3 bg-gradient-to-br ${gradient} text-white`}>
         <div className="flex items-center gap-1.5 mb-1">
           <Icon className="w-3.5 h-3.5 opacity-80" />
@@ -1952,20 +1989,20 @@ function KPICard({ label, value, icon: Icon, gradient, subText, isText }: {
   );
 }
 
-function MetricRow({ label, value, color }: { label: string; value: number; color?: string }) {
+function MetricRow({ label, value, color, onClick }: { label: string; value: number; color?: string; onClick?: () => void }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className={`flex items-center justify-between ${onClick ? 'cursor-pointer hover:bg-muted/50 p-1.5 rounded-lg -m-1.5 transition-colors' : ''}`} onClick={onClick}>
       <span className="text-sm text-muted-foreground">{label}</span>
       <span className={`text-lg font-bold ${color || ''}`}>{value}</span>
     </div>
   );
 }
 
-function MiniStat({ label, value, icon: Icon, positive, negative, isText }: {
-  label: string; value: number | string; icon: any; positive?: boolean; negative?: boolean; isText?: boolean;
+function MiniStat({ label, value, icon: Icon, positive, negative, isText, onClick }: {
+  label: string; value: number | string; icon: any; positive?: boolean; negative?: boolean; isText?: boolean; onClick?: () => void;
 }) {
   return (
-    <div className="p-2 rounded-lg border border-border/40 text-center">
+    <div className={`p-2 rounded-lg border border-border/40 text-center ${onClick ? 'cursor-pointer hover:bg-muted/50 hover:border-primary/30 transition-colors' : ''}`} onClick={onClick}>
       <Icon className={`w-3.5 h-3.5 mx-auto mb-0.5 ${positive ? 'text-green-500' : negative ? 'text-destructive' : 'text-muted-foreground'}`} />
       <p className={`text-sm font-bold ${positive ? 'text-green-500' : negative ? 'text-destructive' : ''}`}>
         {isText ? value : typeof value === 'number' ? value : value}
