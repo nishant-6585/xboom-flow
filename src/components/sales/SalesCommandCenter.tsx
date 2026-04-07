@@ -964,7 +964,20 @@ export function SalesCommandCenter() {
       {(salesActuals.today.length > 0 || salesActuals.yesterday.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Today */}
-          <Card className="border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/10">
+          <Card 
+            className="border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/10 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => openDrillDown("Today's Sales Won", salesActuals.today.map(o => ({
+              id: o.id,
+              type: 'pipeline' as const,
+              customer_name: (o as any).customer_name || (o as any).party_name || 'N/A',
+              customer_company: (o as any).customer_company || (o as any).company || '',
+              product_name: (o as any).product_name || (o as any).item_name || 'N/A',
+              value: o.total_sales_amount || 0,
+              date: o.order_date || o.created_at || '',
+              status: 'won',
+              tab: 'orders_won',
+            })))}
+          >
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -988,7 +1001,20 @@ export function SalesCommandCenter() {
             </CardContent>
           </Card>
           {/* Yesterday */}
-          <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/10">
+          <Card 
+            className="border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/10 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => openDrillDown("Yesterday's Sales Won", salesActuals.yesterday.map(o => ({
+              id: o.id,
+              type: 'pipeline' as const,
+              customer_name: (o as any).customer_name || (o as any).party_name || 'N/A',
+              customer_company: (o as any).customer_company || (o as any).company || '',
+              product_name: (o as any).product_name || (o as any).item_name || 'N/A',
+              value: o.total_sales_amount || 0,
+              date: o.order_date || o.created_at || '',
+              status: 'won',
+              tab: 'orders_won',
+            })))}
+          >
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -1018,7 +1044,21 @@ export function SalesCommandCenter() {
       {(lostActuals.today.length > 0 || lostActuals.yesterday.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Today Lost */}
-          <Card className="border-red-200 dark:border-red-800 bg-red-50/30 dark:bg-red-950/10">
+          <Card 
+            className="border-red-200 dark:border-red-800 bg-red-50/30 dark:bg-red-950/10 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => openDrillDown("Today's Orders Lost", lostActuals.today.map(p => ({
+              id: p.id,
+              type: 'pipeline' as const,
+              customer_name: p.customer_name,
+              customer_company: p.customer_company,
+              product_name: p.product_name,
+              value: p.expected_price || 0,
+              date: p.updated_at || p.created_at,
+              status: 'lost',
+              temperature: p.lead_temperature,
+              tab: 'orders_lost',
+            })))}
+          >
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -1042,7 +1082,21 @@ export function SalesCommandCenter() {
             </CardContent>
           </Card>
           {/* Yesterday Lost */}
-          <Card className="border-orange-200 dark:border-orange-800 bg-orange-50/30 dark:bg-orange-950/10">
+          <Card 
+            className="border-orange-200 dark:border-orange-800 bg-orange-50/30 dark:bg-orange-950/10 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => openDrillDown("Yesterday's Orders Lost", lostActuals.yesterday.map(p => ({
+              id: p.id,
+              type: 'pipeline' as const,
+              customer_name: p.customer_name,
+              customer_company: p.customer_company,
+              product_name: p.product_name,
+              value: p.expected_price || 0,
+              date: p.updated_at || p.created_at,
+              status: 'lost',
+              temperature: p.lead_temperature,
+              tab: 'orders_lost',
+            })))}
+          >
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
