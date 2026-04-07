@@ -259,12 +259,25 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
     noCheckoutYesterday: employees.filter(emp => { const yl = yesterdayLogs.find(l => l.employee_id === emp.id); return yl?.check_in_time && !yl?.check_out_time; }).length,
   };
 
-  // Alert count for indicator
+  // Pending correction requests count
+  const [pendingCorrectionCount, setPendingCorrectionCount] = useState(0);
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      const { count } = await supabase
+        .from('attendance_correction_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      setPendingCorrectionCount(count || 0);
+    };
+    fetchPendingCount();
+  }, [lastRefresh]);
+
+  // Alert count for indicator — use yesterdayLogs when viewing today (since today's logs are excluded from alerts)
   const alertCount = useMemo(() => {
     let count = 0;
     const today = format(new Date(), 'yyyy-MM-dd');
-    for (const log of todayLogs) {
-      // All alerts only for past days
+    const logsToCheck = isViewingToday ? yesterdayLogs : todayLogs;
+    for (const log of logsToCheck) {
       if (log.date >= today) continue;
       if (log.working_hours && log.working_hours > 12) count++;
       if (log.check_in_time && !log.check_out_time && !log.is_provisional_checkout) count++;
@@ -277,7 +290,9 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
       if (log.is_provisional_checkout) count++;
     }
     return count;
-  }, [todayLogs]);
+  }, [todayLogs, yesterdayLogs, isViewingToday]);
+
+  const totalReportsAlertCount = alertCount + pendingCorrectionCount;
 
   // Health score
   const healthScore = useMemo(() => {
