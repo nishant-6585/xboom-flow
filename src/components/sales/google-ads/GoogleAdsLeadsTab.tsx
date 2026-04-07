@@ -4,8 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInHours } from "date-fns";
 import { ArrowRight, CheckCircle2, Flame, Phone, MessageSquare, MapPin, Briefcase, Mail, User, Zap, AlertTriangle, TrendingUp, ChevronRight } from "lucide-react";
@@ -15,6 +13,7 @@ import { AttentionButton } from "../AttentionButton";
 import { EnquiryConvertButton } from "../EnquiryConvertButton";
 import { useProspects } from "@/hooks/useProspects";
 import { useAttentionItems } from "@/hooks/useAttentionItems";
+import { LeadContactDrawer, LeadContactData } from "../LeadContactDrawer";
 
 interface GoogleAdsLead {
   id: string;
@@ -386,12 +385,40 @@ export function GoogleAdsLeadsTab() {
         </CardContent>
       </Card>
 
-      {/* Lead Detail Drawer */}
-      <Sheet open={!!selectedLead} onOpenChange={(o) => !o && setSelectedLead(null)}>
-        <SheetContent className="w-[400px] sm:w-[480px] overflow-y-auto">
-          {selectedLead && <LeadDetailPanel lead={selectedLead} onConvert={handleConvertToOrder} />}
-        </SheetContent>
-      </Sheet>
+      {/* Lead Contact Drawer */}
+      <LeadContactDrawer
+        open={!!selectedLead}
+        onOpenChange={(open) => { if (!open) setSelectedLead(null); }}
+        lead={selectedLead ? (() => {
+          const subFields = extractSubmissionFields(selectedLead.raw_google_payload);
+          const parsedNotes = parseNotesField(selectedLead.notes);
+          const phone = subFields["PHONE_NUMBER"] || subFields["PHONE"] || selectedLead.phone || parsedNotes["Phone"] || null;
+          const email = subFields["EMAIL"] || subFields["EMAIL_ADDRESS"] || selectedLead.email || parsedNotes["Email"] || null;
+          const city = subFields["CITY"] || selectedLead.city || parsedNotes["City"] || selectedLead.customer_state || null;
+          return {
+            id: selectedLead.id,
+            source_type: 'google_ads' as const,
+            customer_name: selectedLead.customer_name !== "Unknown" ? selectedLead.customer_name : "Not provided",
+            phone,
+            email,
+            company: selectedLead.customer_company !== "Unknown" ? selectedLead.customer_company : null,
+            city,
+            product_name: selectedLead.product_name,
+            notes: selectedLead.notes,
+            status: selectedLead.status,
+            assigned_to_name: selectedLead.sales_person_name,
+            created_at: selectedLead.created_at,
+            extras: {
+              campaign: selectedLead.campaign_name,
+              product_category: selectedLead.product_category,
+              urgency: selectedLead.urgency,
+              temperature: selectedLead.lead_temperature,
+              is_converted: selectedLead.is_converted ? 'Yes' : 'No',
+              conversion_value: selectedLead.conversion_value || null,
+            },
+          } satisfies LeadContactData;
+        })() : null}
+      />
     </>
   );
 }
