@@ -31,6 +31,7 @@ import { PendingCorrectionApprovals } from '@/components/attendance/PendingCorre
 import { AttendanceAlertsPanel, AttendanceAlertIndicator } from '@/components/hr/AttendanceAlertsPanel';
 import { HRAttendanceEditModal } from '@/components/attendance/HRAttendanceEditModal';
 import { BulkAttendanceEntryDialog } from '@/components/attendance/BulkAttendanceEntryDialog';
+import { TeamAttendanceCalendarView } from '@/components/hr/TeamAttendanceCalendarView';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -393,6 +394,15 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
                   </CardContent>
                 </Card>
               )}
+
+              {/* Team Calendar View */}
+              <TeamAttendanceCalendarView
+                totalEmployees={employees.length}
+                onDateSelect={(date) => {
+                  setSelectedDate(date);
+                  setActiveSubTab('employees');
+                }}
+              />
 
               {/* Alert Indicator */}
               <AttendanceAlertIndicator alertCount={alertCount} onNavigate={() => setActiveSubTab('alerts')} />
