@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,12 +12,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFollowups, Followup } from '@/hooks/useFollowups';
 import { useAuth } from '@/hooks/useAuth';
 import { format, isToday, isBefore, startOfDay, endOfDay, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay, eachDayOfInterval, getDay } from 'date-fns';
-import { Calendar, List, Search, CheckCircle2, Clock, AlertTriangle, Phone, Mail, Package, User, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { Calendar, List, Search, CheckCircle2, Clock, AlertTriangle, Phone, Mail, Package, User, ChevronLeft, ChevronRight, Filter, Plus, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export function FollowupsPanel() {
-  const { followups, loading, completeFollowup, rescheduleFollowup, cancelFollowup } = useFollowups();
-  const { user, role } = useAuth();
+  const { followups, loading, completeFollowup, rescheduleFollowup, cancelFollowup, createFollowup } = useFollowups();
+  const { user, role, profile } = useAuth();
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('active');
@@ -25,6 +27,20 @@ export function FollowupsPanel() {
   const [completingFollowup, setCompletingFollowup] = useState<Followup | null>(null);
   const [remark, setRemark] = useState('');
   const [completing, setCompleting] = useState(false);
+
+  // New follow-up dialog state
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [prefillFrom, setPrefillFrom] = useState<Followup | null>(null);
+  const [newFollowup, setNewFollowup] = useState({
+    customer_name: '',
+    customer_company: '',
+    product_name: '',
+    phone: '',
+    email: '',
+    source_type: 'prospect' as 'prospect' | 'pipeline' | 'enquiry' | 'lead',
+    followup_at: '',
+  });
 
   const isManager = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
 
@@ -88,6 +104,60 @@ export function FollowupsPanel() {
     setCompletingFollowup(null);
   };
 
+  // Open create dialog for manual new follow-up
+  const openCreateDialog = (fromFollowup?: Followup) => {
+    if (fromFollowup) {
+      setPrefillFrom(fromFollowup);
+      setNewFollowup({
+        customer_name: fromFollowup.customer_name,
+        customer_company: fromFollowup.customer_company || '',
+        product_name: fromFollowup.product_name || '',
+        phone: fromFollowup.phone || '',
+        email: fromFollowup.email || '',
+        source_type: fromFollowup.source_type,
+        followup_at: '',
+      });
+    } else {
+      setPrefillFrom(null);
+      setNewFollowup({
+        customer_name: '',
+        customer_company: '',
+        product_name: '',
+        phone: '',
+        email: '',
+        source_type: 'prospect',
+        followup_at: '',
+      });
+    }
+    setCreateDialogOpen(true);
+  };
+
+  const submitCreate = async () => {
+    if (!newFollowup.customer_name.trim() || !newFollowup.followup_at) {
+      toast.error('Customer name and follow-up date are required');
+      return;
+    }
+    setCreating(true);
+    try {
+      await createFollowup({
+        source_type: newFollowup.source_type,
+        source_id: prefillFrom?.source_id || crypto.randomUUID(),
+        customer_name: newFollowup.customer_name.trim(),
+        customer_company: newFollowup.customer_company || null,
+        product_name: newFollowup.product_name || null,
+        phone: newFollowup.phone || null,
+        email: newFollowup.email || null,
+        is_a_category: prefillFrom?.is_a_category || false,
+        followup_at: newFollowup.followup_at,
+      });
+      setCreateDialogOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create follow-up');
+    } finally {
+      setCreating(false);
+    }
+  };
+
   // Calendar view
   const calendarStart = startOfWeek(startOfMonth(calendarMonth), { weekStartsOn: 1 });
   const calendarEnd = endOfWeek(endOfMonth(calendarMonth), { weekStartsOn: 1 });
@@ -136,6 +206,9 @@ export function FollowupsPanel() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Search contacts..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 rounded-xl" />
         </div>
+        <Button size="sm" className="h-9 rounded-xl gap-1.5" onClick={() => openCreateDialog()}>
+          <Plus className="w-4 h-4" /> New Follow-up
+        </Button>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[140px] h-9 rounded-xl">
             <Filter className="w-3.5 h-3.5 mr-1" />
@@ -209,15 +282,24 @@ export function FollowupsPanel() {
                     </TableCell>
                     {isManager && <TableCell className="text-xs">{f.created_by_name}</TableCell>}
                     <TableCell className="text-right">
-                      {f.status === 'pending' && (
-                        <div className="flex items-center gap-1 justify-end">
+                      <div className="flex items-center gap-1 justify-end">
+                        {f.status === 'pending' && (
                           <Button size="sm" variant="outline" className="h-7 text-xs rounded-lg border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10" onClick={() => handleComplete(f)}>
                             <CheckCircle2 className="w-3 h-3 mr-1" /> Done
                           </Button>
-                        </div>
-                      )}
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs rounded-lg border-primary/30 text-primary hover:bg-primary/10"
+                          onClick={() => openCreateDialog(f)}
+                          title="Schedule another follow-up for this customer"
+                        >
+                          <RefreshCw className="w-3 h-3 mr-1" /> Re-Follow
+                        </Button>
+                      </div>
                       {f.status === 'completed' && f.remark && (
-                        <span className="text-xs text-muted-foreground italic">"{f.remark}"</span>
+                        <span className="text-xs text-muted-foreground italic block mt-1">"{f.remark}"</span>
                       )}
                     </TableCell>
                   </TableRow>
@@ -326,6 +408,117 @@ export function FollowupsPanel() {
             <Button variant="ghost" onClick={() => setCompleteDialogOpen(false)}>Cancel</Button>
             <Button onClick={submitComplete} disabled={completing || !remark.trim()} className="bg-emerald-600 hover:bg-emerald-700 text-white">
               {completing ? 'Saving...' : '✅ Mark Complete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create / Re-Follow-up Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {prefillFrom ? (
+                <>
+                  <RefreshCw className="w-5 h-5 text-primary" />
+                  Schedule Re-Follow-up
+                </>
+              ) : (
+                <>
+                  <Plus className="w-5 h-5 text-primary" />
+                  New Follow-up
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {prefillFrom
+                ? `Create another follow-up for ${prefillFrom.customer_name}`
+                : 'Manually schedule a new follow-up for a customer'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Customer Name *</Label>
+                <Input
+                  value={newFollowup.customer_name}
+                  onChange={e => setNewFollowup(f => ({ ...f, customer_name: e.target.value }))}
+                  placeholder="Customer name"
+                  className="mt-1 rounded-xl"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Company</Label>
+                <Input
+                  value={newFollowup.customer_company}
+                  onChange={e => setNewFollowup(f => ({ ...f, customer_company: e.target.value }))}
+                  placeholder="Company name"
+                  className="mt-1 rounded-xl"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Phone</Label>
+                <Input
+                  value={newFollowup.phone}
+                  onChange={e => setNewFollowup(f => ({ ...f, phone: e.target.value }))}
+                  placeholder="Phone number"
+                  className="mt-1 rounded-xl"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Email</Label>
+                <Input
+                  value={newFollowup.email}
+                  onChange={e => setNewFollowup(f => ({ ...f, email: e.target.value }))}
+                  placeholder="Email address"
+                  className="mt-1 rounded-xl"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Product</Label>
+                <Input
+                  value={newFollowup.product_name}
+                  onChange={e => setNewFollowup(f => ({ ...f, product_name: e.target.value }))}
+                  placeholder="Product name"
+                  className="mt-1 rounded-xl"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Source Type</Label>
+                <Select value={newFollowup.source_type} onValueChange={(v: any) => setNewFollowup(f => ({ ...f, source_type: v }))}>
+                  <SelectTrigger className="mt-1 rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="prospect">Prospect</SelectItem>
+                    <SelectItem value="pipeline">Pipeline</SelectItem>
+                    <SelectItem value="enquiry">Enquiry</SelectItem>
+                    <SelectItem value="lead">Lead</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Follow-up Date & Time *</Label>
+              <Input
+                type="datetime-local"
+                value={newFollowup.followup_at}
+                onChange={e => setNewFollowup(f => ({ ...f, followup_at: e.target.value }))}
+                className="mt-1 rounded-xl"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={submitCreate}
+              disabled={creating || !newFollowup.customer_name.trim() || !newFollowup.followup_at}
+            >
+              {creating ? 'Scheduling...' : prefillFrom ? '🔄 Schedule Re-Follow-up' : '📅 Schedule Follow-up'}
             </Button>
           </DialogFooter>
         </DialogContent>
