@@ -1,3 +1,4 @@
+import { LeadFunnelTracker } from './LeadFunnelTracker';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useEnquiries } from '@/hooks/useEnquiries';
@@ -66,6 +67,9 @@ export function SalesFunnelDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Lead Funnel Tracker */}
+      <LeadFunnelTracker />
+
       {/* Flow Header */}
       <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20">
         <CardContent className="pt-6">
