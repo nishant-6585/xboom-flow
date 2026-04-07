@@ -398,9 +398,6 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
 
               {/* Alert Indicator */}
               <AttendanceAlertIndicator alertCount={alertCount} onNavigate={() => setActiveSubTab('alerts')} />
-
-              {/* Pending Corrections */}
-              <PendingCorrectionApprovals />
             </TabsContent>
 
             {/* Employees Tab */}
@@ -408,14 +405,43 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
               <LiveStatusTable liveRows={liveRows} loading={loadingToday} onRefresh={fetchToday} isLive={isViewingToday} selectedDate={selectedDate} isHoliday={selectedDateIsHoliday} approvedLeaves={approvedLeaves} />
             </TabsContent>
 
-            {/* Alerts Tab */}
-            <TabsContent value="alerts">
+            {/* Alerts Tab (includes Pending Corrections) */}
+            <TabsContent value="alerts" className="space-y-4">
+              <PendingCorrectionApprovals />
               <AttendanceAlertsPanel
                 logs={todayLogs}
                 employees={employees}
                 selectedDate={selectedDate}
                 onCorrectCheckout={(log) => setCorrectionLog(log)}
               />
+            </TabsContent>
+
+            {/* Export Tab */}
+            <TabsContent value="export" className="space-y-4">
+              <Card>
+                <CardContent className="py-8 text-center space-y-4">
+                  <Download className="h-10 w-10 mx-auto text-muted-foreground" />
+                  <div>
+                    <h3 className="text-sm font-semibold mb-1">Export Attendance Data</h3>
+                    <p className="text-xs text-muted-foreground mb-4">Download the attendance data for {format(selectedDate, 'dd MMM yyyy')} as a CSV file.</p>
+                    <Button onClick={exportCSV} className="gap-2"><Download className="h-4 w-4" /> Download CSV</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Bulk Entry Tab */}
+            <TabsContent value="bulk_entry" className="space-y-4">
+              <Card>
+                <CardContent className="py-8 text-center space-y-4">
+                  <CalendarDays className="h-10 w-10 mx-auto text-muted-foreground" />
+                  <div>
+                    <h3 className="text-sm font-semibold mb-1">Bulk Attendance Entry</h3>
+                    <p className="text-xs text-muted-foreground mb-4">Mark attendance for multiple employees across a date range.</p>
+                    <Button onClick={() => setBulkEntryOpen(true)} className="gap-2"><CalendarDays className="h-4 w-4" /> Open Bulk Entry</Button>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </>
