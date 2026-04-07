@@ -548,6 +548,8 @@ function EmployeeCalendarView({
       status = 'Holiday'; color = 'bg-blue-100 dark:bg-blue-950/30'; textColor = 'text-blue-600 dark:text-blue-400';
     } else if (isWeekendDay) {
       textColor = 'text-muted-foreground/60';
+    } else if (!dayIsFuture) {
+      status = 'Absent'; color = 'bg-red-50 dark:bg-red-950/20'; textColor = 'text-red-500 dark:text-red-400';
     }
 
     return { log, isWeekendDay, holiday, approvedLeave, dayIsFuture, status, color, textColor, dateStr };
