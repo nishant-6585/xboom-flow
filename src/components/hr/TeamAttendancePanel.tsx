@@ -23,7 +23,7 @@ import {
   Download, Users, ChevronLeft, ChevronRight,
   UserCheck, UserX, CalendarCheck, Coffee, LogOut,
   Clock, AlertTriangle, RefreshCw, Activity, Eye,
-  Timer, Zap, Pencil, CalendarDays, LayoutDashboard, List,
+  Timer, Zap, Pencil, CalendarDays, LayoutDashboard, List, BarChart3,
 } from 'lucide-react';
 import { Employee, AttendanceLog, LeaveRequest } from '@/hooks/useHR';
 import { cn } from '@/lib/utils';
@@ -33,6 +33,7 @@ import { AttendanceAlertsPanel, AttendanceAlertIndicator } from '@/components/hr
 import { HRAttendanceEditModal } from '@/components/attendance/HRAttendanceEditModal';
 import { BulkAttendanceEntryDialog } from '@/components/attendance/BulkAttendanceEntryDialog';
 import { CorrectionRequestModal } from '@/components/attendance/CorrectionRequestModal';
+import { AttendanceAnalytics } from '@/components/hr/AttendanceAnalytics';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -326,6 +327,7 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
             Reports & Alerts
             {alertCount > 0 && <Badge variant="destructive" className="text-[10px] px-1.5 py-0 ml-1">{alertCount}</Badge>}
           </TabsTrigger>
+          <TabsTrigger value="analytics" className="gap-1.5 text-xs"><BarChart3 className="h-3.5 w-3.5" />Analytics</TabsTrigger>
           <TabsTrigger value="bulk_entry" className="gap-1.5 text-xs"><CalendarDays className="h-3.5 w-3.5" />Bulk Entry</TabsTrigger>
         </TabsList>
 
@@ -415,6 +417,11 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
               />
             </>
           )}
+        </TabsContent>
+
+        {/* Analytics Tab */}
+        <TabsContent value="analytics" className="space-y-4">
+          <AttendanceAnalytics employees={employees} />
         </TabsContent>
 
         {/* Bulk Entry Tab */}
