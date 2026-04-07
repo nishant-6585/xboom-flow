@@ -488,6 +488,38 @@ export function SalesCommandCenter() {
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
   }, [todaysClosures]);
 
+  // ============ Sales Actuals (Yesterday & Today Won) ============
+  const yesterdayStr = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd');
+  const salesActuals = useMemo(() => {
+    const todayWon = orders.filter(o => {
+      const d = (o.order_date || o.created_at || '').slice(0, 10);
+      return d === todayStr;
+    });
+    const yesterdayWon = orders.filter(o => {
+      const d = (o.order_date || o.created_at || '').slice(0, 10);
+      return d === yesterdayStr;
+    });
+    const bySp = (list: typeof orders) => {
+      const m = new Map<string, { name: string; count: number; total: number }>();
+      list.forEach(o => {
+        const k = o.sales_person_id || 'unassigned';
+        if (!m.has(k)) m.set(k, { name: o.sales_person_name || 'Unassigned', count: 0, total: 0 });
+        const e = m.get(k)!;
+        e.count++;
+        e.total += o.total_sales_amount || 0;
+      });
+      return Array.from(m.values()).sort((a, b) => b.total - a.total);
+    };
+    return {
+      today: todayWon,
+      yesterday: yesterdayWon,
+      todayTotal: todayWon.reduce((s, o) => s + (o.total_sales_amount || 0), 0),
+      yesterdayTotal: yesterdayWon.reduce((s, o) => s + (o.total_sales_amount || 0), 0),
+      todayBySp: bySp(todayWon),
+      yesterdayBySp: bySp(yesterdayWon),
+    };
+  }, [orders, todayStr, yesterdayStr]);
+
   // Prospect by source
   const prospectsBySource = useMemo(() => {
     const srcMap = new Map<string, number>();
