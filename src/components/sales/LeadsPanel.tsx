@@ -26,6 +26,7 @@ import { LeadFormDialog } from './LeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { InteraktLeadEditDialog } from '@/components/interakt/InteraktLeadEditDialog';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
+import { LeadContactDrawer, LeadContactData } from './LeadContactDrawer';
 import { ProspectButton } from './ProspectButton';
 import { AttentionButton } from './AttentionButton';
 import { EnquiryConvertButton } from './EnquiryConvertButton';
