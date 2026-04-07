@@ -201,6 +201,30 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
     return () => { if (policyTimerRef.current) clearInterval(policyTimerRef.current); };
   }, [fetchPolicy]);
 
+  // Auto-select first employee
+  useEffect(() => {
+    if (!selectedEmployeeId && employees.length > 0) {
+      setSelectedEmployeeId(employees[0].id);
+    }
+  }, [employees, selectedEmployeeId]);
+
+  // Fetch selected employee's monthly attendance
+  const fetchEmpMonthlyLogs = useCallback(async () => {
+    if (!selectedEmployeeId) return;
+    setLoadingEmpLogs(true);
+    const monthStart = format(startOfMonth(empCalendarMonth), 'yyyy-MM-dd');
+    const monthEnd = format(endOfMonth(empCalendarMonth), 'yyyy-MM-dd');
+    const [{ data: logs }, { data: leaves }] = await Promise.all([
+      supabase.from('attendance_logs').select('*').eq('employee_id', selectedEmployeeId).gte('date', monthStart).lte('date', monthEnd).order('date'),
+      supabase.from('leave_requests').select('*').eq('employee_id', selectedEmployeeId).eq('status', 'approved').lte('start_date', monthEnd).gte('end_date', monthStart),
+    ]);
+    setEmpAttendanceLogs((logs as AttendanceLog[]) || []);
+    setEmpApprovedLeaves((leaves as LeaveRequest[]) || []);
+    setLoadingEmpLogs(false);
+  }, [selectedEmployeeId, empCalendarMonth]);
+
+  useEffect(() => { fetchEmpMonthlyLogs(); }, [fetchEmpMonthlyLogs]);
+
   const liveRows: LiveRow[] = employees.map(emp => {
     const log = todayLogs.find(l => l.employee_id === emp.id) || null;
     const hasLeave = !!approvedLeaves[emp.id];
