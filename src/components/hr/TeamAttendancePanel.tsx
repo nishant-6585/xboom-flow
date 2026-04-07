@@ -23,7 +23,7 @@ import {
   Download, Users, ChevronLeft, ChevronRight,
   UserCheck, UserX, CalendarCheck, Coffee, LogOut,
   Clock, AlertTriangle, RefreshCw, Activity, Eye,
-  Timer, Zap, Pencil, CalendarDays, LayoutDashboard, List,
+  Timer, Zap, Pencil, CalendarDays, LayoutDashboard, List, BarChart3,
 } from 'lucide-react';
 import { Employee, AttendanceLog, LeaveRequest } from '@/hooks/useHR';
 import { cn } from '@/lib/utils';
@@ -417,6 +417,11 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
               />
             </>
           )}
+        </TabsContent>
+
+        {/* Analytics Tab */}
+        <TabsContent value="analytics" className="space-y-4">
+          <AttendanceAnalytics employees={employees} />
         </TabsContent>
 
         {/* Bulk Entry Tab */}
