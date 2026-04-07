@@ -242,6 +242,10 @@ export default function Sales() {
             <OutboundSalesPanel />
           </TabsContent>
 
+          <TabsContent value="crm" className="space-y-6">
+            <CrmPanel />
+          </TabsContent>
+
           <TabsContent value="testimonials" className="space-y-6">
             <TestimonialsPanel />
           </TabsContent>
