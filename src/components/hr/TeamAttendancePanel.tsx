@@ -341,6 +341,8 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
                 Alerts
                 {alertCount > 0 && <Badge variant="destructive" className="text-[10px] px-1.5 py-0 ml-1">{alertCount}</Badge>}
               </TabsTrigger>
+              <TabsTrigger value="export" className="gap-1.5 text-xs"><Download className="h-3.5 w-3.5" />Export</TabsTrigger>
+              <TabsTrigger value="bulk_entry" className="gap-1.5 text-xs"><CalendarDays className="h-3.5 w-3.5" />Bulk Entry</TabsTrigger>
             </TabsList>
 
             {/* Overview Tab */}
