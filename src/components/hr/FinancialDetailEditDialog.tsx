@@ -582,22 +582,29 @@ export function FinancialDetailEditDialog({
                   </div>
                 </div>
 
-                {/* Salary change fields */}
-                {editing && Math.abs((parseFloat(formSalary) || 0) - (employee.monthly_salary || 0)) > 0.01 && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3 space-y-3">
-                    <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                      Salary change detected — this will create a salary history record
-                    </p>
+                {/* Salary effective date - always visible in edit mode */}
+                {editing && (
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                      Add Salary effective date
+                      <Badge variant="outline" className="text-[10px] border-green-400 text-green-700 bg-green-50">NEW</Badge>
+                      <span className="text-xs font-normal text-muted-foreground ml-auto">Optional</span>
+                    </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <Label htmlFor="popup-sal-effective">Effective From</Label>
+                        <Label htmlFor="popup-sal-effective" className="text-xs text-muted-foreground">Effective From</Label>
                         <Input id="popup-sal-effective" type="date" value={salaryEffective} onChange={e => setSalaryEffective(e.target.value)} />
                       </div>
                       <div>
-                        <Label htmlFor="popup-sal-reason">Reason (optional)</Label>
+                        <Label htmlFor="popup-sal-reason" className="text-xs text-muted-foreground">Reason (optional)</Label>
                         <Input id="popup-sal-reason" value={salaryReason} onChange={e => setSalaryReason(e.target.value)} placeholder="e.g. Annual appraisal" />
                       </div>
                     </div>
+                    {Math.abs((parseFloat(formSalary) || 0) - (employee.monthly_salary || 0)) > 0.01 && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        ⚠ Salary change detected — a salary history record will be created with this effective date.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
