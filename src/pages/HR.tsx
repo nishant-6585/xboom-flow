@@ -6,8 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useHR } from "@/hooks/useHR";
 import { useAuth } from "@/hooks/useAuth";
-import { AttendanceCard } from "@/components/hr/AttendanceCard";
-import { AttendanceSection } from "@/components/hr/AttendanceSection";
+import { MyAttendanceCalendarView } from "@/components/hr/MyAttendanceCalendarView";
 import { TeamAttendancePanel } from "@/components/hr/TeamAttendancePanel";
 import { LeaveRequestCard } from "@/components/hr/LeaveRequestCard";
 import { LeaveApplyDialog } from "@/components/hr/LeaveApplyDialog";
@@ -17,7 +16,6 @@ import { HRLeaveApplyDialog } from "@/components/hr/HRLeaveApplyDialog";
 import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
 import { HRDocumentsPanel } from "@/components/hr/HRDocumentsPanel";
 import { KPIManagementPanel } from "@/components/kpi/KPIManagementPanel";
-import { ProvisionalCheckoutBanner } from "@/components/attendance/ProvisionalCheckoutBanner";
 import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History, Building2, CreditCard, LogOut, ClipboardCheck, ClipboardX, UserPlus } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CandidatesPanel } from "@/components/candidates/CandidatesPanel";
@@ -112,11 +110,13 @@ export default function HR() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="mb-6">
             <TabsList className="flex flex-wrap h-auto gap-1 p-1">
-              <TabsTrigger value="home" className="gap-1.5 whitespace-nowrap"><Clock className="h-4 w-4 shrink-0" /><span>Home</span></TabsTrigger>
+              <TabsTrigger value="home" className="gap-1.5 whitespace-nowrap"><Calendar className="h-4 w-4 shrink-0" /><span>My Attendance</span></TabsTrigger>
               {isHROrAdmin && (
                 <TabsTrigger value="employees" className="gap-1.5 whitespace-nowrap"><Users className="h-4 w-4 shrink-0" /><span>Employees</span></TabsTrigger>
               )}
-              <TabsTrigger value="attendance" className="gap-1.5 whitespace-nowrap"><Calendar className="h-4 w-4 shrink-0" /><span>Attendance</span></TabsTrigger>
+              {isHROrAdmin && (
+                <TabsTrigger value="team_attendance" className="gap-1.5 whitespace-nowrap"><Users className="h-4 w-4 shrink-0" /><span>Team Attendance</span></TabsTrigger>
+              )}
               <TabsTrigger value="leave" className="gap-1.5 whitespace-nowrap"><FileText className="h-4 w-4 shrink-0" /><span>Leave</span></TabsTrigger>
               
               <TabsTrigger value="kpi_management" className="gap-1.5 whitespace-nowrap"><Target className="h-4 w-4 shrink-0" /><span>KPI</span></TabsTrigger>
@@ -154,32 +154,29 @@ export default function HR() {
             </TabsList>
           </div>
 
+          {/* Home tab = My Attendance (Calendar View) */}
           <TabsContent value="home" className="space-y-4">
-            <AttendanceCard todayAttendance={todayAttendance} weeklyHours={weeklyHours} />
-            {isHROrAdmin && pendingLeaves.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="font-semibold flex items-center gap-2"><FileText className="h-4 w-4" /> Pending Leave Approvals ({pendingLeaves.length})</h3>
-                {pendingLeaves.slice(0, 3).map((leave) => <LeaveApprovalCard key={leave.id} leave={leave} onApprove={approveLeave} />)}
-              </div>
-            )}
+            <MyAttendanceCalendarView
+              todayAttendance={todayAttendance}
+              weeklyHours={weeklyHours}
+              attendanceLogs={attendanceLogs}
+              calendarMonth={calendarMonth}
+              onMonthChange={setCalendarMonth}
+              employeeId={myEmployee?.id}
+              onRefresh={() => { fetchYesterdayLog(); if (myEmployee) fetchAttendanceLogs(myEmployee.id, calendarMonth); }}
+              yesterdayLog={yesterdayLog}
+              onCorrected={() => { fetchYesterdayLog(); if (myEmployee) fetchAttendanceLogs(myEmployee.id, calendarMonth); }}
+            />
           </TabsContent>
 
           {isHROrAdmin && <TabsContent value="employees"><EmployeesPanel /></TabsContent>}
 
-          <TabsContent value="attendance" className="space-y-4">
-            <Tabs defaultValue="my">
-              <TabsList className="w-full grid grid-cols-2">
-                <TabsTrigger value="my" className="gap-1.5 text-xs sm:text-sm"><User className="h-4 w-4 shrink-0" /><span className="truncate">My Attendance</span></TabsTrigger>
-                {isHROrAdmin && <TabsTrigger value="team" className="gap-1.5 text-xs sm:text-sm"><Users className="h-4 w-4 shrink-0" /><span className="truncate">Team Attendance</span></TabsTrigger>}
-              </TabsList>
-              <TabsContent value="my" className="mt-4 space-y-4">
-                <ProvisionalCheckoutBanner yesterdayLog={yesterdayLog} onCorrected={() => { fetchYesterdayLog(); if (myEmployee) fetchAttendanceLogs(myEmployee.id, calendarMonth); }} />
-                <AttendanceSection employeeId={myEmployee?.id} todayAttendance={todayAttendance} weeklyHours={weeklyHours} attendanceLogs={attendanceLogs} calendarMonth={calendarMonth} onMonthChange={setCalendarMonth}
-                  onRefresh={() => { fetchYesterdayLog(); if (myEmployee) fetchAttendanceLogs(myEmployee.id, calendarMonth); }} />
-              </TabsContent>
-              {isHROrAdmin && <TabsContent value="team" className="mt-4"><TeamAttendancePanel employees={employees} /></TabsContent>}
-            </Tabs>
-          </TabsContent>
+          {/* Team Attendance (HR/Admin only) */}
+          {isHROrAdmin && (
+            <TabsContent value="team_attendance" className="space-y-4">
+              <TeamAttendancePanel employees={employees} />
+            </TabsContent>
+          )}
 
           <TabsContent value="leave" className="space-y-4">
             <LeaveBalancePanel employeeId={myEmployee?.id} />
