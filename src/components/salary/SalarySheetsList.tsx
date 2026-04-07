@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Eye, Loader2 } from "lucide-react";
+import { Plus, Eye, Loader2, Zap } from "lucide-react";
 import { SalarySheet, SalarySheetStatus, useSalarySheets } from "@/hooks/useSalarySheets";
 import { SalarySheetCreateDialog } from "./SalarySheetCreateDialog";
 import { SalarySheetView } from "./SalarySheetView";
@@ -78,9 +78,16 @@ export function SalarySheetsList() {
                     <TableCell className="font-medium">{MONTH_NAMES[sheet.month]}</TableCell>
                     <TableCell>{sheet.year}</TableCell>
                     <TableCell>
-                      <Badge variant={sheet.status === "locked" ? "secondary" : "outline"} className={STATUS_COLORS[sheet.status]}>
-                        {STATUS_LABELS[sheet.status]}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant={sheet.status === "locked" ? "secondary" : "outline"} className={STATUS_COLORS[sheet.status]}>
+                          {STATUS_LABELS[sheet.status]}
+                        </Badge>
+                        {sheet.created_by_name === "System (Auto)" && (
+                          <Badge variant="outline" className="gap-1 text-[10px] border-primary/30 text-primary">
+                            <Zap className="w-2.5 h-2.5" /> Auto
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>{sheet.created_by_name}</TableCell>
                     <TableCell>{format(new Date(sheet.created_at), "dd MMM yyyy")}</TableCell>

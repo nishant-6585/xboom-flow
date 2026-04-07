@@ -11,6 +11,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import type { EmployeeRecord } from "./EmployeesPanel";
 import { useState, useEffect } from "react";
 import { EditHistoryPanel } from "@/components/EditHistoryPanel";
+import { EmploymentHistoryPanel } from "./EmploymentHistoryPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useEditHistory } from "@/hooks/useEditHistory";
@@ -391,6 +392,15 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
               </div>
             </>
           )}
+
+          <Separator />
+
+          {/* Employment History */}
+          <EmploymentHistoryPanel
+            employeeId={employee.id}
+            employeeName={employee.name}
+            isHROrAdmin={isHROrAdmin}
+          />
 
           <Separator />
 
