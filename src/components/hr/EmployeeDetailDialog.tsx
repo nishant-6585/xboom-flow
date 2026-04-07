@@ -395,6 +395,15 @@ export function EmployeeDetailDialog({ open, onOpenChange, employee, isHROrAdmin
 
           <Separator />
 
+          {/* Employment History */}
+          <EmploymentHistoryPanel
+            employeeId={employee.id}
+            employeeName={employee.name}
+            isHROrAdmin={isHROrAdmin}
+          />
+
+          <Separator />
+
           {/* Change History */}
           <div>
             <h4 className="text-sm font-semibold text-primary mb-3">Change History</h4>
