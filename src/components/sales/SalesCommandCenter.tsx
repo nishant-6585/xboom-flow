@@ -1949,11 +1949,11 @@ export function SalesCommandCenter() {
 
 // ============ Sub-components ============
 
-function KPICard({ label, value, icon: Icon, gradient, subText, isText }: {
-  label: string; value: number | string; icon: any; gradient: string; subText?: string; isText?: boolean;
+function KPICard({ label, value, icon: Icon, gradient, subText, isText, onClick }: {
+  label: string; value: number | string; icon: any; gradient: string; subText?: string; isText?: boolean; onClick?: () => void;
 }) {
   return (
-    <Card className="overflow-hidden">
+    <Card className={`overflow-hidden ${onClick ? 'cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all' : ''}`} onClick={onClick}>
       <CardContent className={`p-3 bg-gradient-to-br ${gradient} text-white`}>
         <div className="flex items-center gap-1.5 mb-1">
           <Icon className="w-3.5 h-3.5 opacity-80" />
@@ -1966,9 +1966,9 @@ function KPICard({ label, value, icon: Icon, gradient, subText, isText }: {
   );
 }
 
-function MetricRow({ label, value, color }: { label: string; value: number; color?: string }) {
+function MetricRow({ label, value, color, onClick }: { label: string; value: number; color?: string; onClick?: () => void }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className={`flex items-center justify-between ${onClick ? 'cursor-pointer hover:bg-muted/50 p-1.5 rounded-lg -m-1.5 transition-colors' : ''}`} onClick={onClick}>
       <span className="text-sm text-muted-foreground">{label}</span>
       <span className={`text-lg font-bold ${color || ''}`}>{value}</span>
     </div>
