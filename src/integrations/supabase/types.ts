@@ -1783,6 +1783,65 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_contact_activities: {
+        Row: {
+          activity_date: string
+          activity_type: string
+          created_at: string
+          followup_completed: boolean | null
+          followup_completed_at: string | null
+          followup_date: string | null
+          id: string
+          notes: string | null
+          outcome: string | null
+          performed_by: string
+          performed_by_name: string
+          prospect_id: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          activity_date?: string
+          activity_type?: string
+          created_at?: string
+          followup_completed?: boolean | null
+          followup_completed_at?: string | null
+          followup_date?: string | null
+          id?: string
+          notes?: string | null
+          outcome?: string | null
+          performed_by: string
+          performed_by_name?: string
+          prospect_id: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          activity_date?: string
+          activity_type?: string
+          created_at?: string
+          followup_completed?: boolean | null
+          followup_completed_at?: string | null
+          followup_date?: string | null
+          id?: string
+          notes?: string | null
+          outcome?: string | null
+          performed_by?: string
+          performed_by_name?: string
+          prospect_id?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_contact_activities_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_testimonials: {
         Row: {
           approved_at: string | null

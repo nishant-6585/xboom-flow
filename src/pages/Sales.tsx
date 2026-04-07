@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck, Contact } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -27,6 +27,7 @@ import { ProspectsPanel } from "@/components/sales/ProspectsPanel";
 import { AttentionPanel } from "@/components/sales/AttentionPanel";
 import { FollowupsPanel } from "@/components/sales/FollowupsPanel";
 import { CallbacksPanel } from "@/components/sales/CallbacksPanel";
+import { CrmPanel } from "@/components/crm/CrmPanel";
 
 
 
@@ -124,6 +125,10 @@ export default function Sales() {
                 <TabsTrigger value="outbound" className={triggerPrimary}>
                   <Phone className="w-4 h-4" />
                   Outbound
+                </TabsTrigger>
+                <TabsTrigger value="crm" className={`${triggerBase} data-[state=active]:bg-indigo-600 data-[state=active]:text-white`}>
+                  <Contact className="w-4 h-4" />
+                  CRM
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -235,6 +240,10 @@ export default function Sales() {
 
           <TabsContent value="outbound" className="space-y-6">
             <OutboundSalesPanel />
+          </TabsContent>
+
+          <TabsContent value="crm" className="space-y-6">
+            <CrmPanel />
           </TabsContent>
 
           <TabsContent value="testimonials" className="space-y-6">
