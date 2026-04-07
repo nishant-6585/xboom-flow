@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { recordAuditLog } from "@/lib/auditLog";
 import { eachDayOfInterval, startOfMonth, endOfMonth, getDay } from "date-fns";
+import { buildSegmentsForMonth, calculateSegmentedSalary } from "@/lib/proratedSalary";
 
 export type SalarySheetStatus = "draft" | "hr_approved" | "finance_approved" | "locked";
 
