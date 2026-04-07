@@ -395,6 +395,15 @@ export function TeamAttendancePanel({ employees }: TeamAttendancePanelProps) {
                 </Card>
               )}
 
+              {/* Team Calendar View */}
+              <TeamAttendanceCalendarView
+                totalEmployees={employees.length}
+                onDateSelect={(date) => {
+                  setSelectedDate(date);
+                  setActiveSubTab('employees');
+                }}
+              />
+
               {/* Alert Indicator */}
               <AttendanceAlertIndicator alertCount={alertCount} onNavigate={() => setActiveSubTab('alerts')} />
             </TabsContent>
