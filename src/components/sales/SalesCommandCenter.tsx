@@ -1068,7 +1068,7 @@ export function SalesCommandCenter() {
         </div>
       )}
 
-
+      {isManager && targetComparison.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
