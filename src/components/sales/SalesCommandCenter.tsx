@@ -1014,8 +1014,61 @@ export function SalesCommandCenter() {
         </div>
       )}
 
+      {/* ============ ORDERS LOST — Yesterday & Today ============ */}
+      {(lostActuals.today.length > 0 || lostActuals.yesterday.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Today Lost */}
+          <Card className="border-red-200 dark:border-red-800 bg-red-50/30 dark:bg-red-950/10">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-600" />
+                  Today's Orders Lost
+                  <Badge variant="destructive" className="text-xs">{lostActuals.today.length}</Badge>
+                </CardTitle>
+                <span className="text-lg font-bold text-red-700 dark:text-red-400">{formatCurrency(lostActuals.todayTotal)}</span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {lostActuals.todayBySp.map(sp => (
+                <div key={sp.name} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{sp.name.split(' ')[0]}</span>
+                  <span className="font-medium">{sp.count} deal{sp.count !== 1 ? 's' : ''} — {formatCurrency(sp.total)}</span>
+                </div>
+              ))}
+              {lostActuals.today.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">No orders lost today</p>
+              )}
+            </CardContent>
+          </Card>
+          {/* Yesterday Lost */}
+          <Card className="border-orange-200 dark:border-orange-800 bg-orange-50/30 dark:bg-orange-950/10">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-orange-600" />
+                  Yesterday's Orders Lost
+                  <Badge variant="outline" className="text-xs">{lostActuals.yesterday.length}</Badge>
+                </CardTitle>
+                <span className="text-lg font-bold text-orange-700 dark:text-orange-400">{formatCurrency(lostActuals.yesterdayTotal)}</span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {lostActuals.yesterdayBySp.map(sp => (
+                <div key={sp.name} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{sp.name.split(' ')[0]}</span>
+                  <span className="font-medium">{sp.count} deal{sp.count !== 1 ? 's' : ''} — {formatCurrency(sp.total)}</span>
+                </div>
+              ))}
+              {lostActuals.yesterday.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">No orders lost yesterday</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-      {isManager && targetComparison.length > 0 && (
+
         <Card>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
