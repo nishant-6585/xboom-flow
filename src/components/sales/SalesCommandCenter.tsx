@@ -1975,11 +1975,11 @@ function MetricRow({ label, value, color, onClick }: { label: string; value: num
   );
 }
 
-function MiniStat({ label, value, icon: Icon, positive, negative, isText }: {
-  label: string; value: number | string; icon: any; positive?: boolean; negative?: boolean; isText?: boolean;
+function MiniStat({ label, value, icon: Icon, positive, negative, isText, onClick }: {
+  label: string; value: number | string; icon: any; positive?: boolean; negative?: boolean; isText?: boolean; onClick?: () => void;
 }) {
   return (
-    <div className="p-2 rounded-lg border border-border/40 text-center">
+    <div className={`p-2 rounded-lg border border-border/40 text-center ${onClick ? 'cursor-pointer hover:bg-muted/50 hover:border-primary/30 transition-colors' : ''}`} onClick={onClick}>
       <Icon className={`w-3.5 h-3.5 mx-auto mb-0.5 ${positive ? 'text-green-500' : negative ? 'text-destructive' : 'text-muted-foreground'}`} />
       <p className={`text-sm font-bold ${positive ? 'text-green-500' : negative ? 'text-destructive' : ''}`}>
         {isText ? value : typeof value === 'number' ? value : value}
