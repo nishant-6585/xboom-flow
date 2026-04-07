@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { CalendarIcon, Edit, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { PipelineOrder, PIPELINE_STATUSES, PipelineStatus, LeadTemperature } from '@/hooks/usePipelineOrders';
+import { PipelineOrder, PIPELINE_STATUSES, PipelineStatus, LeadTemperature, PIPELINE_LOST_REASONS } from '@/hooks/usePipelineOrders';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -178,9 +178,17 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
 
   const handleEditSave = async () => {
     if (!editOrder) return;
+    // Validate lost reason is provided when status is 'lost'
+    if (editOrder.status === 'lost' && !editOrder.lost_reason) {
+      const { toast } = await import('sonner');
+      toast.error('Please select a reason for marking this order as lost');
+      return;
+    }
     await onUpdate(editOrder.id, {
       ...editOrder,
       expected_closure_date: editClosureDate ? format(editClosureDate, 'yyyy-MM-dd') : null,
+      lost_reason: editOrder.status === 'lost' ? editOrder.lost_reason : null,
+      lost_reason_notes: editOrder.status === 'lost' ? editOrder.lost_reason_notes : null,
     });
     setEditOrder(null);
   };
@@ -615,6 +623,39 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                     rows={2}
                   />
                 </div>
+                {editOrder.status === 'lost' && (
+                  <div className="space-y-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+                    <div className="text-sm font-medium text-destructive flex items-center gap-2">
+                      <AlertTriangleIcon className="h-4 w-4" />
+                      Reason for Losing Order (Required)
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Lost Reason *</Label>
+                      <Select
+                        value={editOrder.lost_reason || ''}
+                        onValueChange={(v) => setEditOrder({...editOrder, lost_reason: v})}
+                      >
+                        <SelectTrigger className={cn(!editOrder.lost_reason && "border-destructive")}>
+                          <SelectValue placeholder="Select a reason..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PIPELINE_LOST_REASONS.map((r) => (
+                            <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Additional Notes</Label>
+                      <Textarea
+                        value={editOrder.lost_reason_notes || ''}
+                        onChange={(e) => setEditOrder({...editOrder, lost_reason_notes: e.target.value})}
+                        placeholder="Any additional details about why this order was lost..."
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             <DialogFooter>
