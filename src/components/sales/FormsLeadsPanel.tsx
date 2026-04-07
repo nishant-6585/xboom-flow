@@ -440,8 +440,6 @@ export function FormsLeadsPanel() {
   );
 }
 
-  lead,
-  open,
   onClose,
   onSave,
   isSaving,
