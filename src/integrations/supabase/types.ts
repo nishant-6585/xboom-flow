@@ -2387,6 +2387,51 @@ export type Database = {
         }
         Relationships: []
       }
+      email_lead_pipeline_stats: {
+        Row: {
+          avg_confidence: number | null
+          avg_latency_seconds: number | null
+          created_at: string | null
+          false_positive_count: number | null
+          id: string
+          spam_detected: number | null
+          stat_date: string
+          total_failed: number | null
+          total_ingested: number | null
+          total_needs_review: number | null
+          total_processed: number | null
+          total_rejected: number | null
+        }
+        Insert: {
+          avg_confidence?: number | null
+          avg_latency_seconds?: number | null
+          created_at?: string | null
+          false_positive_count?: number | null
+          id?: string
+          spam_detected?: number | null
+          stat_date?: string
+          total_failed?: number | null
+          total_ingested?: number | null
+          total_needs_review?: number | null
+          total_processed?: number | null
+          total_rejected?: number | null
+        }
+        Update: {
+          avg_confidence?: number | null
+          avg_latency_seconds?: number | null
+          created_at?: string | null
+          false_positive_count?: number | null
+          id?: string
+          spam_detected?: number | null
+          stat_date?: string
+          total_failed?: number | null
+          total_ingested?: number | null
+          total_needs_review?: number | null
+          total_processed?: number | null
+          total_rejected?: number | null
+        }
+        Relationships: []
+      }
       email_leads: {
         Row: {
           ai_confidence: number | null
@@ -2402,14 +2447,18 @@ export type Database = {
           customer_name: string
           customer_type: string | null
           email: string | null
+          email_lead_id: string | null
           error_message: string | null
           id: string
+          ingested_at: string | null
           is_a_category: boolean | null
           is_prospect: boolean | null
+          last_error: string | null
           lead_source: string | null
           mail_source: string
           notes: string | null
           phone_number: string | null
+          processed_at: string | null
           processing_status: string
           product_category: string | null
           product_code: string | null
@@ -2422,6 +2471,7 @@ export type Database = {
           sales_person_name: string | null
           status: string | null
           subject: string | null
+          thread_id: string | null
           updated_at: string
           updated_by: string | null
           urgency: string | null
@@ -2440,14 +2490,18 @@ export type Database = {
           customer_name: string
           customer_type?: string | null
           email?: string | null
+          email_lead_id?: string | null
           error_message?: string | null
           id?: string
+          ingested_at?: string | null
           is_a_category?: boolean | null
           is_prospect?: boolean | null
+          last_error?: string | null
           lead_source?: string | null
           mail_source?: string
           notes?: string | null
           phone_number?: string | null
+          processed_at?: string | null
           processing_status?: string
           product_category?: string | null
           product_code?: string | null
@@ -2460,6 +2514,7 @@ export type Database = {
           sales_person_name?: string | null
           status?: string | null
           subject?: string | null
+          thread_id?: string | null
           updated_at?: string
           updated_by?: string | null
           urgency?: string | null
@@ -2478,14 +2533,18 @@ export type Database = {
           customer_name?: string
           customer_type?: string | null
           email?: string | null
+          email_lead_id?: string | null
           error_message?: string | null
           id?: string
+          ingested_at?: string | null
           is_a_category?: boolean | null
           is_prospect?: boolean | null
+          last_error?: string | null
           lead_source?: string | null
           mail_source?: string
           notes?: string | null
           phone_number?: string | null
+          processed_at?: string | null
           processing_status?: string
           product_category?: string | null
           product_code?: string | null
@@ -2498,9 +2557,40 @@ export type Database = {
           sales_person_name?: string | null
           status?: string | null
           subject?: string | null
+          thread_id?: string | null
           updated_at?: string
           updated_by?: string | null
           urgency?: string | null
+        }
+        Relationships: []
+      }
+      email_sender_frequency: {
+        Row: {
+          created_at: string | null
+          first_seen_at: string | null
+          id: string
+          is_bulk_sender: boolean | null
+          last_seen_at: string | null
+          message_count: number | null
+          sender_email: string
+        }
+        Insert: {
+          created_at?: string | null
+          first_seen_at?: string | null
+          id?: string
+          is_bulk_sender?: boolean | null
+          last_seen_at?: string | null
+          message_count?: number | null
+          sender_email: string
+        }
+        Update: {
+          created_at?: string | null
+          first_seen_at?: string | null
+          id?: string
+          is_bulk_sender?: boolean | null
+          last_seen_at?: string | null
+          message_count?: number | null
+          sender_email?: string
         }
         Relationships: []
       }
@@ -10619,14 +10709,18 @@ export type Database = {
           customer_name: string
           customer_type: string | null
           email: string | null
+          email_lead_id: string | null
           error_message: string | null
           id: string
+          ingested_at: string | null
           is_a_category: boolean | null
           is_prospect: boolean | null
+          last_error: string | null
           lead_source: string | null
           mail_source: string
           notes: string | null
           phone_number: string | null
+          processed_at: string | null
           processing_status: string
           product_category: string | null
           product_code: string | null
@@ -10639,6 +10733,7 @@ export type Database = {
           sales_person_name: string | null
           status: string | null
           subject: string | null
+          thread_id: string | null
           updated_at: string
           updated_by: string | null
           urgency: string | null
