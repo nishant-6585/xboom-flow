@@ -2,7 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode, useCallback,
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { recordSession } from "@/lib/sessionTracking";
-import { isDeviceTrusted, clearLocalDeviceTrust } from "@/lib/deviceTrust";
+import { checkDeviceTrustV2, clearLocalDeviceTrust } from "@/lib/deviceTrust";
 
 type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketing" | "hr" | "sales_manager";
 
@@ -135,7 +135,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const verifiedFactors = data.totp.filter((f) => f.status === "verified");
 
       if (verifiedFactors.length > 0) {
-        // Has enrolled factors but session is AAL1 — check device trust
+        // Has enrolled factors but session is AAL1 — check device trust via split fingerprint
         if (currentUserId) {
           // Fast client-side check first
           const trustData = localStorage.getItem("mfa_device_trust");
@@ -143,25 +143,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             try {
               const parsed = JSON.parse(trustData);
               if (parsed.userId === currentUserId && new Date(parsed.expiresAt).getTime() > Date.now()) {
-                // Verify server-side as well
-                const serverTrusted = await isDeviceTrusted(currentUserId);
-                if (serverTrusted) {
-                  console.log("[Auth] Device trust valid (server-verified) — skipping MFA");
+                // Verify server-side with split fingerprints
+                const trustResult = await checkDeviceTrustV2(currentUserId);
+                if (trustResult === "trusted") {
+                  console.log("[Auth] Device trust valid (stable+dynamic match) — skipping MFA");
+                  setMfaStatus("verified");
+                  return;
+                }
+                if (trustResult === "step_up") {
+                  // Dynamic fingerprint changed (e.g. tz travel) — still trusted but flag for step-up later
+                  console.log("[Auth] Device trusted (stable match, dynamic changed) — skipping MFA, step-up may apply");
                   setMfaStatus("verified");
                   return;
                 }
               }
-              // Client trust invalid or server disagrees
               localStorage.removeItem("mfa_device_trust");
             } catch {
               localStorage.removeItem("mfa_device_trust");
             }
           }
 
-          // No client trust — check server directly
-          const serverTrusted = await isDeviceTrusted(currentUserId);
-          if (serverTrusted) {
-            console.log("[Auth] Device trusted server-side — skipping MFA");
+          // No local trust — check server directly
+          const trustResult = await checkDeviceTrustV2(currentUserId);
+          if (trustResult === "trusted" || trustResult === "step_up") {
+            console.log("[Auth] Device trusted server-side (result:", trustResult, ") — skipping MFA");
             setMfaStatus("verified");
             return;
           }
