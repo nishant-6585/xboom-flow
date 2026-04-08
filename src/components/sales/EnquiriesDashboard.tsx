@@ -607,12 +607,14 @@ export function EnquiriesDashboard({ enquiries }: EnquiriesDashboardProps) {
           <CardContent>
             <ResponsiveContainer width="100%" height={240}>
               <PieChart>
-                <Pie
-                  data={urgencyData} cx="50%" cy="50%"
-                  innerRadius={50} outerRadius={90} paddingAngle={3}
-                  dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}`}
-                >
+                 <Pie
+                   data={urgencyData} cx="50%" cy="50%"
+                   innerRadius={50} outerRadius={90} paddingAngle={3}
+                   dataKey="value"
+                   label={({ name, value }) => `${name}: ${value}`}
+                   style={{ cursor: 'pointer' }}
+                   onClick={(_, idx) => { const d = urgencyData[idx]; if (d) handleUrgencyClick(d.name); }}
+                 >
                   {urgencyData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                 </Pie>
                 <Tooltip contentStyle={tooltipStyle} />
@@ -665,10 +667,10 @@ export function EnquiriesDashboard({ enquiries }: EnquiriesDashboardProps) {
                 <YAxis fontSize={12} />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Legend />
-                <Bar dataKey="total" name="Total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="responded" name="Processed" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="won" name="Won" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="lost" name="Lost" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                 <Bar dataKey="total" name="Total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} style={{ cursor: 'pointer' }} onClick={(data) => { if (data?.month) handleMonthClick(data.month); }} />
+                 <Bar dataKey="responded" name="Processed" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} style={{ cursor: 'pointer' }} onClick={(data) => { if (data?.month) handleMonthClick(data.month); }} />
+                 <Bar dataKey="won" name="Won" fill="#22c55e" radius={[4, 4, 0, 0]} style={{ cursor: 'pointer' }} onClick={(data) => { if (data?.month) handleMonthClick(data.month); }} />
+                 <Bar dataKey="lost" name="Lost" fill="#ef4444" radius={[4, 4, 0, 0]} style={{ cursor: 'pointer' }} onClick={(data) => { if (data?.month) handleMonthClick(data.month); }} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -692,8 +694,8 @@ export function EnquiriesDashboard({ enquiries }: EnquiriesDashboardProps) {
                 <XAxis dataKey="date" fontSize={11} />
                 <YAxis fontSize={12} />
                 <Tooltip contentStyle={tooltipStyle} />
-                <Area type="monotone" dataKey="total" name="Total" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} />
-                <Area type="monotone" dataKey="responded" name="Responded" stroke="hsl(var(--chart-2))" fill="hsl(var(--chart-2))" fillOpacity={0.1} />
+                 <Area type="monotone" dataKey="total" name="Total" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} style={{ cursor: 'pointer' }} onClick={(_, __, e) => { if (e?.activeLabel) handleDayClick(e.activeLabel); }} />
+                 <Area type="monotone" dataKey="responded" name="Responded" stroke="hsl(var(--chart-2))" fill="hsl(var(--chart-2))" fillOpacity={0.1} style={{ cursor: 'pointer' }} />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -715,7 +717,7 @@ export function EnquiriesDashboard({ enquiries }: EnquiriesDashboardProps) {
                   <XAxis type="number" fontSize={12} />
                   <YAxis dataKey="name" type="category" fontSize={11} width={100} />
                   <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="value" name="Lost" fill="#ef4444" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="value" name="Lost" fill="#ef4444" radius={[0, 4, 4, 0]} style={{ cursor: 'pointer' }} onClick={(data) => { if (data?.name) handleLostReasonClick(data.name); }} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -746,11 +748,9 @@ export function EnquiriesDashboard({ enquiries }: EnquiriesDashboardProps) {
               </thead>
               <tbody>
                 {salesPersonStats.map(sp => (
-                  <tr key={sp.fullName} className="border-b border-border/30 hover:bg-muted/50 cursor-pointer"
-                    onClick={() => {
-                      setSalesPersonFilter(sp.fullName);
-                    }}
-                  >
+                   <tr key={sp.fullName} className="border-b border-border/30 hover:bg-muted/50 cursor-pointer"
+                     onClick={() => handleSalesPersonDrillDown(sp.fullName)}
+                   >
                     <td className="py-2 font-medium">{sp.fullName}</td>
                     <td className="text-center py-2">{sp.total}</td>
                     <td className="text-center py-2">
