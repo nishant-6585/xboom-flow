@@ -281,13 +281,21 @@ export function useSessionPolicy(
           const expiresAt = data.session.expires_at * 1000; // convert to ms
           const timeUntilExpiry = expiresAt - Date.now();
           if (timeUntilExpiry > 0 && timeUntilExpiry < 120_000) {
+            // Use cross-tab lock to prevent race conditions
+            if (!acquireRefreshLock()) {
+              console.log("[SessionPolicy] Another tab is refreshing, skipping...");
+              return;
+            }
             console.log("[SessionPolicy] Token expiring soon, refreshing proactively...");
             const { error: refreshError } = await supabase.auth.refreshSession();
+            releaseRefreshLock();
             if (refreshError) {
               console.warn("[SessionPolicy] Proactive refresh failed:", refreshError.message);
               if (isFatalAuthError(refreshError)) {
                 await forceLogout("INVALID_SESSION");
               }
+            } else {
+              broadcastSessionRefresh();
             }
           }
         }
