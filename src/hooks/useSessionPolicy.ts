@@ -76,7 +76,7 @@ export function useSessionPolicy(
       if (isRevokingRef.current) return;
       isRevokingRef.current = true;
 
-      console.warn(`[SessionPolicy] Force logout triggered: ${reason}`);
+      if (import.meta.env.DEV) console.warn(`[SessionPolicy] Force logout triggered: ${reason}`);
 
       try {
         if (userId) {
@@ -286,7 +286,7 @@ export function useSessionPolicy(
               console.log("[SessionPolicy] Another tab is refreshing, skipping...");
               return;
             }
-            console.log("[SessionPolicy] Token expiring soon, refreshing proactively...");
+            if (import.meta.env.DEV) console.log("[SessionPolicy] Token expiring soon, refreshing proactively...");
             const { error: refreshError } = await supabase.auth.refreshSession();
             releaseRefreshLock();
             if (refreshError) {

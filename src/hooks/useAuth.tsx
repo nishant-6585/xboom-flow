@@ -40,8 +40,11 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string, team: AppRole) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  signOutAllDevices: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   refreshMfaStatus: () => Promise<void>;
+  /** Re-check AAL level from server — use before sensitive actions */
+  verifyCurrentAAL: () => Promise<"aal1" | "aal2" | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -115,6 +118,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isFreshLoginRef = useRef(false);
   // Phase 4: race condition guard
   const requestIdRef = useRef(0);
+  // Deduplicate fetchUserData — prevent parallel calls
+  const isFetchingRef = useRef(false);
 
   // Keep mfaStatusRef in sync
   useEffect(() => {
@@ -122,6 +127,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [authState.mfaStatus]);
 
   const fetchUserData = async (userId: string, skipMfaCheck = false) => {
+    // Deduplicate: prevent parallel fetches
+    if (isFetchingRef.current) {
+      console.log("[Auth] fetchUserData already in progress, skipping duplicate call");
+      return;
+    }
+    isFetchingRef.current = true;
+
     // Phase 4: race condition guard
     const requestId = ++requestIdRef.current;
 
@@ -175,6 +187,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (requestId === requestIdRef.current) {
         console.error("[Auth] Error fetching user data:", error);
       }
+    } finally {
+      isFetchingRef.current = false;
     }
   };
 
@@ -184,11 +198,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Phase 6: Always validate with AAL from Supabase
       const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
-      console.log("[Auth] AAL check:", {
-        currentLevel: aalData?.currentLevel,
-        nextLevel: aalData?.nextLevel,
-        error: aalError?.message,
-      });
+      if (import.meta.env.DEV) {
+        console.log("[Auth] AAL check:", {
+          currentLevel: aalData?.currentLevel,
+          nextLevel: aalData?.nextLevel,
+          error: aalError?.message,
+        });
+      }
 
       if (aalError) {
         console.error("[Auth] AAL check error:", aalError);
@@ -223,7 +239,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         hasAnyFactors,
       });
 
-      console.log("[Auth] Auth state decision:", result);
+      if (import.meta.env.DEV) {
+        console.log("[Auth] Auth state decision:", result);
+      }
 
       // Phase 2: Persist step-up signal in sessionStorage (survives page refresh, not spoofable for security decisions)
       if (result.stepUpRequired) {
@@ -255,12 +273,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+      if (import.meta.env.DEV) {
         console.log("[Auth] AUTH_EVENT:", event, {
           userId: session?.user?.id,
           expiresAt: session?.expires_at,
           aal: (session as any)?.aal,
           timestamp: new Date().toISOString(),
         });
+      }
 
         // Phase 7: Check session expiry before applying
         if (session?.expires_at) {
@@ -343,11 +363,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("[Auth] Initial getSession:", {
-        hasSession: !!session,
-        userId: session?.user?.id,
-        expiresAt: session?.expires_at,
-      });
+      if (import.meta.env.DEV) {
+        console.log("[Auth] Initial getSession:", {
+          hasSession: !!session,
+          userId: session?.user?.id,
+          expiresAt: session?.expires_at,
+        });
+      }
 
       setSession(session);
       setUser(session?.user ?? null);
@@ -574,8 +596,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Clear all trust-related storage
     clearLocalDeviceTrust();
     localStorage.removeItem("mfa_device_trust");
+    localStorage.removeItem("xboom_refresh_lock");
+    localStorage.removeItem("xboom_session_sync");
     sessionStorage.removeItem("step_up_required");
     sessionStorage.removeItem("last_mfa_verified_at");
+    sessionStorage.clear();
 
     await supabase.auth.signOut();
     setProfile(null);
@@ -585,8 +610,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setAuthState({ mfaStatus: "not_required", deviceTrust: null, stepUpRequired: false });
     lastHydratedUserIdRef.current = null;
     isFreshLoginRef.current = false;
+    isFetchingRef.current = false;
     requestIdRef.current = 0;
   };
+
+  // Global logout — revoke all sessions and devices
+  const signOutAllDevices = async () => {
+    if (user) {
+      // Revoke all sessions
+      await supabase
+        .from("user_sessions")
+        .update({
+          is_active: false,
+          is_current: false,
+          revoked_at: new Date().toISOString(),
+          revocation_reason: "GLOBAL_LOGOUT",
+        })
+        .eq("user_id", user.id);
+
+      // Revoke all trusted devices
+      await supabase
+        .from("trusted_devices")
+        .update({ is_revoked: true } as any)
+        .eq("user_id", user.id)
+        .eq("is_revoked", false);
+    }
+
+    // Reuse signOut for local cleanup
+    await signOut();
+  };
+
+  // Re-check AAL from server — never rely on cached state for sensitive actions
+  const verifyCurrentAAL = useCallback(async (): Promise<"aal1" | "aal2" | null> => {
+    try {
+      const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (error) return null;
+      return (data.currentLevel as "aal1" | "aal2") ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
 
   return (
     <AuthContext.Provider
@@ -604,8 +667,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         signUp,
         signIn,
         signOut,
+        signOutAllDevices,
         refreshProfile,
         refreshMfaStatus,
+        verifyCurrentAAL,
       }}
     >
       {children}
