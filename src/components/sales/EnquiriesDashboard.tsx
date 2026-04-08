@@ -787,7 +787,7 @@ export function EnquiriesDashboard({ enquiries }: EnquiriesDashboardProps) {
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 ml-3">
-                      {item.temperature && <LeadTemperatureBadge temperature={item.temperature} />}
+                      {item.temperature && <LeadTemperatureBadge temperature={item.temperature as any} />}
                       <Badge variant="outline" className="text-xs capitalize">{item.status.replace(/_/g, ' ')}</Badge>
                       <span className="text-xs text-muted-foreground">{item.sales_person.split(' ')[0]}</span>
                       <span className="text-xs text-muted-foreground">{format(parseISO(item.date), 'MMM d')}</span>
