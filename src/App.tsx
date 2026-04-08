@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { FloatingActionButton } from "@/components/FloatingActionButton";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { MobileAttendanceFAB } from "@/components/attendance/MobileAttendanceFAB";
 import { CommandPalette } from "@/components/CommandPalette";
 import { SessionHealthDebug } from "@/components/debug/SessionHealthDebug";
@@ -132,14 +133,14 @@ function AuthGuardedWidgets({ isMobile }: { isMobile: boolean }) {
   if (!isApproved) return null;
   if (mfaStatus === "enrollment_required" || mfaStatus === "verification_required") return null;
   return (
-    <>
+    <ErrorBoundary fallback={null}>
       <FloatingActionButton />
       {isMobile && <MobileAttendanceFAB />}
       <CommandPalette />
       <PortalChatButton />
       <VoiceChatBot />
       <FollowupReminderPopup />
-    </>
+    </ErrorBoundary>
   );
 }
 
