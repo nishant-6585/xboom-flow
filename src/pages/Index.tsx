@@ -16,6 +16,7 @@ import { HotLeadsWidget } from "@/components/HotLeadsWidget";
 import { LeadTemperatureAnalytics } from "@/components/LeadTemperatureAnalytics";
 import { DashboardNoticesWidget } from "@/components/notices/DashboardNoticesWidget";
 import { NoticePopup } from "@/components/notices/NoticePopup";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FollowupCallbackWidget } from "@/components/dashboard/FollowupCallbackWidget";
 import {
   useEnquiries,
@@ -802,7 +803,7 @@ const Index = () => {
       />
 
       {/* Notice popup on login */}
-      <NoticePopup />
+      <ErrorBoundary fallback={null}><NoticePopup /></ErrorBoundary>
     </div>
   );
 };
