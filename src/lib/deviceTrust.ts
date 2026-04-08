@@ -54,6 +54,9 @@ export async function dynamicFingerprint(): Promise<string> {
     navigator.userAgent,
     `${screen.width}x${screen.height}x${screen.colorDepth}`,
     Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+    String((navigator as any).hardwareConcurrency ?? ""),
+    String((navigator as any).deviceMemory ?? ""),
+    navigator.language || "",
   ].join("|");
   return sha256(raw);
 }
