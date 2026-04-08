@@ -91,10 +91,12 @@ export default function Sales() {
                   <Users className="w-4 h-4" />
                   Leads
                 </TabsTrigger>
+                {canAccessEnquiries && (
                 <TabsTrigger value="enquiries" className={triggerPrimary}>
                   <Package className="w-4 h-4" />
                   Enquiries
                 </TabsTrigger>
+                )}
                 <TabsTrigger value="pipeline" className={triggerPrimary}>
                   <TrendingUp className="w-4 h-4" />
                   Pipeline
