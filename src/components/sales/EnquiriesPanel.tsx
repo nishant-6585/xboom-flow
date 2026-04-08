@@ -132,6 +132,24 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
 
   return (
     <div className="space-y-6">
+      {/* Inner Tabs: Dashboard / List */}
+      <Tabs value={innerTab} onValueChange={setInnerTab}>
+        <TabsList>
+          <TabsTrigger value="dashboard" className="gap-1.5">
+            <BarChart3 className="h-4 w-4" />
+            Dashboard
+          </TabsTrigger>
+          <TabsTrigger value="list" className="gap-1.5">
+            <ListFilter className="h-4 w-4" />
+            Enquiries List
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="dashboard" className="mt-4">
+          <EnquiriesDashboard enquiries={canSeeAllEnquiries ? enquiries : enquiries.filter(e => e.sales_person_id === user?.id)} />
+        </TabsContent>
+
+        <TabsContent value="list" className="mt-4 space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
