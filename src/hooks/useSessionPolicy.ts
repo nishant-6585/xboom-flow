@@ -9,20 +9,69 @@ const CHECK_INTERVAL_MS = 60 * 1000; // Check every 60 seconds
 const ACTIVITY_DEBOUNCE_MS = 30 * 1000; // Debounce activity updates to 30s
 const MAX_VALIDATION_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
+const MAX_CONSECUTIVE_FAILURES = 5;
+
+// Auth-level errors that should trigger immediate logout
+const FATAL_AUTH_PATTERNS = [
+  "invalid_token",
+  "jwt_expired",
+  "refresh_token_invalid",
+  "invalid_grant",
+  "invalid refresh token",
+  "token is expired",
+  "JWT expired",
+  "session_not_found",
+];
+
+function isFatalAuthError(error: any): boolean {
+  const msg = (error?.message || error?.error_description || "").toLowerCase();
+  const code = error?.code || "";
+  const status = error?.status;
+
+  // HTTP 401/403 with auth context = fatal
+  if (status === 401 || status === 403) return true;
+
+  return FATAL_AUTH_PATTERNS.some(
+    (p) => msg.includes(p.toLowerCase()) || code.includes(p)
+  );
+}
+
+function isNetworkError(error: any): boolean {
+  const msg = (error?.message || "").toLowerCase();
+  return (
+    msg.includes("failed to fetch") ||
+    msg.includes("networkerror") ||
+    msg.includes("err_network") ||
+    msg.includes("load failed") ||
+    msg.includes("aborted") ||
+    msg.includes("timeout") ||
+    error?.code === "PGRST301"
+  );
+}
 
 /**
  * Session lifecycle policy enforcement:
  * - 12h idle timeout (no user-initiated API activity)
  * - 5-day absolute timeout from login
- * - Retry transient network failures before logout (prevents false SESSION_MISSING)
+ * - Distinguishes fatal auth errors from transient network issues
+ * - Retry transient network failures before logout
  */
-export function useSessionPolicy(userId: string | undefined, signOut: () => Promise<void>) {
+export function useSessionPolicy(
+  userId: string | undefined,
+  signOut: () => Promise<void>
+) {
   const lastActivityUpdate = useRef<number>(0);
   const isRevokingRef = useRef(false);
   const consecutiveFailuresRef = useRef(0);
 
   const forceLogout = useCallback(
-    async (reason: "IDLE_TIMEOUT" | "ABSOLUTE_TIMEOUT" | "SESSION_MISSING") => {
+    async (
+      reason:
+        | "IDLE_TIMEOUT"
+        | "ABSOLUTE_TIMEOUT"
+        | "SESSION_MISSING"
+        | "INVALID_SESSION"
+    ) => {
       if (isRevokingRef.current) return;
       isRevokingRef.current = true;
 
@@ -32,7 +81,6 @@ export function useSessionPolicy(userId: string | undefined, signOut: () => Prom
         if (userId) {
           const deviceInfo = await enrichLoginAttempt();
 
-          // Revoke the session in DB
           await supabase
             .from("user_sessions")
             .update({
@@ -44,12 +92,13 @@ export function useSessionPolicy(userId: string | undefined, signOut: () => Prom
             .eq("user_id", userId)
             .eq("is_current", true);
 
-          // Audit log
           const auditAction =
             reason === "IDLE_TIMEOUT"
               ? "SESSION_IDLE_TIMEOUT"
               : reason === "ABSOLUTE_TIMEOUT"
               ? "SESSION_ABSOLUTE_TIMEOUT"
+              : reason === "INVALID_SESSION"
+              ? "SESSION_INVALID_TOKEN_LOGOUT"
               : "SESSION_MISSING_FORCED_LOGOUT";
 
           await recordAuditLog(userId, "System", {
@@ -64,7 +113,10 @@ export function useSessionPolicy(userId: string | undefined, signOut: () => Prom
           });
         }
       } catch (e) {
-        console.warn("[SessionPolicy] Failed to record session revocation:", e);
+        console.warn(
+          "[SessionPolicy] Failed to record session revocation:",
+          e
+        );
       }
 
       await signOut();
@@ -73,11 +125,6 @@ export function useSessionPolicy(userId: string | undefined, signOut: () => Prom
     [userId, signOut]
   );
 
-  /**
-   * Attempt a single session validation query with retry support.
-   * Returns the session data or null if truly missing.
-   * Throws only on repeated network failures (after retries exhausted).
-   */
   const fetchSessionWithRetry = useCallback(async () => {
     if (!userId) return null;
 
@@ -91,35 +138,37 @@ export function useSessionPolicy(userId: string | undefined, signOut: () => Prom
           .maybeSingle();
 
         if (error) {
-          // Distinguish between network errors and actual DB/query errors
-          const isNetworkError =
-            error.message?.includes("Failed to fetch") ||
-            error.message?.includes("NetworkError") ||
-            error.message?.includes("ERR_NETWORK") ||
-            error.message?.includes("Load failed") ||
-            error.message?.includes("fetch") ||
-            error.code === "PGRST301"; // timeout
+          // Fatal auth error → immediate logout
+          if (isFatalAuthError(error)) {
+            console.error(
+              "[SessionPolicy] Fatal auth error — forcing immediate logout:",
+              error.message
+            );
+            return "FATAL_AUTH_ERROR" as const;
+          }
 
-          if (isNetworkError && attempt < MAX_VALIDATION_RETRIES) {
+          // Network error → retry
+          if (isNetworkError(error) && attempt < MAX_VALIDATION_RETRIES) {
             console.warn(
-              `[SessionPolicy] Network error on validation attempt ${attempt}/${MAX_VALIDATION_RETRIES}, retrying in ${RETRY_DELAY_MS}ms...`,
+              `[SessionPolicy] Network error on attempt ${attempt}/${MAX_VALIDATION_RETRIES}, retrying...`,
               error.message
             );
             await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
             continue;
           }
 
-          // Non-network error or retries exhausted
-          if (isNetworkError) {
+          if (isNetworkError(error)) {
             console.warn(
-              `[SessionPolicy] Network errors exhausted after ${MAX_VALIDATION_RETRIES} retries. Skipping this cycle (NOT logging out).`
+              `[SessionPolicy] Network errors exhausted after ${MAX_VALIDATION_RETRIES} retries. Skipping cycle.`
             );
-            // Return a sentinel to indicate "skip this cycle" rather than force logout
             return "NETWORK_FAILURE" as const;
           }
 
-          // Genuine query error (e.g. permissions) — treat as missing
-          console.warn("[SessionPolicy] Session query error (non-network):", error);
+          // Non-network, non-fatal error — treat as missing
+          console.warn(
+            "[SessionPolicy] Session query error (non-network):",
+            error
+          );
           return null;
         }
 
@@ -127,10 +176,9 @@ export function useSessionPolicy(userId: string | undefined, signOut: () => Prom
         consecutiveFailuresRef.current = 0;
         return session;
       } catch (e: any) {
-        // Catch-all for fetch/network exceptions
         if (attempt < MAX_VALIDATION_RETRIES) {
           console.warn(
-            `[SessionPolicy] Exception on validation attempt ${attempt}/${MAX_VALIDATION_RETRIES}:`,
+            `[SessionPolicy] Exception on attempt ${attempt}/${MAX_VALIDATION_RETRIES}:`,
             e?.message
           );
           await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
@@ -151,29 +199,35 @@ export function useSessionPolicy(userId: string | undefined, signOut: () => Prom
 
     const result = await fetchSessionWithRetry();
 
-    // Network failure — skip this validation cycle entirely, do NOT logout
+    // Fatal auth error → immediate logout (no retry)
+    if (result === "FATAL_AUTH_ERROR") {
+      consecutiveFailuresRef.current = 0;
+      await forceLogout("INVALID_SESSION");
+      return;
+    }
+
+    // Network failure — skip cycle, accumulate failures
     if (result === "NETWORK_FAILURE") {
       consecutiveFailuresRef.current++;
       console.warn(
         `[SessionPolicy] Consecutive network failures: ${consecutiveFailuresRef.current}`
       );
-      // Only force logout after 5 consecutive complete failures (5 minutes of no connectivity)
-      if (consecutiveFailuresRef.current >= 5) {
+      if (consecutiveFailuresRef.current >= MAX_CONSECUTIVE_FAILURES) {
         console.error(
-          "[SessionPolicy] 5 consecutive network failures — forcing logout as safety measure."
+          `[SessionPolicy] ${MAX_CONSECUTIVE_FAILURES} consecutive network failures — forcing logout.`
         );
         await forceLogout("SESSION_MISSING");
       }
       return;
     }
 
-    // No session record → force logout
+    // No session record
     if (!result) {
       await forceLogout("SESSION_MISSING");
       return;
     }
 
-    // Already revoked server-side (e.g. admin revoke)
+    // Already revoked server-side
     if (result.revoked_at || !result.is_active) {
       await forceLogout("SESSION_MISSING");
       return;
@@ -183,26 +237,22 @@ export function useSessionPolicy(userId: string | undefined, signOut: () => Prom
     const startedAt = new Date(result.started_at).getTime();
     const lastActiveAt = new Date(result.last_active_at).getTime();
 
-    // Absolute timeout: 5 calendar days from login
     if (now - startedAt > ABSOLUTE_TIMEOUT_MS) {
       await forceLogout("ABSOLUTE_TIMEOUT");
       return;
     }
 
-    // Idle timeout: 12 hours since last activity
     if (now - lastActiveAt > IDLE_TIMEOUT_MS) {
       await forceLogout("IDLE_TIMEOUT");
       return;
     }
   }, [userId, fetchSessionWithRetry, forceLogout]);
 
-  // Periodic session validation — delay initial check to avoid race with login session creation
+  // Periodic validation — delay initial check
   useEffect(() => {
     if (!userId) return;
 
-    // Give login flow time to create the session record before first validation
     const initialDelay = setTimeout(validateSession, 10000);
-
     const interval = setInterval(validateSession, CHECK_INTERVAL_MS);
     return () => {
       clearTimeout(initialDelay);
@@ -210,11 +260,46 @@ export function useSessionPolicy(userId: string | undefined, signOut: () => Prom
     };
   }, [userId, validateSession]);
 
-  /**
-   * Call this to record a user-initiated activity.
-   * Debounced to avoid excessive DB writes.
-   * Do NOT call on background token refresh.
-   */
+  // Also validate the Supabase auth session itself proactively
+  useEffect(() => {
+    if (!userId) return;
+
+    const checkAuthSession = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          if (isFatalAuthError(error)) {
+            console.error("[SessionPolicy] Auth session invalid:", error.message);
+            await forceLogout("INVALID_SESSION");
+          }
+          return;
+        }
+
+        // Check if token is about to expire (within 60s) and refresh proactively
+        if (data.session?.expires_at) {
+          const expiresAt = data.session.expires_at * 1000; // convert to ms
+          const timeUntilExpiry = expiresAt - Date.now();
+          if (timeUntilExpiry > 0 && timeUntilExpiry < 120_000) {
+            console.log("[SessionPolicy] Token expiring soon, refreshing proactively...");
+            const { error: refreshError } = await supabase.auth.refreshSession();
+            if (refreshError) {
+              console.warn("[SessionPolicy] Proactive refresh failed:", refreshError.message);
+              if (isFatalAuthError(refreshError)) {
+                await forceLogout("INVALID_SESSION");
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[SessionPolicy] Auth session check exception:", e);
+      }
+    };
+
+    // Check auth token health every 30 seconds
+    const interval = setInterval(checkAuthSession, 30_000);
+    return () => clearInterval(interval);
+  }, [userId, forceLogout]);
+
   const recordActivity = useCallback(async () => {
     if (!userId) return;
 
@@ -229,7 +314,6 @@ export function useSessionPolicy(userId: string | undefined, signOut: () => Prom
         .eq("user_id", userId)
         .eq("is_current", true);
     } catch (e) {
-      // Non-critical, don't disrupt user
       console.warn("[SessionPolicy] Failed to update last_activity_at:", e);
     }
   }, [userId]);
