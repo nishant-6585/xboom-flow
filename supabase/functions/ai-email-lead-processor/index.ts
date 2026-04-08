@@ -27,7 +27,8 @@ interface AIExtractionResult {
 const MAX_RETRIES = 3;
 
 const INTENT_KEYWORDS = ["buy", "price", "quotation", "urgent", "require", "purchase", "order", "quote", "need", "enquiry", "inquiry", "cost", "rate", "pls", "please", "want"];
-const SPAM_KEYWORDS = ["unsubscribe", "newsletter", "marketing", "no-reply", "noreply", "mailer-daemon", "auto-reply", "out of office", "ooo", "promotion", "subscription"];
+// Narrowed spam keywords — removed generic terms that could appear in legitimate emails
+const SPAM_KEYWORDS = ["unsubscribe", "newsletter", "mailer-daemon", "auto-reply", "out of office", "ooo"];
 
 const CLAUDE_PROMPT = `You are an expert sales assistant extracting leads from emails.
 
@@ -106,7 +107,9 @@ function buildEmailContent(lead: Record<string, any>): string {
     lead.customer_company ? `Company: ${lead.customer_company}` : "",
     lead.product_name ? `Product: ${lead.product_name}` : "",
     lead.city ? `City: ${lead.city}` : "",
-    lead.notes ? `\nEmail Content:\n${lead.notes}` : "",
+    lead.subject ? `Subject: ${lead.subject}` : "",
+    lead.body_text ? `\nEmail Body:\n${lead.body_text.substring(0, 3000)}` : "",
+    lead.notes ? `\nNotes:\n${lead.notes}` : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -114,17 +117,14 @@ function buildEmailContent(lead: Record<string, any>): string {
 
 function safeParseJSON(content: string): AIExtractionResult | null {
   try {
-    // Try direct parse first
     return JSON.parse(content);
   } catch {
-    // Try extracting JSON from markdown code blocks
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (jsonMatch) {
       try {
         return JSON.parse(jsonMatch[1].trim());
       } catch { /* fall through */ }
     }
-    // Try finding first { ... } block
     const braceMatch = content.match(/\{[\s\S]*\}/);
     if (braceMatch) {
       try {
@@ -176,11 +176,12 @@ function determineStatus(aiResult: AIExtractionResult, emailText: string): strin
 
   if (aiResult.is_lead || intentFromText) {
     if (aiResult.confidence >= 0.7 || intentFromText) return "processed";
-    if (aiResult.confidence >= 0.5) return "needs_review";
+    if (aiResult.confidence >= 0.4) return "needs_review";
     return "needs_review";
   }
 
-  if (aiResult.confidence >= 0.5) return "needs_review";
+  // Lower threshold: if confidence >= 0.4, send to review instead of rejecting
+  if (aiResult.confidence >= 0.4) return "needs_review";
   return "rejected";
 }
 
@@ -311,15 +312,19 @@ Deno.serve(async (req) => {
             .single();
           const currentRetry = currentLead?.retry_count || 0;
           const newRetry = currentRetry + 1;
-          const newStatus = newRetry >= MAX_RETRIES ? "failed" : "pending";
+          // FALLBACK: After max retries, create as "unclassified" instead of just failing
+          const newStatus = newRetry >= MAX_RETRIES ? "needs_review" : "pending";
 
           await supabase.from("email_leads").update({
             processing_status: newStatus,
             retry_count: newRetry,
-            error_message: itemError || "AI processing failed",
+            error_message: itemError || "AI processing failed — moved to manual review",
+            ai_processed: newRetry >= MAX_RETRIES,
+            ai_confidence: newRetry >= MAX_RETRIES ? 0 : null,
+            ai_extracted_json: newRetry >= MAX_RETRIES ? { is_lead: false, confidence: 0, summary: "AI failed after retries — needs manual review" } as unknown : null,
           }).eq("id", lead_id);
 
-          if (newStatus === "failed") failed++;
+          if (newStatus === "needs_review") needsReview++;
           continue;
         }
 
@@ -398,7 +403,7 @@ Deno.serve(async (req) => {
       for (const lead of leads) {
         try {
           const emailContent = buildEmailContent(lead);
-          const fullText = `${lead.customer_name || ""} ${lead.notes || ""} ${lead.product_name || ""}`.toLowerCase();
+          const fullText = `${lead.customer_name || ""} ${lead.subject || ""} ${lead.body_text || ""} ${lead.notes || ""} ${lead.product_name || ""}`.toLowerCase();
 
           // ---- Hybrid Filter: Skip spam ----
           if (isSpam(fullText)) {
@@ -412,6 +417,16 @@ Deno.serve(async (req) => {
             skippedSpam++;
             rejected++;
             processed++;
+
+            console.log(JSON.stringify({
+              event: "email_lead_dropped",
+              lead_id: lead.id,
+              sender: lead.email,
+              subject: lead.subject,
+              reason: "spam_filter",
+              detail: "Matched spam keyword in content",
+            }));
+
             continue;
           }
 
@@ -448,6 +463,16 @@ Deno.serve(async (req) => {
             if (result.created) enquiriesCreated++;
             skippedDirect++;
             processed++;
+
+            console.log(JSON.stringify({
+              event: "email_lead_processed",
+              lead_id: lead.id,
+              sender: lead.email,
+              method: "rule_engine",
+              status: "processed",
+              confidence: 0.85,
+            }));
+
             continue;
           }
 
@@ -479,6 +504,17 @@ Deno.serve(async (req) => {
 
           await supabase.from("email_leads").update(updatePayload).eq("id", lead.id);
           processed++;
+
+          console.log(JSON.stringify({
+            event: "email_lead_processed",
+            lead_id: lead.id,
+            sender: lead.email,
+            method: "ai_claude",
+            status,
+            confidence: aiResult.confidence,
+            is_lead: aiResult.is_lead,
+          }));
+
         } catch (err) {
           console.error(`Error processing lead ${lead.id}:`, err);
           const { data: currentLead } = await supabase
@@ -488,15 +524,31 @@ Deno.serve(async (req) => {
             .single();
           const currentRetry = currentLead?.retry_count || 0;
           const newRetry = currentRetry + 1;
-          const newStatus = newRetry >= MAX_RETRIES ? "failed" : "pending";
+
+          // FALLBACK: After max retries, move to needs_review instead of permanently failing
+          const newStatus = newRetry >= MAX_RETRIES ? "needs_review" : "pending";
 
           await supabase.from("email_leads").update({
             processing_status: newStatus,
             retry_count: newRetry,
             error_message: err instanceof Error ? err.message : String(err),
+            ai_processed: newRetry >= MAX_RETRIES,
+            ai_confidence: newRetry >= MAX_RETRIES ? 0 : null,
+            ai_extracted_json: newRetry >= MAX_RETRIES ? { is_lead: false, confidence: 0, summary: "AI processing failed after retries — needs manual review" } as unknown : null,
           }).eq("id", lead.id);
 
-          if (newStatus === "failed") failed++;
+          if (newStatus === "needs_review") {
+            needsReview++;
+            console.log(JSON.stringify({
+              event: "email_lead_fallback",
+              lead_id: lead.id,
+              sender: lead.email,
+              reason: "ai_failure_max_retries",
+              moved_to: "needs_review",
+            }));
+          } else {
+            failed++;
+          }
         }
       }
 
