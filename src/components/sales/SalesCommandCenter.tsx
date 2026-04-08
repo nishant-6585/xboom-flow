@@ -1340,7 +1340,7 @@ export function SalesCommandCenter() {
                   <DollarSign className="w-3.5 h-3.5" /> Revenue — Target vs Achieved
                 </p>
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={targetComparison} layout="vertical" barGap={2}>
+                  <BarChart data={targetComparison} layout="vertical" barGap={2} onClick={(data: any) => { if (data?.activeLabel) handleTargetClick(data.activeLabel); }} style={{ cursor: 'pointer' }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
                     <XAxis type="number" className="text-xs" tickFormatter={(v) => formatCurrency(v)} />
                     <YAxis type="category" dataKey="name" className="text-xs" width={70} />
@@ -1358,7 +1358,7 @@ export function SalesCommandCenter() {
                   <TrendingUp className="w-3.5 h-3.5" /> Pipeline — Target vs Achieved
                 </p>
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={targetComparison} layout="vertical" barGap={2}>
+                  <BarChart data={targetComparison} layout="vertical" barGap={2} onClick={(data: any) => { if (data?.activeLabel) handleTargetClick(data.activeLabel); }} style={{ cursor: 'pointer' }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
                     <XAxis type="number" className="text-xs" tickFormatter={(v) => formatCurrency(v)} />
                     <YAxis type="category" dataKey="name" className="text-xs" width={70} />
