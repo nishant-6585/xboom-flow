@@ -1939,8 +1939,8 @@ export function SalesCommandCenter() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={monthlyTrend}>
+             <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={monthlyTrend} onClick={handleMonthlyTrendClick} style={{ cursor: 'pointer' }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="month" className="text-xs" />
                 <YAxis tickFormatter={formatCurrency} className="text-xs" />
@@ -1990,7 +1990,7 @@ export function SalesCommandCenter() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={280}>
-            <AreaChart data={dailyTrend}>
+            <AreaChart data={dailyTrend} onClick={handleDailyTrendClick} style={{ cursor: 'pointer' }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="date" className="text-xs" />
               <YAxis className="text-xs" />
