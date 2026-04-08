@@ -9879,6 +9879,39 @@ export type Database = {
         }
         Relationships: []
       }
+      trusted_devices: {
+        Row: {
+          created_at: string
+          device_hash: string
+          device_name: string | null
+          expires_at: string
+          id: string
+          is_revoked: boolean
+          last_used_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_hash: string
+          device_name?: string | null
+          expires_at: string
+          id?: string
+          is_revoked?: boolean
+          last_used_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_hash?: string
+          device_name?: string | null
+          expires_at?: string
+          id?: string
+          is_revoked?: boolean
+          last_used_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_activity_logs: {
         Row: {
           actions_performed: number | null
@@ -10452,6 +10485,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_device_trust: {
+        Args: { p_device_hash: string; p_user_id: string }
+        Returns: boolean
+      }
       check_login_rate_limit: {
         Args: { p_email: string }
         Returns: {
@@ -10675,6 +10712,15 @@ export type Database = {
           p_user_id?: string
         }
         Returns: undefined
+      }
+      register_trusted_device: {
+        Args: {
+          p_days?: number
+          p_device_hash: string
+          p_device_name?: string
+          p_user_id: string
+        }
+        Returns: string
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
