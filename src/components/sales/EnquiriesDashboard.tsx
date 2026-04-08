@@ -363,6 +363,45 @@ export function EnquiriesDashboard({ enquiries }: EnquiriesDashboardProps) {
     openDrillDown(title, items);
   }, [filtered, toDetailItem, openDrillDown]);
 
+  const handleUrgencyClick = useCallback((urgencyLabel: string) => {
+    const urgencyLower = urgencyLabel.toLowerCase();
+    const items = filtered.filter(e => e.urgency === urgencyLower).map(toDetailItem);
+    openDrillDown(`${urgencyLabel} Urgency Enquiries (${items.length})`, items);
+  }, [filtered, toDetailItem, openDrillDown]);
+
+  const handleMonthClick = useCallback((monthLabel: string) => {
+    const monthEnquiries = enquiries.filter(e => {
+      try {
+        const d = parseISO(e.created_at);
+        return format(d, 'MMM yy') === monthLabel;
+      } catch { return false; }
+    });
+    const items = monthEnquiries.map(toDetailItem);
+    openDrillDown(`Enquiries — ${monthLabel} (${items.length})`, items);
+  }, [enquiries, toDetailItem, openDrillDown]);
+
+  const handleDayClick = useCallback((dayLabel: string) => {
+    const now = new Date();
+    const dayEnquiries = Array.from({ length: 14 }, (_, i) => subDays(now, 13 - i))
+      .filter(d => format(d, 'MMM d') === dayLabel)
+      .flatMap(d => {
+        const dateStr = format(d, 'yyyy-MM-dd');
+        return enquiries.filter(e => e.created_at?.startsWith(dateStr));
+      });
+    const items = dayEnquiries.map(toDetailItem);
+    openDrillDown(`Enquiries — ${dayLabel} (${items.length})`, items);
+  }, [enquiries, toDetailItem, openDrillDown]);
+
+  const handleLostReasonClick = useCallback((reason: string) => {
+    const items = filtered.filter(e => e.status === 'order_lost' && (e.lost_reason || 'unknown').replace(/_/g, ' ') === reason).map(toDetailItem);
+    openDrillDown(`Lost — ${reason} (${items.length})`, items);
+  }, [filtered, toDetailItem, openDrillDown]);
+
+  const handleSalesPersonDrillDown = useCallback((fullName: string) => {
+    const items = filtered.filter(e => e.sales_person_name === fullName).map(toDetailItem);
+    openDrillDown(`${fullName} — Enquiries (${items.length})`, items);
+  }, [filtered, toDetailItem, openDrillDown]);
+
   const handleItemClick = useCallback((item: DetailItem) => {
     setDetailDialogOpen(false);
     setTimeout(() => {
@@ -568,12 +607,14 @@ export function EnquiriesDashboard({ enquiries }: EnquiriesDashboardProps) {
           <CardContent>
             <ResponsiveContainer width="100%" height={240}>
               <PieChart>
-                <Pie
-                  data={urgencyData} cx="50%" cy="50%"
-                  innerRadius={50} outerRadius={90} paddingAngle={3}
-                  dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}`}
-                >
+                 <Pie
+                   data={urgencyData} cx="50%" cy="50%"
+                   innerRadius={50} outerRadius={90} paddingAngle={3}
+                   dataKey="value"
+                   label={({ name, value }) => `${name}: ${value}`}
+                   style={{ cursor: 'pointer' }}
+                   onClick={(_, idx) => { const d = urgencyData[idx]; if (d) handleUrgencyClick(d.name); }}
+                 >
                   {urgencyData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                 </Pie>
                 <Tooltip contentStyle={tooltipStyle} />
@@ -626,10 +667,10 @@ export function EnquiriesDashboard({ enquiries }: EnquiriesDashboardProps) {
                 <YAxis fontSize={12} />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Legend />
-                <Bar dataKey="total" name="Total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="responded" name="Processed" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="won" name="Won" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="lost" name="Lost" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                 <Bar dataKey="total" name="Total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} style={{ cursor: 'pointer' }} onClick={(data) => { if (data?.month) handleMonthClick(data.month); }} />
+                 <Bar dataKey="responded" name="Processed" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} style={{ cursor: 'pointer' }} onClick={(data) => { if (data?.month) handleMonthClick(data.month); }} />
+                 <Bar dataKey="won" name="Won" fill="#22c55e" radius={[4, 4, 0, 0]} style={{ cursor: 'pointer' }} onClick={(data) => { if (data?.month) handleMonthClick(data.month); }} />
+                 <Bar dataKey="lost" name="Lost" fill="#ef4444" radius={[4, 4, 0, 0]} style={{ cursor: 'pointer' }} onClick={(data) => { if (data?.month) handleMonthClick(data.month); }} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -647,14 +688,14 @@ export function EnquiriesDashboard({ enquiries }: EnquiriesDashboardProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={dailyTrend}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis dataKey="date" fontSize={11} />
-                <YAxis fontSize={12} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Area type="monotone" dataKey="total" name="Total" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} />
-                <Area type="monotone" dataKey="responded" name="Responded" stroke="hsl(var(--chart-2))" fill="hsl(var(--chart-2))" fillOpacity={0.1} />
+             <ResponsiveContainer width="100%" height={260}>
+               <AreaChart data={dailyTrend} style={{ cursor: 'pointer' }} onClick={(e) => { if (e?.activeLabel) handleDayClick(e.activeLabel); }}>
+                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                 <XAxis dataKey="date" fontSize={11} />
+                 <YAxis fontSize={12} />
+                 <Tooltip contentStyle={tooltipStyle} />
+                 <Area type="monotone" dataKey="total" name="Total" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} />
+                 <Area type="monotone" dataKey="responded" name="Responded" stroke="hsl(var(--chart-2))" fill="hsl(var(--chart-2))" fillOpacity={0.1} />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -676,7 +717,7 @@ export function EnquiriesDashboard({ enquiries }: EnquiriesDashboardProps) {
                   <XAxis type="number" fontSize={12} />
                   <YAxis dataKey="name" type="category" fontSize={11} width={100} />
                   <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="value" name="Lost" fill="#ef4444" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="value" name="Lost" fill="#ef4444" radius={[0, 4, 4, 0]} style={{ cursor: 'pointer' }} onClick={(data) => { if (data?.name) handleLostReasonClick(data.name); }} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -707,11 +748,9 @@ export function EnquiriesDashboard({ enquiries }: EnquiriesDashboardProps) {
               </thead>
               <tbody>
                 {salesPersonStats.map(sp => (
-                  <tr key={sp.fullName} className="border-b border-border/30 hover:bg-muted/50 cursor-pointer"
-                    onClick={() => {
-                      setSalesPersonFilter(sp.fullName);
-                    }}
-                  >
+                   <tr key={sp.fullName} className="border-b border-border/30 hover:bg-muted/50 cursor-pointer"
+                     onClick={() => handleSalesPersonDrillDown(sp.fullName)}
+                   >
                     <td className="py-2 font-medium">{sp.fullName}</td>
                     <td className="text-center py-2">{sp.total}</td>
                     <td className="text-center py-2">
