@@ -152,7 +152,9 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <AppInner />
-          <SessionHealthDebug />
+          <ErrorBoundary fallback={null}>
+            <SessionHealthDebug />
+          </ErrorBoundary>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
