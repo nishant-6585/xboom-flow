@@ -11,8 +11,9 @@ const GMAIL_CLIENT_SECRET = Deno.env.get("GMAIL_CLIENT_SECRET")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const LEAD_KEYWORDS = ["enquiry", "quote", "interested", "price", "buy", "order", "purchase", "requirement", "drone", "bulk"];
-const SPAM_INDICATORS = ["unsubscribe", "newsletter", "no-reply", "noreply", "mailer-daemon", "postmaster"];
+// Only filter out truly automated/system emails — NOT generic inboxes like hello@, info@, contact@
+const HARD_BLOCK_SENDERS = ["mailer-daemon", "postmaster", "noreply", "no-reply"];
+const SPAM_SUBJECT_INDICATORS = ["unsubscribe", "newsletter", "you have been removed"];
 
 interface GmailMessage {
   id: string;
@@ -85,16 +86,6 @@ function extractName(fromHeader: string): string {
   return emailMatch ? emailMatch[1].replace(/[._-]/g, " ").trim() : "Unknown";
 }
 
-function isSpam(from: string, subject: string, body: string): boolean {
-  const combined = `${from} ${subject} ${body}`.toLowerCase();
-  return SPAM_INDICATORS.some((s) => combined.includes(s));
-}
-
-function isLeadEmail(subject: string, body: string): boolean {
-  const combined = `${subject} ${body}`.toLowerCase();
-  return LEAD_KEYWORDS.some((k) => combined.includes(k));
-}
-
 function extractProduct(text: string): string | null {
   const patterns = [
     /(?:interested in|enquiry for|quote for|need|want|looking for|require)\s+(?:a\s+)?(.+?)(?:\.|,|\n|$)/i,
@@ -105,6 +96,31 @@ function extractProduct(text: string): string | null {
     if (match) return match[1].trim().substring(0, 100);
   }
   return null;
+}
+
+/**
+ * Only block truly automated/system senders.
+ * Generic inboxes like hello@, info@, contact@, support@ are ALLOWED.
+ */
+function isHardBlocked(from: string, subject: string): { blocked: boolean; reason: string } {
+  const fromLower = from.toLowerCase();
+  const subjectLower = subject.toLowerCase();
+
+  // Check sender against hard-block list (system emails only)
+  for (const blocked of HARD_BLOCK_SENDERS) {
+    if (fromLower.includes(blocked + "@") || fromLower.includes(`<${blocked}@`)) {
+      return { blocked: true, reason: `sender_blocked:${blocked}` };
+    }
+  }
+
+  // Check subject for obvious spam indicators
+  for (const indicator of SPAM_SUBJECT_INDICATORS) {
+    if (subjectLower.includes(indicator)) {
+      return { blocked: true, reason: `subject_spam:${indicator}` };
+    }
+  }
+
+  return { blocked: false, reason: "" };
 }
 
 async function refreshAccessToken(refreshToken: string): Promise<{ access_token: string; expires_in: number } | null> {
@@ -212,7 +228,10 @@ Deno.serve(async (req) => {
       let accessToken = integration.access_token;
       let emailsFetched = 0;
       let leadsCreated = 0;
+      let blocked = 0;
+      let duplicates = 0;
       let errors = "";
+      const dropLog: Array<{ gmail_id: string; sender: string; subject: string; reason: string }> = [];
 
       // Check token expiry and refresh if needed
       if (integration.token_expiry && new Date(integration.token_expiry) <= new Date()) {
@@ -239,8 +258,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Search Gmail for potential lead emails — broader query to catch more leads
-      // AI processor will filter out non-leads, so cast a wide net here
+      // Search Gmail — broad query, let AI processor handle classification
       const searchQuery = "newer_than:1d is:inbox -category:promotions -category:social -category:updates -category:forums";
       const listUrl = `https://www.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(searchQuery)}&maxResults=50`;
 
@@ -281,33 +299,39 @@ Deno.serve(async (req) => {
             const msg: GmailMessage = await msgRes.json();
             const from = getHeader(msg.payload.headers, "From");
             const subject = getHeader(msg.payload.headers, "Subject");
+            const messageIdHeader = getHeader(msg.payload.headers, "Message-ID") || msgId;
             const dateStr = getHeader(msg.payload.headers, "Date");
             const { text: bodyText, html: bodyHtml } = extractBodyParts(msg.payload);
+            const senderEmail = extractEmail(from) || "";
 
-            // Skip spam/newsletter
-            if (isSpam(from, subject, bodyText)) continue;
+            // ---- ONLY block truly automated system senders ----
+            const blockCheck = isHardBlocked(from, subject);
+            if (blockCheck.blocked) {
+              blocked++;
+              dropLog.push({ gmail_id: msgId, sender: senderEmail, subject, reason: blockCheck.reason });
+              continue;
+            }
 
-            // Check if it's a lead
-            if (!isLeadEmail(subject, bodyText)) continue;
+            // ---- Deduplicate using Message-ID header (not sender email) ----
+            // This prevents dropping different emails from the same sender
+            const emailLeadId = `gmail_${msgId}`;
+            const { data: existing } = await supabase
+              .from("email_leads")
+              .select("id")
+              .eq("email_lead_id", emailLeadId)
+              .limit(1);
+
+            if (existing && existing.length > 0) {
+              duplicates++;
+              continue;
+            }
 
             // Extract lead data
-            const senderEmail = extractEmail(from) || "";
             const name = extractName(from);
             const phone = extractPhone(bodyText);
             const product = extractProduct(`${subject} ${bodyText}`);
 
-            // Duplicate check: same email in last 7 days
-            const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-            const { data: existing } = await supabase
-              .from("email_leads")
-              .select("id")
-              .eq("email", senderEmail)
-              .gte("created_at", sevenDaysAgo)
-              .limit(1);
-
-            if (existing && existing.length > 0) continue;
-
-            // Insert into email_leads
+            // ---- INSERT ALL non-blocked emails — let AI processor classify ----
             const { error: insertError } = await supabase.from("email_leads").insert({
               customer_name: name,
               email: senderEmail,
@@ -322,21 +346,40 @@ Deno.serve(async (req) => {
               status: "pending",
               processing_status: "pending",
               ai_processed: false,
+              email_lead_id: emailLeadId,
             });
 
             if (!insertError) {
               leadsCreated++;
             } else {
-              console.error("Insert error:", insertError.message);
+              // If unique constraint violation, it's a duplicate — not an error
+              if (insertError.code === "23505") {
+                duplicates++;
+              } else {
+                console.error("[Gmail Sync] Insert error:", insertError.message);
+                dropLog.push({ gmail_id: msgId, sender: senderEmail, subject, reason: `insert_error:${insertError.message}` });
+              }
             }
           } catch (msgErr) {
-            console.error("Error processing message:", msgErr);
+            console.error("[Gmail Sync] Error processing message:", msgErr);
           }
         }
       } catch (fetchErr) {
         errors = `Fetch error: ${String(fetchErr)}`;
         console.error(errors);
       }
+
+      // Structured sync summary log
+      console.log(JSON.stringify({
+        event: "gmail_sync_complete",
+        integration_email: integration.email,
+        emails_fetched: emailsFetched,
+        leads_created: leadsCreated,
+        blocked,
+        duplicates,
+        drops: dropLog,
+        errors: errors || null,
+      }));
 
       // Update last synced
       await supabase
@@ -356,6 +399,9 @@ Deno.serve(async (req) => {
         email: integration.email,
         emails_fetched: emailsFetched,
         leads_created: leadsCreated,
+        blocked,
+        duplicates,
+        drops: dropLog.length,
         errors: errors || null,
       });
     }
