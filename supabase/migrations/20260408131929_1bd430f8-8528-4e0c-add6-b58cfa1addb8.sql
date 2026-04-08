@@ -1,0 +1,13 @@
+ALTER TABLE public.email_leads ADD COLUMN IF NOT EXISTS email_lead_id TEXT;
+ALTER TABLE public.email_leads ADD COLUMN IF NOT EXISTS thread_id TEXT;
+ALTER TABLE public.email_leads ADD COLUMN IF NOT EXISTS ingested_at TIMESTAMPTZ DEFAULT now();
+ALTER TABLE public.email_leads ADD COLUMN IF NOT EXISTS processed_at TIMESTAMPTZ;
+ALTER TABLE public.email_leads ADD COLUMN IF NOT EXISTS last_error TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_email_leads_email_lead_id_unique ON public.email_leads (email_lead_id) WHERE email_lead_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_email_leads_thread_id ON public.email_leads (thread_id) WHERE thread_id IS NOT NULL;
+CREATE TABLE IF NOT EXISTS public.email_lead_pipeline_stats (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), stat_date DATE NOT NULL DEFAULT CURRENT_DATE, total_ingested INTEGER DEFAULT 0, total_processed INTEGER DEFAULT 0, total_rejected INTEGER DEFAULT 0, total_needs_review INTEGER DEFAULT 0, total_failed INTEGER DEFAULT 0, false_positive_count INTEGER DEFAULT 0, avg_confidence NUMERIC(4,3) DEFAULT 0, avg_latency_seconds INTEGER DEFAULT 0, spam_detected INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT now(), UNIQUE(stat_date));
+CREATE TABLE IF NOT EXISTS public.email_sender_frequency (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), sender_email TEXT NOT NULL, message_count INTEGER DEFAULT 1, first_seen_at TIMESTAMPTZ DEFAULT now(), last_seen_at TIMESTAMPTZ DEFAULT now(), is_bulk_sender BOOLEAN DEFAULT false, created_at TIMESTAMPTZ DEFAULT now(), UNIQUE(sender_email));
+ALTER TABLE public.email_lead_pipeline_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.email_sender_frequency ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admins can view pipeline stats" ON public.email_lead_pipeline_stats FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Admins can view sender frequency" ON public.email_sender_frequency FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));

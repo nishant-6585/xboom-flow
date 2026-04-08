@@ -44,6 +44,11 @@ export interface EmailLead {
   ai_confidence: number | null;
   ai_extracted_json: Record<string, unknown> | null;
   retry_count: number;
+  email_lead_id: string | null;
+  thread_id: string | null;
+  ingested_at: string | null;
+  processed_at: string | null;
+  last_error: string | null;
   created_at: string;
   updated_at: string;
 }

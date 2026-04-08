@@ -27,7 +27,6 @@ interface AIExtractionResult {
 const MAX_RETRIES = 3;
 
 const INTENT_KEYWORDS = ["buy", "price", "quotation", "urgent", "require", "purchase", "order", "quote", "need", "enquiry", "inquiry", "cost", "rate", "pls", "please", "want"];
-// Narrowed spam keywords — removed generic terms that could appear in legitimate emails
 const SPAM_KEYWORDS = ["unsubscribe", "newsletter", "mailer-daemon", "auto-reply", "out of office", "ooo"];
 
 const CLAUDE_PROMPT = `You are an expert sales assistant extracting leads from emails.
@@ -121,15 +120,11 @@ function safeParseJSON(content: string): AIExtractionResult | null {
   } catch {
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (jsonMatch) {
-      try {
-        return JSON.parse(jsonMatch[1].trim());
-      } catch { /* fall through */ }
+      try { return JSON.parse(jsonMatch[1].trim()); } catch { /* fall through */ }
     }
     const braceMatch = content.match(/\{[\s\S]*\}/);
     if (braceMatch) {
-      try {
-        return JSON.parse(braceMatch[0]);
-      } catch { /* fall through */ }
+      try { return JSON.parse(braceMatch[0]); } catch { /* fall through */ }
     }
     return null;
   }
@@ -180,7 +175,6 @@ function determineStatus(aiResult: AIExtractionResult, emailText: string): strin
     return "needs_review";
   }
 
-  // Lower threshold: if confidence >= 0.4, send to review instead of rejecting
   if (aiResult.confidence >= 0.4) return "needs_review";
   return "rejected";
 }
@@ -224,6 +218,59 @@ async function createEnquiryFromLead(
   const { error } = await supabase.from("enquiries").insert(enquiryData);
   if (error) return { created: false, error: error.message };
   return { created: true };
+}
+
+/**
+ * Update pipeline stats after AI processing batch
+ */
+async function updatePipelineStats(
+  supabase: ReturnType<typeof createClient>,
+  stats: {
+    processed: number;
+    rejected: number;
+    needsReview: number;
+    failed: number;
+    avgConfidence: number;
+    avgLatencySeconds: number;
+  }
+) {
+  const today = new Date().toISOString().split("T")[0];
+
+  const { data: existing } = await supabase
+    .from("email_lead_pipeline_stats")
+    .select("*")
+    .eq("stat_date", today)
+    .single();
+
+  if (existing) {
+    const totalProcessedBefore = existing.total_processed || 0;
+    const totalNow = totalProcessedBefore + stats.processed;
+    const weightedAvg = totalNow > 0
+      ? ((existing.avg_confidence || 0) * totalProcessedBefore + stats.avgConfidence * stats.processed) / totalNow
+      : 0;
+
+    await supabase
+      .from("email_lead_pipeline_stats")
+      .update({
+        total_processed: totalNow,
+        total_rejected: (existing.total_rejected || 0) + stats.rejected,
+        total_needs_review: (existing.total_needs_review || 0) + stats.needsReview,
+        total_failed: (existing.total_failed || 0) + stats.failed,
+        avg_confidence: Math.round(weightedAvg * 1000) / 1000,
+        avg_latency_seconds: stats.avgLatencySeconds || existing.avg_latency_seconds || 0,
+      })
+      .eq("stat_date", today);
+  } else {
+    await supabase.from("email_lead_pipeline_stats").insert({
+      stat_date: today,
+      total_processed: stats.processed,
+      total_rejected: stats.rejected,
+      total_needs_review: stats.needsReview,
+      total_failed: stats.failed,
+      avg_confidence: Math.round(stats.avgConfidence * 1000) / 1000,
+      avg_latency_seconds: stats.avgLatencySeconds,
+    });
+  }
 }
 
 Deno.serve(async (req) => {
@@ -312,19 +359,20 @@ Deno.serve(async (req) => {
             .single();
           const currentRetry = currentLead?.retry_count || 0;
           const newRetry = currentRetry + 1;
-          // FALLBACK: After max retries, create as "unclassified" instead of just failing
           const newStatus = newRetry >= MAX_RETRIES ? "needs_review" : "pending";
 
           await supabase.from("email_leads").update({
             processing_status: newStatus,
             retry_count: newRetry,
             error_message: itemError || "AI processing failed — moved to manual review",
+            last_error: itemError || "AI processing failed",
             ai_processed: newRetry >= MAX_RETRIES,
             ai_confidence: newRetry >= MAX_RETRIES ? 0 : null,
             ai_extracted_json: newRetry >= MAX_RETRIES ? { is_lead: false, confidence: 0, summary: "AI failed after retries — needs manual review" } as unknown : null,
           }).eq("id", lead_id);
 
           if (newStatus === "needs_review") needsReview++;
+          else failed++;
           continue;
         }
 
@@ -334,7 +382,9 @@ Deno.serve(async (req) => {
           ai_confidence: aiResult.confidence,
           ai_extracted_json: aiResult as unknown,
           error_message: null,
+          last_error: null,
           processing_status: status,
+          processed_at: new Date().toISOString(),
         };
 
         if (status === "processed") {
@@ -348,6 +398,7 @@ Deno.serve(async (req) => {
             const result = await createEnquiryFromLead(supabase, lead, aiResult);
             if (result.error) {
               updatePayload.error_message = `Enquiry creation failed: ${result.error}`;
+              updatePayload.last_error = result.error;
               updatePayload.processing_status = "pending";
             } else if (result.created) {
               enquiriesCreated++;
@@ -374,7 +425,6 @@ Deno.serve(async (req) => {
       const specificLeadId = body.lead_id;
       const batchSize = Math.min(body.batch_size || 10, 50);
 
-      // Step 1: Claim pending leads
       const { data: pendingLeads, error: fetchError } = await supabase.rpc(
         "claim_pending_email_leads",
         {
@@ -399,8 +449,12 @@ Deno.serve(async (req) => {
       let failed = 0;
       let skippedSpam = 0;
       let skippedDirect = 0;
+      let totalConfidence = 0;
+      let confidenceCount = 0;
+      const batchStartTime = Date.now();
 
       for (const lead of leads) {
+        const leadStartTime = Date.now();
         try {
           const emailContent = buildEmailContent(lead);
           const fullText = `${lead.customer_name || ""} ${lead.subject || ""} ${lead.body_text || ""} ${lead.notes || ""} ${lead.product_name || ""}`.toLowerCase();
@@ -413,6 +467,7 @@ Deno.serve(async (req) => {
               ai_confidence: 0,
               ai_extracted_json: { is_lead: false, confidence: 0, summary: "Filtered as spam/newsletter by rule engine" } as unknown,
               error_message: null,
+              processed_at: new Date().toISOString(),
             }).eq("id", lead.id);
             skippedSpam++;
             rejected++;
@@ -424,9 +479,7 @@ Deno.serve(async (req) => {
               sender: lead.email,
               subject: lead.subject,
               reason: "spam_filter",
-              detail: "Matched spam keyword in content",
             }));
-
             continue;
           }
 
@@ -457,12 +510,15 @@ Deno.serve(async (req) => {
               ai_confidence: directResult.confidence,
               ai_extracted_json: directResult as unknown,
               error_message: null,
+              processed_at: new Date().toISOString(),
             }).eq("id", lead.id);
 
             const result = await createEnquiryFromLead(supabase, lead, directResult);
             if (result.created) enquiriesCreated++;
             skippedDirect++;
             processed++;
+            totalConfidence += directResult.confidence;
+            confidenceCount++;
 
             console.log(JSON.stringify({
               event: "email_lead_processed",
@@ -471,8 +527,8 @@ Deno.serve(async (req) => {
               method: "rule_engine",
               status: "processed",
               confidence: 0.85,
+              latency_ms: Date.now() - leadStartTime,
             }));
-
             continue;
           }
 
@@ -485,13 +541,16 @@ Deno.serve(async (req) => {
             ai_confidence: aiResult.confidence,
             ai_extracted_json: aiResult as unknown,
             error_message: null,
+            last_error: null,
             processing_status: status,
+            processed_at: new Date().toISOString(),
           };
 
           if (status === "processed") {
             const result = await createEnquiryFromLead(supabase, lead, aiResult);
             if (result.error) {
               updatePayload.error_message = `Enquiry creation failed: ${result.error}`;
+              updatePayload.last_error = result.error;
               updatePayload.processing_status = "pending";
             } else if (result.created) {
               enquiriesCreated++;
@@ -504,6 +563,8 @@ Deno.serve(async (req) => {
 
           await supabase.from("email_leads").update(updatePayload).eq("id", lead.id);
           processed++;
+          totalConfidence += aiResult.confidence;
+          confidenceCount++;
 
           console.log(JSON.stringify({
             event: "email_lead_processed",
@@ -513,6 +574,7 @@ Deno.serve(async (req) => {
             status,
             confidence: aiResult.confidence,
             is_lead: aiResult.is_lead,
+            latency_ms: Date.now() - leadStartTime,
           }));
 
         } catch (err) {
@@ -525,13 +587,14 @@ Deno.serve(async (req) => {
           const currentRetry = currentLead?.retry_count || 0;
           const newRetry = currentRetry + 1;
 
-          // FALLBACK: After max retries, move to needs_review instead of permanently failing
           const newStatus = newRetry >= MAX_RETRIES ? "needs_review" : "pending";
+          const errorMsg = err instanceof Error ? err.message : String(err);
 
           await supabase.from("email_leads").update({
             processing_status: newStatus,
             retry_count: newRetry,
-            error_message: err instanceof Error ? err.message : String(err),
+            error_message: errorMsg,
+            last_error: errorMsg,
             ai_processed: newRetry >= MAX_RETRIES,
             ai_confidence: newRetry >= MAX_RETRIES ? 0 : null,
             ai_extracted_json: newRetry >= MAX_RETRIES ? { is_lead: false, confidence: 0, summary: "AI processing failed after retries — needs manual review" } as unknown : null,
@@ -544,12 +607,40 @@ Deno.serve(async (req) => {
               lead_id: lead.id,
               sender: lead.email,
               reason: "ai_failure_max_retries",
+              retry_count: newRetry,
+              last_error: errorMsg,
               moved_to: "needs_review",
             }));
           } else {
             failed++;
           }
         }
+      }
+
+      // Calculate SLA latency
+      const batchDurationMs = Date.now() - batchStartTime;
+      const avgLatencySeconds = processed > 0 ? Math.round(batchDurationMs / processed / 1000) : 0;
+      const avgConfidence = confidenceCount > 0 ? totalConfidence / confidenceCount : 0;
+
+      // Update pipeline stats
+      await updatePipelineStats(supabase, {
+        processed,
+        rejected,
+        needsReview,
+        failed,
+        avgConfidence,
+        avgLatencySeconds,
+      });
+
+      // SLA alert: if average latency > 60 seconds, log warning
+      if (avgLatencySeconds > 60) {
+        console.warn(JSON.stringify({
+          event: "sla_latency_alert",
+          avg_latency_seconds: avgLatencySeconds,
+          batch_size: leads.length,
+          processed,
+          message: "AI processing latency exceeds 60s SLA threshold",
+        }));
       }
 
       console.log(JSON.stringify({
@@ -562,6 +653,9 @@ Deno.serve(async (req) => {
         failed,
         skipped_spam: skippedSpam,
         skipped_direct: skippedDirect,
+        avg_confidence: Math.round(avgConfidence * 100) / 100,
+        avg_latency_seconds: avgLatencySeconds,
+        batch_duration_ms: batchDurationMs,
       }));
 
       return new Response(
@@ -574,6 +668,8 @@ Deno.serve(async (req) => {
           failed,
           skipped_spam: skippedSpam,
           skipped_direct: skippedDirect,
+          avg_confidence: Math.round(avgConfidence * 100) / 100,
+          avg_latency_seconds: avgLatencySeconds,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
