@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { needsStepUpAuth } from "@/lib/deviceTrust";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Hook for step-up authentication on sensitive actions.
@@ -36,8 +37,15 @@ export function useStepUpAuth() {
         return false;
       }
 
-      const needed = await needsStepUpAuth(user.id);
-      if (!needed) return true; // MFA was recent, proceed
+      // Re-check AAL from server — never trust cached state for sensitive actions
+      const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aalData?.currentLevel === "aal2") {
+        // Also check backend step-up freshness
+        const needed = await needsStepUpAuth(user.id);
+        if (!needed) return true;
+      }
+
+      // If not at AAL2 or step-up needed, show dialog
 
       inProgressRef.current = true;
 
