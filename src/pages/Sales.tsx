@@ -35,6 +35,7 @@ export default function Sales() {
   const { role } = useAuth();
   const [searchParams] = useSearchParams();
   const isManager = role === 'admin' || role === 'supply_chain';
+  const canAccessEnquiries = role === 'admin' || role === 'sales_manager';
   const [assistantOpen, setAssistantOpen] = useState(false);
   
   // Read tab and leadId from URL params (reactive to changes)
@@ -90,10 +91,12 @@ export default function Sales() {
                   <Users className="w-4 h-4" />
                   Leads
                 </TabsTrigger>
+                {canAccessEnquiries && (
                 <TabsTrigger value="enquiries" className={triggerPrimary}>
                   <Package className="w-4 h-4" />
                   Enquiries
                 </TabsTrigger>
+                )}
                 <TabsTrigger value="pipeline" className={triggerPrimary}>
                   <TrendingUp className="w-4 h-4" />
                   Pipeline
@@ -210,9 +213,11 @@ export default function Sales() {
             <LeadsPanel />
           </TabsContent>
 
+          {canAccessEnquiries && (
           <TabsContent value="enquiries" className="space-y-6">
             <EnquiriesPanel selectedLeadId={urlLeadId} />
           </TabsContent>
+          )}
 
           <TabsContent value="pipeline" className="space-y-6">
             <PipelineOrders selectedLeadId={urlLeadId} />
