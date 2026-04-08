@@ -1575,7 +1575,7 @@ export function SalesCommandCenter() {
               <ScrollArea className="h-[220px]">
                 <div className="space-y-2">
                   {callStats.agentBreakdown.filter(a => a.name !== 'Unassigned').map(agent => (
-                    <div key={agent.name} className="p-2.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                    <div key={agent.name} className="p-2.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer" onClick={() => handleAgentClick(agent.name)}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-medium truncate max-w-[120px]">{agent.name}</span>
                         <span className="text-xs text-muted-foreground">{agent.total} calls</span>
