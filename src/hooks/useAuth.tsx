@@ -620,7 +620,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOutAllDevices = async () => {
     if (user) {
       // Increment session version to invalidate all stale sessions
-      await supabase.rpc("increment_session_version", { p_user_id: user.id }).catch(() => {});
+      try { await supabase.rpc("increment_session_version", { p_user_id: user.id }); } catch {}
 
       // Revoke all sessions
       await supabase
@@ -641,12 +641,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .eq("is_revoked", false);
 
       // Create security alert
-      await supabase.rpc("create_security_alert", {
-        p_user_id: user.id,
-        p_alert_type: "global_logout",
-        p_severity: "medium",
-        p_details: JSON.stringify({ timestamp: new Date().toISOString() }),
-      }).catch(() => {});
+      try {
+        await supabase.rpc("create_security_alert", {
+          p_user_id: user.id,
+          p_alert_type: "global_logout",
+          p_severity: "medium",
+          p_details: JSON.stringify({ timestamp: new Date().toISOString() }),
+        });
+      } catch {}
     }
 
     // Reuse signOut for local cleanup
