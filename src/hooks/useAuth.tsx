@@ -48,8 +48,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const lastHydratedUserIdRef = useRef<string | null>(null);
   const isBootstrappedRef = useRef(false);
   const profileRef = useRef<Profile | null>(null);
+  const mfaStatusRef = useRef<MfaStatus>("not_required");
 
-  const fetchUserData = async (userId: string) => {
+  // Keep mfaStatusRef in sync
+  useEffect(() => {
+    mfaStatusRef.current = mfaStatus;
+  }, [mfaStatus]);
+
+  const fetchUserData = async (userId: string, skipMfaCheck = false) => {
     try {
       // Fetch profile
       const { data: profileData } = await supabase
@@ -78,37 +84,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setRoles(userRoles);
         const primaryRole = ROLE_PRIORITY.find((r) => userRoles.includes(r)) || userRoles[0];
         setRole(primaryRole);
-        // Check MFA status for admin users
-        await checkMfaStatus(userRoles, userId);
+        
+        // Only check MFA if not skipped (e.g., during token refresh when already verified)
+        if (!skipMfaCheck) {
+          await checkMfaStatus(userRoles, userId);
+        }
       } else {
         setRoles([]);
         setRole(null);
-        setMfaStatus("not_required");
+        if (!skipMfaCheck) {
+          setMfaStatus("not_required");
+        }
       }
 
       lastHydratedUserIdRef.current = userId;
     } catch (error) {
-      console.error("Error fetching user data:", error);
+      console.error("[Auth] Error fetching user data:", error);
     }
   };
 
   const checkMfaStatus = useCallback(async (_userRoles: AppRole[], currentUserId?: string) => {
     try {
       const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      
+      console.log("[Auth] AAL check:", {
+        currentLevel: aalData?.currentLevel,
+        nextLevel: aalData?.nextLevel,
+        error: aalError?.message,
+      });
+
       if (aalError) {
-        console.error("AAL check error:", aalError);
+        console.error("[Auth] AAL check error:", aalError);
         setMfaStatus("verification_required");
         return;
       }
 
       if (aalData.currentLevel === "aal2") {
+        console.log("[Auth] AAL2 confirmed — MFA verified");
         setMfaStatus("verified");
         return;
       }
 
       const { data, error } = await supabase.auth.mfa.listFactors();
       if (error) {
-        console.error("MFA factor list error:", error);
+        console.error("[Auth] MFA factor list error:", error);
         setMfaStatus("verification_required");
         return;
       }
@@ -123,6 +142,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const parsed = JSON.parse(trustData);
             const trustExpiry = new Date(parsed.expiresAt).getTime();
             if (parsed.userId === currentUserId && trustExpiry > Date.now()) {
+              console.log("[Auth] Device trust valid — skipping MFA");
               setMfaStatus("verified");
               return;
             } else {
@@ -132,13 +152,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             localStorage.removeItem("mfa_device_trust");
           }
         }
+        console.log("[Auth] MFA verification required (has factors, no trust)");
         setMfaStatus("verification_required");
         return;
       }
 
+      console.log("[Auth] MFA enrollment required (no factors)");
       setMfaStatus("enrollment_required");
     } catch (e) {
-      console.error("MFA status check failed:", e);
+      console.error("[Auth] MFA status check failed:", e);
       setMfaStatus("verification_required");
     }
   }, []);
@@ -158,6 +180,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log("[Auth] AUTH_EVENT:", event, {
+          userId: session?.user?.id,
+          expiresAt: session?.expires_at,
+          aal: (session as any)?.aal,
+          timestamp: new Date().toISOString(),
+        });
+
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -165,13 +194,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const isSameHydratedUser =
           !!incomingUserId && lastHydratedUserIdRef.current === incomingUserId;
 
-        // For TOKEN_REFRESHED or same-user SIGNED_IN:
-        // Skip full loading state, but still ensure profile is hydrated
-        if (event === "TOKEN_REFRESHED" || (event === "SIGNED_IN" && isSameHydratedUser)) {
-          // If profile was lost from state (race condition), silently re-fetch
+        // For TOKEN_REFRESHED: NEVER re-check MFA, preserve AAL2 state
+        if (event === "TOKEN_REFRESHED") {
+          console.log("[Auth] Token refreshed — preserving MFA state:", mfaStatusRef.current);
+          // If profile was lost from state (race condition), silently re-fetch WITHOUT MFA re-check
           if (incomingUserId && !profileRef.current) {
-            console.warn("[Auth] Profile missing during", event, "— re-fetching silently");
-            fetchUserData(incomingUserId);
+            console.warn("[Auth] Profile missing during TOKEN_REFRESHED — re-fetching silently (skipping MFA)");
+            fetchUserData(incomingUserId, true); // skipMfaCheck = true
+          }
+          return;
+        }
+
+        // For same-user SIGNED_IN (e.g., tab re-focus): preserve MFA state
+        if (event === "SIGNED_IN" && isSameHydratedUser) {
+          console.log("[Auth] Same-user SIGNED_IN — preserving MFA state:", mfaStatusRef.current);
+          if (incomingUserId && !profileRef.current) {
+            console.warn("[Auth] Profile missing during same-user SIGNED_IN — re-fetching (skipping MFA)");
+            fetchUserData(incomingUserId, true); // skipMfaCheck = true
           }
           return;
         }
@@ -181,6 +220,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const shouldBlockUi = !isBootstrappedRef.current || !isSameHydratedUser;
           if (shouldBlockUi) setLoading(true);
 
+          // Use setTimeout(0) to avoid blocking the auth state change callback
           setTimeout(() => {
             fetchUserData(incomingUserId).finally(() => {
               isBootstrappedRef.current = true;
@@ -198,6 +238,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         if (event === "SIGNED_OUT") {
+          console.log("[Auth] SIGNED_OUT — clearing all state");
           setLoading(false);
         }
       }
@@ -205,6 +246,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // THEN check for existing session (without forcing duplicate hydration)
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("[Auth] Initial getSession:", {
+        hasSession: !!session,
+        userId: session?.user?.id,
+        expiresAt: session?.expires_at,
+      });
+
       setSession(session);
       setUser(session?.user ?? null);
 
@@ -250,7 +297,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     // Server-side validation for admin registration (only if not invited)
     if (assignedRole === "admin" && !hasInvitation) {
-      // Use server-side RPC to validate admin registration (checks whitelist + count)
       const { data: validationResult, error: validationError } = await supabase
         .rpc("validate_admin_registration", { p_email: normalizedEmail });
       
@@ -259,17 +305,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error: new Error("Unable to validate admin registration. Please try again.") };
       }
       
-      // validationResult is an array, get the first result
       const validation = validationResult?.[0];
       if (!validation?.allowed) {
         return { error: new Error(validation?.reason || "Admin registration not allowed.") };
       }
     }
     
-    // Determine if user should be auto-approved (whitelisted admins or invited users)
     let isAutoApproved = hasInvitation;
     if (assignedRole === "admin" && !hasInvitation) {
-      // Check if email is in the admin whitelist (server-side)
       const { data: isWhitelisted } = await supabase.rpc("can_register_as_admin", { p_email: normalizedEmail });
       isAutoApproved = isWhitelisted === true;
     }
@@ -285,7 +328,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     if (error) {
-      // Handle "User already registered" - try to sign in and create missing profile
       if (error.message?.includes("User already registered")) {
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email,
@@ -297,7 +339,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         if (signInData.user) {
-          // Check if profile exists
           const { data: existingProfile } = await supabase
             .from("profiles")
             .select("id")
@@ -335,10 +376,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (data.user) {
-      // Use name from invitation if available
       const userName = hasInvitation ? invitation.name : name;
       
-      // Create profile
       const { error: profileError } = await supabase.from("profiles").insert({
         user_id: data.user.id,
         name: userName,
@@ -351,7 +390,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error: profileError };
       }
 
-      // Create user role
       const { error: roleError } = await supabase.from("user_roles").insert({
         user_id: data.user.id,
         role: assignedRole,
@@ -362,7 +400,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error: roleError };
       }
 
-      // Mark invitation as accepted if it exists
       if (hasInvitation) {
         await supabase
           .from("user_invitations")
@@ -387,7 +424,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (!rateLimitError && rateLimitData?.[0] && !rateLimitData[0].allowed) {
         const retryMinutes = Math.ceil((rateLimitData[0].retry_after_seconds || 60) / 60);
-        // Record the blocked attempt
         await supabase.rpc("record_login_attempt", {
           p_email: normalizedEmail,
           p_status: "failure",
@@ -400,7 +436,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         };
       }
     } catch (e) {
-      // If rate limit check fails, allow login attempt (fail-open for availability)
       console.warn("Rate limit check failed, proceeding with login:", e);
     }
 

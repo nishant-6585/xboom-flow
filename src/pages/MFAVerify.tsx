@@ -26,6 +26,12 @@ const MFAVerify = () => {
     return <Navigate to="/" replace />;
   }
 
+  console.log("[MFA] MFA_TRIGGERED_AT:", new Date().toISOString(), {
+    userId: user?.id,
+    mfaStatus,
+    route: window.location.pathname,
+  });
+
   return (
     <MFAVerification
       onVerified={() => {
