@@ -696,7 +696,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    // During HMR / hot-reload the module context can diverge; return a
+    // safe default instead of crashing the entire tree.
+    if (import.meta.env.DEV) {
+      console.warn("[useAuth] context undefined – returning safe defaults (HMR?)");
+    }
+    return {
+      user: null,
+      profile: null,
+      roles: [] as string[],
+      loading: true,
+      mfaStatus: "not_required" as const,
+      isApproved: false,
+      signIn: async () => ({ error: new Error("AuthProvider not mounted") as any }),
+      signUp: async () => ({ error: new Error("AuthProvider not mounted") as any }),
+      signOut: async () => {},
+      signOutAllDevices: async () => {},
+      refreshProfile: async () => {},
+    } as ReturnType<typeof useAuth>;
   }
   return context;
 };
