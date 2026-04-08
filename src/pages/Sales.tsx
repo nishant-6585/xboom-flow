@@ -35,6 +35,7 @@ export default function Sales() {
   const { role } = useAuth();
   const [searchParams] = useSearchParams();
   const isManager = role === 'admin' || role === 'supply_chain';
+  const canAccessEnquiries = role === 'admin' || role === 'sales_manager';
   const [assistantOpen, setAssistantOpen] = useState(false);
   
   // Read tab and leadId from URL params (reactive to changes)
