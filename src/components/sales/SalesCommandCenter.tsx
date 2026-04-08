@@ -1377,7 +1377,8 @@ export function SalesCommandCenter() {
                 <Badge
                   key={t.name}
                   variant={t.revenuePct >= 100 ? 'default' : t.revenuePct >= 70 ? 'secondary' : 'destructive'}
-                  className="text-xs gap-1"
+                  className="text-xs gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => handleTargetClick(t.name)}
                 >
                   {t.name}: {t.revenuePct}% Rev · {t.pipelinePct}% Pipe
                 </Badge>
