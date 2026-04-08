@@ -13,8 +13,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Upload, FileSpreadsheet, Download, Search, Plus, Package, 
-  Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil, Trash2, IndianRupee, Zap
+  Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil, Trash2, IndianRupee, Zap, BarChart3, ListFilter
 } from 'lucide-react';
+import { EnquiriesDashboard } from './EnquiriesDashboard';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
