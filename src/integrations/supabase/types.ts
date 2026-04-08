@@ -7848,6 +7848,33 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limit_buckets: {
+        Row: {
+          bucket_key: string
+          created_at: string
+          id: string
+          request_count: number
+          window_duration_ms: number
+          window_start: string
+        }
+        Insert: {
+          bucket_key: string
+          created_at?: string
+          id?: string
+          request_count?: number
+          window_duration_ms?: number
+          window_start?: string
+        }
+        Update: {
+          bucket_key?: string
+          created_at?: string
+          id?: string
+          request_count?: number
+          window_duration_ms?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
       repairs: {
         Row: {
           advance_amount: number | null
@@ -8446,6 +8473,42 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           user_name?: string
+        }
+        Relationships: []
+      }
+      security_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          details: Json | null
+          id: string
+          is_resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          user_id: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          is_resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          user_id: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          is_resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -10039,12 +10102,14 @@ export type Database = {
           is_active: boolean
           is_current: boolean
           last_active_at: string
+          last_ip: string | null
           last_mfa_verified_at: string | null
           location: string | null
           os: string | null
           revocation_reason: string | null
           revoked_at: string | null
           session_token_hash: string | null
+          session_version: number
           started_at: string
           user_agent: string | null
           user_id: string
@@ -10058,12 +10123,14 @@ export type Database = {
           is_active?: boolean
           is_current?: boolean
           last_active_at?: string
+          last_ip?: string | null
           last_mfa_verified_at?: string | null
           location?: string | null
           os?: string | null
           revocation_reason?: string | null
           revoked_at?: string | null
           session_token_hash?: string | null
+          session_version?: number
           started_at?: string
           user_agent?: string | null
           user_id: string
@@ -10077,12 +10144,14 @@ export type Database = {
           is_active?: boolean
           is_current?: boolean
           last_active_at?: string
+          last_ip?: string | null
           last_mfa_verified_at?: string | null
           location?: string | null
           os?: string | null
           revocation_reason?: string | null
           revoked_at?: string | null
           session_token_hash?: string | null
+          session_version?: number
           started_at?: string
           user_agent?: string | null
           user_id?: string
@@ -10530,6 +10599,10 @@ export type Database = {
           retry_after_seconds: number
         }[]
       }
+      check_rate_limit: {
+        Args: { p_key: string; p_max_requests?: number; p_window_ms?: number }
+        Returns: boolean
+      }
       claim_pending_email_leads: {
         Args: { p_batch_size?: number; p_specific_lead_id?: string }
         Returns: {
@@ -10578,7 +10651,17 @@ export type Database = {
         }
       }
       cleanup_expired_devices: { Args: never; Returns: undefined }
+      cleanup_rate_limit_buckets: { Args: never; Returns: undefined }
       count_admins: { Args: never; Returns: number }
+      create_security_alert: {
+        Args: {
+          p_alert_type: string
+          p_details?: Json
+          p_severity?: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       credit_monthly_el: {
         Args: { p_credit_amount?: number; p_month: number; p_year: number }
         Returns: Json
@@ -10731,6 +10814,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_session_version: {
+        Args: { p_user_id: string }
+        Returns: undefined
       }
       is_hr_or_admin: { Args: { _user_id: string }; Returns: boolean }
       is_reporting_manager: {

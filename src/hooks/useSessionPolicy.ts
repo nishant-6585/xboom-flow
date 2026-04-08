@@ -126,6 +126,9 @@ export function useSessionPolicy(
     [userId, signOut]
   );
 
+  // Track known session version to detect stale sessions
+  const knownSessionVersionRef = useRef<number | null>(null);
+
   const fetchSessionWithRetry = useCallback(async () => {
     if (!userId) return null;
 
@@ -133,7 +136,7 @@ export function useSessionPolicy(
       try {
         const { data: session, error } = await supabase
           .from("user_sessions")
-          .select("id, started_at, last_active_at, revoked_at, is_active")
+          .select("id, started_at, last_active_at, revoked_at, is_active, session_version")
           .eq("user_id", userId)
           .eq("is_current", true)
           .maybeSingle();
@@ -232,6 +235,18 @@ export function useSessionPolicy(
     if (result.revoked_at || !result.is_active) {
       await forceLogout("SESSION_MISSING");
       return;
+    }
+
+    // Session version check — detect stale sessions after global logout / security events
+    const serverVersion = (result as any).session_version as number | undefined;
+    if (serverVersion !== undefined) {
+      if (knownSessionVersionRef.current === null) {
+        knownSessionVersionRef.current = serverVersion;
+      } else if (serverVersion > knownSessionVersionRef.current) {
+        if (import.meta.env.DEV) console.warn("[SessionPolicy] Session version changed, forcing re-auth");
+        await forceLogout("INVALID_SESSION");
+        return;
+      }
     }
 
     const now = Date.now();
