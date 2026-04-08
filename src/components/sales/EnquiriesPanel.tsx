@@ -13,8 +13,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Upload, FileSpreadsheet, Download, Search, Plus, Package, 
-  Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil, Trash2, IndianRupee, Zap
+  Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil, Trash2, IndianRupee, Zap, BarChart3, ListFilter
 } from 'lucide-react';
+import { EnquiriesDashboard } from './EnquiriesDashboard';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -40,6 +41,7 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
   const [viewingEnquiry, setViewingEnquiry] = useState<Enquiry | null>(null);
   const [enquiryItems, setEnquiryItems] = useState<EnquiryItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [innerTab, setInnerTab] = useState<string>('dashboard');
   const lastAutoOpenedId = useRef<string | null>(null);
 
   // Auto-open enquiry when selectedLeadId is provided
@@ -130,6 +132,24 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
 
   return (
     <div className="space-y-6">
+      {/* Inner Tabs: Dashboard / List */}
+      <Tabs value={innerTab} onValueChange={setInnerTab}>
+        <TabsList>
+          <TabsTrigger value="dashboard" className="gap-1.5">
+            <BarChart3 className="h-4 w-4" />
+            Dashboard
+          </TabsTrigger>
+          <TabsTrigger value="list" className="gap-1.5">
+            <ListFilter className="h-4 w-4" />
+            Enquiries List
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="dashboard" className="mt-4">
+          <EnquiriesDashboard enquiries={canSeeAllEnquiries ? enquiries : enquiries.filter(e => e.sales_person_id === user?.id)} />
+        </TabsContent>
+
+        <TabsContent value="list" className="mt-4 space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
@@ -511,6 +531,8 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
           )}
         </DialogContent>
       </Dialog>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
