@@ -531,6 +531,8 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
           )}
         </DialogContent>
       </Dialog>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
