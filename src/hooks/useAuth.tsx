@@ -40,8 +40,11 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string, team: AppRole) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  signOutAllDevices: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   refreshMfaStatus: () => Promise<void>;
+  /** Re-check AAL level from server — use before sensitive actions */
+  verifyCurrentAAL: () => Promise<"aal1" | "aal2" | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -611,6 +614,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     requestIdRef.current = 0;
   };
 
+  // Global logout — revoke all sessions and devices
+  const signOutAllDevices = async () => {
+    if (user) {
+      // Revoke all sessions
+      await supabase
+        .from("user_sessions")
+        .update({
+          is_active: false,
+          is_current: false,
+          revoked_at: new Date().toISOString(),
+          revocation_reason: "GLOBAL_LOGOUT",
+        })
+        .eq("user_id", user.id);
+
+      // Revoke all trusted devices
+      await supabase
+        .from("trusted_devices")
+        .update({ is_revoked: true } as any)
+        .eq("user_id", user.id)
+        .eq("is_revoked", false);
+    }
+
+    // Reuse signOut for local cleanup
+    await signOut();
+  };
+
+  // Re-check AAL from server — never rely on cached state for sensitive actions
+  const verifyCurrentAAL = useCallback(async (): Promise<"aal1" | "aal2" | null> => {
+    try {
+      const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (error) return null;
+      return (data.currentLevel as "aal1" | "aal2") ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -627,8 +667,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         signUp,
         signIn,
         signOut,
+        signOutAllDevices,
         refreshProfile,
         refreshMfaStatus,
+        verifyCurrentAAL,
       }}
     >
       {children}
