@@ -11,9 +11,12 @@ const GMAIL_CLIENT_SECRET = Deno.env.get("GMAIL_CLIENT_SECRET")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// Only filter out truly automated/system emails — NOT generic inboxes like hello@, info@, contact@
+// Only filter out truly automated/system emails
 const HARD_BLOCK_SENDERS = ["mailer-daemon", "postmaster", "noreply", "no-reply"];
 const SPAM_SUBJECT_INDICATORS = ["unsubscribe", "newsletter", "you have been removed"];
+
+// Bulk sender threshold: if a sender sends more than this many emails per day, flag as bulk
+const BULK_SENDER_THRESHOLD = 10;
 
 interface GmailMessage {
   id: string;
@@ -98,22 +101,16 @@ function extractProduct(text: string): string | null {
   return null;
 }
 
-/**
- * Only block truly automated/system senders.
- * Generic inboxes like hello@, info@, contact@, support@ are ALLOWED.
- */
 function isHardBlocked(from: string, subject: string): { blocked: boolean; reason: string } {
   const fromLower = from.toLowerCase();
   const subjectLower = subject.toLowerCase();
 
-  // Check sender against hard-block list (system emails only)
   for (const blocked of HARD_BLOCK_SENDERS) {
     if (fromLower.includes(blocked + "@") || fromLower.includes(`<${blocked}@`)) {
       return { blocked: true, reason: `sender_blocked:${blocked}` };
     }
   }
 
-  // Check subject for obvious spam indicators
   for (const indicator of SPAM_SUBJECT_INDICATORS) {
     if (subjectLower.includes(indicator)) {
       return { blocked: true, reason: `subject_spam:${indicator}` };
@@ -142,13 +139,97 @@ async function refreshAccessToken(refreshToken: string): Promise<{ access_token:
   }
 }
 
+/**
+ * Track sender frequency and detect bulk senders
+ */
+async function trackSenderFrequency(
+  supabase: ReturnType<typeof createClient>,
+  senderEmail: string
+): Promise<boolean> {
+  // Upsert sender frequency
+  const { data } = await supabase
+    .from("email_sender_frequency")
+    .upsert(
+      {
+        sender_email: senderEmail.toLowerCase(),
+        message_count: 1,
+        last_seen_at: new Date().toISOString(),
+      },
+      { onConflict: "sender_email" }
+    )
+    .select("message_count, is_bulk_sender")
+    .single();
+
+  if (!data) {
+    // If upsert didn't return, do increment manually
+    await supabase.rpc("increment_sender_count_safe", { p_email: senderEmail.toLowerCase() }).catch(() => {
+      // Fallback: manual update
+      supabase
+        .from("email_sender_frequency")
+        .update({
+          message_count: (data as any)?.message_count ? (data as any).message_count + 1 : 1,
+          last_seen_at: new Date().toISOString(),
+        })
+        .eq("sender_email", senderEmail.toLowerCase());
+    });
+    return false;
+  }
+
+  // Increment count
+  const newCount = (data.message_count || 0) + 1;
+  const isBulk = newCount >= BULK_SENDER_THRESHOLD;
+
+  await supabase
+    .from("email_sender_frequency")
+    .update({
+      message_count: newCount,
+      last_seen_at: new Date().toISOString(),
+      is_bulk_sender: isBulk,
+    })
+    .eq("sender_email", senderEmail.toLowerCase());
+
+  return data.is_bulk_sender || isBulk;
+}
+
+/**
+ * Update pipeline stats for today
+ */
+async function updatePipelineStats(
+  supabase: ReturnType<typeof createClient>,
+  stats: { ingested: number; blocked: number; duplicates: number }
+) {
+  const today = new Date().toISOString().split("T")[0];
+  
+  // Upsert today's stats
+  const { data: existing } = await supabase
+    .from("email_lead_pipeline_stats")
+    .select("*")
+    .eq("stat_date", today)
+    .single();
+
+  if (existing) {
+    await supabase
+      .from("email_lead_pipeline_stats")
+      .update({
+        total_ingested: (existing.total_ingested || 0) + stats.ingested,
+        spam_detected: (existing.spam_detected || 0) + stats.blocked,
+      })
+      .eq("stat_date", today);
+  } else {
+    await supabase.from("email_lead_pipeline_stats").insert({
+      stat_date: today,
+      total_ingested: stats.ingested,
+      spam_detected: stats.blocked,
+    });
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Auth check - either JWT or cron secret
     const authHeader = req.headers.get("authorization");
     const cronSecret = req.headers.get("x-cron-secret");
     const expectedCronSecret = Deno.env.get("CRON_SECRET");
@@ -158,7 +239,7 @@ Deno.serve(async (req) => {
     let requestUserRoles: string[] = [];
 
     if (cronSecret && cronSecret === expectedCronSecret) {
-      // Cron-triggered, process all active integrations
+      // Cron-triggered
     } else if (authHeader) {
       const token = authHeader.replace("Bearer ", "");
       const { data: { user }, error } = await supabase.auth.getUser(token);
@@ -170,7 +251,6 @@ Deno.serve(async (req) => {
       }
       requestUserId = user.id;
 
-      // Check role
       const { data: roles } = await supabase
         .from("user_roles")
         .select("role")
@@ -189,11 +269,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get body for optional integration_id filter
     const body = await req.json().catch(() => ({}));
     const integrationId = body.integration_id;
 
-    // Fetch active integrations
     let query = supabase.from("gmail_integrations").select("*").eq("is_active", true);
     if (integrationId) query = query.eq("id", integrationId);
 
@@ -211,17 +289,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log("[Gmail Sync] Processing integrations", {
-      integrationId: integrationId || null,
-      requestUserId,
-      requestUserRoles,
-      integrations: integrations.map((integration) => ({
-        id: integration.id,
-        user_id: integration.user_id,
-        email: integration.email,
-      })),
-    });
-
     const results = [];
 
     for (const integration of integrations) {
@@ -230,6 +297,8 @@ Deno.serve(async (req) => {
       let leadsCreated = 0;
       let blocked = 0;
       let duplicates = 0;
+      let threadUpdated = 0;
+      let bulkSenderBlocked = 0;
       let errors = "";
       const dropLog: Array<{ gmail_id: string; sender: string; subject: string; reason: string }> = [];
 
@@ -258,12 +327,10 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Search Gmail — broad query, let AI processor handle classification
       const searchQuery = "newer_than:1d is:inbox -category:promotions -category:social -category:updates -category:forums";
       const listUrl = `https://www.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(searchQuery)}&maxResults=50`;
 
       try {
-        console.log(`[Gmail Sync] Fetching emails for ${integration.email} with query: ${searchQuery}`);
         const listRes = await fetch(listUrl, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
@@ -285,11 +352,9 @@ Deno.serve(async (req) => {
         const listData = await listRes.json();
         const messageIds: string[] = (listData.messages || []).map((m: any) => m.id);
         emailsFetched = messageIds.length;
-        console.log(`[Gmail Sync] Found ${emailsFetched} emails for ${integration.email}`);
 
         for (const msgId of messageIds) {
           try {
-            // Fetch full message
             const msgRes = await fetch(
               `https://www.googleapis.com/gmail/v1/users/me/messages/${msgId}?format=full`,
               { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -300,11 +365,12 @@ Deno.serve(async (req) => {
             const from = getHeader(msg.payload.headers, "From");
             const subject = getHeader(msg.payload.headers, "Subject");
             const messageIdHeader = getHeader(msg.payload.headers, "Message-ID") || msgId;
-            const dateStr = getHeader(msg.payload.headers, "Date");
+            const threadId = msg.threadId;
             const { text: bodyText, html: bodyHtml } = extractBodyParts(msg.payload);
             const senderEmail = extractEmail(from) || "";
+            const ingestTimestamp = new Date().toISOString();
 
-            // ---- ONLY block truly automated system senders ----
+            // ---- Hard block system senders ----
             const blockCheck = isHardBlocked(from, subject);
             if (blockCheck.blocked) {
               blocked++;
@@ -312,9 +378,43 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            // ---- Deduplicate using Message-ID header (not sender email) ----
-            // This prevents dropping different emails from the same sender
+            // ---- Sender frequency check: detect bulk senders ----
+            if (senderEmail) {
+              const isBulkSender = await trackSenderFrequency(supabase, senderEmail);
+              if (isBulkSender) {
+                bulkSenderBlocked++;
+                dropLog.push({ gmail_id: msgId, sender: senderEmail, subject, reason: "bulk_sender_detected" });
+                continue;
+              }
+            }
+
+            // ---- Deduplicate using Message-ID (gmail message id) ----
             const emailLeadId = `gmail_${msgId}`;
+
+            // ---- Thread-based dedup: check if another message in same thread exists ----
+            if (threadId) {
+              const { data: threadExisting } = await supabase
+                .from("email_leads")
+                .select("id, thread_id")
+                .eq("thread_id", threadId)
+                .limit(1);
+
+              if (threadExisting && threadExisting.length > 0) {
+                // Update existing lead with latest thread message info
+                await supabase.from("email_leads").update({
+                  body_text: bodyText ? bodyText.substring(0, 10000) : undefined,
+                  body_html: bodyHtml ? bodyHtml.substring(0, 50000) : undefined,
+                  subject: subject || undefined,
+                  notes: `[Thread Updated] Subject: ${subject}\n\n${bodyText.substring(0, 500)}`,
+                  updated_at: new Date().toISOString(),
+                }).eq("id", threadExisting[0].id);
+
+                threadUpdated++;
+                continue;
+              }
+            }
+
+            // ---- Check exact message dedup ----
             const { data: existing } = await supabase
               .from("email_leads")
               .select("id")
@@ -331,7 +431,7 @@ Deno.serve(async (req) => {
             const phone = extractPhone(bodyText);
             const product = extractProduct(`${subject} ${bodyText}`);
 
-            // ---- INSERT ALL non-blocked emails — let AI processor classify ----
+            // ---- INSERT with thread_id and ingested_at ----
             const { error: insertError } = await supabase.from("email_leads").insert({
               customer_name: name,
               email: senderEmail,
@@ -347,12 +447,13 @@ Deno.serve(async (req) => {
               processing_status: "pending",
               ai_processed: false,
               email_lead_id: emailLeadId,
+              thread_id: threadId || null,
+              ingested_at: ingestTimestamp,
             });
 
             if (!insertError) {
               leadsCreated++;
             } else {
-              // If unique constraint violation, it's a duplicate — not an error
               if (insertError.code === "23505") {
                 duplicates++;
               } else {
@@ -369,6 +470,13 @@ Deno.serve(async (req) => {
         console.error(errors);
       }
 
+      // Update pipeline stats
+      await updatePipelineStats(supabase, {
+        ingested: leadsCreated,
+        blocked: blocked + bulkSenderBlocked,
+        duplicates,
+      });
+
       // Structured sync summary log
       console.log(JSON.stringify({
         event: "gmail_sync_complete",
@@ -376,6 +484,8 @@ Deno.serve(async (req) => {
         emails_fetched: emailsFetched,
         leads_created: leadsCreated,
         blocked,
+        bulk_sender_blocked: bulkSenderBlocked,
+        thread_updated: threadUpdated,
         duplicates,
         drops: dropLog,
         errors: errors || null,
@@ -400,6 +510,8 @@ Deno.serve(async (req) => {
         emails_fetched: emailsFetched,
         leads_created: leadsCreated,
         blocked,
+        bulk_sender_blocked: bulkSenderBlocked,
+        thread_updated: threadUpdated,
         duplicates,
         drops: dropLog.length,
         errors: errors || null,
