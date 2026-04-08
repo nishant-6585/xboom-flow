@@ -688,14 +688,14 @@ export function EnquiriesDashboard({ enquiries }: EnquiriesDashboardProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={dailyTrend}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis dataKey="date" fontSize={11} />
-                <YAxis fontSize={12} />
-                <Tooltip contentStyle={tooltipStyle} />
-                 <Area type="monotone" dataKey="total" name="Total" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} style={{ cursor: 'pointer' }} onClick={(_, __, e) => { if (e?.activeLabel) handleDayClick(e.activeLabel); }} />
-                 <Area type="monotone" dataKey="responded" name="Responded" stroke="hsl(var(--chart-2))" fill="hsl(var(--chart-2))" fillOpacity={0.1} style={{ cursor: 'pointer' }} />
+             <ResponsiveContainer width="100%" height={260}>
+               <AreaChart data={dailyTrend} style={{ cursor: 'pointer' }} onClick={(e) => { if (e?.activeLabel) handleDayClick(e.activeLabel); }}>
+                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                 <XAxis dataKey="date" fontSize={11} />
+                 <YAxis fontSize={12} />
+                 <Tooltip contentStyle={tooltipStyle} />
+                 <Area type="monotone" dataKey="total" name="Total" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} />
+                 <Area type="monotone" dataKey="responded" name="Responded" stroke="hsl(var(--chart-2))" fill="hsl(var(--chart-2))" fillOpacity={0.1} />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
