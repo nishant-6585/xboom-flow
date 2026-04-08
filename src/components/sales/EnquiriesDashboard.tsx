@@ -363,6 +363,45 @@ export function EnquiriesDashboard({ enquiries }: EnquiriesDashboardProps) {
     openDrillDown(title, items);
   }, [filtered, toDetailItem, openDrillDown]);
 
+  const handleUrgencyClick = useCallback((urgencyLabel: string) => {
+    const urgencyLower = urgencyLabel.toLowerCase();
+    const items = filtered.filter(e => e.urgency === urgencyLower).map(toDetailItem);
+    openDrillDown(`${urgencyLabel} Urgency Enquiries (${items.length})`, items);
+  }, [filtered, toDetailItem, openDrillDown]);
+
+  const handleMonthClick = useCallback((monthLabel: string) => {
+    const monthEnquiries = enquiries.filter(e => {
+      try {
+        const d = parseISO(e.created_at);
+        return format(d, 'MMM yy') === monthLabel;
+      } catch { return false; }
+    });
+    const items = monthEnquiries.map(toDetailItem);
+    openDrillDown(`Enquiries — ${monthLabel} (${items.length})`, items);
+  }, [enquiries, toDetailItem, openDrillDown]);
+
+  const handleDayClick = useCallback((dayLabel: string) => {
+    const now = new Date();
+    const dayEnquiries = Array.from({ length: 14 }, (_, i) => subDays(now, 13 - i))
+      .filter(d => format(d, 'MMM d') === dayLabel)
+      .flatMap(d => {
+        const dateStr = format(d, 'yyyy-MM-dd');
+        return enquiries.filter(e => e.created_at?.startsWith(dateStr));
+      });
+    const items = dayEnquiries.map(toDetailItem);
+    openDrillDown(`Enquiries — ${dayLabel} (${items.length})`, items);
+  }, [enquiries, toDetailItem, openDrillDown]);
+
+  const handleLostReasonClick = useCallback((reason: string) => {
+    const items = filtered.filter(e => e.status === 'order_lost' && (e.lost_reason || 'unknown').replace(/_/g, ' ') === reason).map(toDetailItem);
+    openDrillDown(`Lost — ${reason} (${items.length})`, items);
+  }, [filtered, toDetailItem, openDrillDown]);
+
+  const handleSalesPersonDrillDown = useCallback((fullName: string) => {
+    const items = filtered.filter(e => e.sales_person_name === fullName).map(toDetailItem);
+    openDrillDown(`${fullName} — Enquiries (${items.length})`, items);
+  }, [filtered, toDetailItem, openDrillDown]);
+
   const handleItemClick = useCallback((item: DetailItem) => {
     setDetailDialogOpen(false);
     setTimeout(() => {
