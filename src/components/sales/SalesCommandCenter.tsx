@@ -1517,21 +1517,21 @@ export function SalesCommandCenter() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="text-center p-4 rounded-lg bg-muted/50">
+              <div className="text-center p-4 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors" onClick={() => handleCallSummaryClick('all')}>
                 <p className="text-3xl font-bold">{callStats.total}</p>
                 <p className="text-xs text-muted-foreground">Total Calls Received</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="text-center p-3 rounded-lg bg-emerald-500/10">
+                <div className="text-center p-3 rounded-lg bg-emerald-500/10 cursor-pointer hover:bg-emerald-500/20 transition-colors" onClick={() => handleCallSummaryClick('answered')}>
                   <p className="text-xl font-bold text-emerald-600">{callStats.answered}</p>
                   <p className="text-xs text-muted-foreground">Attended</p>
                 </div>
-                <div className="text-center p-3 rounded-lg bg-destructive/10">
+                <div className="text-center p-3 rounded-lg bg-destructive/10 cursor-pointer hover:bg-destructive/20 transition-colors" onClick={() => handleCallSummaryClick('missed')}>
                   <p className="text-xl font-bold text-destructive">{callStats.missed}</p>
                   <p className="text-xs text-muted-foreground">Missed</p>
                 </div>
               </div>
-              <div className="text-center p-3 rounded-lg bg-primary/10">
+              <div className="text-center p-3 rounded-lg bg-primary/10 cursor-pointer hover:bg-primary/20 transition-colors" onClick={() => handleCallSummaryClick('all')}>
                 <p className="text-lg font-bold text-primary">{callStats.answerRate}%</p>
                 <p className="text-xs text-muted-foreground">Answer Rate</p>
               </div>
@@ -1548,7 +1548,7 @@ export function SalesCommandCenter() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={callStats.dailyCallTrend} barGap={2}>
+                <BarChart data={callStats.dailyCallTrend} barGap={2} onClick={handleCallTrendClick} style={{ cursor: 'pointer' }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
                   <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
