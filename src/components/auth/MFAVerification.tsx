@@ -96,14 +96,19 @@ export const MFAVerification = ({ onVerified, onCancel }: MFAVerificationProps) 
 
       sessionStorage.setItem("pending_login_greeting", "1");
 
-      // Register trusted device server-side if checkbox is checked
-      if (rememberDevice) {
-        const { data: userData } = await supabase.auth.getUser();
-        if (userData?.user) {
-          // Register for 30 days server-side (replaces old 24h localStorage-only approach)
+      // Record MFA verification timestamp for step-up auth
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user) {
+        const { recordMfaVerifiedAt } = await import("@/lib/deviceTrust");
+        await recordMfaVerifiedAt(userData.user.id);
+
+        // Register trusted device server-side if checkbox is checked
+        if (rememberDevice) {
           await registerTrustedDevice(userData.user.id, 30);
         }
-      } else {
+      }
+
+      if (!rememberDevice) {
         // User doesn't want to remember — clear any existing trust
         clearLocalDeviceTrust();
       }

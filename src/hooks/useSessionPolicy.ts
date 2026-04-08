@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { recordAuditLog } from "@/lib/auditLog";
 import { enrichLoginAttempt } from "@/lib/sessionTracking";
+import { acquireRefreshLock, releaseRefreshLock, broadcastSessionRefresh } from "@/lib/refreshLock";
 
 const IDLE_TIMEOUT_MS = 12 * 60 * 60 * 1000; // 12 hours
 const ABSOLUTE_TIMEOUT_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
@@ -280,13 +281,21 @@ export function useSessionPolicy(
           const expiresAt = data.session.expires_at * 1000; // convert to ms
           const timeUntilExpiry = expiresAt - Date.now();
           if (timeUntilExpiry > 0 && timeUntilExpiry < 120_000) {
+            // Use cross-tab lock to prevent race conditions
+            if (!acquireRefreshLock()) {
+              console.log("[SessionPolicy] Another tab is refreshing, skipping...");
+              return;
+            }
             console.log("[SessionPolicy] Token expiring soon, refreshing proactively...");
             const { error: refreshError } = await supabase.auth.refreshSession();
+            releaseRefreshLock();
             if (refreshError) {
               console.warn("[SessionPolicy] Proactive refresh failed:", refreshError.message);
               if (isFatalAuthError(refreshError)) {
                 await forceLogout("INVALID_SESSION");
               }
+            } else {
+              broadcastSessionRefresh();
             }
           }
         }

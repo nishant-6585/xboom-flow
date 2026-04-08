@@ -9882,6 +9882,7 @@ export type Database = {
       trusted_devices: {
         Row: {
           created_at: string
+          device_fingerprint: string | null
           device_hash: string
           device_name: string | null
           expires_at: string
@@ -9892,6 +9893,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          device_fingerprint?: string | null
           device_hash: string
           device_name?: string | null
           expires_at: string
@@ -9902,6 +9904,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          device_fingerprint?: string | null
           device_hash?: string
           device_name?: string | null
           expires_at?: string
@@ -10030,6 +10033,7 @@ export type Database = {
           is_active: boolean
           is_current: boolean
           last_active_at: string
+          last_mfa_verified_at: string | null
           location: string | null
           os: string | null
           revocation_reason: string | null
@@ -10047,6 +10051,7 @@ export type Database = {
           is_active?: boolean
           is_current?: boolean
           last_active_at?: string
+          last_mfa_verified_at?: string | null
           location?: string | null
           os?: string | null
           revocation_reason?: string | null
@@ -10064,6 +10069,7 @@ export type Database = {
           is_active?: boolean
           is_current?: boolean
           last_active_at?: string
+          last_mfa_verified_at?: string | null
           location?: string | null
           os?: string | null
           revocation_reason?: string | null
@@ -10485,10 +10491,19 @@ export type Database = {
         }
         Returns: boolean
       }
-      check_device_trust: {
-        Args: { p_device_hash: string; p_user_id: string }
-        Returns: boolean
-      }
+      check_device_trust:
+        | {
+            Args: { p_device_hash: string; p_user_id: string }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              p_device_fingerprint?: string
+              p_device_hash: string
+              p_user_id: string
+            }
+            Returns: boolean
+          }
       check_login_rate_limit: {
         Args: { p_email: string }
         Returns: {
@@ -10544,6 +10559,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      cleanup_expired_devices: { Args: never; Returns: undefined }
       count_admins: { Args: never; Returns: number }
       credit_monthly_el: {
         Args: { p_credit_amount?: number; p_month: number; p_year: number }
@@ -10704,6 +10720,7 @@ export type Database = {
         Returns: boolean
       }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }
+      needs_step_up_auth: { Args: { p_user_id: string }; Returns: boolean }
       record_login_attempt: {
         Args: {
           p_email: string
@@ -10713,18 +10730,33 @@ export type Database = {
         }
         Returns: undefined
       }
-      register_trusted_device: {
-        Args: {
-          p_days?: number
-          p_device_hash: string
-          p_device_name?: string
-          p_user_id: string
-        }
-        Returns: string
-      }
+      register_trusted_device:
+        | {
+            Args: {
+              p_days?: number
+              p_device_hash: string
+              p_device_name?: string
+              p_user_id: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_days?: number
+              p_device_fingerprint?: string
+              p_device_hash: string
+              p_device_name?: string
+              p_user_id: string
+            }
+            Returns: string
+          }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       sync_profiles_to_employees: { Args: never; Returns: number }
+      update_mfa_verified_at: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       validate_admin_registration: {
         Args: { p_email: string }
         Returns: {
