@@ -2,7 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode, useCallback,
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { recordSession } from "@/lib/sessionTracking";
-import { checkDeviceTrustV2, clearLocalDeviceTrust } from "@/lib/deviceTrust";
+import { checkDeviceTrustV2, clearLocalDeviceTrust, DeviceTrustResult } from "@/lib/deviceTrust";
 
 type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketing" | "hr" | "sales_manager";
 
@@ -19,6 +19,13 @@ interface Profile {
 
 type MfaStatus = "not_required" | "enrollment_required" | "verification_required" | "verified";
 
+// Separated auth state concerns (Phase 9)
+interface AuthState {
+  mfaStatus: MfaStatus;
+  deviceTrust: DeviceTrustResult | null;
+  stepUpRequired: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -28,6 +35,8 @@ interface AuthContextType {
   loading: boolean;
   isApproved: boolean;
   mfaStatus: MfaStatus;
+  deviceTrust: DeviceTrustResult | null;
+  stepUpRequired: boolean;
   signUp: (email: string, password: string, name: string, team: AppRole) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -37,6 +46,55 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// ── Centralized auth decision logic (Phase 10) ──────────────
+
+interface EvaluateAuthInput {
+  currentAal: string | null;
+  trustResult: DeviceTrustResult | null;
+  hasVerifiedFactors: boolean;
+  hasAnyFactors: boolean;
+}
+
+interface EvaluateAuthOutput {
+  mfaStatus: MfaStatus;
+  deviceTrust: DeviceTrustResult | null;
+  stepUpRequired: boolean;
+}
+
+function evaluateAuthState(input: EvaluateAuthInput): EvaluateAuthOutput {
+  const { currentAal, trustResult, hasVerifiedFactors, hasAnyFactors } = input;
+
+  // Already at AAL2 — fully verified at protocol level
+  if (currentAal === "aal2") {
+    return {
+      mfaStatus: "verified",
+      deviceTrust: trustResult ?? "trusted",
+      stepUpRequired: false,
+    };
+  }
+
+  // Has enrolled TOTP factors — check device trust
+  if (hasVerifiedFactors) {
+    if (trustResult === "trusted") {
+      return { mfaStatus: "verified", deviceTrust: "trusted", stepUpRequired: false };
+    }
+    if (trustResult === "step_up") {
+      // Dynamic fingerprint changed — trust the device but flag for step-up on sensitive actions
+      return { mfaStatus: "verified", deviceTrust: "step_up", stepUpRequired: true };
+    }
+    // Untrusted or null — require full MFA
+    return { mfaStatus: "verification_required", deviceTrust: "untrusted", stepUpRequired: false };
+  }
+
+  // No factors enrolled at all
+  if (!hasAnyFactors) {
+    return { mfaStatus: "enrollment_required", deviceTrust: null, stepUpRequired: false };
+  }
+
+  // Has factors but none verified (edge case)
+  return { mfaStatus: "enrollment_required", deviceTrust: null, stepUpRequired: false };
+}
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -44,25 +102,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [role, setRole] = useState<AppRole | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mfaStatus, setMfaStatus] = useState<MfaStatus>("not_required");
+  const [authState, setAuthState] = useState<AuthState>({
+    mfaStatus: "not_required",
+    deviceTrust: null,
+    stepUpRequired: false,
+  });
+
   const lastHydratedUserIdRef = useRef<string | null>(null);
   const isBootstrappedRef = useRef(false);
   const profileRef = useRef<Profile | null>(null);
   const mfaStatusRef = useRef<MfaStatus>("not_required");
   const isFreshLoginRef = useRef(false);
+  // Phase 4: race condition guard
+  const requestIdRef = useRef(0);
 
   // Keep mfaStatusRef in sync
   useEffect(() => {
-    mfaStatusRef.current = mfaStatus;
-  }, [mfaStatus]);
+    mfaStatusRef.current = authState.mfaStatus;
+  }, [authState.mfaStatus]);
 
   const fetchUserData = async (userId: string, skipMfaCheck = false) => {
+    // Phase 4: race condition guard
+    const requestId = ++requestIdRef.current;
+
     try {
       const { data: profileData } = await supabase
         .from("profiles")
         .select("*")
         .eq("user_id", userId)
         .maybeSingle();
+
+      // Stale request — bail out
+      if (requestId !== requestIdRef.current) return;
 
       if (profileData) {
         const p = profileData as Profile;
@@ -78,6 +149,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .select("role")
         .eq("user_id", userId);
 
+      // Stale request — bail out
+      if (requestId !== requestIdRef.current) return;
+
       if (rolesData && rolesData.length > 0) {
         const userRoles = rolesData.map((r) => r.role as AppRole);
         setRoles(userRoles);
@@ -85,24 +159,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setRole(primaryRole);
 
         if (!skipMfaCheck) {
-          await checkMfaStatus(userRoles, userId);
+          await checkMfaStatus(userId);
         }
       } else {
         setRoles([]);
         setRole(null);
         if (!skipMfaCheck) {
-          setMfaStatus("not_required");
+          setAuthState({ mfaStatus: "not_required", deviceTrust: null, stepUpRequired: false });
         }
       }
 
       lastHydratedUserIdRef.current = userId;
     } catch (error) {
-      console.error("[Auth] Error fetching user data:", error);
+      // Only apply state if still the latest request
+      if (requestId === requestIdRef.current) {
+        console.error("[Auth] Error fetching user data:", error);
+      }
     }
   };
 
-  const checkMfaStatus = useCallback(async (_userRoles: AppRole[], currentUserId?: string) => {
+  // Phase 1, 6, 10: Hardened MFA check — server-only trust, AAL-based validation
+  const checkMfaStatus = useCallback(async (currentUserId: string) => {
     try {
+      // Phase 6: Always validate with AAL from Supabase
       const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
       console.log("[Auth] AAL check:", {
@@ -113,82 +192,59 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (aalError) {
         console.error("[Auth] AAL check error:", aalError);
-        setMfaStatus("verification_required");
+        setAuthState({ mfaStatus: "verification_required", deviceTrust: null, stepUpRequired: false });
         return;
       }
 
-      // Already at AAL2 — fully verified
-      if (aalData.currentLevel === "aal2") {
-        console.log("[Auth] AAL2 confirmed — MFA verified");
-        setMfaStatus("verified");
+      // List factors
+      const { data: factorData, error: factorError } = await supabase.auth.mfa.listFactors();
+      if (factorError) {
+        console.error("[Auth] MFA factor list error:", factorError);
+        setAuthState({ mfaStatus: "verification_required", deviceTrust: null, stepUpRequired: false });
         return;
       }
 
-      // Check if user has TOTP factors enrolled
-      const { data, error } = await supabase.auth.mfa.listFactors();
-      if (error) {
-        console.error("[Auth] MFA factor list error:", error);
-        setMfaStatus("verification_required");
-        return;
+      const verifiedFactors = factorData.totp.filter((f) => f.status === "verified");
+      const hasVerifiedFactors = verifiedFactors.length > 0;
+      const hasAnyFactors = factorData.totp.length > 0;
+
+      // Phase 1: ALWAYS call server for trust — NO localStorage as decision source
+      let trustResult: DeviceTrustResult | null = null;
+      if (hasVerifiedFactors && aalData.currentLevel !== "aal2") {
+        trustResult = await checkDeviceTrustV2(currentUserId);
+        console.log("[Auth] Server device trust result:", trustResult);
       }
 
-      const verifiedFactors = data.totp.filter((f) => f.status === "verified");
+      // Phase 10: Centralized decision
+      const result = evaluateAuthState({
+        currentAal: aalData.currentLevel,
+        trustResult,
+        hasVerifiedFactors,
+        hasAnyFactors,
+      });
 
-      if (verifiedFactors.length > 0) {
-        // Has enrolled factors but session is AAL1 — check device trust via split fingerprint
-        if (currentUserId) {
-          // Fast client-side check first
-          const trustData = localStorage.getItem("mfa_device_trust");
-          if (trustData) {
-            try {
-              const parsed = JSON.parse(trustData);
-              if (parsed.userId === currentUserId && new Date(parsed.expiresAt).getTime() > Date.now()) {
-                // Verify server-side with split fingerprints
-                const trustResult = await checkDeviceTrustV2(currentUserId);
-                if (trustResult === "trusted") {
-                  console.log("[Auth] Device trust valid (stable+dynamic match) — skipping MFA");
-                  setMfaStatus("verified");
-                  return;
-                }
-                if (trustResult === "step_up") {
-                  // Dynamic fingerprint changed (e.g. tz travel) — still trusted but flag for step-up later
-                  console.log("[Auth] Device trusted (stable match, dynamic changed) — skipping MFA, step-up may apply");
-                  setMfaStatus("verified");
-                  return;
-                }
-              }
-              localStorage.removeItem("mfa_device_trust");
-            } catch {
-              localStorage.removeItem("mfa_device_trust");
-            }
-          }
+      console.log("[Auth] Auth state decision:", result);
 
-          // No local trust — check server directly
-          const trustResult = await checkDeviceTrustV2(currentUserId);
-          if (trustResult === "trusted" || trustResult === "step_up") {
-            console.log("[Auth] Device trusted server-side (result:", trustResult, ") — skipping MFA");
-            setMfaStatus("verified");
-            return;
-          }
-        }
-
-        console.log("[Auth] MFA verification required (has factors, no trust)");
-        setMfaStatus("verification_required");
-        return;
+      // Phase 2: Persist step-up signal in sessionStorage (survives page refresh, not spoofable for security decisions)
+      if (result.stepUpRequired) {
+        sessionStorage.setItem("step_up_required", "true");
+      } else {
+        sessionStorage.removeItem("step_up_required");
       }
 
-      console.log("[Auth] MFA enrollment required (no factors)");
-      setMfaStatus("enrollment_required");
+      setAuthState(result);
     } catch (e) {
       console.error("[Auth] MFA status check failed:", e);
-      setMfaStatus("verification_required");
+      setAuthState({ mfaStatus: "verification_required", deviceTrust: null, stepUpRequired: false });
     }
   }, []);
 
   const refreshMfaStatus = useCallback(async () => {
     const uid = user?.id;
-    await checkMfaStatus(roles, uid);
-  }, [roles, checkMfaStatus, user]);
+    if (uid) {
+      await checkMfaStatus(uid);
+    }
+  }, [checkMfaStatus, user]);
 
   const refreshProfile = async () => {
     if (user) {
@@ -197,7 +253,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    // Set up auth state listener FIRST (before getSession)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log("[Auth] AUTH_EVENT:", event, {
@@ -206,6 +261,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           aal: (session as any)?.aal,
           timestamp: new Date().toISOString(),
         });
+
+        // Phase 7: Check session expiry before applying
+        if (session?.expires_at) {
+          const expiresAtMs = session.expires_at * 1000;
+          if (expiresAtMs < Date.now()) {
+            console.warn("[Auth] Received expired session, ignoring:", { expiresAt: session.expires_at });
+            return;
+          }
+        }
 
         setSession(session);
         setUser(session?.user ?? null);
@@ -218,8 +282,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (event === "TOKEN_REFRESHED") {
           console.log("[Auth] Token refreshed — preserving MFA state:", mfaStatusRef.current);
           if (incomingUserId && !profileRef.current) {
-            // Fire-and-forget: re-fetch profile without blocking or MFA re-check
-            setTimeout(() => fetchUserData(incomingUserId, true), 0);
+            // Phase 5: proper async instead of setTimeout(0)
+            fetchUserData(incomingUserId, true);
           }
           return;
         }
@@ -228,23 +292,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (event === "SIGNED_IN" && isSameHydratedUser && !isFreshLoginRef.current) {
           console.log("[Auth] Same-user SIGNED_IN — preserving MFA state:", mfaStatusRef.current);
           if (incomingUserId && !profileRef.current) {
-            setTimeout(() => fetchUserData(incomingUserId, true), 0);
+            fetchUserData(incomingUserId, true);
           }
           return;
         }
 
-        // INITIAL_SESSION: hydrate user data but check MFA only if not already verified
+        // INITIAL_SESSION: hydrate user data
         if (event === "INITIAL_SESSION") {
           if (incomingUserId) {
             setLoading(true);
-            setTimeout(() => {
-              // If MFA was already verified (e.g., from a restored session), skip check
-              const skipMfa = mfaStatusRef.current === "verified";
-              fetchUserData(incomingUserId, skipMfa).finally(() => {
-                isBootstrappedRef.current = true;
-                setLoading(false);
-              });
-            }, 0);
+            const skipMfa = mfaStatusRef.current === "verified";
+            fetchUserData(incomingUserId, skipMfa).finally(() => {
+              isBootstrappedRef.current = true;
+              setLoading(false);
+            });
           } else {
             isBootstrappedRef.current = true;
             setLoading(false);
@@ -257,20 +318,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const shouldBlockUi = !isBootstrappedRef.current || !isSameHydratedUser;
           if (shouldBlockUi) setLoading(true);
 
-          // Reset fresh login flag after consuming it
           isFreshLoginRef.current = false;
 
-          setTimeout(() => {
-            fetchUserData(incomingUserId).finally(() => {
-              isBootstrappedRef.current = true;
-              if (shouldBlockUi) setLoading(false);
-            });
-          }, 0);
+          fetchUserData(incomingUserId).finally(() => {
+            isBootstrappedRef.current = true;
+            if (shouldBlockUi) setLoading(false);
+          });
         } else {
           setProfile(null);
           setRole(null);
           setRoles([]);
-          setMfaStatus("not_required");
+          setAuthState({ mfaStatus: "not_required", deviceTrust: null, stepUpRequired: false });
           lastHydratedUserIdRef.current = null;
           isBootstrappedRef.current = true;
           setLoading(false);
@@ -283,7 +341,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
-    // THEN check for existing session
+    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log("[Auth] Initial getSession:", {
         hasSession: !!session,
@@ -498,6 +556,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { error };
   };
 
+  // Phase 8: Complete cleanup on sign out
   const signOut = async () => {
     if (user) {
       await supabase
@@ -511,16 +570,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .eq("user_id", user.id)
         .eq("is_current", true);
     }
+
+    // Clear all trust-related storage
     clearLocalDeviceTrust();
     localStorage.removeItem("mfa_device_trust");
+    sessionStorage.removeItem("step_up_required");
+    sessionStorage.removeItem("last_mfa_verified_at");
+
     await supabase.auth.signOut();
     setProfile(null);
     profileRef.current = null;
     setRole(null);
     setRoles([]);
-    setMfaStatus("not_required");
+    setAuthState({ mfaStatus: "not_required", deviceTrust: null, stepUpRequired: false });
     lastHydratedUserIdRef.current = null;
     isFreshLoginRef.current = false;
+    requestIdRef.current = 0;
   };
 
   return (
@@ -533,7 +598,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         roles,
         loading,
         isApproved: profile?.is_approved ?? false,
-        mfaStatus,
+        mfaStatus: authState.mfaStatus,
+        deviceTrust: authState.deviceTrust,
+        stepUpRequired: authState.stepUpRequired,
         signUp,
         signIn,
         signOut,
