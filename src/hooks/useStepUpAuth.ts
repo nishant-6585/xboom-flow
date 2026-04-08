@@ -26,26 +26,32 @@ export function useStepUpAuth() {
   const [actionLabel, setActionLabel] = useState("");
   const [pendingResolve, setPendingResolve] = useState<((v: boolean) => void) | null>(null);
   const inProgressRef = useRef(false);
+  // Step-up fatigue cooldown: block repeated triggers within 30 seconds
+  const lastStepUpAtRef = useRef(0);
+  const STEP_UP_COOLDOWN_MS = 30_000;
 
   const requireStepUp = useCallback(
     async (label: string = "this action"): Promise<boolean> => {
       if (!user?.id) return false;
 
-      // Prevent concurrent step-up flows (Phase 3 race condition fix)
+      // Prevent concurrent step-up flows
       if (inProgressRef.current) {
-        console.warn("[StepUpAuth] Already in progress, rejecting concurrent request");
+        if (import.meta.env.DEV) console.warn("[StepUpAuth] Already in progress, rejecting concurrent request");
         return false;
       }
 
-      // Re-check AAL from server — never trust cached state for sensitive actions
+      // Cooldown: if step-up was completed recently, skip dialog
+      if (Date.now() - lastStepUpAtRef.current < STEP_UP_COOLDOWN_MS) {
+        if (import.meta.env.DEV) console.log("[StepUpAuth] Within cooldown window, allowing");
+        return true;
+      }
+
+      // Re-check AAL from server — never trust cached state
       const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (aalData?.currentLevel === "aal2") {
-        // Also check backend step-up freshness
         const needed = await needsStepUpAuth(user.id);
         if (!needed) return true;
       }
-
-      // If not at AAL2 or step-up needed, show dialog
 
       inProgressRef.current = true;
 
@@ -53,6 +59,7 @@ export function useStepUpAuth() {
         setActionLabel(label);
         setPendingResolve(() => (result: boolean) => {
           inProgressRef.current = false;
+          if (result) lastStepUpAtRef.current = Date.now();
           resolve(result);
         });
         setOpen(true);
