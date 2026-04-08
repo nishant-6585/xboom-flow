@@ -9885,10 +9885,12 @@ export type Database = {
           device_fingerprint: string | null
           device_hash: string
           device_name: string | null
+          dynamic_fingerprint: string | null
           expires_at: string
           id: string
           is_revoked: boolean
           last_used_at: string
+          stable_fingerprint: string | null
           user_id: string
         }
         Insert: {
@@ -9896,10 +9898,12 @@ export type Database = {
           device_fingerprint?: string | null
           device_hash: string
           device_name?: string | null
+          dynamic_fingerprint?: string | null
           expires_at: string
           id?: string
           is_revoked?: boolean
           last_used_at?: string
+          stable_fingerprint?: string | null
           user_id: string
         }
         Update: {
@@ -9907,10 +9911,12 @@ export type Database = {
           device_fingerprint?: string | null
           device_hash?: string
           device_name?: string | null
+          dynamic_fingerprint?: string | null
           expires_at?: string
           id?: string
           is_revoked?: boolean
           last_used_at?: string
+          stable_fingerprint?: string | null
           user_id?: string
         }
         Relationships: []
@@ -10504,6 +10510,15 @@ export type Database = {
             }
             Returns: boolean
           }
+      check_device_trust_v2: {
+        Args: {
+          p_device_hash: string
+          p_dynamic_fingerprint?: string
+          p_stable_fingerprint?: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       check_login_rate_limit: {
         Args: { p_email: string }
         Returns: {
@@ -10746,6 +10761,18 @@ export type Database = {
               p_device_fingerprint?: string
               p_device_hash: string
               p_device_name?: string
+              p_user_id: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_days?: number
+              p_device_fingerprint?: string
+              p_device_hash: string
+              p_device_name?: string
+              p_dynamic_fingerprint?: string
+              p_stable_fingerprint?: string
               p_user_id: string
             }
             Returns: string

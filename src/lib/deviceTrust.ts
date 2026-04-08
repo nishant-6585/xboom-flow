@@ -2,10 +2,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 const DEVICE_ID_KEY = "xboom_device_id";
 
-/**
- * Get or create a stable device identifier.
- * Stored in localStorage; survives page refreshes.
- */
+// ── Helpers ──────────────────────────────────────────────
+
 export function getDeviceId(): string {
   let id = localStorage.getItem(DEVICE_ID_KEY);
   if (!id) {
@@ -15,42 +13,57 @@ export function getDeviceId(): string {
   return id;
 }
 
-/**
- * Hash a string using SHA-256.
- */
 async function sha256(input: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(input);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  const data = new TextEncoder().encode(input);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 /**
- * Generate a device fingerprint combining multiple signals to resist spoofing.
- * Uses device_id + userAgent + platform for environment binding.
+ * Extract a coarse browser family string that is stable across minor UA updates.
  */
-export async function generateDeviceFingerprint(deviceId: string): Promise<string> {
-  const ua = navigator.userAgent || "";
-  const platform = navigator.platform || "";
-  const lang = navigator.language || "";
-  const screenRes = `${screen.width}x${screen.height}x${screen.colorDepth}`;
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+function browserFamily(): string {
+  const ua = navigator.userAgent;
+  if (ua.includes("Edg/")) return "Edge";
+  if (ua.includes("OPR/") || ua.includes("Opera")) return "Opera";
+  if (ua.includes("Chrome/") && !ua.includes("Edg/")) return "Chrome";
+  if (ua.includes("Safari/") && !ua.includes("Chrome")) return "Safari";
+  if (ua.includes("Firefox/")) return "Firefox";
+  return "Other";
+}
 
-  const raw = `${deviceId}|${ua}|${platform}|${lang}|${screenRes}|${tz}`;
+// ── Split Fingerprints ───────────────────────────────────
+
+/**
+ * Stable fingerprint — changes only when the user switches device/browser entirely.
+ * Uses: device_id + platform + browser family
+ */
+export async function stableFingerprint(deviceId: string): Promise<string> {
+  const raw = `${deviceId}|${navigator.platform || ""}|${browserFamily()}`;
   return sha256(raw);
 }
 
 /**
- * Hash the device ID using SHA-256 before sending to the backend.
+ * Dynamic fingerprint — may change with OS updates, resolution changes, tz travel.
+ * Uses: full userAgent + screen resolution + colour depth + timezone
  */
-async function hashDeviceId(deviceId: string): Promise<string> {
-  return sha256(deviceId);
+export async function dynamicFingerprint(): Promise<string> {
+  const raw = [
+    navigator.userAgent,
+    `${screen.width}x${screen.height}x${screen.colorDepth}`,
+    Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+  ].join("|");
+  return sha256(raw);
 }
 
-/**
- * Get a human-readable device name from the user agent.
- */
+/** Legacy combined fingerprint kept for backward-compat column. */
+export async function generateDeviceFingerprint(deviceId: string): Promise<string> {
+  const raw = `${deviceId}|${navigator.userAgent}|${navigator.platform}|${navigator.language}|${screen.width}x${screen.height}x${screen.colorDepth}|${Intl.DateTimeFormat().resolvedOptions().timeZone || ""}`;
+  return sha256(raw);
+}
+
 function getDeviceName(): string {
   const ua = navigator.userAgent;
   if (/iPhone|iPad/.test(ua)) return "iOS Device";
@@ -61,55 +74,64 @@ function getDeviceName(): string {
   return "Unknown Device";
 }
 
+// ── Trust Check ──────────────────────────────────────────
+
+export type DeviceTrustResult = "trusted" | "step_up" | "untrusted";
+
 /**
- * Check if the current device is trusted for the given user.
- * Uses a server-side SECURITY DEFINER function with fingerprint verification.
+ * Check device trust using split fingerprints.
+ * Returns 'trusted' | 'step_up' | 'untrusted'.
  */
-export async function isDeviceTrusted(userId: string): Promise<boolean> {
+export async function checkDeviceTrustV2(userId: string): Promise<DeviceTrustResult> {
   try {
     const deviceId = getDeviceId();
-    const deviceHash = await hashDeviceId(deviceId);
-    const fingerprint = await generateDeviceFingerprint(deviceId);
+    const deviceHash = await sha256(deviceId);
+    const sFp = await stableFingerprint(deviceId);
+    const dFp = await dynamicFingerprint();
 
-    const { data, error } = await supabase.rpc("check_device_trust", {
+    const { data, error } = await supabase.rpc("check_device_trust_v2", {
       p_user_id: userId,
       p_device_hash: deviceHash,
-      p_device_fingerprint: fingerprint,
+      p_stable_fingerprint: sFp,
+      p_dynamic_fingerprint: dFp,
     });
 
     if (error) {
-      console.warn("[DeviceTrust] Check failed:", error.message);
-      return false;
+      console.warn("[DeviceTrust] V2 check failed:", error.message);
+      return "untrusted";
     }
 
-    return data === true;
+    return (data as DeviceTrustResult) || "untrusted";
   } catch (e) {
-    console.warn("[DeviceTrust] Exception during check:", e);
-    return false;
+    console.warn("[DeviceTrust] V2 exception:", e);
+    return "untrusted";
   }
 }
 
-/**
- * Register the current device as trusted (after successful MFA).
- * @param userId - The authenticated user's ID
- * @param days - How many days to trust (default 30)
- */
-export async function registerTrustedDevice(
-  userId: string,
-  days: number = 30
-): Promise<void> {
+/** Boolean wrapper for backward-compat callers. */
+export async function isDeviceTrusted(userId: string): Promise<boolean> {
+  const result = await checkDeviceTrustV2(userId);
+  return result !== "untrusted";
+}
+
+// ── Registration ─────────────────────────────────────────
+
+export async function registerTrustedDevice(userId: string, days = 30): Promise<void> {
   try {
     const deviceId = getDeviceId();
-    const deviceHash = await hashDeviceId(deviceId);
-    const deviceName = getDeviceName();
-    const fingerprint = await generateDeviceFingerprint(deviceId);
+    const deviceHash = await sha256(deviceId);
+    const fp = await generateDeviceFingerprint(deviceId);
+    const sFp = await stableFingerprint(deviceId);
+    const dFp = await dynamicFingerprint();
 
     const { error } = await supabase.rpc("register_trusted_device", {
       p_user_id: userId,
       p_device_hash: deviceHash,
-      p_device_name: deviceName,
+      p_device_name: getDeviceName(),
       p_days: days,
-      p_device_fingerprint: fingerprint,
+      p_device_fingerprint: fp,
+      p_stable_fingerprint: sFp,
+      p_dynamic_fingerprint: dFp,
     });
 
     if (error) {
@@ -120,7 +142,7 @@ export async function registerTrustedDevice(
         "mfa_device_trust",
         JSON.stringify({
           userId,
-          expiresAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
+          expiresAt: new Date(Date.now() + days * 86_400_000).toISOString(),
         })
       );
     }
@@ -129,75 +151,50 @@ export async function registerTrustedDevice(
   }
 }
 
-/**
- * Record the MFA verification timestamp in the current session.
- */
+// ── Step-Up Auth Helpers ─────────────────────────────────
+
 export async function recordMfaVerifiedAt(userId: string): Promise<void> {
   try {
-    const { error } = await supabase.rpc("update_mfa_verified_at", {
-      p_user_id: userId,
-    });
-    if (error) {
-      console.warn("[DeviceTrust] Failed to record MFA timestamp:", error.message);
-    }
-    // Also store locally for fast lookups
+    const { error } = await supabase.rpc("update_mfa_verified_at", { p_user_id: userId });
+    if (error) console.warn("[DeviceTrust] MFA timestamp failed:", error.message);
     localStorage.setItem("last_mfa_verified_at", new Date().toISOString());
   } catch (e) {
-    console.warn("[DeviceTrust] Exception recording MFA timestamp:", e);
+    console.warn("[DeviceTrust] MFA timestamp exception:", e);
   }
 }
 
-/**
- * Check if step-up MFA re-verification is needed (last verified > 24h ago).
- * Uses fast local check first, then server verification.
- */
 export async function needsStepUpAuth(userId: string): Promise<boolean> {
   try {
-    // Fast local check
     const localTs = localStorage.getItem("last_mfa_verified_at");
-    if (localTs) {
-      const elapsed = Date.now() - new Date(localTs).getTime();
-      if (elapsed < 24 * 60 * 60 * 1000) return false;
-    }
+    if (localTs && Date.now() - new Date(localTs).getTime() < 86_400_000) return false;
 
-    // Server check
-    const { data, error } = await supabase.rpc("needs_step_up_auth", {
-      p_user_id: userId,
-    });
+    const { data, error } = await supabase.rpc("needs_step_up_auth", { p_user_id: userId });
     if (error) {
       console.warn("[DeviceTrust] Step-up check failed:", error.message);
-      return true; // Fail-secure
+      return true;
     }
     return data === true;
-  } catch (e) {
-    console.warn("[DeviceTrust] Exception in step-up check:", e);
-    return true; // Fail-secure
+  } catch {
+    return true;
   }
 }
 
-/**
- * Revoke all trusted devices for the current user.
- */
+// ── Revocation ───────────────────────────────────────────
+
 export async function revokeAllDevices(): Promise<void> {
   try {
     const { error } = await supabase
       .from("trusted_devices")
       .update({ is_revoked: true } as any)
       .eq("is_revoked", false);
-
-    if (error) {
-      console.warn("[DeviceTrust] Revoke failed:", error.message);
-    }
+    if (error) console.warn("[DeviceTrust] Revoke failed:", error.message);
     localStorage.removeItem(DEVICE_ID_KEY);
     localStorage.removeItem("mfa_device_trust");
   } catch (e) {
-    console.warn("[DeviceTrust] Exception during revoke:", e);
+    console.warn("[DeviceTrust] Revoke exception:", e);
   }
 }
 
-/**
- * Clear local device trust data (used on signOut).
- */
 export function clearLocalDeviceTrust(): void {
   localStorage.removeItem("mfa_device_trust");
   localStorage.removeItem("last_mfa_verified_at");
