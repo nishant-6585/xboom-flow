@@ -237,6 +237,18 @@ export function useSessionPolicy(
       return;
     }
 
+    // Session version check — detect stale sessions after global logout / security events
+    const serverVersion = (result as any).session_version as number | undefined;
+    if (serverVersion !== undefined) {
+      if (knownSessionVersionRef.current === null) {
+        knownSessionVersionRef.current = serverVersion;
+      } else if (serverVersion > knownSessionVersionRef.current) {
+        if (import.meta.env.DEV) console.warn("[SessionPolicy] Session version changed, forcing re-auth");
+        await forceLogout("INVALID_SESSION");
+        return;
+      }
+    }
+
     const now = Date.now();
     const startedAt = new Date(result.started_at).getTime();
     const lastActiveAt = new Date(result.last_active_at).getTime();
