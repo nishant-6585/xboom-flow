@@ -22,13 +22,15 @@ interface HealthData {
  * Shows live session health metrics for diagnosing auth issues.
  */
 export function SessionHealthDebug() {
-  const { user, session, mfaStatus } = useAuth();
+  const { user, session, mfaStatus, roles } = useAuth();
   const [visible, setVisible] = useState(false);
   const [data, setData] = useState<HealthData | null>(null);
 
   useEffect(() => {
-    setVisible(window.location.search.includes("debug=session"));
-  }, []);
+    // Only admins can access the debug panel
+    const isAdmin = roles.includes("admin" as any);
+    setVisible(window.location.search.includes("debug=session") && isAdmin);
+  }, [roles]);
 
   const refresh = async () => {
     const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();

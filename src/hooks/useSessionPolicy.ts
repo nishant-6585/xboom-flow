@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { recordAuditLog } from "@/lib/auditLog";
 import { enrichLoginAttempt } from "@/lib/sessionTracking";
+import { acquireRefreshLock, releaseRefreshLock, broadcastSessionRefresh } from "@/lib/refreshLock";
 
 const IDLE_TIMEOUT_MS = 12 * 60 * 60 * 1000; // 12 hours
 const ABSOLUTE_TIMEOUT_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
