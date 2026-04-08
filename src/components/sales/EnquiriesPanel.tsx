@@ -41,6 +41,7 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
   const [viewingEnquiry, setViewingEnquiry] = useState<Enquiry | null>(null);
   const [enquiryItems, setEnquiryItems] = useState<EnquiryItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [innerTab, setInnerTab] = useState<string>('dashboard');
   const lastAutoOpenedId = useRef<string | null>(null);
 
   // Auto-open enquiry when selectedLeadId is provided
