@@ -7,6 +7,7 @@ import logoFull from "@/assets/logo-full.jpeg";
 import { NotificationPanel } from "@/components/NotificationPanel";
 
 import { AttendanceWidget } from "@/components/attendance/AttendanceWidget";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -161,7 +162,7 @@ export function Header() {
 
           {/* Right side */}
           <div className="hidden sm:flex items-center gap-2">
-            <AttendanceWidget />
+            <ErrorBoundary fallback={null}><AttendanceWidget /></ErrorBoundary>
             {(role === 'admin' || role === 'supply_chain' || role === 'finance' || role === 'it') && (
               <NotificationPanel />
             )}
