@@ -10046,6 +10046,7 @@ export type Database = {
           revoked_at: string | null
           session_token_hash: string | null
           started_at: string
+          user_agent: string | null
           user_id: string
         }
         Insert: {
@@ -10064,6 +10065,7 @@ export type Database = {
           revoked_at?: string | null
           session_token_hash?: string | null
           started_at?: string
+          user_agent?: string | null
           user_id: string
         }
         Update: {
@@ -10082,6 +10084,7 @@ export type Database = {
           revoked_at?: string | null
           session_token_hash?: string | null
           started_at?: string
+          user_agent?: string | null
           user_id?: string
         }
         Relationships: []
@@ -10781,6 +10784,10 @@ export type Database = {
       show_trgm: { Args: { "": string }; Returns: string[] }
       sync_profiles_to_employees: { Args: never; Returns: number }
       update_mfa_verified_at: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
+      update_mfa_verified_at_to_null: {
         Args: { p_user_id: string }
         Returns: undefined
       }

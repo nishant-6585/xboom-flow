@@ -13,6 +13,16 @@ export function getDeviceId(): string {
   return id;
 }
 
+/**
+ * Rotate device_id — generates a fresh ID and persists it.
+ * Called on device registration to invalidate previous fingerprints.
+ */
+function rotateDeviceId(): string {
+  const id = crypto.randomUUID();
+  localStorage.setItem(DEVICE_ID_KEY, id);
+  return id;
+}
+
 async function sha256(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
   const buf = await crypto.subtle.digest("SHA-256", data);
@@ -119,9 +129,14 @@ export async function isDeviceTrusted(userId: string): Promise<boolean> {
 
 // ── Registration ─────────────────────────────────────────
 
+/**
+ * Register (or rotate) a trusted device.
+ * On each login we regenerate the fingerprints so stale values are replaced.
+ */
 export async function registerTrustedDevice(userId: string, days = 30): Promise<void> {
   try {
-    const deviceId = getDeviceId();
+    // Rotate device_id on fresh registration to invalidate old fingerprints
+    const deviceId = rotateDeviceId();
     const deviceHash = await sha256(deviceId);
     const fp = await generateDeviceFingerprint(deviceId);
     const sFp = await stableFingerprint(deviceId);
@@ -138,9 +153,9 @@ export async function registerTrustedDevice(userId: string, days = 30): Promise<
     });
 
     if (error) {
-      console.warn("[DeviceTrust] Registration failed:", error.message);
+      if (import.meta.env.DEV) console.warn("[DeviceTrust] Registration failed:", error.message);
     } else {
-      console.log("[DeviceTrust] Device registered for", days, "days");
+      if (import.meta.env.DEV) console.log("[DeviceTrust] Device registered for", days, "days");
       localStorage.setItem(
         "mfa_device_trust",
         JSON.stringify({
@@ -150,7 +165,7 @@ export async function registerTrustedDevice(userId: string, days = 30): Promise<
       );
     }
   } catch (e) {
-    console.warn("[DeviceTrust] Exception during registration:", e);
+    if (import.meta.env.DEV) console.warn("[DeviceTrust] Exception during registration:", e);
   }
 }
 
@@ -168,12 +183,10 @@ export async function recordMfaVerifiedAt(userId: string): Promise<void> {
 
 export async function needsStepUpAuth(userId: string): Promise<boolean> {
   try {
-    const localTs = localStorage.getItem("last_mfa_verified_at");
-    if (localTs && Date.now() - new Date(localTs).getTime() < 86_400_000) return false;
-
+    // Server-only — no localStorage shortcut (eliminates spoofing)
     const { data, error } = await supabase.rpc("needs_step_up_auth", { p_user_id: userId });
     if (error) {
-      console.warn("[DeviceTrust] Step-up check failed:", error.message);
+      if (import.meta.env.DEV) console.warn("[DeviceTrust] Step-up check failed:", error.message);
       return true;
     }
     return data === true;

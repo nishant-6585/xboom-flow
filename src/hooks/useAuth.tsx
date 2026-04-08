@@ -2,7 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode, useCallback,
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { recordSession } from "@/lib/sessionTracking";
-import { checkDeviceTrustV2, clearLocalDeviceTrust, DeviceTrustResult } from "@/lib/deviceTrust";
+import { checkDeviceTrustV2, clearLocalDeviceTrust, registerTrustedDevice, DeviceTrustResult } from "@/lib/deviceTrust";
 
 type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketing" | "hr" | "sales_manager";
 
@@ -572,6 +572,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (data.user) {
         recordSession(data.user.id).catch(() => {});
+        // Rotate device fingerprint on fresh login
+        registerTrustedDevice(data.user.id).catch(() => {});
       }
     }
 
