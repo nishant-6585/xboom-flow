@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { unlockAppAudio } from "@/lib/audioPlayback";
+import { registerTrustedDevice, clearLocalDeviceTrust } from "@/lib/deviceTrust";
 import logoIcon from "@/assets/logo-icon.jpeg";
 
 interface MFAVerificationProps {
@@ -95,20 +96,23 @@ export const MFAVerification = ({ onVerified, onCancel }: MFAVerificationProps) 
 
       sessionStorage.setItem("pending_login_greeting", "1");
 
-      // Remember device for 24 hours if checked
+      // Register trusted device server-side if checkbox is checked
       if (rememberDevice) {
         const { data: userData } = await supabase.auth.getUser();
         if (userData?.user) {
-          localStorage.setItem("mfa_device_trust", JSON.stringify({
-            userId: userData.user.id,
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          }));
+          // Register for 30 days server-side (replaces old 24h localStorage-only approach)
+          await registerTrustedDevice(userData.user.id, 30);
         }
+      } else {
+        // User doesn't want to remember — clear any existing trust
+        clearLocalDeviceTrust();
       }
 
       toast({
         title: "Welcome back!",
-        description: rememberDevice ? "MFA verified. This device is trusted for 24 hours." : "MFA verification successful.",
+        description: rememberDevice
+          ? "MFA verified. This device is trusted for 30 days."
+          : "MFA verification successful.",
       });
       onVerified();
     } catch (e) {
@@ -170,7 +174,7 @@ export const MFAVerification = ({ onVerified, onCancel }: MFAVerificationProps) 
               onCheckedChange={(checked) => setRememberDevice(checked === true)}
             />
             <Label htmlFor="remember-device" className="text-sm text-muted-foreground cursor-pointer">
-              Remember this device for 24 hours
+              Remember this device for 30 days
             </Label>
           </div>
 

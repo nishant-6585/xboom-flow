@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { FloatingActionButton } from "@/components/FloatingActionButton";
 import { MobileAttendanceFAB } from "@/components/attendance/MobileAttendanceFAB";
 import { CommandPalette } from "@/components/CommandPalette";
+import { SessionHealthDebug } from "@/components/debug/SessionHealthDebug";
 import { PortalChatButton } from "@/components/chat/PortalChatButton";
 import { VoiceChatBot } from "@/components/voice-chat/VoiceChatBot";
 import { FollowupReminderPopup } from "@/components/sales/FollowupReminderPopup";
@@ -150,6 +151,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <AppInner />
+          <SessionHealthDebug />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
