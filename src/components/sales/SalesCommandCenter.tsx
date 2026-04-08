@@ -823,6 +823,122 @@ export function SalesCommandCenter() {
     openDrillDown(`${sourceName} (${items.length})`, items);
   }, [filtered, openDrillDown]);
 
+  // Monthly Pipeline Trend click
+  const handleMonthlyTrendClick = useCallback((data: any) => {
+    if (!data?.activeLabel) return;
+    const monthLabel = data.activeLabel;
+    const items: DetailItem[] = filtered.pipeline
+      .filter(p => format(new Date(p.created_at), 'MMM yyyy') === monthLabel)
+      .slice(0, 100)
+      .map(p => ({
+        id: p.id, type: 'pipeline' as const, customer_name: p.customer_name,
+        customer_company: p.customer_company, product_name: p.product_name,
+        value: p.expected_price || 0, date: p.created_at, status: p.status,
+        temperature: p.lead_temperature, tab: 'pipeline',
+      }));
+    openDrillDown(`Pipeline — ${monthLabel} (${items.length})`, items);
+  }, [filtered.pipeline, openDrillDown]);
+
+  // 14-Day Activity Trend click
+  const handleDailyTrendClick = useCallback((data: any) => {
+    if (!data?.activeLabel) return;
+    const label = data.activeLabel;
+    // Find matching date string
+    const days = Array.from({ length: 14 }, (_, i) => {
+      const d = subDays(new Date(), 13 - i);
+      return { formatted: format(d, 'MMM d'), iso: format(d, 'yyyy-MM-dd') };
+    });
+    const match = days.find(d => d.formatted === label);
+    if (!match) return;
+    const dateStr = match.iso;
+    const items: DetailItem[] = [
+      ...enquiries.filter(e => e.created_at?.startsWith(dateStr)).slice(0, 20).map((e: any) => ({
+        id: e.id, type: 'enquiry' as const, customer_name: e.customer_name,
+        customer_company: e.customer_company, product_name: e.product_name,
+        value: e.quantity || 0, date: e.created_at, status: e.status, tab: 'enquiries',
+      })),
+      ...(interaktLeads as any[]).filter(l => l.created_at?.startsWith(dateStr)).slice(0, 20).map((l: any) => ({
+        id: l.id, type: 'lead' as const, customer_name: l.customer_name || l.name || 'Unknown',
+        customer_company: l.company || '', product_name: l.product_name || '',
+        value: 0, date: l.created_at, status: l.status || 'new', tab: 'leads',
+      })),
+      ...(callLogs as any[]).filter(c => c.created_at?.startsWith(dateStr)).slice(0, 20).map((c: any) => ({
+        id: c.id, type: 'lead' as const, customer_name: c.customer_name || c.caller_number,
+        customer_company: c.company || '', product_name: c.product_name || '',
+        value: 0, date: c.created_at, status: c.call_status, tab: 'leads',
+      })),
+    ];
+    openDrillDown(`Activity on ${label} (${items.length} items)`, items);
+  }, [enquiries, interaktLeads, callLogs, openDrillDown]);
+
+  // Call trend bar click
+  const handleCallTrendClick = useCallback((data: any) => {
+    if (!data?.activeLabel) return;
+    const label = data.activeLabel;
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = subDays(new Date(), 6 - i);
+      return { formatted: format(d, 'MMM d'), iso: format(d, 'yyyy-MM-dd') };
+    });
+    const match = days.find(d => d.formatted === label);
+    if (!match) return;
+    const items: DetailItem[] = filtered.calls
+      .filter((c: any) => c.created_at?.startsWith(match.iso))
+      .slice(0, 50)
+      .map((c: any) => ({
+        id: c.id, type: 'lead' as const, customer_name: c.customer_name || c.caller_number,
+        customer_company: c.company || '', product_name: c.product_name || '',
+        value: 0, date: c.created_at, status: c.call_status || 'unknown', tab: 'leads',
+      }));
+    openDrillDown(`Calls on ${label} (${items.length})`, items);
+  }, [filtered.calls, openDrillDown]);
+
+  // Call summary card click
+  const handleCallSummaryClick = useCallback((type: 'all' | 'answered' | 'missed') => {
+    const isAnswered = (c: any) => {
+      const payload = c.raw_payload;
+      if (!payload?._ld || !Array.isArray(payload._ld)) return c.call_status === 'answered';
+      return (payload._ld as any[]).some((l: any) => l._ac === 'received');
+    };
+    const calls = type === 'all' ? filtered.calls : type === 'answered' ? filtered.calls.filter(isAnswered) : filtered.calls.filter((c: any) => !isAnswered(c));
+    const items: DetailItem[] = calls.slice(0, 50).map((c: any) => ({
+      id: c.id, type: 'lead' as const, customer_name: c.customer_name || c.caller_number,
+      customer_company: c.company || '', product_name: c.product_name || '',
+      value: 0, date: c.created_at, status: type === 'all' ? (c.call_status || 'unknown') : type, tab: 'leads',
+    }));
+    const labels = { all: 'All Calls', answered: 'Attended Calls', missed: 'Missed Calls' };
+    openDrillDown(`${labels[type]} (${items.length})`, items);
+  }, [filtered.calls, openDrillDown]);
+
+  // Agent performance click
+  const handleAgentClick = useCallback((agentName: string) => {
+    const items: DetailItem[] = filtered.calls
+      .filter((c: any) => (c.assigned_agent_name || c.agent_name || 'Unassigned') === agentName)
+      .slice(0, 50)
+      .map((c: any) => ({
+        id: c.id, type: 'lead' as const, customer_name: c.customer_name || c.caller_number,
+        customer_company: c.company || '', product_name: c.product_name || '',
+        value: 0, date: c.created_at, status: c.call_status || 'unknown', tab: 'leads',
+      }));
+    openDrillDown(`${agentName} — Calls (${items.length})`, items);
+  }, [filtered.calls, openDrillDown]);
+
+  // Target comparison click
+  const handleTargetClick = useCallback((spName: string) => {
+    const items: DetailItem[] = [
+      ...filtered.orders.filter(o => o.sales_person_name?.startsWith(spName)).slice(0, 30).map(o => ({
+        id: o.id, type: 'pipeline' as const, customer_name: (o as any).customer_name || (o as any).party_name || 'N/A',
+        customer_company: (o as any).customer_company || '', product_name: (o as any).product_name || (o as any).item_name || '',
+        value: o.total_sales_amount || 0, date: o.order_date || o.created_at || '', status: 'won', tab: 'orders_won',
+      })),
+      ...filtered.pipeline.filter(p => p.sales_person_name?.startsWith(spName) && p.status !== 'won' && p.status !== 'lost').slice(0, 30).map(p => ({
+        id: p.id, type: 'pipeline' as const, customer_name: p.customer_name,
+        customer_company: p.customer_company, product_name: p.product_name,
+        value: p.expected_price || 0, date: p.created_at, status: p.status, temperature: p.lead_temperature, tab: 'pipeline',
+      })),
+    ];
+    openDrillDown(`${spName} — Orders & Pipeline (${items.length})`, items);
+  }, [filtered.orders, filtered.pipeline, openDrillDown]);
+
   // Navigate to detail tab and open specific record
   const handleItemClick = useCallback((item: DetailItem) => {
     setDetailDialogOpen(false);
