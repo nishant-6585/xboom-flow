@@ -126,6 +126,9 @@ export function useSessionPolicy(
     [userId, signOut]
   );
 
+  // Track known session version to detect stale sessions
+  const knownSessionVersionRef = useRef<number | null>(null);
+
   const fetchSessionWithRetry = useCallback(async () => {
     if (!userId) return null;
 
@@ -133,7 +136,7 @@ export function useSessionPolicy(
       try {
         const { data: session, error } = await supabase
           .from("user_sessions")
-          .select("id, started_at, last_active_at, revoked_at, is_active")
+          .select("id, started_at, last_active_at, revoked_at, is_active, session_version")
           .eq("user_id", userId)
           .eq("is_current", true)
           .maybeSingle();
