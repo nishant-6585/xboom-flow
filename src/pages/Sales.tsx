@@ -213,9 +213,11 @@ export default function Sales() {
             <LeadsPanel />
           </TabsContent>
 
+          {canAccessEnquiries && (
           <TabsContent value="enquiries" className="space-y-6">
             <EnquiriesPanel selectedLeadId={urlLeadId} />
           </TabsContent>
+          )}
 
           <TabsContent value="pipeline" className="space-y-6">
             <PipelineOrders selectedLeadId={urlLeadId} />
