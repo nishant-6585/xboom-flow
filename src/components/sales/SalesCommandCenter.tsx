@@ -1551,6 +1551,61 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
         </Card>
       )}
 
+      {/* ============ UNTOUCHED LEADS SUMMARY ============ */}
+      {untouchedStats.total > 0 && (
+        <Card className="border-destructive/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-destructive" />
+              Untouched Leads
+              <Badge variant="destructive" className="ml-1">{untouchedStats.total}</Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-auto text-xs"
+                onClick={() => setSearchParams({ tab: 'untouched' })}
+              >
+                View All <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-3">
+            {/* Bucket summary row */}
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { label: 'T+1 (24-48h)', count: untouchedStats.t1, color: 'bg-yellow-500' },
+                { label: 'T+2 (48-72h)', count: untouchedStats.t2, color: 'bg-orange-500' },
+                { label: 'T+3 (72-96h)', count: untouchedStats.t3, color: 'bg-red-500' },
+                { label: 'T++ (96h+)', count: untouchedStats.tPlus, color: 'bg-red-800' },
+              ].map((b) => (
+                <div key={b.label} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+                  <div className={`w-2.5 h-2.5 rounded-full ${b.color} shrink-0`} />
+                  <div>
+                    <p className="text-lg font-bold leading-tight">{b.count}</p>
+                    <p className="text-[10px] text-muted-foreground">{b.label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* By salesperson */}
+            {untouchedStats.bySalesperson.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                {untouchedStats.bySalesperson.slice(0, 8).map((sp) => (
+                  <div key={sp.name} className="flex items-center justify-between p-2 rounded-lg bg-muted/40 text-sm">
+                    <span className="truncate font-medium">{sp.name.split(' ')[0]}</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="font-bold">{sp.total}</span>
+                      <span className="text-[10px] text-muted-foreground">({sp.avgDelay.toFixed(0)}h avg)</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* ============ EXPECTED INFLOWS TIMELINE (Clickable) ============ */}
       {paymentsTimeline.length > 0 && (
         <Card>
