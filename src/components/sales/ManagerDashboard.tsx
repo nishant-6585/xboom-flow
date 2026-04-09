@@ -1,13 +1,14 @@
-import { Users, Target, Award, DollarSign, Download } from "lucide-react";
+import { useRef, useState } from "react";
+import { Users, Target, Award, DollarSign, Download, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LeadDistributionChart } from "./LeadDistributionChart";
 import { useSalesLeaderboard } from "@/hooks/useSalesGamification";
 import { usePipelineOrders } from "@/hooks/usePipelineOrders";
 import { toast } from "sonner";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 interface ManagerDashboardProps {
   startDate: string;
@@ -17,171 +18,137 @@ interface ManagerDashboardProps {
 export function ManagerDashboard({ startDate, endDate }: ManagerDashboardProps) {
   const { leaderboard } = useSalesLeaderboard(startDate, endDate);
   const { pipelineOrders } = usePipelineOrders();
+  const dashboardRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
 
   const totalLeads = leaderboard?.reduce((sum, e) => sum + e.leads_handled, 0) || 0;
   const totalOrders = leaderboard?.reduce((sum, e) => sum + e.orders_won, 0) || 0;
   const totalPipeline = leaderboard?.reduce((sum, e) => sum + Number(e.total_pipeline_value), 0) || 0;
   const totalPoints = leaderboard?.reduce((sum, e) => sum + e.total_points, 0) || 0;
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
+    if (!dashboardRef.current) return;
+    setDownloading(true);
     try {
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      
-      // Header
-      doc.setFontSize(18);
-      doc.setFont("helvetica", "bold");
-      doc.text("Sales Arena Dashboard Report", pageWidth / 2, 20, { align: "center" });
-      
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Period: ${format(new Date(startDate), "dd MMM yyyy")} - ${format(new Date(endDate), "dd MMM yyyy")}`, pageWidth / 2, 28, { align: "center" });
-      doc.text(`Generated: ${format(new Date(), "dd MMM yyyy, hh:mm a")}`, pageWidth / 2, 34, { align: "center" });
+      const element = dashboardRef.current;
 
-      // Summary Stats
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text("Summary", 14, 46);
-
-      autoTable(doc, {
-        startY: 50,
-        head: [["Metric", "Value"]],
-        body: [
-          ["Team Leads", totalLeads.toString()],
-          ["Orders Won", totalOrders.toString()],
-          ["Pipeline Value", `Rs. ${(totalPipeline / 100000).toFixed(1)}L`],
-          ["Team Points", totalPoints.toLocaleString()],
-        ],
-        theme: "grid",
-        headStyles: { fillColor: [59, 130, 246], fontStyle: "bold" },
-        styles: { fontSize: 11 },
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
       });
 
-      // Salesperson Distribution
-      if (leaderboard && leaderboard.length > 0) {
-        const finalY = (doc as any).lastAutoTable?.finalY || 90;
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text("Lead Distribution by Salesperson", 14, finalY + 12);
+      const imgData = canvas.toDataURL("image/png");
+      const imgWidth = 210; // A4 width mm
+      const pageHeight = 297; // A4 height mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-        autoTable(doc, {
-          startY: finalY + 16,
-          head: [["Salesperson", "Leads", "Prospects", "Pipeline", "Orders Won", "Points"]],
-          body: leaderboard.map((sp) => [
-            sp.user_name,
-            sp.leads_handled.toString(),
-            (sp.pipeline_created || 0).toString(),
-            (sp.pipeline_created || 0).toString(),
-            sp.orders_won.toString(),
-            sp.total_points.toString(),
-          ]),
-          theme: "grid",
-          headStyles: { fillColor: [16, 185, 129], fontStyle: "bold" },
-          styles: { fontSize: 10 },
-        });
+      const pdf = new jsPDF("p", "mm", "a4");
+
+      // Title header
+      pdf.setFontSize(16);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("Sales Arena Dashboard Report", 105, 12, { align: "center" });
+      pdf.setFontSize(9);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(
+        `${format(new Date(startDate), "dd MMM yyyy")} - ${format(new Date(endDate), "dd MMM yyyy")}  |  Generated: ${format(new Date(), "dd MMM yyyy, hh:mm a")}`,
+        105, 18, { align: "center" }
+      );
+
+      const topMargin = 22;
+      let heightLeft = imgHeight;
+      let position = topMargin;
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= (pageHeight - topMargin);
+
+      while (heightLeft > 0) {
+        pdf.addPage();
+        position = -(pageHeight - topMargin) * (Math.ceil((imgHeight - heightLeft) / (pageHeight - topMargin)) - 1) - (pageHeight - topMargin) + topMargin;
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
       }
 
-      // Pipeline Summary
-      if (pipelineOrders && pipelineOrders.length > 0) {
-        const finalY2 = (doc as any).lastAutoTable?.finalY || 140;
-        
-        if (finalY2 > 240) doc.addPage();
-        const y = finalY2 > 240 ? 20 : finalY2 + 12;
-        
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text("Active Pipeline Orders", 14, y);
-
-        const pipelineData = pipelineOrders.slice(0, 20).map((o) => [
-          o.customer_name || "-",
-          o.product_name || "-",
-          `Rs. ${Number(o.expected_price || 0).toLocaleString()}`,
-          o.status || "-",
-          o.probability ? `${o.probability}%` : "-",
-        ]);
-
-        autoTable(doc, {
-          startY: y + 4,
-          head: [["Customer", "Product", "Value", "Stage", "Probability"]],
-          body: pipelineData,
-          theme: "grid",
-          headStyles: { fillColor: [139, 92, 246], fontStyle: "bold" },
-          styles: { fontSize: 9 },
-        });
-      }
-
-      // Footer
-      const pageCount = doc.getNumberOfPages();
+      // Footer on all pages
+      const pageCount = pdf.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "normal");
-        doc.text(`Page ${i} of ${pageCount} | XBoom Sales Report`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: "center" });
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(`Page ${i} of ${pageCount} | XBoom Sales Report`, 105, 290, { align: "center" });
       }
 
-      doc.save(`Sales_Dashboard_${format(new Date(), "yyyy-MM-dd")}.pdf`);
+      pdf.save(`Sales_Dashboard_${format(new Date(), "yyyy-MM-dd")}.pdf`);
       toast.success("Dashboard report downloaded!");
     } catch (error) {
       console.error("PDF generation error:", error);
       toast.error("Failed to generate PDF report");
+    } finally {
+      setDownloading(false);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header with Download */}
-      <div className="flex justify-end">
-        <Button onClick={handleDownloadPDF} variant="outline" size="sm" className="gap-2">
-          <Download className="w-4 h-4" />
-          Download PDF Report
+      {/* Download Button - Top */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-foreground">Dashboard Overview</h2>
+        <Button onClick={handleDownloadPDF} disabled={downloading} size="sm" className="gap-2">
+          {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          {downloading ? "Generating..." : "Download PDF Report"}
         </Button>
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="overflow-hidden">
-          <CardContent className="p-4 bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="w-5 h-5" />
-              <span className="text-sm opacity-80">Team Leads</span>
-            </div>
-            <p className="text-3xl font-bold">{totalLeads}</p>
-          </CardContent>
-        </Card>
+      {/* Capturable Dashboard Content */}
+      <div ref={dashboardRef} className="space-y-6 bg-background p-2 rounded-lg">
+        {/* Summary Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="overflow-hidden">
+            <CardContent className="p-4 bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-5 h-5" />
+                <span className="text-sm opacity-80">Team Leads</span>
+              </div>
+              <p className="text-3xl font-bold">{totalLeads}</p>
+            </CardContent>
+          </Card>
 
-        <Card className="overflow-hidden">
-          <CardContent className="p-4 bg-gradient-to-br from-green-500 to-emerald-600 text-white">
-            <div className="flex items-center gap-2 mb-2">
-              <Award className="w-5 h-5" />
-              <span className="text-sm opacity-80">Orders Won</span>
-            </div>
-            <p className="text-3xl font-bold">{totalOrders}</p>
-          </CardContent>
-        </Card>
+          <Card className="overflow-hidden">
+            <CardContent className="p-4 bg-gradient-to-br from-green-500 to-emerald-600 text-white">
+              <div className="flex items-center gap-2 mb-2">
+                <Award className="w-5 h-5" />
+                <span className="text-sm opacity-80">Orders Won</span>
+              </div>
+              <p className="text-3xl font-bold">{totalOrders}</p>
+            </CardContent>
+          </Card>
 
-        <Card className="overflow-hidden">
-          <CardContent className="p-4 bg-gradient-to-br from-purple-500 to-violet-600 text-white">
-            <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="w-5 h-5" />
-              <span className="text-sm opacity-80">Pipeline Value</span>
-            </div>
-            <p className="text-3xl font-bold">₹{(totalPipeline / 100000).toFixed(1)}L</p>
-          </CardContent>
-        </Card>
+          <Card className="overflow-hidden">
+            <CardContent className="p-4 bg-gradient-to-br from-purple-500 to-violet-600 text-white">
+              <div className="flex items-center gap-2 mb-2">
+                <DollarSign className="w-5 h-5" />
+                <span className="text-sm opacity-80">Pipeline Value</span>
+              </div>
+              <p className="text-3xl font-bold">₹{(totalPipeline / 100000).toFixed(1)}L</p>
+            </CardContent>
+          </Card>
 
-        <Card className="overflow-hidden">
-          <CardContent className="p-4 bg-gradient-to-br from-amber-500 to-orange-600 text-white">
-            <div className="flex items-center gap-2 mb-2">
-              <Target className="w-5 h-5" />
-              <span className="text-sm opacity-80">Team Points</span>
-            </div>
-            <p className="text-3xl font-bold">{totalPoints.toLocaleString()}</p>
-          </CardContent>
-        </Card>
+          <Card className="overflow-hidden">
+            <CardContent className="p-4 bg-gradient-to-br from-amber-500 to-orange-600 text-white">
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="w-5 h-5" />
+                <span className="text-sm opacity-80">Team Points</span>
+              </div>
+              <p className="text-3xl font-bold">{totalPoints.toLocaleString()}</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Lead Distribution */}
+        <LeadDistributionChart startDate={startDate} endDate={endDate} />
       </div>
-
-      {/* Lead Distribution */}
-      <LeadDistributionChart startDate={startDate} endDate={endDate} />
     </div>
   );
 }
