@@ -129,10 +129,6 @@ export default function Sales() {
                   <XCircle className="w-4 h-4" />
                   Orders Lost
                 </TabsTrigger>
-                <TabsTrigger value="funnel" className={triggerPrimary}>
-                  <GitBranch className="w-4 h-4" />
-                  Funnel
-                </TabsTrigger>
                 <TabsTrigger value="attention" className={`${triggerBase} data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground`}>
                   <AlertTriangle className="w-4 h-4" />
                   Attention
@@ -210,9 +206,6 @@ export default function Sales() {
             <UntouchedLeadsPanel />
           </TabsContent>
 
-          <TabsContent value="funnel" className="space-y-6">
-            <SalesFunnelDashboard />
-          </TabsContent>
 
 
           <TabsContent value="leads" className="space-y-6">
