@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
@@ -200,8 +201,8 @@ export default function Sales() {
 
           <TabsContent value="manager" className="space-y-6">
             <UntouchedLoginAlert />
-            <SalesCommandCenter />
-            <ManagerDashboard />
+            <SalesCommandCenter onDateRangeChange={useCallback((s: string, e: string) => setDashboardDateRange({ start: s, end: e }), [])} />
+            <ManagerDashboard startDate={dashboardDateRange.start} endDate={dashboardDateRange.end} />
           </TabsContent>
 
           <TabsContent value="untouched" className="space-y-6">
