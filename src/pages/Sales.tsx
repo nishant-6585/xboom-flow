@@ -84,59 +84,43 @@ export default function Sales() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="space-y-2.5">
-            {/* Primary Navigation */}
+            {/* Primary Navigation - Row 1 */}
             <div className="bg-card/80 backdrop-blur-sm border border-border/50 shadow-sm rounded-2xl p-1.5">
               <TabsList className="bg-transparent flex flex-wrap justify-center gap-1 h-auto p-0">
                 <TabsTrigger value="manager" className={triggerPrimary}>
                   <BarChart3 className="w-4 h-4" />
                   Dashboard
                 </TabsTrigger>
-                <TabsTrigger value="tasks" className={triggerPrimary}>
-                  <ListTodo className="w-4 h-4" />
-                  Tasks
-                </TabsTrigger>
                 <TabsTrigger value="leads" className={triggerPrimary}>
                   <Users className="w-4 h-4" />
                   Leads
-                </TabsTrigger>
-                {canAccessEnquiries && (
-                <TabsTrigger value="enquiries" className={triggerPrimary}>
-                  <Package className="w-4 h-4" />
-                  Enquiries
-                </TabsTrigger>
-                )}
-                <TabsTrigger value="pipeline" className={triggerPrimary}>
-                  <TrendingUp className="w-4 h-4" />
-                  Pipeline
                 </TabsTrigger>
                 <TabsTrigger value="prospects" className={`${triggerBase} data-[state=active]:bg-warning data-[state=active]:text-warning-foreground`}>
                   <Target className="w-4 h-4" />
                   Prospects
                 </TabsTrigger>
+                <TabsTrigger value="pipeline" className={triggerPrimary}>
+                  <TrendingUp className="w-4 h-4" />
+                  Pipeline
+                </TabsTrigger>
+                <TabsTrigger value="untouched" className={`${triggerBase} data-[state=active]:bg-red-600 data-[state=active]:text-white`}>
+                  <AlertTriangle className="w-4 h-4" />
+                  Untouched
+                </TabsTrigger>
                 <TabsTrigger value="followups" className={`${triggerBase} data-[state=active]:bg-amber-600 data-[state=active]:text-white`}>
                   <CalendarCheck className="w-4 h-4" />
                   Follow-ups
                 </TabsTrigger>
-                <TabsTrigger value="attention" className={`${triggerBase} data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground`}>
-                  <AlertTriangle className="w-4 h-4" />
-                  Attention
-                </TabsTrigger>
-                <TabsTrigger value="activity" className={triggerPrimary}>
-                  <Rocket className="w-4 h-4" />
-                  Activity
-                </TabsTrigger>
-                <TabsTrigger value="funnel" className={triggerPrimary}>
-                  <GitBranch className="w-4 h-4" />
-                  Funnel
-                </TabsTrigger>
-                <TabsTrigger value="leaderboard" className={triggerPrimary}>
-                  <Trophy className="w-4 h-4" />
-                  Leaderboard
-                </TabsTrigger>
-                <TabsTrigger value="mega_deals" className={`${triggerBase} data-[state=active]:bg-amber-500 data-[state=active]:text-white`}>
-                  <Star className="w-4 h-4" />
+                <TabsTrigger value="mega_deals" className={`${triggerBase} data-[state=active]:bg-amber-500 data-[state=active]:text-white text-base font-bold px-5 py-3`}>
+                  <Star className="w-5 h-5" />
                   Mega Deals
                 </TabsTrigger>
+              </TabsList>
+            </div>
+
+            {/* Row 2 */}
+            <div className="bg-card/80 backdrop-blur-sm border border-border/50 shadow-sm rounded-2xl p-1.5">
+              <TabsList className="bg-transparent flex flex-wrap justify-center gap-1 h-auto p-0">
                 <TabsTrigger value="orders_won" className={`${triggerBase} data-[state=active]:bg-green-600 data-[state=active]:text-white`}>
                   <CheckCircle2 className="w-4 h-4" />
                   Orders Won
@@ -145,13 +129,27 @@ export default function Sales() {
                   <XCircle className="w-4 h-4" />
                   Orders Lost
                 </TabsTrigger>
+                <TabsTrigger value="funnel" className={triggerPrimary}>
+                  <GitBranch className="w-4 h-4" />
+                  Funnel
+                </TabsTrigger>
+                <TabsTrigger value="attention" className={`${triggerBase} data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground`}>
+                  <AlertTriangle className="w-4 h-4" />
+                  Attention
+                </TabsTrigger>
+                {canAccessEnquiries && (
+                <TabsTrigger value="enquiries" className={triggerPrimary}>
+                  <Package className="w-4 h-4" />
+                  Enquiries
+                </TabsTrigger>
+                )}
+                <TabsTrigger value="tasks" className={triggerPrimary}>
+                  <ListTodo className="w-4 h-4" />
+                  Tasks
+                </TabsTrigger>
                 <TabsTrigger value="outbound" className={triggerPrimary}>
                   <Phone className="w-4 h-4" />
                   Outbound
-                </TabsTrigger>
-                <TabsTrigger value="untouched" className={`${triggerBase} data-[state=active]:bg-red-600 data-[state=active]:text-white`}>
-                  <AlertTriangle className="w-4 h-4" />
-                  Untouched
                 </TabsTrigger>
               </TabsList>
             </div>
