@@ -270,9 +270,11 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
   // Notify parent of date range changes
   const startStr = format(dateRange.start, 'yyyy-MM-dd');
   const endStr = format(dateRange.end, 'yyyy-MM-dd');
-  useMemo(() => {
+  // Notify parent of date range changes  
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
     onDateRangeChange?.(startStr, endStr);
-  }, [startStr, endStr, onDateRangeChange]);
+  }, [startStr, endStr]);
 
   // ============ FILTERED DATA ============
   const filtered = useMemo(() => {
