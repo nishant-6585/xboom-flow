@@ -351,7 +351,7 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
                            </span>
                          </TableCell>
                        </TableRow>
-                     ))
+                     ))}
                   </TableBody>
                 </Table>
               </div>
