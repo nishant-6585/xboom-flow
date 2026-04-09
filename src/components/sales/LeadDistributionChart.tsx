@@ -5,14 +5,14 @@ import { useLeadDistribution } from "@/hooks/useLeadDistribution";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const COLORS = [
-  "hsl(221, 83%, 53%)",
-  "hsl(142, 71%, 45%)",
-  "hsl(262, 83%, 58%)",
-  "hsl(25, 95%, 53%)",
-  "hsl(346, 77%, 50%)",
-  "hsl(199, 89%, 48%)",
-  "hsl(47, 96%, 53%)",
-  "hsl(173, 80%, 40%)",
+  "hsl(221 83% 53%)",
+  "hsl(142 71% 45%)",
+  "hsl(262 83% 58%)",
+  "hsl(25 95% 53%)",
+  "hsl(346 77% 50%)",
+  "hsl(199 89% 48%)",
+  "hsl(47 96% 53%)",
+  "hsl(173 80% 40%)",
 ];
 
 interface Props {
@@ -24,43 +24,49 @@ export function LeadDistributionChart({ startDate, endDate }: Props) {
   const { data: result, isLoading } = useLeadDistribution(startDate, endDate);
   const entries = result?.data || [];
   const totalLeads = result?.total || 0;
+  const totalProspects = result?.totalProspects || 0;
+  const totalPipeline = result?.totalPipeline || 0;
 
   const chartData = entries
-    .filter((d) => d.leads > 0)
-    .map((d) => ({
-      ...d,
-      percent: totalLeads > 0 ? ((d.leads / totalLeads) * 100).toFixed(1) : "0",
+    .filter((entry) => entry.leads > 0)
+    .map((entry) => ({
+      ...entry,
+      percent: totalLeads > 0 ? ((entry.leads / totalLeads) * 100).toFixed(1) : "0",
     }));
 
-  const barData = entries.filter((d) => d.leads > 0).map((d) => ({
-    name: d.name.split(" ")[0],
-    Enquiry: d.sources.enquiry,
-    Call: d.sources.call,
-    Form: d.sources.form,
-    Email: d.sources.email,
-    Interakt: d.sources.interakt,
-    total: d.leads,
-  }));
+  const barData = entries
+    .filter((entry) => entry.leads > 0)
+    .map((entry) => ({
+      name: entry.name.split(" ")[0],
+      Enquiry: entry.sources.enquiry,
+      Call: entry.sources.call,
+      Form: entry.sources.form,
+      Email: entry.sources.email,
+      Interakt: entry.sources.interakt,
+      total: entry.leads,
+    }));
 
   if (isLoading) {
     return (
       <Card>
-        <CardContent className="p-6 flex items-center justify-center h-[380px]">
-          <p className="text-muted-foreground text-sm">Loading lead distribution...</p>
+        <CardContent className="flex h-[380px] items-center justify-center p-6">
+          <p className="text-sm text-muted-foreground">Loading lead distribution...</p>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="lg:col-span-2">
+    <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <UserCheck className="w-5 h-5 text-primary" />
+        <CardTitle className="flex flex-wrap items-center gap-2">
+          <UserCheck className="h-5 w-5 text-primary" />
           Lead Distribution by Salesperson
-          <span className="ml-auto text-sm font-normal text-muted-foreground">
-            Total: {totalLeads} leads
-          </span>
+          <div className="ml-auto flex flex-wrap items-center gap-4 text-sm font-normal text-muted-foreground">
+            <span>Total Leads: {totalLeads}</span>
+            <span>Prospects: {totalProspects}</span>
+            <span>Pipeline: {totalPipeline}</span>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -72,21 +78,21 @@ export function LeadDistributionChart({ startDate, endDate }: Props) {
           </TabsList>
 
           <TabsContent value="chart">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <ResponsiveContainer width="100%" height={280}>
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.05fr_1.35fr]">
+              <ResponsiveContainer width="100%" height={320}>
                 <PieChart>
                   <Pie
                     data={chartData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={50}
-                    outerRadius={95}
+                    innerRadius={64}
+                    outerRadius={108}
                     paddingAngle={3}
                     dataKey="leads"
-                    label={({ name, percent }) => `${name.split(" ")[0]} ${percent}%`}
+                    label={({ name, percent }) => `${name.split(" ")[0]} ${((percent || 0) * 100).toFixed(1)}%`}
                   >
-                    {chartData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    {chartData.map((_, index) => (
+                      <Cell key={index} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip
@@ -95,32 +101,39 @@ export function LeadDistributionChart({ startDate, endDate }: Props) {
                       border: "1px solid hsl(var(--border))",
                       borderRadius: "8px",
                     }}
-                    formatter={(value: number) => [
-                      `${value} (${totalLeads > 0 ? ((value / totalLeads) * 100).toFixed(1) : 0}%)`,
-                      "Leads",
+                    formatter={(value: number, _name, item: { payload?: { prospects?: number; pipeline?: number } }) => [
+                      `${value} leads • ${item?.payload?.prospects || 0} prospects • ${item?.payload?.pipeline || 0} pipeline`,
+                      "Assigned",
                     ]}
                   />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="space-y-2 max-h-[280px] overflow-y-auto">
-                <div className="grid grid-cols-3 text-xs font-semibold text-muted-foreground border-b pb-1">
+
+              <div className="max-h-[320px] space-y-2 overflow-y-auto pr-1">
+                <div className="grid grid-cols-[minmax(0,1.6fr)_0.8fr_0.8fr_0.8fr_0.7fr] gap-2 border-b pb-2 text-xs font-semibold text-muted-foreground">
                   <span>Salesperson</span>
                   <span className="text-right">Leads</span>
+                  <span className="text-right">Prospects</span>
+                  <span className="text-right">Pipeline</span>
                   <span className="text-right">%</span>
                 </div>
-                {chartData.map((d, i) => (
-                  <div key={d.name} className="grid grid-cols-3 text-sm items-center py-1">
+                {chartData.map((entry, index) => (
+                  <div key={entry.key} className="grid grid-cols-[minmax(0,1.6fr)_0.8fr_0.8fr_0.8fr_0.7fr] items-center gap-2 py-1 text-sm">
                     <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                      <span className="truncate">{d.name}</span>
+                      <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                      <span className="truncate">{entry.name}</span>
                     </div>
-                    <span className="text-right font-medium">{d.leads}</span>
-                    <span className="text-right text-muted-foreground">{d.percent}%</span>
+                    <span className="text-right font-medium">{entry.leads}</span>
+                    <span className="text-right">{entry.prospects}</span>
+                    <span className="text-right">{entry.pipeline}</span>
+                    <span className="text-right text-muted-foreground">{entry.percent}%</span>
                   </div>
                 ))}
-                <div className="grid grid-cols-3 text-sm font-bold border-t pt-1 mt-1">
+                <div className="grid grid-cols-[minmax(0,1.6fr)_0.8fr_0.8fr_0.8fr_0.7fr] gap-2 border-t pt-2 text-sm font-bold">
                   <span>Total</span>
                   <span className="text-right">{totalLeads}</span>
+                  <span className="text-right">{totalProspects}</span>
+                  <span className="text-right">{totalPipeline}</span>
                   <span className="text-right">100%</span>
                 </div>
               </div>
@@ -128,7 +141,7 @@ export function LeadDistributionChart({ startDate, endDate }: Props) {
           </TabsContent>
 
           <TabsContent value="source">
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={320}>
               <BarChart data={barData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="name" className="text-xs" />
@@ -140,11 +153,11 @@ export function LeadDistributionChart({ startDate, endDate }: Props) {
                     borderRadius: "8px",
                   }}
                 />
-                <Bar dataKey="Enquiry" stackId="a" fill="hsl(221, 83%, 53%)" />
-                <Bar dataKey="Call" stackId="a" fill="hsl(142, 71%, 45%)" />
-                <Bar dataKey="Form" stackId="a" fill="hsl(25, 95%, 53%)" />
-                <Bar dataKey="Email" stackId="a" fill="hsl(262, 83%, 58%)" />
-                <Bar dataKey="Interakt" stackId="a" fill="hsl(173, 80%, 40%)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Enquiry" stackId="a" fill="hsl(221 83% 53%)" />
+                <Bar dataKey="Call" stackId="a" fill="hsl(142 71% 45%)" />
+                <Bar dataKey="Form" stackId="a" fill="hsl(25 95% 53%)" />
+                <Bar dataKey="Email" stackId="a" fill="hsl(262 83% 58%)" />
+                <Bar dataKey="Interakt" stackId="a" fill="hsl(173 80% 40%)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </TabsContent>
@@ -154,40 +167,46 @@ export function LeadDistributionChart({ startDate, endDate }: Props) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-muted-foreground">
-                    <th className="text-left py-2 px-2">Salesperson</th>
-                    <th className="text-right py-2 px-2">Enquiry</th>
-                    <th className="text-right py-2 px-2">Call</th>
-                    <th className="text-right py-2 px-2">Form</th>
-                    <th className="text-right py-2 px-2">Email</th>
-                    <th className="text-right py-2 px-2">Interakt</th>
-                    <th className="text-right py-2 px-2 font-bold">Total</th>
-                    <th className="text-right py-2 px-2">%</th>
+                    <th className="px-2 py-2 text-left">Salesperson</th>
+                    <th className="px-2 py-2 text-right">Enquiry</th>
+                    <th className="px-2 py-2 text-right">Call</th>
+                    <th className="px-2 py-2 text-right">Form</th>
+                    <th className="px-2 py-2 text-right">Email</th>
+                    <th className="px-2 py-2 text-right">Interakt</th>
+                    <th className="px-2 py-2 text-right">Prospects</th>
+                    <th className="px-2 py-2 text-right">Pipeline</th>
+                    <th className="px-2 py-2 text-right font-bold">Total</th>
+                    <th className="px-2 py-2 text-right">%</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {chartData.map((d) => (
-                    <tr key={d.name} className="border-b border-border/50">
-                      <td className="py-2 px-2 font-medium">{d.name}</td>
-                      <td className="text-right py-2 px-2">{d.sources.enquiry}</td>
-                      <td className="text-right py-2 px-2">{d.sources.call}</td>
-                      <td className="text-right py-2 px-2">{d.sources.form}</td>
-                      <td className="text-right py-2 px-2">{d.sources.email}</td>
-                      <td className="text-right py-2 px-2">{d.sources.interakt}</td>
-                      <td className="text-right py-2 px-2 font-bold">{d.leads}</td>
-                      <td className="text-right py-2 px-2 text-muted-foreground">{d.percent}%</td>
+                  {chartData.map((entry) => (
+                    <tr key={entry.key} className="border-b border-border/50">
+                      <td className="px-2 py-2 font-medium">{entry.name}</td>
+                      <td className="px-2 py-2 text-right">{entry.sources.enquiry}</td>
+                      <td className="px-2 py-2 text-right">{entry.sources.call}</td>
+                      <td className="px-2 py-2 text-right">{entry.sources.form}</td>
+                      <td className="px-2 py-2 text-right">{entry.sources.email}</td>
+                      <td className="px-2 py-2 text-right">{entry.sources.interakt}</td>
+                      <td className="px-2 py-2 text-right">{entry.prospects}</td>
+                      <td className="px-2 py-2 text-right">{entry.pipeline}</td>
+                      <td className="px-2 py-2 text-right font-bold">{entry.leads}</td>
+                      <td className="px-2 py-2 text-right text-muted-foreground">{entry.percent}%</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="font-bold border-t">
-                    <td className="py-2 px-2">Total</td>
-                    <td className="text-right py-2 px-2">{entries.reduce((s, e) => s + e.sources.enquiry, 0)}</td>
-                    <td className="text-right py-2 px-2">{entries.reduce((s, e) => s + e.sources.call, 0)}</td>
-                    <td className="text-right py-2 px-2">{entries.reduce((s, e) => s + e.sources.form, 0)}</td>
-                    <td className="text-right py-2 px-2">{entries.reduce((s, e) => s + e.sources.email, 0)}</td>
-                    <td className="text-right py-2 px-2">{entries.reduce((s, e) => s + e.sources.interakt, 0)}</td>
-                    <td className="text-right py-2 px-2">{totalLeads}</td>
-                    <td className="text-right py-2 px-2">100%</td>
+                  <tr className="border-t font-bold">
+                    <td className="px-2 py-2">Total</td>
+                    <td className="px-2 py-2 text-right">{entries.reduce((sum, entry) => sum + entry.sources.enquiry, 0)}</td>
+                    <td className="px-2 py-2 text-right">{entries.reduce((sum, entry) => sum + entry.sources.call, 0)}</td>
+                    <td className="px-2 py-2 text-right">{entries.reduce((sum, entry) => sum + entry.sources.form, 0)}</td>
+                    <td className="px-2 py-2 text-right">{entries.reduce((sum, entry) => sum + entry.sources.email, 0)}</td>
+                    <td className="px-2 py-2 text-right">{entries.reduce((sum, entry) => sum + entry.sources.interakt, 0)}</td>
+                    <td className="px-2 py-2 text-right">{totalProspects}</td>
+                    <td className="px-2 py-2 text-right">{totalPipeline}</td>
+                    <td className="px-2 py-2 text-right">{totalLeads}</td>
+                    <td className="px-2 py-2 text-right">100%</td>
                   </tr>
                 </tfoot>
               </table>
