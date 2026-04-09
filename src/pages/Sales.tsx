@@ -194,8 +194,13 @@ export default function Sales() {
           </TabsContent>
 
           <TabsContent value="manager" className="space-y-6">
+            <UntouchedLoginAlert />
             <SalesCommandCenter />
             <ManagerDashboard />
+          </TabsContent>
+
+          <TabsContent value="untouched" className="space-y-6">
+            <UntouchedLeadsPanel />
           </TabsContent>
 
           <TabsContent value="funnel" className="space-y-6">
