@@ -303,70 +303,55 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
                       {canSeeAllEnquiries && <TableHead>Sales Person</TableHead>}
                       <TableHead>Urgency</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                       <TableHead>Date</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredEnquiries.map((enquiry) => (
-                      <TableRow key={enquiry.id} className="hover:bg-muted/50">
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{enquiry.customer_name}</p>
-                            <p className="text-xs text-muted-foreground">{enquiry.customer_company}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium text-sm">{enquiry.product_name}</p>
-                            <Badge variant="outline" className="text-xs mt-1">
-                              {enquiry.product_category}
-                            </Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span className="font-medium">{enquiry.quantity}</span>
-                        </TableCell>
-                        {canSeeAllEnquiries && (
-                          <TableCell>
-                            <span className="text-sm">{enquiry.sales_person_name}</span>
-                          </TableCell>
-                        )}
-                        <TableCell>
-                          <Badge variant="outline" className={cn("capitalize text-xs", getUrgencyColor(enquiry.urgency))}>
-                            {enquiry.urgency}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={cn("capitalize text-xs", getStatusColor(enquiry.status))}>
-                            {enquiry.status.replace(/_/g, ' ')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-muted-foreground">
-                            {format(new Date(enquiry.created_at), 'MMM dd, yyyy')}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleViewEnquiry(enquiry)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEditEnquiry(enquiry)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                     {filteredEnquiries.map((enquiry) => (
+                       <TableRow
+                         key={enquiry.id}
+                         className="hover:bg-muted/50 cursor-pointer transition-colors"
+                         onClick={() => handleViewEnquiry(enquiry)}
+                       >
+                         <TableCell>
+                           <div>
+                             <p className="font-medium">{enquiry.customer_name}</p>
+                             <p className="text-xs text-muted-foreground">{enquiry.customer_company}</p>
+                           </div>
+                         </TableCell>
+                         <TableCell>
+                           <div>
+                             <p className="font-medium text-sm">{enquiry.product_name}</p>
+                             <Badge variant="outline" className="text-xs mt-1">
+                               {enquiry.product_category}
+                             </Badge>
+                           </div>
+                         </TableCell>
+                         <TableCell className="text-center">
+                           <span className="font-medium">{enquiry.quantity}</span>
+                         </TableCell>
+                         {canSeeAllEnquiries && (
+                           <TableCell>
+                             <span className="text-sm">{enquiry.sales_person_name}</span>
+                           </TableCell>
+                         )}
+                         <TableCell>
+                           <Badge variant="outline" className={cn("capitalize text-xs", getUrgencyColor(enquiry.urgency))}>
+                             {enquiry.urgency}
+                           </Badge>
+                         </TableCell>
+                         <TableCell>
+                           <Badge variant="outline" className={cn("capitalize text-xs", getStatusColor(enquiry.status))}>
+                             {enquiry.status.replace(/_/g, ' ')}
+                           </Badge>
+                         </TableCell>
+                         <TableCell>
+                           <span className="text-sm text-muted-foreground">
+                             {format(new Date(enquiry.created_at), 'MMM dd, yyyy')}
+                           </span>
+                         </TableCell>
+                       </TableRow>
+                     ))}
                   </TableBody>
                 </Table>
               </div>
