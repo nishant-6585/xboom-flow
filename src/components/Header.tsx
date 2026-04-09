@@ -8,6 +8,7 @@ import { NotificationPanel } from "@/components/NotificationPanel";
 
 import { AttendanceWidget } from "@/components/attendance/AttendanceWidget";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { PomodoroTimer } from "@/components/header/PomodoroTimer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
 import {
