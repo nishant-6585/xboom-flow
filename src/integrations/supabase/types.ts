@@ -6985,6 +6985,9 @@ export type Database = {
       outbound_contacts: {
         Row: {
           address: string | null
+          attention_marked_at: string | null
+          attention_marked_by: string | null
+          attention_reason: string | null
           city: string | null
           company_name: string | null
           contact_name: string
@@ -6993,11 +6996,15 @@ export type Database = {
           duplicate_count: number
           email: string | null
           id: string
+          is_prospect: boolean | null
           linkedin_url: string | null
+          needs_attention: boolean | null
           notes: string | null
           phone: string | null
           region: string | null
           source: string | null
+          source_sheet: string | null
+          source_type: string | null
           status: string
           updated_at: string
           uploaded_by: string | null
@@ -7006,6 +7013,9 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          attention_marked_at?: string | null
+          attention_marked_by?: string | null
+          attention_reason?: string | null
           city?: string | null
           company_name?: string | null
           contact_name: string
@@ -7014,11 +7024,15 @@ export type Database = {
           duplicate_count?: number
           email?: string | null
           id?: string
+          is_prospect?: boolean | null
           linkedin_url?: string | null
+          needs_attention?: boolean | null
           notes?: string | null
           phone?: string | null
           region?: string | null
           source?: string | null
+          source_sheet?: string | null
+          source_type?: string | null
           status?: string
           updated_at?: string
           uploaded_by?: string | null
@@ -7027,6 +7041,9 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          attention_marked_at?: string | null
+          attention_marked_by?: string | null
+          attention_reason?: string | null
           city?: string | null
           company_name?: string | null
           contact_name?: string
@@ -7035,11 +7052,15 @@ export type Database = {
           duplicate_count?: number
           email?: string | null
           id?: string
+          is_prospect?: boolean | null
           linkedin_url?: string | null
+          needs_attention?: boolean | null
           notes?: string | null
           phone?: string | null
           region?: string | null
           source?: string | null
+          source_sheet?: string | null
+          source_type?: string | null
           status?: string
           updated_at?: string
           uploaded_by?: string | null
