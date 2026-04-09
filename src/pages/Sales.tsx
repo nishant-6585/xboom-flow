@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
@@ -38,7 +39,13 @@ export default function Sales() {
   const isManager = role === 'admin' || role === 'supply_chain';
   const canAccessEnquiries = role === 'admin' || role === 'sales_manager';
   const [assistantOpen, setAssistantOpen] = useState(false);
-  
+  const now = new Date();
+  const [dashboardDateRange, setDashboardDateRange] = useState({
+    start: format(startOfMonth(now), 'yyyy-MM-dd'),
+    end: format(endOfMonth(now), 'yyyy-MM-dd'),
+  });
+  const handleDateRangeChange = useCallback((s: string, e: string) => setDashboardDateRange({ start: s, end: e }), []);
+
   // Read tab and leadId from URL params (reactive to changes)
   const urlTab = searchParams.get("tab");
   const urlLeadId = searchParams.get("leadId");
@@ -195,8 +202,8 @@ export default function Sales() {
 
           <TabsContent value="manager" className="space-y-6">
             <UntouchedLoginAlert />
-            <SalesCommandCenter />
-            <ManagerDashboard />
+            <SalesCommandCenter onDateRangeChange={handleDateRangeChange} />
+            <ManagerDashboard startDate={dashboardDateRange.start} endDate={dashboardDateRange.end} />
           </TabsContent>
 
           <TabsContent value="untouched" className="space-y-6">

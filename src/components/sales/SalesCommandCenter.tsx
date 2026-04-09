@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -209,7 +209,7 @@ function generatePerformanceSuggestions(
   return suggestions.slice(0, 4); // Max 4 suggestions per person
 }
 
-export function SalesCommandCenter() {
+export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: (start: string, end: string) => void }) {
 
   const { user, role } = useAuth();
   const [, setSearchParams] = useSearchParams();
@@ -266,6 +266,15 @@ export function SalesCommandCenter() {
   });
 
   const dateRange = getDateRange(timeFilter, customDateRange);
+
+  // Notify parent of date range changes
+  const startStr = format(dateRange.start, 'yyyy-MM-dd');
+  const endStr = format(dateRange.end, 'yyyy-MM-dd');
+  // Notify parent of date range changes  
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    onDateRangeChange?.(startStr, endStr);
+  }, [startStr, endStr]);
 
   // ============ FILTERED DATA ============
   const filtered = useMemo(() => {

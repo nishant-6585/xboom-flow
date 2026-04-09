@@ -1,23 +1,15 @@
-import { useState } from "react";
-import { Users, Target, Calendar, Award, DollarSign } from "lucide-react";
+import { Users, Target, Award, DollarSign } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LeadDistributionChart } from "./LeadDistributionChart";
 import { useSalesLeaderboard } from "@/hooks/useSalesGamification";
 import { usePipelineOrders } from "@/hooks/usePipelineOrders";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from "date-fns";
 
-export function ManagerDashboard() {
-  const [period, setPeriod] = useState<'week' | 'month'>('month');
-  const now = new Date();
-  
-  const startDate = period === 'week' 
-    ? format(startOfWeek(now), 'yyyy-MM-dd')
-    : format(startOfMonth(now), 'yyyy-MM-dd');
-  const endDate = period === 'week'
-    ? format(endOfWeek(now), 'yyyy-MM-dd')
-    : format(endOfMonth(now), 'yyyy-MM-dd');
+interface ManagerDashboardProps {
+  startDate: string;
+  endDate: string;
+}
 
+export function ManagerDashboard({ startDate, endDate }: ManagerDashboardProps) {
   const { leaderboard } = useSalesLeaderboard(startDate, endDate);
   const { pipelineOrders } = usePipelineOrders();
 
@@ -28,17 +20,6 @@ export function ManagerDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Period Toggle */}
-      <div className="flex items-center gap-4">
-        <Calendar className="w-5 h-5 text-muted-foreground" />
-        <Tabs value={period} onValueChange={(v) => setPeriod(v as 'week' | 'month')}>
-          <TabsList>
-            <TabsTrigger value="week">This Week</TabsTrigger>
-            <TabsTrigger value="month">This Month</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="overflow-hidden">
