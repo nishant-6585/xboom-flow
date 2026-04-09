@@ -28,7 +28,8 @@ import { AttentionPanel } from "@/components/sales/AttentionPanel";
 import { FollowupsPanel } from "@/components/sales/FollowupsPanel";
 import { CallbacksPanel } from "@/components/sales/CallbacksPanel";
 import { CrmPanel } from "@/components/crm/CrmPanel";
-
+import { UntouchedLeadsPanel } from "@/components/sales/UntouchedLeadsPanel";
+import { UntouchedLoginAlert } from "@/components/sales/UntouchedLoginAlert";
 
 
 export default function Sales() {
