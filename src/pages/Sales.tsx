@@ -44,7 +44,8 @@ export default function Sales() {
     start: format(startOfMonth(now), 'yyyy-MM-dd'),
     end: format(endOfMonth(now), 'yyyy-MM-dd'),
   });
-  
+  const handleDateRangeChange = useCallback((s: string, e: string) => setDashboardDateRange({ start: s, end: e }), []);
+
   // Read tab and leadId from URL params (reactive to changes)
   const urlTab = searchParams.get("tab");
   const urlLeadId = searchParams.get("leadId");
@@ -201,7 +202,7 @@ export default function Sales() {
 
           <TabsContent value="manager" className="space-y-6">
             <UntouchedLoginAlert />
-            <SalesCommandCenter onDateRangeChange={useCallback((s: string, e: string) => setDashboardDateRange({ start: s, end: e }), [])} />
+            <SalesCommandCenter onDateRangeChange={handleDateRangeChange} />
             <ManagerDashboard startDate={dashboardDateRange.start} endDate={dashboardDateRange.end} />
           </TabsContent>
 
