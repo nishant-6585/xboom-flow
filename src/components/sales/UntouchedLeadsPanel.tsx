@@ -489,6 +489,8 @@ export function UntouchedLeadsPanel() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <LeadDetailDialog lead={selectedLead} open={!!selectedLead} onClose={() => setSelectedLead(null)} />
     </div>
   );
 }
