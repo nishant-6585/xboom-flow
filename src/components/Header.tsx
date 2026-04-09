@@ -8,6 +8,7 @@ import { NotificationPanel } from "@/components/NotificationPanel";
 
 import { AttendanceWidget } from "@/components/attendance/AttendanceWidget";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { PomodoroTimer } from "@/components/header/PomodoroTimer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -158,6 +159,11 @@ export function Header() {
                 Xboom <span className="text-primary">Flow</span>
               </span>
             </Link>
+          </div>
+
+          {/* Center - Pomodoro Timer */}
+          <div className="hidden sm:flex flex-1 justify-center">
+            <ErrorBoundary fallback={null}><PomodoroTimer /></ErrorBoundary>
           </div>
 
           {/* Right side */}
