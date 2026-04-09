@@ -238,6 +238,8 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
   const { pipelineOrders } = usePipelineOrders();
   const { orders } = useOrders();
   const { prospects } = useProspects();
+  const { data: untouchedLeads } = useUntouchedLeads();
+  const untouchedStats = useUntouchedStats(untouchedLeads);
   const { targets } = useSalesTargets();
   const { payments } = useExpectedPayments();
   const { followups } = useFollowups();
