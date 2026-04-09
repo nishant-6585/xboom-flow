@@ -1,30 +1,11 @@
 import { useState } from "react";
-import { BarChart3, Users, TrendingUp, Target, Calendar, Award, DollarSign } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SalesLeaderboard } from "./SalesLeaderboard";
+import { Users, Target, Calendar, Award, DollarSign } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LeadDistributionChart } from "./LeadDistributionChart";
-import { SuggestionBox } from "./SuggestionBox";
-import { WeightedForecastWidget } from "./WeightedForecastWidget";
-import { CustomerTypeAnalytics } from "./CustomerTypeAnalytics";
 import { useSalesLeaderboard } from "@/hooks/useSalesGamification";
-import { useOrders } from "@/hooks/useOrders";
 import { usePipelineOrders } from "@/hooks/usePipelineOrders";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from "date-fns";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
 
 export function ManagerDashboard() {
   const [period, setPeriod] = useState<'week' | 'month'>('month');
