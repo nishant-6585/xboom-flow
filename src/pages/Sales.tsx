@@ -147,9 +147,15 @@ export default function Sales() {
                   <ListTodo className="w-4 h-4" />
                   Tasks
                 </TabsTrigger>
-                <TabsTrigger value="outbound" className={triggerPrimary}>
-                  <Phone className="w-4 h-4" />
-                  Outbound
+              </TabsList>
+            </div>
+
+            {/* Outbound - Standalone */}
+            <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border-2 border-primary/30 shadow-sm rounded-2xl p-1.5">
+              <TabsList className="bg-transparent flex justify-center h-auto p-0">
+                <TabsTrigger value="outbound" className={`${triggerBase} text-base font-bold px-6 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground`}>
+                  <Phone className="w-5 h-5" />
+                  Outbound Sales
                 </TabsTrigger>
               </TabsList>
             </div>
