@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Users, BarChart3 } from "lucide-react";
+import { Upload, Users, BarChart3, Star, AlertTriangle } from "lucide-react";
 import { OutboundExcelUpload } from "./outbound/OutboundExcelUpload";
 import { OutboundContactsList } from "./outbound/OutboundContactsList";
 import { OutboundAnalytics } from "./outbound/OutboundAnalytics";
@@ -16,6 +16,14 @@ export function OutboundSalesPanel() {
           <Users className="w-4 h-4" />
           Contacts
         </TabsTrigger>
+        <TabsTrigger value="prospects" className="flex items-center gap-2">
+          <Star className="w-4 h-4" />
+          Prospects
+        </TabsTrigger>
+        <TabsTrigger value="attention" className="flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4" />
+          Attention
+        </TabsTrigger>
         <TabsTrigger value="analytics" className="flex items-center gap-2">
           <BarChart3 className="w-4 h-4" />
           Analytics
@@ -25,11 +33,15 @@ export function OutboundSalesPanel() {
       <TabsContent value="upload">
         <OutboundExcelUpload />
       </TabsContent>
-
       <TabsContent value="contacts">
-        <OutboundContactsList />
+        <OutboundContactsList filter="all" />
       </TabsContent>
-
+      <TabsContent value="prospects">
+        <OutboundContactsList filter="prospects" />
+      </TabsContent>
+      <TabsContent value="attention">
+        <OutboundContactsList filter="attention" />
+      </TabsContent>
       <TabsContent value="analytics">
         <OutboundAnalytics />
       </TabsContent>

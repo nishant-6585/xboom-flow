@@ -18,6 +18,13 @@ export interface OutboundContact {
   status: string;
   notes: string | null;
   source: string | null;
+  source_type: string | null;
+  source_sheet: string | null;
+  is_prospect: boolean;
+  needs_attention: boolean;
+  attention_reason: string | null;
+  attention_marked_by: string | null;
+  attention_marked_at: string | null;
   uploaded_by: string | null;
   uploaded_by_id: string | null;
   duplicate_count: number;
@@ -62,6 +69,8 @@ export interface ParsedRow {
   website?: string;
   notes?: string;
   source?: string;
+  source_type?: string;
+  source_sheet?: string;
 }
 
 export interface ImportResult {
@@ -71,6 +80,7 @@ export interface ImportResult {
   failed: number;
   reviewed: number;
   failedDetails: { row: number; reason: string }[];
+  sheetStats: { sheet: string; rows: number; created: number; updated: number }[];
 }
 
 export function useOutboundContacts() {
@@ -120,9 +130,14 @@ export function useOutboundContacts() {
 
   const importContacts = useMutation({
     mutationFn: async (rows: ParsedRow[]): Promise<ImportResult> => {
-      const result: ImportResult = { total: rows.length, created: 0, updated: 0, failed: 0, reviewed: 0, failedDetails: [] };
+      const result: ImportResult = {
+        total: rows.length, created: 0, updated: 0, failed: 0, reviewed: 0,
+        failedDetails: [], sheetStats: [],
+      };
 
-      // Fetch all existing contacts for matching
+      // Track per-sheet stats
+      const sheetMap = new Map<string, { rows: number; created: number; updated: number }>();
+
       const { data: existing } = await supabase.from('outbound_contacts').select('*');
       const existingContacts = (existing || []) as OutboundContact[];
 
@@ -142,6 +157,10 @@ export function useOutboundContacts() {
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
+        const sheet = row.source_sheet || 'Sheet1';
+        if (!sheetMap.has(sheet)) sheetMap.set(sheet, { rows: 0, created: 0, updated: 0 });
+        sheetMap.get(sheet)!.rows++;
+
         if (!row.contact_name || row.contact_name.trim() === '') {
           result.failed++;
           result.failedDetails.push({ row: i + 1, reason: 'Missing contact name' });
@@ -155,16 +174,12 @@ export function useOutboundContacts() {
             ? `${row.contact_name.toLowerCase().trim()}|${row.company_name.toLowerCase().trim()}`
             : '';
 
-          // Priority matching
           let match: OutboundContact | undefined;
-          let matchType = '';
 
           if (normalizedEmail && emailMap.has(normalizedEmail)) {
             match = emailMap.get(normalizedEmail);
-            matchType = 'email';
           } else if (normalizedPhone && phoneMap.has(normalizedPhone)) {
             const phoneMatch = phoneMap.get(normalizedPhone)!;
-            // If phone matches but email differs → flag for review
             if (normalizedEmail && phoneMatch.email && phoneMatch.email.toLowerCase().trim() !== normalizedEmail) {
               await supabase.from('outbound_review_queue').insert({
                 contact_data: row as any,
@@ -175,14 +190,11 @@ export function useOutboundContacts() {
               continue;
             }
             match = phoneMatch;
-            matchType = 'phone';
           } else if (nameKey && nameCompanyMap.has(nameKey)) {
             match = nameCompanyMap.get(nameKey);
-            matchType = 'name_company';
           }
 
           if (match) {
-            // Update existing - fill missing fields, update changed ones
             const updates: Record<string, any> = {};
             const fillIfEmpty = (field: keyof OutboundContact, value: string | undefined) => {
               if (value && value.trim() && (!match![field] || (match![field] as string).trim() === '')) {
@@ -202,26 +214,28 @@ export function useOutboundContacts() {
             fillIfEmpty('website', row.website);
             fillIfEmpty('phone', row.phone);
             fillIfEmpty('email', row.email);
-
             updateIfChanged('designation', row.designation);
             updateIfChanged('company_name', row.company_name);
 
-            // Append notes
+            // Merge source_type across sources
+            if (row.source_type && match.source_type && row.source_type !== match.source_type) {
+              updates.source_type = 'multi';
+            } else if (row.source_type && !match.source_type) {
+              updates.source_type = row.source_type;
+            }
+
             const dateStr = new Date().toLocaleDateString();
             const appendNote = `Updated via Excel upload on ${dateStr}`;
             updates.notes = match.notes ? `${match.notes}\n${appendNote}` : appendNote;
             updates.duplicate_count = (match.duplicate_count || 0) + 1;
 
-            if (Object.keys(updates).length > 0) {
-              await supabase.from('outbound_contacts').update(updates).eq('id', match.id);
-            }
+            await supabase.from('outbound_contacts').update(updates).eq('id', match.id);
             result.updated++;
+            sheetMap.get(sheet)!.updated++;
 
-            // Update local maps
             const updatedContact = { ...match, ...updates };
             if (updatedContact.email) emailMap.set(updatedContact.email.toLowerCase().trim(), updatedContact as OutboundContact);
           } else {
-            // Insert new
             const { error } = await supabase.from('outbound_contacts').insert({
               region: row.region || null,
               city: row.city || null,
@@ -235,6 +249,8 @@ export function useOutboundContacts() {
               website: row.website || null,
               notes: row.notes || null,
               source: row.source || 'excel_upload',
+              source_type: row.source_type || 'hospitality',
+              source_sheet: row.source_sheet || null,
               uploaded_by: userName,
               uploaded_by_id: user?.id,
             });
@@ -242,12 +258,14 @@ export function useOutboundContacts() {
             if (error) {
               if (error.code === '23505') {
                 result.updated++;
+                sheetMap.get(sheet)!.updated++;
               } else {
                 result.failed++;
                 result.failedDetails.push({ row: i + 1, reason: error.message });
               }
             } else {
               result.created++;
+              sheetMap.get(sheet)!.created++;
             }
           }
         } catch (err: any) {
@@ -256,9 +274,10 @@ export function useOutboundContacts() {
         }
       }
 
+      result.sheetStats = Array.from(sheetMap.entries()).map(([sheet, s]) => ({ sheet, ...s }));
       return result;
     },
-    onSuccess: (result, _, __) => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['outbound-contacts'] });
       queryClient.invalidateQueries({ queryKey: ['outbound-upload-logs'] });
       queryClient.invalidateQueries({ queryKey: ['outbound-review-queue'] });
@@ -292,6 +311,50 @@ export function useOutboundContacts() {
     },
   });
 
+  const toggleProspect = useMutation({
+    mutationFn: async ({ id, value }: { id: string; value: boolean }) => {
+      const { error } = await supabase.from('outbound_contacts')
+        .update({ is_prospect: value })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outbound-contacts'] });
+      toast.success('Prospect status updated');
+    },
+  });
+
+  const markAttention = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const { error } = await supabase.from('outbound_contacts')
+        .update({
+          needs_attention: true,
+          attention_reason: reason,
+          attention_marked_by: profile?.full_name || user?.email,
+          attention_marked_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outbound-contacts'] });
+      toast.success('Marked for attention');
+    },
+  });
+
+  const resolveAttention = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('outbound_contacts')
+        .update({ needs_attention: false, attention_reason: null })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['outbound-contacts'] });
+      toast.success('Attention resolved');
+    },
+  });
+
   return {
     contacts: contacts.data || [],
     isLoadingContacts: contacts.isLoading,
@@ -300,5 +363,8 @@ export function useOutboundContacts() {
     importContacts,
     logUpload,
     resolveReview,
+    toggleProspect,
+    markAttention,
+    resolveAttention,
   };
 }
