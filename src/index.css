@@ -279,3 +279,14 @@
     height: 24px;
   }
 }
+
+@keyframes pomodoro-burst {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--rotate, 0deg)) translateY(-8px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--rotate, 0deg)) translateY(-24px) scale(0.3);
+  }
+}
