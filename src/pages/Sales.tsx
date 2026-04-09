@@ -28,7 +28,7 @@ import { ProspectsPanel } from "@/components/sales/ProspectsPanel";
 import { AttentionPanel } from "@/components/sales/AttentionPanel";
 import { FollowupsPanel } from "@/components/sales/FollowupsPanel";
 import { CallbacksPanel } from "@/components/sales/CallbacksPanel";
-import { CrmPanel } from "@/components/crm/CrmPanel";
+
 import { UntouchedLeadsPanel } from "@/components/sales/UntouchedLeadsPanel";
 import { UntouchedLoginAlert } from "@/components/sales/UntouchedLoginAlert";
 
@@ -112,10 +112,6 @@ export default function Sales() {
                 <TabsTrigger value="prospects" className={`${triggerBase} data-[state=active]:bg-warning data-[state=active]:text-warning-foreground`}>
                   <Target className="w-4 h-4" />
                   Prospects
-                </TabsTrigger>
-                <TabsTrigger value="crm" className={`${triggerBase} data-[state=active]:bg-indigo-600 data-[state=active]:text-white`}>
-                  <Contact className="w-4 h-4" />
-                  CRM
                 </TabsTrigger>
                 <TabsTrigger value="followups" className={`${triggerBase} data-[state=active]:bg-amber-600 data-[state=active]:text-white`}>
                   <CalendarCheck className="w-4 h-4" />
@@ -288,9 +284,6 @@ export default function Sales() {
             <OutboundSalesPanel />
           </TabsContent>
 
-          <TabsContent value="crm" className="space-y-6">
-            <CrmPanel />
-          </TabsContent>
 
           <TabsContent value="testimonials" className="space-y-6">
             <TestimonialsPanel />
