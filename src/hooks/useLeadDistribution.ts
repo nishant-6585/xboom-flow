@@ -14,7 +14,7 @@ export function useLeadDistribution(startDate: string, endDate: string) {
       const map = new Map<string, LeadDistEntry>();
 
       const ensure = (name: string) => {
-        if (!name) name = "Unassigned";
+        if (!name) return null; // Skip unassigned (should not happen with auto-assign)
         if (!map.has(name))
           map.set(name, { name, leads: 0, sources: { enquiry: 0, call: 0, form: 0, email: 0, interakt: 0 } });
         return map.get(name)!;
