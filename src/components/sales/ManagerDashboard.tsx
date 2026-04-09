@@ -161,6 +161,9 @@ export function ManagerDashboard() {
           </CardContent>
         </Card>
 
+        {/* Lead Distribution by Salesperson */}
+        <LeadDistributionChart startDate={startDate} endDate={endDate} />
+
         {/* Pipeline Distribution */}
         <Card>
           <CardHeader>
@@ -224,9 +227,6 @@ export function ManagerDashboard() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-
-        {/* Lead Distribution by Salesperson */}
-        <LeadDistributionChart startDate={startDate} endDate={endDate} />
       </div>
 
       {/* Leaderboard full-width */}
