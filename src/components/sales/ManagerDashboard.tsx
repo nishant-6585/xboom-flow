@@ -19,42 +19,12 @@ export function ManagerDashboard() {
     : format(endOfMonth(now), 'yyyy-MM-dd');
 
   const { leaderboard } = useSalesLeaderboard(startDate, endDate);
-  const { orders } = useOrders();
   const { pipelineOrders } = usePipelineOrders();
 
-  // Calculate team stats
   const totalLeads = leaderboard?.reduce((sum, e) => sum + e.leads_handled, 0) || 0;
   const totalOrders = leaderboard?.reduce((sum, e) => sum + e.orders_won, 0) || 0;
   const totalPipeline = leaderboard?.reduce((sum, e) => sum + Number(e.total_pipeline_value), 0) || 0;
   const totalPoints = leaderboard?.reduce((sum, e) => sum + e.total_points, 0) || 0;
-
-  // Chart data
-  const performanceData = leaderboard?.map(e => ({
-    name: e.user_name.split(' ')[0],
-    leads: e.leads_handled,
-    orders: e.orders_won,
-    points: e.total_points,
-    orderValue: Number(e.total_order_value) / 1000, // in thousands
-  })) || [];
-
-  const pipelineStatusData = [
-    { name: 'Won', value: pipelineOrders?.filter(p => p.status === 'won').length || 0, color: '#22c55e' },
-    { name: 'Pending', value: pipelineOrders?.filter(p => p.status === 'pending_confirmation').length || 0, color: '#eab308' },
-    { name: 'Negotiation', value: pipelineOrders?.filter(p => p.status === 'negotiation').length || 0, color: '#3b82f6' },
-    { name: 'Lost', value: pipelineOrders?.filter(p => p.status === 'lost').length || 0, color: '#ef4444' },
-  ].filter(d => d.value > 0);
-
-  // Order trends (last 7 days)
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (6 - i));
-    return format(date, 'yyyy-MM-dd');
-  });
-
-  const orderTrendData = last7Days.map(date => ({
-    date: format(new Date(date), 'MMM d'),
-    orders: orders?.filter(o => o.created_at.startsWith(date)).length || 0,
-  }));
 
   return (
     <div className="space-y-6">
@@ -112,115 +82,8 @@ export function ManagerDashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Team Performance Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-primary" />
-              Team Performance
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={performanceData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="name" className="text-xs" />
-                <YAxis className="text-xs" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--popover))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-                <Bar dataKey="leads" fill="hsl(var(--primary))" name="Leads" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="orders" fill="#22c55e" name="Orders" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="orderValue" fill="#f59e0b" name="Order Value (₹K)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Lead Distribution by Salesperson */}
-        <LeadDistributionChart startDate={startDate} endDate={endDate} />
-
-        {/* Pipeline Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-primary" />
-              Pipeline Distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pipelineStatusData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {pipelineStatusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Order Trend */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-green-500" />
-              Order Trend (Last 7 Days)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={orderTrendData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="date" className="text-xs" />
-                <YAxis className="text-xs" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--popover))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="orders" 
-                  stroke="#22c55e" 
-                  strokeWidth={3}
-                  dot={{ fill: '#22c55e', strokeWidth: 2 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Leaderboard full-width */}
-      <SalesLeaderboard startDate={startDate} endDate={endDate} />
-
-      {/* Customer Type Analytics */}
-      <CustomerTypeAnalytics />
-
-      {/* Revenue Forecast */}
-      <WeightedForecastWidget />
-
-      {/* Suggestions */}
-      <SuggestionBox />
+      {/* Lead Distribution */}
+      <LeadDistributionChart startDate={startDate} endDate={endDate} />
     </div>
   );
 }
