@@ -161,6 +161,11 @@ export function Header() {
             </Link>
           </div>
 
+          {/* Center - Pomodoro Timer */}
+          <div className="hidden sm:flex flex-1 justify-center">
+            <ErrorBoundary fallback={null}><PomodoroTimer /></ErrorBoundary>
+          </div>
+
           {/* Right side */}
           <div className="hidden sm:flex items-center gap-2">
             <ErrorBoundary fallback={null}><AttendanceWidget /></ErrorBoundary>
