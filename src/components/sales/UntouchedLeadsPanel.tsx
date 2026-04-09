@@ -5,15 +5,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  Legend, LineChart, Line,
+  Legend,
 } from "recharts";
 import {
   AlertTriangle, Clock, Users, TrendingUp, Eye, Timer, Flame, BarChart3,
+  Phone, Mail, MapPin, Package, User, Calendar, Activity,
 } from "lucide-react";
 import { useUntouchedLeads, useUntouchedStats, type UntouchedLead } from "@/hooks/useUntouchedLeads";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 
 const BUCKET_COLORS: Record<string, string> = {
   "T+1": "#eab308",
@@ -47,6 +50,90 @@ function SourceBadge({ source }: { source: string }) {
     email: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
   };
   return <Badge variant="outline" className={colors[source] || ""}>{source}</Badge>;
+}
+
+function LeadDetailDialog({ lead, open, onClose }: { lead: UntouchedLead | null; open: boolean; onClose: () => void }) {
+  if (!lead) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <User className="w-5 h-5" />
+            {lead.customer_name}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 flex-wrap">
+            <BucketBadge bucket={lead.bucket} />
+            <SourceBadge source={lead.source} />
+            {lead.status && <Badge variant="outline">{lead.status}</Badge>}
+          </div>
+
+          <Separator />
+
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="flex items-start gap-2">
+              <Package className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+              <div>
+                <p className="text-muted-foreground text-xs">Product</p>
+                <p className="font-medium">{lead.product_name || "—"}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <MapPin className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+              <div>
+                <p className="text-muted-foreground text-xs">City</p>
+                <p className="font-medium">{lead.city || "—"}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <User className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+              <div>
+                <p className="text-muted-foreground text-xs">Salesperson</p>
+                <p className="font-medium">{lead.sales_person_name || "Unassigned"}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Activity className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+              <div>
+                <p className="text-muted-foreground text-xs">Lead Source</p>
+                <p className="font-medium">{lead.lead_source || "—"}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Calendar className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+              <div>
+                <p className="text-muted-foreground text-xs">Created</p>
+                <p className="font-medium">{format(new Date(lead.created_at), "dd MMM yyyy, hh:mm a")}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Clock className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+              <div>
+                <p className="text-muted-foreground text-xs">Last Updated</p>
+                <p className="font-medium">{format(new Date(lead.updated_at), "dd MMM yyyy, hh:mm a")}</p>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="bg-destructive/10 rounded-lg p-3 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground">Untouched for</p>
+              <p className="text-2xl font-bold text-destructive">{lead.untouched_hours.toFixed(0)}h</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">Created</p>
+              <p className="text-sm font-medium">{formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}</p>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export function UntouchedLeadsPanel() {
