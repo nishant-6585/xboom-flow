@@ -209,7 +209,7 @@ function generatePerformanceSuggestions(
   return suggestions.slice(0, 4); // Max 4 suggestions per person
 }
 
-export function SalesCommandCenter() {
+export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: (start: string, end: string) => void }) {
 
   const { user, role } = useAuth();
   const [, setSearchParams] = useSearchParams();
