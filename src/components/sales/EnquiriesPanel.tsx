@@ -303,8 +303,7 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
                       {canSeeAllEnquiries && <TableHead>Sales Person</TableHead>}
                       <TableHead>Urgency</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                       <TableHead>Date</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
