@@ -3,6 +3,7 @@ import { BarChart3, Users, TrendingUp, Target, Calendar, Award, DollarSign } fro
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SalesLeaderboard } from "./SalesLeaderboard";
+import { LeadDistributionChart } from "./LeadDistributionChart";
 import { SuggestionBox } from "./SuggestionBox";
 import { WeightedForecastWidget } from "./WeightedForecastWidget";
 import { CustomerTypeAnalytics } from "./CustomerTypeAnalytics";
@@ -224,9 +225,15 @@ export function ManagerDashboard() {
           </CardContent>
         </Card>
 
-        {/* Leaderboard */}
-        <SalesLeaderboard startDate={startDate} endDate={endDate} />
+        {/* Lead Distribution by Salesperson */}
+        <LeadDistributionChart
+          data={performanceData.map(d => ({ name: d.name, leads: d.leads }))}
+          totalLeads={totalLeads}
+        />
       </div>
+
+      {/* Leaderboard full-width */}
+      <SalesLeaderboard startDate={startDate} endDate={endDate} />
 
       {/* Customer Type Analytics */}
       <CustomerTypeAnalytics />
