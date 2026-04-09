@@ -38,6 +38,11 @@ export default function Sales() {
   const isManager = role === 'admin' || role === 'supply_chain';
   const canAccessEnquiries = role === 'admin' || role === 'sales_manager';
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const now = new Date();
+  const [dashboardDateRange, setDashboardDateRange] = useState({
+    start: format(startOfMonth(now), 'yyyy-MM-dd'),
+    end: format(endOfMonth(now), 'yyyy-MM-dd'),
+  });
   
   // Read tab and leadId from URL params (reactive to changes)
   const urlTab = searchParams.get("tab");
