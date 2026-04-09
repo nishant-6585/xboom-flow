@@ -142,6 +142,7 @@ export function UntouchedLeadsPanel() {
   const [filterSP, setFilterSP] = useState("all");
   const [filterBucket, setFilterBucket] = useState("all");
   const [filterSource, setFilterSource] = useState("all");
+  const [selectedLead, setSelectedLead] = useState<UntouchedLead | null>(null);
 
   const salespersons = useMemo(() => {
     if (!leads) return [];
