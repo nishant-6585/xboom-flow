@@ -267,6 +267,13 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
 
   const dateRange = getDateRange(timeFilter, customDateRange);
 
+  // Notify parent of date range changes
+  const startStr = format(dateRange.start, 'yyyy-MM-dd');
+  const endStr = format(dateRange.end, 'yyyy-MM-dd');
+  useMemo(() => {
+    onDateRangeChange?.(startStr, endStr);
+  }, [startStr, endStr, onDateRangeChange]);
+
   // ============ FILTERED DATA ============
   const filtered = useMemo(() => {
     const byDate = <T extends Record<string, any>>(items: T[], dateField = 'created_at') =>
