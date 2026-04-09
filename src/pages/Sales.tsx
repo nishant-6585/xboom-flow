@@ -146,6 +146,10 @@ export default function Sales() {
                   <Phone className="w-4 h-4" />
                   Outbound
                 </TabsTrigger>
+                <TabsTrigger value="untouched" className={`${triggerBase} data-[state=active]:bg-red-600 data-[state=active]:text-white`}>
+                  <AlertTriangle className="w-4 h-4" />
+                  Untouched
+                </TabsTrigger>
               </TabsList>
             </div>
             
