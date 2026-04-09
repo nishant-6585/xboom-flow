@@ -1617,31 +1617,25 @@ export function SalesCommandCenter() {
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Package className="w-4 h-4 text-primary" />
               Category Breakdown
+              <span className="ml-auto text-xs text-muted-foreground font-normal">{categoryBreakdown.length} categories</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
               {categoryBreakdown.map((cat, index) => (
                 <div
                   key={cat.category}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
+                  className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
                   onClick={() => handleCategoryClick(cat.category)}
                 >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-2 h-8 rounded-full"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                    />
-                    <div>
-                      <p className="font-medium">{cat.category}</p>
-                      <p className="text-sm text-muted-foreground">{cat.count} deals</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold">{formatCurrency(cat.value)}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Avg: {formatCurrency(cat.count > 0 ? cat.value / cat.count : 0)}
-                    </p>
+                  <div
+                    className="w-1.5 h-full min-h-[32px] rounded-full shrink-0 mt-0.5"
+                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm truncate">{cat.category}</p>
+                    <p className="text-lg font-bold leading-tight">{formatCurrency(cat.value)}</p>
+                    <p className="text-xs text-muted-foreground">{cat.count} deals · Avg {formatCurrency(cat.count > 0 ? cat.value / cat.count : 0)}</p>
                   </div>
                 </div>
               ))}
