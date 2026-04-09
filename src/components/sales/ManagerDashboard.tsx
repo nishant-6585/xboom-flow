@@ -226,10 +226,7 @@ export function ManagerDashboard() {
         </Card>
 
         {/* Lead Distribution by Salesperson */}
-        <LeadDistributionChart
-          data={performanceData.map(d => ({ name: d.name, leads: d.leads }))}
-          totalLeads={totalLeads}
-        />
+        <LeadDistributionChart startDate={startDate} endDate={endDate} />
       </div>
 
       {/* Leaderboard full-width */}
