@@ -310,7 +310,11 @@ export function UntouchedLeadsPanel() {
                       </TableRow>
                     ) : (
                       filteredLeads.map((lead) => (
-                        <TableRow key={`${lead.source}-${lead.id}`} className={lead.bucket === "T++" ? "bg-red-50/50 dark:bg-red-900/10" : ""}>
+                        <TableRow
+                          key={`${lead.source}-${lead.id}`}
+                          className={`cursor-pointer hover:bg-muted/60 transition-colors ${lead.bucket === "T++" ? "bg-red-50/50 dark:bg-red-900/10" : ""}`}
+                          onClick={() => setSelectedLead(lead)}
+                        >
                           <TableCell><BucketBadge bucket={lead.bucket} /></TableCell>
                           <TableCell className="font-medium">{lead.customer_name}</TableCell>
                           <TableCell><SourceBadge source={lead.source} /></TableCell>
