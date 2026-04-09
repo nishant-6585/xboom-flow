@@ -68,9 +68,9 @@ export function ManagerDashboard({ startDate, endDate }: ManagerDashboardProps) 
           startY: finalY + 16,
           head: [["Salesperson", "Leads", "Prospects", "Pipeline", "Orders Won", "Points"]],
           body: leaderboard.map((sp) => [
-            sp.name,
+            sp.user_name,
             sp.leads_handled.toString(),
-            (sp.prospects_converted || 0).toString(),
+            (sp.pipeline_created || 0).toString(),
             (sp.pipeline_created || 0).toString(),
             sp.orders_won.toString(),
             sp.total_points.toString(),
@@ -95,8 +95,8 @@ export function ManagerDashboard({ startDate, endDate }: ManagerDashboardProps) 
         const pipelineData = pipelineOrders.slice(0, 20).map((o) => [
           o.customer_name || "-",
           o.product_name || "-",
-          `Rs. ${Number(o.expected_value || 0).toLocaleString()}`,
-          o.stage || "-",
+          `Rs. ${Number(o.expected_price || 0).toLocaleString()}`,
+          o.status || "-",
           o.probability ? `${o.probability}%` : "-",
         ]);
 
