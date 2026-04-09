@@ -27,7 +27,7 @@ export function PomodoroTimer() {
   const [tasks, setTasks] = useState<SimpleTask[]>([]);
   const [taskOpen, setTaskOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch user's active tasks
   useEffect(() => {
