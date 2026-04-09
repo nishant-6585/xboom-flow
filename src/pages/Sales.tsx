@@ -208,17 +208,6 @@ export default function Sales() {
             <SalesFunnelDashboard />
           </TabsContent>
 
-          <TabsContent value="activity" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <DailyActivityForm />
-              </div>
-              <div className="space-y-6">
-                <PointsDisplay />
-                <SalesLeaderboard />
-              </div>
-            </div>
-          </TabsContent>
 
           <TabsContent value="leads" className="space-y-6">
             <LeadsPanel />
@@ -257,14 +246,6 @@ export default function Sales() {
             <AttentionPanel />
           </TabsContent>
 
-          <TabsContent value="leaderboard" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <SalesLeaderboard />
-              </div>
-              <PointsDisplay />
-            </div>
-          </TabsContent>
 
           <TabsContent value="mega_deals" className="space-y-6">
             <PipelineOrders megaDealsOnly />
