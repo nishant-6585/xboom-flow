@@ -14,7 +14,7 @@ export function useLeadDistribution(startDate: string, endDate: string) {
       const map = new Map<string, LeadDistEntry>();
 
       const ensure = (name: string) => {
-        if (!name) name = "Unassigned";
+        if (!name) return null; // Skip unassigned (should not happen with auto-assign)
         if (!map.has(name))
           map.set(name, { name, leads: 0, sources: { enquiry: 0, call: 0, form: 0, email: 0, interakt: 0 } });
         return map.get(name)!;
@@ -27,7 +27,8 @@ export function useLeadDistribution(startDate: string, endDate: string) {
         .gte("created_at", startDate)
         .lte("created_at", endDate + "T23:59:59");
       enquiries?.forEach((e) => {
-        const entry = ensure(e.sales_person_name || "Unassigned");
+        const entry = ensure(e.sales_person_name || "");
+        if (!entry) return;
         entry.leads++;
         entry.sources.enquiry++;
       });
@@ -39,7 +40,8 @@ export function useLeadDistribution(startDate: string, endDate: string) {
         .gte("created_at", startDate)
         .lte("created_at", endDate + "T23:59:59");
       calls?.forEach((c) => {
-        const entry = ensure(c.sales_person_name || "Unassigned");
+        const entry = ensure(c.sales_person_name || "");
+        if (!entry) return;
         entry.leads++;
         entry.sources.call++;
       });
@@ -51,7 +53,8 @@ export function useLeadDistribution(startDate: string, endDate: string) {
         .gte("created_at", startDate)
         .lte("created_at", endDate + "T23:59:59");
       forms?.forEach((f) => {
-        const entry = ensure(f.sales_person_name || "Unassigned");
+        const entry = ensure(f.sales_person_name || "");
+        if (!entry) return;
         entry.leads++;
         entry.sources.form++;
       });
@@ -63,7 +66,8 @@ export function useLeadDistribution(startDate: string, endDate: string) {
         .gte("created_at", startDate)
         .lte("created_at", endDate + "T23:59:59");
       emails?.forEach((el) => {
-        const entry = ensure(el.sales_person_name || "Unassigned");
+        const entry = ensure(el.sales_person_name || "");
+        if (!entry) return;
         entry.leads++;
         entry.sources.email++;
       });
@@ -71,12 +75,12 @@ export function useLeadDistribution(startDate: string, endDate: string) {
       // 5. Interakt leads
       const { data: interakt } = await supabase
         .from("interakt_leads")
-        .select("customer_name, created_at")
+        .select("sales_person_name, created_at")
         .gte("created_at", startDate)
         .lte("created_at", endDate + "T23:59:59");
-      interakt?.forEach(() => {
-        // Interakt leads don't have sales_person_name, count as unassigned
-        const entry = ensure("Unassigned");
+      interakt?.forEach((il) => {
+        const entry = ensure(il.sales_person_name || "");
+        if (!entry) return;
         entry.leads++;
         entry.sources.interakt++;
       });

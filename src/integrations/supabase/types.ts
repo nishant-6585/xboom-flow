@@ -5774,6 +5774,21 @@ export type Database = {
           },
         ]
       }
+      lead_assignment_counter: {
+        Row: {
+          counter: number
+          id: number
+        }
+        Insert: {
+          counter?: number
+          id?: number
+        }
+        Update: {
+          counter?: number
+          id?: number
+        }
+        Relationships: []
+      }
       lead_tags: {
         Row: {
           color: string | null
