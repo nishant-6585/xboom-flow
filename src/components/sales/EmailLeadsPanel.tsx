@@ -398,17 +398,18 @@ export function EmailLeadsPanel() {
                 </div>
               )}
               <Button variant="outline" size="sm" onClick={() => refetch()}>
-                <RefreshCw className="w-4 h-4 mr-1" /> Refresh
+                <RefreshCw className="w-4 h-4" />
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => processWithAI(undefined)}
-                disabled={isProcessingAI}
-                className="text-primary border-primary/30"
+                disabled={isProcessingAI || !metrics?.pending}
+                className={metrics?.pending ? 'text-primary border-primary/30' : ''}
+                title={metrics?.pending ? `${metrics.pending} emails pending AI processing` : 'No pending emails to process'}
               >
                 {isProcessingAI ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Brain className="w-4 h-4 mr-1" />}
-                AI Process Pending
+                {metrics?.pending ? `AI Process (${metrics.pending})` : 'AI Process'}
               </Button>
               <Button size="sm" onClick={() => { setEditLead(null); setFormOpen(true); }}>
                 <Plus className="w-4 h-4 mr-1" /> Add Email Lead
