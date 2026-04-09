@@ -6982,6 +6982,152 @@ export type Database = {
         }
         Relationships: []
       }
+      outbound_contacts: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          contact_name: string
+          created_at: string
+          designation: string | null
+          duplicate_count: number
+          email: string | null
+          id: string
+          linkedin_url: string | null
+          notes: string | null
+          phone: string | null
+          region: string | null
+          source: string | null
+          status: string
+          updated_at: string
+          uploaded_by: string | null
+          uploaded_by_id: string | null
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          contact_name: string
+          created_at?: string
+          designation?: string | null
+          duplicate_count?: number
+          email?: string | null
+          id?: string
+          linkedin_url?: string | null
+          notes?: string | null
+          phone?: string | null
+          region?: string | null
+          source?: string | null
+          status?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          uploaded_by_id?: string | null
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          contact_name?: string
+          created_at?: string
+          designation?: string | null
+          duplicate_count?: number
+          email?: string | null
+          id?: string
+          linkedin_url?: string | null
+          notes?: string | null
+          phone?: string | null
+          region?: string | null
+          source?: string | null
+          status?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          uploaded_by_id?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
+      outbound_review_queue: {
+        Row: {
+          conflict_type: string
+          contact_data: Json
+          created_at: string
+          id: string
+          matched_contact_id: string | null
+          resolution: string
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: {
+          conflict_type: string
+          contact_data: Json
+          created_at?: string
+          id?: string
+          matched_contact_id?: string | null
+          resolution?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Update: {
+          conflict_type?: string
+          contact_data?: Json
+          created_at?: string
+          id?: string
+          matched_contact_id?: string | null
+          resolution?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outbound_review_queue_matched_contact_id_fkey"
+            columns: ["matched_contact_id"]
+            isOneToOne: false
+            referencedRelation: "outbound_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outbound_upload_logs: {
+        Row: {
+          created_at: string
+          failed_details: Json | null
+          failed_rows: number
+          file_name: string
+          id: string
+          new_records: number
+          total_rows: number
+          updated_records: number
+          uploaded_by: string
+          uploaded_by_id: string
+        }
+        Insert: {
+          created_at?: string
+          failed_details?: Json | null
+          failed_rows?: number
+          file_name: string
+          id?: string
+          new_records?: number
+          total_rows?: number
+          updated_records?: number
+          uploaded_by: string
+          uploaded_by_id: string
+        }
+        Update: {
+          created_at?: string
+          failed_details?: Json | null
+          failed_rows?: number
+          file_name?: string
+          id?: string
+          new_records?: number
+          total_rows?: number
+          updated_records?: number
+          uploaded_by?: string
+          uploaded_by_id?: string
+        }
+        Relationships: []
+      }
       payment_records: {
         Row: {
           amount: number
