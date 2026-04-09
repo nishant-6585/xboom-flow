@@ -158,6 +158,7 @@ export function useGmailIntegration() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['email-leads'] });
+      queryClient.invalidateQueries({ queryKey: ['email-lead-metrics'] });
       const parts = [
         `${data.processed || 0} leads processed`,
         data.enquiries_created ? `${data.enquiries_created} enquiries` : null,
