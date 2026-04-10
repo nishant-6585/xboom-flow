@@ -254,6 +254,10 @@ export default function Sales() {
             <PipelineOrders megaDealsOnly />
           </TabsContent>
 
+          <TabsContent value="companies" className="space-y-6">
+            <CompaniesPanel />
+          </TabsContent>
+
           <TabsContent value="orders_won" className="space-y-6">
             <PipelineOrders statusPreFilter="won" />
           </TabsContent>
