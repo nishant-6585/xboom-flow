@@ -88,21 +88,25 @@ export function useLeadDistribution(startDate: string, endDate: string) {
         supabase
           .from("call_logs")
           .select("sales_person_id, sales_person_name, created_at")
+          .eq("is_enquiry_converted", false)
           .gte("created_at", startDate)
           .lte("created_at", endDateTime),
         supabase
           .from("form_leads")
           .select("sales_person_id, sales_person_name, created_at")
+          .eq("is_enquiry_converted", false)
           .gte("created_at", startDate)
           .lte("created_at", endDateTime),
         supabase
           .from("email_leads")
           .select("sales_person_id, sales_person_name, created_at")
+          .eq("is_enquiry_converted", false)
           .gte("created_at", startDate)
           .lte("created_at", endDateTime),
         supabase
           .from("interakt_leads")
           .select("sales_person_id, sales_person_name, created_at")
+          .eq("is_enquiry_converted", false)
           .gte("created_at", startDate)
           .lte("created_at", endDateTime),
         supabase

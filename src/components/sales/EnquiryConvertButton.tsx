@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ClipboardList } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,6 +24,7 @@ interface EnquiryConvertButtonProps {
   notes?: string | null;
   isAlreadyConverted?: boolean;
 }
+
 
 export function EnquiryConvertButton({
   sourceType,
@@ -211,8 +212,19 @@ export function EnquiryConvertButton({
 
       if (error) throw error;
 
+      // Mark source lead as enquiry-converted so it's excluded from lead analytics
+      if (sourceType === 'myoperator') {
+        await supabase.from('call_logs').update({ is_enquiry_converted: true }).eq('id', sourceId);
+      } else if (sourceType === 'interakt') {
+        await supabase.from('interakt_leads').update({ is_enquiry_converted: true }).eq('id', sourceId);
+      } else if (sourceType === 'email') {
+        await supabase.from('email_leads').update({ is_enquiry_converted: true }).eq('id', sourceId);
+      } else if (sourceType === 'form_lead') {
+        await supabase.from('form_leads').update({ is_enquiry_converted: true }).eq('id', sourceId);
+      }
+
       setConverted(true);
-      toast.success(`Lead converted to enquiry successfully`);
+      toast.success(`Lead moved to Enquiries successfully`);
     } catch (err: any) {
       console.error('Error converting to enquiry:', err);
       toast.error('Failed to convert to enquiry');
@@ -236,11 +248,15 @@ export function EnquiryConvertButton({
             onClick={handleClick}
             disabled={loading || converted}
           >
-            {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'E'}
+            {loading ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <ClipboardList className="w-3.5 h-3.5" />
+            )}
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          {converted ? 'Already converted to Enquiry' : 'Convert to Enquiry'}
+          {converted ? 'Moved to Enquiries' : 'Move to Enquiry'}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
