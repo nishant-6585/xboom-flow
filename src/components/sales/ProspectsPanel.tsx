@@ -554,12 +554,38 @@ export function ProspectsPanel() {
         </CardContent>
       </Card>
 
-      <ProspectEditDialog
-        open={!!editingProspect}
-        onOpenChange={(open) => { if (!open) setEditingProspect(null); }}
-        prospect={editingProspect}
-        onSuccess={() => { setEditingProspect(null); refetch(); }}
-      />
+      <Dialog open={!!orderWonProspect} onOpenChange={(open) => !open && setOrderWonProspect(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Create Order — {orderWonProspect?.customer_name}</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[75vh] pr-4">
+            {orderWonProspect && (
+              <OrderForm
+                onSubmit={async (data, paymentFiles, orderItems, invoiceFile, poFiles) => {
+                  const success = await createOrder(data, paymentFiles, orderItems, invoiceFile, poFiles);
+                  if (success) {
+                    await updateStatus({ id: orderWonProspect.id, status: 'converted' });
+                    setOrderWonProspect(null);
+                    toast.success('Order created and prospect marked as Converted');
+                  }
+                  return success;
+                }}
+                suppliers={suppliers}
+                userRole={role as any}
+                initialData={{
+                  customer_name: orderWonProspect.customer_name,
+                  customer_company: orderWonProspect.company || undefined,
+                  customer_email: orderWonProspect.email || undefined,
+                  product_name: orderWonProspect.product_name || undefined,
+                  customer_notes: orderWonProspect.notes || undefined,
+                  source_prospect_id: orderWonProspect.id,
+                }}
+              />
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
