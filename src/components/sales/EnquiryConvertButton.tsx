@@ -25,14 +25,6 @@ interface EnquiryConvertButtonProps {
   isAlreadyConverted?: boolean;
 }
 
-// Map source type to actual DB table name
-const SOURCE_TABLE_MAP: Record<string, string> = {
-  interakt: 'interakt_leads',
-  myoperator: 'call_logs',
-  email: 'email_leads',
-  form_lead: 'form_leads',
-  google_ads: 'enquiries',
-};
 
 export function EnquiryConvertButton({
   sourceType,
