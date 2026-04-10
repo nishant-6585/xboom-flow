@@ -8,11 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useProspects } from '@/hooks/useProspects';
 import { useAuth } from '@/hooks/useAuth';
 import { Target, Search, Loader2, Star, Filter, TrendingUp, Calendar, Users, Phone, MessageCircle, Package, Pencil, UserCheck, FileText, Trash2 } from 'lucide-react';
+import { Tooltip as UITooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format, startOfDay, endOfDay, startOfWeek, startOfMonth } from 'date-fns';
 import { ACategoryButton } from './ProspectButton';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { ProspectEditDialog } from './ProspectEditDialog';
 
 const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'negotiation', 'converted', 'lost'];
@@ -203,7 +204,7 @@ export function ProspectsPanel() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="day" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
                 <Bar dataKey="prospects" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Prospects" />
                 <Bar dataKey="aCategory" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="A-Category" />
               </BarChart>
@@ -221,7 +222,7 @@ export function ProspectsPanel() {
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis type="number" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                   <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={90} className="fill-muted-foreground" />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Prospects" />
                   <Bar dataKey="aCategory" fill="hsl(var(--destructive))" radius={[0, 4, 4, 0]} name="A-Category" />
@@ -247,7 +248,7 @@ export function ProspectsPanel() {
                   <Pie data={typeData} cx="50%" cy="50%" outerRadius={70} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
                     {typeData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -266,7 +267,7 @@ export function ProspectsPanel() {
                   <Pie data={sourceData} cx="50%" cy="50%" outerRadius={70} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
                     {sourceData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -284,7 +285,7 @@ export function ProspectsPanel() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis type="number" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={75} className="fill-muted-foreground" />
-                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
                 <Bar dataKey="count" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -475,6 +476,36 @@ export function ProspectsPanel() {
                         <TableCell><span className="text-xs text-muted-foreground">{p.created_by_name}</span></TableCell>
                         <TableCell>
                           <div className="flex items-center gap-0.5">
+                            {p.status !== 'converted' && p.status !== 'lost' && (
+                              <TooltipProvider>
+                                <UITooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-500/10"
+                                      onClick={() => updateStatus({ id: p.id, status: 'converted' })}
+                                    >
+                                      <span className="text-xs font-bold">OW</span>
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Mark as Order Won</TooltipContent>
+                                </UITooltip>
+                                <UITooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                                      onClick={() => updateStatus({ id: p.id, status: 'lost' })}
+                                    >
+                                      <span className="text-xs font-bold">OL</span>
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Mark as Order Lost</TooltipContent>
+                                </UITooltip>
+                              </TooltipProvider>
+                            )}
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingProspect(p)}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
