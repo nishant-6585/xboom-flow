@@ -554,6 +554,13 @@ export function ProspectsPanel() {
         </CardContent>
       </Card>
 
+      <ProspectEditDialog
+        open={!!editingProspect}
+        onOpenChange={(open) => { if (!open) setEditingProspect(null); }}
+        prospect={editingProspect}
+        onSuccess={() => { setEditingProspect(null); refetch(); }}
+      />
+
       <Dialog open={!!orderWonProspect} onOpenChange={(open) => !open && setOrderWonProspect(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh]">
           <DialogHeader>
