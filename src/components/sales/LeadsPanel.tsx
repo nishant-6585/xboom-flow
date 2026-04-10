@@ -17,8 +17,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   Upload, FileSpreadsheet, Download, Search, Plus, Users, 
   Package, Building2, Calendar, Filter, Loader2, Eye, ArrowRight, Pencil,
-  RefreshCw, Phone, MessageCircle, MapPin
+  RefreshCw, Phone, MessageCircle, MapPin, ClipboardList
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
