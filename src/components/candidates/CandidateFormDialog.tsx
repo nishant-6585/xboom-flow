@@ -46,7 +46,9 @@ const schema = z.object({
   application_source: z.string().optional().or(z.literal("")),
   // Professional
   years_of_experience: z.coerce.number().min(0).max(60).optional(),
+  total_experience_months: z.coerce.number().int().min(0).max(11).optional(),
   relevant_experience_years: z.coerce.number().min(0).max(60).optional(),
+  relevant_experience_months: z.coerce.number().int().min(0).max(11).optional(),
   current_company: z.string().max(100).optional().or(z.literal("")),
   current_designation: z.string().max(100).optional().or(z.literal("")),
   current_ctc: z.coerce.number().min(0).optional(),
@@ -151,7 +153,9 @@ export function CandidateFormDialog({ open, onClose, candidate }: Props) {
       location_state: candidate?.location_state || "",
       application_source: candidate?.application_source || "",
       years_of_experience: candidate?.years_of_experience ?? undefined,
+      total_experience_months: (candidate as any)?.total_experience_months ?? undefined,
       relevant_experience_years: candidate?.relevant_experience_years ?? undefined,
+      relevant_experience_months: (candidate as any)?.relevant_experience_months ?? undefined,
       current_company: candidate?.current_company || "",
       current_designation: candidate?.current_designation || "",
       current_ctc: candidate?.current_ctc ?? undefined,
@@ -185,7 +189,9 @@ export function CandidateFormDialog({ open, onClose, candidate }: Props) {
         location_state: candidate?.location_state || "",
         application_source: candidate?.application_source || "",
         years_of_experience: candidate?.years_of_experience ?? undefined,
+        total_experience_months: (candidate as any)?.total_experience_months ?? undefined,
         relevant_experience_years: candidate?.relevant_experience_years ?? undefined,
+        relevant_experience_months: (candidate as any)?.relevant_experience_months ?? undefined,
         current_company: candidate?.current_company || "",
         current_designation: candidate?.current_designation || "",
         current_ctc: candidate?.current_ctc ?? undefined,
@@ -409,14 +415,28 @@ export function CandidateFormDialog({ open, onClose, candidate }: Props) {
                   <FormField control={form.control} name="years_of_experience" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Total Experience (Years)</FormLabel>
-                      <FormControl><Input type="number" step="0.5" min="0" placeholder="5" {...field} /></FormControl>
+                      <FormControl><Input type="number" step="1" min="0" placeholder="5" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="total_experience_months" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Total Experience (Months)</FormLabel>
+                      <FormControl><Input type="number" step="1" min="0" max="11" placeholder="6" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="relevant_experience_years" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Relevant Experience (Years)</FormLabel>
-                      <FormControl><Input type="number" step="0.5" min="0" placeholder="3" {...field} /></FormControl>
+                      <FormControl><Input type="number" step="1" min="0" placeholder="3" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="relevant_experience_months" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Relevant Experience (Months)</FormLabel>
+                      <FormControl><Input type="number" step="1" min="0" max="11" placeholder="6" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
