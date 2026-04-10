@@ -5,8 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useProspects } from '@/hooks/useProspects';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useProspects, Prospect } from '@/hooks/useProspects';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrders } from '@/hooks/useOrders';
+import { useSuppliers } from '@/hooks/useSuppliers';
 import { Target, Search, Loader2, Star, Filter, TrendingUp, Calendar, Users, Phone, MessageCircle, Package, Pencil, UserCheck, FileText, Trash2 } from 'lucide-react';
 import { Tooltip as UITooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -15,6 +19,8 @@ import { ACategoryButton } from './ProspectButton';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { ProspectEditDialog } from './ProspectEditDialog';
+import { OrderForm, OrderFormInitialData } from '@/components/OrderForm';
+import { toast } from 'sonner';
 
 const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'negotiation', 'converted', 'lost'];
 
@@ -49,6 +55,8 @@ const TOOLTIP_STYLE = { background: 'hsl(var(--card))', border: '1px solid hsl(v
 export function ProspectsPanel() {
   const { prospects, loading, toggleACategory, updateStatus, updateProspectType, deleteProspect, refetch } = useProspects();
   const { user, role } = useAuth();
+  const { createOrder } = useOrders();
+  const { suppliers } = useSuppliers();
   const [search, setSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -58,6 +66,7 @@ export function ProspectsPanel() {
   const [dateEnd, setDateEnd] = useState<Date | undefined>();
   const [editingProspect, setEditingProspect] = useState<any>(null);
   const [analyticsPeriod, setAnalyticsPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'all'>('daily');
+  const [orderWonProspect, setOrderWonProspect] = useState<Prospect | null>(null);
 
   const filtered = prospects.filter(p => {
     const matchesSearch = !search ||
@@ -484,7 +493,7 @@ export function ProspectsPanel() {
                                       variant="ghost"
                                       size="icon"
                                       className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-500/10"
-                                      onClick={() => updateStatus({ id: p.id, status: 'converted' })}
+                                      onClick={() => setOrderWonProspect(p)}
                                     >
                                       <span className="text-xs font-bold">OW</span>
                                     </Button>
@@ -551,6 +560,39 @@ export function ProspectsPanel() {
         prospect={editingProspect}
         onSuccess={() => { setEditingProspect(null); refetch(); }}
       />
+
+      <Dialog open={!!orderWonProspect} onOpenChange={(open) => !open && setOrderWonProspect(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Create Order — {orderWonProspect?.customer_name}</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[75vh] pr-4">
+            {orderWonProspect && (
+              <OrderForm
+                onSubmit={async (data, paymentFiles, orderItems, invoiceFile, poFiles) => {
+                  const success = await createOrder(data, paymentFiles, orderItems, invoiceFile, poFiles);
+                  if (success) {
+                    await updateStatus({ id: orderWonProspect.id, status: 'converted' });
+                    setOrderWonProspect(null);
+                    toast.success('Order created and prospect marked as Converted');
+                  }
+                  return success;
+                }}
+                suppliers={suppliers}
+                userRole={role as any}
+                initialData={{
+                  customer_name: orderWonProspect.customer_name,
+                  customer_company: orderWonProspect.company || undefined,
+                  customer_email: orderWonProspect.email || undefined,
+                  product_name: orderWonProspect.product_name || undefined,
+                  customer_notes: orderWonProspect.notes || undefined,
+                  source_prospect_id: orderWonProspect.id,
+                }}
+              />
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

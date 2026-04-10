@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { CalendarIcon, Edit, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
@@ -21,6 +22,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { ProductSelect } from '@/components/ProductSelect';
 import { LeadTemperatureBadge, LEAD_TEMPERATURES } from '@/components/LeadTemperatureBadge';
+import { OrderForm, OrderFormInitialData } from '@/components/OrderForm';
+import { useOrders } from '@/hooks/useOrders';
+import { useSuppliers } from '@/hooks/useSuppliers';
+import { toast } from 'sonner';
 
 interface PipelineTableProps {
   orders: PipelineOrder[];
@@ -56,6 +61,8 @@ const getPriorityBadge = (priority: number | null) => {
 
 export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: externalStatusFilter, onStatusFilterChange, selectedLeadId }: PipelineTableProps) {
   const { role } = useAuth();
+  const { createOrder } = useOrders();
+  const { suppliers } = useSuppliers();
   const [searchTerm, setSearchTerm] = useState('');
   const [internalStatusFilter, setInternalStatusFilter] = useState<PipelineStatus | 'all'>('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -68,6 +75,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
   const [closureDateEnd, setClosureDateEnd] = useState<Date | undefined>(undefined);
   const [closureSortDir, setClosureSortDir] = useState<'asc' | 'desc' | null>(null);
   const lastAutoOpenedId = useRef<string | null>(null);
+  const [orderWonDialog, setOrderWonDialog] = useState<PipelineOrder | null>(null);
 
   // Use external filter if provided, otherwise use internal
   const statusFilter = externalStatusFilter ?? internalStatusFilter;
@@ -461,7 +469,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                                   variant="ghost"
                                   size="icon"
                                   className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-500/10"
-                                  onClick={() => onUpdate(order.id, { status: 'won' as PipelineStatus })}
+                                  onClick={() => setOrderWonDialog(order)}
                                 >
                                   <span className="text-xs font-bold">OW</span>
                                 </Button>
@@ -696,6 +704,48 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
               <Button variant="outline" onClick={() => setEditOrder(null)}>Cancel</Button>
               <Button onClick={handleEditSave}>Save Changes</Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        {/* Order Won - Create Order Dialog */}
+        <Dialog open={!!orderWonDialog} onOpenChange={(open) => !open && setOrderWonDialog(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle>Create Order — {orderWonDialog?.customer_name}</DialogTitle>
+            </DialogHeader>
+            <ScrollArea className="max-h-[75vh] pr-4">
+              {orderWonDialog && (
+                <OrderForm
+                  onSubmit={async (data, paymentFiles, orderItems, invoiceFile, poFiles) => {
+                    const success = await createOrder(data, paymentFiles, orderItems, invoiceFile, poFiles);
+                    if (success) {
+                      await onUpdate(orderWonDialog.id, { status: 'won' as PipelineStatus });
+                      setOrderWonDialog(null);
+                      toast.success('Order created and pipeline marked as Won');
+                    }
+                    return success;
+                  }}
+                  suppliers={suppliers}
+                  userRole={role as any}
+                  initialData={{
+                    customer_name: orderWonDialog.customer_name,
+                    customer_company: orderWonDialog.customer_company,
+                    customer_email: orderWonDialog.customer_email || undefined,
+                    product_name: orderWonDialog.product_name,
+                    product_category: orderWonDialog.product_category || undefined,
+                    product_code: orderWonDialog.product_code || undefined,
+                    quantity: orderWonDialog.quantity,
+                    selling_price: orderWonDialog.expected_price || undefined,
+                    total_sales_amount: orderWonDialog.expected_price ? orderWonDialog.expected_price * orderWonDialog.quantity : undefined,
+                    sales_person_id: orderWonDialog.sales_person_id,
+                    sales_person_name: orderWonDialog.sales_person_name,
+                    lead_source: orderWonDialog.lead_source || undefined,
+                    customer_notes: orderWonDialog.customer_notes || undefined,
+                    internal_notes: orderWonDialog.internal_notes || undefined,
+                    source_pipeline_id: orderWonDialog.id,
+                  }}
+                />
+              )}
+            </ScrollArea>
           </DialogContent>
         </Dialog>
       </CardContent>

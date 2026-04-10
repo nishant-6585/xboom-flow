@@ -28,6 +28,26 @@ interface SalesTeamMember {
   name: string;
 }
 
+export interface OrderFormInitialData {
+  customer_name?: string;
+  customer_company?: string;
+  customer_email?: string;
+  customer_phone?: string;
+  product_name?: string;
+  product_category?: string;
+  product_code?: string;
+  quantity?: number;
+  selling_price?: number;
+  total_sales_amount?: number;
+  sales_person_id?: string;
+  sales_person_name?: string;
+  lead_source?: string;
+  customer_notes?: string;
+  internal_notes?: string;
+  source_pipeline_id?: string;
+  source_prospect_id?: string;
+}
+
 interface OrderFormProps {
   onSubmit: (data: OrderFormData, paymentFiles?: File[], orderItems?: OrderItemFormData[], invoiceFile?: File, poFiles?: File[]) => Promise<boolean>;
   enquiries?: Enquiry[];
@@ -35,6 +55,7 @@ interface OrderFormProps {
   showProcurementRate?: boolean;
   userRole?: 'sales' | 'sales_manager' | 'supply_chain' | 'admin';
   preSelectEnquiryId?: string;
+  initialData?: OrderFormInitialData;
 }
 
 const STEPS = [
@@ -44,7 +65,7 @@ const STEPS = [
   { id: 4, title: 'Delivery', icon: Truck, description: 'Shipping & notes' },
 ];
 
-export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcurementRate = true, userRole = 'sales', preSelectEnquiryId }: OrderFormProps) {
+export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcurementRate = true, userRole = 'sales', preSelectEnquiryId, initialData }: OrderFormProps) {
   const canViewProcurement = userRole === 'admin' || userRole === 'supply_chain';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [salesTeam, setSalesTeam] = useState<SalesTeamMember[]>([]);
@@ -99,36 +120,36 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
   const [loading, setLoading] = useState(false);
   const [orderItems, setOrderItems] = useState<OrderItemFormData[]>([
     {
-      product_name: '',
-      product_code: '',
-      product_category: 'Consumer Drones',
-      quantity: 1,
-      unit_price: undefined,
+      product_name: initialData?.product_name || '',
+      product_code: initialData?.product_code || '',
+      product_category: initialData?.product_category || 'Consumer Drones',
+      quantity: initialData?.quantity || 1,
+      unit_price: initialData?.selling_price || undefined,
       procurement_rate: undefined,
       notes: '',
     }
   ]);
   const [formData, setFormData] = useState<OrderFormData>({
-    product_name: '',
-    product_category: 'Consumer Drones',
-    quantity: 1,
-    customer_name: '',
-    customer_company: '',
-    customer_email: '',
-    sales_person_id: '',
-    sales_person_name: '',
+    product_name: initialData?.product_name || '',
+    product_category: initialData?.product_category || 'Consumer Drones',
+    quantity: initialData?.quantity || 1,
+    customer_name: initialData?.customer_name || '',
+    customer_company: initialData?.customer_company || '',
+    customer_email: initialData?.customer_email || '',
+    sales_person_id: initialData?.sales_person_id || '',
+    sales_person_name: initialData?.sales_person_name || '',
     is_website_order: false,
     shipping_address: '',
     order_type: 'prepaid',
     customer_type: 'b2b',
-    lead_source: undefined,
+    lead_source: (initialData?.lead_source as LeadSource) || undefined,
     supplier_id: undefined,
     supplier_name: '',
     supplier_contact: '',
     procurement_rate: undefined,
     procurement_currency: 'INR',
-    selling_price: undefined,
-    total_sales_amount: undefined,
+    selling_price: initialData?.selling_price || undefined,
+    total_sales_amount: initialData?.total_sales_amount || undefined,
     discount_amount: undefined,
     amount_paid: undefined,
     delivery_charges: undefined,
@@ -139,8 +160,8 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     tracking_url: '',
     committed_timeline: '',
     estimated_delivery: '',
-    internal_notes: '',
-    customer_notes: '',
+    internal_notes: initialData?.internal_notes || '',
+    customer_notes: initialData?.customer_notes || '',
     sales_notes: '',
   });
 
