@@ -160,8 +160,8 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     tracking_url: '',
     committed_timeline: '',
     estimated_delivery: '',
-    internal_notes: '',
-    customer_notes: '',
+    internal_notes: initialData?.internal_notes || '',
+    customer_notes: initialData?.customer_notes || '',
     sales_notes: '',
   });
 
