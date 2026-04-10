@@ -392,7 +392,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
               MyOperator Call Logs
             </CardTitle>
             <CardDescription>
-              Real-time call logs via webhook + API sync ({logs.length} calls)
+              Real-time call logs via webhook + API sync ({filteredLogs.length}{filteredLogs.length !== logs.length ? ` of ${logs.length}` : ''} calls)
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -450,7 +450,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
-        ) : logs.length === 0 ? (
+        ) : filteredLogs.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Phone className="w-12 h-12 mx-auto mb-3 opacity-40" />
             <p className="font-medium">No call logs received yet.</p>
@@ -473,7 +473,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {logs.map((log) => {
+                {filteredLogs.map((log) => {
                   const info = deriveCallInfo(log);
                   const logKey = log.call_id || log.id;
 
