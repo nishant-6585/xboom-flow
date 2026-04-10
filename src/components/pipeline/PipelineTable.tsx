@@ -61,6 +61,8 @@ const getPriorityBadge = (priority: number | null) => {
 
 export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: externalStatusFilter, onStatusFilterChange, selectedLeadId }: PipelineTableProps) {
   const { role } = useAuth();
+  const { createOrder } = useOrders();
+  const { suppliers } = useSuppliers();
   const [searchTerm, setSearchTerm] = useState('');
   const [internalStatusFilter, setInternalStatusFilter] = useState<PipelineStatus | 'all'>('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -73,6 +75,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
   const [closureDateEnd, setClosureDateEnd] = useState<Date | undefined>(undefined);
   const [closureSortDir, setClosureSortDir] = useState<'asc' | 'desc' | null>(null);
   const lastAutoOpenedId = useRef<string | null>(null);
+  const [orderWonDialog, setOrderWonDialog] = useState<PipelineOrder | null>(null);
 
   // Use external filter if provided, otherwise use internal
   const statusFilter = externalStatusFilter ?? internalStatusFilter;
