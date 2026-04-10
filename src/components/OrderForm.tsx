@@ -28,6 +28,26 @@ interface SalesTeamMember {
   name: string;
 }
 
+export interface OrderFormInitialData {
+  customer_name?: string;
+  customer_company?: string;
+  customer_email?: string;
+  customer_phone?: string;
+  product_name?: string;
+  product_category?: string;
+  product_code?: string;
+  quantity?: number;
+  selling_price?: number;
+  total_sales_amount?: number;
+  sales_person_id?: string;
+  sales_person_name?: string;
+  lead_source?: string;
+  customer_notes?: string;
+  internal_notes?: string;
+  source_pipeline_id?: string;
+  source_prospect_id?: string;
+}
+
 interface OrderFormProps {
   onSubmit: (data: OrderFormData, paymentFiles?: File[], orderItems?: OrderItemFormData[], invoiceFile?: File, poFiles?: File[]) => Promise<boolean>;
   enquiries?: Enquiry[];
@@ -35,6 +55,7 @@ interface OrderFormProps {
   showProcurementRate?: boolean;
   userRole?: 'sales' | 'sales_manager' | 'supply_chain' | 'admin';
   preSelectEnquiryId?: string;
+  initialData?: OrderFormInitialData;
 }
 
 const STEPS = [
