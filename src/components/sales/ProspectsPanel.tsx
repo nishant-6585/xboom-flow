@@ -493,7 +493,7 @@ export function ProspectsPanel() {
                                       variant="ghost"
                                       size="icon"
                                       className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-500/10"
-                                      onClick={() => updateStatus({ id: p.id, status: 'converted' })}
+                                      onClick={() => setOrderWonProspect(p)}
                                     >
                                       <span className="text-xs font-bold">OW</span>
                                     </Button>
