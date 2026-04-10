@@ -29,7 +29,7 @@ function getLeadDate(lead: InteraktLead): Date {
 }
 
 export function InteraktAnalytics({ leads, prospects }: InteraktAnalyticsProps) {
-  const [period, setPeriod] = useState<'day' | 'week'>('week');
+  const [period, setPeriod] = useState<'day' | 'week' | 'month'>('week');
 
   const now = new Date();
   const todayStart = startOfDay(now);
@@ -83,6 +83,24 @@ export function InteraktAnalytics({ leads, prospects }: InteraktAnalyticsProps) 
     });
   }, [leads, interaktProspects, now]);
 
+  // Monthly data (last 6 months)
+  const monthlyData = useMemo(() => {
+    const months: { label: string; start: Date; end: Date }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const ms = startOfMonth(subDays(now, i * 30));
+      const me = new Date(ms.getFullYear(), ms.getMonth() + 1, 0, 23, 59, 59, 999);
+      months.push({ label: format(ms, 'MMM yy'), start: ms, end: me });
+    }
+    // Deduplicate months by label
+    const seen = new Set<string>();
+    const unique = months.filter(m => { if (seen.has(m.label)) return false; seen.add(m.label); return true; });
+    return unique.map(m => {
+      const mLeads = leads.filter(l => { const d = getLeadDate(l); return d >= m.start && d <= m.end; });
+      const mProsp = interaktProspects.filter(p => { const d = new Date(p.created_at); return d >= m.start && d <= m.end; });
+      return { date: m.label, messages: mLeads.length, prospects: mProsp.length };
+    });
+  }, [leads, interaktProspects, now]);
+
   // Handler/salesperson breakdown
   const handlerData = useMemo(() => {
     const targetStart = period === 'day' ? todayStart : period === 'week' ? weekStart : monthStart;
@@ -103,7 +121,7 @@ export function InteraktAnalytics({ leads, prospects }: InteraktAnalyticsProps) 
     };
   }, [leads, period, todayStart, weekStart, monthStart]);
 
-  const chartData = period === 'day' ? dailyData : weeklyData;
+  const chartData = period === 'day' ? dailyData : period === 'week' ? weeklyData : monthlyData;
 
   const tooltipStyle = {
     backgroundColor: 'hsl(var(--card))',
@@ -199,6 +217,12 @@ export function InteraktAnalytics({ leads, prospects }: InteraktAnalyticsProps) 
                 >
                   Weekly
                 </button>
+                <button
+                  onClick={() => setPeriod('month')}
+                  className={`px-3 py-1 text-xs rounded-md transition-colors ${period === 'month' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                >
+                  Monthly
+                </button>
               </div>
             </div>
           </CardHeader>
@@ -278,7 +302,7 @@ export function InteraktAnalytics({ leads, prospects }: InteraktAnalyticsProps) 
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={dailyData}>
+            <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
               <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
               <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
