@@ -11,7 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
-import { CalendarIcon, Edit, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown, AlertTriangle } from 'lucide-react';
+import { CalendarIcon, Edit, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { PipelineOrder, PIPELINE_STATUSES, PipelineStatus, LeadTemperature, PIPELINE_LOST_REASONS } from '@/hooks/usePipelineOrders';
@@ -451,12 +452,45 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                     <TableCell>{getPriorityBadge(order.priority)}</TableCell>
                     <TableCell>{order.sales_person_name}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(order)}>
+                      <div className="flex justify-end gap-1">
+                        {order.status !== 'won' && order.status !== 'lost' && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-500/10"
+                                  onClick={() => onUpdate(order.id, { status: 'won' as PipelineStatus })}
+                                >
+                                  <span className="text-xs font-bold">OW</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Mark as Order Won</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                                  onClick={() => {
+                                    setEditOrder({ ...order, status: 'lost' as PipelineStatus });
+                                    setEditClosureDate(order.expected_closure_date ? new Date(order.expected_closure_date) : undefined);
+                                  }}
+                                >
+                                  <span className="text-xs font-bold">OL</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Mark as Order Lost</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditClick(order)}>
                           <Edit className="h-4 w-4" />
                         </Button>
                         {canDelete && (
-                          <Button variant="ghost" size="icon" onClick={() => onDelete(order.id)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDelete(order.id)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         )}

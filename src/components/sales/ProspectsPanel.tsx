@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useProspects } from '@/hooks/useProspects';
 import { useAuth } from '@/hooks/useAuth';
 import { Target, Search, Loader2, Star, Filter, TrendingUp, Calendar, Users, Phone, MessageCircle, Package, Pencil, UserCheck, FileText, Trash2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format, startOfDay, endOfDay, startOfWeek, startOfMonth } from 'date-fns';
 import { ACategoryButton } from './ProspectButton';
@@ -475,6 +476,36 @@ export function ProspectsPanel() {
                         <TableCell><span className="text-xs text-muted-foreground">{p.created_by_name}</span></TableCell>
                         <TableCell>
                           <div className="flex items-center gap-0.5">
+                            {p.status !== 'converted' && p.status !== 'lost' && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-500/10"
+                                      onClick={() => updateStatus({ id: p.id, status: 'converted' })}
+                                    >
+                                      <span className="text-xs font-bold">OW</span>
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Mark as Order Won</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                                      onClick={() => updateStatus({ id: p.id, status: 'lost' })}
+                                    >
+                                      <span className="text-xs font-bold">OL</span>
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Mark as Order Lost</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingProspect(p)}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
