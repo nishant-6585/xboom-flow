@@ -715,6 +715,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
             <ScrollArea className="max-h-[75vh] pr-4">
               {orderWonDialog && (
                 <OrderForm
+                  embedded
                   onSubmit={async (data, paymentFiles, orderItems, invoiceFile, poFiles) => {
                     const success = await createOrder(data, paymentFiles, orderItems, invoiceFile, poFiles);
                     if (success) {

@@ -569,6 +569,7 @@ export function ProspectsPanel() {
           <ScrollArea className="max-h-[75vh] pr-4">
             {orderWonProspect && (
               <OrderForm
+                embedded
                 onSubmit={async (data, paymentFiles, orderItems, invoiceFile, poFiles) => {
                   const success = await createOrder(data, paymentFiles, orderItems, invoiceFile, poFiles);
                   if (success) {
