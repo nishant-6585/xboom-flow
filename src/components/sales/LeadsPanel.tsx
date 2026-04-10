@@ -681,36 +681,6 @@ export function LeadsPanel() {
           {/* Interakt Analytics Dashboard */}
           <InteraktAnalytics leads={interaktLeads} prospects={prospects} />
 
-          {/* Interakt Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20">
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-emerald-500/20">
-                    <MessageCircle className="h-5 w-5 text-emerald-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{interaktLeads.length}</p>
-                    <p className="text-xs text-muted-foreground">Total Interakt Leads</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-500/20">
-                    <Users className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{interaktLeads.filter(l => l.status === 'new').length}</p>
-                    <p className="text-xs text-muted-foreground">New</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
           {/* Sync Button */}
           <Card>
             <CardContent className="p-4">
