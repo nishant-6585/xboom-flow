@@ -1176,6 +1176,7 @@ export type Database = {
           full_number: string | null
           id: string
           is_a_category: boolean | null
+          is_enquiry_converted: boolean
           is_prospect: boolean | null
           ivr_input: string | null
           lead_created: boolean
@@ -1221,6 +1222,7 @@ export type Database = {
           full_number?: string | null
           id?: string
           is_a_category?: boolean | null
+          is_enquiry_converted?: boolean
           is_prospect?: boolean | null
           ivr_input?: string | null
           lead_created?: boolean
@@ -1266,6 +1268,7 @@ export type Database = {
           full_number?: string | null
           id?: string
           is_a_category?: boolean | null
+          is_enquiry_converted?: boolean
           is_prospect?: boolean | null
           ivr_input?: string | null
           lead_created?: boolean
@@ -2568,6 +2571,7 @@ export type Database = {
           id: string
           ingested_at: string | null
           is_a_category: boolean | null
+          is_enquiry_converted: boolean
           is_prospect: boolean | null
           last_error: string | null
           lead_source: string | null
@@ -2611,6 +2615,7 @@ export type Database = {
           id?: string
           ingested_at?: string | null
           is_a_category?: boolean | null
+          is_enquiry_converted?: boolean
           is_prospect?: boolean | null
           last_error?: string | null
           lead_source?: string | null
@@ -2654,6 +2659,7 @@ export type Database = {
           id?: string
           ingested_at?: string | null
           is_a_category?: boolean | null
+          is_enquiry_converted?: boolean
           is_prospect?: boolean | null
           last_error?: string | null
           lead_source?: string | null
@@ -4218,6 +4224,7 @@ export type Database = {
           form_id: string | null
           form_name: string
           id: string
+          is_enquiry_converted: boolean
           notes: string | null
           phone: string | null
           product_name: string | null
@@ -4239,6 +4246,7 @@ export type Database = {
           form_id?: string | null
           form_name: string
           id?: string
+          is_enquiry_converted?: boolean
           notes?: string | null
           phone?: string | null
           product_name?: string | null
@@ -4260,6 +4268,7 @@ export type Database = {
           form_id?: string | null
           form_name?: string
           id?: string
+          is_enquiry_converted?: boolean
           notes?: string | null
           phone?: string | null
           product_name?: string | null
@@ -5144,6 +5153,7 @@ export type Database = {
           interakt_traits: Json | null
           interakt_user_id: string | null
           is_a_category: boolean | null
+          is_enquiry_converted: boolean
           is_prospect: boolean | null
           lead_source: string | null
           notes: string | null
@@ -5178,6 +5188,7 @@ export type Database = {
           interakt_traits?: Json | null
           interakt_user_id?: string | null
           is_a_category?: boolean | null
+          is_enquiry_converted?: boolean
           is_prospect?: boolean | null
           lead_source?: string | null
           notes?: string | null
@@ -5212,6 +5223,7 @@ export type Database = {
           interakt_traits?: Json | null
           interakt_user_id?: string | null
           is_a_category?: boolean | null
+          is_enquiry_converted?: boolean
           is_prospect?: boolean | null
           lead_source?: string | null
           notes?: string | null
@@ -11077,6 +11089,7 @@ export type Database = {
           id: string
           ingested_at: string | null
           is_a_category: boolean | null
+          is_enquiry_converted: boolean
           is_prospect: boolean | null
           last_error: string | null
           lead_source: string | null
