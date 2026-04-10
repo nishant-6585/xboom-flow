@@ -66,7 +66,7 @@ const STEPS = [
   { id: 4, title: 'Delivery', icon: Truck, description: 'Shipping & notes' },
 ];
 
-export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcurementRate = true, userRole = 'sales', preSelectEnquiryId, initialData }: OrderFormProps) {
+export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcurementRate = true, userRole = 'sales', preSelectEnquiryId, initialData, embedded = false }: OrderFormProps) {
   const canViewProcurement = userRole === 'admin' || userRole === 'supply_chain';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [salesTeam, setSalesTeam] = useState<SalesTeamMember[]>([]);
@@ -549,6 +549,100 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
       </div>
     </div>
   );
+
+  if (embedded) {
+    return (
+      <div>
+        <form onSubmit={handleSubmit}>
+          <StepIndicator />
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Form Area */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Step 1: Products */}
+              {currentStep === 1 && (
+                <div className="space-y-6 animate-fade-in">
+                  {respondedEnquiries.length > 0 && (
+                    <div className="p-4 bg-muted/50 rounded-xl space-y-3">
+                      <Label className="text-sm font-medium">Quick Fill from Enquiry</Label>
+                      <Select onValueChange={handleEnquirySelect}>
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Select an enquiry to auto-fill..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Create Standalone Order</SelectItem>
+                          {respondedEnquiries.map(enquiry => (
+                            <SelectItem key={enquiry.id} value={enquiry.id}>
+                              {enquiry.product_name} - {enquiry.customer_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <OrderItemsInput
+                    items={orderItems}
+                    onChange={setOrderItems}
+                    disabled={loading}
+                    showProcurementRate={showProcurementRate}
+                  />
+                </div>
+              )}
+
+              {currentStep === 2 && renderStep2Content()}
+              {currentStep === 3 && renderStep3Content()}
+              {currentStep === 4 && renderStep4Content()}
+            </div>
+
+            {/* Sidebar - Order Summary */}
+            <div className="lg:col-span-1">
+              <div className="sticky top-4 space-y-4">
+                <OrderSummary />
+                <div className="flex flex-col gap-2">
+                  {currentStep < 4 ? (
+                    <Button
+                      type="button"
+                      onClick={() => goToStep(currentStep + 1)}
+                      disabled={!canGoNext()}
+                      className="w-full h-12 text-base"
+                    >
+                      Continue
+                      <ChevronRight className="ml-2 h-5 w-5" />
+                    </Button>
+                  ) : (
+                    <Button type="submit" disabled={loading} className="w-full h-12 text-base bg-green-600 hover:bg-green-700">
+                      {loading ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="mr-2 h-5 w-5" />
+                          Create Order
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  {currentStep > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => goToStep(currentStep - 1)}
+                      className="w-full"
+                    >
+                      <ChevronLeft className="mr-2 h-4 w-4" />
+                      Back
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <Card className="border-0 shadow-lg">
