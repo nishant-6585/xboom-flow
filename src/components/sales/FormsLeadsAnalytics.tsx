@@ -119,6 +119,23 @@ export function FormsLeadsAnalytics({ leads }: FormsLeadsAnalyticsProps) {
 
   return (
     <div className="space-y-4">
+      {/* Timeline Filter */}
+      <div className="flex items-center gap-2">
+        <Calendar className="w-4 h-4 text-muted-foreground" />
+        <Select value={timePeriod} onValueChange={setTimePeriod}>
+          <SelectTrigger className="w-[160px] h-9">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Time</SelectItem>
+            <SelectItem value="today">Today</SelectItem>
+            <SelectItem value="this_week">This Week</SelectItem>
+            <SelectItem value="this_month">This Month</SelectItem>
+            <SelectItem value="prev_month">Previous Month</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
