@@ -116,10 +116,7 @@ export function ProspectButton({
       resolvedProductName = gadsLead?.product_name?.trim() || '';
     }
 
-    if (!resolvedProductName) {
-      toast.error('Product name is required before marking as Prospect. Please edit the lead and fill the Product field.');
-      return;
-    }
+    // Product name is optional for prospect conversion — allow proceeding without it
 
     // Try to get customer_type from the source lead if not passed
     let prefilledType = initialCustomerType || '';
