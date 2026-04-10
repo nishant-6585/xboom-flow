@@ -56,6 +56,7 @@ interface OrderFormProps {
   userRole?: 'sales' | 'sales_manager' | 'supply_chain' | 'admin';
   preSelectEnquiryId?: string;
   initialData?: OrderFormInitialData;
+  embedded?: boolean;
 }
 
 const STEPS = [
