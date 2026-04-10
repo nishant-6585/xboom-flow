@@ -236,11 +236,62 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [searchPhone, setSearchPhone] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [salesPersonFilter, setSalesPersonFilter] = useState("all");
+  const [agentFilter, setAgentFilter] = useState("all");
   const [selectedLog, setSelectedLog] = useState<CallLog | null>(null);
   const [expandedAudio, setExpandedAudio] = useState<string | null>(null);
   const prevIdsRef = useRef<Set<string>>(new Set());
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [editingLog, setEditingLog] = useState<CallLog | null>(null);
+
+  // Extract unique sales persons and agents from current logs for filter options
+  const { salesPersons, agents } = React.useMemo(() => {
+    const spSet = new Set<string>();
+    const agSet = new Set<string>();
+    logs.forEach(log => {
+      if (log.sales_person_name) spSet.add(log.sales_person_name);
+      const info = deriveCallInfo(log);
+      if (info.finalAgent) agSet.add(info.finalAgent);
+      // Also add individual agents from legs
+      const payload = parseRawPayload(log.raw_payload);
+      const legs: LegDetail[] = payload?._ld && Array.isArray(payload._ld) ? payload._ld as LegDetail[] : [];
+      for (const leg of legs) {
+        if (Array.isArray(leg._rr)) {
+          for (const r of leg._rr) {
+            if (r._na) agSet.add(r._na);
+          }
+        }
+      }
+    });
+    return {
+      salesPersons: Array.from(spSet).sort(),
+      agents: Array.from(agSet).sort(),
+    };
+  }, [logs]);
+
+  const filteredLogs = React.useMemo(() => {
+    let result = logs;
+    if (salesPersonFilter !== "all") {
+      result = result.filter(log => log.sales_person_name === salesPersonFilter);
+    }
+    if (agentFilter !== "all") {
+      result = result.filter(log => {
+        const info = deriveCallInfo(log);
+        // Check if this agent appears anywhere in the call legs
+        const payload = parseRawPayload(log.raw_payload);
+        const legs: LegDetail[] = payload?._ld && Array.isArray(payload._ld) ? payload._ld as LegDetail[] : [];
+        for (const leg of legs) {
+          if (Array.isArray(leg._rr)) {
+            for (const r of leg._rr) {
+              if (r._na === agentFilter) return true;
+            }
+          }
+        }
+        return info.finalAgent === agentFilter || info.agentDisplay.includes(agentFilter);
+      });
+    }
+    return result;
+  }, [logs, salesPersonFilter, agentFilter]);
 
   const fetchLogs = useCallback(async () => {
     let query = supabase
@@ -341,7 +392,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
               MyOperator Call Logs
             </CardTitle>
             <CardDescription>
-              Real-time call logs via webhook + API sync ({logs.length} calls)
+              Real-time call logs via webhook + API sync ({filteredLogs.length}{filteredLogs.length !== logs.length ? ` of ${logs.length}` : ''} calls)
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -361,8 +412,8 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Filters */}
-        <div className="flex gap-3">
-          <div className="relative flex-1 max-w-xs">
+        <div className="flex flex-wrap gap-3">
+          <div className="relative flex-1 max-w-xs min-w-[180px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search phone number..." value={searchPhone} onChange={(e) => setSearchPhone(e.target.value)} className="pl-8" />
           </div>
@@ -375,13 +426,31 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
               <SelectItem value="busy">Busy</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
+            <SelectTrigger className="w-44"><SelectValue placeholder="Sales Person" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sales Persons</SelectItem>
+              {salesPersons.map(sp => (
+                <SelectItem key={sp} value={sp}>{sp}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={agentFilter} onValueChange={setAgentFilter}>
+            <SelectTrigger className="w-44"><SelectValue placeholder="Agent" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Agents</SelectItem>
+              {agents.map(ag => (
+                <SelectItem key={ag} value={ag}>{ag}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {loading && logs.length === 0 ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
-        ) : logs.length === 0 ? (
+        ) : filteredLogs.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Phone className="w-12 h-12 mx-auto mb-3 opacity-40" />
             <p className="font-medium">No call logs received yet.</p>
@@ -404,7 +473,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {logs.map((log) => {
+                {filteredLogs.map((log) => {
                   const info = deriveCallInfo(log);
                   const logKey = log.call_id || log.id;
 
