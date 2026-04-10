@@ -3637,6 +3637,50 @@ export type Database = {
           },
         ]
       }
+      enquiry_messages: {
+        Row: {
+          created_at: string
+          enquiry_id: string
+          id: string
+          is_read: boolean
+          message: string
+          sender_id: string
+          sender_name: string
+          sender_role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enquiry_id: string
+          id?: string
+          is_read?: boolean
+          message: string
+          sender_id: string
+          sender_name?: string
+          sender_role?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enquiry_id?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          sender_id?: string
+          sender_name?: string
+          sender_role?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enquiry_messages_enquiry_id_fkey"
+            columns: ["enquiry_id"]
+            isOneToOne: false
+            referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enquiry_tags: {
         Row: {
           added_at: string | null

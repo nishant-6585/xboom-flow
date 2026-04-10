@@ -1,4 +1,4 @@
-import { Bell, Check, CheckCheck, AlertTriangle, Clock, CreditCard, Flame, Star } from 'lucide-react';
+import { Bell, Check, CheckCheck, AlertTriangle, Clock, CreditCard, Flame, Star, MessageSquare, ClipboardCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -30,10 +30,14 @@ function NotificationItem({
   const isDueToday = notification.title.toLowerCase().includes('due today');
   const isHotLead = notification.type === 'hot_lead';
   const isMegaDeal = notification.type === 'mega_deal';
+  const isEnquiryResponse = notification.type === 'enquiry_response';
+  const isEnquiryMessage = notification.type === 'enquiry_message';
 
   const getIcon = () => {
     if (isHotLead) return <Flame className="w-4 h-4" />;
     if (isMegaDeal) return <Star className="w-4 h-4" />;
+    if (isEnquiryResponse) return <ClipboardCheck className="w-4 h-4" />;
+    if (isEnquiryMessage) return <MessageSquare className="w-4 h-4" />;
     if (isOverdue) return <AlertTriangle className="w-4 h-4" />;
     if (isDueToday) return <Clock className="w-4 h-4" />;
     return <CreditCard className="w-4 h-4" />;
@@ -42,6 +46,8 @@ function NotificationItem({
   const getIconStyle = () => {
     if (isHotLead) return 'bg-orange-500/10 text-orange-500';
     if (isMegaDeal) return 'bg-yellow-500/10 text-yellow-500';
+    if (isEnquiryResponse) return 'bg-emerald-500/10 text-emerald-500';
+    if (isEnquiryMessage) return 'bg-blue-500/10 text-blue-500';
     if (isOverdue) return 'bg-destructive/10 text-destructive';
     if (isDueToday) return 'bg-warning/10 text-warning';
     return 'bg-primary/10 text-primary';
