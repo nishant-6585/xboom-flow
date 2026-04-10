@@ -1759,6 +1759,116 @@ export type Database = {
         }
         Relationships: []
       }
+      companies: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          created_by: string
+          created_by_name: string
+          email: string | null
+          id: string
+          industry: string | null
+          is_recurring: boolean | null
+          name: string
+          notes: string | null
+          phone: string | null
+          state: string | null
+          status: string
+          total_order_value: number | null
+          total_orders_count: number | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          created_by: string
+          created_by_name?: string
+          email?: string | null
+          id?: string
+          industry?: string | null
+          is_recurring?: boolean | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          state?: string | null
+          status?: string
+          total_order_value?: number | null
+          total_orders_count?: number | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          email?: string | null
+          id?: string
+          industry?: string | null
+          is_recurring?: boolean | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          state?: string | null
+          status?: string
+          total_order_value?: number | null
+          total_orders_count?: number | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      company_contacts: {
+        Row: {
+          company_id: string
+          created_at: string
+          designation: string | null
+          email: string | null
+          id: string
+          is_primary: boolean | null
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          designation?: string | null
+          email?: string | null
+          id?: string
+          is_primary?: boolean | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          designation?: string | null
+          email?: string | null
+          id?: string
+          is_primary?: boolean | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       credit_cards: {
         Row: {
           bank_name: string
@@ -6632,6 +6742,7 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           committed_timeline: string | null
+          company_id: string | null
           created_at: string
           created_by: string
           customer_company: string | null
@@ -6706,6 +6817,7 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           committed_timeline?: string | null
+          company_id?: string | null
           created_at?: string
           created_by: string
           customer_company?: string | null
@@ -6780,6 +6892,7 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           committed_timeline?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string
           customer_company?: string | null
@@ -6846,6 +6959,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_enquiry_id_fkey"
             columns: ["enquiry_id"]
@@ -7816,6 +7936,7 @@ export type Database = {
           a_category_marked_by: string | null
           city: string | null
           company: string | null
+          company_id: string | null
           created_at: string
           created_by: string
           created_by_name: string
@@ -7846,6 +7967,7 @@ export type Database = {
           a_category_marked_by?: string | null
           city?: string | null
           company?: string | null
+          company_id?: string | null
           created_at?: string
           created_by: string
           created_by_name: string
@@ -7876,6 +7998,7 @@ export type Database = {
           a_category_marked_by?: string | null
           city?: string | null
           company?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string
           created_by_name?: string
@@ -7901,7 +8024,15 @@ export type Database = {
           updated_at?: string
           urgency?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "prospects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quote_items: {
         Row: {

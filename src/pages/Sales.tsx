@@ -5,7 +5,7 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck, Contact, CheckCircle2, XCircle, Star } from "lucide-react";
+import { Trophy, Rocket, Lightbulb, Phone, BarChart3, Zap, Quote, ScrollText, Users, GitBranch, Bot, Target, HelpCircle, PieChart, ListTodo, TrendingUp, Package, AlertTriangle, CalendarCheck, Contact, CheckCircle2, XCircle, Star, Building2 } from "lucide-react";
 import { DailyActivityForm } from "@/components/sales/DailyActivityForm";
 import { SalesLeaderboard } from "@/components/sales/SalesLeaderboard";
 import { PointsDisplay } from "@/components/sales/PointsDisplay";
@@ -28,7 +28,7 @@ import { ProspectsPanel } from "@/components/sales/ProspectsPanel";
 import { AttentionPanel } from "@/components/sales/AttentionPanel";
 import { FollowupsPanel } from "@/components/sales/FollowupsPanel";
 import { CallbacksPanel } from "@/components/sales/CallbacksPanel";
-
+import { CompaniesPanel } from "@/components/crm/CompaniesPanel";
 import { UntouchedLeadsPanel } from "@/components/sales/UntouchedLeadsPanel";
 import { UntouchedLoginAlert } from "@/components/sales/UntouchedLoginAlert";
 
@@ -114,6 +114,10 @@ export default function Sales() {
                 <TabsTrigger value="mega_deals" className={`${triggerBase} data-[state=active]:bg-amber-500 data-[state=active]:text-white text-base font-bold px-5 py-3`}>
                   <Star className="w-5 h-5" />
                   Mega Deals
+                </TabsTrigger>
+                <TabsTrigger value="companies" className={triggerPrimary}>
+                  <Building2 className="w-4 h-4" />
+                  Companies
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -248,6 +252,10 @@ export default function Sales() {
 
           <TabsContent value="mega_deals" className="space-y-6">
             <PipelineOrders megaDealsOnly />
+          </TabsContent>
+
+          <TabsContent value="companies" className="space-y-6">
+            <CompaniesPanel />
           </TabsContent>
 
           <TabsContent value="orders_won" className="space-y-6">
