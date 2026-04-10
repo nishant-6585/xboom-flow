@@ -25,8 +25,8 @@ export function useNotifications() {
   const isInitialLoad = useRef(true);
 
   const showToastForNotification = useCallback((notification: Notification) => {
-    // Only show toasts for hot leads and mega deals
-    if (notification.type !== 'hot_lead' && notification.type !== 'mega_deal') {
+    // Show toasts for hot leads, mega deals, enquiry responses, and enquiry messages
+    if (notification.type !== 'hot_lead' && notification.type !== 'mega_deal' && notification.type !== 'enquiry_response' && notification.type !== 'enquiry_message') {
       return;
     }
 
@@ -38,14 +38,17 @@ export function useNotifications() {
     shownToastIds.current.add(notification.id);
 
     const isHotLead = notification.type === 'hot_lead';
+    const isEnquiry = notification.type === 'enquiry_response' || notification.type === 'enquiry_message';
     
     // Play sound alert
     playNotificationSound(isHotLead ? 'hot_lead' : 'mega_deal');
     
+    const icon = isHotLead ? '🔥' : isEnquiry ? (notification.type === 'enquiry_response' ? '📋' : '💬') : '🌟';
+    
     toast(notification.title, {
       description: notification.message,
       duration: 8000,
-      icon: isHotLead ? '🔥' : '🌟',
+      icon,
       action: {
         label: 'View',
         onClick: () => {
