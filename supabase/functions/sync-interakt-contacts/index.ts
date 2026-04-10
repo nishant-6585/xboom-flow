@@ -246,22 +246,26 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get existing phone numbers for duplicate detection
+    // Get existing leads for duplicate detection and date repair
     const { data: existingLeads } = await serviceClient
       .from("interakt_leads")
-      .select("phone_number");
+      .select("phone_number, interakt_created_at");
 
-    const existingPhones = new Set(
-      (existingLeads || []).map((l: { phone_number: string }) => l.phone_number)
+    const existingLeadMap = new Map(
+      (existingLeads || []).map((lead: { phone_number: string; interakt_created_at: string | null }) => [
+        lead.phone_number,
+        lead.interakt_created_at,
+      ])
     );
+    const existingPhones = new Set(existingLeadMap.keys());
 
     // Prepare batch insert
     let created = 0;
     let skipped = 0;
     const newLeads: Array<Record<string, unknown>> = [];
-    const leadsToBackfill: Array<{ phone: string; created_at: string }> = [];
+    const leadsToRepair: Array<{ phone: string; created_at: string }> = [];
 
-    // Current sync timestamp — used as "Created On" for all new leads
+    // Current sync timestamp — still useful as the sync event time fallback
     const syncTimestamp = new Date().toISOString();
 
     for (const contact of allContacts) {
@@ -278,13 +282,17 @@ Deno.serve(async (req) => {
 
       const countryCode = contact.countryCode || contact.country_code || "+91";
       const normalizedPhone = normalizePhone(rawPhone, countryCode);
+      const actualCreatedAt = contact.created_at_utc || contact.created_at || contact.createdAt || syncTimestamp;
 
       if (existingPhones.has(normalizedPhone)) {
-        // Backfill interakt_created_at for existing leads that are missing it
-        leadsToBackfill.push({
-          phone: normalizedPhone,
-          created_at: syncTimestamp,
-        });
+        const existingCreatedAt = existingLeadMap.get(normalizedPhone);
+
+        if (!existingCreatedAt || new Date(existingCreatedAt).getTime() > new Date(actualCreatedAt).getTime()) {
+          leadsToRepair.push({
+            phone: normalizedPhone,
+            created_at: actualCreatedAt,
+          });
+        }
 
         skipped++;
         continue;
@@ -316,11 +324,12 @@ Deno.serve(async (req) => {
         status: "new",
         interakt_user_id: contact.id || contact.userId || null,
         interakt_traits: traits,
-        interakt_created_at: syncTimestamp,
+        interakt_created_at: actualCreatedAt,
         synced_by: syncedByUserId,
       });
 
       existingPhones.add(normalizedPhone);
+      existingLeadMap.set(normalizedPhone, actualCreatedAt);
       created++;
     }
 
@@ -337,14 +346,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Backfill interakt_created_at for existing leads missing the date
+    // Repair incorrect/missing interakt_created_at values on existing leads
     let backfilled = 0;
-    for (const item of leadsToBackfill) {
+    for (const item of leadsToRepair) {
       const { error: updateError } = await serviceClient
         .from("interakt_leads")
         .update({ interakt_created_at: item.created_at })
-        .eq("phone_number", item.phone)
-        .is("interakt_created_at", null);
+        .eq("phone_number", item.phone);
 
       if (!updateError) backfilled++;
     }

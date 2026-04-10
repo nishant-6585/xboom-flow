@@ -123,7 +123,7 @@ export function InteraktAnalytics({ leads, prospects }: InteraktAnalyticsProps) 
               <span className="text-xs text-muted-foreground">Today</span>
             </div>
             <p className="text-2xl font-bold mt-1">{stats.day}</p>
-            <span className="text-[10px] text-muted-foreground">messages</span>
+            <span className="text-[10px] text-muted-foreground">new contacts</span>
           </CardContent>
         </Card>
 
@@ -134,7 +134,7 @@ export function InteraktAnalytics({ leads, prospects }: InteraktAnalyticsProps) 
               <span className="text-xs text-muted-foreground">This Week</span>
             </div>
             <p className="text-2xl font-bold mt-1">{stats.week}</p>
-            <span className="text-[10px] text-muted-foreground">messages</span>
+            <span className="text-[10px] text-muted-foreground">new contacts</span>
           </CardContent>
         </Card>
 
@@ -145,7 +145,7 @@ export function InteraktAnalytics({ leads, prospects }: InteraktAnalyticsProps) 
               <span className="text-xs text-muted-foreground">This Month</span>
             </div>
             <p className="text-2xl font-bold mt-1">{stats.month}</p>
-            <span className="text-[10px] text-muted-foreground">messages</span>
+            <span className="text-[10px] text-muted-foreground">new contacts</span>
           </CardContent>
         </Card>
 
@@ -185,7 +185,7 @@ export function InteraktAnalytics({ leads, prospects }: InteraktAnalyticsProps) 
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Message Volume Trend</CardTitle>
+              <CardTitle className="text-base">Interakt Contact Trend</CardTitle>
               <div className="flex gap-1">
                 <button
                   onClick={() => setPeriod('day')}
@@ -210,7 +210,7 @@ export function InteraktAnalytics({ leads, prospects }: InteraktAnalyticsProps) 
                 <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="messages" fill="hsl(var(--chart-2))" name="Messages" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="messages" fill="hsl(var(--chart-2))" name="New contacts" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="prospects" fill="hsl(var(--chart-4))" name="Prospects" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -284,7 +284,7 @@ export function InteraktAnalytics({ leads, prospects }: InteraktAnalyticsProps) 
               <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
               <Tooltip contentStyle={tooltipStyle} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Line type="monotone" dataKey="messages" stroke="hsl(var(--chart-3))" strokeWidth={2} name="Total Messages" dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="messages" stroke="hsl(var(--chart-3))" strokeWidth={2} name="Total contacts" dot={{ r: 3 }} />
               <Line type="monotone" dataKey="prospects" stroke="hsl(var(--chart-5))" strokeWidth={2} name="Prospects" dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
