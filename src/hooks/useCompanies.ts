@@ -187,20 +187,20 @@ export function useCompanyProspects(companyId: string | null) {
   return { prospects, loading };
 }
 
-export function useCompanyPipeline(companyId: string | null) {
+export function useCompanyPipeline(companyName: string | null) {
   const { data: pipeline = [], isLoading: loading } = useQuery({
-    queryKey: ['company-pipeline', companyId],
+    queryKey: ['company-pipeline', companyName],
     queryFn: async () => {
-      if (!companyId) return [];
+      if (!companyName) return [];
       const { data, error } = await supabase
         .from('pipeline_orders')
-        .select('id, customer_name, product_name, expected_value, status, lead_temperature, created_at')
-        .eq('company_id', companyId)
+        .select('id, customer_name, product_name, expected_price, status, lead_temperature, created_at')
+        .ilike('customer_company', companyName)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
     },
-    enabled: !!companyId,
+    enabled: !!companyName,
   });
   return { pipeline, loading };
 }
