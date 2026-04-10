@@ -262,7 +262,7 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="text-sm font-medium">{p.customer_name}</div>
-                              <div className="text-xs text-muted-foreground">{p.product_name} • ₹{((p.expected_value || 0) / 1000).toFixed(0)}K</div>
+                              <div className="text-xs text-muted-foreground">{p.product_name} • ₹{((p.expected_price || 0) / 1000).toFixed(0)}K</div>
                             </div>
                             <div className="flex items-center gap-1.5">
                               {p.lead_temperature && (
