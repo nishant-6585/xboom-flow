@@ -291,10 +291,10 @@ export function SalesCommandCenter({ onDateRangeChange }: { onDateRangeChange?: 
     };
 
     const fEnquiries = bySp(byDate(enquiries), 'sales_person_id');
-    const fInterakt = byDate(interaktLeads as any[]);
-    const fEmail = byDate(emailLeads as any[]);
-    const fCalls = byDate(callLogs as any[]);
-    const fForms = byDate(formLeads as any[]);
+    const fInterakt = byDate((interaktLeads as any[]).filter((l: any) => !l.is_enquiry_converted));
+    const fEmail = byDate((emailLeads as any[]).filter((l: any) => !l.is_enquiry_converted));
+    const fCalls = byDate((callLogs as any[]).filter((l: any) => !l.is_enquiry_converted));
+    const fForms = byDate((formLeads as any[]).filter((l: any) => !l.is_enquiry_converted));
     const fPipeline = bySp(byDate(pipelineOrders), 'sales_person_id');
     const fOrders = bySp(byDate(orders), 'sales_person_id');
     const fProspects = (() => {
