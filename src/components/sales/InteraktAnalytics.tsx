@@ -217,6 +217,12 @@ export function InteraktAnalytics({ leads, prospects }: InteraktAnalyticsProps) 
                 >
                   Weekly
                 </button>
+                <button
+                  onClick={() => setPeriod('month')}
+                  className={`px-3 py-1 text-xs rounded-md transition-colors ${period === 'month' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                >
+                  Monthly
+                </button>
               </div>
             </div>
           </CardHeader>
