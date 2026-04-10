@@ -525,6 +525,21 @@ export function LeadsPanel() {
                               notes={lead.notes}
                               isAlreadyAttention={attentionSourceIds.has(`enquiry:${lead.id}`)}
                             />
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    className="h-7 w-7 p-0 bg-blue-500/20 text-blue-500 border-blue-500/30 cursor-default"
+                                    disabled
+                                  >
+                                    <ClipboardList className="w-3.5 h-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Already an Enquiry</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </div>
                         </TableCell>
                         <TableCell>
