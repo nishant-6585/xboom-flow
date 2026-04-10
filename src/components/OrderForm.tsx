@@ -56,6 +56,7 @@ interface OrderFormProps {
   userRole?: 'sales' | 'sales_manager' | 'supply_chain' | 'admin';
   preSelectEnquiryId?: string;
   initialData?: OrderFormInitialData;
+  embedded?: boolean;
 }
 
 const STEPS = [
@@ -65,7 +66,7 @@ const STEPS = [
   { id: 4, title: 'Delivery', icon: Truck, description: 'Shipping & notes' },
 ];
 
-export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcurementRate = true, userRole = 'sales', preSelectEnquiryId, initialData }: OrderFormProps) {
+export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcurementRate = true, userRole = 'sales', preSelectEnquiryId, initialData, embedded = false }: OrderFormProps) {
   const canViewProcurement = userRole === 'admin' || userRole === 'supply_chain';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [salesTeam, setSalesTeam] = useState<SalesTeamMember[]>([]);
@@ -549,29 +550,9 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     </div>
   );
 
-  return (
-    <Card className="border-0 shadow-lg">
-      <CardHeader className="pb-4 border-b bg-gradient-to-r from-primary/5 to-transparent">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Package className="h-5 w-5 text-primary" />
-              </div>
-              Create New Order
-            </CardTitle>
-            <CardDescription className="mt-1">
-              Add a new customer order in just a few steps
-            </CardDescription>
-          </div>
-          <Badge variant="outline" className="hidden md:flex gap-1">
-            Step {currentStep} of {STEPS.length}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-6">
-        <form onSubmit={handleSubmit}>
-          <StepIndicator />
+  const formBody = (
+    <form onSubmit={handleSubmit}>
+      <StepIndicator />
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Form Area */}
@@ -1146,6 +1127,34 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
             </div>
           </div>
         </form>
+  );
+
+  if (embedded) {
+    return <div>{formBody}</div>;
+  }
+
+  return (
+    <Card className="border-0 shadow-lg">
+      <CardHeader className="pb-4 border-b bg-gradient-to-r from-primary/5 to-transparent">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Package className="h-5 w-5 text-primary" />
+              </div>
+              Create New Order
+            </CardTitle>
+            <CardDescription className="mt-1">
+              Add a new customer order in just a few steps
+            </CardDescription>
+          </div>
+          <Badge variant="outline" className="hidden md:flex gap-1">
+            Step {currentStep} of {STEPS.length}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-6">
+        {formBody}
       </CardContent>
     </Card>
   );

@@ -715,6 +715,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
             <ScrollArea className="max-h-[75vh] pr-4">
               {orderWonDialog && (
                 <OrderForm
+                  embedded
                   onSubmit={async (data, paymentFiles, orderItems, invoiceFile, poFiles) => {
                     const success = await createOrder(data, paymentFiles, orderItems, invoiceFile, poFiles);
                     if (success) {
@@ -730,6 +731,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                     customer_name: orderWonDialog.customer_name,
                     customer_company: orderWonDialog.customer_company,
                     customer_email: orderWonDialog.customer_email || undefined,
+                    customer_phone: orderWonDialog.customer_phone || undefined,
                     product_name: orderWonDialog.product_name,
                     product_category: orderWonDialog.product_category || undefined,
                     product_code: orderWonDialog.product_code || undefined,
