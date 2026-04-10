@@ -25,14 +25,12 @@ serve(async (req) => {
       });
     }
 
-    // Remove control characters, unpaired surrogates, and non-UTF8 safe chars
     const cleanedText = text
       .replace(/[\x00-\x1F\x7F]/g, '')
       .replace(/[\uD800-\uDFFF]/g, '')
       .replace(/[^\p{L}\p{N}\p{P}\p{Z}\p{S}]/gu, '')
       .trim();
 
-    // Sarah - natural female voice
     const selectedVoice = voiceId || 'EXAVITQu4vr4xnSDxMaL';
 
     const response = await fetch(
@@ -58,7 +56,27 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorBody = await response.text();
-      throw new Error(`ElevenLabs API error [${response.status}]: ${errorBody}`);
+      console.error(`ElevenLabs API error [${response.status}]:`, errorBody);
+
+      const isFallbackable = response.status === 429 || response.status >= 500;
+
+      if (isFallbackable) {
+        return new Response(
+          JSON.stringify({ error: 'SERVICE_UNAVAILABLE', fallback: true }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ error: `API error: ${response.status}` }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const audioBuffer = await response.arrayBuffer();
@@ -71,10 +89,12 @@ serve(async (req) => {
     });
   } catch (error: unknown) {
     console.error('TTS error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: 'SERVICE_FAILED', fallback: true }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 });
