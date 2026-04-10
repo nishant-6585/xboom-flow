@@ -412,8 +412,8 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Filters */}
-        <div className="flex gap-3">
-          <div className="relative flex-1 max-w-xs">
+        <div className="flex flex-wrap gap-3">
+          <div className="relative flex-1 max-w-xs min-w-[180px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search phone number..." value={searchPhone} onChange={(e) => setSearchPhone(e.target.value)} className="pl-8" />
           </div>
@@ -424,6 +424,24 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
               <SelectItem value="answered">Received</SelectItem>
               <SelectItem value="missed">Missed</SelectItem>
               <SelectItem value="busy">Busy</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
+            <SelectTrigger className="w-44"><SelectValue placeholder="Sales Person" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sales Persons</SelectItem>
+              {salesPersons.map(sp => (
+                <SelectItem key={sp} value={sp}>{sp}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={agentFilter} onValueChange={setAgentFilter}>
+            <SelectTrigger className="w-44"><SelectValue placeholder="Agent" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Agents</SelectItem>
+              {agents.map(ag => (
+                <SelectItem key={ag} value={ag}>{ag}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
