@@ -1426,6 +1426,7 @@ export type Database = {
           recruiter_id: string | null
           recruiter_name: string | null
           rejection_reason: string | null
+          relevant_experience_months: number | null
           relevant_experience_years: number | null
           remarks: string | null
           resume_url: string | null
@@ -1434,6 +1435,7 @@ export type Database = {
             | null
           source: string | null
           status: Database["public"]["Enums"]["candidate_status"]
+          total_experience_months: number | null
           updated_at: string
           years_of_experience: number | null
         }
@@ -1475,6 +1477,7 @@ export type Database = {
           recruiter_id?: string | null
           recruiter_name?: string | null
           rejection_reason?: string | null
+          relevant_experience_months?: number | null
           relevant_experience_years?: number | null
           remarks?: string | null
           resume_url?: string | null
@@ -1483,6 +1486,7 @@ export type Database = {
             | null
           source?: string | null
           status?: Database["public"]["Enums"]["candidate_status"]
+          total_experience_months?: number | null
           updated_at?: string
           years_of_experience?: number | null
         }
@@ -1524,6 +1528,7 @@ export type Database = {
           recruiter_id?: string | null
           recruiter_name?: string | null
           rejection_reason?: string | null
+          relevant_experience_months?: number | null
           relevant_experience_years?: number | null
           remarks?: string | null
           resume_url?: string | null
@@ -1532,6 +1537,7 @@ export type Database = {
             | null
           source?: string | null
           status?: Database["public"]["Enums"]["candidate_status"]
+          total_experience_months?: number | null
           updated_at?: string
           years_of_experience?: number | null
         }
