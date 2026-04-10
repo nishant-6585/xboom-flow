@@ -121,7 +121,7 @@ export function InteraktAnalytics({ leads, prospects }: InteraktAnalyticsProps) 
     };
   }, [leads, period, todayStart, weekStart, monthStart]);
 
-  const chartData = period === 'day' ? dailyData : weeklyData;
+  const chartData = period === 'day' ? dailyData : period === 'week' ? weeklyData : monthlyData;
 
   const tooltipStyle = {
     backgroundColor: 'hsl(var(--card))',
