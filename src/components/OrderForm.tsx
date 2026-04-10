@@ -550,18 +550,9 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     </div>
   );
 
-  const formContent = (
+  const formBody = (
     <form onSubmit={handleSubmit}>
       <StepIndicator />
-          </div>
-          <Badge variant="outline" className="hidden md:flex gap-1">
-            Step {currentStep} of {STEPS.length}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-6">
-        <form onSubmit={handleSubmit}>
-          <StepIndicator />
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Form Area */}
