@@ -236,11 +236,62 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [searchPhone, setSearchPhone] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [salesPersonFilter, setSalesPersonFilter] = useState("all");
+  const [agentFilter, setAgentFilter] = useState("all");
   const [selectedLog, setSelectedLog] = useState<CallLog | null>(null);
   const [expandedAudio, setExpandedAudio] = useState<string | null>(null);
   const prevIdsRef = useRef<Set<string>>(new Set());
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [editingLog, setEditingLog] = useState<CallLog | null>(null);
+
+  // Extract unique sales persons and agents from current logs for filter options
+  const { salesPersons, agents } = React.useMemo(() => {
+    const spSet = new Set<string>();
+    const agSet = new Set<string>();
+    logs.forEach(log => {
+      if (log.sales_person_name) spSet.add(log.sales_person_name);
+      const info = deriveCallInfo(log);
+      if (info.finalAgent) agSet.add(info.finalAgent);
+      // Also add individual agents from legs
+      const payload = parseRawPayload(log.raw_payload);
+      const legs: LegDetail[] = payload?._ld && Array.isArray(payload._ld) ? payload._ld as LegDetail[] : [];
+      for (const leg of legs) {
+        if (Array.isArray(leg._rr)) {
+          for (const r of leg._rr) {
+            if (r._na) agSet.add(r._na);
+          }
+        }
+      }
+    });
+    return {
+      salesPersons: Array.from(spSet).sort(),
+      agents: Array.from(agSet).sort(),
+    };
+  }, [logs]);
+
+  const filteredLogs = React.useMemo(() => {
+    let result = logs;
+    if (salesPersonFilter !== "all") {
+      result = result.filter(log => log.sales_person_name === salesPersonFilter);
+    }
+    if (agentFilter !== "all") {
+      result = result.filter(log => {
+        const info = deriveCallInfo(log);
+        // Check if this agent appears anywhere in the call legs
+        const payload = parseRawPayload(log.raw_payload);
+        const legs: LegDetail[] = payload?._ld && Array.isArray(payload._ld) ? payload._ld as LegDetail[] : [];
+        for (const leg of legs) {
+          if (Array.isArray(leg._rr)) {
+            for (const r of leg._rr) {
+              if (r._na === agentFilter) return true;
+            }
+          }
+        }
+        return info.finalAgent === agentFilter || info.agentDisplay.includes(agentFilter);
+      });
+    }
+    return result;
+  }, [logs, salesPersonFilter, agentFilter]);
 
   const fetchLogs = useCallback(async () => {
     let query = supabase
