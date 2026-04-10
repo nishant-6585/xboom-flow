@@ -72,6 +72,7 @@ export function useLeadDistributionDrillDown(
             let q = supabase
               .from("call_logs")
               .select("id, customer_name, product_name, company, created_at, caller_number")
+              .eq("is_enquiry_converted", false)
               .gte("created_at", startDate)
               .lte("created_at", endDateTime)
               .order("created_at", { ascending: false })
@@ -99,6 +100,7 @@ export function useLeadDistributionDrillDown(
             let q = supabase
               .from("form_leads")
               .select("id, customer_name, product_name, company, created_at")
+              .eq("is_enquiry_converted", false)
               .gte("created_at", startDate)
               .lte("created_at", endDateTime)
               .order("created_at", { ascending: false })
@@ -126,6 +128,7 @@ export function useLeadDistributionDrillDown(
             let q = supabase
               .from("email_leads")
               .select("id, customer_name, product_name, customer_company, created_at")
+              .eq("is_enquiry_converted", false)
               .gte("created_at", startDate)
               .lte("created_at", endDateTime)
               .order("created_at", { ascending: false })
@@ -153,6 +156,7 @@ export function useLeadDistributionDrillDown(
             let q = supabase
               .from("interakt_leads")
               .select("id, customer_name, product_name, company, created_at")
+              .eq("is_enquiry_converted", false)
               .gte("created_at", startDate)
               .lte("created_at", endDateTime)
               .order("created_at", { ascending: false })
