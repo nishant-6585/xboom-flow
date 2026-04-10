@@ -221,12 +221,14 @@ export function EnquiryConvertButton({
       if (error) throw error;
 
       // Mark source lead as enquiry-converted so it's excluded from lead analytics
-      const tableName = SOURCE_TABLE_MAP[sourceType];
-      if (tableName && tableName !== 'enquiries') {
-        await supabase
-          .from(tableName)
-          .update({ is_enquiry_converted: true } as any)
-          .eq('id', sourceId);
+      if (sourceType === 'myoperator') {
+        await supabase.from('call_logs').update({ is_enquiry_converted: true }).eq('id', sourceId);
+      } else if (sourceType === 'interakt') {
+        await supabase.from('interakt_leads').update({ is_enquiry_converted: true }).eq('id', sourceId);
+      } else if (sourceType === 'email') {
+        await supabase.from('email_leads').update({ is_enquiry_converted: true }).eq('id', sourceId);
+      } else if (sourceType === 'form_lead') {
+        await supabase.from('form_leads').update({ is_enquiry_converted: true }).eq('id', sourceId);
       }
 
       setConverted(true);
