@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { LeadMeetingsPanel } from "@/components/meetings/LeadMeetingsPanel";
+import { EnquiryMessageThread } from "@/components/enquiry/EnquiryMessageThread";
 import {
   Dialog,
   DialogContent,
@@ -370,6 +371,11 @@ export function EnquiryDialog({
                   {enquiry.admin_response_at && ` on ${new Date(enquiry.admin_response_at).toLocaleString()}`}
                 </p>
               </div>
+            )}
+
+            {/* Discussion Thread - show after initial response */}
+            {enquiry.responded_at && (
+              <EnquiryMessageThread enquiryId={enquiry.id} />
             )}
 
             {/* Response Form - Only show for supply chain or admin */}
