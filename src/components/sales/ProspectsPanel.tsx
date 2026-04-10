@@ -55,6 +55,8 @@ const TOOLTIP_STYLE = { background: 'hsl(var(--card))', border: '1px solid hsl(v
 export function ProspectsPanel() {
   const { prospects, loading, toggleACategory, updateStatus, updateProspectType, deleteProspect, refetch } = useProspects();
   const { user, role } = useAuth();
+  const { createOrder } = useOrders();
+  const { suppliers } = useSuppliers();
   const [search, setSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -64,6 +66,7 @@ export function ProspectsPanel() {
   const [dateEnd, setDateEnd] = useState<Date | undefined>();
   const [editingProspect, setEditingProspect] = useState<any>(null);
   const [analyticsPeriod, setAnalyticsPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'all'>('daily');
+  const [orderWonProspect, setOrderWonProspect] = useState<Prospect | null>(null);
 
   const filtered = prospects.filter(p => {
     const matchesSearch = !search ||
