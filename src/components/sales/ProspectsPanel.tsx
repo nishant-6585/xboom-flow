@@ -204,7 +204,7 @@ export function ProspectsPanel() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="day" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
                 <Bar dataKey="prospects" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Prospects" />
                 <Bar dataKey="aCategory" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="A-Category" />
               </BarChart>
@@ -222,7 +222,7 @@ export function ProspectsPanel() {
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis type="number" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                   <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={90} className="fill-muted-foreground" />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Prospects" />
                   <Bar dataKey="aCategory" fill="hsl(var(--destructive))" radius={[0, 4, 4, 0]} name="A-Category" />
@@ -248,7 +248,7 @@ export function ProspectsPanel() {
                   <Pie data={typeData} cx="50%" cy="50%" outerRadius={70} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
                     {typeData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -267,7 +267,7 @@ export function ProspectsPanel() {
                   <Pie data={sourceData} cx="50%" cy="50%" outerRadius={70} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
                     {sourceData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -285,7 +285,7 @@ export function ProspectsPanel() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis type="number" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={75} className="fill-muted-foreground" />
-                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                <RechartsTooltip contentStyle={TOOLTIP_STYLE} />
                 <Bar dataKey="count" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -478,7 +478,7 @@ export function ProspectsPanel() {
                           <div className="flex items-center gap-0.5">
                             {p.status !== 'converted' && p.status !== 'lost' && (
                               <TooltipProvider>
-                                <Tooltip>
+                                <UITooltip>
                                   <TooltipTrigger asChild>
                                     <Button
                                       variant="ghost"
@@ -490,8 +490,8 @@ export function ProspectsPanel() {
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>Mark as Order Won</TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
+                                </UITooltip>
+                                <UITooltip>
                                   <TooltipTrigger asChild>
                                     <Button
                                       variant="ghost"
@@ -503,7 +503,7 @@ export function ProspectsPanel() {
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>Mark as Order Lost</TooltipContent>
-                                </Tooltip>
+                                </UITooltip>
                               </TooltipProvider>
                             )}
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingProspect(p)}>
