@@ -28,7 +28,7 @@ import { ProspectsPanel } from "@/components/sales/ProspectsPanel";
 import { AttentionPanel } from "@/components/sales/AttentionPanel";
 import { FollowupsPanel } from "@/components/sales/FollowupsPanel";
 import { CallbacksPanel } from "@/components/sales/CallbacksPanel";
-
+import { CompaniesPanel } from "@/components/crm/CompaniesPanel";
 import { UntouchedLeadsPanel } from "@/components/sales/UntouchedLeadsPanel";
 import { UntouchedLoginAlert } from "@/components/sales/UntouchedLoginAlert";
 

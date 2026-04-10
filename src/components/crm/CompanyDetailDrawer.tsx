@@ -38,7 +38,7 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
   const { contacts, addContact, deleteContact } = useCompanyContacts(company?.id || null);
   const { orders } = useCompanyOrders(company?.id || null);
   const { prospects } = useCompanyProspects(company?.id || null);
-  const { pipeline } = useCompanyPipeline(company?.id || null);
+  const { pipeline } = useCompanyPipeline(company?.name || null);
   const [showAddContact, setShowAddContact] = useState(false);
   const [contactForm, setContactForm] = useState({ name: '', designation: '', phone: '', email: '' });
   const [addingContact, setAddingContact] = useState(false);
