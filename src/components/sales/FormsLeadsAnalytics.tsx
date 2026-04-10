@@ -4,7 +4,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, ResponsiveContainer, Legend } from "recharts";
-import { TrendingUp, Users, FileText, CheckCircle, Clock, AlertTriangle } from "lucide-react";
+import { TrendingUp, Users, FileText, CheckCircle, Clock, AlertTriangle, Calendar } from "lucide-react";
+import { startOfDay, startOfWeek, startOfMonth, subMonths, endOfMonth } from "date-fns";
 
 interface FormLead {
   id: string;
@@ -41,15 +42,36 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export function FormsLeadsAnalytics({ leads }: FormsLeadsAnalyticsProps) {
+  const [timePeriod, setTimePeriod] = useState<string>("all");
+
+  const filteredLeads = useMemo(() => {
+    if (timePeriod === "all") return leads;
+    const now = new Date();
+    let start: Date;
+    switch (timePeriod) {
+      case "today": start = startOfDay(now); break;
+      case "this_week": start = startOfWeek(now, { weekStartsOn: 1 }); break;
+      case "this_month": start = startOfMonth(now); break;
+      case "prev_month": {
+        const prev = subMonths(now, 1);
+        const pStart = startOfMonth(prev);
+        const pEnd = endOfMonth(prev);
+        return leads.filter(l => { const d = new Date(l.created_at); return d >= pStart && d <= pEnd; });
+      }
+      default: start = new Date(0);
+    }
+    return leads.filter(l => new Date(l.created_at) >= start);
+  }, [leads, timePeriod]);
+
   const stats = useMemo(() => {
-    const total = leads.length;
+    const total = filteredLeads.length;
     const byStatus: Record<string, number> = {};
     const byForm: Record<string, number> = {};
     const byAssignee: Record<string, number> = {};
     const byMonth: Record<string, number> = {};
     const byCity: Record<string, number> = {};
 
-    leads.forEach((l) => {
+    filteredLeads.forEach((l) => {
       byStatus[l.status] = (byStatus[l.status] || 0) + 1;
       byForm[l.form_name] = (byForm[l.form_name] || 0) + 1;
       const assignee = l.assigned_to_name || "Unassigned";
@@ -89,7 +111,7 @@ export function FormsLeadsAnalytics({ leads }: FormsLeadsAnalyticsProps) {
     const conversionRate = total > 0 ? ((convertedCount / total) * 100).toFixed(1) : "0";
 
     return { total, statusData, formData, assigneeData, trendData, topCities, newCount, contactedCount, qualifiedCount, convertedCount, conversionRate };
-  }, [leads]);
+  }, [filteredLeads]);
 
   const chartConfig = {
     count: { label: "Leads", color: "hsl(var(--primary))" },
