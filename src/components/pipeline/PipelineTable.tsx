@@ -461,8 +461,8 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                     <TableCell>{order.sales_person_name}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        {order.status !== 'won' && order.status !== 'lost' && (
-                          <TooltipProvider>
+                        <TooltipProvider>
+                          {order.status !== 'won' && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
@@ -476,6 +476,8 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                               </TooltipTrigger>
                               <TooltipContent>Mark as Order Won</TooltipContent>
                             </Tooltip>
+                          )}
+                          {order.status !== 'lost' && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
@@ -492,8 +494,8 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                               </TooltipTrigger>
                               <TooltipContent>Mark as Order Lost</TooltipContent>
                             </Tooltip>
-                          </TooltipProvider>
-                        )}
+                          )}
+                        </TooltipProvider>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditClick(order)}>
                           <Edit className="h-4 w-4" />
                         </Button>
