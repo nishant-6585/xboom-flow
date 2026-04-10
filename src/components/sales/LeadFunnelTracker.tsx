@@ -86,10 +86,10 @@ export function LeadFunnelTracker({ compact }: LeadFunnelTrackerProps) {
     const range = getRange(period);
 
     // Count leads by source in period
-    const interaktCount = (interaktLeads as any[]).filter(l => inRange(l.created_at, range)).length;
-    const myOpCount = callLogs.filter(l => inRange(l.created_at, range)).length;
-    const emailCount = (emailLeads as any[]).filter(l => inRange(l.created_at, range)).length;
-    const formCount = formLeads.filter(l => inRange(l.created_at, range)).length;
+    const interaktCount = (interaktLeads as any[]).filter(l => !l.is_enquiry_converted && inRange(l.created_at, range)).length;
+    const myOpCount = callLogs.filter(l => !(l as any).is_enquiry_converted && inRange(l.created_at, range)).length;
+    const emailCount = (emailLeads as any[]).filter(l => !l.is_enquiry_converted && inRange(l.created_at, range)).length;
+    const formCount = formLeads.filter(l => !(l as any).is_enquiry_converted && inRange(l.created_at, range)).length;
     const googleAdsCount = googleAdsLeads.filter(l => inRange(l.created_at, range)).length;
     const enquiryCount = enquiries.filter(e => inRange(e.created_at, range)).length;
 
