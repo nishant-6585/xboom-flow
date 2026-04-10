@@ -115,6 +115,10 @@ export default function Sales() {
                   <Star className="w-5 h-5" />
                   Mega Deals
                 </TabsTrigger>
+                <TabsTrigger value="companies" className={triggerPrimary}>
+                  <Building2 className="w-4 h-4" />
+                  Companies
+                </TabsTrigger>
               </TabsList>
             </div>
 
