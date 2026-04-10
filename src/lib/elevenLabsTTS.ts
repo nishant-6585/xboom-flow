@@ -4,7 +4,7 @@ import { playGeneratedAudio } from '@/lib/audioPlayback';
 const VOICE_PREF_KEY = 'xboom_voice_enabled';
 const VOICE_ID = 'EXAVITQu4vr4xnSDxMaL'; // Sarah - natural female voice
 const TTS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`;
-const MAX_TTS_LENGTH = 900; // ElevenLabs limit safety margin
+const MAX_TTS_LENGTH = 900;
 
 let currentAudioController: AbortController | null = null;
 
@@ -52,6 +52,23 @@ function stripForSpeech(md: string): string {
   return text.trim();
 }
 
+/** Browser Speech Synthesis fallback */
+function speakWithBrowser(text: string, onEnd?: () => void): void {
+  if (!('speechSynthesis' in window)) {
+    console.warn('[TTS] Browser does not support Speech Synthesis');
+    onEnd?.();
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'en-US';
+  utterance.rate = 1.0;
+  utterance.pitch = 1.0;
+  utterance.onend = () => onEnd?.();
+  utterance.onerror = () => onEnd?.();
+  window.speechSynthesis.speak(utterance);
+}
+
 export function isVoiceEnabled(): boolean {
   try {
     return localStorage.getItem(VOICE_PREF_KEY) !== 'off';
@@ -66,7 +83,7 @@ export function setVoiceEnabled(enabled: boolean): void {
   } catch { /* ignore */ }
 }
 
-/** Speak text using ElevenLabs TTS via edge function */
+/** Speak text using ElevenLabs TTS via edge function, with browser fallback */
 export async function speakWithElevenLabs(
   text: string,
   onEnd?: () => void,
@@ -75,7 +92,6 @@ export async function speakWithElevenLabs(
   const plainText = stripForSpeech(text);
   if (!plainText) { onEnd?.(); return; }
 
-  // Truncate if too long for TTS
   const speechText = plainText.length > MAX_TTS_LENGTH
     ? plainText.slice(0, MAX_TTS_LENGTH) + '...'
     : plainText;
@@ -96,6 +112,19 @@ export async function speakWithElevenLabs(
       signal,
     });
 
+    const contentType = response.headers.get('Content-Type') || '';
+
+    // Check if response is JSON (fallback signal or error)
+    if (contentType.includes('application/json')) {
+      const jsonData = await response.json();
+      if (jsonData?.fallback) {
+        console.warn('[TTS] ElevenLabs unavailable, falling back to browser TTS');
+        speakWithBrowser(speechText, onEnd);
+        return;
+      }
+      throw new Error(jsonData?.error || 'Unknown TTS error');
+    }
+
     if (!response.ok) {
       throw new Error(`TTS failed [${response.status}]`);
     }
@@ -110,7 +139,9 @@ export async function speakWithElevenLabs(
     if (error instanceof Error && error.name === 'AbortError') {
       // Intentional stop
     } else {
-      console.error('[ElevenLabs TTS] Error:', error);
+      console.warn('[TTS] ElevenLabs error, falling back to browser TTS:', error);
+      speakWithBrowser(speechText, onEnd);
+      return;
     }
     onEnd?.();
   }
@@ -121,6 +152,10 @@ export function stopElevenLabsSpeaking(): void {
   if (currentAudioController) {
     currentAudioController.abort();
     currentAudioController = null;
+  }
+  // Also stop browser TTS if active
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
   }
 }
 
