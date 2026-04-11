@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { Download } from "lucide-react";
+import { Download, Pencil } from "lucide-react";
 import type { DroneOperation } from "@/hooks/useDroneOperations";
 
 interface Props {
@@ -11,16 +11,25 @@ interface Props {
   operation: DroneOperation | null;
   employeeMap: Record<string, string>;
   onDownloadReport: (url: string) => void;
+  canEdit?: boolean;
+  onEdit?: (op: DroneOperation) => void;
 }
 
-export function OperationDetailDialog({ open, onOpenChange, operation, employeeMap, onDownloadReport }: Props) {
+export function OperationDetailDialog({ open, onOpenChange, operation, employeeMap, onDownloadReport, canEdit, onEdit }: Props) {
   if (!operation) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{operation.project_name}</DialogTitle>
+          <div className="flex items-center justify-between pr-6">
+            <DialogTitle>{operation.project_name}</DialogTitle>
+            {canEdit && onEdit && (
+              <Button variant="outline" size="sm" onClick={() => { onOpenChange(false); onEdit(operation); }}>
+                <Pencil className="h-4 w-4 mr-2" />Edit
+              </Button>
+            )}
+          </div>
         </DialogHeader>
         <div className="space-y-3 text-sm">
           <div className="grid grid-cols-2 gap-3">
@@ -29,6 +38,7 @@ export function OperationDetailDialog({ open, onOpenChange, operation, employeeM
             <div><span className="text-muted-foreground">Client:</span><br />{operation.client_name}</div>
             <div><span className="text-muted-foreground">Location:</span><br />{operation.location || "—"}</div>
             <div><span className="text-muted-foreground">Status:</span><br /><Badge variant="secondary">{operation.status}</Badge></div>
+            <div><span className="text-muted-foreground">Service Fee:</span><br />{operation.service_fee ? `₹${operation.service_fee.toLocaleString("en-IN")}` : "—"}</div>
           </div>
 
           {operation.equipment_used.length > 0 && (
