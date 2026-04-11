@@ -18,6 +18,7 @@ export interface DroneOperation {
   status: "Planned" | "In Progress" | "Completed" | "Cancelled";
   report_file_url: string | null;
   remarks: string | null;
+  service_fee: number | null;
 }
 
 export interface DroneOperationFormData {
@@ -31,6 +32,7 @@ export interface DroneOperationFormData {
   work_description: string;
   status: "Planned" | "In Progress" | "Completed" | "Cancelled";
   remarks: string;
+  service_fee: number;
 }
 
 export function useDroneOperations() {

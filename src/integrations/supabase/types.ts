@@ -2312,6 +2312,7 @@ export type Database = {
           project_name: string
           remarks: string | null
           report_file_url: string | null
+          service_fee: number | null
           status: string
           team_members: string[] | null
           updated_at: string
@@ -2329,6 +2330,7 @@ export type Database = {
           project_name: string
           remarks?: string | null
           report_file_url?: string | null
+          service_fee?: number | null
           status?: string
           team_members?: string[] | null
           updated_at?: string
@@ -2346,6 +2348,7 @@ export type Database = {
           project_name?: string
           remarks?: string | null
           report_file_url?: string | null
+          service_fee?: number | null
           status?: string
           team_members?: string[] | null
           updated_at?: string
