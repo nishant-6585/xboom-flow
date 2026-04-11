@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Pencil, Download, Trash2 } from "lucide-react";
+import { Eye, Trash2 } from "lucide-react";
 import type { DroneOperation } from "@/hooks/useDroneOperations";
 
 interface Props {
@@ -39,6 +39,7 @@ export function OperationsTable({ operations, employeeMap, canEdit, onView, onEd
             <TableHead>Project</TableHead>
             <TableHead>Client / Location</TableHead>
             <TableHead>Equipment</TableHead>
+            <TableHead>Service Fee</TableHead>
             <TableHead>Team</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Actions</TableHead>
@@ -46,10 +47,10 @@ export function OperationsTable({ operations, employeeMap, canEdit, onView, onEd
         </TableHeader>
         <TableBody>
           {operations.length === 0 && (
-            <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No operations found</TableCell></TableRow>
+            <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No operations found</TableCell></TableRow>
           )}
           {operations.map(op => (
-            <TableRow key={op.id}>
+            <TableRow key={op.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onView(op)}>
               <TableCell className="whitespace-nowrap text-sm">{format(new Date(op.activity_datetime), "dd MMM yyyy, hh:mm a")}</TableCell>
               <TableCell><Badge className={typeColors[op.activity_type] || ""} variant="secondary">{op.activity_type}</Badge></TableCell>
               <TableCell className="font-medium">{op.project_name}</TableCell>
@@ -65,6 +66,9 @@ export function OperationsTable({ operations, employeeMap, canEdit, onView, onEd
                   {op.equipment_used.length > 2 && <Badge variant="outline" className="text-xs">+{op.equipment_used.length - 2}</Badge>}
                 </div>
               </TableCell>
+              <TableCell className="whitespace-nowrap text-sm">
+                {op.service_fee ? `₹${op.service_fee.toLocaleString("en-IN")}` : "—"}
+              </TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1">
                   {op.team_members.slice(0, 2).map(id => (
@@ -75,10 +79,8 @@ export function OperationsTable({ operations, employeeMap, canEdit, onView, onEd
               </TableCell>
               <TableCell><Badge className={statusColors[op.status] || ""} variant="secondary">{op.status}</Badge></TableCell>
               <TableCell>
-                <div className="flex gap-1">
+                <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                   <Button variant="ghost" size="icon" onClick={() => onView(op)}><Eye className="h-4 w-4" /></Button>
-                  {canEdit && <Button variant="ghost" size="icon" onClick={() => onEdit(op)}><Pencil className="h-4 w-4" /></Button>}
-                  {op.report_file_url && <Button variant="ghost" size="icon" onClick={() => onDownloadReport(op.report_file_url!)}><Download className="h-4 w-4" /></Button>}
                   {canEdit && <Button variant="ghost" size="icon" onClick={() => onDelete(op.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                 </div>
               </TableCell>

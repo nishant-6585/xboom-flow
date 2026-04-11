@@ -250,6 +250,8 @@ export default function DroneOperations() {
         operation={viewingOp}
         employeeMap={employeeMap}
         onDownloadReport={handleDownloadReport}
+        canEdit={canEdit}
+        onEdit={op => { setViewingOp(null); setEditingOp(op); setShowForm(true); }}
       />
 
       <MobileBottomNav />
