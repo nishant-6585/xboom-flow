@@ -1,0 +1,1 @@
+ALTER TABLE public.drone_operations ADD COLUMN service_fee NUMERIC DEFAULT 0;
