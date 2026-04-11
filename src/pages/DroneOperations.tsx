@@ -149,7 +149,7 @@ export default function DroneOperations() {
       <main className="container mx-auto px-4 py-6 pb-24 sm:pb-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">Drones & Robotics Operations</h1>
+            <h1 className="text-2xl font-bold">Demo & Trainings Operations</h1>
             <p className="text-muted-foreground text-sm">Track demos, training, and field work activities</p>
           </div>
           <div className="flex gap-2">

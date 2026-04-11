@@ -35,6 +35,7 @@ export function OperationFormDialog({ open, onOpenChange, operation, onSubmit, e
     work_description: "",
     status: "Planned",
     remarks: "",
+    service_fee: 0,
   });
 
   useEffect(() => {
@@ -50,6 +51,7 @@ export function OperationFormDialog({ open, onOpenChange, operation, onSubmit, e
         work_description: operation.work_description || "",
         status: operation.status,
         remarks: operation.remarks || "",
+        service_fee: (operation as any).service_fee || 0,
       });
     } else {
       setForm({
@@ -63,6 +65,7 @@ export function OperationFormDialog({ open, onOpenChange, operation, onSubmit, e
         work_description: "",
         status: "Planned",
         remarks: "",
+        service_fee: 0,
       });
     }
     setReportFile(null);
