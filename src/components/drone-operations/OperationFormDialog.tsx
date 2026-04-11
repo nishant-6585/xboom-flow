@@ -129,7 +129,7 @@ export function OperationFormDialog({ open, onOpenChange, operation, onSubmit, e
               <Input value={form.client_name} onChange={e => setForm(f => ({ ...f, client_name: e.target.value }))} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <Label>Location</Label>
               <Input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
@@ -140,6 +140,10 @@ export function OperationFormDialog({ open, onOpenChange, operation, onSubmit, e
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>Service Fee (₹)</Label>
+              <Input type="number" min="0" value={form.service_fee} onChange={e => setForm(f => ({ ...f, service_fee: parseFloat(e.target.value) || 0 }))} />
             </div>
           </div>
 
