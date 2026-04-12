@@ -275,13 +275,18 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
 
   const filteredLogs = React.useMemo(() => {
     let result = logs;
+    if (missedOnly) {
+      result = result.filter(log => {
+        const info = deriveCallInfo(log);
+        return info.status === 'missed';
+      });
+    }
     if (salesPersonFilter !== "all") {
       result = result.filter(log => log.sales_person_name === salesPersonFilter);
     }
     if (agentFilter !== "all") {
       result = result.filter(log => {
         const info = deriveCallInfo(log);
-        // Check if this agent appears anywhere in the call legs
         const payload = parseRawPayload(log.raw_payload);
         const legs: LegDetail[] = payload?._ld && Array.isArray(payload._ld) ? payload._ld as LegDetail[] : [];
         for (const leg of legs) {
@@ -295,7 +300,24 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
       });
     }
     return result;
-  }, [logs, salesPersonFilter, agentFilter]);
+  }, [logs, salesPersonFilter, agentFilter, missedOnly]);
+
+  const handleAssignChange = async (logId: string, newName: string) => {
+    setUpdatingAssign(logId);
+    try {
+      const { error } = await supabase
+        .from('call_logs')
+        .update({ sales_person_name: newName })
+        .eq('id', logId);
+      if (error) throw error;
+      setLogs(prev => prev.map(l => l.id === logId ? { ...l, sales_person_name: newName } : l));
+      toast.success('Assigned person updated');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update');
+    } finally {
+      setUpdatingAssign(null);
+    }
+  };
 
   const fetchLogs = useCallback(async () => {
     let query = supabase
