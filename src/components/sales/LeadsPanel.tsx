@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,7 +57,11 @@ const LEAD_SOURCES = [
   'Other',
 ] as const;
 
-export function LeadsPanel() {
+interface LeadsPanelProps {
+  initialSearch?: string | null;
+}
+
+export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const { enquiries, loading, refetch } = useEnquiries();
   const { leads: interaktLeads, loading: interaktLoading, syncFromInterakt, syncing, updateLead, updating } = useInteraktLeads();
   const { prospects } = useProspects();
@@ -77,7 +81,10 @@ export function LeadsPanel() {
     attentionItems.forEach(a => set.add(`${a.source_type}:${a.source_id}`));
     return set;
   }, [attentionItems]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearch || '');
+  useEffect(() => {
+    if (initialSearch) setSearchQuery(initialSearch);
+  }, [initialSearch]);
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
