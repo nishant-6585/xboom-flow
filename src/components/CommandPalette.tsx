@@ -112,7 +112,7 @@ export function CommandPalette() {
                   route: `/orders?orderId=${o.id}`,
                 });
               });
-            }) as Promise<void>
+            }) as unknown as Promise<void>
         );
 
         // Search enquiries
