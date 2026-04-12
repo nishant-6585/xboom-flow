@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, UserPlus } from 'lucide-react';
+import { Loader2, UserPlus, CalendarIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { ProductSelect } from '@/components/ProductSelect';
@@ -13,6 +13,10 @@ import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { useProspects } from '@/hooks/useProspects';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface ProspectCreateDialogProps {
   open: boolean;
@@ -62,11 +66,27 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
     customer_type: '',
     prospect_type: '',
     urgency: 'medium',
-    requested_timeline: '',
+    requested_timeline: null as Date | null,
     purpose_of_purchase: '',
     status: 'new',
     notes: '',
+    default_price: null as number | null,
+    quoted_price: null as number | null,
   });
+
+  const discountAmount = useMemo(() => {
+    if (form.default_price && form.quoted_price && form.default_price > 0) {
+      return (form.default_price - form.quoted_price) * form.quantity;
+    }
+    return null;
+  }, [form.default_price, form.quoted_price, form.quantity]);
+
+  const discountPercentage = useMemo(() => {
+    if (form.default_price && form.quoted_price && form.default_price > 0) {
+      return ((form.default_price - form.quoted_price) / form.default_price) * 100;
+    }
+    return null;
+  }, [form.default_price, form.quoted_price]);
 
   useEffect(() => {
     if (open && prefillData) {
@@ -84,10 +104,12 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
         customer_type: prefillData.customer_type || '',
         prospect_type: prefillData.prospect_type || '',
         urgency: prefillData.urgency || 'medium',
-        requested_timeline: prefillData.requested_timeline || '',
+        requested_timeline: prefillData.requested_timeline ? new Date(prefillData.requested_timeline) : null,
         purpose_of_purchase: prefillData.purpose_of_purchase || '',
         status: 'new',
         notes: prefillData.notes || '',
+        default_price: prefillData.default_price || null,
+        quoted_price: prefillData.quoted_price || null,
       });
     }
   }, [open, prefillData]);
@@ -130,8 +152,12 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
         product_code: form.product_code.trim() || null,
         quantity: form.quantity,
         urgency: form.urgency,
-        requested_timeline: form.requested_timeline.trim() || null,
+        requested_timeline: form.requested_timeline ? format(form.requested_timeline, 'yyyy-MM-dd') : null,
         purpose_of_purchase: form.purpose_of_purchase || null,
+        default_price: form.default_price,
+        quoted_price: form.quoted_price,
+        discount_amount: discountAmount,
+        discount_percentage: discountPercentage ? Math.round(discountPercentage * 100) / 100 : null,
       } as any);
 
       onOpenChange(false);
@@ -209,6 +235,7 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
                   ...f,
                   product_name: name,
                   product_category: product?.product_category || f.product_category,
+                  default_price: product?.website_price || null,
                 }))}
                 placeholder="Select or type product..."
               />
@@ -233,6 +260,39 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
                 </Select>
               </div>
             </div>
+
+            {/* Pricing Section */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Default Price (₹)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={form.default_price ?? ''}
+                  onChange={(e) => setForm(f => ({ ...f, default_price: e.target.value ? parseFloat(e.target.value) : null }))}
+                  placeholder="Auto-fetched from product"
+                  className="bg-muted/50"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Quoted Price (₹)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={form.quoted_price ?? ''}
+                  onChange={(e) => setForm(f => ({ ...f, quoted_price: e.target.value ? parseFloat(e.target.value) : null }))}
+                  placeholder="Enter quoted price"
+                />
+              </div>
+            </div>
+
+            {discountAmount !== null && discountPercentage !== null && (
+              <div className="flex items-center gap-4 text-sm px-3 py-2 rounded-md bg-muted/50 border">
+                <span>Discount: <strong className={discountAmount >= 0 ? 'text-green-600' : 'text-destructive'}>₹{Math.abs(discountAmount).toLocaleString()}</strong></span>
+                <span>({Math.abs(discountPercentage).toFixed(1)}%)</span>
+                {discountAmount < 0 && <span className="text-destructive text-xs">(Premium over list price)</span>}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Purpose of Purchase</Label>
@@ -283,7 +343,26 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
 
             <div className="space-y-2">
               <Label>Requested Timeline</Label>
-              <Input value={form.requested_timeline} onChange={(e) => setForm(f => ({ ...f, requested_timeline: e.target.value }))} placeholder="e.g., 2 weeks, Urgent" />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn("w-full justify-start text-left font-normal", !form.requested_timeline && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {form.requested_timeline ? format(form.requested_timeline, 'PPP') : 'Pick a date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 z-[60]" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.requested_timeline || undefined}
+                    onSelect={(d) => setForm(f => ({ ...f, requested_timeline: d || null }))}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">

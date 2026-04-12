@@ -1,17 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Pencil } from 'lucide-react';
+import { Loader2, Pencil, CalendarIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { ProductSelect } from '@/components/ProductSelect';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import type { Prospect } from '@/hooks/useProspects';
 
 interface ProspectEditDialogProps {
@@ -46,33 +50,53 @@ export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: 
     quantity: 1,
     lead_source: '',
     urgency: 'medium',
-    requested_timeline: '',
+    requested_timeline: null as Date | null,
     purpose_of_purchase: '',
     prospect_type: '',
     status: 'new',
     notes: '',
+    default_price: null as number | null,
+    quoted_price: null as number | null,
   });
+
+  const discountAmount = useMemo(() => {
+    if (form.default_price && form.quoted_price && form.default_price > 0) {
+      return (form.default_price - form.quoted_price) * form.quantity;
+    }
+    return null;
+  }, [form.default_price, form.quoted_price, form.quantity]);
+
+  const discountPercentage = useMemo(() => {
+    if (form.default_price && form.quoted_price && form.default_price > 0) {
+      return ((form.default_price - form.quoted_price) / form.default_price) * 100;
+    }
+    return null;
+  }, [form.default_price, form.quoted_price]);
 
   useEffect(() => {
     if (prospect) {
+      const p = prospect as any;
+      const timeline = p.requested_timeline;
       setForm({
         customer_name: prospect.customer_name || '',
         phone_number: prospect.phone_number || '',
         email: prospect.email || '',
-        customer_company: (prospect as any).customer_company || '',
+        customer_company: p.customer_company || '',
         company: prospect.company || '',
         city: prospect.city || '',
         product_name: prospect.product_name || '',
-        product_category: (prospect as any).product_category || 'Consumer Drones',
-        product_code: (prospect as any).product_code || '',
-        quantity: (prospect as any).quantity || 1,
-        lead_source: (prospect as any).lead_source || '',
-        urgency: (prospect as any).urgency || 'medium',
-        requested_timeline: (prospect as any).requested_timeline || '',
-        purpose_of_purchase: (prospect as any).purpose_of_purchase || '',
-        prospect_type: (prospect as any).prospect_type || '',
+        product_category: p.product_category || 'Consumer Drones',
+        product_code: p.product_code || '',
+        quantity: p.quantity || 1,
+        lead_source: p.lead_source || '',
+        urgency: p.urgency || 'medium',
+        requested_timeline: timeline ? new Date(timeline) : null,
+        purpose_of_purchase: p.purpose_of_purchase || '',
+        prospect_type: p.prospect_type || '',
         status: prospect.status || 'new',
         notes: prospect.notes || '',
+        default_price: p.default_price ?? null,
+        quoted_price: p.quoted_price ?? null,
       });
     }
   }, [prospect]);
@@ -96,11 +120,15 @@ export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: 
           quantity: form.quantity,
           lead_source: form.lead_source || null,
           urgency: form.urgency,
-          requested_timeline: form.requested_timeline.trim() || null,
+          requested_timeline: form.requested_timeline ? format(form.requested_timeline, 'yyyy-MM-dd') : null,
           purpose_of_purchase: form.purpose_of_purchase || null,
           prospect_type: form.prospect_type || null,
           status: form.status,
           notes: form.notes.trim() || null,
+          default_price: form.default_price,
+          quoted_price: form.quoted_price,
+          discount_amount: discountAmount,
+          discount_percentage: discountPercentage ? Math.round(discountPercentage * 100) / 100 : null,
         } as Record<string, unknown>)
         .eq('id', prospect.id);
 
@@ -175,6 +203,7 @@ export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: 
                   ...f,
                   product_name: name,
                   product_category: product?.product_category || f.product_category,
+                  default_price: product?.website_price ?? f.default_price,
                 }))}
                 placeholder="Select or type product..."
               />
@@ -199,6 +228,39 @@ export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: 
                 </Select>
               </div>
             </div>
+
+            {/* Pricing Section */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Default Price (₹)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={form.default_price ?? ''}
+                  onChange={(e) => setForm(f => ({ ...f, default_price: e.target.value ? parseFloat(e.target.value) : null }))}
+                  placeholder="Auto-fetched from product"
+                  className="bg-muted/50"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Quoted Price (₹)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={form.quoted_price ?? ''}
+                  onChange={(e) => setForm(f => ({ ...f, quoted_price: e.target.value ? parseFloat(e.target.value) : null }))}
+                  placeholder="Enter quoted price"
+                />
+              </div>
+            </div>
+
+            {discountAmount !== null && discountPercentage !== null && (
+              <div className="flex items-center gap-4 text-sm px-3 py-2 rounded-md bg-muted/50 border">
+                <span>Discount: <strong className={discountAmount >= 0 ? 'text-green-600' : 'text-destructive'}>₹{Math.abs(discountAmount).toLocaleString()}</strong></span>
+                <span>({Math.abs(discountPercentage).toFixed(1)}%)</span>
+                {discountAmount < 0 && <span className="text-destructive text-xs">(Premium over list price)</span>}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Purpose of Purchase</Label>
@@ -250,7 +312,26 @@ export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: 
 
             <div className="space-y-2">
               <Label>Requested Timeline</Label>
-              <Input value={form.requested_timeline} onChange={(e) => setForm(f => ({ ...f, requested_timeline: e.target.value }))} placeholder="e.g., 2 weeks, Urgent" />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn("w-full justify-start text-left font-normal", !form.requested_timeline && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {form.requested_timeline ? format(form.requested_timeline, 'PPP') : 'Pick a date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 z-[60]" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.requested_timeline || undefined}
+                    onSelect={(d) => setForm(f => ({ ...f, requested_timeline: d || null }))}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">
