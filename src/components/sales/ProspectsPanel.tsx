@@ -499,7 +499,7 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                         </TableCell>
                         <TableCell><span className="text-xs text-muted-foreground">{format(new Date(p.created_at), 'dd MMM')}</span></TableCell>
                         <TableCell><span className="text-xs text-muted-foreground">{p.created_by_name}</span></TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-0.5">
                             {p.status !== 'converted' && p.status !== 'lost' && (
                               <TooltipProvider>
@@ -531,9 +531,6 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                                 </UITooltip>
                               </TooltipProvider>
                             )}
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingProspect(p)}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
