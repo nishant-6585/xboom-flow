@@ -215,14 +215,8 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
                 <Input value={form.city} onChange={(e) => setForm(f => ({ ...f, city: e.target.value }))} />
               </div>
               <div className="space-y-2">
-                <Label>Customer Type <span className="text-destructive">*</span></Label>
-                <Select value={form.customer_type || 'none'} onValueChange={(v) => setForm(f => ({ ...f, customer_type: v === 'none' ? '' : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select type..." /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">-- Select --</SelectItem>
-                    {CUSTOMER_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label>Lead Source</Label>
+                <Input value={form.lead_source} onChange={(e) => setForm(f => ({ ...f, lead_source: e.target.value }))} disabled className="bg-muted/50" />
               </div>
             </div>
 
@@ -384,7 +378,7 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
         </ScrollArea>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || !form.customer_name.trim() || !form.customer_type || !form.prospect_type}>
+          <Button onClick={handleSave} disabled={saving || !form.customer_name.trim() || !form.prospect_type}>
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             Convert to Prospect
           </Button>
