@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 const CUSTOMER_TYPES = [
   { value: 'B2C (Consumer)', label: 'B2C (Consumer)' },
@@ -17,6 +18,22 @@ const CUSTOMER_TYPES = [
   { value: 'B2G (Government)', label: 'B2G (Government)' },
   { value: 'Reseller', label: 'Reseller' },
 ];
+
+const PROSPECT_TYPES = [
+  { value: 'B2C', label: 'B2C' },
+  { value: 'B2B', label: 'B2B' },
+  { value: 'B2G', label: 'B2G' },
+  { value: 'Reseller', label: 'Reseller' },
+];
+
+const SOURCE_LABEL_MAP: Record<string, string> = {
+  myoperator: 'MyOperator',
+  interakt: 'Interakt',
+  form_lead: 'Website Form',
+  email: 'Email',
+  enquiry: 'Enquiry',
+  google_ads: 'Google Ads',
+};
 
 interface ProspectButtonProps {
   sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads';
@@ -54,6 +71,8 @@ export function ProspectButton({
   const [showTypeDialog, setShowTypeDialog] = useState(false);
   const [selectedCustomerType, setSelectedCustomerType] = useState(initialCustomerType || '');
   const [resolvedProduct, setResolvedProduct] = useState('');
+  const [editableName, setEditableName] = useState(customerName || '');
+  const [selectedProspectType, setSelectedProspectType] = useState('');
 
   const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -138,12 +157,22 @@ export function ProspectButton({
 
     setResolvedProduct(resolvedProductName);
     setSelectedCustomerType(prefilledType);
+    setEditableName(customerName || '');
+    setSelectedProspectType('');
     setShowTypeDialog(true);
   };
 
   const handleConfirmProspect = async () => {
+    if (!editableName.trim()) {
+      toast.error('Please enter a Customer Name before proceeding.');
+      return;
+    }
     if (!selectedCustomerType) {
       toast.error('Please select a Customer Type before proceeding.');
+      return;
+    }
+    if (!selectedProspectType) {
+      toast.error('Please select a Prospect Type before proceeding.');
       return;
     }
     if (!user || !profile) return;
@@ -154,7 +183,7 @@ export function ProspectButton({
       const prospectData = {
         source_type: sourceType,
         source_id: sourceId,
-        customer_name: customerName,
+        customer_name: editableName.trim(),
         phone_number: phoneNumber || null,
         email: email || null,
         company: company || null,
@@ -165,6 +194,8 @@ export function ProspectButton({
         status: 'new',
         created_by: user.id,
         created_by_name: profile.name,
+        lead_source: SOURCE_LABEL_MAP[sourceType] || sourceType,
+        prospect_type: selectedProspectType,
       } as any;
       prospectData.customer_type = selectedCustomerType;
       const result = await addProspect(prospectData);
@@ -203,15 +234,24 @@ export function ProspectButton({
         </TooltipContent>
       </Tooltip>
 
-      {/* Customer Type Selection Dialog */}
+      {/* Convert to Prospect Dialog */}
       <Dialog open={showTypeDialog} onOpenChange={setShowTypeDialog}>
         <DialogContent className="max-w-sm" onClick={(e) => e.stopPropagation()}>
           <DialogHeader>
-            <DialogTitle>Select Customer Type</DialogTitle>
+            <DialogTitle>Convert to Prospect</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <div className="text-sm text-muted-foreground">
-              Converting <span className="font-medium text-foreground">{customerName}</span> to Prospect
+            <div className="text-xs text-muted-foreground">
+              Source: <span className="font-medium text-foreground">{SOURCE_LABEL_MAP[sourceType] || sourceType}</span>
+            </div>
+            <div>
+              <Label>Customer Name <span className="text-destructive">*</span></Label>
+              <Input
+                className="mt-1"
+                value={editableName}
+                onChange={(e) => setEditableName(e.target.value)}
+                placeholder="Enter customer name..."
+              />
             </div>
             <div>
               <Label>Customer Type <span className="text-destructive">*</span></Label>
@@ -226,10 +266,23 @@ export function ProspectButton({
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>Prospect Type <span className="text-destructive">*</span></Label>
+              <Select value={selectedProspectType} onValueChange={setSelectedProspectType}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select prospect type..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROSPECT_TYPES.map(t => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowTypeDialog(false)}>Cancel</Button>
-            <Button onClick={handleConfirmProspect} disabled={!selectedCustomerType}>
+            <Button onClick={handleConfirmProspect} disabled={!selectedCustomerType || !editableName.trim() || !selectedProspectType}>
               Confirm
             </Button>
           </DialogFooter>

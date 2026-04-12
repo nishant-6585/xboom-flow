@@ -11,7 +11,7 @@ import { useProspects, Prospect } from '@/hooks/useProspects';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrders } from '@/hooks/useOrders';
 import { useSuppliers } from '@/hooks/useSuppliers';
-import { Target, Search, Loader2, Star, Filter, TrendingUp, Calendar, Users, Phone, MessageCircle, Package, Pencil, UserCheck, FileText, Trash2 } from 'lucide-react';
+import { Target, Search, Loader2, Star, Filter, TrendingUp, Calendar, Users, Phone, MessageCircle, Package, UserCheck, FileText, Trash2 } from 'lucide-react';
 import { Tooltip as UITooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format, startOfDay, endOfDay, startOfWeek, startOfMonth } from 'date-fns';
@@ -453,8 +453,8 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                   </TableHeader>
                   <TableBody>
                     {filtered.map((p) => (
-                      <TableRow key={p.id} className={`hover:bg-muted/50 ${p.is_a_category ? 'bg-destructive/5' : ''}`}>
-                        <TableCell>
+                      <TableRow key={p.id} className={`hover:bg-muted/50 cursor-pointer ${p.is_a_category ? 'bg-destructive/5' : ''}`} onClick={() => setEditingProspect(p)}>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <ACategoryButton
                             sourceType={p.source_type}
                             sourceId={p.source_id}
@@ -473,7 +473,7 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                         <TableCell><span className="text-sm">{p.company || '—'}</span></TableCell>
                         <TableCell><span className="text-sm">{p.city || '—'}</span></TableCell>
                         <TableCell><span className="text-sm">{p.product_name || '—'}</span></TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <Select value={(p as any).prospect_type || 'none'} onValueChange={(v) => updateProspectType({ id: p.id, prospectType: v === 'none' ? null : v })}>
                             <SelectTrigger className="h-7 text-xs w-[90px]">
                               <SelectValue placeholder="—" />
@@ -487,7 +487,7 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <Select value={p.status} onValueChange={(v) => updateStatus({ id: p.id, status: v })}>
                             <SelectTrigger className="h-7 text-xs w-[100px]">
                               <SelectValue />
@@ -499,7 +499,7 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                         </TableCell>
                         <TableCell><span className="text-xs text-muted-foreground">{format(new Date(p.created_at), 'dd MMM')}</span></TableCell>
                         <TableCell><span className="text-xs text-muted-foreground">{p.created_by_name}</span></TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-0.5">
                             {p.status !== 'converted' && p.status !== 'lost' && (
                               <TooltipProvider>
@@ -531,9 +531,6 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                                 </UITooltip>
                               </TooltipProvider>
                             )}
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingProspect(p)}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
