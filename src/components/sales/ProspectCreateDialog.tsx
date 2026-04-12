@@ -25,17 +25,10 @@ interface ProspectCreateDialogProps {
   onCreated: (prospectId: string) => void;
 }
 
-const CUSTOMER_TYPES = [
-  { value: 'B2C (Consumer)', label: 'B2C (Consumer)' },
-  { value: 'B2B (Business)', label: 'B2B (Business)' },
-  { value: 'B2G (Government)', label: 'B2G (Government)' },
-  { value: 'Reseller', label: 'Reseller' },
-];
-
 const PROSPECT_TYPES = [
-  { value: 'B2C', label: 'B2C' },
-  { value: 'B2B', label: 'B2B' },
-  { value: 'B2G', label: 'B2G' },
+  { value: 'B2C', label: 'B2C (Consumer)' },
+  { value: 'B2B', label: 'B2B (Business)' },
+  { value: 'B2G', label: 'B2G (Government)' },
   { value: 'Reseller', label: 'Reseller' },
 ];
 
@@ -70,7 +63,6 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
     product_code: '',
     quantity: 1,
     lead_source: '',
-    customer_type: '',
     prospect_type: '',
     lead_quality: 'hot',
     urgency: 'medium',
@@ -109,8 +101,7 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
         product_code: prefillData.product_code || '',
         quantity: prefillData.quantity || 1,
         lead_source: prefillData.lead_source || '',
-        customer_type: prefillData.customer_type || '',
-        prospect_type: prefillData.prospect_type || '',
+        prospect_type: prefillData.prospect_type || prefillData.customer_type || '',
         lead_quality: prefillData.lead_quality || 'hot',
         urgency: prefillData.urgency || 'medium',
         requested_timeline: prefillData.requested_timeline ? new Date(prefillData.requested_timeline) : null,
@@ -128,8 +119,8 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
       toast.error('Customer Name is required');
       return;
     }
-    if (!form.customer_type) {
-      toast.error('Customer Type is required');
+    if (!form.prospect_type) {
+      toast.error('Prospect Type is required');
       return;
     }
     if (!form.prospect_type) {
@@ -156,7 +147,7 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
         created_by_name: profile.name,
         lead_source: form.lead_source,
         prospect_type: form.prospect_type,
-        customer_type: form.customer_type,
+        customer_type: form.prospect_type,
         lead_quality: form.lead_quality,
         product_category: form.product_category,
         product_code: form.product_code.trim() || null,
@@ -224,14 +215,8 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
                 <Input value={form.city} onChange={(e) => setForm(f => ({ ...f, city: e.target.value }))} />
               </div>
               <div className="space-y-2">
-                <Label>Customer Type <span className="text-destructive">*</span></Label>
-                <Select value={form.customer_type || 'none'} onValueChange={(v) => setForm(f => ({ ...f, customer_type: v === 'none' ? '' : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select type..." /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">-- Select --</SelectItem>
-                    {CUSTOMER_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label>Lead Source</Label>
+                <Input value={form.lead_source} onChange={(e) => setForm(f => ({ ...f, lead_source: e.target.value }))} disabled className="bg-muted/50" />
               </div>
             </div>
 
@@ -393,7 +378,7 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
         </ScrollArea>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || !form.customer_name.trim() || !form.customer_type || !form.prospect_type}>
+          <Button onClick={handleSave} disabled={saving || !form.customer_name.trim() || !form.prospect_type}>
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             Convert to Prospect
           </Button>

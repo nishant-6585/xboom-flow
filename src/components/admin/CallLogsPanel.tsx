@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle, Pencil } from "lucide-react";
+import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle } from "lucide-react";
 import { CallLogEditDialog } from './CallLogEditDialog';
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -238,11 +238,15 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [statusFilter, setStatusFilter] = useState("all");
   const [salesPersonFilter, setSalesPersonFilter] = useState("all");
   const [agentFilter, setAgentFilter] = useState("all");
+  const [missedOnly, setMissedOnly] = useState(false);
   const [selectedLog, setSelectedLog] = useState<CallLog | null>(null);
   const [expandedAudio, setExpandedAudio] = useState<string | null>(null);
   const prevIdsRef = useRef<Set<string>>(new Set());
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [editingLog, setEditingLog] = useState<CallLog | null>(null);
+  const [updatingAssign, setUpdatingAssign] = useState<string | null>(null);
+
+  const SALES_PERSONS_LIST = ['suman das', 'Narasimha', 'mohammed musthak', 'Arjav chauhan'];
 
   // Extract unique sales persons and agents from current logs for filter options
   const { salesPersons, agents } = React.useMemo(() => {
@@ -271,13 +275,18 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
 
   const filteredLogs = React.useMemo(() => {
     let result = logs;
+    if (missedOnly) {
+      result = result.filter(log => {
+        const info = deriveCallInfo(log);
+        return info.status === 'missed';
+      });
+    }
     if (salesPersonFilter !== "all") {
       result = result.filter(log => log.sales_person_name === salesPersonFilter);
     }
     if (agentFilter !== "all") {
       result = result.filter(log => {
         const info = deriveCallInfo(log);
-        // Check if this agent appears anywhere in the call legs
         const payload = parseRawPayload(log.raw_payload);
         const legs: LegDetail[] = payload?._ld && Array.isArray(payload._ld) ? payload._ld as LegDetail[] : [];
         for (const leg of legs) {
@@ -291,7 +300,24 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
       });
     }
     return result;
-  }, [logs, salesPersonFilter, agentFilter]);
+  }, [logs, salesPersonFilter, agentFilter, missedOnly]);
+
+  const handleAssignChange = async (logId: string, newName: string) => {
+    setUpdatingAssign(logId);
+    try {
+      const { error } = await supabase
+        .from('call_logs')
+        .update({ sales_person_name: newName })
+        .eq('id', logId);
+      if (error) throw error;
+      setLogs(prev => prev.map(l => l.id === logId ? { ...l, sales_person_name: newName } : l));
+      toast.success('Assigned person updated');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update');
+    } finally {
+      setUpdatingAssign(null);
+    }
+  };
 
   const fetchLogs = useCallback(async () => {
     let query = supabase
@@ -444,6 +470,15 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
               ))}
             </SelectContent>
           </Select>
+          <Button
+            variant={missedOnly ? "destructive" : "outline"}
+            size="sm"
+            onClick={() => setMissedOnly(!missedOnly)}
+            className="shrink-0"
+          >
+            <PhoneMissed className="w-4 h-4 mr-1" />
+            {missedOnly ? 'Showing Missed' : 'Missed Calls'}
+          </Button>
         </div>
 
         {loading && logs.length === 0 ? (
@@ -481,10 +516,11 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                     <React.Fragment key={log.id}>
                       <TableRow
                         key={log.id}
-                        className={newIds.has(log.id) ? "bg-primary/10 animate-pulse border-l-4 border-l-primary" : ""}
+                        className={`cursor-pointer ${info.status === 'missed' ? 'bg-red-500/5' : ''} ${newIds.has(log.id) ? "bg-primary/10 animate-pulse border-l-4 border-l-primary" : ""}`}
+                        onClick={() => setEditingLog(log)}
                       >
                         <TableCell className="pr-0">{statusIcon(info.status)}</TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex gap-1">
                             <ProspectButton
                               sourceType="myoperator"
@@ -520,11 +556,11 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                             />
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-sm font-medium text-primary">
+                        <TableCell className={`font-mono text-sm font-medium ${info.status === 'missed' ? 'text-red-500' : 'text-primary'}`}>
                           {log.full_number || log.caller_number}
                         </TableCell>
                         <TableCell className="text-sm">
-                          <div>{info.whatText}</div>
+                          <div className={info.status === 'missed' ? 'text-red-500 font-medium' : ''}>{info.whatText}</div>
                           {info.finalAgent && info.status === 'answered' && (
                             <div className="text-xs text-green-600 font-medium mt-0.5">
                               Final Agent: {info.finalAgent}
@@ -549,8 +585,22 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                             </div>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm">
-                          <span className="text-muted-foreground">{log.sales_person_name || log.assigned_agent_name || log.agent_name || '—'}</span>
+                        <TableCell className="text-sm" onClick={(e) => e.stopPropagation()}>
+                          <Select
+                            value={log.sales_person_name || 'unassigned'}
+                            onValueChange={(v) => handleAssignChange(log.id, v === 'unassigned' ? '' : v)}
+                            disabled={updatingAssign === log.id}
+                          >
+                            <SelectTrigger className="h-8 w-36 text-xs">
+                              <SelectValue placeholder="Assign..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unassigned">— Unassigned —</SelectItem>
+                              {SALES_PERSONS_LIST.map(sp => (
+                                <SelectItem key={sp} value={sp}>{sp}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                           <div>{formatCallTime(info.startTime, log.created_at)}</div>
@@ -559,7 +609,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                         <TableCell className="text-sm">
                           {info.duration ? formatDuration(info.duration) : "—"}
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           {info.recordingFile ? (
                             <Button
                               variant="ghost"
@@ -577,21 +627,15 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                             <span className="text-muted-foreground text-xs">—</span>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingLog(log)}>
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
-                              <Eye className="w-4 h-4 mr-1" /> Details
-                            </Button>
-                          </div>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
+                            <Eye className="w-4 h-4 mr-1" /> Details
+                          </Button>
                         </TableCell>
                       </TableRow>
-                      {/* Inline audio player row */}
                       {expandedAudio === logKey && info.recordingFile && (
                         <TableRow key={`${log.id}-audio`}>
-                          <TableCell colSpan={8} className="py-2 px-4">
+                          <TableCell colSpan={9} className="py-2 px-4">
                             <InlineAudioPlayer recordingFile={info.recordingFile} duration={info.duration} autoPlay />
                           </TableCell>
                         </TableRow>
