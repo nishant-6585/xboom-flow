@@ -293,7 +293,7 @@ export function CommandPalette() {
                     route: `/candidates`,
                   });
                 });
-              })
+              }) as unknown as Promise<void>
           );
         }
 
