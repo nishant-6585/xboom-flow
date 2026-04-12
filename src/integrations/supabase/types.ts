@@ -8002,6 +8002,9 @@ export type Database = {
           customer_company: string | null
           customer_name: string
           customer_type: string | null
+          default_price: number | null
+          discount_amount: number | null
+          discount_percentage: number | null
           email: string | null
           id: string
           is_a_category: boolean
@@ -8014,6 +8017,7 @@ export type Database = {
           prospect_type: string | null
           purpose_of_purchase: string | null
           quantity: number | null
+          quoted_price: number | null
           requested_timeline: string | null
           source_id: string
           source_type: string
@@ -8033,6 +8037,9 @@ export type Database = {
           customer_company?: string | null
           customer_name: string
           customer_type?: string | null
+          default_price?: number | null
+          discount_amount?: number | null
+          discount_percentage?: number | null
           email?: string | null
           id?: string
           is_a_category?: boolean
@@ -8045,6 +8052,7 @@ export type Database = {
           prospect_type?: string | null
           purpose_of_purchase?: string | null
           quantity?: number | null
+          quoted_price?: number | null
           requested_timeline?: string | null
           source_id: string
           source_type: string
@@ -8064,6 +8072,9 @@ export type Database = {
           customer_company?: string | null
           customer_name?: string
           customer_type?: string | null
+          default_price?: number | null
+          discount_amount?: number | null
+          discount_percentage?: number | null
           email?: string | null
           id?: string
           is_a_category?: boolean
@@ -8076,6 +8087,7 @@ export type Database = {
           prospect_type?: string | null
           purpose_of_purchase?: string | null
           quantity?: number | null
+          quoted_price?: number | null
           requested_timeline?: string | null
           source_id?: string
           source_type?: string
