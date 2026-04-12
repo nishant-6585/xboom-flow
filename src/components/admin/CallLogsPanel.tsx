@@ -470,6 +470,15 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
               ))}
             </SelectContent>
           </Select>
+          <Button
+            variant={missedOnly ? "destructive" : "outline"}
+            size="sm"
+            onClick={() => setMissedOnly(!missedOnly)}
+            className="shrink-0"
+          >
+            <PhoneMissed className="w-4 h-4 mr-1" />
+            {missedOnly ? 'Showing Missed' : 'Missed Calls'}
+          </Button>
         </div>
 
         {loading && logs.length === 0 ? (
