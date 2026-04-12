@@ -132,7 +132,7 @@ export function CommandPalette() {
                   route: `/sales?tab=enquiries&leadId=${e.id}`,
                 });
               });
-            })
+            }) as unknown as Promise<void>
         );
 
         // Search invoices
@@ -152,7 +152,7 @@ export function CommandPalette() {
                   route: `/billing?invoiceId=${i.id}`,
                 });
               });
-            })
+            }) as unknown as Promise<void>
         );
 
         // Search suppliers
@@ -172,7 +172,7 @@ export function CommandPalette() {
                   route: `/suppliers?supplierId=${s.id}`,
                 });
               });
-            })
+            }) as unknown as Promise<void>
         );
 
         // Search inventory
@@ -192,7 +192,7 @@ export function CommandPalette() {
                   route: `/inventory`,
                 });
               });
-            })
+            }) as unknown as Promise<void>
         );
 
         // Search pipeline orders
@@ -212,7 +212,7 @@ export function CommandPalette() {
                   route: `/sales?tab=pipeline`,
                 });
               });
-            })
+            }) as unknown as Promise<void>
         );
 
         // Search prospects
@@ -232,7 +232,7 @@ export function CommandPalette() {
                   route: `/sales?tab=prospects`,
                 });
               });
-            })
+            }) as unknown as Promise<void>
         );
 
         // Search companies
@@ -252,7 +252,7 @@ export function CommandPalette() {
                   route: `/sales?tab=companies`,
                 });
               });
-            })
+            }) as unknown as Promise<void>
         );
 
         // Search call logs
@@ -272,7 +272,7 @@ export function CommandPalette() {
                   route: `/sales?tab=calls`,
                 });
               });
-            })
+            }) as unknown as Promise<void>
         );
 
         // Search candidates (HR/Admin only)
