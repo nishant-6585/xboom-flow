@@ -49,6 +49,7 @@ export default function Sales() {
   // Read tab and leadId from URL params (reactive to changes)
   const urlTab = searchParams.get("tab");
   const urlLeadId = searchParams.get("leadId");
+  const urlSearch = searchParams.get("search");
   const [activeTab, setActiveTab] = useState(urlTab || "manager");
 
   // Handle URL params for tab navigation — react to every change
@@ -213,7 +214,7 @@ export default function Sales() {
 
 
           <TabsContent value="leads" className="space-y-6">
-            <LeadsPanel />
+            <LeadsPanel initialSearch={urlSearch} />
           </TabsContent>
 
           {canAccessEnquiries && (
