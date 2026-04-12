@@ -157,12 +157,22 @@ export function ProspectButton({
 
     setResolvedProduct(resolvedProductName);
     setSelectedCustomerType(prefilledType);
+    setEditableName(customerName || '');
+    setSelectedProspectType('');
     setShowTypeDialog(true);
   };
 
   const handleConfirmProspect = async () => {
+    if (!editableName.trim()) {
+      toast.error('Please enter a Customer Name before proceeding.');
+      return;
+    }
     if (!selectedCustomerType) {
       toast.error('Please select a Customer Type before proceeding.');
+      return;
+    }
+    if (!selectedProspectType) {
+      toast.error('Please select a Prospect Type before proceeding.');
       return;
     }
     if (!user || !profile) return;
@@ -173,7 +183,7 @@ export function ProspectButton({
       const prospectData = {
         source_type: sourceType,
         source_id: sourceId,
-        customer_name: customerName,
+        customer_name: editableName.trim(),
         phone_number: phoneNumber || null,
         email: email || null,
         company: company || null,
@@ -184,6 +194,8 @@ export function ProspectButton({
         status: 'new',
         created_by: user.id,
         created_by_name: profile.name,
+        lead_source: SOURCE_LABEL_MAP[sourceType] || sourceType,
+        prospect_type: selectedProspectType,
       } as any;
       prospectData.customer_type = selectedCustomerType;
       const result = await addProspect(prospectData);
