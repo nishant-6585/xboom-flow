@@ -234,15 +234,24 @@ export function ProspectButton({
         </TooltipContent>
       </Tooltip>
 
-      {/* Customer Type Selection Dialog */}
+      {/* Convert to Prospect Dialog */}
       <Dialog open={showTypeDialog} onOpenChange={setShowTypeDialog}>
         <DialogContent className="max-w-sm" onClick={(e) => e.stopPropagation()}>
           <DialogHeader>
-            <DialogTitle>Select Customer Type</DialogTitle>
+            <DialogTitle>Convert to Prospect</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <div className="text-sm text-muted-foreground">
-              Converting <span className="font-medium text-foreground">{customerName}</span> to Prospect
+            <div className="text-xs text-muted-foreground">
+              Source: <span className="font-medium text-foreground">{SOURCE_LABEL_MAP[sourceType] || sourceType}</span>
+            </div>
+            <div>
+              <Label>Customer Name <span className="text-destructive">*</span></Label>
+              <Input
+                className="mt-1"
+                value={editableName}
+                onChange={(e) => setEditableName(e.target.value)}
+                placeholder="Enter customer name..."
+              />
             </div>
             <div>
               <Label>Customer Type <span className="text-destructive">*</span></Label>
@@ -257,10 +266,23 @@ export function ProspectButton({
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>Prospect Type <span className="text-destructive">*</span></Label>
+              <Select value={selectedProspectType} onValueChange={setSelectedProspectType}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select prospect type..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROSPECT_TYPES.map(t => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowTypeDialog(false)}>Cancel</Button>
-            <Button onClick={handleConfirmProspect} disabled={!selectedCustomerType}>
+            <Button onClick={handleConfirmProspect} disabled={!selectedCustomerType || !editableName.trim() || !selectedProspectType}>
               Confirm
             </Button>
           </DialogFooter>
