@@ -82,6 +82,9 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
     return set;
   }, [attentionItems]);
   const [searchQuery, setSearchQuery] = useState(initialSearch || '');
+  useEffect(() => {
+    if (initialSearch) setSearchQuery(initialSearch);
+  }, [initialSearch]);
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
