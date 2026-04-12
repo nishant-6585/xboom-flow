@@ -238,11 +238,15 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [statusFilter, setStatusFilter] = useState("all");
   const [salesPersonFilter, setSalesPersonFilter] = useState("all");
   const [agentFilter, setAgentFilter] = useState("all");
+  const [missedOnly, setMissedOnly] = useState(false);
   const [selectedLog, setSelectedLog] = useState<CallLog | null>(null);
   const [expandedAudio, setExpandedAudio] = useState<string | null>(null);
   const prevIdsRef = useRef<Set<string>>(new Set());
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [editingLog, setEditingLog] = useState<CallLog | null>(null);
+  const [updatingAssign, setUpdatingAssign] = useState<string | null>(null);
+
+  const SALES_PERSONS_LIST = ['suman das', 'Narasimha', 'mohammed musthak', 'Arjav chauhan'];
 
   // Extract unique sales persons and agents from current logs for filter options
   const { salesPersons, agents } = React.useMemo(() => {
