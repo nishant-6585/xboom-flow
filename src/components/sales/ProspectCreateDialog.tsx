@@ -46,6 +46,13 @@ const URGENCY_LEVELS = [
   { value: 'critical', label: 'Critical' },
 ];
 
+const LEAD_QUALITY_OPTIONS = [
+  { value: 'hot', label: 'Hot' },
+  { value: 'junk', label: 'Junk' },
+  { value: 'product_not_available', label: 'Product Not Available' },
+  { value: 'price_issue', label: 'Price Issue' },
+];
+
 const PURPOSE_OF_PURCHASE = ['Personal Use', 'Business Operations', 'Government Project', 'Research & Development', 'Training & Education', 'Survey & Mapping', 'Agriculture', 'Inspection & Maintenance', 'Photography & Videography', 'Security & Surveillance', 'Delivery & Logistics', 'Entertainment & Events', 'Other'];
 
 export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreated }: ProspectCreateDialogProps) {
@@ -65,6 +72,7 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
     lead_source: '',
     customer_type: '',
     prospect_type: '',
+    lead_quality: 'hot',
     urgency: 'medium',
     requested_timeline: null as Date | null,
     purpose_of_purchase: '',
@@ -103,6 +111,7 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
         lead_source: prefillData.lead_source || '',
         customer_type: prefillData.customer_type || '',
         prospect_type: prefillData.prospect_type || '',
+        lead_quality: prefillData.lead_quality || 'hot',
         urgency: prefillData.urgency || 'medium',
         requested_timeline: prefillData.requested_timeline ? new Date(prefillData.requested_timeline) : null,
         purpose_of_purchase: prefillData.purpose_of_purchase || '',
@@ -148,6 +157,7 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
         lead_source: form.lead_source,
         prospect_type: form.prospect_type,
         customer_type: form.customer_type,
+        lead_quality: form.lead_quality,
         product_category: form.product_category,
         product_code: form.product_code.trim() || null,
         quantity: form.quantity,
@@ -312,6 +322,16 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
                 <SelectContent>
                   <SelectItem value="none">-- Select --</SelectItem>
                   {PROSPECT_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Lead Quality</Label>
+              <Select value={form.lead_quality} onValueChange={(v) => setForm(f => ({ ...f, lead_quality: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {LEAD_QUALITY_OPTIONS.map(q => <SelectItem key={q.value} value={q.value}>{q.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
