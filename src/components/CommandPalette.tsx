@@ -316,7 +316,7 @@ export function CommandPalette() {
   };
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
+    <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
       <CommandInput
         placeholder="Search by name, phone, email, company across all modules..."
         value={query}
