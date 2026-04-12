@@ -453,8 +453,8 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                   </TableHeader>
                   <TableBody>
                     {filtered.map((p) => (
-                      <TableRow key={p.id} className={`hover:bg-muted/50 ${p.is_a_category ? 'bg-destructive/5' : ''}`}>
-                        <TableCell>
+                      <TableRow key={p.id} className={`hover:bg-muted/50 cursor-pointer ${p.is_a_category ? 'bg-destructive/5' : ''}`} onClick={() => setEditingProspect(p)}>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <ACategoryButton
                             sourceType={p.source_type}
                             sourceId={p.source_id}
@@ -473,7 +473,7 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                         <TableCell><span className="text-sm">{p.company || '—'}</span></TableCell>
                         <TableCell><span className="text-sm">{p.city || '—'}</span></TableCell>
                         <TableCell><span className="text-sm">{p.product_name || '—'}</span></TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <Select value={(p as any).prospect_type || 'none'} onValueChange={(v) => updateProspectType({ id: p.id, prospectType: v === 'none' ? null : v })}>
                             <SelectTrigger className="h-7 text-xs w-[90px]">
                               <SelectValue placeholder="—" />
@@ -487,7 +487,7 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <Select value={p.status} onValueChange={(v) => updateStatus({ id: p.id, status: v })}>
                             <SelectTrigger className="h-7 text-xs w-[100px]">
                               <SelectValue />
