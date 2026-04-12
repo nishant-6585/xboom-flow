@@ -6,25 +6,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { FollowupScheduleDialog } from './FollowupScheduleDialog';
+import { ProspectCreateDialog } from './ProspectCreateDialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-
-const CUSTOMER_TYPES = [
-  { value: 'B2C (Consumer)', label: 'B2C (Consumer)' },
-  { value: 'B2B (Business)', label: 'B2B (Business)' },
-  { value: 'B2G (Government)', label: 'B2G (Government)' },
-  { value: 'Reseller', label: 'Reseller' },
-];
-
-const PROSPECT_TYPES = [
-  { value: 'B2C', label: 'B2C' },
-  { value: 'B2B', label: 'B2B' },
-  { value: 'B2G', label: 'B2G' },
-  { value: 'Reseller', label: 'Reseller' },
-];
 
 const SOURCE_LABEL_MAP: Record<string, string> = {
   myoperator: 'MyOperator',
@@ -68,147 +51,89 @@ export function ProspectButton({
   const [added, setAdded] = useState(isAlreadyProspect);
   const [showFollowup, setShowFollowup] = useState(false);
   const [newProspectId, setNewProspectId] = useState<string | null>(null);
-  const [showTypeDialog, setShowTypeDialog] = useState(false);
-  const [selectedCustomerType, setSelectedCustomerType] = useState(initialCustomerType || '');
-  const [resolvedProduct, setResolvedProduct] = useState('');
-  const [editableName, setEditableName] = useState(customerName || '');
-  const [selectedProspectType, setSelectedProspectType] = useState('');
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [prefillData, setPrefillData] = useState<Record<string, any>>({});
 
   const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (added || !user || !profile) return;
-
-    let resolvedProductName = productName?.trim() || '';
-
-    // Hydrate from DB for MyOperator and Email leads to avoid stale props
-    if (!resolvedProductName && sourceType === 'myoperator') {
-      const { data: latestLog } = await supabase
-        .from('call_logs')
-        .select('id, call_id, product_name, updated_at')
-        .eq('id', sourceId)
-        .maybeSingle();
-
-      resolvedProductName = latestLog?.product_name?.trim() || '';
-
-      if (!resolvedProductName && latestLog?.call_id) {
-        const { data: relatedLogs } = await supabase
-          .from('call_logs')
-          .select('product_name, updated_at')
-          .eq('call_id', latestLog.call_id)
-          .order('updated_at', { ascending: false })
-          .limit(20);
-
-        resolvedProductName = relatedLogs?.find((log) => log.product_name?.trim())?.product_name?.trim() || '';
-      }
-    }
-
-    // Email leads: hydrate from email_leads table
-    if (!resolvedProductName && sourceType === 'email') {
-      const { data: emailLead } = await supabase
-        .from('email_leads')
-        .select('product_name')
-        .eq('id', sourceId)
-        .maybeSingle();
-
-      resolvedProductName = emailLead?.product_name?.trim() || '';
-    }
-
-    // Form leads: hydrate from form_leads table
-    if (!resolvedProductName && sourceType === 'form_lead') {
-      const { data: formLead } = await supabase
-        .from('form_leads')
-        .select('product_name')
-        .eq('id', sourceId)
-        .maybeSingle();
-
-      resolvedProductName = formLead?.product_name?.trim() || '';
-    }
-
-    // Google Ads leads: hydrate from enquiries table
-    if (!resolvedProductName && sourceType === 'google_ads') {
-      const { data: gadsLead } = await supabase
-        .from('enquiries')
-        .select('product_name')
-        .eq('id', sourceId)
-        .maybeSingle();
-
-      resolvedProductName = gadsLead?.product_name?.trim() || '';
-    }
-
-    // Product name is optional for prospect conversion — allow proceeding without it
-
-    // Try to get customer_type from the source lead if not passed
-    let prefilledType = initialCustomerType || '';
-    if (!prefilledType) {
-      if (sourceType === 'interakt') {
-        const { data } = await supabase.from('interakt_leads').select('customer_type').eq('id', sourceId).maybeSingle();
-        prefilledType = data?.customer_type || '';
-      } else if (sourceType === 'email') {
-        const { data } = await supabase.from('email_leads').select('customer_type').eq('id', sourceId).maybeSingle();
-        prefilledType = data?.customer_type || '';
-      } else if (sourceType === 'myoperator') {
-        const { data } = await supabase.from('call_logs').select('customer_type').eq('id', sourceId).maybeSingle();
-        prefilledType = data?.customer_type || '';
-      } else if (sourceType === 'form_lead') {
-        const { data } = await supabase.from('form_leads').select('customer_type').eq('id', sourceId).maybeSingle();
-        prefilledType = (data as any)?.customer_type || '';
-      }
-    }
-
-    setResolvedProduct(resolvedProductName);
-    setSelectedCustomerType(prefilledType);
-    setEditableName(customerName || '');
-    setSelectedProspectType('');
-    setShowTypeDialog(true);
-  };
-
-  const handleConfirmProspect = async () => {
-    if (!editableName.trim()) {
-      toast.error('Please enter a Customer Name before proceeding.');
-      return;
-    }
-    if (!selectedCustomerType) {
-      toast.error('Please select a Customer Type before proceeding.');
-      return;
-    }
-    if (!selectedProspectType) {
-      toast.error('Please select a Prospect Type before proceeding.');
-      return;
-    }
-    if (!user || !profile) return;
-
-    setShowTypeDialog(false);
     setLoading(true);
+
     try {
-      const prospectData = {
+      let resolvedProductName = productName?.trim() || '';
+
+      // Hydrate product name from DB for various lead sources
+      if (!resolvedProductName && sourceType === 'myoperator') {
+        const { data: latestLog } = await supabase
+          .from('call_logs')
+          .select('id, call_id, product_name, updated_at')
+          .eq('id', sourceId)
+          .maybeSingle();
+        resolvedProductName = latestLog?.product_name?.trim() || '';
+        if (!resolvedProductName && latestLog?.call_id) {
+          const { data: relatedLogs } = await supabase
+            .from('call_logs')
+            .select('product_name, updated_at')
+            .eq('call_id', latestLog.call_id)
+            .order('updated_at', { ascending: false })
+            .limit(20);
+          resolvedProductName = relatedLogs?.find((log) => log.product_name?.trim())?.product_name?.trim() || '';
+        }
+      }
+      if (!resolvedProductName && sourceType === 'email') {
+        const { data } = await supabase.from('email_leads').select('product_name').eq('id', sourceId).maybeSingle();
+        resolvedProductName = data?.product_name?.trim() || '';
+      }
+      if (!resolvedProductName && sourceType === 'form_lead') {
+        const { data } = await supabase.from('form_leads').select('product_name').eq('id', sourceId).maybeSingle();
+        resolvedProductName = data?.product_name?.trim() || '';
+      }
+      if (!resolvedProductName && sourceType === 'google_ads') {
+        const { data } = await supabase.from('enquiries').select('product_name').eq('id', sourceId).maybeSingle();
+        resolvedProductName = data?.product_name?.trim() || '';
+      }
+
+      // Get customer_type from source
+      let prefilledType = initialCustomerType || '';
+      if (!prefilledType) {
+        const tableMap: Record<string, string> = {
+          interakt: 'interakt_leads',
+          email: 'email_leads',
+          myoperator: 'call_logs',
+          form_lead: 'form_leads',
+        };
+        const table = tableMap[sourceType];
+        if (table) {
+          const { data } = await supabase.from(table).select('customer_type').eq('id', sourceId).maybeSingle();
+          prefilledType = (data as any)?.customer_type || '';
+        }
+      }
+
+      setPrefillData({
+        customer_name: customerName || '',
+        phone_number: phoneNumber || '',
+        email: email || '',
+        company: company || '',
+        city: city || '',
+        product_name: resolvedProductName,
+        notes: notes || '',
+        customer_type: prefilledType,
+        lead_source: SOURCE_LABEL_MAP[sourceType] || sourceType,
         source_type: sourceType,
         source_id: sourceId,
-        customer_name: editableName.trim(),
-        phone_number: phoneNumber || null,
-        email: email || null,
-        company: company || null,
-        city: city || null,
-        product_name: resolvedProduct,
-        notes: notes || null,
-        is_a_category: false,
-        status: 'new',
-        created_by: user.id,
-        created_by_name: profile.name,
-        lead_source: SOURCE_LABEL_MAP[sourceType] || sourceType,
-        prospect_type: selectedProspectType,
-      } as any;
-      prospectData.customer_type = selectedCustomerType;
-      const result = await addProspect(prospectData);
-      setAdded(true);
-      if (result) {
-        setNewProspectId(result.id);
-        setShowFollowup(true);
-      }
+      });
+      setShowCreateDialog(true);
     } catch {
-      // Error handled by hook
+      toast.error('Failed to load lead details');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleProspectCreated = (prospectId: string) => {
+    setAdded(true);
+    setNewProspectId(prospectId);
+    setShowFollowup(true);
   };
 
   return (
@@ -234,62 +159,13 @@ export function ProspectButton({
         </TooltipContent>
       </Tooltip>
 
-      {/* Convert to Prospect Dialog */}
-      <Dialog open={showTypeDialog} onOpenChange={setShowTypeDialog}>
-        <DialogContent className="max-w-sm" onClick={(e) => e.stopPropagation()}>
-          <DialogHeader>
-            <DialogTitle>Convert to Prospect</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="text-xs text-muted-foreground">
-              Source: <span className="font-medium text-foreground">{SOURCE_LABEL_MAP[sourceType] || sourceType}</span>
-            </div>
-            <div>
-              <Label>Customer Name <span className="text-destructive">*</span></Label>
-              <Input
-                className="mt-1"
-                value={editableName}
-                onChange={(e) => setEditableName(e.target.value)}
-                placeholder="Enter customer name..."
-              />
-            </div>
-            <div>
-              <Label>Customer Type <span className="text-destructive">*</span></Label>
-              <Select value={selectedCustomerType} onValueChange={setSelectedCustomerType}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select customer type..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {CUSTOMER_TYPES.map(t => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Prospect Type <span className="text-destructive">*</span></Label>
-              <Select value={selectedProspectType} onValueChange={setSelectedProspectType}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select prospect type..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROSPECT_TYPES.map(t => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTypeDialog(false)}>Cancel</Button>
-            <Button onClick={handleConfirmProspect} disabled={!selectedCustomerType || !editableName.trim() || !selectedProspectType}>
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ProspectCreateDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        prefillData={prefillData}
+        onCreated={handleProspectCreated}
+      />
 
-      {/* Follow-up Schedule Dialog */}
       <FollowupScheduleDialog
         open={showFollowup}
         onOpenChange={setShowFollowup}
