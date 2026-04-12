@@ -25,17 +25,10 @@ interface ProspectCreateDialogProps {
   onCreated: (prospectId: string) => void;
 }
 
-const CUSTOMER_TYPES = [
-  { value: 'B2C (Consumer)', label: 'B2C (Consumer)' },
-  { value: 'B2B (Business)', label: 'B2B (Business)' },
-  { value: 'B2G (Government)', label: 'B2G (Government)' },
-  { value: 'Reseller', label: 'Reseller' },
-];
-
 const PROSPECT_TYPES = [
-  { value: 'B2C', label: 'B2C' },
-  { value: 'B2B', label: 'B2B' },
-  { value: 'B2G', label: 'B2G' },
+  { value: 'B2C', label: 'B2C (Consumer)' },
+  { value: 'B2B', label: 'B2B (Business)' },
+  { value: 'B2G', label: 'B2G (Government)' },
   { value: 'Reseller', label: 'Reseller' },
 ];
 
@@ -70,7 +63,6 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
     product_code: '',
     quantity: 1,
     lead_source: '',
-    customer_type: '',
     prospect_type: '',
     lead_quality: 'hot',
     urgency: 'medium',
@@ -109,8 +101,7 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
         product_code: prefillData.product_code || '',
         quantity: prefillData.quantity || 1,
         lead_source: prefillData.lead_source || '',
-        customer_type: prefillData.customer_type || '',
-        prospect_type: prefillData.prospect_type || '',
+        prospect_type: prefillData.prospect_type || prefillData.customer_type || '',
         lead_quality: prefillData.lead_quality || 'hot',
         urgency: prefillData.urgency || 'medium',
         requested_timeline: prefillData.requested_timeline ? new Date(prefillData.requested_timeline) : null,
@@ -128,8 +119,8 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
       toast.error('Customer Name is required');
       return;
     }
-    if (!form.customer_type) {
-      toast.error('Customer Type is required');
+    if (!form.prospect_type) {
+      toast.error('Prospect Type is required');
       return;
     }
     if (!form.prospect_type) {
@@ -156,7 +147,7 @@ export function ProspectCreateDialog({ open, onOpenChange, prefillData, onCreate
         created_by_name: profile.name,
         lead_source: form.lead_source,
         prospect_type: form.prospect_type,
-        customer_type: form.customer_type,
+        customer_type: form.prospect_type,
         lead_quality: form.lead_quality,
         product_category: form.product_category,
         product_code: form.product_code.trim() || null,
