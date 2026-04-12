@@ -99,20 +99,20 @@ export function CommandPalette() {
         promises.push(
           supabase
             .from('orders')
-            .select('id, order_number, customer_name, customer_company, product_name, customer_email, customer_phone')
-            .or(`order_number.ilike.${searchTerm},customer_name.ilike.${searchTerm},customer_company.ilike.${searchTerm},product_name.ilike.${searchTerm},customer_email.ilike.${searchTerm},customer_phone.ilike.${searchTerm}`)
+            .select('id, order_number, customer_name, customer_company, product_name, customer_email')
+            .or(`order_number.ilike.${searchTerm},customer_name.ilike.${searchTerm},customer_company.ilike.${searchTerm},product_name.ilike.${searchTerm},customer_email.ilike.${searchTerm}`)
             .limit(5)
             .then(({ data }) => {
               data?.forEach(o => {
                 searchResults.push({
                   id: o.id,
                   label: `${o.order_number || 'Order'} - ${o.customer_name}`,
-                  sublabel: [o.product_name, o.customer_company, o.customer_phone].filter(Boolean).join(' • '),
+                  sublabel: [o.product_name, o.customer_company, o.customer_email].filter(Boolean).join(' • '),
                   type: 'order',
                   route: `/orders?orderId=${o.id}`,
                 });
               });
-            })
+            }) as Promise<void>
         );
 
         // Search enquiries
