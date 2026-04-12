@@ -33,6 +33,12 @@ const URGENCY_LEVELS = [
   { value: 'high', label: 'High' },
   { value: 'critical', label: 'Critical' },
 ];
+const LEAD_QUALITY_OPTIONS = [
+  { value: 'hot', label: 'Hot' },
+  { value: 'junk', label: 'Junk' },
+  { value: 'product_not_available', label: 'Product Not Available' },
+  { value: 'price_issue', label: 'Price Issue' },
+];
 const PURPOSE_OF_PURCHASE = ['Personal Use', 'Business Operations', 'Government Project', 'Research & Development', 'Training & Education', 'Survey & Mapping', 'Agriculture', 'Inspection & Maintenance', 'Photography & Videography', 'Security & Surveillance', 'Delivery & Logistics', 'Entertainment & Events', 'Other'];
 
 export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: ProspectEditDialogProps) {
@@ -50,6 +56,7 @@ export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: 
     quantity: 1,
     lead_source: '',
     urgency: 'medium',
+    lead_quality: 'hot',
     requested_timeline: null as Date | null,
     purpose_of_purchase: '',
     prospect_type: '',
@@ -90,6 +97,7 @@ export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: 
         quantity: p.quantity || 1,
         lead_source: p.lead_source || '',
         urgency: p.urgency || 'medium',
+        lead_quality: p.lead_quality || 'hot',
         requested_timeline: timeline ? new Date(timeline) : null,
         purpose_of_purchase: p.purpose_of_purchase || '',
         prospect_type: p.prospect_type || '',
@@ -120,6 +128,7 @@ export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: 
           quantity: form.quantity,
           lead_source: form.lead_source || null,
           urgency: form.urgency,
+          lead_quality: form.lead_quality,
           requested_timeline: form.requested_timeline ? format(form.requested_timeline, 'yyyy-MM-dd') : null,
           purpose_of_purchase: form.purpose_of_purchase || null,
           prospect_type: form.prospect_type || null,
@@ -310,28 +319,39 @@ export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: 
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Requested Timeline</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn("w-full justify-start text-left font-normal", !form.requested_timeline && "text-muted-foreground")}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {form.requested_timeline ? format(form.requested_timeline, 'PPP') : 'Pick a date'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 z-[60]" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={form.requested_timeline || undefined}
-                    onSelect={(d) => setForm(f => ({ ...f, requested_timeline: d || null }))}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Lead Quality</Label>
+                <Select value={form.lead_quality} onValueChange={(v) => setForm(f => ({ ...f, lead_quality: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {LEAD_QUALITY_OPTIONS.map(q => <SelectItem key={q.value} value={q.value}>{q.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Requested Timeline</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn("w-full justify-start text-left font-normal", !form.requested_timeline && "text-muted-foreground")}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {form.requested_timeline ? format(form.requested_timeline, 'PPP') : 'Pick a date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 z-[60]" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={form.requested_timeline || undefined}
+                      onSelect={(d) => setForm(f => ({ ...f, requested_timeline: d || null }))}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
 
             <div className="space-y-2">
