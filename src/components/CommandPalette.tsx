@@ -269,7 +269,7 @@ export function CommandPalette() {
                   label: `${cl.customer_name || 'Unknown'} - ${cl.caller_number}`,
                   sublabel: [cl.customer_company, cl.product_name].filter(Boolean).join(' • '),
                   type: 'call_log',
-                  route: `/sales?tab=leads`,
+                  route: `/sales?tab=leads&search=${encodeURIComponent(cl.caller_number || cl.full_number || '')}`,
                 });
               });
             }) as unknown as Promise<void>
