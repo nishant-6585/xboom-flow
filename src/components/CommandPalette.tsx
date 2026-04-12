@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CommandDialog,
@@ -7,21 +7,20 @@ import {
   CommandEmpty,
   CommandGroup,
   CommandItem,
-  CommandSeparator,
 } from '@/components/ui/command';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Package, ShoppingCart, FileText, Users, Building2,
   Search, Box, ClipboardList, IndianRupee, Wrench,
-  BarChart3, Briefcase, ListTodo, Ticket
+  BarChart3, Briefcase, ListTodo, Ticket, Phone, UserCheck, Cpu
 } from 'lucide-react';
 
 interface SearchResult {
   id: string;
   label: string;
   sublabel: string;
-  type: 'order' | 'enquiry' | 'invoice' | 'supplier' | 'inventory' | 'pipeline' | 'customer';
+  type: 'order' | 'enquiry' | 'invoice' | 'supplier' | 'inventory' | 'pipeline' | 'prospect' | 'company' | 'call_log' | 'candidate';
   route: string;
 }
 
@@ -39,7 +38,21 @@ const NAV_ITEMS = [
   { label: 'Tickets', route: '/tickets', icon: Ticket },
   { label: 'Repairs', route: '/repairs', icon: Wrench },
   { label: 'HR', route: '/hr', icon: Users },
+  { label: 'Demo & Trainings', route: '/drone-operations', icon: Cpu },
 ];
+
+const TYPE_CONFIG: Record<string, { heading: string; icon: typeof Search }> = {
+  order: { heading: 'Orders', icon: ShoppingCart },
+  enquiry: { heading: 'Enquiries', icon: ClipboardList },
+  invoice: { heading: 'Invoices', icon: FileText },
+  supplier: { heading: 'Suppliers', icon: Building2 },
+  inventory: { heading: 'Inventory', icon: Package },
+  pipeline: { heading: 'Pipeline', icon: BarChart3 },
+  prospect: { heading: 'Prospects', icon: UserCheck },
+  company: { heading: 'Companies', icon: Building2 },
+  call_log: { heading: 'Call Logs', icon: Phone },
+  candidate: { heading: 'Candidates', icon: Users },
+};
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
@@ -47,9 +60,9 @@ export function CommandPalette() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
 
-  // Global keyboard shortcut
+  // Global keyboard shortcut + custom event listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -57,8 +70,13 @@ export function CommandPalette() {
         setOpen(prev => !prev);
       }
     };
+    const handleOpen = () => setOpen(true);
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('open-command-palette', handleOpen);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('open-command-palette', handleOpen);
+    };
   }, []);
 
   // Debounced search
@@ -74,91 +92,212 @@ export function CommandPalette() {
       const searchTerm = `%${query}%`;
 
       try {
-        // Search orders
-        const { data: orders } = await supabase
-          .from('orders')
-          .select('id, order_number, customer_name, customer_company, product_name')
-          .or(`order_number.ilike.${searchTerm},customer_name.ilike.${searchTerm},customer_company.ilike.${searchTerm},product_name.ilike.${searchTerm}`)
-          .limit(5);
+        // Run all searches in parallel for speed
+        const promises: Promise<void>[] = [];
 
-        orders?.forEach(o => {
-          searchResults.push({
-            id: o.id,
-            label: `${o.order_number || 'Order'} - ${o.customer_name}`,
-            sublabel: o.product_name,
-            type: 'order',
-            route: `/orders?orderId=${o.id}`,
-          });
-        });
+        // Search orders
+        promises.push(
+          supabase
+            .from('orders')
+            .select('id, order_number, customer_name, customer_company, product_name, customer_email, customer_phone')
+            .or(`order_number.ilike.${searchTerm},customer_name.ilike.${searchTerm},customer_company.ilike.${searchTerm},product_name.ilike.${searchTerm},customer_email.ilike.${searchTerm},customer_phone.ilike.${searchTerm}`)
+            .limit(5)
+            .then(({ data }) => {
+              data?.forEach(o => {
+                searchResults.push({
+                  id: o.id,
+                  label: `${o.order_number || 'Order'} - ${o.customer_name}`,
+                  sublabel: [o.product_name, o.customer_company, o.customer_phone].filter(Boolean).join(' • '),
+                  type: 'order',
+                  route: `/orders?orderId=${o.id}`,
+                });
+              });
+            })
+        );
 
         // Search enquiries
-        const { data: enquiries } = await supabase
-          .from('enquiries')
-          .select('id, customer_name, customer_company, product_name')
-          .or(`customer_name.ilike.${searchTerm},customer_company.ilike.${searchTerm},product_name.ilike.${searchTerm}`)
-          .limit(5);
-
-        enquiries?.forEach(e => {
-          searchResults.push({
-            id: e.id,
-            label: `${e.customer_name} - ${e.customer_company}`,
-            sublabel: e.product_name,
-            type: 'enquiry',
-            route: `/sales?tab=enquiries&leadId=${e.id}`,
-          });
-        });
+        promises.push(
+          supabase
+            .from('enquiries')
+            .select('id, customer_name, customer_company, product_name, customer_state')
+            .or(`customer_name.ilike.${searchTerm},customer_company.ilike.${searchTerm},product_name.ilike.${searchTerm}`)
+            .limit(5)
+            .then(({ data }) => {
+              data?.forEach(e => {
+                searchResults.push({
+                  id: e.id,
+                  label: `${e.customer_name} - ${e.customer_company}`,
+                  sublabel: [e.product_name, e.customer_state].filter(Boolean).join(' • '),
+                  type: 'enquiry',
+                  route: `/sales?tab=enquiries&leadId=${e.id}`,
+                });
+              });
+            })
+        );
 
         // Search invoices
-        const { data: invoices } = await supabase
-          .from('invoices')
-          .select('id, invoice_number, customer_name, customer_company')
-          .or(`invoice_number.ilike.${searchTerm},customer_name.ilike.${searchTerm},customer_company.ilike.${searchTerm}`)
-          .limit(5);
-
-        invoices?.forEach(i => {
-          searchResults.push({
-            id: i.id,
-            label: `${i.invoice_number} - ${i.customer_name}`,
-            sublabel: i.customer_company || '',
-            type: 'invoice',
-            route: `/billing?invoiceId=${i.id}`,
-          });
-        });
+        promises.push(
+          supabase
+            .from('invoices')
+            .select('id, invoice_number, customer_name, customer_company')
+            .or(`invoice_number.ilike.${searchTerm},customer_name.ilike.${searchTerm},customer_company.ilike.${searchTerm}`)
+            .limit(5)
+            .then(({ data }) => {
+              data?.forEach(i => {
+                searchResults.push({
+                  id: i.id,
+                  label: `${i.invoice_number} - ${i.customer_name}`,
+                  sublabel: i.customer_company || '',
+                  type: 'invoice',
+                  route: `/billing?invoiceId=${i.id}`,
+                });
+              });
+            })
+        );
 
         // Search suppliers
-        const { data: suppliers } = await supabase
-          .from('suppliers')
-          .select('id, name, product_category')
-          .or(`name.ilike.${searchTerm},product_category.ilike.${searchTerm}`)
-          .limit(5);
-
-        suppliers?.forEach(s => {
-          searchResults.push({
-            id: s.id,
-            label: s.name,
-            sublabel: s.product_category || 'Supplier',
-            type: 'supplier',
-            route: `/suppliers?supplierId=${s.id}`,
-          });
-        });
+        promises.push(
+          supabase
+            .from('suppliers')
+            .select('id, name, product_category, email, phone')
+            .or(`name.ilike.${searchTerm},product_category.ilike.${searchTerm},email.ilike.${searchTerm},phone.ilike.${searchTerm}`)
+            .limit(5)
+            .then(({ data }) => {
+              data?.forEach(s => {
+                searchResults.push({
+                  id: s.id,
+                  label: s.name,
+                  sublabel: [s.product_category, s.phone, s.email].filter(Boolean).join(' • '),
+                  type: 'supplier',
+                  route: `/suppliers?supplierId=${s.id}`,
+                });
+              });
+            })
+        );
 
         // Search inventory
-        const { data: inventory } = await supabase
-          .from('inventory')
-          .select('id, product_name, product_category, current_stock')
-          .or(`product_name.ilike.${searchTerm},product_category.ilike.${searchTerm}`)
-          .limit(5);
+        promises.push(
+          supabase
+            .from('inventory')
+            .select('id, product_name, product_category, current_stock')
+            .or(`product_name.ilike.${searchTerm},product_category.ilike.${searchTerm}`)
+            .limit(5)
+            .then(({ data }) => {
+              data?.forEach(inv => {
+                searchResults.push({
+                  id: inv.id,
+                  label: inv.product_name,
+                  sublabel: `${inv.product_category} • Stock: ${inv.current_stock}`,
+                  type: 'inventory',
+                  route: `/inventory`,
+                });
+              });
+            })
+        );
 
-        inventory?.forEach(inv => {
-          searchResults.push({
-            id: inv.id,
-            label: inv.product_name,
-            sublabel: `${inv.product_category} • Stock: ${inv.current_stock}`,
-            type: 'inventory',
-            route: `/inventory`,
-          });
-        });
+        // Search pipeline orders
+        promises.push(
+          supabase
+            .from('pipeline_orders')
+            .select('id, customer_name, customer_company, product_name, customer_phone, customer_email, status')
+            .or(`customer_name.ilike.${searchTerm},customer_company.ilike.${searchTerm},product_name.ilike.${searchTerm},customer_phone.ilike.${searchTerm},customer_email.ilike.${searchTerm}`)
+            .limit(5)
+            .then(({ data }) => {
+              data?.forEach(p => {
+                searchResults.push({
+                  id: p.id,
+                  label: `${p.customer_name} - ${p.customer_company}`,
+                  sublabel: [p.product_name, p.customer_phone, p.status].filter(Boolean).join(' • '),
+                  type: 'pipeline',
+                  route: `/sales?tab=pipeline`,
+                });
+              });
+            })
+        );
 
+        // Search prospects
+        promises.push(
+          supabase
+            .from('prospects')
+            .select('id, customer_name, customer_company, phone_number, email, product_name, status')
+            .or(`customer_name.ilike.${searchTerm},customer_company.ilike.${searchTerm},phone_number.ilike.${searchTerm},email.ilike.${searchTerm},product_name.ilike.${searchTerm}`)
+            .limit(5)
+            .then(({ data }) => {
+              data?.forEach(pr => {
+                searchResults.push({
+                  id: pr.id,
+                  label: `${pr.customer_name}${pr.customer_company ? ' - ' + pr.customer_company : ''}`,
+                  sublabel: [pr.product_name, pr.phone_number, pr.status].filter(Boolean).join(' • '),
+                  type: 'prospect',
+                  route: `/sales?tab=prospects`,
+                });
+              });
+            })
+        );
+
+        // Search companies
+        promises.push(
+          supabase
+            .from('companies')
+            .select('id, name, city, phone, email, industry')
+            .or(`name.ilike.${searchTerm},city.ilike.${searchTerm},phone.ilike.${searchTerm},email.ilike.${searchTerm},industry.ilike.${searchTerm}`)
+            .limit(5)
+            .then(({ data }) => {
+              data?.forEach(c => {
+                searchResults.push({
+                  id: c.id,
+                  label: c.name,
+                  sublabel: [c.industry, c.city, c.phone].filter(Boolean).join(' • '),
+                  type: 'company',
+                  route: `/sales?tab=companies`,
+                });
+              });
+            })
+        );
+
+        // Search call logs
+        promises.push(
+          supabase
+            .from('call_logs')
+            .select('id, caller_number, customer_name, customer_company, product_name, email')
+            .or(`caller_number.ilike.${searchTerm},customer_name.ilike.${searchTerm},customer_company.ilike.${searchTerm},email.ilike.${searchTerm}`)
+            .limit(5)
+            .then(({ data }) => {
+              data?.forEach(cl => {
+                searchResults.push({
+                  id: cl.id,
+                  label: `${cl.customer_name || 'Unknown'} - ${cl.caller_number}`,
+                  sublabel: [cl.customer_company, cl.product_name].filter(Boolean).join(' • '),
+                  type: 'call_log',
+                  route: `/sales?tab=calls`,
+                });
+              });
+            })
+        );
+
+        // Search candidates (HR/Admin only)
+        if (role === 'admin' || role === 'hr') {
+          promises.push(
+            supabase
+              .from('candidates')
+              .select('id, full_name, email, phone, job_role_applied, current_company')
+              .or(`full_name.ilike.${searchTerm},email.ilike.${searchTerm},phone.ilike.${searchTerm},job_role_applied.ilike.${searchTerm},current_company.ilike.${searchTerm}`)
+              .limit(5)
+              .then(({ data }) => {
+                data?.forEach(ca => {
+                  searchResults.push({
+                    id: ca.id,
+                    label: ca.full_name,
+                    sublabel: [ca.job_role_applied, ca.current_company, ca.phone].filter(Boolean).join(' • '),
+                    type: 'candidate',
+                    route: `/candidates`,
+                  });
+                });
+              })
+          );
+        }
+
+        await Promise.all(promises);
         setResults(searchResults);
       } catch (err) {
         console.error('Command palette search error:', err);
@@ -168,7 +307,7 @@ export function CommandPalette() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, user]);
+  }, [query, user, role]);
 
   const handleSelect = (route: string) => {
     setOpen(false);
@@ -176,22 +315,10 @@ export function CommandPalette() {
     navigate(route);
   };
 
-  const getIcon = (type: SearchResult['type']) => {
-    switch (type) {
-      case 'order': return ShoppingCart;
-      case 'enquiry': return ClipboardList;
-      case 'invoice': return FileText;
-      case 'supplier': return Building2;
-      case 'inventory': return Package;
-      case 'pipeline': return BarChart3;
-      default: return Search;
-    }
-  };
-
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput
-        placeholder="Search orders, customers, invoices, inventory..."
+        placeholder="Search by name, phone, email, company across all modules..."
         value={query}
         onValueChange={setQuery}
       />
@@ -222,38 +349,29 @@ export function CommandPalette() {
         {/* Search Results */}
         {results.length > 0 && (
           <>
-            {['order', 'enquiry', 'invoice', 'supplier', 'inventory'].map(type => {
+            {Object.keys(TYPE_CONFIG).map(type => {
               const typeResults = results.filter(r => r.type === type);
               if (typeResults.length === 0) return null;
-              
-              const headings: Record<string, string> = {
-                order: 'Orders',
-                enquiry: 'Enquiries',
-                invoice: 'Invoices',
-                supplier: 'Suppliers',
-                inventory: 'Inventory',
-              };
+              const config = TYPE_CONFIG[type];
+              const Icon = config.icon;
 
               return (
-                <CommandGroup key={type} heading={headings[type]}>
-                  {typeResults.map(result => {
-                    const Icon = getIcon(result.type);
-                    return (
-                      <CommandItem
-                        key={`${result.type}-${result.id}`}
-                        onSelect={() => handleSelect(result.route)}
-                        className="gap-2"
-                      >
-                        <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate">{result.label}</p>
-                          {result.sublabel && (
-                            <p className="text-xs text-muted-foreground truncate">{result.sublabel}</p>
-                          )}
-                        </div>
-                      </CommandItem>
-                    );
-                  })}
+                <CommandGroup key={type} heading={config.heading}>
+                  {typeResults.map(result => (
+                    <CommandItem
+                      key={`${result.type}-${result.id}`}
+                      onSelect={() => handleSelect(result.route)}
+                      className="gap-2"
+                    >
+                      <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate">{result.label}</p>
+                        {result.sublabel && (
+                          <p className="text-xs text-muted-foreground truncate">{result.sublabel}</p>
+                        )}
+                      </div>
+                    </CommandItem>
+                  ))}
                 </CommandGroup>
               );
             })}
