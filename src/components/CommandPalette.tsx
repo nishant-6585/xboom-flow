@@ -209,7 +209,7 @@ export function CommandPalette() {
                   label: `${p.customer_name} - ${p.customer_company}`,
                   sublabel: [p.product_name, p.customer_phone, p.status].filter(Boolean).join(' • '),
                   type: 'pipeline',
-                  route: `/sales?tab=pipeline`,
+                  route: `/sales?tab=pipeline&leadId=${p.id}`,
                 });
               });
             }) as unknown as Promise<void>
@@ -229,7 +229,7 @@ export function CommandPalette() {
                   label: `${pr.customer_name}${pr.customer_company ? ' - ' + pr.customer_company : ''}`,
                   sublabel: [pr.product_name, pr.phone_number, pr.status].filter(Boolean).join(' • '),
                   type: 'prospect',
-                  route: `/sales?tab=prospects`,
+                  route: `/sales?tab=prospects&leadId=${pr.id}`,
                 });
               });
             }) as unknown as Promise<void>
@@ -249,7 +249,7 @@ export function CommandPalette() {
                   label: c.name,
                   sublabel: [c.industry, c.city, c.phone].filter(Boolean).join(' • '),
                   type: 'company',
-                  route: `/sales?tab=companies`,
+                  route: `/sales?tab=companies&leadId=${c.id}`,
                 });
               });
             }) as unknown as Promise<void>
@@ -269,7 +269,7 @@ export function CommandPalette() {
                   label: `${cl.customer_name || 'Unknown'} - ${cl.caller_number}`,
                   sublabel: [cl.customer_company, cl.product_name].filter(Boolean).join(' • '),
                   type: 'call_log',
-                  route: `/sales?tab=calls`,
+                  route: `/sales?tab=leads`,
                 });
               });
             }) as unknown as Promise<void>

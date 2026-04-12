@@ -227,7 +227,7 @@ export default function Sales() {
           </TabsContent>
 
           <TabsContent value="prospects" className="space-y-6">
-            <ProspectsPanel />
+            <ProspectsPanel selectedLeadId={urlLeadId} />
           </TabsContent>
 
           <TabsContent value="followups" className="space-y-6">
@@ -255,7 +255,7 @@ export default function Sales() {
           </TabsContent>
 
           <TabsContent value="companies" className="space-y-6">
-            <CompaniesPanel />
+            <CompaniesPanel selectedLeadId={urlLeadId} />
           </TabsContent>
 
           <TabsContent value="orders_won" className="space-y-6">
