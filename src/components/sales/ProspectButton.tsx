@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 const CUSTOMER_TYPES = [
   { value: 'B2C (Consumer)', label: 'B2C (Consumer)' },
@@ -17,6 +18,22 @@ const CUSTOMER_TYPES = [
   { value: 'B2G (Government)', label: 'B2G (Government)' },
   { value: 'Reseller', label: 'Reseller' },
 ];
+
+const PROSPECT_TYPES = [
+  { value: 'B2C', label: 'B2C' },
+  { value: 'B2B', label: 'B2B' },
+  { value: 'B2G', label: 'B2G' },
+  { value: 'Reseller', label: 'Reseller' },
+];
+
+const SOURCE_LABEL_MAP: Record<string, string> = {
+  myoperator: 'MyOperator',
+  interakt: 'Interakt',
+  form_lead: 'Website Form',
+  email: 'Email',
+  enquiry: 'Enquiry',
+  google_ads: 'Google Ads',
+};
 
 interface ProspectButtonProps {
   sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads';
