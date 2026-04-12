@@ -71,6 +71,8 @@ export function ProspectButton({
   const [showTypeDialog, setShowTypeDialog] = useState(false);
   const [selectedCustomerType, setSelectedCustomerType] = useState(initialCustomerType || '');
   const [resolvedProduct, setResolvedProduct] = useState('');
+  const [editableName, setEditableName] = useState(customerName || '');
+  const [selectedProspectType, setSelectedProspectType] = useState('');
 
   const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
