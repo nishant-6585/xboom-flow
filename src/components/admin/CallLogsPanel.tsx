@@ -516,10 +516,11 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                     <React.Fragment key={log.id}>
                       <TableRow
                         key={log.id}
-                        className={newIds.has(log.id) ? "bg-primary/10 animate-pulse border-l-4 border-l-primary" : ""}
+                        className={`cursor-pointer ${info.status === 'missed' ? 'bg-red-500/5' : ''} ${newIds.has(log.id) ? "bg-primary/10 animate-pulse border-l-4 border-l-primary" : ""}`}
+                        onClick={() => setEditingLog(log)}
                       >
                         <TableCell className="pr-0">{statusIcon(info.status)}</TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex gap-1">
                             <ProspectButton
                               sourceType="myoperator"
@@ -555,11 +556,11 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                             />
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-sm font-medium text-primary">
+                        <TableCell className={`font-mono text-sm font-medium ${info.status === 'missed' ? 'text-red-500' : 'text-primary'}`}>
                           {log.full_number || log.caller_number}
                         </TableCell>
                         <TableCell className="text-sm">
-                          <div>{info.whatText}</div>
+                          <div className={info.status === 'missed' ? 'text-red-500 font-medium' : ''}>{info.whatText}</div>
                           {info.finalAgent && info.status === 'answered' && (
                             <div className="text-xs text-green-600 font-medium mt-0.5">
                               Final Agent: {info.finalAgent}
@@ -584,8 +585,22 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                             </div>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm">
-                          <span className="text-muted-foreground">{log.sales_person_name || log.assigned_agent_name || log.agent_name || '—'}</span>
+                        <TableCell className="text-sm" onClick={(e) => e.stopPropagation()}>
+                          <Select
+                            value={log.sales_person_name || 'unassigned'}
+                            onValueChange={(v) => handleAssignChange(log.id, v === 'unassigned' ? '' : v)}
+                            disabled={updatingAssign === log.id}
+                          >
+                            <SelectTrigger className="h-8 w-36 text-xs">
+                              <SelectValue placeholder="Assign..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unassigned">— Unassigned —</SelectItem>
+                              {SALES_PERSONS_LIST.map(sp => (
+                                <SelectItem key={sp} value={sp}>{sp}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                           <div>{formatCallTime(info.startTime, log.created_at)}</div>
@@ -594,7 +609,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                         <TableCell className="text-sm">
                           {info.duration ? formatDuration(info.duration) : "—"}
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           {info.recordingFile ? (
                             <Button
                               variant="ghost"
@@ -612,21 +627,15 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                             <span className="text-muted-foreground text-xs">—</span>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingLog(log)}>
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
-                              <Eye className="w-4 h-4 mr-1" /> Details
-                            </Button>
-                          </div>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
+                            <Eye className="w-4 h-4 mr-1" /> Details
+                          </Button>
                         </TableCell>
                       </TableRow>
-                      {/* Inline audio player row */}
                       {expandedAudio === logKey && info.recordingFile && (
                         <TableRow key={`${log.id}-audio`}>
-                          <TableCell colSpan={8} className="py-2 px-4">
+                          <TableCell colSpan={9} className="py-2 px-4">
                             <InlineAudioPlayer recordingFile={info.recordingFile} duration={info.duration} autoPlay />
                           </TableCell>
                         </TableRow>
