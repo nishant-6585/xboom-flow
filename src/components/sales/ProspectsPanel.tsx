@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,7 +52,11 @@ const STATUS_COLORS: Record<string, string> = {
 const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 const TOOLTIP_STYLE = { background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' };
 
-export function ProspectsPanel() {
+interface ProspectsPanelProps {
+  selectedLeadId?: string | null;
+}
+
+export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
   const { prospects, loading, toggleACategory, updateStatus, updateProspectType, deleteProspect, refetch } = useProspects();
   const { user, role } = useAuth();
   const { createOrder } = useOrders();
@@ -67,6 +71,18 @@ export function ProspectsPanel() {
   const [editingProspect, setEditingProspect] = useState<any>(null);
   const [analyticsPeriod, setAnalyticsPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'all'>('daily');
   const [orderWonProspect, setOrderWonProspect] = useState<Prospect | null>(null);
+  const lastAutoOpenedId = useRef<string | null>(null);
+
+  // Auto-open prospect when selectedLeadId is provided
+  useEffect(() => {
+    if (!selectedLeadId || loading || prospects.length === 0) return;
+    if (lastAutoOpenedId.current === selectedLeadId) return;
+    const target = prospects.find(p => p.id === selectedLeadId);
+    if (target) {
+      lastAutoOpenedId.current = selectedLeadId;
+      setEditingProspect(target);
+    }
+  }, [selectedLeadId, loading, prospects]);
 
   const filtered = prospects.filter(p => {
     const matchesSearch = !search ||

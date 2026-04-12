@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,11 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export function CompaniesPanel() {
+interface CompaniesPanelProps {
+  selectedLeadId?: string | null;
+}
+
+export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
   const { companies, loading, addCompany, adding } = useCompanies();
   const { user, userName } = useAuth();
   const [search, setSearch] = useState('');
@@ -27,6 +31,19 @@ export function CompaniesPanel() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({ name: '', industry: '', city: '', state: '', phone: '', email: '', website: '', notes: '' });
+  const lastAutoOpenedId = useRef<string | null>(null);
+
+  // Auto-open company when selectedLeadId is provided
+  useEffect(() => {
+    if (!selectedLeadId || loading || companies.length === 0) return;
+    if (lastAutoOpenedId.current === selectedLeadId) return;
+    const target = companies.find(c => c.id === selectedLeadId);
+    if (target) {
+      lastAutoOpenedId.current = selectedLeadId;
+      setSelectedCompany(target);
+      setDrawerOpen(true);
+    }
+  }, [selectedLeadId, loading, companies]);
 
   const filtered = useMemo(() => {
     let list = [...companies];
