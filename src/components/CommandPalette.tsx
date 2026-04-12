@@ -259,8 +259,8 @@ export function CommandPalette() {
         promises.push(
           supabase
             .from('call_logs')
-            .select('id, caller_number, customer_name, customer_company, product_name, email')
-            .or(`caller_number.ilike.${searchTerm},customer_name.ilike.${searchTerm},customer_company.ilike.${searchTerm},email.ilike.${searchTerm}`)
+            .select('id, caller_number, full_number, customer_name, customer_company, product_name, email')
+            .or(`caller_number.ilike.${searchTerm},full_number.ilike.${searchTerm},customer_name.ilike.${searchTerm},customer_company.ilike.${searchTerm},email.ilike.${searchTerm}`)
             .limit(5)
             .then(({ data }) => {
               data?.forEach(cl => {
