@@ -96,15 +96,17 @@ export function ProspectButton({
       // Get customer_type from source
       let prefilledType = initialCustomerType || '';
       if (!prefilledType) {
-        const tableMap: Record<string, string> = {
-          interakt: 'interakt_leads',
-          email: 'email_leads',
-          myoperator: 'call_logs',
-          form_lead: 'form_leads',
-        };
-        const table = tableMap[sourceType];
-        if (table) {
-          const { data } = await supabase.from(table).select('customer_type').eq('id', sourceId).maybeSingle();
+        if (sourceType === 'interakt') {
+          const { data } = await supabase.from('interakt_leads').select('customer_type').eq('id', sourceId).maybeSingle();
+          prefilledType = data?.customer_type || '';
+        } else if (sourceType === 'email') {
+          const { data } = await supabase.from('email_leads').select('customer_type').eq('id', sourceId).maybeSingle();
+          prefilledType = data?.customer_type || '';
+        } else if (sourceType === 'myoperator') {
+          const { data } = await supabase.from('call_logs').select('customer_type').eq('id', sourceId).maybeSingle();
+          prefilledType = data?.customer_type || '';
+        } else if (sourceType === 'form_lead') {
+          const { data } = await supabase.from('form_leads').select('customer_type').eq('id', sourceId).maybeSingle();
           prefilledType = (data as any)?.customer_type || '';
         }
       }
