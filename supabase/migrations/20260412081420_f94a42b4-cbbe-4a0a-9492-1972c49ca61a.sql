@@ -1,0 +1,1 @@
+ALTER TABLE public.prospects ADD COLUMN lead_quality TEXT DEFAULT 'hot';

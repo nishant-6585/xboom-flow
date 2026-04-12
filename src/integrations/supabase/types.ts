@@ -8008,6 +8008,7 @@ export type Database = {
           email: string | null
           id: string
           is_a_category: boolean
+          lead_quality: string | null
           lead_source: string | null
           notes: string | null
           phone_number: string | null
@@ -8043,6 +8044,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_a_category?: boolean
+          lead_quality?: string | null
           lead_source?: string | null
           notes?: string | null
           phone_number?: string | null
@@ -8078,6 +8080,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_a_category?: boolean
+          lead_quality?: string | null
           lead_source?: string | null
           notes?: string | null
           phone_number?: string | null
