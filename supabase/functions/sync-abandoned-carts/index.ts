@@ -46,88 +46,117 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  const siteUrl = Deno.env.get("WC_SITE_URL");
-  const consumerKey = Deno.env.get("WC_CONSUMER_KEY");
-  const consumerSecret = Deno.env.get("WC_CONSUMER_SECRET");
+  // Parse optional query params from request body
+  let hours = 48;
+  let minTotal = 0;
+  try {
+    if (req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      if (body.hours && Number.isFinite(Number(body.hours))) hours = Number(body.hours);
+      if (body.min_total && Number.isFinite(Number(body.min_total))) minTotal = Number(body.min_total);
+    }
+  } catch {
+    // use defaults
+  }
 
-  if (!siteUrl || !consumerKey || !consumerSecret) {
-    console.error("[sync-abandoned-carts] Missing WC_SITE_URL, WC_CONSUMER_KEY, or WC_CONSUMER_SECRET");
-    return new Response(JSON.stringify({ error: "WooCommerce credentials not configured" }), {
+  const apiKey = Deno.env.get("XBOOM_CART_API_KEY");
+  if (!apiKey) {
+    console.error("[sync-abandoned-carts] Missing XBOOM_CART_API_KEY secret");
+    return new Response(JSON.stringify({ error: "Cart API key not configured" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   try {
-    // Fetch abandoned carts from custom WordPress REST endpoint
-    const endpoint = `${siteUrl.replace(/\/$/, "")}/wp-json/xboom/v1/abandoned-carts`;
+    // Build PRO API endpoint with query params
+    const endpoint = `https://www.xboom.in/wp-json/xboom/v1/abandoned-carts?api_key=${encodeURIComponent(apiKey)}&hours=${hours}&min_total=${minTotal}`;
 
-    console.log(`[sync-abandoned-carts] Fetching from ${endpoint}`);
+    console.log(`[sync-abandoned-carts] Fetching from PRO API (hours=${hours}, min_total=${minTotal})`);
 
     const response = await fetch(endpoint, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`[sync-abandoned-carts] API error [${response.status}]: ${errorText}`);
+
+      // Log failure to domain_events
+      await supabase.from("domain_events").insert({
+        entity_type: "abandoned_cart_sync",
+        entity_id: crypto.randomUUID(),
+        event_type: "sync_api_error",
+        payload: { status: response.status, error: errorText.substring(0, 500) },
+      });
+
       return new Response(
         JSON.stringify({ error: `WordPress API error: ${response.status}` }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const carts = await response.json();
+    const responseBody = await response.json();
 
-    if (!Array.isArray(carts)) {
-      console.error("[sync-abandoned-carts] Unexpected response format:", typeof carts);
+    // Handle PRO API error response
+    if (responseBody.status === "error") {
+      console.error("[sync-abandoned-carts] PRO API returned error:", JSON.stringify(responseBody));
+
+      await supabase.from("domain_events").insert({
+        entity_type: "abandoned_cart_sync",
+        entity_id: crypto.randomUUID(),
+        event_type: "sync_api_returned_error",
+        payload: responseBody,
+      });
+
       return new Response(
-        JSON.stringify({ error: "Unexpected response format from WordPress" }),
+        JSON.stringify({ error: "PRO API returned error status", details: responseBody }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`[sync-abandoned-carts] Received ${carts.length} abandoned carts`);
+    // Parse PRO API format: { status: "success", count: N, data: [...] }
+    const carts = responseBody.data;
+
+    if (!Array.isArray(carts)) {
+      console.error("[sync-abandoned-carts] Unexpected response format: missing data array");
+      return new Response(
+        JSON.stringify({ error: "Unexpected response format from PRO API" }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`[sync-abandoned-carts] Received ${carts.length} abandoned carts (API count: ${responseBody.count})`);
 
     let inserted = 0;
-    let duplicates = 0;
+    let updated = 0;
     let errors = 0;
 
     for (const cart of carts) {
+      const cartId = String(cart.cart_id);
       const customerEmail = cart.email?.trim()?.toLowerCase() || null;
-      const sessionId = cart.session_id || cart.id?.toString() || null;
-
-      // Build dedup key: prefer session_id, fallback to email + created_at
-      const dedupSessionId = sessionId || `${customerEmail}-${cart.created_at}`;
 
       const record = {
-        session_id: dedupSessionId,
-        customer_name: cart.customer_name || "Unknown",
+        session_id: cartId,
+        customer_name: customerEmail ? customerEmail.split("@")[0] : "Unknown",
         customer_email: customerEmail,
         customer_phone: cart.phone || null,
-        cart_items: cart.cart_items || cart.items || null,
-        cart_value: parseFloat(cart.cart_total || cart.cart_value || "0") || 0,
-        currency: cart.currency || "INR",
+        cart_items: cart.products || null,
+        cart_value: parseFloat(String(cart.total || "0")) || 0,
+        currency: "INR",
         status: "active",
-        source: "cartbounty",
+        source: "xboom_website_pro",
       };
 
-      // Upsert using session_id as dedup key
+      // Upsert using session_id (= cart_id) as dedup key
       const { error: upsertError } = await supabase
         .from("abandoned_carts")
-        .upsert(record, { onConflict: "session_id", ignoreDuplicates: true });
+        .upsert(record, { onConflict: "session_id", ignoreDuplicates: false });
 
       if (upsertError) {
-        if (upsertError.code === "23505") {
-          duplicates++;
-          console.log(`[sync-abandoned-carts] Duplicate skipped: ${dedupSessionId}`);
-        } else {
-          errors++;
-          console.error(`[sync-abandoned-carts] Insert error:`, upsertError.message);
-        }
+        errors++;
+        console.error(`[sync-abandoned-carts] Upsert error for cart_id ${cartId}:`, upsertError.message);
       } else {
         inserted++;
       }
@@ -137,7 +166,7 @@ Deno.serve(async (req) => {
       success: true,
       total_fetched: carts.length,
       inserted,
-      duplicates,
+      updated,
       errors,
       synced_at: new Date().toISOString(),
     };
@@ -150,6 +179,15 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     console.error("[sync-abandoned-carts] Unexpected error:", err);
+
+    // Log to domain_events
+    await supabase.from("domain_events").insert({
+      entity_type: "abandoned_cart_sync",
+      entity_id: crypto.randomUUID(),
+      event_type: "sync_unexpected_error",
+      payload: { error: String(err) },
+    }).catch(() => {});
+
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
