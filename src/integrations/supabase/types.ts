@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      abandoned_carts: {
+        Row: {
+          cart_items: Json | null
+          cart_value: number | null
+          created_at: string
+          currency: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          recovered_order_id: string | null
+          session_id: string | null
+          source: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cart_items?: Json | null
+          cart_value?: number | null
+          created_at?: string
+          currency?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          recovered_order_id?: string | null
+          session_id?: string | null
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          cart_items?: Json | null
+          cart_value?: number | null
+          created_at?: string
+          currency?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          recovered_order_id?: string | null
+          session_id?: string | null
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       admin_signatures: {
         Row: {
           admin_id: string

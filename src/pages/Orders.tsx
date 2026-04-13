@@ -20,11 +20,12 @@ import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWid
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
 import { useWooCommerceOrders } from '@/hooks/useWooCommerceOrders';
+import { useAbandonedCarts } from '@/hooks/useAbandonedCarts';
 import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidget';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe } from 'lucide-react';
+import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe, ShoppingCart } from 'lucide-react';
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { OrdersDashboardStats } from '@/components/orders/OrdersDashboardStats';
@@ -35,6 +36,7 @@ export default function Orders() {
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
   const { wooOrders, totalCount: wooTotalCount, loading: wooLoading } = useWooCommerceOrders();
+  const { carts: abandonedCarts, loading: cartsLoading, stats: cartStats } = useAbandonedCarts();
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
@@ -339,6 +341,15 @@ export default function Orders() {
                     {wooTotalCount.toLocaleString()}
                   </Badge>
                 </TabsTrigger>
+                <TabsTrigger value="abandoned" className="gap-2">
+                  <ShoppingCart className="h-4 w-4" />
+                  <span className="hidden sm:inline font-medium">Abandoned Carts</span>
+                  {cartStats.active > 0 && (
+                    <Badge variant="destructive" className="ml-1 h-5 px-2 text-xs font-semibold">
+                      {cartStats.active}
+                    </Badge>
+                  )}
+                </TabsTrigger>
                 <TabsTrigger value="pipeline" className="gap-2">
                   <Target className="h-4 w-4" />
                   <span className="hidden sm:inline font-medium">Pipeline</span>
@@ -534,6 +545,7 @@ export default function Orders() {
                             ))}
                           </SelectContent>
                         </Select>
+
 
 
 
@@ -1271,6 +1283,96 @@ export default function Orders() {
               <RefundRequestsTable orders={orders} onUpdateOrder={updateOrder} />
             </TabsContent>
           )}
+
+          {/* Abandoned Carts Tab */}
+          <TabsContent value="abandoned">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Card><CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Active</p>
+                  <p className="text-2xl font-bold text-destructive">{cartStats.active}</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Recovered</p>
+                  <p className="text-2xl font-bold text-primary">{cartStats.recovered}</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Lost Revenue</p>
+                  <p className="text-2xl font-bold text-destructive">₹{cartStats.totalValue.toLocaleString()}</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Recovered Revenue</p>
+                  <p className="text-2xl font-bold text-primary">₹{cartStats.recoveredValue.toLocaleString()}</p>
+                </CardContent></Card>
+              </div>
+
+              {cartsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : abandonedCarts.length === 0 ? (
+                <Card><CardContent className="py-12 text-center text-muted-foreground">
+                  <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">No abandoned carts yet</p>
+                  <p className="text-sm">Carts will appear here when customers abandon checkout on XBoom website</p>
+                </CardContent></Card>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted/50 border-b border-border">
+                        <th className="text-left p-3 font-medium">Customer</th>
+                        <th className="text-left p-3 font-medium">Contact</th>
+                        <th className="text-left p-3 font-medium">Cart Value</th>
+                        <th className="text-left p-3 font-medium">Status</th>
+                        <th className="text-left p-3 font-medium">Time Since Abandoned</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {abandonedCarts.map((cart) => {
+                        const timeDiff = Date.now() - new Date(cart.created_at).getTime();
+                        const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+                        const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+                        const timeAgo = hours > 24
+                          ? `${Math.floor(hours / 24)}d ${hours % 24}h ago`
+                          : hours > 0
+                            ? `${hours}h ${minutes}m ago`
+                            : `${minutes}m ago`;
+
+                        return (
+                          <tr key={cart.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                            <td className="p-3">
+                              <p className="font-medium">{cart.customer_name}</p>
+                            </td>
+                            <td className="p-3">
+                              <p className="text-xs">{cart.customer_email || '—'}</p>
+                              <p className="text-xs text-muted-foreground">{cart.customer_phone || '—'}</p>
+                            </td>
+                            <td className="p-3 font-semibold">
+                              ₹{(cart.cart_value || 0).toLocaleString()}
+                            </td>
+                            <td className="p-3">
+                              <Badge variant={
+                                cart.status === 'active' ? 'destructive' :
+                                cart.status === 'recovered' ? 'default' : 'secondary'
+                              }>
+                                {cart.status === 'active' ? '🔴 Active' :
+                                 cart.status === 'recovered' ? '✅ Recovered' : '⏱️ Expired'}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-muted-foreground text-xs">
+                              <Clock className="h-3 w-3 inline mr-1" />
+                              {timeAgo}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </TabsContent>
 
           {isAdmin && (
             <TabsContent value="analytics">
