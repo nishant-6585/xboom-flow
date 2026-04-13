@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
 
     // Update cart status
     const currentCount = Number(cart.recovery_emails_sent || 0);
-    await supabase
+    const { error: updateError } = await supabase
       .from("abandoned_carts")
       .update({
         status: "contacted",
@@ -248,6 +248,12 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       })
       .eq("id", cart_id);
+
+    if (updateError) {
+      console.error("[recover-abandoned-cart] DB update failed:", JSON.stringify(updateError));
+    } else {
+      console.log("[recover-abandoned-cart] Cart updated successfully:", cart_id, "emails:", currentCount + 1);
+    }
 
     // Log success
     await supabase.from("domain_events").insert({
