@@ -1371,6 +1371,7 @@ export default function Orders() {
                     <thead>
                       <tr className="bg-muted/50 border-b border-border">
                         <th className="text-left p-3 font-medium">Customer</th>
+                        <th className="text-left p-3 font-medium">Contact</th>
                         <th className="text-left p-3 font-medium">Products</th>
                         <th className="text-left p-3 font-medium">Cart Value</th>
                         <th className="text-left p-3 font-medium">Status</th>
@@ -1395,11 +1396,18 @@ export default function Orders() {
 
                         return (
                           <tr key={cart.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                            <td className="p-3">
-                              <p className="font-medium text-sm">{cart.customer_email || 'Guest'}</p>
+                            <td className="p-3 max-w-[180px]">
+                              <p className="font-medium text-sm truncate" title={cart.customer_email || 'Guest'}>
+                                {cart.customer_email || 'Guest'}
+                              </p>
                               {cart.last_contacted_by_name && (
-                                <p className="text-xs text-muted-foreground">Last by: {cart.last_contacted_by_name}</p>
+                                <p className="text-xs text-muted-foreground truncate">Last by: {cart.last_contacted_by_name}</p>
                               )}
+                            </td>
+                            <td className="p-3 max-w-[180px]">
+                              <p className="text-xs truncate" title={cart.customer_email || ''}>
+                                {cart.customer_email || '—'}
+                              </p>
                             </td>
                             <td className="p-3">
                               <Button
