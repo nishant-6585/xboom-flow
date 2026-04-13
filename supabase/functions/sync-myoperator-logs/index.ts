@@ -144,6 +144,38 @@ Deno.serve(async (req) => {
       .eq('is_approved', true)
       .in('user_id', (await supabase.from('user_roles').select('user_id').eq('role', 'sales')).data?.map((r: { user_id: string }) => r.user_id) || []);
 
+    // Pre-fetch existing phone-to-salesperson mappings for sticky assignment
+    // Collect all caller numbers from this batch first
+    const batchCallerNumbers: string[] = [];
+    for (const entry of logs) {
+      const cn = getString(entry, '_cr') || getString(entry, '_cl') || null;
+      if (cn) {
+        const norm = normalizePhone(cn);
+        if (norm) batchCallerNumbers.push(norm);
+      }
+    }
+
+    // Query existing assignments for these numbers
+    const stickyMap = new Map<string, { id: string; name: string }>();
+    if (batchCallerNumbers.length > 0) {
+      const uniqueNumbers = [...new Set(batchCallerNumbers)];
+      const { data: existingAssignments } = await supabase
+        .from('call_logs')
+        .select('caller_number, sales_person_id, sales_person_name')
+        .in('caller_number', uniqueNumbers)
+        .not('sales_person_id', 'is', null)
+        .order('created_at', { ascending: false });
+
+      if (existingAssignments) {
+        for (const row of existingAssignments) {
+          // First match wins (most recent due to ordering)
+          if (!stickyMap.has(row.caller_number) && row.sales_person_id && row.sales_person_name) {
+            stickyMap.set(row.caller_number, { id: row.sales_person_id, name: row.sales_person_name });
+          }
+        }
+      }
+    }
+
     let inserted = 0;
     let skipped = 0;
     let updated = 0;
