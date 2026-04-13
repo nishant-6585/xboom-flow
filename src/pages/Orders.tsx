@@ -349,6 +349,7 @@ export default function Orders() {
                       {cartStats.active}
                     </Badge>
                   )}
+                </TabsTrigger>
                 <TabsTrigger value="pipeline" className="gap-2">
                   <Target className="h-4 w-4" />
                   <span className="hidden sm:inline font-medium">Pipeline</span>
