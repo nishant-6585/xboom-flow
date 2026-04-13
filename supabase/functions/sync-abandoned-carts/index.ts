@@ -98,13 +98,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    // API returns a root array directly, NOT { data: [] }
-    const carts = JSON.parse(rawText);
+    // API returns { status: "success", count: N, data: [...] }
+    const parsed = JSON.parse(rawText);
+    const carts = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.data) ? parsed.data : null;
 
-    if (!Array.isArray(carts)) {
-      console.error("[sync-abandoned-carts] Response is not an array");
+    if (!carts) {
+      console.error("[sync-abandoned-carts] Unexpected response format");
       return new Response(
-        JSON.stringify({ error: "Unexpected response format: expected array" }),
+        JSON.stringify({ error: "Unexpected response format" }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
