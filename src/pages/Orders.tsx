@@ -206,6 +206,26 @@ export default function Orders() {
     shopifyPage * SHOPIFY_PAGE_SIZE
   );
 
+  // WooCommerce filtered orders
+  const filteredWooOrders = wooOrders.filter(o => {
+    const searchLower = wooSearchQuery.toLowerCase().trim();
+    const matchesSearch = wooSearchQuery === '' ||
+      (o.order_number?.toLowerCase().includes(searchLower)) ||
+      o.woo_order_id.toLowerCase().includes(searchLower) ||
+      o.product_name.toLowerCase().includes(searchLower) ||
+      o.customer_name.toLowerCase().includes(searchLower) ||
+      (o.customer_email?.toLowerCase().includes(searchLower) ?? false);
+    const matchesStatus = wooStatusFilter === 'all' || o.order_status === wooStatusFilter;
+    const matchesPayment = wooPaymentStatusFilter === 'all' || o.payment_status === wooPaymentStatusFilter;
+    return matchesSearch && matchesStatus && matchesPayment;
+  });
+
+  const wooTotalPages = Math.ceil(filteredWooOrders.length / WOO_PAGE_SIZE);
+  const paginatedWooOrders = filteredWooOrders.slice(
+    (wooPage - 1) * WOO_PAGE_SIZE,
+    wooPage * WOO_PAGE_SIZE
+  );
+
   const handleAnalyticsCardClick = (filter: { type: string; value: string }) => {
     // Switch to list tab
     setActiveTab('list');
