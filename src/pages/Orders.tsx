@@ -1410,9 +1410,14 @@ export default function Orders() {
                         return (
                           <tr key={cart.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                             <td className="p-3 max-w-[180px]">
-                              <p className="font-medium text-sm truncate" title={cart.customer_email || 'Guest'}>
-                                {cart.customer_email || 'Guest'}
-                              </p>
+                              <div className="flex items-center gap-1">
+                                <p className="font-medium text-sm truncate" title={cart.customer_email || 'Guest'}>
+                                  {cart.customer_email || 'Guest'}
+                                </p>
+                                {(cart.priority === 'high' || (cart.cart_value || 0) > 10000) && (
+                                  <Badge variant="destructive" className="text-[10px] h-4 px-1 shrink-0">🔥 HIGH</Badge>
+                                )}
+                              </div>
                               {cart.last_contacted_by_name && (
                                 <p className="text-xs text-muted-foreground truncate">Last by: {cart.last_contacted_by_name}</p>
                               )}
