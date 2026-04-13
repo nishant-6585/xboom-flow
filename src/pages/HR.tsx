@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { format, subDays } from "date-fns";
 import { Header } from "@/components/Header";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
@@ -45,7 +46,9 @@ export default function HR() {
     endBreak, applyLeave, applyLeaveForEmployee, approveLeave, fetchAttendanceLogs,
   } = useHR();
 
-  const [activeTab, setActiveTab] = useState("home");
+  const [searchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(tabFromUrl || "home");
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [hrLeaveDialogOpen, setHRLeaveDialogOpen] = useState(false);
   const [leaveFilter, setLeaveFilter] = useState('all');
