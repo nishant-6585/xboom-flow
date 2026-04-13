@@ -135,6 +135,9 @@ Deno.serve(async (req) => {
         .update({
           status: "recovered",
           recovery_notes: notes || "Manually marked as recovered",
+          recovered_at: new Date().toISOString(),
+          recovered_amount: cart.cart_value || 0,
+          recovery_source: "manual",
           updated_at: new Date().toISOString(),
         })
         .eq("id", cart_id);

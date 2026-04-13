@@ -123,17 +123,19 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      const cartValue = parseFloat(String(cart.cart_total || "0")) || 0;
       const record = {
         session_id: sessionId,
         customer_name: cart.email?.trim() || "Guest",
         customer_email: cart.email?.trim()?.toLowerCase() || null,
         customer_phone: null,
         cart_items: cart.products || cart.cart_items || null,
-        cart_value: parseFloat(String(cart.cart_total || "0")) || 0,
+        cart_value: cartValue,
         currency: "INR",
         status: "active",
         source: "xboom_website_pro",
         created_at: cart.abandoned_at || new Date().toISOString(),
+        priority: cartValue > 10000 ? "high" : "normal",
       };
 
       const { error: upsertError } = await supabase
