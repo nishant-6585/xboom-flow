@@ -1315,22 +1315,30 @@ export default function Orders() {
           {/* Abandoned Carts Tab */}
           <TabsContent value="abandoned">
             <div className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 <Card><CardContent className="p-4 text-center">
                   <p className="text-xs text-muted-foreground">Active</p>
                   <p className="text-2xl font-bold text-destructive">{cartStats.active}</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Contacted</p>
+                  <p className="text-2xl font-bold text-amber-600">{cartStats.contacted}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-4 text-center">
                   <p className="text-xs text-muted-foreground">Recovered</p>
                   <p className="text-2xl font-bold text-primary">{cartStats.recovered}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Lost Revenue</p>
+                  <p className="text-xs text-muted-foreground">Emails Sent</p>
+                  <p className="text-2xl font-bold">{cartStats.emailsSent}</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">At-Risk Revenue</p>
                   <p className="text-2xl font-bold text-destructive">₹{cartStats.totalValue.toLocaleString()}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Recovered Revenue</p>
-                  <p className="text-2xl font-bold text-primary">₹{cartStats.recoveredValue.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Conversion Rate</p>
+                  <p className="text-2xl font-bold text-primary">{cartStats.conversionRate}%</p>
                 </CardContent></Card>
               </div>
 
