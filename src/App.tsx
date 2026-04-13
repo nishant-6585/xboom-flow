@@ -11,11 +11,11 @@ import { MobileAttendanceFAB } from "@/components/attendance/MobileAttendanceFAB
 import { CommandPalette } from "@/components/CommandPalette";
 import { SessionHealthDebug } from "@/components/debug/SessionHealthDebug";
 import { PortalChatButton } from "@/components/chat/PortalChatButton";
-import { VoiceChatBot } from "@/components/voice-chat/VoiceChatBot";
+
 import { FollowupReminderPopup } from "@/components/sales/FollowupReminderPopup";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useThemeLoader } from "@/hooks/useThemeLoader";
-import { useLoginGreeting } from "@/hooks/useLoginGreeting";
+
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
@@ -69,7 +69,7 @@ const queryClient = new QueryClient({
 function AppInner() {
   const isMobile = useIsMobile();
   useThemeLoader();
-  useLoginGreeting();
+  
   return (
     <>
       <Routes>
@@ -138,7 +138,7 @@ function AuthGuardedWidgets({ isMobile }: { isMobile: boolean }) {
       {isMobile && <MobileAttendanceFAB />}
       <CommandPalette />
       <PortalChatButton />
-      <VoiceChatBot />
+      
       <FollowupReminderPopup />
     </ErrorBoundary>
   );

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, User, Volume2, VolumeX, Download, Loader2 } from 'lucide-react';
+import { Bot, User, Download, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
@@ -8,7 +8,6 @@ import { ChatActionButtons } from './ChatActionButtons';
 import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { speakText as elevenLabsSpeak, stopSpeaking as elevenLabsStop } from '@/lib/elevenLabsTTS';
 
 interface AIAction {
   label: string;
@@ -25,13 +24,8 @@ interface ChatMessageProps {
   onSpeakingDone?: () => void;
 }
 
-// Re-export for backward compatibility
-export function speakText(text: string, onEnd?: () => void) {
-  elevenLabsSpeak(text, onEnd);
-}
-
 export function stopSpeaking() {
-  elevenLabsStop();
+  // No-op: ElevenLabs TTS removed
 }
 
 /** Parse markdown tables from content for PDF export */
