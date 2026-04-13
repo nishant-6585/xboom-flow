@@ -28,8 +28,8 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
     const token = authHeader.replace("Bearer ", "");
-    const { data, error } = await supabaseAuth.auth.getClaims(token);
-    if (!error && data?.claims?.sub) {
+    const { data, error } = await supabaseAuth.auth.getUser(token);
+    if (!error && data?.user?.id) {
       isAuthorized = true;
     }
   }
@@ -59,104 +59,87 @@ Deno.serve(async (req) => {
     // use defaults
   }
 
-  const apiKey = Deno.env.get("XBOOM_CART_API_KEY");
-  if (!apiKey) {
-    console.error("[sync-abandoned-carts] Missing XBOOM_CART_API_KEY secret");
-    return new Response(JSON.stringify({ error: "Cart API key not configured" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   try {
-    // Build PRO API endpoint with query params
-    const endpoint = `https://www.xboom.in/wp-json/xboom/v1/abandoned-carts?api_key=${encodeURIComponent(apiKey)}&hours=${hours}&min_total=${minTotal}`;
+    // Build API endpoint - API key is optional
+    const url = new URL("https://www.xboom.in/wp-json/xboom/v1/abandoned-carts");
+    const apiKey = Deno.env.get("XBOOM_CART_API_KEY");
+    if (apiKey) {
+      url.searchParams.append("api_key", apiKey);
+    }
+    url.searchParams.append("hours", String(hours));
+    url.searchParams.append("min_total", String(minTotal));
 
-    console.log(`[sync-abandoned-carts] Fetching from PRO API (hours=${hours}, min_total=${minTotal})`);
+    console.log(`[sync-abandoned-carts] Fetching (hours=${hours}, min_total=${minTotal})`);
 
-    const response = await fetch(endpoint, {
+    const response = await fetch(url.toString(), {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
 
+    const rawText = await response.text();
+
+    // Log raw response for debugging
+    await supabase.from("domain_events").insert({
+      entity_type: "abandoned_cart_sync",
+      entity_id: crypto.randomUUID(),
+      event_type: "abandoned_cart_sync_debug",
+      payload: {
+        status: response.status,
+        body_preview: rawText.substring(0, 2000),
+        url: url.toString().replace(/api_key=[^&]+/, "api_key=REDACTED"),
+      },
+    }).catch(() => {});
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[sync-abandoned-carts] API error [${response.status}]: ${errorText}`);
-
-      // Log failure to domain_events
-      await supabase.from("domain_events").insert({
-        entity_type: "abandoned_cart_sync",
-        entity_id: crypto.randomUUID(),
-        event_type: "sync_api_error",
-        payload: { status: response.status, error: errorText.substring(0, 500) },
-      });
-
+      console.error(`[sync-abandoned-carts] API error [${response.status}]`);
       return new Response(
         JSON.stringify({ error: `WordPress API error: ${response.status}` }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const responseBody = await response.json();
-
-    // Handle PRO API error response
-    if (responseBody.status === "error") {
-      console.error("[sync-abandoned-carts] PRO API returned error:", JSON.stringify(responseBody));
-
-      await supabase.from("domain_events").insert({
-        entity_type: "abandoned_cart_sync",
-        entity_id: crypto.randomUUID(),
-        event_type: "sync_api_returned_error",
-        payload: responseBody,
-      });
-
-      return new Response(
-        JSON.stringify({ error: "PRO API returned error status", details: responseBody }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Parse PRO API format: { status: "success", count: N, data: [...] }
-    const carts = responseBody.data;
+    // API returns a root array directly, NOT { data: [] }
+    const carts = JSON.parse(rawText);
 
     if (!Array.isArray(carts)) {
-      console.error("[sync-abandoned-carts] Unexpected response format: missing data array");
+      console.error("[sync-abandoned-carts] Response is not an array");
       return new Response(
-        JSON.stringify({ error: "Unexpected response format from PRO API" }),
+        JSON.stringify({ error: "Unexpected response format: expected array" }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`[sync-abandoned-carts] Received ${carts.length} abandoned carts (API count: ${responseBody.count})`);
+    console.log(`[sync-abandoned-carts] Received ${carts.length} abandoned carts`);
 
     let inserted = 0;
-    let updated = 0;
     let errors = 0;
 
     for (const cart of carts) {
-      const cartId = String(cart.cart_id);
-      const customerEmail = cart.email?.trim()?.toLowerCase() || null;
+      const sessionId = String(cart.session_id || "");
+      if (!sessionId) {
+        errors++;
+        continue;
+      }
 
       const record = {
-        session_id: cartId,
-        customer_name: customerEmail ? customerEmail.split("@")[0] : "Unknown",
-        customer_email: customerEmail,
+        session_id: sessionId,
+        customer_name: cart.customer_name || "Unknown",
+        customer_email: cart.email?.trim()?.toLowerCase() || null,
         customer_phone: cart.phone || null,
-        cart_items: cart.products || null,
-        cart_value: parseFloat(String(cart.total || "0")) || 0,
+        cart_items: cart.cart_items || null,
+        cart_value: parseFloat(String(cart.cart_total || "0")) || 0,
         currency: "INR",
         status: "active",
         source: "xboom_website_pro",
       };
 
-      // Upsert using session_id (= cart_id) as dedup key
       const { error: upsertError } = await supabase
         .from("abandoned_carts")
         .upsert(record, { onConflict: "session_id", ignoreDuplicates: false });
 
       if (upsertError) {
         errors++;
-        console.error(`[sync-abandoned-carts] Upsert error for cart_id ${cartId}:`, upsertError.message);
+        console.error(`[sync-abandoned-carts] Upsert error for ${sessionId}:`, upsertError.message);
       } else {
         inserted++;
       }
@@ -166,7 +149,6 @@ Deno.serve(async (req) => {
       success: true,
       total_fetched: carts.length,
       inserted,
-      updated,
       errors,
       synced_at: new Date().toISOString(),
     };
@@ -180,7 +162,6 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error("[sync-abandoned-carts] Unexpected error:", err);
 
-    // Log to domain_events
     await supabase.from("domain_events").insert({
       entity_type: "abandoned_cart_sync",
       entity_id: crypto.randomUUID(),
