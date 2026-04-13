@@ -60,6 +60,7 @@ export default function Orders() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [syncingCarts, setSyncingCarts] = useState(false);
 
   // Shopify tab filters
   const [shopifyStatusFilter, setShopifyStatusFilter] = useState<string>('all');
