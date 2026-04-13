@@ -25,7 +25,9 @@ import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidge
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe, ShoppingCart } from 'lucide-react';
+import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe, ShoppingCart, RefreshCw } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { OrdersDashboardStats } from '@/components/orders/OrdersDashboardStats';
