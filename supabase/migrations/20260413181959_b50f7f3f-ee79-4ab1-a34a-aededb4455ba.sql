@@ -1,0 +1,6 @@
+ALTER TABLE public.abandoned_carts 
+ADD COLUMN IF NOT EXISTS contacted_at TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS recovery_emails_sent INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS last_contacted_by TEXT,
+ADD COLUMN IF NOT EXISTS last_contacted_by_name TEXT,
+ADD COLUMN IF NOT EXISTS recovery_notes TEXT;
