@@ -79,16 +79,18 @@ Deno.serve(async (req) => {
     const rawText = await response.text();
 
     // Log raw response for debugging
-    await supabase.from("domain_events").insert({
-      entity_type: "abandoned_cart_sync",
-      entity_id: crypto.randomUUID(),
-      event_type: "abandoned_cart_sync_debug",
-      payload: {
-        status: response.status,
-        body_preview: rawText.substring(0, 2000),
-        url: url.toString().replace(/api_key=[^&]+/, "api_key=REDACTED"),
-      },
-    }).catch(() => {});
+    try {
+      await supabase.from("domain_events").insert({
+        entity_type: "abandoned_cart_sync",
+        entity_id: crypto.randomUUID(),
+        event_type: "abandoned_cart_sync_debug",
+        payload: {
+          status: response.status,
+          body_preview: rawText.substring(0, 2000),
+          url: url.toString().replace(/api_key=[^&]+/, "api_key=REDACTED"),
+        },
+      });
+    } catch { /* ignore logging errors */ }
 
     if (!response.ok) {
       console.error(`[sync-abandoned-carts] API error [${response.status}]`);
@@ -162,12 +164,14 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error("[sync-abandoned-carts] Unexpected error:", err);
 
-    await supabase.from("domain_events").insert({
-      entity_type: "abandoned_cart_sync",
-      entity_id: crypto.randomUUID(),
-      event_type: "sync_unexpected_error",
-      payload: { error: String(err) },
-    }).catch(() => {});
+    try {
+      await supabase.from("domain_events").insert({
+        entity_type: "abandoned_cart_sync",
+        entity_id: crypto.randomUUID(),
+        event_type: "sync_unexpected_error",
+        payload: { error: String(err) },
+      });
+    } catch { /* ignore */ }
 
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
