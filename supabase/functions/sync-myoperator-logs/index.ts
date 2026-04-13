@@ -264,12 +264,17 @@ Deno.serve(async (req) => {
         const agentDisplay = allAgents.length > 0 ? allAgents.join(', ') : assignedAgentName;
         const effectiveCallId = callId || crypto.randomUUID();
 
-        // === LEAD ASSIGNMENT LOGIC ===
+        // === LEAD ASSIGNMENT LOGIC (Sticky first, then fallback) ===
         let salesPersonId: string | null = null;
         let salesPersonName: string | null = null;
 
-        if (callStatus === 'answered' && assignedAgentName && salesProfiles) {
-          // Assign to the person who picked up the call
+        // 1. Sticky assignment: if this caller was previously assigned, reuse same salesperson
+        const stickyAssignment = stickyMap.get(storedCaller);
+        if (stickyAssignment) {
+          salesPersonId = stickyAssignment.id;
+          salesPersonName = stickyAssignment.name;
+        } else if (callStatus === 'answered' && assignedAgentName && salesProfiles) {
+          // 2. For answered calls: assign to the person who picked up
           const matchedProfile = salesProfiles.find((p: { user_id: string; name: string }) =>
             p.name.toLowerCase() === assignedAgentName!.toLowerCase() ||
             p.name.toLowerCase().includes(assignedAgentName!.toLowerCase()) ||
@@ -280,11 +285,16 @@ Deno.serve(async (req) => {
             salesPersonName = matchedProfile.name;
           }
         } else if (callStatus === 'missed') {
-          // Round-robin between Narsimha & Mushtaq
+          // 3. Round-robin only for brand new missed callers
           const assignee = missedCallAssignees[missedRoundRobinIndex % missedCallAssignees.length];
           salesPersonId = assignee.user_id;
           salesPersonName = assignee.name;
           missedRoundRobinIndex++;
+        }
+
+        // Update sticky map so subsequent calls in the same batch also get the same person
+        if (salesPersonId && salesPersonName && !stickyMap.has(storedCaller)) {
+          stickyMap.set(storedCaller, { id: salesPersonId, name: salesPersonName });
         }
 
         const record: Record<string, unknown> = {
