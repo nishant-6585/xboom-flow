@@ -101,6 +101,3 @@ verify_jwt = false
 
 [functions.parse-credit-card-statement]
 verify_jwt = false
-
-[functions.transfer-call]
-verify_jwt = false
