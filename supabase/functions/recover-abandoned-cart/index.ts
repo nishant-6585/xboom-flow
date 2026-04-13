@@ -33,6 +33,11 @@ function buildEmailHtml(cart: Record<string, unknown>): string {
     minimumFractionDigits: 2,
   });
 
+  const sessionId = cart.session_id as string | null;
+  const restoreUrl = sessionId
+    ? `https://xboom.in/cart?restore_cart=${encodeURIComponent(sessionId)}`
+    : "https://xboom.in/cart/";
+
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
@@ -62,7 +67,7 @@ function buildEmailHtml(cart: Record<string, unknown>): string {
         </tfoot>
       </table>
       <div style="text-align:center;margin:30px 0;">
-        <a href="https://www.xboom.in/cart/" style="display:inline-block;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:16px;font-weight:bold;">Complete Your Purchase →</a>
+        <a href="${restoreUrl}" style="display:inline-block;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:16px;font-weight:bold;">Complete Your Purchase →</a>
       </div>
       <p style="color:#999;font-size:12px;text-align:center;margin-top:30px;">Need help? Reply to this email or call us.<br/>© XBoom - Premium Drone Solutions</p>
     </div>
