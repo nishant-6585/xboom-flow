@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { format, subDays } from "date-fns";
 import { Header } from "@/components/Header";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
@@ -16,7 +17,8 @@ import { HRLeaveApplyDialog } from "@/components/hr/HRLeaveApplyDialog";
 import { AssetManagementPanel } from "@/components/hr/AssetManagementPanel";
 import { HRDocumentsPanel } from "@/components/hr/HRDocumentsPanel";
 import { KPIManagementPanel } from "@/components/kpi/KPIManagementPanel";
-import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History, Building2, CreditCard, LogOut, ClipboardCheck, ClipboardX, UserPlus } from "lucide-react";
+import { Plus, Calendar, Clock, FileText, Users, Package, FolderOpen, Target, UserSearch, User, Wallet, Receipt, History, Building2, CreditCard, LogOut, ClipboardCheck, ClipboardX, UserPlus, BookOpen } from "lucide-react";
+import { EmployeeTrainingPanel } from "@/components/trainings/EmployeeTrainingPanel";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CandidatesPanel } from "@/components/candidates/CandidatesPanel";
 import { EmployeesPanel } from "@/components/hr/EmployeesPanel";
@@ -44,7 +46,9 @@ export default function HR() {
     endBreak, applyLeave, applyLeaveForEmployee, approveLeave, fetchAttendanceLogs,
   } = useHR();
 
-  const [activeTab, setActiveTab] = useState("home");
+  const [searchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(tabFromUrl || "home");
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [hrLeaveDialogOpen, setHRLeaveDialogOpen] = useState(false);
   const [leaveFilter, setLeaveFilter] = useState('all');
@@ -151,6 +155,9 @@ export default function HR() {
               {isHROrAdmin && (
                 <TabsTrigger value="leave_history" className="gap-1.5 whitespace-nowrap"><History className="h-4 w-4 shrink-0" /><span>Leave History</span></TabsTrigger>
               )}
+              {isHROrAdmin && (
+                <TabsTrigger value="training" className="gap-1.5 whitespace-nowrap"><BookOpen className="h-4 w-4 shrink-0" /><span>Training</span></TabsTrigger>
+              )}
             </TabsList>
           </div>
 
@@ -237,6 +244,7 @@ export default function HR() {
           {isHROrAdmin && <TabsContent value="onboarding"><ChecklistPanel checklistType="onboarding" /></TabsContent>}
           {isHROrAdmin && <TabsContent value="offboarding"><ChecklistPanel checklistType="offboarding" /></TabsContent>}
           {isHROrAdmin && <TabsContent value="leave_history"><LeaveHistoryPanel /></TabsContent>}
+          {isHROrAdmin && <TabsContent value="training"><EmployeeTrainingPanel /></TabsContent>}
         </Tabs>
       </main>
 
