@@ -111,6 +111,26 @@ export default function Orders() {
   const canViewRefunds = role === 'supply_chain' || role === 'admin';
   const canViewProcurementWidget = role === 'admin' || role === 'supply_chain' || role === 'finance';
 
+  const handleSyncAbandonedCarts = async () => {
+    setSyncingCarts(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-abandoned-carts');
+      if (error) throw error;
+      toast({
+        title: 'Sync Complete',
+        description: `Fetched ${data?.total_fetched ?? 0} carts — ${data?.inserted ?? 0} new, ${data?.duplicates ?? 0} duplicates`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Sync Failed',
+        description: err?.message || 'Could not sync abandoned carts',
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncingCarts(false);
+    }
+  };
+
   const refundCount = orders.filter(o => o.is_refund_requested).length;
 
   // All orders from useOrders are manual/Xboom orders (no shopify mixing)
