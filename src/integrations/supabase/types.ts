@@ -18,13 +18,18 @@ export type Database = {
         Row: {
           cart_items: Json | null
           cart_value: number | null
+          contacted_at: string | null
           created_at: string
           currency: string | null
           customer_email: string | null
           customer_name: string
           customer_phone: string | null
           id: string
+          last_contacted_by: string | null
+          last_contacted_by_name: string | null
           recovered_order_id: string | null
+          recovery_emails_sent: number | null
+          recovery_notes: string | null
           session_id: string | null
           source: string | null
           status: string
@@ -33,13 +38,18 @@ export type Database = {
         Insert: {
           cart_items?: Json | null
           cart_value?: number | null
+          contacted_at?: string | null
           created_at?: string
           currency?: string | null
           customer_email?: string | null
           customer_name?: string
           customer_phone?: string | null
           id?: string
+          last_contacted_by?: string | null
+          last_contacted_by_name?: string | null
           recovered_order_id?: string | null
+          recovery_emails_sent?: number | null
+          recovery_notes?: string | null
           session_id?: string | null
           source?: string | null
           status?: string
@@ -48,13 +58,18 @@ export type Database = {
         Update: {
           cart_items?: Json | null
           cart_value?: number | null
+          contacted_at?: string | null
           created_at?: string
           currency?: string | null
           customer_email?: string | null
           customer_name?: string
           customer_phone?: string | null
           id?: string
+          last_contacted_by?: string | null
+          last_contacted_by_name?: string | null
           recovered_order_id?: string | null
+          recovery_emails_sent?: number | null
+          recovery_notes?: string | null
           session_id?: string | null
           source?: string | null
           status?: string
