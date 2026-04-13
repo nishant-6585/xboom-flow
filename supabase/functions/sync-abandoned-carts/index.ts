@@ -65,10 +65,8 @@ Deno.serve(async (req) => {
 
     const url = new URL(baseUrl);
     url.searchParams.append("token", apiKey);
-    url.searchParams.append("hours", String(hours));
-    url.searchParams.append("min_total", String(minTotal));
 
-    console.log(`[sync-abandoned-carts] Fetching (hours=${hours}, min_total=${minTotal})`);
+    console.log(`[sync-abandoned-carts] Fetching from WordPress API`);
 
     const response = await fetch(url.toString(), {
       method: "GET",
@@ -93,8 +91,15 @@ Deno.serve(async (req) => {
     if (!response.ok) {
       console.error(`[sync-abandoned-carts] API error [${response.status}]`);
       return new Response(
-        JSON.stringify({ error: `WordPress API error: ${response.status}` }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          success: false,
+          total_fetched: 0,
+          inserted: 0,
+          errors: 0,
+          upstream_status: response.status,
+          message: "Abandoned carts source is currently unavailable",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -110,12 +115,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[sync-abandoned-carts] Received ${carts.length} abandoned carts`);
+    const cutoff = Date.now() - hours * 60 * 60 * 1000;
+    const filteredCarts = carts.filter((cart: any) => {
+      const abandonedAt = new Date(cart.abandoned_at || cart.created_at || 0).getTime();
+      const total = parseFloat(String(cart.cart_total || cart.total || "0")) || 0;
+      return (abandonedAt ? abandonedAt >= cutoff : true) && total >= minTotal;
+    });
+
+    console.log(`[sync-abandoned-carts] Received ${carts.length} carts, processing ${filteredCarts.length} after local filtering`);
 
     let inserted = 0;
     let errors = 0;
 
-    for (const cart of carts) {
+    for (const cart of filteredCarts) {
       // API returns: id, email, cart_total, abandoned_at, products[]
       const sessionId = String(cart.id || cart.session_id || "");
       if (!sessionId) {
@@ -152,7 +164,7 @@ Deno.serve(async (req) => {
 
     const summary = {
       success: true,
-      total_fetched: carts.length,
+      total_fetched: filteredCarts.length,
       inserted,
       errors,
       synced_at: new Date().toISOString(),
