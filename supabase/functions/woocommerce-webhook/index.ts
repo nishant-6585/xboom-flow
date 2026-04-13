@@ -19,17 +19,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Validate webhook secret
-    const secret = req.headers.get("xboom_secret");
-    const expectedSecret = Deno.env.get("WOOCOMMERCE_WEBHOOK_SECRET");
-
-    if (!expectedSecret || secret !== expectedSecret) {
-      console.warn("[woocommerce-webhook] Unauthorized: invalid or missing secret");
-      return new Response(
-        JSON.stringify({ success: false, error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // TODO: Implement HMAC validation using x-wc-webhook-signature header
+    // WooCommerce does not support custom headers — xboom_secret validation removed temporarily
+    console.log("[woocommerce-webhook] Request received (auth: open, pending HMAC implementation)");
 
     // Parse topic and payload
     const topic = req.headers.get("x-wc-webhook-topic") || "unknown";
