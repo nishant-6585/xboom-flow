@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+
+export type CartTimeFilter = '24h' | '3d' | '7d' | '30d' | 'all';
 
 export interface AbandonedCart {
   id: string;
@@ -23,9 +25,27 @@ export interface AbandonedCart {
   recovery_notes: string | null;
 }
 
+export type CartAgeStatus = 'active' | 'at_risk' | 'cold';
+
+export function getCartAgeStatus(createdAt: string): CartAgeStatus {
+  const hoursSinceAbandoned = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60);
+  if (hoursSinceAbandoned < 24) return 'active';
+  if (hoursSinceAbandoned <= 72) return 'at_risk';
+  return 'cold';
+}
+
+const FILTER_HOURS: Record<CartTimeFilter, number | null> = {
+  '24h': 24,
+  '3d': 72,
+  '7d': 168,
+  '30d': 720,
+  'all': null,
+};
+
 export function useAbandonedCarts() {
-  const [carts, setCarts] = useState<AbandonedCart[]>([]);
+  const [allCarts, setAllCarts] = useState<AbandonedCart[]>([]);
   const [loading, setLoading] = useState(true);
+  const [timeFilter, setTimeFilter] = useState<CartTimeFilter>('7d');
   const { toast } = useToast();
 
   const fetchCarts = async () => {
@@ -35,10 +55,10 @@ export function useAbandonedCarts() {
         .from('abandoned_carts')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(500);
+        .limit(1000);
 
       if (error) throw error;
-      setCarts((data as AbandonedCart[]) || []);
+      setAllCarts((data as AbandonedCart[]) || []);
     } catch (error: unknown) {
       console.error('Error fetching abandoned carts:', error);
       toast({
@@ -50,6 +70,13 @@ export function useAbandonedCarts() {
       setLoading(false);
     }
   };
+
+  const carts = useMemo(() => {
+    const maxHours = FILTER_HOURS[timeFilter];
+    if (maxHours === null) return allCarts;
+    const cutoff = Date.now() - maxHours * 60 * 60 * 1000;
+    return allCarts.filter(c => new Date(c.created_at).getTime() >= cutoff);
+  }, [allCarts, timeFilter]);
 
   const recoverCart = async (cartId: string, action: 'send_email' | 'mark_recovered' | 'mark_lost', userName?: string, notes?: string) => {
     try {
@@ -95,20 +122,32 @@ export function useAbandonedCarts() {
     };
   }, []);
 
-  const stats = {
-    total: carts.length,
-    active: carts.filter(c => c.status === 'active').length,
-    contacted: carts.filter(c => c.status === 'contacted').length,
-    recovered: carts.filter(c => c.status === 'recovered').length,
-    lost: carts.filter(c => c.status === 'lost').length,
-    expired: carts.filter(c => c.status === 'expired').length,
-    totalValue: carts.filter(c => c.status === 'active' || c.status === 'contacted').reduce((sum, c) => sum + (c.cart_value || 0), 0),
-    recoveredValue: carts.filter(c => c.status === 'recovered').reduce((sum, c) => sum + (c.cart_value || 0), 0),
-    emailsSent: carts.reduce((sum, c) => sum + (c.recovery_emails_sent || 0), 0),
-    conversionRate: carts.length > 0
-      ? Math.round((carts.filter(c => c.status === 'recovered').length / carts.length) * 100)
-      : 0,
-  };
+  const stats = useMemo(() => {
+    // Stats are computed on the filtered carts
+    const activeAge = carts.filter(c => (c.status === 'active' || c.status === 'contacted') && getCartAgeStatus(c.created_at) === 'active');
+    const atRiskAge = carts.filter(c => (c.status === 'active' || c.status === 'contacted') && getCartAgeStatus(c.created_at) === 'at_risk');
+    const recovered = carts.filter(c => c.status === 'recovered');
+    const contacted = carts.filter(c => c.status === 'contacted');
 
-  return { carts, loading, stats, refetch: fetchCarts, recoverCart };
+    const activeRevenue = activeAge.reduce((sum, c) => sum + (c.cart_value || 0), 0);
+    const atRiskRevenue = atRiskAge.reduce((sum, c) => sum + (c.cart_value || 0), 0);
+
+    return {
+      total: carts.length,
+      active: activeAge.length,
+      atRisk: atRiskAge.length,
+      contacted: contacted.length,
+      recovered: recovered.length,
+      lost: carts.filter(c => c.status === 'lost').length,
+      expired: carts.filter(c => c.status === 'expired').length,
+      atRiskRevenue: activeRevenue + atRiskRevenue,
+      recoveredValue: recovered.reduce((sum, c) => sum + (c.cart_value || 0), 0),
+      emailsSent: carts.reduce((sum, c) => sum + (c.recovery_emails_sent || 0), 0),
+      conversionRate: carts.length > 0
+        ? Math.round((recovered.length / carts.length) * 100)
+        : 0,
+    };
+  }, [carts]);
+
+  return { carts, loading, stats, refetch: fetchCarts, recoverCart, timeFilter, setTimeFilter };
 }

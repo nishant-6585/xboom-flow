@@ -21,7 +21,7 @@ import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWid
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
 import { useWooCommerceOrders } from '@/hooks/useWooCommerceOrders';
-import { useAbandonedCarts } from '@/hooks/useAbandonedCarts';
+import { useAbandonedCarts, getCartAgeStatus, type CartTimeFilter } from '@/hooks/useAbandonedCarts';
 import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidget';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
@@ -39,7 +39,7 @@ export default function Orders() {
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
   const { wooOrders, totalCount: wooTotalCount, loading: wooLoading } = useWooCommerceOrders();
-  const { carts: abandonedCarts, loading: cartsLoading, stats: cartStats, recoverCart } = useAbandonedCarts();
+  const { carts: abandonedCarts, loading: cartsLoading, stats: cartStats, recoverCart, timeFilter, setTimeFilter } = useAbandonedCarts();
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
@@ -1317,12 +1317,12 @@ export default function Orders() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Active</p>
+                  <p className="text-xs text-muted-foreground">Active (&lt;24h)</p>
                   <p className="text-2xl font-bold text-destructive">{cartStats.active}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Contacted</p>
-                  <p className="text-2xl font-bold text-amber-600">{cartStats.contacted}</p>
+                  <p className="text-xs text-muted-foreground">At Risk (24-72h)</p>
+                  <p className="text-2xl font-bold text-amber-600">{cartStats.atRisk}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-4 text-center">
                   <p className="text-xs text-muted-foreground">Recovered</p>
@@ -1334,7 +1334,7 @@ export default function Orders() {
                 </CardContent></Card>
                 <Card><CardContent className="p-4 text-center">
                   <p className="text-xs text-muted-foreground">At-Risk Revenue</p>
-                  <p className="text-2xl font-bold text-destructive">₹{cartStats.totalValue.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-destructive">₹{cartStats.atRiskRevenue.toLocaleString()}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-4 text-center">
                   <p className="text-xs text-muted-foreground">Conversion Rate</p>
@@ -1342,7 +1342,20 @@ export default function Orders() {
                 </CardContent></Card>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex items-center justify-between">
+                <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as CartTimeFilter)}>
+                  <SelectTrigger className="w-[180px]">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="24h">Last 24 hours</SelectItem>
+                    <SelectItem value="3d">Last 3 days</SelectItem>
+                    <SelectItem value="7d">Last 7 days</SelectItem>
+                    <SelectItem value="30d">Last 30 days</SelectItem>
+                    <SelectItem value="all">All time</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Button
                   variant="outline"
                   size="sm"
@@ -1424,17 +1437,18 @@ export default function Orders() {
                               ₹{(cart.cart_value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                             <td className="p-3">
-                              <Badge variant={
-                                cart.status === 'active' ? 'destructive' :
-                                cart.status === 'contacted' ? 'outline' :
-                                cart.status === 'recovered' ? 'default' :
-                                cart.status === 'lost' ? 'secondary' : 'secondary'
-                              }>
-                                {cart.status === 'active' ? '🔴 Active' :
-                                 cart.status === 'contacted' ? '📧 Contacted' :
-                                 cart.status === 'recovered' ? '✅ Recovered' :
-                                 cart.status === 'lost' ? '❌ Lost' : '⏱️ Expired'}
-                              </Badge>
+                              {cart.status === 'recovered' ? (
+                                <Badge variant="default">✅ Recovered</Badge>
+                              ) : cart.status === 'lost' ? (
+                                <Badge variant="secondary">❌ Lost</Badge>
+                              ) : cart.status === 'contacted' ? (
+                                <Badge variant="outline">📧 Contacted</Badge>
+                              ) : (() => {
+                                const ageStatus = getCartAgeStatus(cart.created_at);
+                                if (ageStatus === 'active') return <Badge variant="destructive">🔴 Active</Badge>;
+                                if (ageStatus === 'at_risk') return <Badge className="bg-amber-500 text-white hover:bg-amber-600">🟠 At Risk</Badge>;
+                                return <Badge variant="secondary">⚪ Cold</Badge>;
+                              })()}
                             </td>
                             <td className="p-3 text-xs text-center">
                               {cart.recovery_emails_sent || 0}
