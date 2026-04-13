@@ -61,14 +61,12 @@ Deno.serve(async (req) => {
   try {
     // Fetch abandoned carts from custom WordPress REST endpoint
     const endpoint = `${siteUrl.replace(/\/$/, "")}/wp-json/xboom/v1/abandoned-carts`;
-    const credentials = btoa(`${consumerKey}:${consumerSecret}`);
 
     console.log(`[sync-abandoned-carts] Fetching from ${endpoint}`);
 
     const response = await fetch(endpoint, {
       method: "GET",
       headers: {
-        Authorization: `Basic ${credentials}`,
         "Content-Type": "application/json",
       },
     });
