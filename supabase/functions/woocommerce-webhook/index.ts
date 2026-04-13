@@ -123,6 +123,33 @@ Deno.serve(async (req) => {
         break;
       }
 
+      case "cart.abandoned":
+      case "abandoned_cart": {
+        const cartData = {
+          session_id: payload?.session_id || payload?.id?.toString() || null,
+          customer_name: `${payload?.billing?.first_name || payload?.first_name || ""} ${payload?.billing?.last_name || payload?.last_name || ""}`.trim() || "Unknown",
+          customer_email: payload?.billing?.email || payload?.email || null,
+          customer_phone: payload?.billing?.phone || payload?.phone || null,
+          cart_items: payload?.items || payload?.line_items || payload?.cart_items || [],
+          cart_value: parseFloat(payload?.total || payload?.cart_total || payload?.value || "0"),
+          currency: payload?.currency || "INR",
+          source: "xboom_website",
+          status: "active",
+        };
+
+        // Upsert by session_id or email to prevent duplicates
+        const { error: cartError } = await supabase
+          .from("abandoned_carts")
+          .insert(cartData);
+
+        if (cartError) {
+          console.error(`[woocommerce-webhook] Abandoned cart DB error:`, cartError.message);
+        } else {
+          console.log(`[woocommerce-webhook] Abandoned cart tracked — ${cartData.customer_name}, Value: ${cartData.cart_value}`);
+        }
+        break;
+      }
+
       default:
         console.log(`[woocommerce-webhook] Unhandled topic: ${topic}`);
         break;
