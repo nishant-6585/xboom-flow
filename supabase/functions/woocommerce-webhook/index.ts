@@ -23,8 +23,20 @@ Deno.serve(async (req) => {
     // WooCommerce does not support custom headers — xboom_secret validation removed temporarily
     console.log("[woocommerce-webhook] Request received (auth: open, pending HMAC implementation)");
 
-    // Parse topic and payload
+    const contentType = req.headers.get("content-type") || "";
     const topic = req.headers.get("x-wc-webhook-topic") || "unknown";
+
+    // Handle form-encoded requests (WooCommerce ping/verification)
+    if (contentType.includes("application/x-www-form-urlencoded")) {
+      const body = await req.text();
+      console.log(`[woocommerce-webhook] Form-encoded ping received: ${body}`);
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Parse JSON payload
     const payload = await req.json();
 
     console.log(`[woocommerce-webhook] Received topic: ${topic}`);
