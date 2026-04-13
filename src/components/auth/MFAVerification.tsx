@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { unlockAppAudio } from "@/lib/audioPlayback";
+
 import { registerTrustedDevice, clearLocalDeviceTrust } from "@/lib/deviceTrust";
 import logoIcon from "@/assets/logo-icon.jpeg";
 
@@ -16,13 +16,6 @@ interface MFAVerificationProps {
   onCancel: () => void;
 }
 
-const primeAudioPlayback = async () => {
-  try {
-    await unlockAppAudio();
-  } catch {
-    // Ignore audio priming failures.
-  }
-};
 
 export const MFAVerification = ({ onVerified, onCancel }: MFAVerificationProps) => {
   const [code, setCode] = useState("");
@@ -40,7 +33,7 @@ export const MFAVerification = ({ onVerified, onCancel }: MFAVerificationProps) 
       return;
     }
 
-    await primeAudioPlayback();
+    
     setLoading(true);
 
     try {
