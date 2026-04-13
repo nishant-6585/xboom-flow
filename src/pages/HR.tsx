@@ -152,6 +152,9 @@ export default function HR() {
               {isHROrAdmin && (
                 <TabsTrigger value="leave_history" className="gap-1.5 whitespace-nowrap"><History className="h-4 w-4 shrink-0" /><span>Leave History</span></TabsTrigger>
               )}
+              {isHROrAdmin && (
+                <TabsTrigger value="training" className="gap-1.5 whitespace-nowrap"><BookOpen className="h-4 w-4 shrink-0" /><span>Training</span></TabsTrigger>
+              )}
             </TabsList>
           </div>
 
@@ -238,6 +241,7 @@ export default function HR() {
           {isHROrAdmin && <TabsContent value="onboarding"><ChecklistPanel checklistType="onboarding" /></TabsContent>}
           {isHROrAdmin && <TabsContent value="offboarding"><ChecklistPanel checklistType="offboarding" /></TabsContent>}
           {isHROrAdmin && <TabsContent value="leave_history"><LeaveHistoryPanel /></TabsContent>}
+          {isHROrAdmin && <TabsContent value="training"><EmployeeTrainingPanel /></TabsContent>}
         </Tabs>
       </main>
 
