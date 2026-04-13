@@ -120,6 +120,59 @@ Deno.serve(async (req) => {
           const action = topic === "order.created" ? "Inserted" : "Upserted";
           console.log(`[woocommerce-webhook] ${action} order #${orderId} — ${productName}, Total: ${payload?.total}, Customer: ${orderData.customer_name}`);
         }
+
+        // ── Recovery detection: match abandoned cart by email ──────────
+        const isPaid = wooStatus === "completed" || wooStatus === "processing";
+        const customerEmail = orderData.customer_email?.toLowerCase()?.trim();
+
+        if (isPaid && customerEmail) {
+          const { data: matchedCart, error: matchErr } = await supabase
+            .from("abandoned_carts")
+            .select("id, cart_value, status")
+            .eq("customer_email", customerEmail)
+            .neq("status", "recovered")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (matchErr) {
+            console.error("[woocommerce-webhook] Recovery match error:", matchErr.message);
+          } else if (matchedCart) {
+            const orderTotal = parseFloat(payload?.total || "0");
+            const { error: updateErr } = await supabase
+              .from("abandoned_carts")
+              .update({
+                status: "recovered",
+                recovered_at: new Date().toISOString(),
+                recovered_amount: orderTotal,
+                recovery_source: matchedCart.status === "contacted" ? "email" : "organic",
+                recovered_order_id: orderId,
+                recovery_notes: `Auto-recovered via WooCommerce order #${orderId}`,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", matchedCart.id);
+
+            if (updateErr) {
+              console.error("[woocommerce-webhook] Recovery update error:", updateErr.message);
+            } else {
+              console.log(`[woocommerce-webhook] Cart ${matchedCart.id} auto-recovered via order #${orderId}`);
+            }
+
+            await supabase.from("domain_events").insert({
+              entity_type: "abandoned_cart_recovery",
+              entity_id: matchedCart.id,
+              event_type: "auto_recovery_detected",
+              payload: {
+                order_id: orderId,
+                email: customerEmail,
+                order_total: orderTotal,
+                cart_value: matchedCart.cart_value,
+                previous_status: matchedCart.status,
+                recovery_source: matchedCart.status === "contacted" ? "email" : "organic",
+              },
+            });
+          }
+        }
         break;
       }
 
