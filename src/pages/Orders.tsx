@@ -86,6 +86,9 @@ export default function Orders() {
   // Reset manual page when filters/search change
   useEffect(() => { setManualPage(1); }, [searchQuery, statusFilter, paymentStatusFilter, orderTypeFilter, outcomeFilter, salesPersonFilter, paymentTermsFilter, startDate, endDate]);
 
+  // Reset woo page when filters change
+  useEffect(() => { setWooPage(1); }, [wooSearchQuery, wooStatusFilter, wooPaymentStatusFilter]);
+
   useEffect(() => {
     if (tabFromUrl === 'pipeline') {
       setActiveTab('pipeline');
