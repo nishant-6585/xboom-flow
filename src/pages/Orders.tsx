@@ -547,6 +547,96 @@ export default function Orders() {
                         </Select>
 
 
+          {/* Abandoned Carts Tab */}
+          <TabsContent value="abandoned">
+            <div className="space-y-4">
+              {/* Stats Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Card><CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Active</p>
+                  <p className="text-2xl font-bold text-destructive">{cartStats.active}</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Recovered</p>
+                  <p className="text-2xl font-bold text-green-600">{cartStats.recovered}</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Lost Revenue</p>
+                  <p className="text-2xl font-bold text-destructive">₹{cartStats.totalValue.toLocaleString()}</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Recovered Revenue</p>
+                  <p className="text-2xl font-bold text-green-600">₹{cartStats.recoveredValue.toLocaleString()}</p>
+                </CardContent></Card>
+              </div>
+
+              {cartsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : abandonedCarts.length === 0 ? (
+                <Card><CardContent className="py-12 text-center text-muted-foreground">
+                  <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">No abandoned carts yet</p>
+                  <p className="text-sm">Carts will appear here when customers abandon checkout on XBoom website</p>
+                </CardContent></Card>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted/50 border-b border-border">
+                        <th className="text-left p-3 font-medium">Customer</th>
+                        <th className="text-left p-3 font-medium">Contact</th>
+                        <th className="text-left p-3 font-medium">Cart Value</th>
+                        <th className="text-left p-3 font-medium">Status</th>
+                        <th className="text-left p-3 font-medium">Time Since Abandoned</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {abandonedCarts.map((cart) => {
+                        const timeDiff = Date.now() - new Date(cart.created_at).getTime();
+                        const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+                        const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+                        const timeAgo = hours > 24
+                          ? `${Math.floor(hours / 24)}d ${hours % 24}h ago`
+                          : hours > 0
+                            ? `${hours}h ${minutes}m ago`
+                            : `${minutes}m ago`;
+
+                        return (
+                          <tr key={cart.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                            <td className="p-3">
+                              <p className="font-medium">{cart.customer_name}</p>
+                            </td>
+                            <td className="p-3">
+                              <p className="text-xs">{cart.customer_email || '—'}</p>
+                              <p className="text-xs text-muted-foreground">{cart.customer_phone || '—'}</p>
+                            </td>
+                            <td className="p-3 font-semibold">
+                              ₹{(cart.cart_value || 0).toLocaleString()}
+                            </td>
+                            <td className="p-3">
+                              <Badge variant={
+                                cart.status === 'active' ? 'destructive' :
+                                cart.status === 'recovered' ? 'default' : 'secondary'
+                              }>
+                                {cart.status === 'active' ? '🔴 Active' :
+                                 cart.status === 'recovered' ? '✅ Recovered' : '⏱️ Expired'}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-muted-foreground text-xs">
+                              <Clock className="h-3 w-3 inline mr-1" />
+                              {timeAgo}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </TabsContent>
 
                       </div>
                       
