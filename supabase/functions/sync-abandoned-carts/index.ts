@@ -60,39 +60,22 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const baseUrl = new URL("https://www.xboom.in/wp-json/xboom/v1/abandoned-carts");
-    baseUrl.searchParams.append("hours", String(hours));
-    baseUrl.searchParams.append("min_total", String(minTotal));
+    const baseUrl = "https://www.xboom.in/wp-json/xboom/v1/abandoned-carts";
+    const apiKey = Deno.env.get("XBOOM_CART_API_KEY") || "xboom_default_secret_key_123";
 
-    const apiKey = Deno.env.get("XBOOM_CART_API_KEY");
+    const url = new URL(baseUrl);
+    url.searchParams.append("token", apiKey);
+    url.searchParams.append("hours", String(hours));
+    url.searchParams.append("min_total", String(minTotal));
 
-    const fetchCarts = async (includeApiKey: boolean) => {
-      const url = new URL(baseUrl.toString());
-      if (includeApiKey && apiKey) {
-        url.searchParams.append("api_key", apiKey);
-      }
+    console.log(`[sync-abandoned-carts] Fetching (hours=${hours}, min_total=${minTotal})`);
 
-      console.log(
-        `[sync-abandoned-carts] Fetching (hours=${hours}, min_total=${minTotal}, api_key=${includeApiKey ? "yes" : "no"})`
-      );
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
 
-      const response = await fetch(url.toString(), {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      const rawText = await response.text();
-      return { response, rawText, url };
-    };
-
-    let { response, rawText, url } = await fetchCarts(Boolean(apiKey));
-    let retriedWithoutKey = false;
-
-    if (response.status === 401 && apiKey) {
-      retriedWithoutKey = true;
-      console.warn("[sync-abandoned-carts] 401 with API key, retrying without api_key");
-      ({ response, rawText, url } = await fetchCarts(false));
-    }
+    const rawText = await response.text();
 
     try {
       await supabase.from("domain_events").insert({
@@ -102,13 +85,10 @@ Deno.serve(async (req) => {
         payload: {
           status: response.status,
           body_preview: rawText.substring(0, 2000),
-          retried_without_key: retriedWithoutKey,
-          url: url.toString().replace(/api_key=[^&]+/, "api_key=REDACTED"),
+          url: url.toString().replace(/token=[^&]+/, "token=REDACTED"),
         },
       });
-    } catch {
-      /* ignore logging errors */
-    }
+    } catch { /* ignore */ }
 
     if (!response.ok) {
       console.error(`[sync-abandoned-carts] API error [${response.status}]`);
