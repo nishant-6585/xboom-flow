@@ -23,6 +23,13 @@ export interface AbandonedCart {
   last_contacted_by: string | null;
   last_contacted_by_name: string | null;
   recovery_notes: string | null;
+  priority: string;
+  recovered_at: string | null;
+  recovered_amount: number | null;
+  recovery_source: string | null;
+  auto_email_1_sent_at: string | null;
+  auto_email_2_sent_at: string | null;
+  auto_email_3_sent_at: string | null;
 }
 
 export type CartAgeStatus = 'active' | 'at_risk' | 'cold';
