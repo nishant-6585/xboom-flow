@@ -75,8 +75,8 @@ function buildEmailHtml(cart: CartRow, level: 1 | 2 | 3): { html: string; subjec
   const tpl = TEMPLATES[level](cartValue);
   const itemsHtml = buildItemsHtml(cart.cart_items);
   const restoreUrl = cart.session_id
-    ? `https://xboom.in/cart?restore_cart=${encodeURIComponent(cart.session_id)}`
-    : "https://xboom.in/cart/";
+    ? `https://xboom.in/checkout?restore_cart=${encodeURIComponent(cart.session_id)}`
+    : "https://xboom.in/checkout/";
 
   const html = `<!DOCTYPE html>
 <html>

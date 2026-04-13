@@ -35,8 +35,8 @@ function buildEmailHtml(cart: Record<string, unknown>): string {
 
   const sessionId = cart.session_id as string | null;
   const restoreUrl = sessionId
-    ? `https://xboom.in/cart?restore_cart=${encodeURIComponent(sessionId)}`
-    : "https://xboom.in/cart/";
+    ? `https://xboom.in/checkout?restore_cart=${encodeURIComponent(sessionId)}`
+    : "https://xboom.in/checkout/";
 
   return `<!DOCTYPE html>
 <html>
