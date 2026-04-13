@@ -16,6 +16,9 @@ export type Database = {
     Tables: {
       abandoned_carts: {
         Row: {
+          auto_email_1_sent_at: string | null
+          auto_email_2_sent_at: string | null
+          auto_email_3_sent_at: string | null
           cart_items: Json | null
           cart_value: number | null
           contacted_at: string | null
@@ -27,15 +30,22 @@ export type Database = {
           id: string
           last_contacted_by: string | null
           last_contacted_by_name: string | null
+          priority: string
+          recovered_amount: number | null
+          recovered_at: string | null
           recovered_order_id: string | null
           recovery_emails_sent: number | null
           recovery_notes: string | null
+          recovery_source: string | null
           session_id: string | null
           source: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          auto_email_1_sent_at?: string | null
+          auto_email_2_sent_at?: string | null
+          auto_email_3_sent_at?: string | null
           cart_items?: Json | null
           cart_value?: number | null
           contacted_at?: string | null
@@ -47,15 +57,22 @@ export type Database = {
           id?: string
           last_contacted_by?: string | null
           last_contacted_by_name?: string | null
+          priority?: string
+          recovered_amount?: number | null
+          recovered_at?: string | null
           recovered_order_id?: string | null
           recovery_emails_sent?: number | null
           recovery_notes?: string | null
+          recovery_source?: string | null
           session_id?: string | null
           source?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          auto_email_1_sent_at?: string | null
+          auto_email_2_sent_at?: string | null
+          auto_email_3_sent_at?: string | null
           cart_items?: Json | null
           cart_value?: number | null
           contacted_at?: string | null
@@ -67,9 +84,13 @@ export type Database = {
           id?: string
           last_contacted_by?: string | null
           last_contacted_by_name?: string | null
+          priority?: string
+          recovered_amount?: number | null
+          recovered_at?: string | null
           recovered_order_id?: string | null
           recovery_emails_sent?: number | null
           recovery_notes?: string | null
+          recovery_source?: string | null
           session_id?: string | null
           source?: string | null
           status?: string

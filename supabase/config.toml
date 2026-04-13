@@ -101,3 +101,6 @@ verify_jwt = false
 
 [functions.parse-credit-card-statement]
 verify_jwt = false
+
+[functions.auto-recover-carts]
+verify_jwt = false
