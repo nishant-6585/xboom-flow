@@ -117,7 +117,8 @@ Deno.serve(async (req) => {
     let errors = 0;
 
     for (const cart of carts) {
-      const sessionId = String(cart.session_id || "");
+      // API returns: id, email, cart_total, abandoned_at, products[]
+      const sessionId = String(cart.id || cart.session_id || "");
       if (!sessionId) {
         errors++;
         continue;
@@ -125,14 +126,15 @@ Deno.serve(async (req) => {
 
       const record = {
         session_id: sessionId,
-        customer_name: cart.customer_name || "Unknown",
+        customer_name: cart.email?.trim() || "Guest",
         customer_email: cart.email?.trim()?.toLowerCase() || null,
-        customer_phone: cart.phone || null,
-        cart_items: cart.cart_items || null,
+        customer_phone: null,
+        cart_items: cart.products || cart.cart_items || null,
         cart_value: parseFloat(String(cart.cart_total || "0")) || 0,
         currency: "INR",
         status: "active",
         source: "xboom_website_pro",
+        created_at: cart.abandoned_at || new Date().toISOString(),
       };
 
       const { error: upsertError } = await supabase

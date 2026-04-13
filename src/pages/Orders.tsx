@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { OrderCard } from '@/components/OrderCard';
 import { OrderTable } from '@/components/OrderTable';
@@ -61,6 +62,7 @@ export default function Orders() {
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [syncingCarts, setSyncingCarts] = useState(false);
+  const [selectedCartItems, setSelectedCartItems] = useState<Record<string, unknown>[] | null>(null);
 
   // Shopify tab filters
   const [shopifyStatusFilter, setShopifyStatusFilter] = useState<string>('all');
@@ -1353,15 +1355,18 @@ export default function Orders() {
                   <p className="text-sm">Carts will appear here when customers abandon checkout on XBoom website</p>
                 </CardContent></Card>
               ) : (
+                <>
                 <div className="overflow-x-auto rounded-lg border border-border">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-muted/50 border-b border-border">
                         <th className="text-left p-3 font-medium">Customer</th>
                         <th className="text-left p-3 font-medium">Contact</th>
+                        <th className="text-left p-3 font-medium">Products</th>
                         <th className="text-left p-3 font-medium">Cart Value</th>
                         <th className="text-left p-3 font-medium">Status</th>
                         <th className="text-left p-3 font-medium">Time Since Abandoned</th>
+                        <th className="text-left p-3 font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1374,18 +1379,29 @@ export default function Orders() {
                           : hours > 0
                             ? `${hours}h ${minutes}m ago`
                             : `${minutes}m ago`;
+                        const items = Array.isArray(cart.cart_items) ? cart.cart_items : [];
 
                         return (
                           <tr key={cart.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                             <td className="p-3">
-                              <p className="font-medium">{cart.customer_name}</p>
+                              <p className="font-medium">{cart.customer_email || 'Guest'}</p>
                             </td>
                             <td className="p-3">
                               <p className="text-xs">{cart.customer_email || '—'}</p>
-                              <p className="text-xs text-muted-foreground">{cart.customer_phone || '—'}</p>
+                            </td>
+                            <td className="p-3">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-xs h-7 px-2"
+                                onClick={() => setSelectedCartItems(items)}
+                              >
+                                <Package className="h-3 w-3 mr-1" />
+                                {items.length} item{items.length !== 1 ? 's' : ''}
+                              </Button>
                             </td>
                             <td className="p-3 font-semibold">
-                              ₹{(cart.cart_value || 0).toLocaleString()}
+                              ₹{(cart.cart_value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                             <td className="p-3">
                               <Badge variant={
@@ -1400,12 +1416,48 @@ export default function Orders() {
                               <Clock className="h-3 w-3 inline mr-1" />
                               {timeAgo}
                             </td>
+                            <td className="p-3">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs h-7"
+                                onClick={() => setSelectedCartItems(items)}
+                              >
+                                View Details
+                              </Button>
+                            </td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
                 </div>
+
+                {/* Products Modal */}
+                <Dialog open={selectedCartItems !== null} onOpenChange={(open) => !open && setSelectedCartItems(null)}>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Cart Items</DialogTitle>
+                      <DialogDescription>Products in this abandoned cart</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {(selectedCartItems || []).length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">No product details available</p>
+                      ) : (
+                        (selectedCartItems || []).map((item: Record<string, unknown>, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+                            <div>
+                              <p className="text-sm font-medium">Product: {String(item.product_id || item.name || 'N/A')}</p>
+                              <p className="text-xs text-muted-foreground">Qty: {String(item.quantity || 1)}</p>
+                            </div>
+                            <p className="text-sm font-semibold">₹{Number(item.line_total || item.price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                </>
               )}
             </div>
           </TabsContent>
