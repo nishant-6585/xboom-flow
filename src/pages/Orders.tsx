@@ -25,7 +25,9 @@ import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidge
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe, ShoppingCart } from 'lucide-react';
+import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe, ShoppingCart, RefreshCw } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { OrdersDashboardStats } from '@/components/orders/OrdersDashboardStats';
@@ -58,6 +60,7 @@ export default function Orders() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [syncingCarts, setSyncingCarts] = useState(false);
 
   // Shopify tab filters
   const [shopifyStatusFilter, setShopifyStatusFilter] = useState<string>('all');
@@ -107,6 +110,26 @@ export default function Orders() {
   const isAdmin = role === 'admin';
   const canViewRefunds = role === 'supply_chain' || role === 'admin';
   const canViewProcurementWidget = role === 'admin' || role === 'supply_chain' || role === 'finance';
+
+  const handleSyncAbandonedCarts = async () => {
+    setSyncingCarts(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-abandoned-carts');
+      if (error) throw error;
+      toast({
+        title: 'Sync Complete',
+        description: `Fetched ${data?.total_fetched ?? 0} carts — ${data?.inserted ?? 0} new, ${data?.duplicates ?? 0} duplicates`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Sync Failed',
+        description: err?.message || 'Could not sync abandoned carts',
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncingCarts(false);
+    }
+  };
 
   const refundCount = orders.filter(o => o.is_refund_requested).length;
 
@@ -545,6 +568,7 @@ export default function Orders() {
                             ))}
                           </SelectContent>
                         </Select>
+
 
 
 
@@ -1304,6 +1328,18 @@ export default function Orders() {
                   <p className="text-xs text-muted-foreground">Recovered Revenue</p>
                   <p className="text-2xl font-bold text-primary">₹{cartStats.recoveredValue.toLocaleString()}</p>
                 </CardContent></Card>
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSyncAbandonedCarts}
+                  disabled={syncingCarts}
+                >
+                  {syncingCarts ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                  {syncingCarts ? 'Syncing...' : 'Sync Abandoned Carts'}
+                </Button>
               </div>
 
               {cartsLoading ? (
