@@ -122,7 +122,9 @@ export default function HR() {
                 <TabsTrigger value="team_attendance" className="gap-1.5 whitespace-nowrap"><Users className="h-4 w-4 shrink-0" /><span>Team Attendance</span></TabsTrigger>
               )}
               <TabsTrigger value="leave" className="gap-1.5 whitespace-nowrap"><FileText className="h-4 w-4 shrink-0" /><span>Leave</span></TabsTrigger>
-              
+              {isHROrAdmin && (
+                <TabsTrigger value="training" className="gap-1.5 whitespace-nowrap"><BookOpen className="h-4 w-4 shrink-0" /><span>Training</span></TabsTrigger>
+              )}
               <TabsTrigger value="kpi_management" className="gap-1.5 whitespace-nowrap"><Target className="h-4 w-4 shrink-0" /><span>KPI</span></TabsTrigger>
               <TabsTrigger value="documents" className="gap-1.5 whitespace-nowrap"><FolderOpen className="h-4 w-4 shrink-0" /><span>Documents</span></TabsTrigger>
               <TabsTrigger value="my_financial" className="gap-1.5 whitespace-nowrap"><CreditCard className="h-4 w-4 shrink-0" /><span>My Financial Details</span></TabsTrigger>
@@ -154,9 +156,6 @@ export default function HR() {
               )}
               {isHROrAdmin && (
                 <TabsTrigger value="leave_history" className="gap-1.5 whitespace-nowrap"><History className="h-4 w-4 shrink-0" /><span>Leave History</span></TabsTrigger>
-              )}
-              {isHROrAdmin && (
-                <TabsTrigger value="training" className="gap-1.5 whitespace-nowrap"><BookOpen className="h-4 w-4 shrink-0" /><span>Training</span></TabsTrigger>
               )}
             </TabsList>
           </div>
