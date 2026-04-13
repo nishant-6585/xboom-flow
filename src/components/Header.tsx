@@ -79,7 +79,6 @@ export function Header() {
     { path: "/expenses", label: "Expenses", icon: Receipt, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/repairs", label: "Repairs", icon: Wrench, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/trainings", label: "Training", icon: GraduationCap, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/billing", label: "Billing", icon: FileText, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/buyback", label: "Buyback", icon: RotateCcw, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance"] },
     
