@@ -33,6 +33,11 @@ function buildEmailHtml(cart: Record<string, unknown>): string {
     minimumFractionDigits: 2,
   });
 
+  const sessionId = cart.session_id as string | null;
+  const restoreUrl = sessionId
+    ? `https://xboom.in/cart?restore_cart=${encodeURIComponent(sessionId)}`
+    : "https://xboom.in/cart/";
+
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
