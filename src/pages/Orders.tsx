@@ -68,6 +68,14 @@ export default function Orders() {
   const SHOPIFY_PAGE_SIZE = 100;
   const [shopifyFiltersOpen, setShopifyFiltersOpen] = useState(false);
 
+  // Website (WooCommerce) tab filters
+  const [wooSearchQuery, setWooSearchQuery] = useState<string>('');
+  const [wooStatusFilter, setWooStatusFilter] = useState<string>('all');
+  const [wooPaymentStatusFilter, setWooPaymentStatusFilter] = useState<string>('all');
+  const [wooViewMode, setWooViewMode] = useState<'cards' | 'table'>('table');
+  const [wooPage, setWooPage] = useState(1);
+  const WOO_PAGE_SIZE = 50;
+
   // Manual orders pagination
   const [manualPage, setManualPage] = useState(1);
   const MANUAL_PAGE_SIZE = 50;
