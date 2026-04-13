@@ -13,6 +13,7 @@ interface CartRow {
   cart_items: unknown;
   created_at: string;
   status: string;
+  session_id: string | null;
   auto_email_1_sent_at: string | null;
   auto_email_2_sent_at: string | null;
   auto_email_3_sent_at: string | null;
@@ -73,6 +74,9 @@ function buildEmailHtml(cart: CartRow, level: 1 | 2 | 3): { html: string; subjec
   const cartValue = Number(cart.cart_value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 });
   const tpl = TEMPLATES[level](cartValue);
   const itemsHtml = buildItemsHtml(cart.cart_items);
+  const restoreUrl = cart.session_id
+    ? `https://xboom.in/cart?restore_cart=${encodeURIComponent(cart.session_id)}`
+    : "https://xboom.in/cart/";
 
   const html = `<!DOCTYPE html>
 <html>
@@ -99,7 +103,7 @@ function buildEmailHtml(cart: CartRow, level: 1 | 2 | 3): { html: string; subjec
         </tr></tfoot>
       </table>
       <div style="text-align:center;margin:30px 0;">
-        <a href="https://www.xboom.in/cart/" style="display:inline-block;background:${tpl.urgencyColor};color:#fff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:16px;font-weight:bold;">${tpl.cta}</a>
+        <a href="${restoreUrl}" style="display:inline-block;background:${tpl.urgencyColor};color:#fff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:16px;font-weight:bold;">${tpl.cta}</a>
       </div>
       <p style="color:#999;font-size:12px;text-align:center;margin-top:30px;">Need help? Reply to this email or call us.<br/>© XBoom - Premium Drone Solutions</p>
     </div>
@@ -191,7 +195,7 @@ Deno.serve(async (req) => {
     const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
     const { data: carts, error: fetchErr } = await supabase
       .from("abandoned_carts")
-      .select("id,customer_email,cart_value,cart_items,created_at,status,auto_email_1_sent_at,auto_email_2_sent_at,auto_email_3_sent_at,recovery_emails_sent")
+      .select("id,customer_email,cart_value,cart_items,created_at,status,session_id,auto_email_1_sent_at,auto_email_2_sent_at,auto_email_3_sent_at,recovery_emails_sent")
       .in("status", ["active", "contacted"])
       .not("customer_email", "is", null)
       .gte("created_at", cutoff)
