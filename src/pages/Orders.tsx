@@ -26,7 +26,7 @@ import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidge
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe, ShoppingCart, RefreshCw } from 'lucide-react';
+import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe, ShoppingCart, RefreshCw, Mail, XCircle, Send } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth } from 'date-fns';
@@ -39,7 +39,7 @@ export default function Orders() {
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
   const { wooOrders, totalCount: wooTotalCount, loading: wooLoading } = useWooCommerceOrders();
-  const { carts: abandonedCarts, loading: cartsLoading, stats: cartStats } = useAbandonedCarts();
+  const { carts: abandonedCarts, loading: cartsLoading, stats: cartStats, recoverCart } = useAbandonedCarts();
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
@@ -63,6 +63,8 @@ export default function Orders() {
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [syncingCarts, setSyncingCarts] = useState(false);
   const [selectedCartItems, setSelectedCartItems] = useState<Record<string, unknown>[] | null>(null);
+  const [selectedCartForAction, setSelectedCartForAction] = useState<typeof abandonedCarts[0] | null>(null);
+  const [recoveringCartId, setRecoveringCartId] = useState<string | null>(null);
 
   // Shopify tab filters
   const [shopifyStatusFilter, setShopifyStatusFilter] = useState<string>('all');
