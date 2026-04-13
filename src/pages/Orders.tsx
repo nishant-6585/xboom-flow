@@ -1371,11 +1371,11 @@ export default function Orders() {
                     <thead>
                       <tr className="bg-muted/50 border-b border-border">
                         <th className="text-left p-3 font-medium">Customer</th>
-                        <th className="text-left p-3 font-medium">Contact</th>
                         <th className="text-left p-3 font-medium">Products</th>
                         <th className="text-left p-3 font-medium">Cart Value</th>
                         <th className="text-left p-3 font-medium">Status</th>
-                        <th className="text-left p-3 font-medium">Time Since Abandoned</th>
+                        <th className="text-left p-3 font-medium">Emails</th>
+                        <th className="text-left p-3 font-medium">Abandoned</th>
                         <th className="text-left p-3 font-medium">Actions</th>
                       </tr>
                     </thead>
@@ -1389,22 +1389,24 @@ export default function Orders() {
                           : hours > 0
                             ? `${hours}h ${minutes}m ago`
                             : `${minutes}m ago`;
-                        const items = Array.isArray(cart.cart_items) ? cart.cart_items : [];
+                        const items = Array.isArray(cart.cart_items) ? cart.cart_items as Record<string, unknown>[] : [];
+                        const isRecovering = recoveringCartId === cart.id;
+                        const canRecover = cart.status === 'active' || cart.status === 'contacted';
 
                         return (
                           <tr key={cart.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                             <td className="p-3">
-                              <p className="font-medium">{cart.customer_email || 'Guest'}</p>
-                            </td>
-                            <td className="p-3">
-                              <p className="text-xs">{cart.customer_email || '—'}</p>
+                              <p className="font-medium text-sm">{cart.customer_email || 'Guest'}</p>
+                              {cart.last_contacted_by_name && (
+                                <p className="text-xs text-muted-foreground">Last by: {cart.last_contacted_by_name}</p>
+                              )}
                             </td>
                             <td className="p-3">
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="text-xs h-7 px-2"
-                                onClick={() => setSelectedCartItems(items)}
+                                onClick={() => setSelectedCartForAction(cart)}
                               >
                                 <Package className="h-3 w-3 mr-1" />
                                 {items.length} item{items.length !== 1 ? 's' : ''}
@@ -1416,25 +1418,53 @@ export default function Orders() {
                             <td className="p-3">
                               <Badge variant={
                                 cart.status === 'active' ? 'destructive' :
-                                cart.status === 'recovered' ? 'default' : 'secondary'
+                                cart.status === 'contacted' ? 'outline' :
+                                cart.status === 'recovered' ? 'default' :
+                                cart.status === 'lost' ? 'secondary' : 'secondary'
                               }>
                                 {cart.status === 'active' ? '🔴 Active' :
-                                 cart.status === 'recovered' ? '✅ Recovered' : '⏱️ Expired'}
+                                 cart.status === 'contacted' ? '📧 Contacted' :
+                                 cart.status === 'recovered' ? '✅ Recovered' :
+                                 cart.status === 'lost' ? '❌ Lost' : '⏱️ Expired'}
                               </Badge>
+                            </td>
+                            <td className="p-3 text-xs text-center">
+                              {cart.recovery_emails_sent || 0}
                             </td>
                             <td className="p-3 text-muted-foreground text-xs">
                               <Clock className="h-3 w-3 inline mr-1" />
                               {timeAgo}
                             </td>
                             <td className="p-3">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs h-7"
-                                onClick={() => setSelectedCartItems(items)}
-                              >
-                                View Details
-                              </Button>
+                              <div className="flex gap-1">
+                                {canRecover && cart.customer_email && (
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    className="text-xs h-7"
+                                    disabled={isRecovering}
+                                    onClick={async () => {
+                                      setRecoveringCartId(cart.id);
+                                      try {
+                                        await recoverCart(cart.id, 'send_email', user?.email || 'Admin');
+                                      } finally {
+                                        setRecoveringCartId(null);
+                                      }
+                                    }}
+                                  >
+                                    {isRecovering ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3 mr-1" />}
+                                    Recover
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs h-7"
+                                  onClick={() => setSelectedCartForAction(cart)}
+                                >
+                                  Details
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1443,28 +1473,101 @@ export default function Orders() {
                   </table>
                 </div>
 
-                {/* Products Modal */}
-                <Dialog open={selectedCartItems !== null} onOpenChange={(open) => !open && setSelectedCartItems(null)}>
-                  <DialogContent className="max-w-md">
+                {/* Cart Details & Recovery Modal */}
+                <Dialog open={selectedCartForAction !== null} onOpenChange={(open) => !open && setSelectedCartForAction(null)}>
+                  <DialogContent className="max-w-lg">
                     <DialogHeader>
-                      <DialogTitle>Cart Items</DialogTitle>
-                      <DialogDescription>Products in this abandoned cart</DialogDescription>
+                      <DialogTitle>Cart Details & Recovery</DialogTitle>
+                      <DialogDescription>
+                        {selectedCartForAction?.customer_email || 'Guest'} — ₹{(selectedCartForAction?.cart_value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-2 max-h-80 overflow-y-auto">
-                      {(selectedCartItems || []).length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">No product details available</p>
-                      ) : (
-                        (selectedCartItems || []).map((item: Record<string, unknown>, idx: number) => (
-                          <div key={idx} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+
+                    {/* Cart Items */}
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      <p className="text-sm font-medium">Products:</p>
+                      {(() => {
+                        const items = Array.isArray(selectedCartForAction?.cart_items) ? selectedCartForAction.cart_items as Record<string, unknown>[] : [];
+                        return items.length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-2">No product details</p>
+                        ) : items.map((item, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-2 rounded border border-border bg-muted/30">
                             <div>
-                              <p className="text-sm font-medium">Product: {String(item.product_id || item.name || 'N/A')}</p>
+                              <p className="text-sm font-medium">{String(item.product_id || item.name || 'N/A')}</p>
                               <p className="text-xs text-muted-foreground">Qty: {String(item.quantity || 1)}</p>
                             </div>
                             <p className="text-sm font-semibold">₹{Number(item.line_total || item.price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
                           </div>
-                        ))
+                        ));
+                      })()}
+                    </div>
+
+                    {/* Status Info */}
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-muted-foreground">Status:</span>
+                      <Badge variant="outline">{selectedCartForAction?.status}</Badge>
+                      {(selectedCartForAction?.recovery_emails_sent || 0) > 0 && (
+                        <span className="text-muted-foreground text-xs">
+                          ({selectedCartForAction?.recovery_emails_sent} email{(selectedCartForAction?.recovery_emails_sent || 0) > 1 ? 's' : ''} sent)
+                        </span>
                       )}
                     </div>
+                    {selectedCartForAction?.recovery_notes && (
+                      <p className="text-xs text-muted-foreground">Notes: {selectedCartForAction.recovery_notes}</p>
+                    )}
+
+                    {/* Recovery Actions */}
+                    {(selectedCartForAction?.status === 'active' || selectedCartForAction?.status === 'contacted') && (
+                      <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                        {selectedCartForAction?.customer_email && (
+                          <Button
+                            size="sm"
+                            disabled={recoveringCartId === selectedCartForAction?.id}
+                            onClick={async () => {
+                              if (!selectedCartForAction) return;
+                              setRecoveringCartId(selectedCartForAction.id);
+                              try {
+                                await recoverCart(selectedCartForAction.id, 'send_email', user?.email || 'Admin');
+                              } finally {
+                                setRecoveringCartId(null);
+                              }
+                            }}
+                          >
+                            {recoveringCartId === selectedCartForAction?.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Mail className="h-3 w-3 mr-1" />}
+                            Send Email Reminder
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-primary border-primary"
+                          onClick={async () => {
+                            if (!selectedCartForAction) return;
+                            await recoverCart(selectedCartForAction.id, 'mark_recovered', user?.email || 'Admin');
+                            setSelectedCartForAction(null);
+                          }}
+                        >
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Mark Recovered
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive border-destructive"
+                          onClick={async () => {
+                            if (!selectedCartForAction) return;
+                            await recoverCart(selectedCartForAction.id, 'mark_lost', user?.email || 'Admin');
+                            setSelectedCartForAction(null);
+                          }}
+                        >
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Mark as Lost
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* WhatsApp placeholder */}
+                    <p className="text-xs text-muted-foreground italic pt-1">💬 WhatsApp recovery coming soon</p>
                   </DialogContent>
                 </Dialog>
                 </>
