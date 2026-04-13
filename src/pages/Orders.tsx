@@ -34,6 +34,7 @@ export default function Orders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
+  const { wooOrders, totalCount: wooTotalCount, loading: wooLoading } = useWooCommerceOrders();
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
