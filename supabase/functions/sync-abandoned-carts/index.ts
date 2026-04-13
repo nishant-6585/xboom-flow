@@ -164,12 +164,14 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error("[sync-abandoned-carts] Unexpected error:", err);
 
-    await supabase.from("domain_events").insert({
-      entity_type: "abandoned_cart_sync",
-      entity_id: crypto.randomUUID(),
-      event_type: "sync_unexpected_error",
-      payload: { error: String(err) },
-    }).catch(() => {});
+    try {
+      await supabase.from("domain_events").insert({
+        entity_type: "abandoned_cart_sync",
+        entity_id: crypto.randomUUID(),
+        event_type: "sync_unexpected_error",
+        payload: { error: String(err) },
+      });
+    } catch { /* ignore */ }
 
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
