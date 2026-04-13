@@ -33,7 +33,7 @@ import Expenses from "./pages/Expenses";
 import Forms from "./pages/Forms";
 import FormEmbed from "./pages/FormEmbed";
 import Repairs from "./pages/Repairs";
-import Trainings from "./pages/Trainings";
+
 import Billing from "./pages/Billing";
 import Tickets from "./pages/Tickets";
 import Tally from "./pages/Tally";
@@ -90,7 +90,7 @@ function AppInner() {
         <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
         <Route path="/forms" element={<ProtectedRoute><Forms /></ProtectedRoute>} />
         <Route path="/repairs" element={<ProtectedRoute><Repairs /></ProtectedRoute>} />
-        <Route path="/trainings" element={<ProtectedRoute><Trainings /></ProtectedRoute>} />
+        <Route path="/trainings" element={<ProtectedRoute><Navigate to="/hr?tab=training" replace /></ProtectedRoute>} />
         <Route path="/form-embed/:formId" element={<FormEmbed />} />
         <Route path="/public/drone-repair-enquiry" element={<PublicDroneRepairEnquiry />} />
         <Route path="/sample-payslip" element={<SamplePayslip />} />
