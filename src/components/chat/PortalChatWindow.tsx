@@ -6,7 +6,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { ChatMessage, stopSpeaking } from './ChatMessage';
-import { isVoiceEnabled, setVoiceEnabled } from '@/lib/elevenLabsTTS';
+
+const isVoiceEnabled = () => false;
+const setVoiceEnabled = (_enabled: boolean) => {};
 import { VoiceInputButton } from './VoiceInputButton';
 import { VoiceVisualizer } from './VoiceVisualizer';
 import { AIChatSidebar } from './AIChatSidebar';
