@@ -19,11 +19,12 @@ import { PipelineOrders } from '@/components/pipeline/PipelineOrders';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
+import { useWooCommerceOrders } from '@/hooks/useWooCommerceOrders';
 import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidget';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag } from 'lucide-react';
+import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe } from 'lucide-react';
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { OrdersDashboardStats } from '@/components/orders/OrdersDashboardStats';
@@ -33,6 +34,7 @@ export default function Orders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
+  const { wooOrders, totalCount: wooTotalCount, loading: wooLoading } = useWooCommerceOrders();
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
@@ -66,6 +68,14 @@ export default function Orders() {
   const SHOPIFY_PAGE_SIZE = 100;
   const [shopifyFiltersOpen, setShopifyFiltersOpen] = useState(false);
 
+  // Website (WooCommerce) tab filters
+  const [wooSearchQuery, setWooSearchQuery] = useState<string>('');
+  const [wooStatusFilter, setWooStatusFilter] = useState<string>('all');
+  const [wooPaymentStatusFilter, setWooPaymentStatusFilter] = useState<string>('all');
+  const [wooViewMode, setWooViewMode] = useState<'cards' | 'table'>('table');
+  const [wooPage, setWooPage] = useState(1);
+  const WOO_PAGE_SIZE = 50;
+
   // Manual orders pagination
   const [manualPage, setManualPage] = useState(1);
   const MANUAL_PAGE_SIZE = 50;
@@ -75,6 +85,9 @@ export default function Orders() {
 
   // Reset manual page when filters/search change
   useEffect(() => { setManualPage(1); }, [searchQuery, statusFilter, paymentStatusFilter, orderTypeFilter, outcomeFilter, salesPersonFilter, paymentTermsFilter, startDate, endDate]);
+
+  // Reset woo page when filters change
+  useEffect(() => { setWooPage(1); }, [wooSearchQuery, wooStatusFilter, wooPaymentStatusFilter]);
 
   useEffect(() => {
     if (tabFromUrl === 'pipeline') {
@@ -193,6 +206,26 @@ export default function Orders() {
     shopifyPage * SHOPIFY_PAGE_SIZE
   );
 
+  // WooCommerce filtered orders
+  const filteredWooOrders = wooOrders.filter(o => {
+    const searchLower = wooSearchQuery.toLowerCase().trim();
+    const matchesSearch = wooSearchQuery === '' ||
+      (o.order_number?.toLowerCase().includes(searchLower)) ||
+      o.woo_order_id.toLowerCase().includes(searchLower) ||
+      o.product_name.toLowerCase().includes(searchLower) ||
+      o.customer_name.toLowerCase().includes(searchLower) ||
+      (o.customer_email?.toLowerCase().includes(searchLower) ?? false);
+    const matchesStatus = wooStatusFilter === 'all' || o.order_status === wooStatusFilter;
+    const matchesPayment = wooPaymentStatusFilter === 'all' || o.payment_status === wooPaymentStatusFilter;
+    return matchesSearch && matchesStatus && matchesPayment;
+  });
+
+  const wooTotalPages = Math.ceil(filteredWooOrders.length / WOO_PAGE_SIZE);
+  const paginatedWooOrders = filteredWooOrders.slice(
+    (wooPage - 1) * WOO_PAGE_SIZE,
+    wooPage * WOO_PAGE_SIZE
+  );
+
   const handleAnalyticsCardClick = (filter: { type: string; value: string }) => {
     // Switch to list tab
     setActiveTab('list');
@@ -297,6 +330,13 @@ export default function Orders() {
                   <span className="hidden sm:inline font-medium">Shopify</span>
                   <Badge variant="secondary" className="ml-1 h-5 px-2 text-xs bg-primary/10 text-primary font-semibold">
                     {shopifyTotalCount.toLocaleString()}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="website" className="gap-2">
+                  <Globe className="h-4 w-4" />
+                  <span className="hidden sm:inline font-medium">XBoom Website</span>
+                  <Badge variant="secondary" className="ml-1 h-5 px-2 text-xs bg-primary/10 text-primary font-semibold">
+                    {wooTotalCount.toLocaleString()}
                   </Badge>
                 </TabsTrigger>
                 <TabsTrigger value="pipeline" className="gap-2">
@@ -994,6 +1034,221 @@ export default function Orders() {
               </div>
             )}
           </TabsContent>
+
+          {/* XBoom Website Orders Tab */}
+          <TabsContent value="website" className="space-y-6 mt-0">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-xl bg-primary/10">
+                <Globe className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">XBoom Website Orders</h2>
+                <p className="text-xs text-muted-foreground">{wooTotalCount.toLocaleString()} orders from xboom.in website</p>
+              </div>
+            </div>
+
+            {/* Filters */}
+            <Card className="border border-border/60 shadow-sm bg-gradient-to-br from-card to-muted/10 backdrop-blur-sm">
+              <CardContent className="p-5">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                  <div className="relative flex-1 max-w-lg">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search order no, product, customer..."
+                      value={wooSearchQuery}
+                      onChange={(e) => setWooSearchQuery(e.target.value)}
+                      className="pl-11 pr-10 h-11 bg-background border-muted-foreground/20 focus:border-primary/50 rounded-xl shadow-sm transition-all"
+                    />
+                    {wooSearchQuery && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 p-0 hover:bg-muted rounded-full"
+                        onClick={() => setWooSearchQuery('')}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <Select value={wooStatusFilter} onValueChange={setWooStatusFilter}>
+                    <SelectTrigger className="w-[160px] h-11 rounded-xl">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="on-hold">On Hold</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value="refunded">Refunded</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={wooPaymentStatusFilter} onValueChange={setWooPaymentStatusFilter}>
+                    <SelectTrigger className="w-[160px] h-11 rounded-xl">
+                      <SelectValue placeholder="Payment" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Payments</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                      <SelectItem value="refunded">Refunded</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={wooViewMode === 'cards' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setWooViewMode('cards')}
+                      className={`h-9 w-9 p-0 rounded-lg ${wooViewMode === 'cards' ? 'shadow-sm' : 'hover:bg-muted/50'}`}
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={wooViewMode === 'table' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setWooViewMode('table')}
+                      className={`h-9 w-9 p-0 rounded-lg ${wooViewMode === 'table' ? 'shadow-sm' : 'hover:bg-muted/50'}`}
+                    >
+                      <Table className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Results info */}
+            {!wooLoading && filteredWooOrders.length > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Showing <span className="font-semibold text-foreground">{((wooPage - 1) * WOO_PAGE_SIZE) + 1}–{Math.min(wooPage * WOO_PAGE_SIZE, filteredWooOrders.length)}</span> of <span className="font-semibold text-foreground">{filteredWooOrders.length}</span> orders
+              </p>
+            )}
+
+            {/* Content */}
+            {wooLoading ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="mt-6 text-sm text-muted-foreground font-medium">Loading website orders...</p>
+              </div>
+            ) : filteredWooOrders.length === 0 ? (
+              <Card className="border-dashed border-2 bg-gradient-to-br from-muted/30 to-muted/10">
+                <CardContent className="flex flex-col items-center justify-center py-20">
+                  <Globe className="h-16 w-16 text-muted-foreground/30 mb-6" />
+                  <p className="text-lg font-semibold text-muted-foreground mb-2">No website orders found</p>
+                  <p className="text-sm text-muted-foreground/60">Orders placed on xboom.in will appear here automatically</p>
+                </CardContent>
+              </Card>
+            ) : wooViewMode === 'table' ? (
+              <Card className="shadow-sm border-border/60 overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border/60 bg-muted/30">
+                          <th className="p-3 text-left font-semibold text-muted-foreground">Order ID</th>
+                          <th className="p-3 text-left font-semibold text-muted-foreground">Customer</th>
+                          <th className="p-3 text-left font-semibold text-muted-foreground">Product</th>
+                          <th className="p-3 text-left font-semibold text-muted-foreground">Amount</th>
+                          <th className="p-3 text-left font-semibold text-muted-foreground">Status</th>
+                          <th className="p-3 text-left font-semibold text-muted-foreground">Payment</th>
+                          <th className="p-3 text-left font-semibold text-muted-foreground">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedWooOrders.map((order) => (
+                          <tr key={order.id} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
+                            <td className="p-3 font-mono font-medium text-primary">#{order.order_number || order.woo_order_id}</td>
+                            <td className="p-3">
+                              <div className="font-medium">{order.customer_name}</div>
+                              {order.customer_email && <div className="text-xs text-muted-foreground">{order.customer_email}</div>}
+                            </td>
+                            <td className="p-3">
+                              <div className="max-w-[200px] truncate">{order.product_name}</div>
+                              {order.quantity > 1 && <div className="text-xs text-muted-foreground">Qty: {order.quantity}</div>}
+                            </td>
+                            <td className="p-3 font-semibold">₹{(order.total_sales_amount || 0).toLocaleString()}</td>
+                            <td className="p-3">
+                              <Badge variant="outline" className={`text-xs capitalize ${
+                                order.order_status === 'completed' ? 'border-green-400 text-green-700 bg-green-50 dark:bg-green-950/30 dark:text-green-400' :
+                                order.order_status === 'processing' ? 'border-blue-400 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400' :
+                                order.order_status === 'failed' ? 'border-red-400 text-red-700 bg-red-50 dark:bg-red-950/30 dark:text-red-400' :
+                                order.order_status === 'cancelled' ? 'border-red-400 text-red-700 bg-red-50 dark:bg-red-950/30 dark:text-red-400' :
+                                'border-yellow-400 text-yellow-700 bg-yellow-50 dark:bg-yellow-950/30 dark:text-yellow-400'
+                              }`}>
+                                {order.order_status}
+                              </Badge>
+                            </td>
+                            <td className="p-3">
+                              <Badge variant="outline" className={`text-xs capitalize ${
+                                order.payment_status === 'paid' ? 'border-green-400 text-green-700 bg-green-50 dark:bg-green-950/30 dark:text-green-400' :
+                                order.payment_status === 'failed' ? 'border-red-400 text-red-700 bg-red-50 dark:bg-red-950/30 dark:text-red-400' :
+                                'border-yellow-400 text-yellow-700 bg-yellow-50 dark:bg-yellow-950/30 dark:text-yellow-400'
+                              }`}>
+                                {order.payment_status}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-muted-foreground text-xs">{order.woo_created_at ? new Date(order.woo_created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : new Date(order.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {paginatedWooOrders.map((order) => (
+                  <Card key={order.id} className="shadow-sm border-border/60 hover:shadow-md transition-shadow">
+                    <CardContent className="p-5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-semibold text-primary">#{order.order_number || order.woo_order_id}</span>
+                        <Badge variant="outline" className={`text-xs capitalize ${
+                          order.order_status === 'completed' ? 'border-green-400 text-green-700 bg-green-50 dark:bg-green-950/30 dark:text-green-400' :
+                          order.order_status === 'processing' ? 'border-blue-400 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400' :
+                          order.order_status === 'failed' || order.order_status === 'cancelled' ? 'border-red-400 text-red-700 bg-red-50 dark:bg-red-950/30 dark:text-red-400' :
+                          'border-yellow-400 text-yellow-700 bg-yellow-50 dark:bg-yellow-950/30 dark:text-yellow-400'
+                        }`}>
+                          {order.order_status}
+                        </Badge>
+                      </div>
+                      <div>
+                        <p className="font-medium">{order.customer_name}</p>
+                        {order.customer_email && <p className="text-xs text-muted-foreground">{order.customer_email}</p>}
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate">{order.product_name}</p>
+                      <div className="flex items-center justify-between pt-1 border-t border-border/40">
+                        <span className="text-lg font-bold">₹{(order.total_sales_amount || 0).toLocaleString()}</span>
+                        <span className="text-xs text-muted-foreground">{order.woo_created_at ? new Date(order.woo_created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : ''}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {wooTotalPages > 1 && !wooLoading && filteredWooOrders.length > 0 && (
+              <div className="flex items-center justify-center gap-1.5">
+                <Button variant="outline" size="sm" onClick={() => setWooPage(1)} disabled={wooPage === 1} className="h-8 px-3 rounded-lg text-xs">«</Button>
+                <Button variant="outline" size="sm" onClick={() => setWooPage(p => Math.max(1, p - 1))} disabled={wooPage === 1} className="h-8 px-3 rounded-lg text-xs">‹ Prev</Button>
+                {Array.from({ length: Math.min(5, wooTotalPages) }, (_, i) => {
+                  let pageNum: number;
+                  if (wooTotalPages <= 5) pageNum = i + 1;
+                  else if (wooPage <= 3) pageNum = i + 1;
+                  else if (wooPage >= wooTotalPages - 2) pageNum = wooTotalPages - 4 + i;
+                  else pageNum = wooPage - 2 + i;
+                  return (
+                    <Button key={pageNum} variant={wooPage === pageNum ? 'default' : 'outline'} size="sm" onClick={() => setWooPage(pageNum)} className="h-8 w-8 p-0 rounded-lg text-xs">{pageNum}</Button>
+                  );
+                })}
+                <Button variant="outline" size="sm" onClick={() => setWooPage(p => Math.min(wooTotalPages, p + 1))} disabled={wooPage === wooTotalPages} className="h-8 px-3 rounded-lg text-xs">Next ›</Button>
+                <Button variant="outline" size="sm" onClick={() => setWooPage(wooTotalPages)} disabled={wooPage === wooTotalPages} className="h-8 px-3 rounded-lg text-xs">»</Button>
+              </div>
+            )}
+          </TabsContent>
+
           <TabsContent value="pipeline">
             <PipelineOrders enquiryIdFilter={enquiryIdFromUrl} />
           </TabsContent>

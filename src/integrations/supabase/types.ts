@@ -10710,6 +10710,102 @@ export type Database = {
         }
         Relationships: []
       }
+      woocommerce_orders: {
+        Row: {
+          amount_paid: number | null
+          created_at: string
+          currency: string | null
+          customer_company: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          financial_status: string | null
+          fulfillment_status: string | null
+          id: string
+          internal_notes: string | null
+          line_items: Json | null
+          order_number: string | null
+          order_status: string | null
+          payment_status: string | null
+          product_category: string | null
+          product_code: string | null
+          product_name: string
+          quantity: number
+          raw_data: Json | null
+          sales_notes: string | null
+          selling_price: number | null
+          shipping_address: string | null
+          source: string
+          total_sales_amount: number | null
+          updated_at: string
+          woo_created_at: string | null
+          woo_order_id: string
+          woo_updated_at: string | null
+        }
+        Insert: {
+          amount_paid?: number | null
+          created_at?: string
+          currency?: string | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          financial_status?: string | null
+          fulfillment_status?: string | null
+          id?: string
+          internal_notes?: string | null
+          line_items?: Json | null
+          order_number?: string | null
+          order_status?: string | null
+          payment_status?: string | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name?: string
+          quantity?: number
+          raw_data?: Json | null
+          sales_notes?: string | null
+          selling_price?: number | null
+          shipping_address?: string | null
+          source?: string
+          total_sales_amount?: number | null
+          updated_at?: string
+          woo_created_at?: string | null
+          woo_order_id: string
+          woo_updated_at?: string | null
+        }
+        Update: {
+          amount_paid?: number | null
+          created_at?: string
+          currency?: string | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          financial_status?: string | null
+          fulfillment_status?: string | null
+          id?: string
+          internal_notes?: string | null
+          line_items?: Json | null
+          order_number?: string | null
+          order_status?: string | null
+          payment_status?: string | null
+          product_category?: string | null
+          product_code?: string | null
+          product_name?: string
+          quantity?: number
+          raw_data?: Json | null
+          sales_notes?: string | null
+          selling_price?: number | null
+          shipping_address?: string | null
+          source?: string
+          total_sales_amount?: number | null
+          updated_at?: string
+          woo_created_at?: string | null
+          woo_order_id?: string
+          woo_updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       campaign_performance: {
