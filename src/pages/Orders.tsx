@@ -1437,17 +1437,18 @@ export default function Orders() {
                               ₹{(cart.cart_value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                             <td className="p-3">
-                              <Badge variant={
-                                cart.status === 'active' ? 'destructive' :
-                                cart.status === 'contacted' ? 'outline' :
-                                cart.status === 'recovered' ? 'default' :
-                                cart.status === 'lost' ? 'secondary' : 'secondary'
-                              }>
-                                {cart.status === 'active' ? '🔴 Active' :
-                                 cart.status === 'contacted' ? '📧 Contacted' :
-                                 cart.status === 'recovered' ? '✅ Recovered' :
-                                 cart.status === 'lost' ? '❌ Lost' : '⏱️ Expired'}
-                              </Badge>
+                              {cart.status === 'recovered' ? (
+                                <Badge variant="default">✅ Recovered</Badge>
+                              ) : cart.status === 'lost' ? (
+                                <Badge variant="secondary">❌ Lost</Badge>
+                              ) : cart.status === 'contacted' ? (
+                                <Badge variant="outline">📧 Contacted</Badge>
+                              ) : (() => {
+                                const ageStatus = getCartAgeStatus(cart.created_at);
+                                if (ageStatus === 'active') return <Badge variant="destructive">🔴 Active</Badge>;
+                                if (ageStatus === 'at_risk') return <Badge className="bg-amber-500 text-white hover:bg-amber-600">🟠 At Risk</Badge>;
+                                return <Badge variant="secondary">⚪ Cold</Badge>;
+                              })()}
                             </td>
                             <td className="p-3 text-xs text-center">
                               {cart.recovery_emails_sent || 0}
