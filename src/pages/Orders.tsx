@@ -1330,6 +1330,18 @@ export default function Orders() {
                 </CardContent></Card>
               </div>
 
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSyncAbandonedCarts}
+                  disabled={syncingCarts}
+                >
+                  {syncingCarts ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                  {syncingCarts ? 'Syncing...' : 'Sync Abandoned Carts'}
+                </Button>
+              </div>
+
               {cartsLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
