@@ -332,6 +332,13 @@ export default function Orders() {
                     {shopifyTotalCount.toLocaleString()}
                   </Badge>
                 </TabsTrigger>
+                <TabsTrigger value="website" className="gap-2">
+                  <Globe className="h-4 w-4" />
+                  <span className="hidden sm:inline font-medium">XBoom Website</span>
+                  <Badge variant="secondary" className="ml-1 h-5 px-2 text-xs bg-primary/10 text-primary font-semibold">
+                    {wooTotalCount.toLocaleString()}
+                  </Badge>
+                </TabsTrigger>
                 <TabsTrigger value="pipeline" className="gap-2">
                   <Target className="h-4 w-4" />
                   <span className="hidden sm:inline font-medium">Pipeline</span>
