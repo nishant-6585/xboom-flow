@@ -216,48 +216,7 @@ function downloadResponseAsPdf(content: string) {
 
 export function ChatMessage({ role, content, actions: structuredActions, isStreaming, autoSpeak, onSpeakingDone }: ChatMessageProps) {
   const isUser = role === 'user';
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
-  const hasAutoSpokenRef = useRef(false);
-  const prevContentLenRef = useRef(0);
 
-  useEffect(() => {
-    if (!autoSpeak || isUser || !content || isStreaming) return;
-    if (content.length < prevContentLenRef.current) {
-      hasAutoSpokenRef.current = false;
-    }
-    prevContentLenRef.current = content.length;
-  }, [content, isStreaming, autoSpeak, isUser]);
-
-  useEffect(() => {
-    if (!autoSpeak || isUser || !content || isStreaming || hasAutoSpokenRef.current) return;
-    hasAutoSpokenRef.current = true;
-    setIsLoadingAudio(true);
-    setIsSpeaking(true);
-    elevenLabsSpeak(content, () => {
-      setIsSpeaking(false);
-      setIsLoadingAudio(false);
-      onSpeakingDone?.();
-    });
-  }, [isStreaming, autoSpeak, isUser, content, onSpeakingDone]);
-
-  const handleSpeak = useCallback(() => {
-    if (!content || isStreaming) return;
-    if (isSpeaking) {
-      elevenLabsStop();
-      setIsSpeaking(false);
-      setIsLoadingAudio(false);
-      return;
-    }
-    setIsLoadingAudio(true);
-    setIsSpeaking(true);
-    elevenLabsSpeak(content, () => {
-      setIsSpeaking(false);
-      setIsLoadingAudio(false);
-    });
-  }, [content, isStreaming, isSpeaking]);
-
-  const showSpeaker = !isUser && content && !isStreaming;
   const showDownload = !isUser && content && !isStreaming && content.length > 50;
 
   const renderAssistantContent = () => {
@@ -373,41 +332,17 @@ export function ChatMessage({ role, content, actions: structuredActions, isStrea
           )}
         </div>
         {/* Action buttons for assistant messages */}
-        {!isUser && (showSpeaker || showDownload) && (
+        {!isUser && showDownload && (
           <div className="flex items-center gap-0.5 mt-0.5">
-            {showSpeaker && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleSpeak}
-                className={cn(
-                  "h-6 w-6 rounded-md transition-colors",
-                  isSpeaking
-                    ? "text-primary bg-primary/10 hover:bg-primary/20"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                )}
-                title={isSpeaking ? "Stop speaking" : "Read aloud (ElevenLabs)"}
-              >
-                {isLoadingAudio && !isSpeaking ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : isSpeaking ? (
-                  <VolumeX className="w-3 h-3" />
-                ) : (
-                  <Volume2 className="w-3 h-3" />
-                )}
-              </Button>
-            )}
-            {showDownload && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => downloadResponseAsPdf(content)}
-                className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                title="Download as PDF"
-              >
-                <Download className="w-3 h-3" />
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => downloadResponseAsPdf(content)}
+              className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              title="Download as PDF"
+            >
+              <Download className="w-3 h-3" />
+            </Button>
           </div>
         )}
       </div>
