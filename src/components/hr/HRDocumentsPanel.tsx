@@ -97,9 +97,10 @@ export function HRDocumentsPanel() {
   const [newFolderShares, setNewFolderShares] = useState<Omit<ShareRule, "id" | "created_by" | "created_at">[]>([]);
 
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [uploadDescription, setUploadDescription] = useState("");
   const [uploadShares, setUploadShares] = useState<Omit<ShareRule, "id" | "created_by" | "created_at">[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<{ id: string; name: string; type: "folder" | "document" } | null>(null);
@@ -200,9 +201,16 @@ export function HRDocumentsPanel() {
   };
 
   const handleUpload = async () => {
-    if (!uploadFile || !currentFolderId) return;
-    await uploadDocument(currentFolderId, uploadFile, uploadDescription);
-    setUploadFile(null);
+    if (uploadFiles.length === 0 || !currentFolderId) return;
+    setUploading(true);
+    try {
+      for (const file of uploadFiles) {
+        await uploadDocument(currentFolderId, file, uploadDescription);
+      }
+    } finally {
+      setUploading(false);
+    }
+    setUploadFiles([]);
     setUploadDescription("");
     setUploadShares([]);
     setUploadOpen(false);
@@ -662,9 +670,16 @@ export function HRDocumentsPanel() {
               <label className="text-sm font-medium">File</label>
               <Input
                 type="file"
-                onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png"
+                multiple
+                onChange={(e) => setUploadFiles(Array.from(e.target.files || []))}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.webp,.gif,.bmp,.svg"
               />
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Supported: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, JPG, PNG, WEBP, GIF, BMP, SVG &bull; Max 20MB per file
+              </p>
+              {uploadFiles.length > 1 && (
+                <p className="text-xs text-primary font-medium mt-1">{uploadFiles.length} files selected</p>
+              )}
             </div>
             <div>
               <label className="text-sm font-medium">Description (optional)</label>
@@ -687,29 +702,34 @@ export function HRDocumentsPanel() {
               Cancel
             </Button>
             <Button onClick={async () => {
-              if (!uploadFile || !currentFolderId) return;
-              await uploadDocument(currentFolderId, uploadFile, uploadDescription);
-              // Apply shares to newly uploaded document
-              if (uploadShares.length > 0) {
-                setTimeout(async () => {
-                  const { data } = await (await import('@/integrations/supabase/client')).supabase
-                    .from('hr_documents')
-                    .select('id')
-                    .eq('folder_id', currentFolderId)
-                    .eq('name', uploadFile.name)
-                    .order('created_at', { ascending: false })
-                    .limit(1);
-                  if (data?.[0]) {
-                    await updateDocumentShares(data[0].id, uploadShares);
+              if (uploadFiles.length === 0 || !currentFolderId) return;
+              setUploading(true);
+              try {
+                for (const file of uploadFiles) {
+                  await uploadDocument(currentFolderId, file, uploadDescription);
+                  // Apply shares to each newly uploaded document
+                  if (uploadShares.length > 0) {
+                    const { data } = await (await import('@/integrations/supabase/client')).supabase
+                      .from('hr_documents')
+                      .select('id')
+                      .eq('folder_id', currentFolderId)
+                      .eq('name', file.name)
+                      .order('created_at', { ascending: false })
+                      .limit(1);
+                    if (data?.[0]) {
+                      await updateDocumentShares(data[0].id, uploadShares);
+                    }
                   }
-                }, 500);
+                }
+              } finally {
+                setUploading(false);
               }
-              setUploadFile(null);
+              setUploadFiles([]);
               setUploadDescription("");
               setUploadShares([]);
               setUploadOpen(false);
-            }} disabled={!uploadFile}>
-              Upload
+            }} disabled={uploadFiles.length === 0 || uploading}>
+              {uploading ? 'Uploading...' : uploadFiles.length > 1 ? `Upload ${uploadFiles.length} Files` : 'Upload'}
             </Button>
           </DialogFooter>
         </DialogContent>
