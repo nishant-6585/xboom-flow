@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
   );
 
   // Parse optional query params from request body
-  let hours = 48;
+  let hours = 168;
   let minTotal = 0;
   try {
     if (req.method === "POST") {
