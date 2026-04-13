@@ -1,0 +1,2 @@
+ALTER TABLE public.abandoned_carts DROP CONSTRAINT abandoned_carts_status_check;
+ALTER TABLE public.abandoned_carts ADD CONSTRAINT abandoned_carts_status_check CHECK (status = ANY (ARRAY['active'::text, 'recovered'::text, 'expired'::text, 'contacted'::text, 'lost'::text]));
