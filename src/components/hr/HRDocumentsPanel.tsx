@@ -677,8 +677,25 @@ export function HRDocumentsPanel() {
               <p className="text-xs text-muted-foreground mt-1.5">
                 Supported: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, JPG, PNG, WEBP, GIF, BMP, SVG &bull; Max 20MB per file
               </p>
-              {uploadFiles.length > 1 && (
-                <p className="text-xs text-primary font-medium mt-1">{uploadFiles.length} files selected</p>
+              {uploadFiles.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs text-primary font-medium">{uploadFiles.length} file{uploadFiles.length > 1 ? 's' : ''} selected</p>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {uploadFiles.map((file, idx) => (
+                      <div key={`${file.name}-${idx}`} className="flex items-center justify-between text-xs bg-muted/50 rounded px-2 py-1.5 group">
+                        <span className="truncate mr-2 text-foreground">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setUploadFiles(prev => prev.filter((_, i) => i !== idx))}
+                          className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                          aria-label={`Remove ${file.name}`}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
             <div>
