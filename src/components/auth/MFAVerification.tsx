@@ -87,7 +87,7 @@ export const MFAVerification = ({ onVerified, onCancel }: MFAVerificationProps) 
         return;
       }
 
-      sessionStorage.setItem("pending_login_greeting", "1");
+      
 
       // Record MFA verification timestamp for step-up auth
       const { data: userData } = await supabase.auth.getUser();
