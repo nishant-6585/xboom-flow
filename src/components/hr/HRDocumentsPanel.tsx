@@ -671,11 +671,16 @@ export function HRDocumentsPanel() {
               <Input
                 type="file"
                 multiple
-                onChange={(e) => setUploadFiles(Array.from(e.target.files || []))}
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.webp,.gif,.bmp,.svg"
+                onChange={async (e) => {
+                  const { convertHeicFiles } = await import('@/lib/heicConverter');
+                  const raw = Array.from(e.target.files || []);
+                  const converted = await convertHeicFiles(raw);
+                  setUploadFiles(prev => [...prev, ...converted]);
+                }}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.webp,.gif,.bmp,.svg,.heic,.heif"
               />
               <p className="text-xs text-muted-foreground mt-1.5">
-                Supported: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, JPG, PNG, WEBP, GIF, BMP, SVG &bull; Max 20MB per file
+                Supported: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, JPG, PNG, WEBP, GIF, BMP, SVG, HEIC &bull; Max 20MB per file
               </p>
               {uploadFiles.length > 0 && (
                 <div className="mt-2 space-y-1">
