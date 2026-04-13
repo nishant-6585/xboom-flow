@@ -20,11 +20,12 @@ import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWid
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
 import { useWooCommerceOrders } from '@/hooks/useWooCommerceOrders';
+import { useAbandonedCarts } from '@/hooks/useAbandonedCarts';
 import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidget';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe } from 'lucide-react';
+import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe, ShoppingCart } from 'lucide-react';
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { OrdersDashboardStats } from '@/components/orders/OrdersDashboardStats';
@@ -35,6 +36,7 @@ export default function Orders() {
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
   const { wooOrders, totalCount: wooTotalCount, loading: wooLoading } = useWooCommerceOrders();
+  const { carts: abandonedCarts, loading: cartsLoading, stats: cartStats } = useAbandonedCarts();
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
