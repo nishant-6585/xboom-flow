@@ -49,6 +49,46 @@ function formatDuration(seconds: number): string {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
+function formatResponseTime(log: OutboundLog): { text: string; color: string } | null {
+  const callTime = new Date(log.created_at);
+  let refTime: Date | null = null;
+  let label = '';
+
+  if ((log.lead_source === 'prospect' || log.lead_source === 'pipeline') && log.scheduled_followup_at) {
+    refTime = new Date(log.scheduled_followup_at);
+    label = 'from follow-up';
+  } else if ((log.lead_source === 'myoperator' || log.lead_source === 'interakt') && log.lead_created_at) {
+    refTime = new Date(log.lead_created_at);
+    label = 'from lead';
+  }
+
+  if (!refTime) return null;
+
+  const diffMins = differenceInMinutes(callTime, refTime);
+  const absMins = Math.abs(diffMins);
+  const isEarly = diffMins < 0;
+
+  let text: string;
+  if (absMins < 60) {
+    text = `${absMins}m`;
+  } else if (absMins < 1440) {
+    const hrs = differenceInHours(callTime, refTime);
+    text = `${Math.abs(hrs)}h`;
+  } else {
+    const days = differenceInDays(callTime, refTime);
+    text = `${Math.abs(days)}d`;
+  }
+
+  if (isEarly) text = `-${text}`;
+
+  // Color coding: <30m green, 30m-2h yellow, >2h red
+  let color = 'text-green-600';
+  if (absMins > 120) color = 'text-red-500';
+  else if (absMins > 30) color = 'text-yellow-600';
+
+  return { text, color };
+}
+
 export function OutboundCallTracker() {
   const [logs, setLogs] = useState<OutboundLog[]>([]);
   const [loading, setLoading] = useState(true);
