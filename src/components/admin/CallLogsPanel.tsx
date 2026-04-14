@@ -21,6 +21,7 @@ interface CallLogsPanelProps {
   prospectSourceIds?: Set<string>;
   attentionSourceIds?: Set<string>;
   onLogsLoaded?: (logs: CallLog[]) => void;
+  dateRange?: { start: Date | undefined; end: Date | undefined };
 }
 
 interface CallLog {
@@ -229,7 +230,7 @@ function groupLogsByCallId(logs: CallLog[]): CallLog[] {
   return Array.from(grouped.values());
 }
 
-export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), attentionSourceIds = new Set(), onLogsLoaded }: CallLogsPanelProps) {
+export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), attentionSourceIds = new Set(), onLogsLoaded, dateRange }: CallLogsPanelProps) {
   const [logs, setLogs] = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -324,8 +325,24 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
       .from("call_logs")
       .select("*")
       .order("start_time", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false })
-      .limit(200);
+      .order("created_at", { ascending: false });
+
+    // Apply date range filter if provided
+    if (dateRange?.start) {
+      query = query.gte("created_at", dateRange.start.toISOString());
+    }
+    if (dateRange?.end) {
+      const endOfDay = new Date(dateRange.end);
+      endOfDay.setHours(23, 59, 59, 999);
+      query = query.lte("created_at", endOfDay.toISOString());
+    }
+
+    // Only apply limit when no date filter (to avoid missing data)
+    if (!dateRange?.start && !dateRange?.end) {
+      query = query.limit(200);
+    } else {
+      query = query.limit(1000);
+    }
 
     if (searchPhone.trim()) {
       query = query.or(`caller_number.ilike.%${searchPhone.trim()}%,full_number.ilike.%${searchPhone.trim()}%`);
@@ -371,7 +388,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
       onLogsLoaded?.(allLogs);
     }
     setLoading(false);
-  }, [searchPhone, statusFilter]);
+  }, [searchPhone, statusFilter, dateRange?.start?.getTime(), dateRange?.end?.getTime()]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
