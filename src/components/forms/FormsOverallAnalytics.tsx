@@ -8,9 +8,17 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, Legend
 } from "recharts";
 import { format, subDays, startOfDay, eachDayOfInterval, isWithinInterval, subWeeks, startOfWeek, eachWeekOfInterval } from "date-fns";
-import { Eye, Inbox, TrendingUp, FileText, Target, BarChart3 } from "lucide-react";
+import { Eye, Inbox, TrendingUp, FileText, Target, BarChart3, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 
 interface FormsOverallAnalyticsProps {
   forms: Form[];
@@ -20,15 +28,43 @@ const COLORS = ["#ea580c", "#f97316", "#fb923c", "#fdba74", "#fed7aa", "#ffedd5"
 
 export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
   const [timeRange, setTimeRange] = useState<"daily" | "weekly">("daily");
+  const [selectedFormId, setSelectedFormId] = useState<string>("all");
+  
+  // Get selected form name for display
+  const selectedFormName = useMemo(() => {
+    if (selectedFormId === "all") return "All Forms";
+    const form = forms.find(f => f.id === selectedFormId);
+    return form?.name || "Unknown Form";
+  }, [selectedFormId, forms]);
+  
+  // Filter forms based on selection
+  const filteredForms = useMemo(() => {
+    if (selectedFormId === "all") return forms;
+    return forms.filter(f => f.id === selectedFormId);
+  }, [selectedFormId, forms]);
+  
+  // Get form IDs for filtering views and submissions
+  const filteredFormIds = useMemo(() => {
+    return filteredForms.map(f => f.id);
+  }, [filteredForms]);
   
   // Fetch all views
   const { data: allViews = [] } = useQuery({
-    queryKey: ["all-form-views"],
+    queryKey: ["all-form-views", selectedFormId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("form_views")
         .select("*")
         .order("viewed_at", { ascending: false });
+      
+      // Filter by form if specific form selected
+      if (selectedFormId !== "all") {
+        query = query.eq("form_id", selectedFormId);
+      } else if (filteredFormIds.length > 0) {
+        query = query.in("form_id", filteredFormIds);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -36,12 +72,21 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
 
   // Fetch all submissions
   const { data: allSubmissions = [] } = useQuery({
-    queryKey: ["all-form-submissions"],
+    queryKey: ["all-form-submissions", selectedFormId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("form_submissions")
         .select("*")
         .order("submitted_at", { ascending: false });
+      
+      // Filter by form if specific form selected
+      if (selectedFormId !== "all") {
+        query = query.eq("form_id", selectedFormId);
+      } else if (filteredFormIds.length > 0) {
+        query = query.in("form_id", filteredFormIds);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -49,15 +94,15 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
 
   // Calculate stats
   const stats = useMemo(() => {
-    const totalForms = forms.length;
-    const activeForms = forms.filter(f => f.is_active).length;
+    const totalForms = filteredForms.length;
+    const activeForms = filteredForms.filter(f => f.is_active).length;
     const totalViews = allViews.length;
     const totalSubmissions = allSubmissions.length;
     const conversionRate = totalViews > 0 ? ((totalSubmissions / totalViews) * 100).toFixed(1) : "0";
-    const totalFields = forms.reduce((acc, f) => acc + (f.form_fields?.length || 0), 0);
+    const totalFields = filteredForms.reduce((acc, f) => acc + (f.form_fields?.length || 0), 0);
 
     return { totalForms, activeForms, totalViews, totalSubmissions, conversionRate, totalFields };
-  }, [forms, allViews, allSubmissions]);
+  }, [filteredForms, allViews, allSubmissions]);
 
   // Time series data
   const timeSeriesData = useMemo(() => {
@@ -114,7 +159,7 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
 
   // Form performance data (for bar chart)
   const formPerformanceData = useMemo(() => {
-    return forms
+    return filteredForms
       .map((form) => ({
         name: form.name.length > 15 ? form.name.substring(0, 15) + "..." : form.name,
         fullName: form.name,
@@ -123,11 +168,11 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
       }))
       .sort((a, b) => b.submissions - a.submissions)
       .slice(0, 6);
-  }, [forms]);
+  }, [filteredForms]);
 
   // Pie chart data for form distribution
   const pieData = useMemo(() => {
-    return forms
+    return filteredForms
       .filter(f => (f.submission_count || 0) > 0)
       .map((form) => ({
         name: form.name.length > 20 ? form.name.substring(0, 20) + "..." : form.name,
@@ -135,7 +180,7 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
       }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 6);
-  }, [forms]);
+  }, [filteredForms]);
 
   if (forms.length === 0) {
     return (
@@ -151,6 +196,47 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
 
   return (
     <div className="space-y-6">
+      {/* Filter Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-card p-4 rounded-lg border">
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Filter by Form:</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <Select value={selectedFormId} onValueChange={setSelectedFormId}>
+            <SelectTrigger className="w-[280px]">
+              <SelectValue placeholder="Select a form..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <span>All Forms ({forms.length})</span>
+                </div>
+              </SelectItem>
+              <div className="h-px bg-border my-1" />
+              {forms
+                .sort((a, b) => (b.submission_count || 0) - (a.submission_count || 0))
+                .map((form) => (
+                  <SelectItem key={form.id} value={form.id}>
+                    <div className="flex items-center justify-between w-full gap-4">
+                      <span className="truncate max-w-[180px]">{form.name}</span>
+                      <Badge variant="secondary" className="text-xs shrink-0">
+                        {form.submission_count || 0} subs
+                      </Badge>
+                    </div>
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          {selectedFormId !== "all" && (
+            <Button variant="ghost" size="sm" onClick={() => setSelectedFormId("all")}>
+              Clear
+            </Button>
+          )}
+        </div>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <Card>
@@ -244,7 +330,7 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Views & Submissions Over Time</CardTitle>
+              <CardTitle className="text-base">Views & Submissions Over Time {selectedFormId !== "all" && <span className="text-muted-foreground font-normal">- {selectedFormName}</span>}</CardTitle>
               <div className="flex gap-1">
                 <Badge
                   variant={timeRange === "daily" ? "default" : "outline"}
@@ -312,7 +398,7 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
         {/* Form Performance Bar Chart */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Top Performing Forms</CardTitle>
+            <CardTitle className="text-base">Top Performing Forms {selectedFormId !== "all" && <span className="text-muted-foreground font-normal">- {selectedFormName}</span>}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[280px]">
@@ -346,7 +432,7 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
         {/* Submission Distribution Pie Chart */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Submission Distribution</CardTitle>
+            <CardTitle className="text-base">Submission Distribution {selectedFormId !== "all" && <span className="text-muted-foreground font-normal">- {selectedFormName}</span>}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[280px]">
@@ -397,7 +483,7 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
       {/* Recent Activity Table */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Recent Submissions</CardTitle>
+          <CardTitle className="text-base">Recent Submissions {selectedFormId !== "all" && <span className="text-muted-foreground font-normal">- {selectedFormName}</span>}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3 max-h-[300px] overflow-y-auto">
