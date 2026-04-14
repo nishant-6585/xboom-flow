@@ -11,6 +11,7 @@ interface SalespersonCallStatsProps {
   onOpenChange: (open: boolean) => void;
   logs: any[];
   dateRange?: { start: Date | undefined; end: Date | undefined };
+  department?: 'sales' | 'support';
 }
 
 function normalizeNumber(num: string | null | undefined): string {
