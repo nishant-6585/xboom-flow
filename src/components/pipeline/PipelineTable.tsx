@@ -476,7 +476,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                     )}
                     <TableCell>{getPriorityBadge(order.priority)}</TableCell>
                     <TableCell>{order.sales_person_name}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
                         <TooltipProvider>
                           {order.status !== 'won' && (
@@ -515,9 +515,6 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                         </TooltipProvider>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary" onClick={() => setLogCallOrder(order)} title="Log Call">
                           <PhoneOutgoing className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditClick(order)}>
-                          <Edit className="h-4 w-4" />
                         </Button>
                         {canDelete && (
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDelete(order.id)}>
