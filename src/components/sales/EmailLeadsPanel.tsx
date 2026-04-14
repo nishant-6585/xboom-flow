@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,6 +50,18 @@ export function EmailLeadsPanel() {
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [detailLead, setDetailLead] = useState<EmailLead | null>(null);
+  const [salespeople, setSalespeople] = useState<{ id: string; name: string }[]>([]);
+  const { updateLead } = useEmailLeads();
+
+  useEffect(() => {
+    supabase
+      .from('employees')
+      .select('id, name')
+      .eq('is_active', true)
+      .eq('department', 'Sales')
+      .order('name')
+      .then(({ data }) => setSalespeople(data || []));
+  }, []);
 
   const filteredLeads = useMemo(() => {
     const filtered = leads.filter((lead) => {
@@ -615,8 +628,29 @@ export function EmailLeadsPanel() {
                               {lead.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {lead.sales_person_name || '—'}
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Select
+                              value={lead.sales_person_id || 'unassigned'}
+                              onValueChange={async (val) => {
+                                const sp = salespeople.find(s => s.id === val);
+                                await updateLead({
+                                  id: lead.id,
+                                  sales_person_id: val === 'unassigned' ? null : val,
+                                  sales_person_name: val === 'unassigned' ? null : sp?.name || null,
+                                } as any);
+                                refetch();
+                              }}
+                            >
+                              <SelectTrigger className="h-7 w-[130px] text-xs">
+                                <SelectValue placeholder="Assign..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="unassigned">Unassigned</SelectItem>
+                                {salespeople.map(sp => (
+                                  <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                             {format(new Date(lead.created_at), 'dd MMM yyyy')}
