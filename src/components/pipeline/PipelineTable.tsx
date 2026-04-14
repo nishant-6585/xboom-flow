@@ -498,6 +498,9 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                             </Tooltip>
                           )}
                         </TooltipProvider>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary" onClick={() => setLogCallOrder(order)} title="Log Call">
+                          <PhoneOutgoing className="h-3.5 w-3.5" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditClick(order)}>
                           <Edit className="h-4 w-4" />
                         </Button>
