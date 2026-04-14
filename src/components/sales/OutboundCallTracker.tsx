@@ -335,6 +335,7 @@ export function OutboundCallTracker() {
                     <TableHead>Called By</TableHead>
                     <TableHead>Outcome</TableHead>
                     <TableHead>Duration</TableHead>
+                    <TableHead>Response Time</TableHead>
                     <TableHead>Notes</TableHead>
                     <TableHead>When</TableHead>
                   </TableRow>
