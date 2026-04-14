@@ -64,6 +64,7 @@ export function FormsLeadsPanel() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [formSourceFilter, setFormSourceFilter] = useState<string>("all");
   const [selectedLead, setSelectedLead] = useState<FormLead | null>(null);
   const [drawerLead, setDrawerLead] = useState<FormLead | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
