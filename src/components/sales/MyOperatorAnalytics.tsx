@@ -26,12 +26,40 @@ interface LegDetail {
   _rr?: Array<{ _na?: string }>;
 }
 
+function parseDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  // Unix timestamp (seconds)
+  const num = Number(dateStr);
+  if (!isNaN(num) && num > 1000000000 && num < 10000000000) {
+    return new Date(num * 1000);
+  }
+  // Unix timestamp (milliseconds)
+  if (!isNaN(num) && num > 1000000000000) {
+    return new Date(num);
+  }
+  // ISO format YYYY-MM-DDTHH:mm:ss or YYYY-MM-DD
+  const iso = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) {
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) return d;
+  }
+  // DD/MM/YYYY or DD-MM-YYYY
+  const dmy = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (dmy) {
+    let [, d, m, y] = dmy;
+    let yearNum = parseInt(y);
+    if (yearNum < 100) yearNum += 2000;
+    const result = new Date(yearNum, parseInt(m) - 1, parseInt(d));
+    if (!isNaN(result.getTime())) return result;
+  }
+  const fallback = new Date(dateStr);
+  return isNaN(fallback.getTime()) ? null : fallback;
+}
+
 function getCallDate(log: CallLog): Date {
   if (log.start_time) {
-    const num = Number(log.start_time);
-    if (!isNaN(num) && num > 1000000000) return new Date(num * 1000);
-    const d = new Date(log.start_time);
-    if (!isNaN(d.getTime())) return d;
+    const parsed = parseDate(log.start_time);
+    if (parsed) return parsed;
   }
   return new Date(log.created_at);
 }
