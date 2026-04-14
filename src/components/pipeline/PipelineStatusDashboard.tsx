@@ -2,9 +2,12 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { PipelineOrder, PIPELINE_LOST_REASONS } from '@/hooks/usePipelineOrders';
 import { format, startOfDay, startOfWeek, startOfMonth, endOfDay, endOfWeek, endOfMonth, parseISO, isWithinInterval } from 'date-fns';
-import { TrendingUp, TrendingDown, CalendarDays, Users, Package } from 'lucide-react';
+import { TrendingUp, TrendingDown, CalendarDays, Users, Package, IndianRupee } from 'lucide-react';
 
 interface PipelineStatusDashboardProps {
   orders: PipelineOrder[];
@@ -38,8 +41,15 @@ function getRange(period: Period) {
   }
 }
 
+type DetailView = 
+  | { type: 'total'; title: string }
+  | { type: 'salesPerson'; name: string; title: string }
+  | { type: 'category'; category: string; title: string }
+  | { type: 'lostReason'; reason: string; title: string };
+
 export function PipelineStatusDashboard({ orders, status }: PipelineStatusDashboardProps) {
   const [period, setPeriod] = useState<Period>('this_month');
+  const [detailView, setDetailView] = useState<DetailView | null>(null);
   const isWon = status === 'won';
 
   const filtered = useMemo(() => {
@@ -60,10 +70,10 @@ export function PipelineStatusDashboard({ orders, status }: PipelineStatusDashbo
   const totalDeals = filtered.length;
 
   const bySalesPerson = useMemo(() => {
-    const map = new Map<string, { name: string; count: number; total: number }>();
+    const map = new Map<string, { name: string; id: string; count: number; total: number }>();
     filtered.forEach(o => {
       const k = o.sales_person_id;
-      if (!map.has(k)) map.set(k, { name: o.sales_person_name || 'Unassigned', count: 0, total: 0 });
+      if (!map.has(k)) map.set(k, { name: o.sales_person_name || 'Unassigned', id: k, count: 0, total: 0 });
       const e = map.get(k)!;
       e.count++;
       e.total += o.expected_price || 0;
@@ -101,6 +111,21 @@ export function PipelineStatusDashboard({ orders, status }: PipelineStatusDashbo
       .sort((a, b) => b.count - a.count);
   }, [filtered, isWon]);
 
+  // Get detail orders based on current detailView
+  const detailOrders = useMemo(() => {
+    if (!detailView) return [];
+    switch (detailView.type) {
+      case 'total':
+        return filtered;
+      case 'salesPerson':
+        return filtered.filter(o => o.sales_person_name === detailView.name);
+      case 'category':
+        return filtered.filter(o => (o.product_category || 'Uncategorized') === detailView.category);
+      case 'lostReason':
+        return filtered.filter(o => (o.lost_reason || 'not_specified') === detailView.reason);
+    }
+  }, [detailView, filtered]);
+
   const borderColor = isWon ? 'border-green-200 dark:border-green-800' : 'border-red-200 dark:border-red-800';
   const bgColor = isWon ? 'bg-green-50/30 dark:bg-green-950/10' : 'bg-red-50/30 dark:bg-red-950/10';
   const textColor = isWon ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400';
@@ -130,7 +155,10 @@ export function PipelineStatusDashboard({ orders, status }: PipelineStatusDashbo
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Total */}
-        <Card className={`${borderColor} ${bgColor}`}>
+        <Card 
+          className={`${borderColor} ${bgColor} cursor-pointer hover:shadow-md transition-shadow`}
+          onClick={() => setDetailView({ type: 'total', title: `${PERIOD_LABELS[period]} — All ${isWon ? 'Won' : 'Lost'} Orders` })}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               {PERIOD_LABELS[period]} — Total Value
@@ -155,7 +183,11 @@ export function PipelineStatusDashboard({ orders, status }: PipelineStatusDashbo
               <p className="text-xs text-muted-foreground italic">No data</p>
             ) : (
               bySalesPerson.slice(0, 5).map(sp => (
-                <div key={sp.name} className="flex items-center justify-between text-sm">
+                <div 
+                  key={sp.name} 
+                  className="flex items-center justify-between text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5 -mx-1 transition-colors"
+                  onClick={() => setDetailView({ type: 'salesPerson', name: sp.name, title: `${sp.name} — ${isWon ? 'Won' : 'Lost'} Orders` })}
+                >
                   <span className="text-muted-foreground truncate mr-2">{sp.name.split(' ')[0]}</span>
                   <span className="font-medium whitespace-nowrap">{sp.count} — {formatCurrency(sp.total)}</span>
                 </div>
@@ -178,7 +210,11 @@ export function PipelineStatusDashboard({ orders, status }: PipelineStatusDashbo
                 <p className="text-xs text-muted-foreground italic">No data</p>
               ) : (
                 byCategory.slice(0, 5).map(cat => (
-                  <div key={cat.category} className="flex items-center justify-between text-sm">
+                  <div 
+                    key={cat.category} 
+                    className="flex items-center justify-between text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5 -mx-1 transition-colors"
+                    onClick={() => setDetailView({ type: 'category', category: cat.category, title: `${cat.category} — ${isWon ? 'Won' : 'Lost'} Orders` })}
+                  >
                     <span className="text-muted-foreground truncate mr-2">{cat.category}</span>
                     <span className="font-medium whitespace-nowrap">{cat.count} — {formatCurrency(cat.total)}</span>
                   </div>
@@ -189,7 +225,11 @@ export function PipelineStatusDashboard({ orders, status }: PipelineStatusDashbo
                 <p className="text-xs text-muted-foreground italic">No data</p>
               ) : (
                 lostReasonBreakdown.slice(0, 5).map(r => (
-                  <div key={r.reason} className="flex items-center justify-between text-sm">
+                  <div 
+                    key={r.reason} 
+                    className="flex items-center justify-between text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5 -mx-1 transition-colors"
+                    onClick={() => setDetailView({ type: 'lostReason', reason: r.reason, title: `Lost Reason: ${r.label}` })}
+                  >
                     <span className="text-muted-foreground truncate mr-2">{r.label}</span>
                     <Badge variant="outline" className="text-xs">{r.count}</Badge>
                   </div>
@@ -199,6 +239,81 @@ export function PipelineStatusDashboard({ orders, status }: PipelineStatusDashbo
           </CardContent>
         </Card>
       </div>
+
+      {/* Detail Dialog */}
+      <Dialog open={!!detailView} onOpenChange={(open) => !open && setDetailView(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>{detailView?.title}</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead className="text-center">Qty</TableHead>
+                  <TableHead className="text-right">Expected Price</TableHead>
+                  <TableHead>Sales Person</TableHead>
+                  {!isWon && <TableHead>Lost Reason</TableHead>}
+                  <TableHead>Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {detailOrders.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={isWon ? 6 : 7} className="text-center py-8 text-muted-foreground">
+                      No orders found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  detailOrders.map(order => (
+                    <TableRow key={order.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{order.customer_name}</div>
+                          <div className="text-xs text-muted-foreground">{order.customer_company}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{order.product_name}</div>
+                          <div className="text-xs text-muted-foreground">{order.product_category}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">{order.quantity}</TableCell>
+                      <TableCell className="text-right">
+                        {order.expected_price ? (
+                          <span className="flex items-center justify-end gap-0.5">
+                            <IndianRupee className="h-3 w-3" />
+                            {order.expected_price.toLocaleString('en-IN')}
+                          </span>
+                        ) : '—'}
+                      </TableCell>
+                      <TableCell>{order.sales_person_name}</TableCell>
+                      {!isWon && (
+                        <TableCell>
+                          <div className="text-sm">
+                            <div>{PIPELINE_LOST_REASONS.find(r => r.value === order.lost_reason)?.label || '—'}</div>
+                            {order.lost_reason_notes && (
+                              <div className="text-xs text-muted-foreground truncate max-w-[150px]" title={order.lost_reason_notes}>
+                                {order.lost_reason_notes}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
+                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                        {format(parseISO(order.updated_at || order.created_at), 'dd MMM yyyy')}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
