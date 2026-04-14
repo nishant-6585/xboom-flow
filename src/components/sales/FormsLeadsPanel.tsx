@@ -384,6 +384,12 @@ export function FormsLeadsPanel() {
                           </SelectContent>
                         </Select>
                       </td>
+                      <td className="py-2.5 px-3">
+                        <div className="text-xs text-muted-foreground">
+                          <div>{format(new Date(lead.created_at), "MMM d, yyyy")}</div>
+                          <div className="text-[10px]">{format(new Date(lead.created_at), "h:mm a")}</div>
+                        </div>
+                      </td>
                       <td className="py-2.5 px-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1 items-center">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedLead(lead)}>
