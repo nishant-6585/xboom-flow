@@ -106,6 +106,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const [editingInteraktLead, setEditingInteraktLead] = useState<InteraktLead | null>(null);
   const [interaktEditOpen, setInteraktEditOpen] = useState(false);
   const [interaktDrawerLead, setInteraktDrawerLead] = useState<InteraktLead | null>(null);
+  const [logCallLead, setLogCallLead] = useState<InteraktLead | null>(null);
 
   // Check edit permission for Interakt leads
   const canEditInteraktLeads = role === 'admin' || role === 'sales' || role === 'sales_manager';
