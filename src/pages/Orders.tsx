@@ -20,6 +20,7 @@ import { PipelineOrders } from '@/components/pipeline/PipelineOrders';
 import { WooOrderCard } from '@/components/orders/WooOrderCard';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
+import { SupportCallsDashboard } from '@/components/orders/SupportCallsDashboard';
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
 import { useWooCommerceOrders } from '@/hooks/useWooCommerceOrders';
@@ -67,6 +68,7 @@ export default function Orders() {
   const [selectedCartItems, setSelectedCartItems] = useState<Record<string, unknown>[] | null>(null);
   const [selectedCartForAction, setSelectedCartForAction] = useState<typeof abandonedCarts[0] | null>(null);
   const [recoveringCartId, setRecoveringCartId] = useState<string | null>(null);
+  const [supportCallLogs, setSupportCallLogs] = useState<any[]>([]);
 
   // Shopify tab filters
   const [shopifyStatusFilter, setShopifyStatusFilter] = useState<string>('all');
@@ -1630,14 +1632,8 @@ export default function Orders() {
 
           {(role === 'supply_chain' || role === 'admin') && (
             <TabsContent value="support_calls" className="space-y-6 mt-0">
-              <div className="flex items-center gap-3 mb-4">
-                <Phone className="h-5 w-5 text-primary" />
-                <div>
-                  <h2 className="text-lg font-semibold">Support Calls</h2>
-                  <p className="text-xs text-muted-foreground">View and update support department calls from MyOperator</p>
-                </div>
-              </div>
-              <CallLogsPanel defaultDepartment="support" />
+              <SupportCallsDashboard logs={supportCallLogs} />
+              <CallLogsPanel defaultDepartment="support" onLogsLoaded={setSupportCallLogs} />
             </TabsContent>
           )}
         </Tabs>
