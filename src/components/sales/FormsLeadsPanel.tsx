@@ -64,6 +64,7 @@ export function FormsLeadsPanel() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [formSourceFilter, setFormSourceFilter] = useState<string>("all");
   const [selectedLead, setSelectedLead] = useState<FormLead | null>(null);
   const [drawerLead, setDrawerLead] = useState<FormLead | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -167,6 +168,9 @@ export function FormsLeadsPanel() {
     },
   });
 
+  // Unique form names for filter
+  const uniqueFormNames = [...new Set(leads.map(l => l.form_name))].sort();
+
   const filtered = leads.filter((lead) => {
     const matchesSearch =
       !search ||
@@ -176,7 +180,8 @@ export function FormsLeadsPanel() {
       lead.form_name.toLowerCase().includes(search.toLowerCase()) ||
       lead.company?.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesFormSource = formSourceFilter === "all" || lead.form_name === formSourceFilter;
+    return matchesSearch && matchesStatus && matchesFormSource;
   });
 
   // Reset page when filters change
@@ -184,7 +189,7 @@ export function FormsLeadsPanel() {
   const paginatedLeads = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   // Reset to page 1 when search/filter changes
-  useEffect(() => { setCurrentPage(1); }, [search, statusFilter]);
+  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, formSourceFilter]);
 
   const getStatusBadge = (status: string) => {
     const opt = STATUS_OPTIONS.find((s) => s.value === status);
@@ -244,6 +249,17 @@ export function FormsLeadsPanel() {
                 <SelectItem value="all">All Status</SelectItem>
                 {STATUS_OPTIONS.map((s) => (
                   <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={formSourceFilter} onValueChange={setFormSourceFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Form Source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Forms ({uniqueFormNames.length})</SelectItem>
+                {uniqueFormNames.map((name) => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
