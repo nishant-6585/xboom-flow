@@ -302,9 +302,15 @@ export function OutboundCallTracker() {
                     <TableRow key={log.id}>
                       <TableCell>
                         <Badge variant="outline" className={`text-[10px] ${
-                          log.lead_source === 'myoperator' ? 'border-blue-500/40 text-blue-500' : 'border-emerald-500/40 text-emerald-500'
+                          log.lead_source === 'myoperator' ? 'border-blue-500/40 text-blue-500' 
+                          : log.lead_source === 'interakt' ? 'border-emerald-500/40 text-emerald-500'
+                          : log.lead_source === 'prospect' ? 'border-amber-500/40 text-amber-500'
+                          : 'border-purple-500/40 text-purple-500'
                         }`}>
-                          {log.lead_source === 'myoperator' ? 'MyOperator' : 'Interakt'}
+                          {log.lead_source === 'myoperator' ? 'MyOperator' 
+                           : log.lead_source === 'interakt' ? 'Interakt'
+                           : log.lead_source === 'prospect' ? 'Prospect'
+                           : 'Pipeline'}
                         </Badge>
                       </TableCell>
                       <TableCell>
