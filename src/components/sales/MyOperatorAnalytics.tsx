@@ -108,6 +108,7 @@ interface MyOperatorAnalyticsProps {
 export function MyOperatorAnalytics({ logs, prospects = [], dateRange }: MyOperatorAnalyticsProps) {
   const [period, setPeriod] = useState<'day' | 'week' | 'month'>('week');
   const [agentPeriod, setAgentPeriod] = useState<'day' | 'week' | 'month'>('week');
+  const [uniqueOnly, setUniqueOnly] = useState(false);
 
   const enrichedLogs = useMemo(() => {
     let mapped = logs.map(log => ({
@@ -126,8 +127,18 @@ export function MyOperatorAnalytics({ logs, prospects = [], dateRange }: MyOpera
       e.setHours(23, 59, 59, 999);
       mapped = mapped.filter(l => l.date <= e);
     }
+    // Deduplicate by caller_number (keep first call per unique number)
+    if (uniqueOnly) {
+      const seen = new Set<string>();
+      mapped = mapped.filter(l => {
+        const num = l.caller_number?.replace(/\D/g, '').slice(-10);
+        if (!num || seen.has(num)) return false;
+        seen.add(num);
+        return true;
+      });
+    }
     return mapped;
-  }, [logs, dateRange?.start?.getTime(), dateRange?.end?.getTime()]);
+  }, [logs, dateRange?.start?.getTime(), dateRange?.end?.getTime(), uniqueOnly]);
 
   const now = new Date();
   const todayStart = startOfDay(now);
@@ -173,13 +184,25 @@ export function MyOperatorAnalytics({ logs, prospects = [], dateRange }: MyOpera
       .sort((a, b) => b.total - a.total);
   }, [agentPeriod, todayLogs, weekLogs, monthLogs]);
 
+  // Helper: deduplicate logs by caller_number within a subset
+  const dedupeByNumber = (arr: typeof enrichedLogs) => {
+    if (!uniqueOnly) return arr;
+    const seen = new Set<string>();
+    return arr.filter(l => {
+      const num = l.caller_number?.replace(/\D/g, '').slice(-10);
+      if (!num || seen.has(num)) return false;
+      seen.add(num);
+      return true;
+    });
+  };
+
   // ---- Daily call volume chart (last 14 days) ----
   const dailyData = useMemo(() => {
     const days = eachDayOfInterval({ start: subDays(now, 13), end: now });
     return days.map(day => {
       const dayEnd = new Date(day);
       dayEnd.setHours(23, 59, 59, 999);
-      const dayLogs = enrichedLogs.filter(l => l.date >= day && l.date <= dayEnd);
+      const dayLogs = dedupeByNumber(enrichedLogs.filter(l => l.date >= day && l.date <= dayEnd));
       const dayProspects = myopProspects.filter(p => {
         const pd = new Date(p.created_at);
         return pd >= day && pd <= dayEnd;
@@ -192,7 +215,7 @@ export function MyOperatorAnalytics({ logs, prospects = [], dateRange }: MyOpera
         prospects: dayProspects.length,
       };
     });
-  }, [enrichedLogs, myopProspects, now]);
+  }, [enrichedLogs, myopProspects, now, uniqueOnly]);
 
   // ---- Sales vs Support daily breakdown (last 14 days) ----
   const salesVsSupportData = useMemo(() => {
@@ -228,7 +251,7 @@ export function MyOperatorAnalytics({ logs, prospects = [], dateRange }: MyOpera
       weeks.push({ label: format(ws, 'dd MMM'), start: ws, end: we });
     }
     return weeks.map(w => {
-      const wLogs = enrichedLogs.filter(l => l.date >= w.start && l.date <= w.end);
+      const wLogs = dedupeByNumber(enrichedLogs.filter(l => l.date >= w.start && l.date <= w.end));
       const wProsp = myopProspects.filter(p => {
         const pd = new Date(p.created_at);
         return pd >= w.start && pd <= w.end;
@@ -241,7 +264,7 @@ export function MyOperatorAnalytics({ logs, prospects = [], dateRange }: MyOpera
         prospects: wProsp.length,
       };
     });
-  }, [enrichedLogs, myopProspects, now]);
+  }, [enrichedLogs, myopProspects, now, uniqueOnly]);
 
   const chartData = period === 'day' ? dailyData : weeklyData;
 
