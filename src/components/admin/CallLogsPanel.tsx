@@ -309,8 +309,18 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
         return info.finalAgent === agentFilter || info.agentDisplay.includes(agentFilter);
       });
     }
+    // Dedupe by unique caller number (keep most recent per number)
+    if (uniqueOnly) {
+      const seen = new Set<string>();
+      result = result.filter(log => {
+        const num = (log.caller_number || '').replace(/\D/g, '').slice(-10);
+        if (!num || seen.has(num)) return false;
+        seen.add(num);
+        return true;
+      });
+    }
     return result;
-  }, [logs, salesPersonFilter, agentFilter, missedOnly, departmentFilter]);
+  }, [logs, salesPersonFilter, agentFilter, missedOnly, departmentFilter, uniqueOnly]);
 
   const handleAssignChange = async (logId: string, newName: string) => {
     setUpdatingAssign(logId);
