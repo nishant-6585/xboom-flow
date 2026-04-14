@@ -77,6 +77,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
   const [closureSortDir, setClosureSortDir] = useState<'asc' | 'desc' | null>(null);
   const lastAutoOpenedId = useRef<string | null>(null);
   const [orderWonDialog, setOrderWonDialog] = useState<PipelineOrder | null>(null);
+  const [logCallOrder, setLogCallOrder] = useState<PipelineOrder | null>(null);
 
   // Use external filter if provided, otherwise use internal
   const statusFilter = externalStatusFilter ?? internalStatusFilter;

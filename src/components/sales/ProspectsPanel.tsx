@@ -618,6 +618,16 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      <LogCallDialog
+        open={!!logCallProspect}
+        onOpenChange={(open) => { if (!open) setLogCallProspect(null); }}
+        leadSource="prospect"
+        leadId={logCallProspect?.id || ''}
+        leadName={logCallProspect?.customer_name || ''}
+        leadPhone={logCallProspect?.phone_number || ''}
+        leadCompany={logCallProspect?.company}
+      />
     </div>
   );
 }
