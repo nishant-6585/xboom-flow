@@ -17,6 +17,7 @@ import { OrderProfitAnalytics } from '@/components/OrderProfitAnalytics';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { RefundRequestsTable } from '@/components/RefundRequestsTable';
 import { PipelineOrders } from '@/components/pipeline/PipelineOrders';
+import { WooOrderCard } from '@/components/orders/WooOrderCard';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
@@ -1209,77 +1210,57 @@ export default function Orders() {
                         </tr>
                       </thead>
                       <tbody>
-                        {paginatedWooOrders.map((order) => (
+                        {paginatedWooOrders.map((order) => {
+                          const customerName = (!order.customer_name || order.customer_name === 'Unknown') ? (order.customer_email || `Order #${order.woo_order_id}`) : order.customer_name;
+                          const productName = (!order.product_name || order.product_name === 'Unknown Product') ? `Order #${order.order_number || order.woo_order_id}` : order.product_name;
+                          return (
                           <tr key={order.id} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
                             <td className="p-3 font-mono font-medium text-primary">#{order.order_number || order.woo_order_id}</td>
                             <td className="p-3">
-                              <div className="font-medium">{order.customer_name}</div>
-                              {order.customer_email && <div className="text-xs text-muted-foreground">{order.customer_email}</div>}
+                              <div className="font-medium">{customerName}</div>
+                              {order.customer_email && customerName !== order.customer_email && <div className="text-xs text-muted-foreground">{order.customer_email}</div>}
                             </td>
                             <td className="p-3">
-                              <div className="max-w-[200px] truncate">{order.product_name}</div>
+                              <div className="max-w-[200px] truncate">{productName}</div>
                               {order.quantity > 1 && <div className="text-xs text-muted-foreground">Qty: {order.quantity}</div>}
                             </td>
-                            <td className="p-3 font-semibold">₹{(order.total_sales_amount || 0).toLocaleString()}</td>
+                            <td className="p-3 font-semibold">₹{(order.total_sales_amount || 0).toLocaleString('en-IN')}</td>
                             <td className="p-3">
                               <Badge variant="outline" className={`text-xs capitalize ${
-                                order.order_status === 'completed' ? 'border-green-400 text-green-700 bg-green-50 dark:bg-green-950/30 dark:text-green-400' :
-                                order.order_status === 'processing' ? 'border-blue-400 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400' :
-                                order.order_status === 'failed' ? 'border-red-400 text-red-700 bg-red-50 dark:bg-red-950/30 dark:text-red-400' :
-                                order.order_status === 'cancelled' ? 'border-red-400 text-red-700 bg-red-50 dark:bg-red-950/30 dark:text-red-400' :
-                                'border-yellow-400 text-yellow-700 bg-yellow-50 dark:bg-yellow-950/30 dark:text-yellow-400'
+                                order.order_status === 'completed' ? 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400' :
+                                order.order_status === 'processing' ? 'border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-400' :
+                                order.order_status === 'failed' || order.order_status === 'cancelled' ? 'border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-400' :
+                                order.order_status === 'refunded' ? 'border-muted-foreground/40 bg-muted/30 text-muted-foreground' :
+                                'border-yellow-500/40 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400'
                               }`}>
-                                {order.order_status}
+                                {order.order_status || 'pending'}
                               </Badge>
                             </td>
                             <td className="p-3">
                               <Badge variant="outline" className={`text-xs capitalize ${
-                                order.payment_status === 'paid' ? 'border-green-400 text-green-700 bg-green-50 dark:bg-green-950/30 dark:text-green-400' :
-                                order.payment_status === 'failed' ? 'border-red-400 text-red-700 bg-red-50 dark:bg-red-950/30 dark:text-red-400' :
-                                'border-yellow-400 text-yellow-700 bg-yellow-50 dark:bg-yellow-950/30 dark:text-yellow-400'
+                                order.payment_status === 'paid' ? 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400' :
+                                order.payment_status === 'failed' ? 'border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-400' :
+                                'border-yellow-500/40 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400'
                               }`}>
-                                {order.payment_status}
+                                {order.payment_status || 'pending'}
                               </Badge>
                             </td>
                             <td className="p-3 text-muted-foreground text-xs">{order.woo_created_at ? new Date(order.woo_created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : new Date(order.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {paginatedWooOrders.map((order) => (
-                  <Card key={order.id} className="shadow-sm border-border/60 hover:shadow-md transition-shadow">
-                    <CardContent className="p-5 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono font-semibold text-primary">#{order.order_number || order.woo_order_id}</span>
-                        <Badge variant="outline" className={`text-xs capitalize ${
-                          order.order_status === 'completed' ? 'border-green-400 text-green-700 bg-green-50 dark:bg-green-950/30 dark:text-green-400' :
-                          order.order_status === 'processing' ? 'border-blue-400 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400' :
-                          order.order_status === 'failed' || order.order_status === 'cancelled' ? 'border-red-400 text-red-700 bg-red-50 dark:bg-red-950/30 dark:text-red-400' :
-                          'border-yellow-400 text-yellow-700 bg-yellow-50 dark:bg-yellow-950/30 dark:text-yellow-400'
-                        }`}>
-                          {order.order_status}
-                        </Badge>
-                      </div>
-                      <div>
-                        <p className="font-medium">{order.customer_name}</p>
-                        {order.customer_email && <p className="text-xs text-muted-foreground">{order.customer_email}</p>}
-                      </div>
-                      <p className="text-sm text-muted-foreground truncate">{order.product_name}</p>
-                      <div className="flex items-center justify-between pt-1 border-t border-border/40">
-                        <span className="text-lg font-bold">₹{(order.total_sales_amount || 0).toLocaleString()}</span>
-                        <span className="text-xs text-muted-foreground">{order.woo_created_at ? new Date(order.woo_created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : ''}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <WooOrderCard key={order.id} order={order} />
                 ))}
               </div>
             )}
-
             {/* Pagination */}
             {wooTotalPages > 1 && !wooLoading && filteredWooOrders.length > 0 && (
               <div className="flex items-center justify-center gap-1.5">
