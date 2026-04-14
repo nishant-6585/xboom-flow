@@ -1,11 +1,9 @@
-import { useState } from 'react';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, startOfDay } from 'date-fns';
 import { CalendarIcon, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-
 
 interface DateRangeFilterProps {
   startDate: Date | undefined;
@@ -14,6 +12,13 @@ interface DateRangeFilterProps {
   onEndDateChange: (date: Date | undefined) => void;
   onClear: () => void;
 }
+
+const PRESETS = [
+  { label: 'Today', getRange: () => { const t = startOfDay(new Date()); return { start: t, end: t }; } },
+  { label: 'This Week', getRange: () => ({ start: startOfWeek(new Date(), { weekStartsOn: 1 }), end: new Date() }) },
+  { label: 'Last Week', getRange: () => { const s = startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 }); return { start: s, end: endOfWeek(s, { weekStartsOn: 1 }) }; } },
+  { label: 'This Month', getRange: () => ({ start: startOfMonth(new Date()), end: new Date() }) },
+];
 
 export function DateRangeFilter({
   startDate,
@@ -24,8 +29,26 @@ export function DateRangeFilter({
 }: DateRangeFilterProps) {
   const hasDateFilter = startDate || endDate;
 
+  const applyPreset = (preset: typeof PRESETS[0]) => {
+    const { start, end } = preset.getRange();
+    onStartDateChange(start);
+    onEndDateChange(end);
+  };
+
   return (
     <div className="flex items-center gap-2 flex-wrap">
+      {PRESETS.map(p => (
+        <Button
+          key={p.label}
+          variant="outline"
+          size="sm"
+          className="text-xs h-8"
+          onClick={() => applyPreset(p)}
+        >
+          {p.label}
+        </Button>
+      ))}
+
       <Popover>
         <PopoverTrigger asChild>
           <Button
@@ -37,7 +60,7 @@ export function DateRangeFilter({
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {startDate ? format(startDate, "dd MMM yyyy") : "From date"}
+            {startDate ? format(startDate, "dd MMM yyyy") : "From"}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
@@ -64,7 +87,7 @@ export function DateRangeFilter({
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {endDate ? format(endDate, "dd MMM yyyy") : "To date"}
+            {endDate ? format(endDate, "dd MMM yyyy") : "To"}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
