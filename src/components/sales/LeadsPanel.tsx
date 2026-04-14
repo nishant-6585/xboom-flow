@@ -1006,6 +1006,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <MyOperatorTabContent prospects={prospects} prospectSourceIds={prospectSourceIds} attentionSourceIds={attentionSourceIds} />
       </TabsContent>
 
+      <TabsContent value="call-tracker">
+        <OutboundCallTracker />
+      </TabsContent>
+
       <TabsContent value="emails">
         <EmailLeadsPanel />
       </TabsContent>
