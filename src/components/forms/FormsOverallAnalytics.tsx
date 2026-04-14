@@ -330,7 +330,7 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Views & Submissions Over Time</CardTitle>
+              <CardTitle className="text-base">Views & Submissions Over Time {selectedFormId !== "all" && <span className="text-muted-foreground font-normal">- {selectedFormName}</span>}</CardTitle>
               <div className="flex gap-1">
                 <Badge
                   variant={timeRange === "daily" ? "default" : "outline"}
@@ -398,7 +398,7 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
         {/* Form Performance Bar Chart */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Top Performing Forms</CardTitle>
+            <CardTitle className="text-base">Top Performing Forms {selectedFormId !== "all" && <span className="text-muted-foreground font-normal">- {selectedFormName}</span>}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[280px]">
@@ -432,7 +432,7 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
         {/* Submission Distribution Pie Chart */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Submission Distribution</CardTitle>
+            <CardTitle className="text-base">Submission Distribution {selectedFormId !== "all" && <span className="text-muted-foreground font-normal">- {selectedFormName}</span>}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[280px]">
@@ -483,7 +483,7 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
       {/* Recent Activity Table */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Recent Submissions</CardTitle>
+          <CardTitle className="text-base">Recent Submissions {selectedFormId !== "all" && <span className="text-muted-foreground font-normal">- {selectedFormName}</span>}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3 max-h-[300px] overflow-y-auto">
