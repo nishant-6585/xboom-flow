@@ -68,6 +68,7 @@ export default function Orders() {
   const [selectedCartItems, setSelectedCartItems] = useState<Record<string, unknown>[] | null>(null);
   const [selectedCartForAction, setSelectedCartForAction] = useState<typeof abandonedCarts[0] | null>(null);
   const [recoveringCartId, setRecoveringCartId] = useState<string | null>(null);
+  const [supportCallLogs, setSupportCallLogs] = useState<any[]>([]);
 
   // Shopify tab filters
   const [shopifyStatusFilter, setShopifyStatusFilter] = useState<string>('all');
