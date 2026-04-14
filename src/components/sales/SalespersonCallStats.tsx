@@ -64,7 +64,9 @@ export function SalespersonCallStats({ open, onOpenChange, logs, dateRange, depa
     }>();
 
     for (const log of filteredLogs) {
-      const sp = log.sales_person_name || 'Unassigned';
+      const sp = department === 'support'
+        ? (log.assigned_agent_name || 'Unassigned')
+        : (log.sales_person_name || 'Unassigned');
       if (!spMap.has(sp)) {
         spMap.set(sp, {
           totalCalls: 0,
