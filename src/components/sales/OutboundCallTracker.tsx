@@ -175,6 +175,7 @@ export function OutboundCallTracker() {
             <p className="text-xs text-muted-foreground">Pipeline</p>
           </CardContent>
         </Card>
+      </div>
 
       {/* Filters */}
       <div className="flex items-center justify-between flex-wrap gap-2">
