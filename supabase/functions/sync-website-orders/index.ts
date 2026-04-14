@@ -6,9 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const BASE_API = "https://xboom.in/wp-json/xboom/v1/orders";
-const TOKEN = "xboom_default_secret_key_123";
-const PER_PAGE = 100;
+const API_URL = "https://xboom.in/wp-json/xboom/v1/orders?token=xboom_default_secret_key_123";
 
 function stripPhpNotices(raw: string): string {
   const b = raw.indexOf('[');
@@ -98,68 +96,52 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log("[sync-website-orders] Starting paginated sync from xboom.in API");
+    console.log("[sync-website-orders] Starting sync from xboom.in API");
 
-    // Paginated fetch
-    let page = 1;
-    const allOrders: any[] = [];
-
-    while (true) {
-      const url = `${BASE_API}?token=${TOKEN}&page=${page}&per_page=${PER_PAGE}`;
-      console.log(`[sync-website-orders] Fetching page ${page}...`);
-
-      let response: Response;
-      try {
-        response = await fetch(url, { headers: { Accept: "application/json" } });
-      } catch (fetchErr) {
-        console.error(`[sync-website-orders] Network error on page ${page}:`, fetchErr);
-        break; // keep whatever we got so far
-      }
-
-      if (!response.ok) {
-        console.error(`[sync-website-orders] API returned ${response.status} on page ${page}`);
-        if (page === 1) {
-          return new Response(
-            JSON.stringify({ success: false, error: `WordPress API error: ${response.status}`, fallback: true }),
-            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        break; // partial success — process what we have
-      }
-
-      let rawText: string;
-      try {
-        rawText = await response.text();
-        const pageOrders = parseOrders(rawText);
-        console.log(`[sync-website-orders] Page ${page}: ${pageOrders.length} orders`);
-        allOrders.push(...pageOrders);
-
-        if (pageOrders.length < PER_PAGE) break;
-        page++;
-      } catch (parseErr) {
-        console.error(`[sync-website-orders] Parse error on page ${page}:`, parseErr);
-        if (page === 1) {
-          return new Response(
-            JSON.stringify({ success: false, error: "Failed to parse API response", fallback: true }),
-            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        break;
-      }
-    }
-
-    console.log(`[sync-website-orders] Total fetched: ${allOrders.length} orders across ${page} page(s)`);
-
-    if (allOrders.length === 0) {
+    let response: Response;
+    try {
+      response = await fetch(API_URL, { headers: { Accept: "application/json" } });
+    } catch (fetchErr) {
+      console.error("[sync-website-orders] Network error:", fetchErr);
       return new Response(
-        JSON.stringify({ success: true, total_fetched: 0, upserted: 0, errors: 0, pages: page, message: "No orders found" }),
+        JSON.stringify({ success: false, error: "Network error reaching xboom.in", fallback: true }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Log sample
+    if (!response.ok) {
+      console.error(`[sync-website-orders] API returned ${response.status}`);
+      return new Response(
+        JSON.stringify({ success: false, error: `WordPress API error: ${response.status}`, fallback: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const rawText = await response.text();
+    console.log(`[sync-website-orders] Raw response length: ${rawText.length}`);
+
+    let allOrders: any[];
+    try {
+      allOrders = parseOrders(rawText);
+    } catch (parseErr) {
+      console.error("[sync-website-orders] Parse error:", parseErr);
+      return new Response(
+        JSON.stringify({ success: false, error: "Failed to parse API response", fallback: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`[sync-website-orders] Fetched ${allOrders.length} orders from API`);
+
     if (allOrders.length > 0) {
       console.log("[sync-website-orders] First order keys:", Object.keys(allOrders[0]));
+    }
+
+    if (allOrders.length === 0) {
+      return new Response(
+        JSON.stringify({ success: true, total_fetched: 0, upserted: 0, errors: 0, message: "No orders found" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -196,10 +178,9 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         total_fetched: allOrders.length,
-        pages: page,
         upserted,
         errors,
-        message: `Synced ${upserted} orders from xboom.in (${page} page${page > 1 ? "s" : ""})`,
+        message: `Synced ${upserted} orders from xboom.in`,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
