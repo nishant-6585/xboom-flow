@@ -202,8 +202,10 @@ export function OutboundCallTracker() {
         <div className="flex items-center gap-2">
           <div className="flex border rounded-md">
             <Button variant={sourceFilter === 'all' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('all')} className="rounded-r-none text-xs px-3">All</Button>
-            <Button variant={sourceFilter === 'myoperator' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('myoperator')} className="rounded-none border-x text-xs px-3">MyOperator</Button>
-            <Button variant={sourceFilter === 'interakt' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('interakt')} className="rounded-l-none text-xs px-3">Interakt</Button>
+            <Button variant={sourceFilter === 'myoperator' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('myoperator')} className="rounded-none border-x text-xs px-2">MO</Button>
+            <Button variant={sourceFilter === 'interakt' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('interakt')} className="rounded-none border-r text-xs px-2">IK</Button>
+            <Button variant={sourceFilter === 'prospect' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('prospect')} className="rounded-none border-r text-xs px-2">Prospect</Button>
+            <Button variant={sourceFilter === 'pipeline' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('pipeline')} className="rounded-l-none text-xs px-2">Pipeline</Button>
           </div>
           <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
