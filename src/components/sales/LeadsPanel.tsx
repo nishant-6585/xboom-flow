@@ -830,7 +830,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                           <TableHead className="w-[80px]">Status</TableHead>
                           <TableHead className="w-[100px]">Assigned To</TableHead>
                           <TableHead className="w-[100px]">Created On</TableHead>
-                          {canEditInteraktLeads && <TableHead className="w-[60px]">Action</TableHead>}
+                          <TableHead className="w-[80px]">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
