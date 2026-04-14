@@ -121,6 +121,8 @@ export function OutboundCallTracker() {
 
   const totalConnected = filteredLogs.filter(l => l.call_outcome === 'connected').length;
   const totalNotConnected = filteredLogs.length - totalConnected;
+  const prospectCount = filteredLogs.filter(l => l.lead_source === 'prospect').length;
+  const pipelineCount = filteredLogs.filter(l => l.lead_source === 'pipeline').length;
   const myoperatorCount = filteredLogs.filter(l => l.lead_source === 'myoperator').length;
   const interaktCount = filteredLogs.filter(l => l.lead_source === 'interakt').length;
 
@@ -136,11 +138,11 @@ export function OutboundCallTracker() {
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
           <CardContent className="pt-4 pb-3 text-center">
             <p className="text-2xl font-bold">{filteredLogs.length}</p>
-            <p className="text-xs text-muted-foreground">Total Calls Made</p>
+            <p className="text-xs text-muted-foreground">Total Calls</p>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
@@ -152,16 +154,27 @@ export function OutboundCallTracker() {
         <Card>
           <CardContent className="pt-4 pb-3 text-center">
             <p className="text-2xl font-bold">{myoperatorCount}</p>
-            <p className="text-xs text-muted-foreground">MyOperator Leads</p>
+            <p className="text-xs text-muted-foreground">MyOperator</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3 text-center">
             <p className="text-2xl font-bold">{interaktCount}</p>
-            <p className="text-xs text-muted-foreground">Interakt Leads</p>
+            <p className="text-xs text-muted-foreground">Interakt</p>
           </CardContent>
         </Card>
-      </div>
+        <Card>
+          <CardContent className="pt-4 pb-3 text-center">
+            <p className="text-2xl font-bold">{prospectCount}</p>
+            <p className="text-xs text-muted-foreground">Prospects</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 text-center">
+            <p className="text-2xl font-bold">{pipelineCount}</p>
+            <p className="text-xs text-muted-foreground">Pipeline</p>
+          </CardContent>
+        </Card>
 
       {/* Filters */}
       <div className="flex items-center justify-between flex-wrap gap-2">
