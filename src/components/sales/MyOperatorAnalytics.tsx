@@ -372,9 +372,16 @@ export function MyOperatorAnalytics({ logs, prospects = [], dateRange }: MyOpera
         {/* Call Volume Chart */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <CardTitle className="text-base">Call Volume Trend</CardTitle>
-              <div className="flex gap-1">
+              <div className="flex gap-1 items-center">
+                <button
+                  onClick={() => setUniqueOnly(!uniqueOnly)}
+                  className={`px-3 py-1 text-xs rounded-md transition-colors ${uniqueOnly ? 'bg-amber-500 text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                >
+                  {uniqueOnly ? '✓ Unique Numbers' : 'Unique Numbers'}
+                </button>
+                <span className="w-px h-5 bg-border mx-1" />
                 <button
                   onClick={() => setPeriod('day')}
                   className={`px-3 py-1 text-xs rounded-md transition-colors ${period === 'day' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
