@@ -240,6 +240,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [statusFilter, setStatusFilter] = useState("all");
   const [salesPersonFilter, setSalesPersonFilter] = useState("all");
   const [agentFilter, setAgentFilter] = useState("all");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
   const [missedOnly, setMissedOnly] = useState(false);
   const [selectedLog, setSelectedLog] = useState<CallLog | null>(null);
   const [expandedAudio, setExpandedAudio] = useState<string | null>(null);
@@ -277,6 +278,12 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
 
   const filteredLogs = React.useMemo(() => {
     let result = logs;
+    if (departmentFilter !== "all") {
+      result = result.filter(log => {
+        const info = deriveCallInfo(log);
+        return info.department?.toLowerCase() === departmentFilter.toLowerCase();
+      });
+    }
     if (missedOnly) {
       result = result.filter(log => {
         const info = deriveCallInfo(log);
@@ -302,7 +309,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
       });
     }
     return result;
-  }, [logs, salesPersonFilter, agentFilter, missedOnly]);
+  }, [logs, salesPersonFilter, agentFilter, missedOnly, departmentFilter]);
 
   const handleAssignChange = async (logId: string, newName: string) => {
     setUpdatingAssign(logId);
@@ -497,6 +504,32 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
             <PhoneMissed className="w-4 h-4 mr-1" />
             {missedOnly ? 'Showing Missed' : 'Missed Calls'}
           </Button>
+          <div className="flex border rounded-md">
+            <Button
+              variant={departmentFilter === "all" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setDepartmentFilter("all")}
+              className="rounded-r-none text-xs px-3"
+            >
+              All
+            </Button>
+            <Button
+              variant={departmentFilter === "sales" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setDepartmentFilter(departmentFilter === "sales" ? "all" : "sales")}
+              className="rounded-none border-x text-xs px-3"
+            >
+              Sales
+            </Button>
+            <Button
+              variant={departmentFilter === "support" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setDepartmentFilter(departmentFilter === "support" ? "all" : "support")}
+              className="rounded-l-none text-xs px-3"
+            >
+              Support
+            </Button>
+          </div>
         </div>
 
         {loading && logs.length === 0 ? (
