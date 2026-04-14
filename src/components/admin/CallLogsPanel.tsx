@@ -23,6 +23,7 @@ interface CallLogsPanelProps {
   attentionSourceIds?: Set<string>;
   onLogsLoaded?: (logs: CallLog[]) => void;
   dateRange?: { start: Date | undefined; end: Date | undefined };
+  defaultDepartment?: string;
 }
 
 interface CallLog {
