@@ -5,7 +5,7 @@ import { MyOperatorAnalytics } from './MyOperatorAnalytics';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { SalespersonCallStats } from './SalespersonCallStats';
 import { Button } from '@/components/ui/button';
-import { Users } from 'lucide-react';
+import { Users, Headphones } from 'lucide-react';
 import type { Prospect } from '@/hooks/useProspects';
 
 interface Props {
@@ -18,7 +18,8 @@ export function MyOperatorTabContent({ prospects, prospectSourceIds, attentionSo
   const [rawLogs, setRawLogs] = useState<any[]>([]);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [showStats, setShowStats] = useState(false);
+  const [showSalesStats, setShowSalesStats] = useState(false);
+  const [showSupportStats, setShowSupportStats] = useState(false);
 
   const handleLogsLoaded = useCallback((logs: any[]) => {
     setRawLogs(logs);
@@ -47,10 +48,16 @@ export function MyOperatorTabContent({ prospects, prospectSourceIds, attentionSo
             onClear={handleClearDates}
           />
         </div>
-        <Button variant="outline" size="sm" onClick={() => setShowStats(true)} className="gap-1.5">
-          <Users className="h-4 w-4" />
-          Salesperson Stats
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowSalesStats(true)} className="gap-1.5">
+            <Users className="h-4 w-4" />
+            Sales Stats
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowSupportStats(true)} className="gap-1.5">
+            <Headphones className="h-4 w-4" />
+            Support Stats
+          </Button>
+        </div>
       </div>
       <MyOperatorAnalytics logs={rawLogs} prospects={prospects} dateRange={dateRange} />
       <CallLogsPanel
@@ -61,10 +68,18 @@ export function MyOperatorTabContent({ prospects, prospectSourceIds, attentionSo
         dateRange={dateRange}
       />
       <SalespersonCallStats
-        open={showStats}
-        onOpenChange={setShowStats}
+        open={showSalesStats}
+        onOpenChange={setShowSalesStats}
         logs={rawLogs}
         dateRange={dateRange}
+        department="sales"
+      />
+      <SalespersonCallStats
+        open={showSupportStats}
+        onOpenChange={setShowSupportStats}
+        logs={rawLogs}
+        dateRange={dateRange}
+        department="support"
       />
     </div>
   );

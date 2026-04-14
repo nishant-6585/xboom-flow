@@ -18,7 +18,7 @@ function normalizeNumber(num: string | null | undefined): string {
   return (num || '').replace(/\D/g, '').slice(-10);
 }
 
-export function SalespersonCallStats({ open, onOpenChange, logs, dateRange }: SalespersonCallStatsProps) {
+export function SalespersonCallStats({ open, onOpenChange, logs, dateRange, department = 'sales' }: SalespersonCallStatsProps) {
   const [periodFilter, setPeriodFilter] = useState<'all' | 'day' | 'week' | 'month'>('all');
 
   const filteredLogs = useMemo(() => {
