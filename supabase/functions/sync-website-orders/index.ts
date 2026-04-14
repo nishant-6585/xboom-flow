@@ -6,7 +6,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const API_URL = "https://xboom.in/wp-json/xboom/v1/orders?token=xboom_default_secret_key_123";
+const BASE_URL = "https://xboom.in/wp-json/xboom/v1/orders";
+const TOKEN = "xboom_default_secret_key_123";
 
 function stripPhpNotices(raw: string): string {
   const b = raw.indexOf('[');
@@ -16,77 +17,54 @@ function stripPhpNotices(raw: string): string {
   else if (b >= 0) start = b;
   else if (c >= 0) start = c;
   if (start > 0) {
-    console.log(`[sync-website-orders] Stripped ${start} chars of PHP notices`);
+    console.log(`[sync] Stripped ${start} chars of PHP notices`);
     return raw.substring(start);
   }
   if (start < 0) throw new Error("No JSON found in API response");
   return raw;
 }
 
-function parseOrders(raw: string): any[] {
-  const cleaned = stripPhpNotices(raw);
-  const parsed = JSON.parse(cleaned);
-  if (Array.isArray(parsed)) return parsed;
-  if (parsed.orders && Array.isArray(parsed.orders)) return parsed.orders;
-  if (parsed.data && Array.isArray(parsed.data)) return parsed.data;
-  return [parsed];
-}
-
 function mapOrder(order: any) {
-  const orderId = String(order.id || order.order_id || "");
+  const orderId = String(order.id || "");
   if (!orderId) return null;
 
-  const lineItems = order.line_items || [];
-  const firstItem = lineItems[0] || {};
-  const productName = lineItems.length === 1
-    ? (firstItem.name || order.product_name || "Unknown Product")
-    : lineItems.length > 1
-      ? `${firstItem.name || "Unknown"} + ${lineItems.length - 1} more`
-      : (order.product_name || "Unknown Product");
-  const totalQuantity = lineItems.reduce((s: number, i: any) => s + (i.quantity || 0), 0) || order.quantity || 1;
+  const customerName = order.customer_name || order.email || "Unknown";
+  const email = order.email || "";
+  const productNames = order.product_names || "Unknown Product";
+  const total = parseFloat(order.total || "0");
+  const status = order.status || "pending";
 
-  const shipping = order.shipping || {};
-  const shippingParts = [shipping.address_1, shipping.address_2, shipping.city, shipping.state, shipping.postcode, shipping.country].filter(Boolean);
-  const shippingAddress = shippingParts.join(", ") || order.shipping_address || null;
-
-  const wooStatus = order.status || "pending";
   const paymentStatusMap: Record<string, string> = {
     completed: "paid", processing: "paid", "on-hold": "pending",
     pending: "pending", failed: "failed", cancelled: "cancelled", refunded: "refunded",
   };
 
-  const billing = order.billing || {};
-  const customerName = order.customer_name
-    || `${billing.first_name || ""} ${billing.last_name || ""}`.trim()
-    || order.customer || "Unknown";
-  const customerEmail = order.email || billing.email || order.customer_email || "";
-  const total = parseFloat(order.total || order.amount || order.total_sales_amount || "0");
-
   return {
     woo_order_id: orderId,
-    order_number: order.number ? String(order.number) : order.order_number || orderId,
+    order_number: orderId,
     source: "xboom_website",
-    order_status: wooStatus,
-    financial_status: wooStatus,
-    fulfillment_status: wooStatus === "completed" ? "fulfilled" : "unfulfilled",
-    product_name: productName,
-    product_code: firstItem.sku || order.product_code || null,
-    product_category: order.product_category || "Consumer Drones",
-    quantity: totalQuantity,
+    order_status: status,
+    financial_status: status,
+    fulfillment_status: status === "completed" ? "fulfilled" : "unfulfilled",
+    product_name: productNames,
+    product_code: null,
+    product_category: "Consumer Drones",
+    quantity: order.items_count || 1,
     customer_name: customerName,
-    customer_company: billing.company || order.customer_company || "",
-    customer_email: customerEmail,
-    customer_phone: billing.phone || order.customer_phone || null,
-    shipping_address: shippingAddress,
+    customer_company: "",
+    customer_email: email,
+    customer_phone: null,
+    shipping_address: null,
     selling_price: total,
     total_sales_amount: total,
-    amount_paid: (wooStatus === "completed" || wooStatus === "processing") ? total : 0,
-    payment_status: paymentStatusMap[wooStatus] || "pending",
-    currency: order.currency || "INR",
-    line_items: lineItems.length > 0 ? lineItems : null,
+    amount_paid: (status === "completed" || status === "processing") ? total : 0,
+    payment_status: paymentStatusMap[status] || "pending",
+    currency: "INR",
+    line_items: null,
     raw_data: order,
-    woo_created_at: order.date_created || order.created_at || null,
-    woo_updated_at: order.date_modified || order.updated_at || null,
+    internal_notes: order.payment_method_title ? `Payment: ${order.payment_method_title}` : null,
+    woo_created_at: order.created_at || null,
+    woo_updated_at: null,
   };
 }
 
@@ -96,96 +74,116 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log("[sync-website-orders] Starting sync from xboom.in API");
-
-    let response: Response;
-    try {
-      response = await fetch(API_URL, { headers: { Accept: "application/json" } });
-    } catch (fetchErr) {
-      console.error("[sync-website-orders] Network error:", fetchErr);
-      return new Response(
-        JSON.stringify({ success: false, error: "Network error reaching xboom.in", fallback: true }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!response.ok) {
-      console.error(`[sync-website-orders] API returned ${response.status}`);
-      return new Response(
-        JSON.stringify({ success: false, error: `WordPress API error: ${response.status}`, fallback: true }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const rawText = await response.text();
-    console.log(`[sync-website-orders] Raw response length: ${rawText.length}`);
-
-    let allOrders: any[];
-    try {
-      allOrders = parseOrders(rawText);
-    } catch (parseErr) {
-      console.error("[sync-website-orders] Parse error:", parseErr);
-      return new Response(
-        JSON.stringify({ success: false, error: "Failed to parse API response", fallback: true }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`[sync-website-orders] Fetched ${allOrders.length} orders from API`);
-
-    if (allOrders.length > 0) {
-      console.log("[sync-website-orders] First order keys:", Object.keys(allOrders[0]));
-    }
-
-    if (allOrders.length === 0) {
-      return new Response(
-        JSON.stringify({ success: true, total_fetched: 0, upserted: 0, errors: 0, message: "No orders found" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    console.log("[sync] Starting paginated sync from xboom.in API");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    let upserted = 0;
-    let errors = 0;
+    let page = 1;
+    const perPage = 100;
+    let hasMore = true;
+    let totalFetched = 0;
+    let totalUpserted = 0;
+    let totalErrors = 0;
+    const pageResults: string[] = [];
 
-    for (const order of allOrders) {
+    while (hasMore) {
+      const url = `${BASE_URL}?token=${TOKEN}&page=${page}&per_page=${perPage}`;
+      console.log(`[sync] Fetching page ${page}...`);
+
+      let response: Response;
       try {
-        const orderData = mapOrder(order);
-        if (!orderData) continue;
+        response = await fetch(url, { headers: { Accept: "application/json" } });
+      } catch (fetchErr) {
+        console.error(`[sync] Network error on page ${page}:`, fetchErr);
+        pageResults.push(`Page ${page}: network error`);
+        break;
+      }
 
-        const { error } = await supabase
-          .from("woocommerce_orders")
-          .upsert(orderData, { onConflict: "woo_order_id" });
+      if (!response.ok) {
+        console.error(`[sync] API returned ${response.status} on page ${page}`);
+        pageResults.push(`Page ${page}: HTTP ${response.status}`);
+        break;
+      }
 
-        if (error) {
-          console.error(`[sync-website-orders] Upsert error #${orderData.woo_order_id}:`, error.message);
-          errors++;
-        } else {
-          upserted++;
+      const rawText = await response.text();
+      let parsed: any;
+      try {
+        const cleaned = stripPhpNotices(rawText);
+        parsed = JSON.parse(cleaned);
+      } catch (parseErr) {
+        console.error(`[sync] Parse error on page ${page}:`, parseErr);
+        pageResults.push(`Page ${page}: parse error`);
+        break;
+      }
+
+      // Handle the documented response format: { success, page, per_page, count, data: [...] }
+      if (parsed.success === false) {
+        console.error(`[sync] API returned success=false on page ${page}`);
+        pageResults.push(`Page ${page}: API error`);
+        break;
+      }
+
+      const orders = Array.isArray(parsed.data) ? parsed.data
+        : Array.isArray(parsed) ? parsed
+        : parsed.orders ? parsed.orders
+        : [];
+
+      console.log(`[sync] Page ${page}: got ${orders.length} orders`);
+      totalFetched += orders.length;
+
+      // Batch upsert this page
+      if (orders.length > 0) {
+        const mapped = orders.map(mapOrder).filter(Boolean);
+
+        // Upsert in chunks of 500
+        for (let i = 0; i < mapped.length; i += 500) {
+          const chunk = mapped.slice(i, i + 500);
+          const { error } = await supabase
+            .from("woocommerce_orders")
+            .upsert(chunk, { onConflict: "woo_order_id" });
+
+          if (error) {
+            console.error(`[sync] Upsert error page ${page} chunk ${i}:`, error.message);
+            totalErrors += chunk.length;
+          } else {
+            totalUpserted += chunk.length;
+          }
         }
-      } catch (itemErr) {
-        console.error("[sync-website-orders] Order processing error:", itemErr);
-        errors++;
+      }
+
+      pageResults.push(`Page ${page}: ${orders.length} orders`);
+
+      if (orders.length < perPage) {
+        hasMore = false;
+      } else {
+        page++;
+      }
+
+      // Safety: max 500 pages (50k orders)
+      if (page > 500) {
+        console.log("[sync] Hit max page limit (500)");
+        break;
       }
     }
 
-    console.log(`[sync-website-orders] Done. Upserted: ${upserted}, Errors: ${errors}`);
+    console.log(`[sync] Done. Pages: ${page}, Fetched: ${totalFetched}, Upserted: ${totalUpserted}, Errors: ${totalErrors}`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        total_fetched: allOrders.length,
-        upserted,
-        errors,
-        message: `Synced ${upserted} orders from xboom.in`,
+        total_fetched: totalFetched,
+        upserted: totalUpserted,
+        errors: totalErrors,
+        pages_fetched: page,
+        page_results: pageResults,
+        message: `Synced ${totalUpserted} orders across ${page} pages`,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("[sync-website-orders] Fatal error:", error);
+    console.error("[sync] Fatal error:", error);
     return new Response(
       JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Unknown error", fallback: true }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
