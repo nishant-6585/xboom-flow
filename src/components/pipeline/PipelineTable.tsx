@@ -411,6 +411,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                   </Button>
                 </TableHead>
                 <TableHead>Status</TableHead>
+                {statusFilter === 'lost' && <TableHead>Lost Reason</TableHead>}
                 <TableHead>Priority</TableHead>
                 <TableHead>Sales Person</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -459,6 +460,20 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                         {PIPELINE_STATUSES.find(s => s.value === order.status)?.label || order.status}
                       </Badge>
                     </TableCell>
+                    {statusFilter === 'lost' && (
+                      <TableCell>
+                        <div className="text-sm">
+                          <div className="text-muted-foreground">
+                            {PIPELINE_LOST_REASONS.find(r => r.value === order.lost_reason)?.label || order.lost_reason || '—'}
+                          </div>
+                          {order.lost_reason_notes && (
+                            <div className="text-xs text-muted-foreground/70 truncate max-w-[150px]" title={order.lost_reason_notes}>
+                              {order.lost_reason_notes}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                    )}
                     <TableCell>{getPriorityBadge(order.priority)}</TableCell>
                     <TableCell>{order.sales_person_name}</TableCell>
                     <TableCell className="text-right">
