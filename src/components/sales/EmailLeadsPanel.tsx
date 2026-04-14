@@ -628,8 +628,29 @@ export function EmailLeadsPanel() {
                               {lead.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {lead.sales_person_name || '—'}
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Select
+                              value={lead.sales_person_id || 'unassigned'}
+                              onValueChange={async (val) => {
+                                const sp = salespeople.find(s => s.id === val);
+                                await updateLead({
+                                  id: lead.id,
+                                  sales_person_id: val === 'unassigned' ? null : val,
+                                  sales_person_name: val === 'unassigned' ? null : sp?.name || null,
+                                } as any);
+                                refetch();
+                              }}
+                            >
+                              <SelectTrigger className="h-7 w-[130px] text-xs">
+                                <SelectValue placeholder="Assign..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="unassigned">Unassigned</SelectItem>
+                                {salespeople.map(sp => (
+                                  <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                             {format(new Date(lead.created_at), 'dd MMM yyyy')}
