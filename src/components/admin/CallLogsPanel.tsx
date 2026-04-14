@@ -541,6 +541,14 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
               Support
             </Button>
           </div>
+          <Button
+            variant={uniqueOnly ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setUniqueOnly(!uniqueOnly)}
+            className={`shrink-0 text-xs ${uniqueOnly ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 hover:bg-amber-500/30' : ''}`}
+          >
+            {uniqueOnly ? '✓ Unique Numbers' : 'Unique Numbers'}
+          </Button>
         </div>
 
         {loading && logs.length === 0 ? (
