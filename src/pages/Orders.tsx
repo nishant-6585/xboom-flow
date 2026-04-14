@@ -39,7 +39,7 @@ export default function Orders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
-  const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, syncing: wooSyncing, syncFromAPI: syncWooOrders } = useWooCommerceOrders();
+  const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, syncing: wooSyncing, syncProgress: wooSyncProgress, syncFromAPI: syncWooOrders } = useWooCommerceOrders();
   const { carts: abandonedCarts, loading: cartsLoading, stats: cartStats, recoverCart, timeFilter, setTimeFilter } = useAbandonedCarts();
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
@@ -1096,7 +1096,7 @@ export default function Orders() {
                 className="gap-2"
               >
                 {wooSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                {wooSyncing ? 'Syncing...' : 'Sync Orders'}
+                {wooSyncing ? (wooSyncProgress || 'Syncing...') : 'Sync Orders'}
               </Button>
             </div>
 
