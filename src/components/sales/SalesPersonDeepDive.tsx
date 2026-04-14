@@ -226,6 +226,26 @@ export function SalesPersonDeepDive({
 }: Props) {
   const [expandedPerson, setExpandedPerson] = useState<string | null>(null);
   const [detailDialog, setDetailDialog] = useState<{ open: boolean; title: string; items: any[] }>({ open: false, title: '', items: [] });
+  const [assignedDialog, setAssignedDialog] = useState<{ open: boolean; name: string; leads: { source: string; items: any[] }[] }>({ open: false, name: '', leads: [] });
+
+  const openAssignedLeads = (sp: any, spName: string) => {
+    const spEnquiries = enquiries.filter((e: any) => e.sales_person_id === sp);
+    const spInterakt = interaktLeads.filter((l: any) => l.sales_person_id === sp);
+    const spEmail = emailLeads.filter((e: any) => e.sales_person_id === sp);
+    const spCalls = callLogs.filter((c: any) => c.sales_person_id === sp);
+    const spForms = formLeads.filter((f: any) => f.sales_person_id === sp);
+    setAssignedDialog({
+      open: true,
+      name: spName,
+      leads: [
+        { source: 'Enquiries', items: spEnquiries },
+        { source: 'Interakt', items: spInterakt },
+        { source: 'Email', items: spEmail },
+        { source: 'MyOperator', items: spCalls },
+        { source: 'Forms', items: spForms },
+      ],
+    });
+  };
 
   const salesPersonData = useMemo(() => {
     if (!isManager || salesTeam.length === 0) return [];
