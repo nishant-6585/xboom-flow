@@ -44,6 +44,8 @@ export function SalespersonCallStats({ open, onOpenChange, logs, dateRange }: Sa
       const s = startOfMonth(now);
       result = result.filter(l => new Date(l.start_time || l.created_at) >= s);
     }
+    // Only include sales department calls
+    result = result.filter(l => l.department?.toLowerCase() === 'sales');
     return result;
   }, [logs, dateRange?.start?.getTime(), dateRange?.end?.getTime(), periodFilter]);
 
