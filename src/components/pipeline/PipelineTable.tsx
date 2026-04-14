@@ -758,6 +758,16 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
           </DialogContent>
         </Dialog>
       </CardContent>
+
+      <LogCallDialog
+        open={!!logCallOrder}
+        onOpenChange={(open) => { if (!open) setLogCallOrder(null); }}
+        leadSource="pipeline"
+        leadId={logCallOrder?.id || ''}
+        leadName={logCallOrder?.customer_name || ''}
+        leadPhone={logCallOrder?.customer_phone || ''}
+        leadCompany={logCallOrder?.customer_company}
+      />
     </Card>
   );
 }

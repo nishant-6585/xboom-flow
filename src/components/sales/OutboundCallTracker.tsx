@@ -50,7 +50,7 @@ function formatDuration(seconds: number): string {
 export function OutboundCallTracker() {
   const [logs, setLogs] = useState<OutboundLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sourceFilter, setSourceFilter] = useState<'all' | 'myoperator' | 'interakt'>('all');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'myoperator' | 'interakt' | 'prospect' | 'pipeline'>('all');
   const [periodFilter, setPeriodFilter] = useState<'all' | 'day' | 'week' | 'month'>('all');
 
   const fetchLogs = async () => {
@@ -97,19 +97,23 @@ export function OutboundCallTracker() {
       notAnswered: number;
       myoperator: number;
       interakt: number;
+      prospect: number;
+      pipeline: number;
     }>();
 
     for (const log of filteredLogs) {
       const name = log.called_by_name;
       if (!map.has(name)) {
-        map.set(name, { name, total: 0, connected: 0, notAnswered: 0, myoperator: 0, interakt: 0 });
+        map.set(name, { name, total: 0, connected: 0, notAnswered: 0, myoperator: 0, interakt: 0, prospect: 0, pipeline: 0 });
       }
       const entry = map.get(name)!;
       entry.total++;
       if (log.call_outcome === 'connected') entry.connected++;
       else entry.notAnswered++;
       if (log.lead_source === 'myoperator') entry.myoperator++;
-      else entry.interakt++;
+      else if (log.lead_source === 'interakt') entry.interakt++;
+      else if (log.lead_source === 'prospect') entry.prospect++;
+      else if (log.lead_source === 'pipeline') entry.pipeline++;
     }
 
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
