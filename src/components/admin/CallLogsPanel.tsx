@@ -504,6 +504,32 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
             <PhoneMissed className="w-4 h-4 mr-1" />
             {missedOnly ? 'Showing Missed' : 'Missed Calls'}
           </Button>
+          <div className="flex border rounded-md">
+            <Button
+              variant={departmentFilter === "all" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setDepartmentFilter("all")}
+              className="rounded-r-none text-xs px-3"
+            >
+              All
+            </Button>
+            <Button
+              variant={departmentFilter === "sales" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setDepartmentFilter(departmentFilter === "sales" ? "all" : "sales")}
+              className="rounded-none border-x text-xs px-3"
+            >
+              Sales
+            </Button>
+            <Button
+              variant={departmentFilter === "support" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setDepartmentFilter(departmentFilter === "support" ? "all" : "support")}
+              className="rounded-l-none text-xs px-3"
+            >
+              Support
+            </Button>
+          </div>
         </div>
 
         {loading && logs.length === 0 ? (
