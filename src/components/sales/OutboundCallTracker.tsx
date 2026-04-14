@@ -248,9 +248,11 @@ export function OutboundCallTracker() {
                         <XCircle className="h-2.5 w-2.5" /> {sp.notAnswered}
                       </span>
                     </div>
-                    <div className="flex gap-2 mt-0.5 text-[10px] text-muted-foreground">
+                    <div className="flex gap-2 mt-0.5 text-[10px] text-muted-foreground flex-wrap">
                       <span>MO: {sp.myoperator}</span>
                       <span>IK: {sp.interakt}</span>
+                      <span>PR: {sp.prospect}</span>
+                      <span>PL: {sp.pipeline}</span>
                     </div>
                   </div>
                 </div>
