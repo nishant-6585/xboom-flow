@@ -627,6 +627,7 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
         leadName={logCallProspect?.customer_name || ''}
         leadPhone={logCallProspect?.phone_number || ''}
         leadCompany={logCallProspect?.company}
+        leadCreatedAt={logCallProspect?.created_at}
       />
     </div>
   );

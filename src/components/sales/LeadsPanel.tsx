@@ -990,6 +990,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           leadName={logCallLead?.customer_name || ''}
           leadPhone={logCallLead?.phone_number || ''}
           leadCompany={logCallLead?.company}
+          leadCreatedAt={logCallLead?.created_at}
         />
 
         {/* Interakt Lead Contact Drawer */}

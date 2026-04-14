@@ -767,6 +767,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
         leadName={logCallOrder?.customer_name || ''}
         leadPhone={logCallOrder?.customer_phone || ''}
         leadCompany={logCallOrder?.customer_company}
+        leadCreatedAt={logCallOrder?.created_at}
       />
     </Card>
   );

@@ -250,7 +250,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [editingLog, setEditingLog] = useState<CallLog | null>(null);
   const [updatingAssign, setUpdatingAssign] = useState<string | null>(null);
-  const [logCallData, setLogCallData] = useState<{ id: string; name: string; phone: string; company?: string } | null>(null);
+  const [logCallData, setLogCallData] = useState<{ id: string; name: string; phone: string; company?: string; created_at?: string } | null>(null);
 
   const SALES_PERSONS_LIST = ['suman das', 'Narasimha', 'mohammed musthak', 'Arjav chauhan'];
 
