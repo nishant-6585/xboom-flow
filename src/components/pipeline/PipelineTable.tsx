@@ -426,7 +426,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                 </TableRow>
               ) : (
                 sortedOrders.map(order => (
-                  <TableRow key={order.id}>
+                  <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleEditClick(order)}>
                     <TableCell>
                       <LeadTemperatureBadge 
                         temperature={order.lead_temperature || "warm"} 
