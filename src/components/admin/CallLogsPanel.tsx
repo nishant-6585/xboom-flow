@@ -278,6 +278,12 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
 
   const filteredLogs = React.useMemo(() => {
     let result = logs;
+    if (departmentFilter !== "all") {
+      result = result.filter(log => {
+        const info = deriveCallInfo(log);
+        return info.department?.toLowerCase() === departmentFilter.toLowerCase();
+      });
+    }
     if (missedOnly) {
       result = result.filter(log => {
         const info = deriveCallInfo(log);
@@ -303,7 +309,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
       });
     }
     return result;
-  }, [logs, salesPersonFilter, agentFilter, missedOnly]);
+  }, [logs, salesPersonFilter, agentFilter, missedOnly, departmentFilter]);
 
   const handleAssignChange = async (logId: string, newName: string) => {
     setUpdatingAssign(logId);
