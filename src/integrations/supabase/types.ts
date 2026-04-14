@@ -7279,10 +7279,12 @@ export type Database = {
           created_at: string
           id: string
           lead_company: string | null
+          lead_created_at: string | null
           lead_id: string
           lead_name: string | null
           lead_phone: string
           lead_source: string
+          scheduled_followup_at: string | null
           updated_at: string
         }
         Insert: {
@@ -7294,10 +7296,12 @@ export type Database = {
           created_at?: string
           id?: string
           lead_company?: string | null
+          lead_created_at?: string | null
           lead_id: string
           lead_name?: string | null
           lead_phone: string
           lead_source: string
+          scheduled_followup_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -7309,10 +7313,12 @@ export type Database = {
           created_at?: string
           id?: string
           lead_company?: string | null
+          lead_created_at?: string | null
           lead_id?: string
           lead_name?: string | null
           lead_phone?: string
           lead_source?: string
+          scheduled_followup_at?: string | null
           updated_at?: string
         }
         Relationships: []

@@ -250,7 +250,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [editingLog, setEditingLog] = useState<CallLog | null>(null);
   const [updatingAssign, setUpdatingAssign] = useState<string | null>(null);
-  const [logCallData, setLogCallData] = useState<{ id: string; name: string; phone: string; company?: string } | null>(null);
+  const [logCallData, setLogCallData] = useState<{ id: string; name: string; phone: string; company?: string; created_at?: string } | null>(null);
 
   const SALES_PERSONS_LIST = ['suman das', 'Narasimha', 'mohammed musthak', 'Arjav chauhan'];
 
@@ -710,6 +710,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                                 name: (log as any).customer_name || log.full_number || log.caller_number,
                                 phone: log.full_number || log.caller_number,
                                 company: (log as any).customer_company,
+                                created_at: log.created_at,
                               })}
                               title="Log Outbound Call"
                             >
@@ -768,6 +769,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
         leadName={logCallData?.name || ''}
         leadPhone={logCallData?.phone || ''}
         leadCompany={logCallData?.company}
+        leadCreatedAt={logCallData?.created_at}
       />
     </Card>
   );

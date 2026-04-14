@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfDay, startOfWeek, startOfMonth } from 'date-fns';
+import { format, startOfDay, startOfWeek, startOfMonth, differenceInMinutes, differenceInHours, differenceInDays } from 'date-fns';
 import { Phone, PhoneOutgoing, Users, Loader2, RefreshCw, CheckCircle, XCircle, PhoneMissed } from 'lucide-react';
 
 interface OutboundLog {
@@ -21,6 +21,8 @@ interface OutboundLog {
   call_outcome: string;
   call_duration_seconds: number | null;
   created_at: string;
+  lead_created_at: string | null;
+  scheduled_followup_at: string | null;
 }
 
 const OUTCOME_COLORS: Record<string, string> = {
@@ -45,6 +47,46 @@ function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
+
+function formatResponseTime(log: OutboundLog): { text: string; color: string } | null {
+  const callTime = new Date(log.created_at);
+  let refTime: Date | null = null;
+  let label = '';
+
+  if ((log.lead_source === 'prospect' || log.lead_source === 'pipeline') && log.scheduled_followup_at) {
+    refTime = new Date(log.scheduled_followup_at);
+    label = 'from follow-up';
+  } else if ((log.lead_source === 'myoperator' || log.lead_source === 'interakt') && log.lead_created_at) {
+    refTime = new Date(log.lead_created_at);
+    label = 'from lead';
+  }
+
+  if (!refTime) return null;
+
+  const diffMins = differenceInMinutes(callTime, refTime);
+  const absMins = Math.abs(diffMins);
+  const isEarly = diffMins < 0;
+
+  let text: string;
+  if (absMins < 60) {
+    text = `${absMins}m`;
+  } else if (absMins < 1440) {
+    const hrs = differenceInHours(callTime, refTime);
+    text = `${Math.abs(hrs)}h`;
+  } else {
+    const days = differenceInDays(callTime, refTime);
+    text = `${Math.abs(days)}d`;
+  }
+
+  if (isEarly) text = `-${text}`;
+
+  // Color coding: <30m green, 30m-2h yellow, >2h red
+  let color = 'text-green-600';
+  if (absMins > 120) color = 'text-red-500';
+  else if (absMins > 30) color = 'text-yellow-600';
+
+  return { text, color };
 }
 
 export function OutboundCallTracker() {
@@ -293,6 +335,7 @@ export function OutboundCallTracker() {
                     <TableHead>Called By</TableHead>
                     <TableHead>Outcome</TableHead>
                     <TableHead>Duration</TableHead>
+                    <TableHead>Response Time</TableHead>
                     <TableHead>Notes</TableHead>
                     <TableHead>When</TableHead>
                   </TableRow>
@@ -330,6 +373,21 @@ export function OutboundCallTracker() {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm">{formatDuration(log.call_duration_seconds || 0)}</span>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const rt = formatResponseTime(log);
+                          if (!rt) return <span className="text-xs text-muted-foreground">—</span>;
+                          return (
+                            <span className={`text-xs font-medium ${rt.color}`} title={
+                              (log.lead_source === 'prospect' || log.lead_source === 'pipeline')
+                                ? `Follow-up was at ${log.scheduled_followup_at ? format(new Date(log.scheduled_followup_at), 'dd MMM hh:mm a') : '—'}`
+                                : `Lead created at ${log.lead_created_at ? format(new Date(log.lead_created_at), 'dd MMM hh:mm a') : '—'}`
+                            }>
+                              {rt.text}
+                            </span>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <p className="text-sm max-w-[200px] truncate" title={log.call_notes || ''}>
