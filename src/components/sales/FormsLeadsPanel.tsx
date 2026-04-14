@@ -168,6 +168,9 @@ export function FormsLeadsPanel() {
     },
   });
 
+  // Unique form names for filter
+  const uniqueFormNames = [...new Set(leads.map(l => l.form_name))].sort();
+
   const filtered = leads.filter((lead) => {
     const matchesSearch =
       !search ||
@@ -177,7 +180,8 @@ export function FormsLeadsPanel() {
       lead.form_name.toLowerCase().includes(search.toLowerCase()) ||
       lead.company?.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesFormSource = formSourceFilter === "all" || lead.form_name === formSourceFilter;
+    return matchesSearch && matchesStatus && matchesFormSource;
   });
 
   // Reset page when filters change
