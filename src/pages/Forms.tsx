@@ -28,7 +28,7 @@ export default function Forms() {
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [embedForm, setEmbedForm] = useState<Form | null>(null);
   const [qrForm, setQrForm] = useState<Form | null>(null);
-  const [activeTab, setActiveTab] = useState("forms");
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   const access = useMemo(() => {
     const isAdmin = role === "admin";
@@ -212,6 +212,10 @@ export default function Forms() {
                   ))}
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="dashboard" className="mt-6">
+              <FormsDashboard forms={forms} />
             </TabsContent>
 
             <TabsContent value="analytics" className="mt-6">
