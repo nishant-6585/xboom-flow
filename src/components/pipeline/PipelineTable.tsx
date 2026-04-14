@@ -12,7 +12,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CalendarIcon, Edit, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { CalendarIcon, Edit, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown, AlertTriangle, CheckCircle, XCircle, PhoneOutgoing } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -26,6 +26,7 @@ import { OrderForm, OrderFormInitialData } from '@/components/OrderForm';
 import { useOrders } from '@/hooks/useOrders';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { toast } from 'sonner';
+import { LogCallDialog } from '@/components/sales/LogCallDialog';
 
 interface PipelineTableProps {
   orders: PipelineOrder[];
@@ -76,6 +77,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
   const [closureSortDir, setClosureSortDir] = useState<'asc' | 'desc' | null>(null);
   const lastAutoOpenedId = useRef<string | null>(null);
   const [orderWonDialog, setOrderWonDialog] = useState<PipelineOrder | null>(null);
+  const [logCallOrder, setLogCallOrder] = useState<PipelineOrder | null>(null);
 
   // Use external filter if provided, otherwise use internal
   const statusFilter = externalStatusFilter ?? internalStatusFilter;
@@ -496,6 +498,9 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                             </Tooltip>
                           )}
                         </TooltipProvider>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary" onClick={() => setLogCallOrder(order)} title="Log Call">
+                          <PhoneOutgoing className="h-3.5 w-3.5" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditClick(order)}>
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -753,6 +758,16 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
           </DialogContent>
         </Dialog>
       </CardContent>
+
+      <LogCallDialog
+        open={!!logCallOrder}
+        onOpenChange={(open) => { if (!open) setLogCallOrder(null); }}
+        leadSource="pipeline"
+        leadId={logCallOrder?.id || ''}
+        leadName={logCallOrder?.customer_name || ''}
+        leadPhone={logCallOrder?.customer_phone || ''}
+        leadCompany={logCallOrder?.customer_company}
+      />
     </Card>
   );
 }

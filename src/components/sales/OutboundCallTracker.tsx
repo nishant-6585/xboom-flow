@@ -50,7 +50,7 @@ function formatDuration(seconds: number): string {
 export function OutboundCallTracker() {
   const [logs, setLogs] = useState<OutboundLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sourceFilter, setSourceFilter] = useState<'all' | 'myoperator' | 'interakt'>('all');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'myoperator' | 'interakt' | 'prospect' | 'pipeline'>('all');
   const [periodFilter, setPeriodFilter] = useState<'all' | 'day' | 'week' | 'month'>('all');
 
   const fetchLogs = async () => {
@@ -97,19 +97,23 @@ export function OutboundCallTracker() {
       notAnswered: number;
       myoperator: number;
       interakt: number;
+      prospect: number;
+      pipeline: number;
     }>();
 
     for (const log of filteredLogs) {
       const name = log.called_by_name;
       if (!map.has(name)) {
-        map.set(name, { name, total: 0, connected: 0, notAnswered: 0, myoperator: 0, interakt: 0 });
+        map.set(name, { name, total: 0, connected: 0, notAnswered: 0, myoperator: 0, interakt: 0, prospect: 0, pipeline: 0 });
       }
       const entry = map.get(name)!;
       entry.total++;
       if (log.call_outcome === 'connected') entry.connected++;
       else entry.notAnswered++;
       if (log.lead_source === 'myoperator') entry.myoperator++;
-      else entry.interakt++;
+      else if (log.lead_source === 'interakt') entry.interakt++;
+      else if (log.lead_source === 'prospect') entry.prospect++;
+      else if (log.lead_source === 'pipeline') entry.pipeline++;
     }
 
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
@@ -117,6 +121,8 @@ export function OutboundCallTracker() {
 
   const totalConnected = filteredLogs.filter(l => l.call_outcome === 'connected').length;
   const totalNotConnected = filteredLogs.length - totalConnected;
+  const prospectCount = filteredLogs.filter(l => l.lead_source === 'prospect').length;
+  const pipelineCount = filteredLogs.filter(l => l.lead_source === 'pipeline').length;
   const myoperatorCount = filteredLogs.filter(l => l.lead_source === 'myoperator').length;
   const interaktCount = filteredLogs.filter(l => l.lead_source === 'interakt').length;
 
@@ -132,11 +138,11 @@ export function OutboundCallTracker() {
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
           <CardContent className="pt-4 pb-3 text-center">
             <p className="text-2xl font-bold">{filteredLogs.length}</p>
-            <p className="text-xs text-muted-foreground">Total Calls Made</p>
+            <p className="text-xs text-muted-foreground">Total Calls</p>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
@@ -148,13 +154,25 @@ export function OutboundCallTracker() {
         <Card>
           <CardContent className="pt-4 pb-3 text-center">
             <p className="text-2xl font-bold">{myoperatorCount}</p>
-            <p className="text-xs text-muted-foreground">MyOperator Leads</p>
+            <p className="text-xs text-muted-foreground">MyOperator</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3 text-center">
             <p className="text-2xl font-bold">{interaktCount}</p>
-            <p className="text-xs text-muted-foreground">Interakt Leads</p>
+            <p className="text-xs text-muted-foreground">Interakt</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 text-center">
+            <p className="text-2xl font-bold">{prospectCount}</p>
+            <p className="text-xs text-muted-foreground">Prospects</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 text-center">
+            <p className="text-2xl font-bold">{pipelineCount}</p>
+            <p className="text-xs text-muted-foreground">Pipeline</p>
           </CardContent>
         </Card>
       </div>
@@ -184,8 +202,10 @@ export function OutboundCallTracker() {
         <div className="flex items-center gap-2">
           <div className="flex border rounded-md">
             <Button variant={sourceFilter === 'all' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('all')} className="rounded-r-none text-xs px-3">All</Button>
-            <Button variant={sourceFilter === 'myoperator' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('myoperator')} className="rounded-none border-x text-xs px-3">MyOperator</Button>
-            <Button variant={sourceFilter === 'interakt' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('interakt')} className="rounded-l-none text-xs px-3">Interakt</Button>
+            <Button variant={sourceFilter === 'myoperator' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('myoperator')} className="rounded-none border-x text-xs px-2">MO</Button>
+            <Button variant={sourceFilter === 'interakt' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('interakt')} className="rounded-none border-r text-xs px-2">IK</Button>
+            <Button variant={sourceFilter === 'prospect' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('prospect')} className="rounded-none border-r text-xs px-2">Prospect</Button>
+            <Button variant={sourceFilter === 'pipeline' ? 'secondary' : 'ghost'} size="sm" onClick={() => setSourceFilter('pipeline')} className="rounded-l-none text-xs px-2">Pipeline</Button>
           </div>
           <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
@@ -228,9 +248,11 @@ export function OutboundCallTracker() {
                         <XCircle className="h-2.5 w-2.5" /> {sp.notAnswered}
                       </span>
                     </div>
-                    <div className="flex gap-2 mt-0.5 text-[10px] text-muted-foreground">
+                    <div className="flex gap-2 mt-0.5 text-[10px] text-muted-foreground flex-wrap">
                       <span>MO: {sp.myoperator}</span>
                       <span>IK: {sp.interakt}</span>
+                      <span>PR: {sp.prospect}</span>
+                      <span>PL: {sp.pipeline}</span>
                     </div>
                   </div>
                 </div>
@@ -280,9 +302,15 @@ export function OutboundCallTracker() {
                     <TableRow key={log.id}>
                       <TableCell>
                         <Badge variant="outline" className={`text-[10px] ${
-                          log.lead_source === 'myoperator' ? 'border-blue-500/40 text-blue-500' : 'border-emerald-500/40 text-emerald-500'
+                          log.lead_source === 'myoperator' ? 'border-blue-500/40 text-blue-500' 
+                          : log.lead_source === 'interakt' ? 'border-emerald-500/40 text-emerald-500'
+                          : log.lead_source === 'prospect' ? 'border-amber-500/40 text-amber-500'
+                          : 'border-purple-500/40 text-purple-500'
                         }`}>
-                          {log.lead_source === 'myoperator' ? 'MyOperator' : 'Interakt'}
+                          {log.lead_source === 'myoperator' ? 'MyOperator' 
+                           : log.lead_source === 'interakt' ? 'Interakt'
+                           : log.lead_source === 'prospect' ? 'Prospect'
+                           : 'Pipeline'}
                         </Badge>
                       </TableCell>
                       <TableCell>
