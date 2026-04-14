@@ -11,7 +11,7 @@ import { useProspects, Prospect } from '@/hooks/useProspects';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrders } from '@/hooks/useOrders';
 import { useSuppliers } from '@/hooks/useSuppliers';
-import { Target, Search, Loader2, Star, Filter, TrendingUp, Calendar, Users, Phone, MessageCircle, Package, UserCheck, FileText, Trash2 } from 'lucide-react';
+import { Target, Search, Loader2, Star, Filter, TrendingUp, Calendar, Users, Phone, MessageCircle, Package, UserCheck, FileText, Trash2, PhoneOutgoing } from 'lucide-react';
 import { Tooltip as UITooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format, startOfDay, endOfDay, startOfWeek, startOfMonth } from 'date-fns';
@@ -21,6 +21,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import { ProspectEditDialog } from './ProspectEditDialog';
 import { OrderForm, OrderFormInitialData } from '@/components/OrderForm';
 import { toast } from 'sonner';
+import { LogCallDialog } from './LogCallDialog';
 
 const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'negotiation', 'converted', 'lost'];
 
@@ -71,6 +72,7 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
   const [editingProspect, setEditingProspect] = useState<any>(null);
   const [analyticsPeriod, setAnalyticsPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'all'>('daily');
   const [orderWonProspect, setOrderWonProspect] = useState<Prospect | null>(null);
+  const [logCallProspect, setLogCallProspect] = useState<Prospect | null>(null);
   const lastAutoOpenedId = useRef<string | null>(null);
 
   // Auto-open prospect when selectedLeadId is provided
@@ -501,6 +503,15 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                         <TableCell><span className="text-xs text-muted-foreground">{p.created_by_name}</span></TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-0.5">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-primary hover:text-primary"
+                              onClick={() => setLogCallProspect(p)}
+                              title="Log Call"
+                            >
+                              <PhoneOutgoing className="h-3.5 w-3.5" />
+                            </Button>
                             {p.status !== 'converted' && p.status !== 'lost' && (
                               <TooltipProvider>
                                 <UITooltip>
