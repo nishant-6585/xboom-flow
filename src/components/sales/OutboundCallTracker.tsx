@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfDay, startOfWeek, startOfMonth } from 'date-fns';
+import { format, startOfDay, startOfWeek, startOfMonth, differenceInMinutes, differenceInHours, differenceInDays } from 'date-fns';
 import { Phone, PhoneOutgoing, Users, Loader2, RefreshCw, CheckCircle, XCircle, PhoneMissed } from 'lucide-react';
 
 interface OutboundLog {
@@ -21,6 +21,8 @@ interface OutboundLog {
   call_outcome: string;
   call_duration_seconds: number | null;
   created_at: string;
+  lead_created_at: string | null;
+  scheduled_followup_at: string | null;
 }
 
 const OUTCOME_COLORS: Record<string, string> = {
