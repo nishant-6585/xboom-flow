@@ -1,0 +1,1 @@
+ALTER TABLE public.call_logs ADD COLUMN IF NOT EXISTS outcall_info TEXT DEFAULT NULL;

@@ -1267,6 +1267,7 @@ export type Database = {
           lead_id: string | null
           lead_source: string | null
           notes: string | null
+          outcall_info: string | null
           product_category: string | null
           product_code: string | null
           product_name: string | null
@@ -1313,6 +1314,7 @@ export type Database = {
           lead_id?: string | null
           lead_source?: string | null
           notes?: string | null
+          outcall_info?: string | null
           product_category?: string | null
           product_code?: string | null
           product_name?: string | null
@@ -1359,6 +1361,7 @@ export type Database = {
           lead_id?: string | null
           lead_source?: string | null
           notes?: string | null
+          outcall_info?: string | null
           product_category?: string | null
           product_code?: string | null
           product_name?: string | null
