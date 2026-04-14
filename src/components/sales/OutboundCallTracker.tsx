@@ -375,6 +375,21 @@ export function OutboundCallTracker() {
                         <span className="text-sm">{formatDuration(log.call_duration_seconds || 0)}</span>
                       </TableCell>
                       <TableCell>
+                        {(() => {
+                          const rt = formatResponseTime(log);
+                          if (!rt) return <span className="text-xs text-muted-foreground">—</span>;
+                          return (
+                            <span className={`text-xs font-medium ${rt.color}`} title={
+                              (log.lead_source === 'prospect' || log.lead_source === 'pipeline')
+                                ? `Follow-up was at ${log.scheduled_followup_at ? format(new Date(log.scheduled_followup_at), 'dd MMM hh:mm a') : '—'}`
+                                : `Lead created at ${log.lead_created_at ? format(new Date(log.lead_created_at), 'dd MMM hh:mm a') : '—'}`
+                            }>
+                              {rt.text}
+                            </span>
+                          );
+                        })()}
+                      </TableCell>
+                      <TableCell>
                         <p className="text-sm max-w-[200px] truncate" title={log.call_notes || ''}>
                           {log.call_notes || '—'}
                         </p>
