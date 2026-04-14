@@ -13,7 +13,8 @@ import { FormDetailDialog } from "@/components/forms/FormDetailDialog";
 import { FormEmbedDialog } from "@/components/forms/FormEmbedDialog";
 import { FormQRCodeDialog } from "@/components/forms/FormQRCodeDialog";
 import { FormsOverallAnalytics } from "@/components/forms/FormsOverallAnalytics";
-import { Plus, FileText, Inbox, Trash2, Code, Eye, Link2, QrCode, LayoutGrid, BarChart3 } from "lucide-react";
+import { FormsDashboard } from "@/components/forms/FormsDashboard";
+import { Plus, FileText, Inbox, Trash2, Code, Eye, Link2, QrCode, LayoutGrid, BarChart3, LayoutDashboard } from "lucide-react";
 import { format } from "date-fns";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
@@ -27,7 +28,7 @@ export default function Forms() {
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [embedForm, setEmbedForm] = useState<Form | null>(null);
   const [qrForm, setQrForm] = useState<Form | null>(null);
-  const [activeTab, setActiveTab] = useState("forms");
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   const access = useMemo(() => {
     const isAdmin = role === "admin";
@@ -78,7 +79,11 @@ export default function Forms() {
           <div className="text-center py-12 text-muted-foreground">Loading forms...</div>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsList className="grid w-full max-w-lg grid-cols-3">
+              <TabsTrigger value="dashboard" className="flex items-center gap-2">
+                <LayoutDashboard className="h-4 w-4" />
+                Dashboard
+              </TabsTrigger>
               <TabsTrigger value="forms" className="flex items-center gap-2">
                 <LayoutGrid className="h-4 w-4" />
                 All Forms
@@ -207,6 +212,10 @@ export default function Forms() {
                   ))}
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="dashboard" className="mt-6">
+              <FormsDashboard forms={forms} />
             </TabsContent>
 
             <TabsContent value="analytics" className="mt-6">
