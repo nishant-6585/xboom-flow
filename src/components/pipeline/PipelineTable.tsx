@@ -12,7 +12,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CalendarIcon, Edit, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown, AlertTriangle, CheckCircle, XCircle, PhoneOutgoing } from 'lucide-react';
+import { CalendarIcon, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown, AlertTriangle, CheckCircle, XCircle, PhoneOutgoing } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -426,7 +426,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                 </TableRow>
               ) : (
                 sortedOrders.map(order => (
-                  <TableRow key={order.id}>
+                  <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleEditClick(order)}>
                     <TableCell>
                       <LeadTemperatureBadge 
                         temperature={order.lead_temperature || "warm"} 
@@ -476,7 +476,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                     )}
                     <TableCell>{getPriorityBadge(order.priority)}</TableCell>
                     <TableCell>{order.sales_person_name}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
                         <TooltipProvider>
                           {order.status !== 'won' && (
@@ -515,9 +515,6 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                         </TooltipProvider>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary" onClick={() => setLogCallOrder(order)} title="Log Call">
                           <PhoneOutgoing className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditClick(order)}>
-                          <Edit className="h-4 w-4" />
                         </Button>
                         {canDelete && (
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDelete(order.id)}>
