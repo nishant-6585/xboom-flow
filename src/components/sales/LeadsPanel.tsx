@@ -38,6 +38,9 @@ import { Mail, FileText, Megaphone } from 'lucide-react';
 import { MyOperatorAnalytics } from './MyOperatorAnalytics';
 import { MyOperatorTabContent } from './MyOperatorTabContent';
 import { InteraktAnalytics } from './InteraktAnalytics';
+import { LogCallDialog } from './LogCallDialog';
+import { OutboundCallTracker } from './OutboundCallTracker';
+import { PhoneOutgoing } from 'lucide-react';
 
 const LEAD_SOURCES = [
   'Website',
@@ -312,6 +315,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <TabsTrigger value="myoperator" className="gap-1.5">
           <Phone className="h-3.5 w-3.5" />
           MyOperator
+        </TabsTrigger>
+        <TabsTrigger value="call-tracker" className="gap-1.5">
+          <PhoneOutgoing className="h-3.5 w-3.5" />
+          Call Tracker
         </TabsTrigger>
         <TabsTrigger value="emails" className="gap-1.5">
           <Mail className="h-3.5 w-3.5" />
