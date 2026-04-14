@@ -38,6 +38,9 @@ import { Mail, FileText, Megaphone } from 'lucide-react';
 import { MyOperatorAnalytics } from './MyOperatorAnalytics';
 import { MyOperatorTabContent } from './MyOperatorTabContent';
 import { InteraktAnalytics } from './InteraktAnalytics';
+import { LogCallDialog } from './LogCallDialog';
+import { OutboundCallTracker } from './OutboundCallTracker';
+import { PhoneOutgoing } from 'lucide-react';
 
 const LEAD_SOURCES = [
   'Website',
@@ -103,6 +106,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const [editingInteraktLead, setEditingInteraktLead] = useState<InteraktLead | null>(null);
   const [interaktEditOpen, setInteraktEditOpen] = useState(false);
   const [interaktDrawerLead, setInteraktDrawerLead] = useState<InteraktLead | null>(null);
+  const [logCallLead, setLogCallLead] = useState<InteraktLead | null>(null);
 
   // Check edit permission for Interakt leads
   const canEditInteraktLeads = role === 'admin' || role === 'sales' || role === 'sales_manager';
@@ -312,6 +316,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <TabsTrigger value="myoperator" className="gap-1.5">
           <Phone className="h-3.5 w-3.5" />
           MyOperator
+        </TabsTrigger>
+        <TabsTrigger value="call-tracker" className="gap-1.5">
+          <PhoneOutgoing className="h-3.5 w-3.5" />
+          Call Tracker
         </TabsTrigger>
         <TabsTrigger value="emails" className="gap-1.5">
           <Mail className="h-3.5 w-3.5" />
@@ -822,7 +830,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                           <TableHead className="w-[80px]">Status</TableHead>
                           <TableHead className="w-[100px]">Assigned To</TableHead>
                           <TableHead className="w-[100px]">Created On</TableHead>
-                          {canEditInteraktLeads && <TableHead className="w-[60px]">Action</TableHead>}
+                          <TableHead className="w-[80px]">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -924,22 +932,33 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                                   : '—'}
                               </span>
                             </TableCell>
-                            {canEditInteraktLeads && (
-                              <TableCell onClick={(e) => e.stopPropagation()}>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <div className="flex gap-0.5">
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => {
-                                    setEditingInteraktLead(lead);
-                                    setInteraktEditOpen(true);
-                                  }}
-                                  title="Edit Lead"
+                                  className="h-8 w-8 text-primary hover:text-primary"
+                                  onClick={() => setLogCallLead(lead)}
+                                  title="Log Call"
                                 >
-                                  <Pencil className="h-4 w-4" />
+                                  <PhoneOutgoing className="h-4 w-4" />
                                 </Button>
-                              </TableCell>
-                            )}
+                                {canEditInteraktLeads && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => {
+                                      setEditingInteraktLead(lead);
+                                      setInteraktEditOpen(true);
+                                    }}
+                                    title="Edit Lead"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -960,6 +979,17 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
             await updateLead({ ...data, updated_by: user?.id || null });
           }}
           saving={updating}
+        />
+
+        {/* Log Call Dialog */}
+        <LogCallDialog
+          open={!!logCallLead}
+          onOpenChange={(open) => { if (!open) setLogCallLead(null); }}
+          leadSource="interakt"
+          leadId={logCallLead?.id || ''}
+          leadName={logCallLead?.customer_name || ''}
+          leadPhone={logCallLead?.phone_number || ''}
+          leadCompany={logCallLead?.company}
         />
 
         {/* Interakt Lead Contact Drawer */}
@@ -997,6 +1027,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
       <TabsContent value="myoperator">
         <MyOperatorTabContent prospects={prospects} prospectSourceIds={prospectSourceIds} attentionSourceIds={attentionSourceIds} />
+      </TabsContent>
+
+      <TabsContent value="call-tracker">
+        <OutboundCallTracker />
       </TabsContent>
 
       <TabsContent value="emails">
