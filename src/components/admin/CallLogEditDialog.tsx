@@ -52,6 +52,7 @@ export function CallLogEditDialog({ open, onOpenChange, callLog, onSuccess }: Ca
     purpose_of_purchase: '',
     notes: '',
     customer_type: '',
+    outcall_info: '',
   });
 
   useEffect(() => {
@@ -71,6 +72,7 @@ export function CallLogEditDialog({ open, onOpenChange, callLog, onSuccess }: Ca
         purpose_of_purchase: callLog.purpose_of_purchase || '',
         notes: callLog.notes || '',
         customer_type: callLog.customer_type || '',
+        outcall_info: callLog.outcall_info || '',
       });
     }
   }, [callLog]);
@@ -96,6 +98,7 @@ export function CallLogEditDialog({ open, onOpenChange, callLog, onSuccess }: Ca
           purpose_of_purchase: form.purpose_of_purchase || null,
           notes: form.notes.trim() || null,
           customer_type: form.customer_type || null,
+          outcall_info: form.outcall_info.trim() || null,
         } as Record<string, unknown>)
         .eq('id', callLog.id);
 
@@ -233,6 +236,26 @@ export function CallLogEditDialog({ open, onOpenChange, callLog, onSuccess }: Ca
             <div className="space-y-2">
               <Label>Notes</Label>
               <Textarea value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} />
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                Outcall Info
+                {form.outcall_info.trim() ? (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/20 text-green-600 font-medium">Updated</span>
+                ) : (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-500 font-medium">Not Updated</span>
+                )}
+              </Label>
+              <Textarea
+                value={form.outcall_info}
+                onChange={(e) => setForm(f => ({ ...f, outcall_info: e.target.value }))}
+                rows={3}
+                placeholder="Enter order notes, follow-up details, or callback summary..."
+              />
+              <p className="text-xs text-muted-foreground">This field tracks whether the salesperson has followed up on this call.</p>
             </div>
           </div>
         </ScrollArea>

@@ -45,6 +45,7 @@ interface CallLog {
   lead_id: string | null;
   created_at: string;
   sales_person_name: string | null;
+  outcall_info: string | null;
 }
 
 interface LegDetail {
@@ -175,7 +176,7 @@ function mergeEditableFields(target: CallLog, source: CallLog): CallLog {
     'customer_name', 'customer_company', 'email', 'city', 'product_name',
     'product_category', 'product_code', 'lead_source', 'urgency',
     'requested_timeline', 'purpose_of_purchase', 'notes', 'customer_type',
-    'sales_person_id', 'sales_person_name',
+    'sales_person_id', 'sales_person_name', 'outcall_info',
   ] as const;
   const merged = { ...target } as any;
   const src = source as any;
