@@ -1627,6 +1627,19 @@ export default function Orders() {
               <OrderProfitAnalytics orders={manualOrders} onCardClick={handleAnalyticsCardClick} />
             </TabsContent>
           )}
+
+          {(role === 'supply_chain' || role === 'admin') && (
+            <TabsContent value="support_calls" className="space-y-6 mt-0">
+              <div className="flex items-center gap-3 mb-4">
+                <Phone className="h-5 w-5 text-primary" />
+                <div>
+                  <h2 className="text-lg font-semibold">Support Calls</h2>
+                  <p className="text-xs text-muted-foreground">View and update support department calls from MyOperator</p>
+                </div>
+              </div>
+              <CallLogsPanel defaultDepartment="support" />
+            </TabsContent>
+          )}
         </Tabs>
 
         <OrderDialog
