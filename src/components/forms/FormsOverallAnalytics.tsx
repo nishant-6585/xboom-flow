@@ -8,9 +8,17 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, Legend
 } from "recharts";
 import { format, subDays, startOfDay, eachDayOfInterval, isWithinInterval, subWeeks, startOfWeek, eachWeekOfInterval } from "date-fns";
-import { Eye, Inbox, TrendingUp, FileText, Target, BarChart3 } from "lucide-react";
+import { Eye, Inbox, TrendingUp, FileText, Target, BarChart3, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 
 interface FormsOverallAnalyticsProps {
   forms: Form[];
