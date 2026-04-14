@@ -250,6 +250,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [editingLog, setEditingLog] = useState<CallLog | null>(null);
   const [updatingAssign, setUpdatingAssign] = useState<string | null>(null);
+  const [logCallData, setLogCallData] = useState<{ id: string; name: string; phone: string; company?: string } | null>(null);
 
   const SALES_PERSONS_LIST = ['suman das', 'Narasimha', 'mohammed musthak', 'Arjav chauhan'];
 
@@ -699,9 +700,25 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                           )}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
-                            <Eye className="w-4 h-4 mr-1" /> Details
-                          </Button>
+                          <div className="flex items-center gap-0.5">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-primary hover:text-primary"
+                              onClick={() => setLogCallData({
+                                id: log.id,
+                                name: (log as any).customer_name || log.full_number || log.caller_number,
+                                phone: log.full_number || log.caller_number,
+                                company: (log as any).customer_company,
+                              })}
+                              title="Log Outbound Call"
+                            >
+                              <PhoneOutgoing className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
+                              <Eye className="w-4 h-4 mr-1" /> Details
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                       {expandedAudio === logKey && info.recordingFile && (
@@ -741,6 +758,16 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
         onOpenChange={(open) => { if (!open) setEditingLog(null); }}
         callLog={editingLog}
         onSuccess={fetchLogs}
+      />
+
+      <LogCallDialog
+        open={!!logCallData}
+        onOpenChange={(open) => { if (!open) setLogCallData(null); }}
+        leadSource="myoperator"
+        leadId={logCallData?.id || ''}
+        leadName={logCallData?.name || ''}
+        leadPhone={logCallData?.phone || ''}
+        leadCompany={logCallData?.company}
       />
     </Card>
   );
