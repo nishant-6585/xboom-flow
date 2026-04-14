@@ -196,6 +196,47 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
 
   return (
     <div className="space-y-6">
+      {/* Filter Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-card p-4 rounded-lg border">
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Filter by Form:</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <Select value={selectedFormId} onValueChange={setSelectedFormId}>
+            <SelectTrigger className="w-[280px]">
+              <SelectValue placeholder="Select a form..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <span>All Forms ({forms.length})</span>
+                </div>
+              </SelectItem>
+              <div className="h-px bg-border my-1" />
+              {forms
+                .sort((a, b) => (b.submission_count || 0) - (a.submission_count || 0))
+                .map((form) => (
+                  <SelectItem key={form.id} value={form.id}>
+                    <div className="flex items-center justify-between w-full gap-4">
+                      <span className="truncate max-w-[180px]">{form.name}</span>
+                      <Badge variant="secondary" className="text-xs shrink-0">
+                        {form.submission_count || 0} subs
+                      </Badge>
+                    </div>
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          {selectedFormId !== "all" && (
+            <Button variant="ghost" size="sm" onClick={() => setSelectedFormId("all")}>
+              Clear
+            </Button>
+          )}
+        </div>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <Card>
