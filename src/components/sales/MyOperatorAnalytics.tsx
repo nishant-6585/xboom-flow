@@ -26,12 +26,40 @@ interface LegDetail {
   _rr?: Array<{ _na?: string }>;
 }
 
+function parseDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  // Unix timestamp (seconds)
+  const num = Number(dateStr);
+  if (!isNaN(num) && num > 1000000000 && num < 10000000000) {
+    return new Date(num * 1000);
+  }
+  // Unix timestamp (milliseconds)
+  if (!isNaN(num) && num > 1000000000000) {
+    return new Date(num);
+  }
+  // ISO format YYYY-MM-DDTHH:mm:ss or YYYY-MM-DD
+  const iso = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) {
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) return d;
+  }
+  // DD/MM/YYYY or DD-MM-YYYY
+  const dmy = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (dmy) {
+    let [, d, m, y] = dmy;
+    let yearNum = parseInt(y);
+    if (yearNum < 100) yearNum += 2000;
+    const result = new Date(yearNum, parseInt(m) - 1, parseInt(d));
+    if (!isNaN(result.getTime())) return result;
+  }
+  const fallback = new Date(dateStr);
+  return isNaN(fallback.getTime()) ? null : fallback;
+}
+
 function getCallDate(log: CallLog): Date {
   if (log.start_time) {
-    const num = Number(log.start_time);
-    if (!isNaN(num) && num > 1000000000) return new Date(num * 1000);
-    const d = new Date(log.start_time);
-    if (!isNaN(d.getTime())) return d;
+    const parsed = parseDate(log.start_time);
+    if (parsed) return parsed;
   }
   return new Date(log.created_at);
 }
@@ -74,20 +102,32 @@ const CHART_COLORS = [
 interface MyOperatorAnalyticsProps {
   logs: CallLog[];
   prospects?: { source_type: string; created_at: string }[];
+  dateRange?: { start: Date | undefined; end: Date | undefined };
 }
 
-export function MyOperatorAnalytics({ logs, prospects = [] }: MyOperatorAnalyticsProps) {
+export function MyOperatorAnalytics({ logs, prospects = [], dateRange }: MyOperatorAnalyticsProps) {
   const [period, setPeriod] = useState<'day' | 'week' | 'month'>('week');
   const [agentPeriod, setAgentPeriod] = useState<'day' | 'week' | 'month'>('week');
 
   const enrichedLogs = useMemo(() => {
-    return logs.map(log => ({
+    let mapped = logs.map(log => ({
       ...log,
       date: getCallDate(log),
       status: deriveStatus(log),
       agent: deriveAgentName(log),
     }));
-  }, [logs]);
+    // Apply date range filter
+    if (dateRange?.start) {
+      const s = startOfDay(dateRange.start);
+      mapped = mapped.filter(l => l.date >= s);
+    }
+    if (dateRange?.end) {
+      const e = new Date(dateRange.end);
+      e.setHours(23, 59, 59, 999);
+      mapped = mapped.filter(l => l.date <= e);
+    }
+    return mapped;
+  }, [logs, dateRange?.start?.getTime(), dateRange?.end?.getTime()]);
 
   const now = new Date();
   const todayStart = startOfDay(now);
