@@ -46,9 +46,9 @@ export function SalespersonCallStats({ open, onOpenChange, logs, dateRange, depa
       result = result.filter(l => new Date(l.start_time || l.created_at) >= s);
     }
     // Only include sales department calls
-    result = result.filter(l => l.department?.toLowerCase() === 'sales');
+    result = result.filter(l => l.department?.toLowerCase() === department);
     return result;
-  }, [logs, dateRange?.start?.getTime(), dateRange?.end?.getTime(), periodFilter]);
+  }, [logs, dateRange?.start?.getTime(), dateRange?.end?.getTime(), periodFilter, department]);
 
   // Dedupe by unique caller number per salesperson
   const stats = useMemo(() => {
@@ -158,7 +158,7 @@ export function SalespersonCallStats({ open, onOpenChange, logs, dateRange, depa
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Salesperson Call Statistics
+            {department === 'support' ? 'Support' : 'Sales'} Call Statistics
           </DialogTitle>
         </DialogHeader>
 
