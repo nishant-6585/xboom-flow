@@ -23,6 +23,7 @@ interface CallLogsPanelProps {
   attentionSourceIds?: Set<string>;
   onLogsLoaded?: (logs: CallLog[]) => void;
   dateRange?: { start: Date | undefined; end: Date | undefined };
+  defaultDepartment?: string;
 }
 
 interface CallLog {
@@ -232,7 +233,7 @@ function groupLogsByCallId(logs: CallLog[]): CallLog[] {
   return Array.from(grouped.values());
 }
 
-export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), attentionSourceIds = new Set(), onLogsLoaded, dateRange }: CallLogsPanelProps) {
+export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), attentionSourceIds = new Set(), onLogsLoaded, dateRange, defaultDepartment }: CallLogsPanelProps) {
   const [logs, setLogs] = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -241,7 +242,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [statusFilter, setStatusFilter] = useState("all");
   const [salesPersonFilter, setSalesPersonFilter] = useState("all");
   const [agentFilter, setAgentFilter] = useState("all");
-  const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [departmentFilter, setDepartmentFilter] = useState(defaultDepartment || "all");
   const [missedOnly, setMissedOnly] = useState(false);
   const [uniqueOnly, setUniqueOnly] = useState(false);
   const [selectedLog, setSelectedLog] = useState<CallLog | null>(null);
@@ -517,32 +518,34 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
             <PhoneMissed className="w-4 h-4 mr-1" />
             {missedOnly ? 'Showing Missed' : 'Missed Calls'}
           </Button>
-          <div className="flex border rounded-md">
-            <Button
-              variant={departmentFilter === "all" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setDepartmentFilter("all")}
-              className="rounded-r-none text-xs px-3"
-            >
-              All
-            </Button>
-            <Button
-              variant={departmentFilter === "sales" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setDepartmentFilter(departmentFilter === "sales" ? "all" : "sales")}
-              className="rounded-none border-x text-xs px-3"
-            >
-              Sales
-            </Button>
-            <Button
-              variant={departmentFilter === "support" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setDepartmentFilter(departmentFilter === "support" ? "all" : "support")}
-              className="rounded-l-none text-xs px-3"
-            >
-              Support
-            </Button>
-          </div>
+          {!defaultDepartment && (
+            <div className="flex border rounded-md">
+              <Button
+                variant={departmentFilter === "all" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setDepartmentFilter("all")}
+                className="rounded-r-none text-xs px-3"
+              >
+                All
+              </Button>
+              <Button
+                variant={departmentFilter === "sales" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setDepartmentFilter(departmentFilter === "sales" ? "all" : "sales")}
+                className="rounded-none border-x text-xs px-3"
+              >
+                Sales
+              </Button>
+              <Button
+                variant={departmentFilter === "support" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setDepartmentFilter(departmentFilter === "support" ? "all" : "support")}
+                className="rounded-l-none text-xs px-3"
+              >
+                Support
+              </Button>
+            </div>
+          )}
           <Button
             variant={uniqueOnly ? "secondary" : "outline"}
             size="sm"

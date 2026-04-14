@@ -19,6 +19,7 @@ import { RefundRequestsTable } from '@/components/RefundRequestsTable';
 import { PipelineOrders } from '@/components/pipeline/PipelineOrders';
 import { WooOrderCard } from '@/components/orders/WooOrderCard';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
+import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
 import { useWooCommerceOrders } from '@/hooks/useWooCommerceOrders';
@@ -27,7 +28,7 @@ import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidge
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe, ShoppingCart, RefreshCw, Mail, XCircle, Send } from 'lucide-react';
+import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe, ShoppingCart, RefreshCw, Mail, XCircle, Send, Phone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth } from 'date-fns';
@@ -397,6 +398,12 @@ export default function Orders() {
                         {refundCount}
                       </Badge>
                     )}
+                  </TabsTrigger>
+                )}
+                {(role === 'supply_chain' || role === 'admin') && (
+                  <TabsTrigger value="support_calls" className="gap-2">
+                    <Phone className="h-4 w-4" />
+                    <span className="hidden sm:inline font-medium">Support Calls</span>
                   </TabsTrigger>
                 )}
                 {isAdmin && (
@@ -1618,6 +1625,19 @@ export default function Orders() {
           {isAdmin && (
             <TabsContent value="analytics">
               <OrderProfitAnalytics orders={manualOrders} onCardClick={handleAnalyticsCardClick} />
+            </TabsContent>
+          )}
+
+          {(role === 'supply_chain' || role === 'admin') && (
+            <TabsContent value="support_calls" className="space-y-6 mt-0">
+              <div className="flex items-center gap-3 mb-4">
+                <Phone className="h-5 w-5 text-primary" />
+                <div>
+                  <h2 className="text-lg font-semibold">Support Calls</h2>
+                  <p className="text-xs text-muted-foreground">View and update support department calls from MyOperator</p>
+                </div>
+              </div>
+              <CallLogsPanel defaultDepartment="support" />
             </TabsContent>
           )}
         </Tabs>
