@@ -74,20 +74,32 @@ const CHART_COLORS = [
 interface MyOperatorAnalyticsProps {
   logs: CallLog[];
   prospects?: { source_type: string; created_at: string }[];
+  dateRange?: { start: Date | undefined; end: Date | undefined };
 }
 
-export function MyOperatorAnalytics({ logs, prospects = [] }: MyOperatorAnalyticsProps) {
+export function MyOperatorAnalytics({ logs, prospects = [], dateRange }: MyOperatorAnalyticsProps) {
   const [period, setPeriod] = useState<'day' | 'week' | 'month'>('week');
   const [agentPeriod, setAgentPeriod] = useState<'day' | 'week' | 'month'>('week');
 
   const enrichedLogs = useMemo(() => {
-    return logs.map(log => ({
+    let mapped = logs.map(log => ({
       ...log,
       date: getCallDate(log),
       status: deriveStatus(log),
       agent: deriveAgentName(log),
     }));
-  }, [logs]);
+    // Apply date range filter
+    if (dateRange?.start) {
+      const s = startOfDay(dateRange.start);
+      mapped = mapped.filter(l => l.date >= s);
+    }
+    if (dateRange?.end) {
+      const e = new Date(dateRange.end);
+      e.setHours(23, 59, 59, 999);
+      mapped = mapped.filter(l => l.date <= e);
+    }
+    return mapped;
+  }, [logs, dateRange?.start?.getTime(), dateRange?.end?.getTime()]);
 
   const now = new Date();
   const todayStart = startOfDay(now);
