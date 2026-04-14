@@ -710,6 +710,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                                 name: (log as any).customer_name || log.full_number || log.caller_number,
                                 phone: log.full_number || log.caller_number,
                                 company: (log as any).customer_company,
+                                created_at: log.created_at,
                               })}
                               title="Log Outbound Call"
                             >
@@ -768,6 +769,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
         leadName={logCallData?.name || ''}
         leadPhone={logCallData?.phone || ''}
         leadCompany={logCallData?.company}
+        leadCreatedAt={logCallData?.created_at}
       />
     </Card>
   );
