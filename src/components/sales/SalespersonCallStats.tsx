@@ -11,13 +11,14 @@ interface SalespersonCallStatsProps {
   onOpenChange: (open: boolean) => void;
   logs: any[];
   dateRange?: { start: Date | undefined; end: Date | undefined };
+  department?: 'sales' | 'support';
 }
 
 function normalizeNumber(num: string | null | undefined): string {
   return (num || '').replace(/\D/g, '').slice(-10);
 }
 
-export function SalespersonCallStats({ open, onOpenChange, logs, dateRange }: SalespersonCallStatsProps) {
+export function SalespersonCallStats({ open, onOpenChange, logs, dateRange, department = 'sales' }: SalespersonCallStatsProps) {
   const [periodFilter, setPeriodFilter] = useState<'all' | 'day' | 'week' | 'month'>('all');
 
   const filteredLogs = useMemo(() => {
@@ -45,9 +46,9 @@ export function SalespersonCallStats({ open, onOpenChange, logs, dateRange }: Sa
       result = result.filter(l => new Date(l.start_time || l.created_at) >= s);
     }
     // Only include sales department calls
-    result = result.filter(l => l.department?.toLowerCase() === 'sales');
+    result = result.filter(l => l.department?.toLowerCase() === department);
     return result;
-  }, [logs, dateRange?.start?.getTime(), dateRange?.end?.getTime(), periodFilter]);
+  }, [logs, dateRange?.start?.getTime(), dateRange?.end?.getTime(), periodFilter, department]);
 
   // Dedupe by unique caller number per salesperson
   const stats = useMemo(() => {
@@ -63,7 +64,9 @@ export function SalespersonCallStats({ open, onOpenChange, logs, dateRange }: Sa
     }>();
 
     for (const log of filteredLogs) {
-      const sp = log.sales_person_name || 'Unassigned';
+      const sp = department === 'support'
+        ? (log.assigned_agent_name || 'Unassigned')
+        : (log.sales_person_name || 'Unassigned');
       if (!spMap.has(sp)) {
         spMap.set(sp, {
           totalCalls: 0,
@@ -157,7 +160,7 @@ export function SalespersonCallStats({ open, onOpenChange, logs, dateRange }: Sa
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Salesperson Call Statistics
+            {department === 'support' ? 'Support' : 'Sales'} Call Statistics
           </DialogTitle>
         </DialogHeader>
 
