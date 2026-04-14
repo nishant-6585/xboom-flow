@@ -7269,6 +7269,54 @@ export type Database = {
         }
         Relationships: []
       }
+      outbound_call_logs: {
+        Row: {
+          call_duration_seconds: number | null
+          call_notes: string | null
+          call_outcome: string
+          called_by: string
+          called_by_name: string
+          created_at: string
+          id: string
+          lead_company: string | null
+          lead_id: string
+          lead_name: string | null
+          lead_phone: string
+          lead_source: string
+          updated_at: string
+        }
+        Insert: {
+          call_duration_seconds?: number | null
+          call_notes?: string | null
+          call_outcome?: string
+          called_by: string
+          called_by_name: string
+          created_at?: string
+          id?: string
+          lead_company?: string | null
+          lead_id: string
+          lead_name?: string | null
+          lead_phone: string
+          lead_source: string
+          updated_at?: string
+        }
+        Update: {
+          call_duration_seconds?: number | null
+          call_notes?: string | null
+          call_outcome?: string
+          called_by?: string
+          called_by_name?: string
+          created_at?: string
+          id?: string
+          lead_company?: string | null
+          lead_id?: string
+          lead_name?: string | null
+          lead_phone?: string
+          lead_source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       outbound_contacts: {
         Row: {
           address: string | null
