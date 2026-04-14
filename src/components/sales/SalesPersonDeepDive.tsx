@@ -439,7 +439,12 @@ export function SalesPersonDeepDive({
                       )}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                      <span>{totalLeads} leads</span>
+                      <button
+                        className="text-primary font-semibold hover:underline"
+                        onClick={(e) => { e.stopPropagation(); openAssignedLeads(sp.id, sp.name); }}
+                      >
+                        {totalLeads} leads assigned
+                      </button>
                       <span>•</span>
                       <span>{sp.prospects} prospects</span>
                       <span>•</span>
