@@ -49,6 +49,18 @@ export function EmailLeadsPanel() {
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [detailLead, setDetailLead] = useState<EmailLead | null>(null);
+  const [salespeople, setSalespeople] = useState<{ id: string; name: string }[]>([]);
+  const { updateLead } = useEmailLeads();
+
+  useEffect(() => {
+    supabase
+      .from('employees')
+      .select('id, name')
+      .eq('is_active', true)
+      .eq('department', 'Sales')
+      .order('name')
+      .then(({ data }) => setSalespeople(data || []));
+  }, []);
 
   const filteredLeads = useMemo(() => {
     const filtered = leads.filter((lead) => {
