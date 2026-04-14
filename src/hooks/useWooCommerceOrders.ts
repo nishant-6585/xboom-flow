@@ -39,6 +39,7 @@ export function useWooCommerceOrders() {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState('');
   const { toast } = useToast();
 
   const fetchOrders = async () => {
@@ -76,7 +77,8 @@ export function useWooCommerceOrders() {
   const syncFromAPI = async () => {
     try {
       setSyncing(true);
-      console.log('[useWooCommerceOrders] Triggering sync from xboom.in API...');
+      setSyncProgress('Syncing orders from xboom.in...');
+      console.log('[useWooCommerceOrders] Triggering paginated sync from xboom.in API...');
       
       const { data, error } = await supabase.functions.invoke('sync-website-orders', {
         method: 'POST',
@@ -85,13 +87,21 @@ export function useWooCommerceOrders() {
       if (error) throw error;
 
       console.log('[useWooCommerceOrders] Sync result:', data);
+
+      if (data?.success === false) {
+        toast({
+          title: 'Sync Warning',
+          description: data?.error || 'API returned an error',
+          variant: 'destructive',
+        });
+        return;
+      }
       
       toast({
         title: 'Sync Complete',
-        description: data?.message || `Synced ${data?.upserted || 0} orders from xboom.in`,
+        description: data?.message || `Synced ${data?.upserted || 0} orders`,
       });
 
-      // Refetch from DB after sync
       await fetchOrders();
     } catch (error: unknown) {
       console.error('[useWooCommerceOrders] Sync error:', error);
@@ -102,6 +112,7 @@ export function useWooCommerceOrders() {
       });
     } finally {
       setSyncing(false);
+      setSyncProgress('');
     }
   };
 
@@ -120,5 +131,5 @@ export function useWooCommerceOrders() {
     };
   }, []);
 
-  return { wooOrders: orders, totalCount, loading, syncing, refetch: fetchOrders, syncFromAPI };
+  return { wooOrders: orders, totalCount, loading, syncing, syncProgress, refetch: fetchOrders, syncFromAPI };
 }
