@@ -39,7 +39,7 @@ export default function Orders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
-  const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, syncing: wooSyncing, syncProgress: wooSyncProgress, syncFromAPI: syncWooOrders } = useWooCommerceOrders();
+  const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, syncing: wooSyncing, syncProgress: wooSyncProgress, stats: wooStats, syncFromAPI: syncWooOrders } = useWooCommerceOrders();
   const { carts: abandonedCarts, loading: cartsLoading, stats: cartStats, recoverCart, timeFilter, setTimeFilter } = useAbandonedCarts();
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
@@ -82,7 +82,7 @@ export default function Orders() {
   const [wooSearchQuery, setWooSearchQuery] = useState<string>('');
   const [wooStatusFilter, setWooStatusFilter] = useState<string>('all');
   const [wooPaymentStatusFilter, setWooPaymentStatusFilter] = useState<string>('all');
-  const [wooViewMode, setWooViewMode] = useState<'cards' | 'table'>('table');
+  const [wooViewMode, setWooViewMode] = useState<'cards' | 'table'>('cards');
   const [wooPage, setWooPage] = useState(1);
   const WOO_PAGE_SIZE = 50;
 
@@ -1076,7 +1076,7 @@ export default function Orders() {
             )}
           </TabsContent>
 
-          {/* XBoom Website Orders Tab */}
+           {/* XBoom Website Orders Tab */}
           <TabsContent value="website" className="space-y-6 mt-0">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
@@ -1098,6 +1098,26 @@ export default function Orders() {
                 {wooSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                 {wooSyncing ? (wooSyncProgress || 'Syncing...') : 'Sync Orders'}
               </Button>
+            </div>
+
+            {/* Summary Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Card><CardContent className="p-4 text-center">
+                <p className="text-xs text-muted-foreground">Total Orders</p>
+                <p className="text-2xl font-bold text-foreground">{wooStats.totalOrders.toLocaleString()}</p>
+              </CardContent></Card>
+              <Card><CardContent className="p-4 text-center">
+                <p className="text-xs text-muted-foreground">Total Revenue</p>
+                <p className="text-2xl font-bold text-primary">₹{wooStats.totalRevenue.toLocaleString('en-IN')}</p>
+              </CardContent></Card>
+              <Card><CardContent className="p-4 text-center">
+                <p className="text-xs text-muted-foreground">Completed</p>
+                <p className="text-2xl font-bold text-green-600">{wooStats.completedOrders.toLocaleString()}</p>
+              </CardContent></Card>
+              <Card><CardContent className="p-4 text-center">
+                <p className="text-xs text-muted-foreground">Today's Orders</p>
+                <p className="text-2xl font-bold text-blue-600">{wooStats.todayOrders}</p>
+              </CardContent></Card>
             </div>
 
             {/* Filters */}
