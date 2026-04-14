@@ -28,6 +28,25 @@ const COLORS = ["#ea580c", "#f97316", "#fb923c", "#fdba74", "#fed7aa", "#ffedd5"
 
 export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
   const [timeRange, setTimeRange] = useState<"daily" | "weekly">("daily");
+  const [selectedFormId, setSelectedFormId] = useState<string>("all");
+  
+  // Get selected form name for display
+  const selectedFormName = useMemo(() => {
+    if (selectedFormId === "all") return "All Forms";
+    const form = forms.find(f => f.id === selectedFormId);
+    return form?.name || "Unknown Form";
+  }, [selectedFormId, forms]);
+  
+  // Filter forms based on selection
+  const filteredForms = useMemo(() => {
+    if (selectedFormId === "all") return forms;
+    return forms.filter(f => f.id === selectedFormId);
+  }, [selectedFormId, forms]);
+  
+  // Get form IDs for filtering views and submissions
+  const filteredFormIds = useMemo(() => {
+    return filteredForms.map(f => f.id);
+  }, [filteredForms]);
   
   // Fetch all views
   const { data: allViews = [] } = useQuery({
