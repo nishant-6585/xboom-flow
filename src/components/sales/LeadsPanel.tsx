@@ -981,6 +981,17 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
           saving={updating}
         />
 
+        {/* Log Call Dialog */}
+        <LogCallDialog
+          open={!!logCallLead}
+          onOpenChange={(open) => { if (!open) setLogCallLead(null); }}
+          leadSource="interakt"
+          leadId={logCallLead?.id || ''}
+          leadName={logCallLead?.customer_name || ''}
+          leadPhone={logCallLead?.phone_number || ''}
+          leadCompany={logCallLead?.company}
+        />
+
         {/* Interakt Lead Contact Drawer */}
         <LeadContactDrawer
           open={!!interaktDrawerLead}
