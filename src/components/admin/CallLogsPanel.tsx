@@ -242,6 +242,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [agentFilter, setAgentFilter] = useState("all");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [missedOnly, setMissedOnly] = useState(false);
+  const [uniqueOnly, setUniqueOnly] = useState(false);
   const [selectedLog, setSelectedLog] = useState<CallLog | null>(null);
   const [expandedAudio, setExpandedAudio] = useState<string | null>(null);
   const prevIdsRef = useRef<Set<string>>(new Set());
