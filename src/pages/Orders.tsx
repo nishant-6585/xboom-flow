@@ -38,7 +38,7 @@ export default function Orders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
-  const { wooOrders, totalCount: wooTotalCount, loading: wooLoading } = useWooCommerceOrders();
+  const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, syncing: wooSyncing, syncFromAPI: syncWooOrders } = useWooCommerceOrders();
   const { carts: abandonedCarts, loading: cartsLoading, stats: cartStats, recoverCart, timeFilter, setTimeFilter } = useAbandonedCarts();
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
