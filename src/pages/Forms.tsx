@@ -79,7 +79,11 @@ export default function Forms() {
           <div className="text-center py-12 text-muted-foreground">Loading forms...</div>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsList className="grid w-full max-w-lg grid-cols-3">
+              <TabsTrigger value="dashboard" className="flex items-center gap-2">
+                <LayoutDashboard className="h-4 w-4" />
+                Dashboard
+              </TabsTrigger>
               <TabsTrigger value="forms" className="flex items-center gap-2">
                 <LayoutGrid className="h-4 w-4" />
                 All Forms
