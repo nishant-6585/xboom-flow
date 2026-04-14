@@ -94,15 +94,15 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
 
   // Calculate stats
   const stats = useMemo(() => {
-    const totalForms = forms.length;
-    const activeForms = forms.filter(f => f.is_active).length;
+    const totalForms = filteredForms.length;
+    const activeForms = filteredForms.filter(f => f.is_active).length;
     const totalViews = allViews.length;
     const totalSubmissions = allSubmissions.length;
     const conversionRate = totalViews > 0 ? ((totalSubmissions / totalViews) * 100).toFixed(1) : "0";
-    const totalFields = forms.reduce((acc, f) => acc + (f.form_fields?.length || 0), 0);
+    const totalFields = filteredForms.reduce((acc, f) => acc + (f.form_fields?.length || 0), 0);
 
     return { totalForms, activeForms, totalViews, totalSubmissions, conversionRate, totalFields };
-  }, [forms, allViews, allSubmissions]);
+  }, [filteredForms, allViews, allSubmissions]);
 
   // Time series data
   const timeSeriesData = useMemo(() => {
@@ -159,7 +159,7 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
 
   // Form performance data (for bar chart)
   const formPerformanceData = useMemo(() => {
-    return forms
+    return filteredForms
       .map((form) => ({
         name: form.name.length > 15 ? form.name.substring(0, 15) + "..." : form.name,
         fullName: form.name,
@@ -168,11 +168,11 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
       }))
       .sort((a, b) => b.submissions - a.submissions)
       .slice(0, 6);
-  }, [forms]);
+  }, [filteredForms]);
 
   // Pie chart data for form distribution
   const pieData = useMemo(() => {
-    return forms
+    return filteredForms
       .filter(f => (f.submission_count || 0) > 0)
       .map((form) => ({
         name: form.name.length > 20 ? form.name.substring(0, 20) + "..." : form.name,
@@ -180,7 +180,7 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
       }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 6);
-  }, [forms]);
+  }, [filteredForms]);
 
   if (forms.length === 0) {
     return (
