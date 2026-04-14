@@ -38,6 +38,7 @@ export function useWooCommerceOrders() {
   const [orders, setOrders] = useState<WooCommerceOrder[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
 
   const fetchOrders = async () => {
@@ -58,6 +59,7 @@ export function useWooCommerceOrders() {
         .limit(1000);
 
       if (error) throw error;
+      console.log('[useWooCommerceOrders] Fetched orders from DB:', data?.length ?? 0);
       setOrders((data as WooCommerceOrder[]) || []);
     } catch (error: unknown) {
       console.error('Error fetching WooCommerce orders:', error);
@@ -68,6 +70,38 @@ export function useWooCommerceOrders() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const syncFromAPI = async () => {
+    try {
+      setSyncing(true);
+      console.log('[useWooCommerceOrders] Triggering sync from xboom.in API...');
+      
+      const { data, error } = await supabase.functions.invoke('sync-website-orders', {
+        method: 'POST',
+      });
+
+      if (error) throw error;
+
+      console.log('[useWooCommerceOrders] Sync result:', data);
+      
+      toast({
+        title: 'Sync Complete',
+        description: data?.message || `Synced ${data?.upserted || 0} orders from xboom.in`,
+      });
+
+      // Refetch from DB after sync
+      await fetchOrders();
+    } catch (error: unknown) {
+      console.error('[useWooCommerceOrders] Sync error:', error);
+      toast({
+        title: 'Sync Error',
+        description: 'Failed to sync orders from xboom.in',
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -86,5 +120,5 @@ export function useWooCommerceOrders() {
     };
   }, []);
 
-  return { wooOrders: orders, totalCount, loading, refetch: fetchOrders };
+  return { wooOrders: orders, totalCount, loading, syncing, refetch: fetchOrders, syncFromAPI };
 }
