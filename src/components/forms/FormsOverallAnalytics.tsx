@@ -50,12 +50,21 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
   
   // Fetch all views
   const { data: allViews = [] } = useQuery({
-    queryKey: ["all-form-views"],
+    queryKey: ["all-form-views", selectedFormId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("form_views")
         .select("*")
         .order("viewed_at", { ascending: false });
+      
+      // Filter by form if specific form selected
+      if (selectedFormId !== "all") {
+        query = query.eq("form_id", selectedFormId);
+      } else if (filteredFormIds.length > 0) {
+        query = query.in("form_id", filteredFormIds);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -63,12 +72,21 @@ export function FormsOverallAnalytics({ forms }: FormsOverallAnalyticsProps) {
 
   // Fetch all submissions
   const { data: allSubmissions = [] } = useQuery({
-    queryKey: ["all-form-submissions"],
+    queryKey: ["all-form-submissions", selectedFormId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("form_submissions")
         .select("*")
         .order("submitted_at", { ascending: false });
+      
+      // Filter by form if specific form selected
+      if (selectedFormId !== "all") {
+        query = query.eq("form_id", selectedFormId);
+      } else if (filteredFormIds.length > 0) {
+        query = query.in("form_id", filteredFormIds);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
