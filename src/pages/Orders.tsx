@@ -1077,14 +1077,26 @@ export default function Orders() {
 
           {/* XBoom Website Orders Tab */}
           <TabsContent value="website" className="space-y-6 mt-0">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-xl bg-primary/10">
-                <Globe className="h-5 w-5 text-primary" />
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-primary/10">
+                  <Globe className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold">XBoom Website Orders</h2>
+                  <p className="text-xs text-muted-foreground">{wooTotalCount.toLocaleString()} orders from xboom.in website</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-lg font-semibold">XBoom Website Orders</h2>
-                <p className="text-xs text-muted-foreground">{wooTotalCount.toLocaleString()} orders from xboom.in website</p>
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={syncWooOrders}
+                disabled={wooSyncing}
+                className="gap-2"
+              >
+                {wooSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                {wooSyncing ? 'Syncing...' : 'Sync Orders'}
+              </Button>
             </div>
 
             {/* Filters */}
