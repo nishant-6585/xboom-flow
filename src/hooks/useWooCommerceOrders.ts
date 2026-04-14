@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -40,12 +40,14 @@ export function useWooCommerceOrders() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState('');
+  const lastSyncRef = useRef<number>(0);
   const { toast } = useToast();
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
 
+      // Get total count
       const { count, error: countError } = await supabase
         .from('woocommerce_orders')
         .select('id', { count: 'exact', head: true });
@@ -53,15 +55,27 @@ export function useWooCommerceOrders() {
       if (countError) throw countError;
       setTotalCount(count ?? 0);
 
-      const { data, error } = await supabase
-        .from('woocommerce_orders')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1000);
+      // Fetch all orders (paginated from DB if needed)
+      const allOrders: WooCommerceOrder[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      let keepGoing = true;
 
-      if (error) throw error;
-      console.log('[useWooCommerceOrders] Fetched orders from DB:', data?.length ?? 0);
-      setOrders((data as WooCommerceOrder[]) || []);
+      while (keepGoing) {
+        const { data, error } = await supabase
+          .from('woocommerce_orders')
+          .select('*')
+          .order('woo_created_at', { ascending: false, nullsFirst: false })
+          .range(from, from + batchSize - 1);
+
+        if (error) throw error;
+        if (data) allOrders.push(...(data as WooCommerceOrder[]));
+        if (!data || data.length < batchSize) keepGoing = false;
+        else from += batchSize;
+      }
+
+      console.log('[useWooCommerceOrders] Fetched orders from DB:', allOrders.length);
+      setOrders(allOrders);
     } catch (error: unknown) {
       console.error('Error fetching WooCommerce orders:', error);
       toast({
@@ -72,14 +86,24 @@ export function useWooCommerceOrders() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const syncFromAPI = async () => {
+  const syncFromAPI = useCallback(async () => {
+    // Debounce: prevent re-sync within 30 seconds
+    const now = Date.now();
+    if (now - lastSyncRef.current < 30000) {
+      toast({
+        title: 'Please wait',
+        description: 'Sync was triggered recently. Please wait 30 seconds.',
+      });
+      return;
+    }
+
     try {
       setSyncing(true);
-      setSyncProgress('Syncing orders from xboom.in...');
-      console.log('[useWooCommerceOrders] Triggering paginated sync from xboom.in API...');
-      
+      setSyncProgress('Starting sync...');
+      lastSyncRef.current = now;
+
       const { data, error } = await supabase.functions.invoke('sync-website-orders', {
         method: 'POST',
       });
@@ -96,7 +120,9 @@ export function useWooCommerceOrders() {
         });
         return;
       }
-      
+
+      setSyncProgress(`Synced ${data?.upserted || 0} orders across ${data?.pages_fetched || 1} pages`);
+
       toast({
         title: 'Sync Complete',
         description: data?.message || `Synced ${data?.upserted || 0} orders`,
@@ -112,9 +138,9 @@ export function useWooCommerceOrders() {
       });
     } finally {
       setSyncing(false);
-      setSyncProgress('');
+      setTimeout(() => setSyncProgress(''), 5000);
     }
-  };
+  }, [toast, fetchOrders]);
 
   useEffect(() => {
     fetchOrders();
@@ -129,7 +155,20 @@ export function useWooCommerceOrders() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchOrders]);
 
-  return { wooOrders: orders, totalCount, loading, syncing, syncProgress, refetch: fetchOrders, syncFromAPI };
+  // Computed stats
+  const stats = {
+    totalOrders: orders.length,
+    totalRevenue: orders.reduce((sum, o) => sum + (o.total_sales_amount || 0), 0),
+    completedOrders: orders.filter(o => o.order_status === 'completed').length,
+    todayOrders: orders.filter(o => {
+      const d = o.woo_created_at || o.created_at;
+      if (!d) return false;
+      const orderDate = new Date(d).toDateString();
+      return orderDate === new Date().toDateString();
+    }).length,
+  };
+
+  return { wooOrders: orders, totalCount, loading, syncing, syncProgress, stats, refetch: fetchOrders, syncFromAPI };
 }
