@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,6 +18,7 @@ interface LogCallDialogProps {
   leadName: string;
   leadPhone: string;
   leadCompany?: string;
+  leadCreatedAt?: string | null;
   onCallLogged?: () => void;
 }
 
@@ -30,13 +31,39 @@ const OUTCOMES = [
 ];
 
 export function LogCallDialog({
-  open, onOpenChange, leadSource, leadId, leadName, leadPhone, leadCompany, onCallLogged
+  open, onOpenChange, leadSource, leadId, leadName, leadPhone, leadCompany, leadCreatedAt, onCallLogged
 }: LogCallDialogProps) {
   const { user, profile } = useAuth();
   const [notes, setNotes] = useState('');
   const [outcome, setOutcome] = useState('connected');
   const [duration, setDuration] = useState('');
   const [saving, setSaving] = useState(false);
+  const [scheduledFollowupAt, setScheduledFollowupAt] = useState<string | null>(null);
+
+  // For prospect/pipeline, fetch latest scheduled followup
+  useEffect(() => {
+    if (!open || !leadId) return;
+    if (leadSource !== 'prospect' && leadSource !== 'pipeline') {
+      setScheduledFollowupAt(null);
+      return;
+    }
+    const fetchFollowup = async () => {
+      const sourceType = leadSource === 'prospect' ? 'prospect' : 'pipeline';
+      const { data } = await supabase
+        .from('followups')
+        .select('followup_at')
+        .eq('source_type', sourceType)
+        .eq('source_id', leadId)
+        .order('followup_at', { ascending: false })
+        .limit(1);
+      if (data && data.length > 0) {
+        setScheduledFollowupAt(data[0].followup_at);
+      } else {
+        setScheduledFollowupAt(null);
+      }
+    };
+    fetchFollowup();
+  }, [open, leadId, leadSource]);
 
   const handleSave = async () => {
     if (!user || !profile) return;
@@ -53,6 +80,8 @@ export function LogCallDialog({
         call_notes: notes || null,
         call_outcome: outcome,
         call_duration_seconds: parseInt(duration) || 0,
+        lead_created_at: (leadSource === 'myoperator' || leadSource === 'interakt') ? (leadCreatedAt || null) : null,
+        scheduled_followup_at: (leadSource === 'prospect' || leadSource === 'pipeline') ? scheduledFollowupAt : null,
       });
       if (error) throw error;
       toast.success('Call logged successfully');
