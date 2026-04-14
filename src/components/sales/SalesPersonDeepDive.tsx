@@ -5,6 +5,8 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -224,6 +226,26 @@ export function SalesPersonDeepDive({
 }: Props) {
   const [expandedPerson, setExpandedPerson] = useState<string | null>(null);
   const [detailDialog, setDetailDialog] = useState<{ open: boolean; title: string; items: any[] }>({ open: false, title: '', items: [] });
+  const [assignedDialog, setAssignedDialog] = useState<{ open: boolean; name: string; leads: { source: string; items: any[] }[] }>({ open: false, name: '', leads: [] });
+
+  const openAssignedLeads = (sp: any, spName: string) => {
+    const spEnquiries = enquiries.filter((e: any) => e.sales_person_id === sp);
+    const spInterakt = interaktLeads.filter((l: any) => l.sales_person_id === sp);
+    const spEmail = emailLeads.filter((e: any) => e.sales_person_id === sp);
+    const spCalls = callLogs.filter((c: any) => c.sales_person_id === sp);
+    const spForms = formLeads.filter((f: any) => f.sales_person_id === sp);
+    setAssignedDialog({
+      open: true,
+      name: spName,
+      leads: [
+        { source: 'Enquiries', items: spEnquiries },
+        { source: 'Interakt', items: spInterakt },
+        { source: 'Email', items: spEmail },
+        { source: 'MyOperator', items: spCalls },
+        { source: 'Forms', items: spForms },
+      ],
+    });
+  };
 
   const salesPersonData = useMemo(() => {
     if (!isManager || salesTeam.length === 0) return [];
@@ -417,7 +439,12 @@ export function SalesPersonDeepDive({
                       )}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                      <span>{totalLeads} leads</span>
+                      <button
+                        className="text-primary font-semibold hover:underline"
+                        onClick={(e) => { e.stopPropagation(); openAssignedLeads(sp.id, sp.name); }}
+                      >
+                        {totalLeads} leads assigned
+                      </button>
                       <span>•</span>
                       <span>{sp.prospects} prospects</span>
                       <span>•</span>
@@ -645,6 +672,78 @@ export function SalesPersonDeepDive({
           })}
         </CardContent>
       </Card>
+
+      {/* Assigned Leads Detail Dialog */}
+      <Dialog open={assignedDialog.open} onOpenChange={(o) => setAssignedDialog(prev => ({ ...prev, open: o }))}>
+        <DialogContent className="max-w-3xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="w-5 h-5 text-primary" />
+              Assigned Leads — {assignedDialog.name}
+              <Badge variant="secondary" className="ml-2">
+                {assignedDialog.leads.reduce((s, g) => s + g.items.length, 0)} total
+              </Badge>
+            </DialogTitle>
+          </DialogHeader>
+          <Tabs defaultValue={assignedDialog.leads.find(g => g.items.length > 0)?.source || 'Enquiries'}>
+            <TabsList className="flex-wrap h-auto gap-1">
+              {assignedDialog.leads.map(g => (
+                <TabsTrigger key={g.source} value={g.source} className="text-xs">
+                  {g.source} ({g.items.length})
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {assignedDialog.leads.map(g => (
+              <TabsContent key={g.source} value={g.source}>
+                <ScrollArea className="max-h-[55vh]">
+                  {g.items.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground text-sm">No leads from {g.source}</div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Customer</TableHead>
+                          <TableHead>Company</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>Product</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Date</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {g.items.map((item: any) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium text-sm">
+                              {item.customer_name || item.full_number || item.caller_number || '—'}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {item.customer_company || item.company || '—'}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {item.phone_number || item.full_number || item.caller_number || '—'}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {item.product_name || '—'}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-[10px]">
+                                {item.status || item.processing_status || item.call_status || '—'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              {item.created_at ? new Date(item.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </ScrollArea>
+              </TabsContent>
+            ))}
+          </Tabs>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
