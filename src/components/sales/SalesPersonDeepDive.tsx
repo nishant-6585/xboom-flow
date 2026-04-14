@@ -744,6 +744,6 @@ export function SalesPersonDeepDive({
           </Tabs>
         </DialogContent>
       </Dialog>
-    
+    </>
   );
 }
