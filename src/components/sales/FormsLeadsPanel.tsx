@@ -252,6 +252,17 @@ export function FormsLeadsPanel() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={formSourceFilter} onValueChange={setFormSourceFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Form Source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Forms ({uniqueFormNames.length})</SelectItem>
+                {uniqueFormNames.map((name) => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {isLoading ? (
