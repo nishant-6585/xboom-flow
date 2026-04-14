@@ -283,6 +283,7 @@ export function FormsLeadsPanel() {
                     <th className="py-2 px-3 font-medium">Cust. Type</th>
                     <th className="py-2 px-3 font-medium">Status</th>
                     <th className="py-2 px-3 font-medium">Assigned</th>
+                    <th className="py-2 px-3 font-medium">Created</th>
                     <th className="py-2 px-3 font-medium">Actions</th>
                   </tr>
                 </thead>
