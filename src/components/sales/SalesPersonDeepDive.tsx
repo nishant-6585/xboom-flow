@@ -672,6 +672,78 @@ export function SalesPersonDeepDive({
           })}
         </CardContent>
       </Card>
-    </>
+
+      {/* Assigned Leads Detail Dialog */}
+      <Dialog open={assignedDialog.open} onOpenChange={(o) => setAssignedDialog(prev => ({ ...prev, open: o }))}>
+        <DialogContent className="max-w-3xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="w-5 h-5 text-primary" />
+              Assigned Leads — {assignedDialog.name}
+              <Badge variant="secondary" className="ml-2">
+                {assignedDialog.leads.reduce((s, g) => s + g.items.length, 0)} total
+              </Badge>
+            </DialogTitle>
+          </DialogHeader>
+          <Tabs defaultValue={assignedDialog.leads.find(g => g.items.length > 0)?.source || 'Enquiries'}>
+            <TabsList className="flex-wrap h-auto gap-1">
+              {assignedDialog.leads.map(g => (
+                <TabsTrigger key={g.source} value={g.source} className="text-xs">
+                  {g.source} ({g.items.length})
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {assignedDialog.leads.map(g => (
+              <TabsContent key={g.source} value={g.source}>
+                <ScrollArea className="max-h-[55vh]">
+                  {g.items.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground text-sm">No leads from {g.source}</div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Customer</TableHead>
+                          <TableHead>Company</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>Product</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Date</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {g.items.map((item: any) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium text-sm">
+                              {item.customer_name || item.full_number || item.caller_number || '—'}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {item.customer_company || item.company || '—'}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {item.phone_number || item.full_number || item.caller_number || '—'}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {item.product_name || '—'}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-[10px]">
+                                {item.status || item.processing_status || item.call_status || '—'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              {item.created_at ? new Date(item.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </ScrollArea>
+              </TabsContent>
+            ))}
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+    
   );
 }
