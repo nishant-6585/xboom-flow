@@ -20,6 +20,7 @@ import { PipelineOrders } from '@/components/pipeline/PipelineOrders';
 import { WooOrderCard } from '@/components/orders/WooOrderCard';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
+import { SupportCallsDashboard } from '@/components/orders/SupportCallsDashboard';
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
 import { useWooCommerceOrders } from '@/hooks/useWooCommerceOrders';
