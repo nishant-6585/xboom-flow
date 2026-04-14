@@ -1,0 +1,2 @@
+ALTER TABLE public.outbound_call_logs DROP CONSTRAINT outbound_call_logs_lead_source_check;
+ALTER TABLE public.outbound_call_logs ADD CONSTRAINT outbound_call_logs_lead_source_check CHECK (lead_source IN ('myoperator', 'interakt', 'prospect', 'pipeline'));
