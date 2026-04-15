@@ -1114,6 +1114,151 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_reconciliation_uploads: {
+        Row: {
+          account_number: string | null
+          bank_name: string | null
+          created_at: string
+          error_message: string | null
+          file_name: string
+          file_type: string
+          file_url: string
+          id: string
+          parsed_count: number | null
+          updated_at: string
+          upload_status: string
+          uploaded_by: string
+          uploaded_by_name: string
+        }
+        Insert: {
+          account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_name: string
+          file_type: string
+          file_url: string
+          id?: string
+          parsed_count?: number | null
+          updated_at?: string
+          upload_status?: string
+          uploaded_by: string
+          uploaded_by_name?: string
+        }
+        Update: {
+          account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_name?: string
+          file_type?: string
+          file_url?: string
+          id?: string
+          parsed_count?: number | null
+          updated_at?: string
+          upload_status?: string
+          uploaded_by?: string
+          uploaded_by_name?: string
+        }
+        Relationships: []
+      }
+      bank_transactions: {
+        Row: {
+          account_id: string | null
+          bank_reference: string | null
+          created_at: string
+          credit_amount: number | null
+          debit_amount: number | null
+          id: string
+          internal_reference: string | null
+          match_confidence: number | null
+          matched_at: string | null
+          matched_by: string | null
+          matched_entity_id: string | null
+          matched_entity_type: string | null
+          narration: string | null
+          notes: string | null
+          running_balance: number | null
+          status: string
+          subaccount_id: string | null
+          transaction_date: string
+          transaction_type: string
+          updated_at: string
+          upload_id: string | null
+          value_date: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          bank_reference?: string | null
+          created_at?: string
+          credit_amount?: number | null
+          debit_amount?: number | null
+          id?: string
+          internal_reference?: string | null
+          match_confidence?: number | null
+          matched_at?: string | null
+          matched_by?: string | null
+          matched_entity_id?: string | null
+          matched_entity_type?: string | null
+          narration?: string | null
+          notes?: string | null
+          running_balance?: number | null
+          status?: string
+          subaccount_id?: string | null
+          transaction_date: string
+          transaction_type?: string
+          updated_at?: string
+          upload_id?: string | null
+          value_date?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          bank_reference?: string | null
+          created_at?: string
+          credit_amount?: number | null
+          debit_amount?: number | null
+          id?: string
+          internal_reference?: string | null
+          match_confidence?: number | null
+          matched_at?: string | null
+          matched_by?: string | null
+          matched_entity_id?: string | null
+          matched_entity_type?: string | null
+          narration?: string | null
+          notes?: string | null
+          running_balance?: number | null
+          status?: string
+          subaccount_id?: string | null
+          transaction_date?: string
+          transaction_type?: string
+          updated_at?: string
+          upload_id?: string | null
+          value_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_subaccount_id_fkey"
+            columns: ["subaccount_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation_subaccounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_upload_id_fkey"
+            columns: ["upload_id"]
+            isOneToOne: false
+            referencedRelation: "bank_reconciliation_uploads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       buyback_drones: {
         Row: {
           buyback_date: string
@@ -8498,6 +8643,122 @@ export type Database = {
           window_start?: string
         }
         Relationships: []
+      }
+      reconciliation_accounts: {
+        Row: {
+          account_type: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          account_type?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          account_type?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      reconciliation_rules: {
+        Row: {
+          account_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          keyword: string
+          priority: number
+          subaccount_id: string | null
+          suggested_category: string | null
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          keyword: string
+          priority?: number
+          subaccount_id?: string | null
+          suggested_category?: string | null
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          keyword?: string
+          priority?: number
+          subaccount_id?: string | null
+          suggested_category?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_rules_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_rules_subaccount_id_fkey"
+            columns: ["subaccount_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation_subaccounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reconciliation_subaccounts: {
+        Row: {
+          account_id: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_subaccounts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       repairs: {
         Row: {
