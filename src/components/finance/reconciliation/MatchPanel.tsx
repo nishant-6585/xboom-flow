@@ -88,9 +88,9 @@ export function MatchPanel({ transaction, onClose, onConfirmMatch }: Props) {
           detail = `Procurement: ${fmt(amount)}`;
         }
       } else if (entityType === 'expense') {
-        const { data } = await supabase.from('expenses').select('description, amount, category, expense_date').eq('id', entityId).maybeSingle();
+        const { data } = await supabase.from('expenses').select('description, amount, expense_date').eq('id', entityId).maybeSingle() as { data: any };
         if (data) {
-          label = `${data.category || 'Expense'}: ${(data.description || '').substring(0, 50)}`;
+          label = `Expense: ${(data.description || '').substring(0, 50)}`;
           amount = data.amount || 0;
           detail = `Date: ${data.expense_date}`;
         }
