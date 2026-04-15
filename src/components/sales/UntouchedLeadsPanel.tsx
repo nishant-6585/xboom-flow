@@ -48,6 +48,7 @@ function SourceBadge({ source }: { source: string }) {
     call: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
     form: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
     email: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
+    interakt: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
   };
   return <Badge variant="outline" className={colors[source] || ""}>{source}</Badge>;
 }
