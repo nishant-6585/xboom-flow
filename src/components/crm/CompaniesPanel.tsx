@@ -12,9 +12,11 @@ import { useCompanies, Company } from '@/hooks/useCompanies';
 import { useAuth } from '@/hooks/useAuth';
 import { CompanyDetailDrawer } from './CompanyDetailDrawer';
 import { CompanyDashboard } from './CompanyDashboard';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import {
   Search, Building2, Plus, Filter, ChevronRight, Loader2,
-  RefreshCw, Users, TrendingUp, IndianRupee
+  RefreshCw, Users, TrendingUp, IndianRupee, Download
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
