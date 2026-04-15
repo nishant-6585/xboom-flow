@@ -10,9 +10,10 @@ import { CashflowChart } from '@/components/finance/CashflowChart';
 import { ExpectedPaymentsForm } from '@/components/finance/ExpectedPaymentsForm';
 import { InvoiceAgingDashboard } from '@/components/finance/InvoiceAgingDashboard';
 import { PaymentRiskWidget } from '@/components/finance/PaymentRiskWidget';
+import { RecurringExpensesPanel } from '@/components/finance/recurring/RecurringExpensesPanel';
 import { 
   IndianRupee, TrendingUp, TrendingDown, Calendar, Plus, 
-  ArrowUpRight, ArrowDownRight, Loader2, Lock, FileSpreadsheet
+  ArrowUpRight, ArrowDownRight, Loader2, Lock, FileSpreadsheet, Repeat
 } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
 
