@@ -774,8 +774,16 @@ export function TallyDashboard() {
                           {r.profitMargin.toFixed(1)}%
                         </span>
                       </TableCell>
-                      <TableCell><PayBadge status={r.paymentStatus} /></TableCell>
-                      <TableCell><ProcPayBadge status={r.procurementPaymentStatus} /></TableCell>
+                      <TableCell>
+                        <button onClick={() => openOrderDialog(r.orderId)} className="cursor-pointer hover:opacity-80 transition-opacity" title="View Payment Details">
+                          <PayBadge status={r.paymentStatus} />
+                        </button>
+                      </TableCell>
+                      <TableCell>
+                        <button onClick={() => r.procurements.length > 0 ? openProcDialog(r.procurements[0]?.id) : openOrderDialog(r.orderId)} className="cursor-pointer hover:opacity-80 transition-opacity" title="View Procurement Payment Details">
+                          <ProcPayBadge status={r.procurementPaymentStatus} />
+                        </button>
+                      </TableCell>
                       <TableCell>
                         {r.inventoryFulfilled ? (
                           <div className="space-y-0.5">
