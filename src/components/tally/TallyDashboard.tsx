@@ -649,28 +649,60 @@ export function TallyDashboard() {
                   </TableRow>
                 ) : (
                   filtered.map((r) => (
-                    <TableRow key={r.orderId}>
-                      <TableCell className="font-mono text-xs font-medium">{r.orderNumber}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[100px] truncate">{r.invoiceNumber}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[100px] truncate">{r.poNumber}</TableCell>
+                    <TableRow key={r.orderId} className="group">
                       <TableCell>
-                        <div className="max-w-[140px]">
+                        <button onClick={() => openOrderDialog(r.orderId)} className="font-mono text-xs font-medium text-primary hover:underline cursor-pointer inline-flex items-center gap-1" title="View Order">
+                          {r.orderNumber} <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                        </button>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[100px] truncate">{r.invoiceNumber}</TableCell>
+                      <TableCell>
+                        {r.poNumber !== "—" ? (
+                          <button onClick={() => openProcDialog(r.orderId)} className="text-xs text-primary hover:underline cursor-pointer" title="View Procurement">
+                            {r.poNumber}
+                          </button>
+                        ) : <span className="text-xs text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell>
+                        <button onClick={() => openOrderDialog(r.orderId)} className="max-w-[140px] text-left cursor-pointer hover:opacity-80" title="View Order">
                           <p className="text-sm font-medium truncate">{r.customerName}</p>
                           <p className="text-xs text-muted-foreground truncate">{r.customerCompany}</p>
-                        </div>
+                        </button>
                       </TableCell>
-                      <TableCell className="text-sm max-w-[120px] truncate">{r.productName}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[100px] truncate">{r.supplierName}</TableCell>
+                      <TableCell>
+                        <button onClick={() => openOrderDialog(r.orderId)} className="text-sm max-w-[120px] truncate cursor-pointer hover:text-primary transition-colors" title="View Order">
+                          {r.productName}
+                        </button>
+                      </TableCell>
+                      <TableCell>
+                        {r.supplierName !== "—" ? (
+                          <button onClick={() => openProcDialog(r.orderId)} className="text-xs text-primary hover:underline cursor-pointer max-w-[100px] truncate" title="View Procurement">
+                            {r.supplierName}
+                          </button>
+                        ) : <span className="text-xs text-muted-foreground">—</span>}
+                      </TableCell>
                       <TableCell className="text-xs font-mono text-muted-foreground max-w-[100px] truncate">{r.customerGst}</TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-[100px] truncate">{r.salesPersonName}</TableCell>
-                      <TableCell className="text-right font-medium text-sm">{fmt(r.salesValue)}</TableCell>
-                      <TableCell className="text-right text-sm text-emerald-600 dark:text-emerald-400">{fmt(r.amountReceived)}</TableCell>
-                      <TableCell className="text-right text-sm">
-                        <span className={r.pendingPayment > 0 ? "text-amber-600 dark:text-amber-400 font-medium" : "text-muted-foreground"}>
-                          {fmt(r.pendingPayment)}
-                        </span>
+                      <TableCell className="text-right">
+                        <button onClick={() => openOrderDialog(r.orderId)} className="font-medium text-sm cursor-pointer hover:text-primary transition-colors" title="View Order">
+                          {fmt(r.salesValue)}
+                        </button>
                       </TableCell>
-                      <TableCell className="text-right text-sm">{fmt(r.procurementValue)}</TableCell>
+                      <TableCell className="text-right text-sm text-emerald-600 dark:text-emerald-400">
+                        <button onClick={() => openOrderDialog(r.orderId)} className="cursor-pointer hover:underline" title="View Payment Details">
+                          {fmt(r.amountReceived)}
+                        </button>
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
+                        <button onClick={() => openOrderDialog(r.orderId)} className={`cursor-pointer hover:underline ${r.pendingPayment > 0 ? "text-amber-600 dark:text-amber-400 font-medium" : "text-muted-foreground"}`} title="View Payment Details">
+                          {fmt(r.pendingPayment)}
+                        </button>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <button onClick={() => openProcDialog(r.orderId)} className="text-sm cursor-pointer hover:text-primary hover:underline transition-colors" title="View Procurement">
+                          {fmt(r.procurementValue)}
+                        </button>
+                      </TableCell>
                       <TableCell className="text-right text-sm">
                         <span className={r.profit >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-rose-600 dark:text-rose-400 font-medium"}>
                           {fmt(r.profit)}
@@ -696,6 +728,31 @@ export function TallyDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Loading overlay for dialog fetch */}
+      {dialogLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+          <div className="animate-pulse text-muted-foreground text-sm">Loading details...</div>
+        </div>
+      )}
+
+      {/* Order Detail Dialog */}
+      <OrderDialog
+        order={selectedFullOrder}
+        open={orderDialogOpen}
+        onOpenChange={(open) => { setOrderDialogOpen(open); if (!open) setSelectedFullOrder(null); }}
+        onUpdate={handleOrderUpdate}
+        onDelete={handleOrderDelete}
+      />
+
+      {/* Procurement Detail Dialog */}
+      <ProcurementOrderDialog
+        order={selectedFullOrder}
+        suppliers={suppliersList}
+        open={procDialogOpen}
+        onOpenChange={(open) => { setProcDialogOpen(open); if (!open) setSelectedFullOrder(null); }}
+        onUpdate={handleOrderUpdate}
+      />
     </div>
   );
 }
