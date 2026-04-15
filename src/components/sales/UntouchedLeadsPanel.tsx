@@ -420,7 +420,31 @@ export function UntouchedLeadsPanel() {
               </CardContent>
             </Card>
 
-            {/* Heatmap */}
+            {/* Source-wise Bucket Breakdown */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                  Source-wise Bucket Breakdown
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={stats.bySource}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="source" className="text-xs" />
+                    <YAxis className="text-xs" />
+                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
+                    <Legend />
+                    <Bar dataKey="t1" name="T+1" stackId="s" fill={BUCKET_COLORS["T+1"]} />
+                    <Bar dataKey="t2" name="T+2" stackId="s" fill={BUCKET_COLORS["T+2"]} />
+                    <Bar dataKey="t3" name="T+3" stackId="s" fill={BUCKET_COLORS["T+3"]} />
+                    <Bar dataKey="tPlus" name="T++" stackId="s" fill={BUCKET_COLORS["T++"]} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
             <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
