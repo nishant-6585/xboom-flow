@@ -1,17 +1,53 @@
 /**
  * Client-side CSV/Excel bank statement parser.
- * Supports ICICI and other Indian bank formats with metadata rows above the transaction table.
+ * Designed for real-world bank exports with metadata rows, varied headers, and mixed amount formats.
  */
+
+type CellValue = string | number | null | undefined;
+
+type CanonicalField =
+  | 'transaction_id'
+  | 'transaction_date'
+  | 'value_date'
+  | 'reference_no'
+  | 'narration'
+  | 'debit_amount'
+  | 'credit_amount'
+  | 'running_balance'
+  | 'amount';
+
+type AmountParseResult = {
+  value: number;
+  hasContent: boolean;
+  valid: boolean;
+};
+
+type SkipReason = 'blank' | 'summary' | 'data';
+
+type HeaderDetectionResult = {
+  index: number;
+  score: number;
+  mappedFields: CanonicalField[];
+};
+
+type HeaderMapping = {
+  indexes: Partial<Record<CanonicalField, number>>;
+  originalHeaders: string[];
+  mappedFields: CanonicalField[];
+};
 
 export interface ParsedTransaction {
   transaction_date: string;
   value_date: string | null;
+  transaction_id: string | null;
+  reference_no: string | null;
   bank_reference: string | null;
   narration: string | null;
   credit_amount: number;
   debit_amount: number;
   running_balance: number | null;
   transaction_type: 'credit' | 'debit' | 'unknown';
+  direction: 'Credit' | 'Debit' | 'Unknown';
 }
 
 export interface ParseDiagnostics {
@@ -19,376 +55,364 @@ export interface ParseDiagnostics {
   sheetName: string | null;
   detectedHeaderRow: number | null;
   detectedColumns: string[];
+  mappedFields: string[];
+  rowsScanned: number;
   rowsSkipped: number;
   transactionsParsed: number;
   reason: string | null;
 }
 
-// Rows containing these phrases are non-transaction rows to skip
-const SKIP_PHRASES = [
-  'page total', 'opening bal', 'closing bal', 'withdrawls:', 'withdrawals:',
-  'deposits:', 'legends used', 'legend:', 'statement summary', 'account statement',
-  'total:', 'end of statement', 'this is a computer generated',
-];
-
-function shouldSkipRow(cells: string[]): boolean {
-  const joined = cells.join(' ').toLowerCase().trim();
-  if (!joined || joined.replace(/[,.\s]/g, '').length === 0) return true;
-  return SKIP_PHRASES.some(p => joined.includes(p));
-}
-
-// ── Header detection ──────────────────────────────────────────────
-
-// Known header labels mapped to our internal field names
-const HEADER_MAP: Record<string, string> = {
-  'date': 'transaction_date',
-  'txn date': 'transaction_date',
-  'transaction date': 'transaction_date',
-  'trans date': 'transaction_date',
-  'posting date': 'transaction_date',
-  'value date': 'value_date',
-  'val date': 'value_date',
-  'value dt': 'value_date',
-  'reference': 'bank_reference',
-  'ref no': 'bank_reference',
-  'ref': 'bank_reference',
-  'chq no': 'bank_reference',
-  'cheque no': 'bank_reference',
-  'cheque no ref no': 'bank_reference',
-  'transaction id': 'bank_reference',
-  'tran id': 'bank_reference',
-  'utr': 'bank_reference',
-  'narration': 'narration',
-  'description': 'narration',
-  'particulars': 'narration',
-  'remarks': 'narration',
-  'details': 'narration',
-  'transaction details': 'narration',
-  'transaction remarks': 'narration',
-  'credit': 'credit_amount',
-  'credit amount': 'credit_amount',
-  'credit amt': 'credit_amount',
-  'credit amt inr': 'credit_amount',
-  'deposit amt': 'credit_amount',
-  'deposit amt inr': 'credit_amount',
-  'deposit': 'credit_amount',
-  'deposits': 'credit_amount',
-  'cr': 'credit_amount',
-  'debit': 'debit_amount',
-  'debit amount': 'debit_amount',
-  'debit amt': 'debit_amount',
-  'debit amt inr': 'debit_amount',
-  'withdrawal amt': 'debit_amount',
-  'withdrawal amt inr': 'debit_amount',
-  'withdrawal': 'debit_amount',
-  'withdrawals': 'debit_amount',
-  'dr': 'debit_amount',
-  'balance': 'running_balance',
-  'closing balance': 'running_balance',
-  'running balance': 'running_balance',
-  'available balance': 'running_balance',
-  'balance inr': 'running_balance',
-  'amount': 'amount',
+const HEADER_ALIASES: Record<CanonicalField, string[]> = {
+  transaction_id: ['tran id', 'transaction id', 'transaction id number', 'txn id', 'transaction number', 'utr', 'utr number'],
+  transaction_date: ['date', 'txn date', 'transaction date', 'trans date', 'posting date', 'transaction posted date'],
+  value_date: ['value date', 'val date', 'value dt'],
+  reference_no: ['cheque no', 'cheque number', 'cheque no ref no', 'cheque no reference no', 'cheque no ref', 'ref no', 'reference no', 'reference number', 'ref number', 'reference'],
+  narration: ['transaction remarks', 'remarks', 'narration', 'description', 'particulars', 'transaction details', 'details'],
+  debit_amount: ['withdrawal amt', 'withdrawal amount', 'withdrawal', 'debit amt', 'debit amount', 'debit', 'dr'],
+  credit_amount: ['deposit amt', 'deposit amount', 'deposit', 'credit amt', 'credit amount', 'credit', 'cr'],
+  running_balance: ['balance', 'balance amount', 'running balance', 'closing balance', 'available balance'],
+  amount: ['amount', 'transaction amount'],
 };
 
-/**
- * Normalize a raw header string for matching:
- * lowercase, remove parens/dots/slashes, collapse whitespace.
- */
-function normalizeHeader(h: string): string {
-  const key = h
-    .toLowerCase()
-    .replace(/\(.*?\)/g, '')       // remove parenthetical like (INR)
-    .replace(/[^a-z0-9 ]/g, ' ')   // non-alphanum → space
-    .replace(/\s+/g, ' ')
-    .trim();
-  // Exact match first
-  if (HEADER_MAP[key]) return HEADER_MAP[key];
-  // Partial / fuzzy match
-  for (const [pattern, field] of Object.entries(HEADER_MAP)) {
-    if (key.includes(pattern) || pattern.includes(key)) return field;
-  }
-  return key;
-}
-
-/**
- * Check whether a row of strings looks like the transaction header.
- * Must contain narration-like AND (credit or debit) columns.
- */
-function isHeaderRow(cells: string[]): boolean {
-  const mapped = cells.map(normalizeHeader);
-  const hasNarration = mapped.includes('narration');
-  const hasCredit = mapped.includes('credit_amount');
-  const hasDebit = mapped.includes('debit_amount');
-  const hasAmount = mapped.includes('amount');
-  return hasNarration && (hasCredit || hasDebit || hasAmount);
-}
-
-// ── Date parsing ──────────────────────────────────────────────────
+const SKIP_PHRASES = [
+  'page total',
+  'opening bal',
+  'opening balance',
+  'closing bal',
+  'closing balance',
+  'withdrawls',
+  'withdrawals',
+  'deposits',
+  'legends used in account statement',
+  'legends used',
+  'legend',
+  'statement summary',
+  'account statement',
+  'this is a computer generated',
+  'summary',
+  'total credits',
+  'total debits',
+  'page no',
+  'generated on',
+];
 
 const MONTH_ABBR: Record<string, string> = {
   jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
   jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
 };
 
-function parseDate(val: string | number | null | undefined): string | null {
-  if (val == null) return null;
-  // Excel serial date number
-  if (typeof val === 'number') {
-    const d = new Date(Math.round((val - 25569) * 86400 * 1000));
-    if (!isNaN(d.getTime())) {
-      return d.toISOString().substring(0, 10);
-    }
-    return null;
+function normalizeComparableText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\b(inr|rs|rupees)\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeHeader(value: string): string {
+  return normalizeComparableText(value);
+}
+
+function mapHeaderToField(header: string): CanonicalField | null {
+  const normalized = normalizeHeader(header);
+  if (!normalized) return null;
+
+  for (const [field, aliases] of Object.entries(HEADER_ALIASES) as [CanonicalField, string[]][]) {
+    if (aliases.includes(normalized)) return field;
   }
-  const s = String(val).trim();
-  if (!s) return null;
-  // ISO: 2026-04-14
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
-  // DD/MM/YYYY or DD-MM-YYYY
-  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
-  // DD/MM/YY or DD-MM-YY
-  const m2 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/);
-  if (m2) return `20${m2[3]}-${m2[2].padStart(2, '0')}-${m2[1].padStart(2, '0')}`;
-  // DD/Mon/YYYY or DD-Mon-YYYY (e.g. 14/Apr/2026)
-  const m3 = s.match(/^(\d{1,2})[\/\-]([A-Za-z]{3})[\/\-](\d{4})$/);
-  if (m3) {
-    const mon = MONTH_ABBR[m3[2].toLowerCase()];
-    if (mon) return `${m3[3]}-${mon}-${m3[1].padStart(2, '0')}`;
-  }
-  // DD-Mon-YY (e.g. 14-Apr-26)
-  const m4 = s.match(/^(\d{1,2})[\/\-]([A-Za-z]{3})[\/\-](\d{2})$/);
-  if (m4) {
-    const mon = MONTH_ABBR[m4[2].toLowerCase()];
-    if (mon) return `20${m4[3]}-${mon}-${m4[1].padStart(2, '0')}`;
-  }
-  // DD Mon YYYY (e.g. 14 Apr 2026)
-  const m5 = s.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})$/);
-  if (m5) {
-    const mon = MONTH_ABBR[m5[2].toLowerCase()];
-    if (mon) return `${m5[3]}-${mon}-${m5[1].padStart(2, '0')}`;
-  }
-  // DD/MM/YYYY HH:MM:SS (with timestamp — e.g. "14/04/2026 02:42:17 PM")
-  const m6 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s+\d/);
-  if (m6) return `${m6[3]}-${m6[2].padStart(2, '0')}-${m6[1].padStart(2, '0')}`;
+
+  if (normalized.includes('remarks') || normalized.includes('narration') || normalized.includes('description') || normalized.includes('particular')) return 'narration';
+  if (normalized.includes('value date')) return 'value_date';
+  if (normalized.includes('transaction date') || normalized.includes('txn date') || normalized.includes('posting date') || normalized === 'date') return 'transaction_date';
+  if ((normalized.includes('transaction') || normalized.includes('txn') || normalized.includes('tran')) && normalized.includes('id')) return 'transaction_id';
+  if (normalized.includes('reference') || normalized.includes('ref no') || normalized.includes('cheque no')) return 'reference_no';
+  if (normalized.includes('withdraw') || normalized.includes('debit') || normalized === 'dr') return 'debit_amount';
+  if (normalized.includes('deposit') || normalized.includes('credit') || normalized === 'cr') return 'credit_amount';
+  if (normalized.includes('balance')) return 'running_balance';
+  if (normalized === 'amount' || normalized.endsWith(' amount')) return 'amount';
+
   return null;
 }
 
-// ── Number parsing (Indian format support) ────────────────────────
+function classifyRow(cells: string[]): SkipReason {
+  const normalizedCells = cells.map((cell) => normalizeComparableText(cell)).filter(Boolean);
+  if (normalizedCells.length === 0) return 'blank';
 
-function parseNumber(val: string | number | null | undefined): number {
-  if (val == null || val === '') return 0;
-  if (typeof val === 'number') return isNaN(val) ? 0 : val;
-  const cleaned = String(val).trim().replace(/,/g, '').replace(/[^0-9.\-]/g, '');
-  return parseFloat(cleaned) || 0;
+  const joined = normalizedCells.join(' ');
+  if (!joined) return 'blank';
+  if (SKIP_PHRASES.some((phrase) => joined.includes(phrase))) return 'summary';
+  return 'data';
 }
 
-// ── CSV line splitter ─────────────────────────────────────────────
+function scoreHeaderRow(cells: CellValue[]): HeaderDetectionResult {
+  const mappedFields = Array.from(new Set(cells.map((cell) => mapHeaderToField(String(cell ?? ''))).filter(Boolean) as CanonicalField[]));
+  let score = 0;
+
+  if (mappedFields.includes('narration')) score += 2;
+  if (mappedFields.includes('transaction_date')) score += 2;
+  if (mappedFields.includes('debit_amount') || mappedFields.includes('credit_amount') || mappedFields.includes('amount')) score += 2;
+  if (mappedFields.includes('running_balance')) score += 1;
+  if (mappedFields.includes('transaction_id') || mappedFields.includes('reference_no')) score += 1;
+
+  return { index: -1, score, mappedFields };
+}
+
+function detectHeaderRow(rows: CellValue[][]): HeaderDetectionResult | null {
+  let best: HeaderDetectionResult | null = null;
+
+  rows.forEach((row, index) => {
+    const candidate = scoreHeaderRow(row);
+    const withIndex = { ...candidate, index };
+
+    if (!best || withIndex.score > best.score || (withIndex.score === best.score && withIndex.mappedFields.length > best.mappedFields.length)) {
+      best = withIndex;
+    }
+  });
+
+  return best;
+}
+
+function buildHeaderMapping(headerRow: CellValue[]): HeaderMapping {
+  const indexes: Partial<Record<CanonicalField, number>> = {};
+  const originalHeaders = headerRow.map((cell) => String(cell ?? '').trim());
+
+  headerRow.forEach((cell, index) => {
+    const field = mapHeaderToField(String(cell ?? ''));
+    if (field && indexes[field] == null) indexes[field] = index;
+  });
+
+  return {
+    indexes,
+    originalHeaders,
+    mappedFields: Object.keys(indexes) as CanonicalField[],
+  };
+}
+
+function getCell(row: CellValue[], index?: number): CellValue {
+  if (index == null) return null;
+  return row[index];
+}
+
+function stringifyCell(value: CellValue): string {
+  if (value == null) return '';
+  return String(value).trim();
+}
+
+function parseDate(val: CellValue): string | null {
+  if (val == null) return null;
+  if (typeof val === 'number') {
+    const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+    return Number.isNaN(d.getTime()) ? null : d.toISOString().substring(0, 10);
+  }
+
+  const s = String(val).trim();
+  if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+
+  const ddmmyyyy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+\d.*)?$/);
+  if (ddmmyyyy) return `${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, '0')}-${ddmmyyyy[1].padStart(2, '0')}`;
+
+  const ddmmyy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/);
+  if (ddmmyy) return `20${ddmmyy[3]}-${ddmmyy[2].padStart(2, '0')}-${ddmmyy[1].padStart(2, '0')}`;
+
+  const ddMonYYYY = s.match(/^(\d{1,2})[\/\-\s]([A-Za-z]{3})[\/\-\s](\d{4})$/);
+  if (ddMonYYYY) {
+    const month = MONTH_ABBR[ddMonYYYY[2].toLowerCase()];
+    if (month) return `${ddMonYYYY[3]}-${month}-${ddMonYYYY[1].padStart(2, '0')}`;
+  }
+
+  const ddMonYY = s.match(/^(\d{1,2})[\/\-\s]([A-Za-z]{3})[\/\-\s](\d{2})$/);
+  if (ddMonYY) {
+    const month = MONTH_ABBR[ddMonYY[2].toLowerCase()];
+    if (month) return `20${ddMonYY[3]}-${month}-${ddMonYY[1].padStart(2, '0')}`;
+  }
+
+  return null;
+}
+
+function parseAmount(value: CellValue): AmountParseResult {
+  if (value == null) return { value: 0, hasContent: false, valid: true };
+  if (typeof value === 'number') return { value: Number.isFinite(value) ? value : 0, hasContent: true, valid: Number.isFinite(value) };
+
+  const raw = String(value).trim();
+  if (!raw) return { value: 0, hasContent: false, valid: true };
+
+  const negative = raw.startsWith('(') && raw.endsWith(')');
+  const cleaned = raw.replace(/,/g, '').replace(/[₹\s]/g, '').replace(/[()]/g, '');
+  if (!cleaned) return { value: 0, hasContent: false, valid: true };
+
+  const parsed = Number(cleaned);
+  if (!Number.isFinite(parsed)) return { value: 0, hasContent: true, valid: false };
+  return { value: negative ? -parsed : parsed, hasContent: true, valid: true };
+}
 
 function splitCSVLine(line: string): string[] {
   const result: string[] = [];
   let current = '';
   let inQuotes = false;
+
   for (const char of line) {
-    if (char === '"') { inQuotes = !inQuotes; continue; }
-    if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; continue; }
+    if (char === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+    if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+      continue;
+    }
     current += char;
   }
+
   result.push(current.trim());
   return result;
 }
 
-// ── Main CSV parser ───────────────────────────────────────────────
+function deriveFailureReason(mapping: HeaderMapping | null, counters: Record<string, number>): string {
+  if (!mapping) {
+    return counters.headerSignals > 0 ? 'Required columns could not be mapped' : 'Header row could not be detected';
+  }
 
-export function parseCSVContent(csvText: string, diagnostics?: ParseDiagnostics): ParsedTransaction[] {
-  const lines = csvText.split(/\r?\n/).filter(l => l.trim());
-  if (lines.length < 2) {
-    if (diagnostics) diagnostics.reason = 'File has fewer than 2 lines';
+  const hasDate = mapping.indexes.transaction_date != null;
+  const hasAmountColumns = mapping.indexes.debit_amount != null || mapping.indexes.credit_amount != null || mapping.indexes.amount != null;
+
+  if (!hasDate || !hasAmountColumns) return 'Required columns could not be mapped';
+  if (counters.amountParseFailures > 0 && counters.noAmountRows === 0) return 'Amount values could not be parsed';
+  if (counters.summaryRows + counters.blankRows > 0 && counters.validDataRows === 0 && counters.invalidDateRows === 0 && counters.noAmountRows === 0) return 'Only summary or blank rows were found';
+  if (counters.noAmountRows > 0 || counters.validDataRows > 0) return 'No valid debit or credit rows were found';
+  if (counters.invalidDateRows > 0) return 'No valid transaction dates were found after the header row';
+  return 'No transactions could be parsed from the file';
+}
+
+function parseRows(rows: CellValue[][], diagnostics?: ParseDiagnostics): ParsedTransaction[] {
+  if (rows.length < 2) {
+    if (diagnostics) diagnostics.reason = 'File has fewer than 2 rows';
     return [];
   }
 
-  // Scan up to 30 rows for header
-  let headerIdx = -1;
-  for (let i = 0; i < Math.min(30, lines.length); i++) {
-    const cols = splitCSVLine(lines[i]);
-    if (isHeaderRow(cols)) {
-      headerIdx = i;
-      break;
-    }
-  }
+  const rowsScanned = Math.min(30, rows.length);
+  const scannedRows = rows.slice(0, rowsScanned);
+  const bestHeader = detectHeaderRow(scannedRows);
+  const headerSignals = scannedRows.reduce((max, row) => Math.max(max, scoreHeaderRow(row).score), 0);
 
-  if (headerIdx === -1) {
-    // Fallback: try first row with ≥2 known columns (old behaviour)
-    for (let i = 0; i < Math.min(10, lines.length); i++) {
-      const cols = splitCSVLine(lines[i]);
-      const mapped = cols.map(normalizeHeader);
-      const matchCount = mapped.filter(m => Object.values(HEADER_MAP).includes(m)).length;
-      if (matchCount >= 2) { headerIdx = i; break; }
+  if (!bestHeader || bestHeader.score < 4) {
+    if (diagnostics) {
+      diagnostics.rowsScanned = rowsScanned;
+      diagnostics.reason = headerSignals > 0 ? 'Required columns could not be mapped' : 'Header row could not be detected';
     }
-  }
-
-  if (headerIdx === -1) {
-    if (diagnostics) diagnostics.reason = 'Could not detect a valid header row in first 30 rows';
     return [];
   }
 
-  const rawHeaders = splitCSVLine(lines[headerIdx]);
-  const headers = rawHeaders.map(normalizeHeader);
+  const mapping = buildHeaderMapping(rows[bestHeader.index]);
 
   if (diagnostics) {
-    diagnostics.detectedHeaderRow = headerIdx + 1;
-    diagnostics.detectedColumns = rawHeaders.filter(h => h.trim());
+    diagnostics.rowsScanned = rowsScanned;
+    diagnostics.detectedHeaderRow = bestHeader.index + 1;
+    diagnostics.detectedColumns = mapping.originalHeaders.filter(Boolean);
+    diagnostics.mappedFields = mapping.mappedFields;
   }
 
+  const hasDate = mapping.indexes.transaction_date != null;
+  const hasAmountColumns = mapping.indexes.debit_amount != null || mapping.indexes.credit_amount != null || mapping.indexes.amount != null;
+  if (!hasDate || !hasAmountColumns) {
+    if (diagnostics) diagnostics.reason = 'Required columns could not be mapped';
+    return [];
+  }
+
+  const counters = {
+    blankRows: 0,
+    summaryRows: 0,
+    invalidDateRows: 0,
+    noAmountRows: 0,
+    amountParseFailures: 0,
+    validDataRows: 0,
+    headerSignals,
+  };
+
   const results: ParsedTransaction[] = [];
-  let skipped = 0;
 
-  for (let i = headerIdx + 1; i < lines.length; i++) {
-    const cols = splitCSVLine(lines[i]);
-    if (cols.length < 3) { skipped++; continue; }
+  for (let index = bestHeader.index + 1; index < rows.length; index++) {
+    const row = rows[index] ?? [];
+    const rowCells = row.map((cell) => stringifyCell(cell));
+    const classification = classifyRow(rowCells);
 
-    // Skip non-transaction rows
-    if (shouldSkipRow(cols)) { skipped++; continue; }
-
-    const row: Record<string, string> = {};
-    headers.forEach((h, idx) => { row[h] = cols[idx] || ''; });
-
-    const txDate = parseDate(row['transaction_date']);
-    if (!txDate) { skipped++; continue; }
-
-    let credit = parseNumber(row['credit_amount']);
-    let debit = parseNumber(row['debit_amount']);
-
-    // If only 'amount' column exists
-    if (!credit && !debit && row['amount']) {
-      const amt = parseNumber(row['amount']);
-      if (amt > 0) credit = amt;
-      else debit = Math.abs(amt);
+    if (classification === 'blank') {
+      counters.blankRows += 1;
+      continue;
     }
 
-    // Valid transaction needs at least one non-zero amount
-    if (credit <= 0 && debit <= 0) { skipped++; continue; }
+    if (classification === 'summary') {
+      counters.summaryRows += 1;
+      continue;
+    }
 
-    const txType = credit > 0 ? 'credit' : 'debit';
+    counters.validDataRows += 1;
+
+    const transactionDate = parseDate(getCell(row, mapping.indexes.transaction_date));
+    if (!transactionDate) {
+      counters.invalidDateRows += 1;
+      continue;
+    }
+
+    const debitResult = parseAmount(getCell(row, mapping.indexes.debit_amount));
+    const creditResult = parseAmount(getCell(row, mapping.indexes.credit_amount));
+    const amountResult = parseAmount(getCell(row, mapping.indexes.amount));
+
+    if ((!debitResult.valid && debitResult.hasContent) || (!creditResult.valid && creditResult.hasContent) || (!amountResult.valid && amountResult.hasContent)) {
+      counters.amountParseFailures += 1;
+    }
+
+    let debit = Math.max(debitResult.value, 0);
+    let credit = Math.max(creditResult.value, 0);
+
+    if (debit <= 0 && credit <= 0 && amountResult.valid && amountResult.hasContent) {
+      if (amountResult.value < 0) debit = Math.abs(amountResult.value);
+      if (amountResult.value > 0) credit = amountResult.value;
+    }
+
+    if (debit <= 0 && credit <= 0) {
+      counters.noAmountRows += 1;
+      continue;
+    }
+
+    const transactionId = stringifyCell(getCell(row, mapping.indexes.transaction_id)) || null;
+    const referenceNo = stringifyCell(getCell(row, mapping.indexes.reference_no)) || null;
+    const direction: ParsedTransaction['direction'] = credit > 0 ? 'Credit' : debit > 0 ? 'Debit' : 'Unknown';
+
+    const balanceResult = parseAmount(getCell(row, mapping.indexes.running_balance));
 
     results.push({
-      transaction_date: txDate,
-      value_date: parseDate(row['value_date']),
-      bank_reference: row['bank_reference'] || null,
-      narration: row['narration'] || null,
+      transaction_date: transactionDate,
+      value_date: parseDate(getCell(row, mapping.indexes.value_date)),
+      transaction_id: transactionId,
+      reference_no: referenceNo,
+      bank_reference: referenceNo || transactionId,
+      narration: stringifyCell(getCell(row, mapping.indexes.narration)) || null,
       credit_amount: credit,
       debit_amount: debit,
-      running_balance: row['running_balance'] ? parseNumber(row['running_balance']) : null,
-      transaction_type: txType,
+      running_balance: balanceResult.hasContent && balanceResult.valid ? balanceResult.value : null,
+      transaction_type: direction === 'Credit' ? 'credit' : direction === 'Debit' ? 'debit' : 'unknown',
+      direction,
     });
   }
 
   if (diagnostics) {
-    diagnostics.rowsSkipped = skipped;
+    diagnostics.rowsSkipped = counters.blankRows + counters.summaryRows + counters.invalidDateRows + counters.noAmountRows;
     diagnostics.transactionsParsed = results.length;
-    if (results.length === 0 && !diagnostics.reason) {
-      diagnostics.reason = 'Header detected but no valid transaction rows found after it';
-    }
+    if (results.length === 0) diagnostics.reason = deriveFailureReason(mapping, counters);
   }
 
   return results;
 }
 
-// ── Excel (XLSX) specific parser ──────────────────────────────────
+export function parseCSVContent(csvText: string, diagnostics?: ParseDiagnostics): ParsedTransaction[] {
+  const rows = csvText.split(/\r?\n/).map(splitCSVLine);
+  return parseRows(rows, diagnostics);
+}
 
-/**
- * Parse an XLSX worksheet that has been converted to a 2D array of cells.
- * This handles metadata rows, ICICI-style headers, and Indian number formats.
- */
-export function parseExcelRows(rows: (string | number | null | undefined)[][], diagnostics?: ParseDiagnostics): ParsedTransaction[] {
-  if (rows.length < 2) {
-    if (diagnostics) diagnostics.reason = 'Sheet has fewer than 2 rows';
-    return [];
-  }
-
-  // Find header row
-  let headerIdx = -1;
-  for (let i = 0; i < Math.min(30, rows.length); i++) {
-    const cells = rows[i].map(c => String(c ?? ''));
-    if (isHeaderRow(cells)) {
-      headerIdx = i;
-      break;
-    }
-  }
-
-  if (headerIdx === -1) {
-    // Fallback
-    for (let i = 0; i < Math.min(30, rows.length); i++) {
-      const cells = rows[i].map(c => String(c ?? ''));
-      const mapped = cells.map(normalizeHeader);
-      const matchCount = mapped.filter(m => Object.values(HEADER_MAP).includes(m)).length;
-      if (matchCount >= 2) { headerIdx = i; break; }
-    }
-  }
-
-  if (headerIdx === -1) {
-    if (diagnostics) diagnostics.reason = 'Could not detect a valid header row in first 30 rows';
-    return [];
-  }
-
-  const rawHeaders = rows[headerIdx].map(c => String(c ?? ''));
-  const headers = rawHeaders.map(normalizeHeader);
-
-  if (diagnostics) {
-    diagnostics.detectedHeaderRow = headerIdx + 1;
-    diagnostics.detectedColumns = rawHeaders.filter(h => h.trim());
-  }
-
-  const results: ParsedTransaction[] = [];
-  let skipped = 0;
-
-  for (let i = headerIdx + 1; i < rows.length; i++) {
-    const cells = rows[i];
-    const cellStrings = cells.map(c => String(c ?? ''));
-
-    if (shouldSkipRow(cellStrings)) { skipped++; continue; }
-
-    const row: Record<string, string | number | null | undefined> = {};
-    headers.forEach((h, idx) => { row[h] = cells[idx]; });
-
-    const txDate = parseDate(row['transaction_date'] as any);
-    if (!txDate) { skipped++; continue; }
-
-    let credit = parseNumber(row['credit_amount'] as any);
-    let debit = parseNumber(row['debit_amount'] as any);
-
-    if (!credit && !debit && row['amount'] != null) {
-      const amt = parseNumber(row['amount'] as any);
-      if (amt > 0) credit = amt;
-      else debit = Math.abs(amt);
-    }
-
-    if (credit <= 0 && debit <= 0) { skipped++; continue; }
-
-    const txType = credit > 0 ? 'credit' : 'debit';
-
-    results.push({
-      transaction_date: txDate,
-      value_date: parseDate(row['value_date'] as any),
-      bank_reference: row['bank_reference'] ? String(row['bank_reference']) : null,
-      narration: row['narration'] ? String(row['narration']) : null,
-      credit_amount: credit,
-      debit_amount: debit,
-      running_balance: row['running_balance'] != null ? parseNumber(row['running_balance'] as any) : null,
-      transaction_type: txType,
-    });
-  }
-
-  if (diagnostics) {
-    diagnostics.rowsSkipped = skipped;
-    diagnostics.transactionsParsed = results.length;
-    if (results.length === 0 && !diagnostics.reason) {
-      diagnostics.reason = 'Header detected but no valid transaction rows found after it';
-    }
-  }
-
-  return results;
+export function parseExcelRows(rows: CellValue[][], diagnostics?: ParseDiagnostics): ParsedTransaction[] {
+  return parseRows(rows, diagnostics);
 }
 
 export function createDiagnostics(fileName: string): ParseDiagnostics {
@@ -397,6 +421,8 @@ export function createDiagnostics(fileName: string): ParseDiagnostics {
     sheetName: null,
     detectedHeaderRow: null,
     detectedColumns: [],
+    mappedFields: [],
+    rowsScanned: 0,
     rowsSkipped: 0,
     transactionsParsed: 0,
     reason: null,
@@ -405,12 +431,14 @@ export function createDiagnostics(fileName: string): ParseDiagnostics {
 
 export function detectDuplicates(existing: ParsedTransaction[], incoming: ParsedTransaction[]): Set<number> {
   const dupeIndices = new Set<number>();
-  const existingKeys = new Set(existing.map(t =>
+  const existingKeys = new Set(existing.map((t) =>
     `${t.transaction_date}_${t.credit_amount}_${t.debit_amount}_${(t.narration || '').substring(0, 30)}`
   ));
+
   incoming.forEach((t, i) => {
     const key = `${t.transaction_date}_${t.credit_amount}_${t.debit_amount}_${(t.narration || '').substring(0, 30)}`;
     if (existingKeys.has(key)) dupeIndices.add(i);
   });
+
   return dupeIndices;
 }
