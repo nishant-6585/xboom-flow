@@ -1602,9 +1602,48 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   Purchase Order (PO)
                 </h4>
               </div>
+
+              {/* PO Number - editable */}
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">PO No:</span>
+                {editingPoNumber ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <Input
+                      value={poNumber}
+                      onChange={(e) => setPoNumber(e.target.value)}
+                      placeholder="Enter PO number"
+                      className="h-7 text-sm flex-1"
+                    />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2"
+                      onClick={async () => {
+                        if (order) {
+                          await onUpdate(order.id, { po_number: poNumber || null });
+                        }
+                        setEditingPoNumber(false);
+                      }}
+                    >
+                      Save
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingPoNumber(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-medium">{poNumber || '—'}</span>
+                    {canEditOrder && (
+                      <Button size="sm" variant="ghost" className="h-6 px-1.5 text-xs" onClick={() => setEditingPoNumber(true)}>
+                        Edit
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
               
               {poUrl ? (
-                <div className="space-y-2">
                   {poUrl.split(',').map((url, idx) => (
                     <div key={idx} className="flex items-center justify-between p-3 bg-background rounded-lg border">
                       <a
