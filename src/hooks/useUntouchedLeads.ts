@@ -49,7 +49,7 @@ export function useUntouchedLeads() {
       const [enquiriesRes, callsRes, formsRes, emailsRes, interaktRes] = await Promise.all([
         supabase
           .from("enquiries")
-          .select("id, customer_name, product_name, lead_source, sales_person_id, sales_person_name, created_at, updated_at, status, customer_phone, customer_email, customer_company")
+          .select("id, customer_name, product_name, lead_source, sales_person_id, sales_person_name, created_at, updated_at, status, customer_company")
           .not("status", "in", "(order_won,moved_to_pipeline,lost)"),
         supabase
           .from("call_logs")
@@ -57,7 +57,7 @@ export function useUntouchedLeads() {
           .eq("lead_created", false),
         supabase
           .from("form_leads")
-          .select("id, customer_name, city, product_name, sales_person_id, sales_person_name, created_at, updated_at, status, phone_number, email, company")
+          .select("id, customer_name, city, product_name, sales_person_id, sales_person_name, created_at, updated_at, status, phone, email, company")
           .not("status", "in", "(converted,prospect)"),
         supabase
           .from("email_leads")
