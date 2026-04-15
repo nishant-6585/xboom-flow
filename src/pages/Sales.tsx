@@ -187,6 +187,10 @@ export default function Sales() {
                   <PieChart className="w-3.5 h-3.5" />
                   Analytics
                 </TabsTrigger>
+                <TabsTrigger value="category_funnel" className={`${triggerSecondary} data-[state=active]:bg-emerald-600 data-[state=active]:text-white`}>
+                  <GitBranch className="w-3.5 h-3.5" />
+                  Category Funnel
+                </TabsTrigger>
                 <TabsTrigger value="faq" className={triggerSecondaryPrimary}>
                   <HelpCircle className="w-3.5 h-3.5" />
                   FAQ
