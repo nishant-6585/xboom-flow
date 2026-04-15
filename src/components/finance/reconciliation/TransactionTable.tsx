@@ -165,10 +165,17 @@ export function TransactionTable({ transactions, accounts, subaccounts, onUpdate
                   <TableCell className="text-xs text-right text-red-600 font-medium">{tx.debit_amount > 0 ? fmt(tx.debit_amount) : '-'}</TableCell>
                   <TableCell className="text-xs text-right">{tx.running_balance != null ? fmt(tx.running_balance) : '-'}</TableCell>
                   <TableCell>
-                    <Select value={tx.status} onValueChange={v => onUpdate(tx.id, { status: v as any })}>
-                      <SelectTrigger className="h-7 text-xs border-0 p-0 shadow-none">{getStatusBadge(tx.status)}</SelectTrigger>
-                      <SelectContent>{TRANSACTION_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-1">
+                      <Select value={tx.status} onValueChange={v => onUpdate(tx.id, { status: v as any })}>
+                        <SelectTrigger className="h-7 text-xs border-0 p-0 shadow-none">{getStatusBadge(tx.status)}</SelectTrigger>
+                        <SelectContent>{TRANSACTION_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+                      </Select>
+                      {(tx.status === 'auto_matched' || tx.status === 'reconciled') && (
+                        <Button variant="ghost" size="icon" className="h-6 w-6 p-0 shrink-0" onClick={() => onOpenMatch(tx)} title="View matched details">
+                          <Link2 className="h-3 w-3 text-primary" />
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Select value={tx.account_id || 'none'} onValueChange={v => onUpdate(tx.id, { account_id: v === 'none' ? null : v, subaccount_id: null })}>
