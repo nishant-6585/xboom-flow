@@ -198,6 +198,8 @@ export function TallyDashboard() {
   const handleOrderDelete = useCallback(async () => {
     return false; // Read-only in tally context
   }, []);
+
+  useEffect(() => {
     const fetchData = async () => {
       try {
         const [ordersRes, procRes, itemsRes, invoicesRes, suppliersRes] = await Promise.all([
