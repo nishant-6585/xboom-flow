@@ -1523,6 +1523,13 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   Invoice
                 </h4>
               </div>
+
+              {invoiceNumber && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Invoice No:</span>
+                  <span className="font-mono font-medium">{invoiceNumber}</span>
+                </div>
+              )}
               
               {invoiceUrl ? (
                 <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
