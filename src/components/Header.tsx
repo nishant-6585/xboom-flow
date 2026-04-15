@@ -29,7 +29,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export function Header() {
-  const { profile, role, signOut } = useAuth();
+  const { profile, role, roles, signOut } = useAuth();
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
@@ -67,7 +67,7 @@ export function Header() {
     { path: "/inventory", label: "Inventory", icon: Warehouse, roles: ["sales", "sales_manager", "supply_chain", "admin"] },
     { path: "/suppliers", label: "Suppliers", icon: Building2, roles: ["admin", "supply_chain", "finance"] },
     { path: "/finance", label: "Finance", icon: IndianRupee, roles: ["admin", "finance"] },
-    { path: "/tally", label: "Tally", icon: BookCheck, roles: ["admin"] },
+    { path: "/tally", label: "Tally", icon: BookCheck, roles: ["admin", "finance"] },
     { path: "/admin", label: "Admin", icon: Shield, roles: ["admin", "finance"] },
   ];
 
@@ -81,15 +81,15 @@ export function Header() {
     { path: "/repairs", label: "Repairs", icon: Wrench, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/billing", label: "Billing", icon: FileText, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/buyback", label: "Buyback", icon: RotateCcw, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance"] },
-    
     { path: "/daily-flow", label: "Daily Flow", icon: CalendarClock, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/drone-operations", label: "Demo & Trainings", icon: Cpu, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    
   ];
 
-  const filteredMainNavItems = mainNavItems.filter((item) => item.roles.includes(role || ""));
-  const filteredSecondaryNavItems = secondaryNavItems.filter((item) => item.roles.includes(role || ""));
-  const allNavItems = [...mainNavItems, ...secondaryNavItems].filter((item) => item.roles.includes(role || ""));
+  const hasNavAccess = (itemRoles: string[]) => itemRoles.some((itemRole) => itemRole === role || roles.includes(itemRole as any));
+
+  const filteredMainNavItems = mainNavItems.filter((item) => hasNavAccess(item.roles));
+  const filteredSecondaryNavItems = secondaryNavItems.filter((item) => hasNavAccess(item.roles));
+  const allNavItems = [...mainNavItems, ...secondaryNavItems].filter((item) => hasNavAccess(item.roles));
 
   return (
     <>
