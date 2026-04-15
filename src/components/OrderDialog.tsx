@@ -114,6 +114,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [paymentDueDate, setPaymentDueDate] = useState('');
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
   const [poUrl, setPoUrl] = useState<string | null>(null);
+  const [invoiceNumber, setInvoiceNumber] = useState<string>('');
+  const [poNumber, setPoNumber] = useState<string>('');
+  const [editingPoNumber, setEditingPoNumber] = useState(false);
   const [isRefundRequested, setIsRefundRequested] = useState(false);
   const [refundReason, setRefundReason] = useState('');
   const [refundStatus, setRefundStatus] = useState<RefundStatus>('pending');
@@ -155,6 +158,17 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setPaymentDueDate(order.payment_due_date || '');
       setInvoiceUrl(order.invoice_url || null);
       setPoUrl(order.po_url || null);
+      setPoNumber(order.po_number || '');
+      
+      // Fetch invoice number from invoices table
+      supabase
+        .from('invoices')
+        .select('invoice_number')
+        .eq('order_id', order.id)
+        .limit(1)
+        .then(({ data }) => {
+          setInvoiceNumber(data?.[0]?.invoice_number || '');
+        });
       setIsRefundRequested(order.is_refund_requested || false);
       setRefundReason(order.refund_reason || '');
       setRefundStatus((order.refund_status as RefundStatus) || 'pending');
@@ -1509,6 +1523,13 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   Invoice
                 </h4>
               </div>
+
+              {invoiceNumber && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Invoice No:</span>
+                  <span className="font-mono font-medium">{invoiceNumber}</span>
+                </div>
+              )}
               
               {invoiceUrl ? (
                 <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
@@ -1580,6 +1601,46 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                   <FileText className="h-4 w-4" />
                   Purchase Order (PO)
                 </h4>
+              </div>
+
+              {/* PO Number - editable */}
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">PO No:</span>
+                {editingPoNumber ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <Input
+                      value={poNumber}
+                      onChange={(e) => setPoNumber(e.target.value)}
+                      placeholder="Enter PO number"
+                      className="h-7 text-sm flex-1"
+                    />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2"
+                      onClick={async () => {
+                        if (order) {
+                          await onUpdate(order.id, { po_number: poNumber || null });
+                        }
+                        setEditingPoNumber(false);
+                      }}
+                    >
+                      Save
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingPoNumber(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-medium">{poNumber || '—'}</span>
+                    {canEditOrder && (
+                      <Button size="sm" variant="ghost" className="h-6 px-1.5 text-xs" onClick={() => setEditingPoNumber(true)}>
+                        Edit
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
               
               {poUrl ? (

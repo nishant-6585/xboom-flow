@@ -57,6 +57,7 @@ export interface Order {
   sales_notes: string | null;
   invoice_url: string | null;
   po_url: string | null;
+  po_number: string | null;
   order_date: string | null;
   created_at: string;
   updated_at: string;
@@ -282,6 +283,7 @@ export function useOrders() {
           last_reminder_sent_at: null,
           invoice_url: null,
           po_url: null,
+          po_number: null,
           order_date: (order as any).order_date || null,
           is_refund_requested: false,
           refund_reason: null,
