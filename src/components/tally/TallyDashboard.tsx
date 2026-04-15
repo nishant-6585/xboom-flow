@@ -142,7 +142,62 @@ export function TallyDashboard() {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("this_month");
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>("all");
 
-  useEffect(() => {
+  // Drill-down dialog state
+  const [selectedFullOrder, setSelectedFullOrder] = useState<Order | null>(null);
+  const [orderDialogOpen, setOrderDialogOpen] = useState(false);
+  const [procDialogOpen, setProcDialogOpen] = useState(false);
+  const [dialogLoading, setDialogLoading] = useState(false);
+
+  const { suppliers: suppliersList } = useSuppliers();
+
+  const fetchFullOrder = useCallback(async (orderId: string): Promise<Order | null> => {
+    try {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("id", orderId)
+        .single();
+      if (error) throw error;
+      return data as Order;
+    } catch (err) {
+      console.error("Error fetching order:", err);
+      toast.error("Failed to load order details");
+      return null;
+    }
+  }, []);
+
+  const openOrderDialog = useCallback(async (orderId: string) => {
+    setDialogLoading(true);
+    const order = await fetchFullOrder(orderId);
+    setDialogLoading(false);
+    if (order) {
+      setSelectedFullOrder(order);
+      setOrderDialogOpen(true);
+    }
+  }, [fetchFullOrder]);
+
+  const openProcDialog = useCallback(async (orderId: string) => {
+    setDialogLoading(true);
+    const order = await fetchFullOrder(orderId);
+    setDialogLoading(false);
+    if (order) {
+      setSelectedFullOrder(order);
+      setProcDialogOpen(true);
+    }
+  }, [fetchFullOrder]);
+
+  const handleOrderUpdate = useCallback(async (orderId: string, updates: Partial<Order>) => {
+    try {
+      const { error } = await supabase.from("orders").update(updates).eq("id", orderId);
+      if (error) throw error;
+      toast.success("Order updated");
+      return true;
+    } catch { toast.error("Update failed"); return false; }
+  }, []);
+
+  const handleOrderDelete = useCallback(async () => {
+    return false; // Read-only in tally context
+  }, []);
     const fetchData = async () => {
       try {
         const [ordersRes, procRes, itemsRes, invoicesRes, suppliersRes] = await Promise.all([
