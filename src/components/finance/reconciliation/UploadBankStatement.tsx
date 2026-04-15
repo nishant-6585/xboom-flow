@@ -10,7 +10,6 @@ import { toast } from 'sonner';
 import { parseCSVContent, parseExcelRows, createDiagnostics, type ParsedTransaction, type ParseDiagnostics } from '@/lib/bankStatementParser';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import * as XLSX from 'xlsx';
 
 interface Props {
@@ -210,8 +209,8 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
             <div className="space-y-4">
             {/* Diagnostics Summary */}
             <div className="rounded-lg border bg-muted/40 p-3 space-y-2 text-sm">
-              <div className="flex items-center gap-2 font-medium">
-                {parsed.length > 0 ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <AlertTriangle className="h-4 w-4 text-destructive" />}
+                <div className="flex items-center gap-2 font-medium">
+                  {parsed.length > 0 ? <CheckCircle2 className="h-4 w-4 text-primary" /> : <AlertTriangle className="h-4 w-4 text-destructive" />}
                 Parse Diagnostics
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
@@ -286,8 +285,8 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
                           <TableCell className="py-1.5 whitespace-nowrap">{tx.transaction_id || '-'}</TableCell>
                           <TableCell className="py-1.5 whitespace-nowrap">{tx.reference_no || '-'}</TableCell>
                           <TableCell className="py-1.5 max-w-[260px] truncate">{tx.narration || '-'}</TableCell>
-                          <TableCell className="py-1.5 text-right text-red-500">{formatAmount(tx.debit_amount)}</TableCell>
-                          <TableCell className="py-1.5 text-right text-green-600">{formatAmount(tx.credit_amount)}</TableCell>
+                          <TableCell className="py-1.5 text-right text-destructive">{formatAmount(tx.debit_amount)}</TableCell>
+                          <TableCell className="py-1.5 text-right text-primary">{formatAmount(tx.credit_amount)}</TableCell>
                           <TableCell className="py-1.5 text-right">{tx.running_balance != null ? formatAmount(tx.running_balance) : '-'}</TableCell>
                           <TableCell className="py-1.5">
                             <Badge variant="outline" className="text-[10px]">{tx.direction}</Badge>
@@ -297,7 +296,6 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
                     </TableBody>
                   </Table>
                 </div>
-                  {diagnostics.detectedColumns.map((c, i) => (
                 {parsed.length > 50 && (
                   <p className="text-xs text-muted-foreground text-center py-2">Showing first 50 of {parsed.length} transactions</p>
                 )}
