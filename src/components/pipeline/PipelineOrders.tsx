@@ -5,8 +5,9 @@ import { PipelineForm } from './PipelineForm';
 import { PipelineTable } from './PipelineTable';
 import { PipelineAnalytics } from './PipelineAnalytics';
 import { PipelineStatusDashboard } from './PipelineStatusDashboard';
+import { PipelineCalendarView } from './PipelineCalendarView';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Plus, List, BarChart3, ArrowLeft } from 'lucide-react';
+import { Loader2, Plus, List, BarChart3, ArrowLeft, CalendarDays } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface PipelineOrdersProps {
@@ -90,6 +91,10 @@ export function PipelineOrders({ enquiryIdFilter, selectedLeadId, statusPreFilte
               Pipeline Analytics
             </TabsTrigger>
           )}
+          <TabsTrigger value="calendar" className="gap-1">
+            <CalendarDays className="h-4 w-4" />
+            Calendar View
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="list">
@@ -117,6 +122,10 @@ export function PipelineOrders({ enquiryIdFilter, selectedLeadId, statusPreFilte
             <PipelineAnalytics orders={pipelineOrders} onCardClick={handleAnalyticsCardClick} />
           </TabsContent>
         )}
+
+        <TabsContent value="calendar">
+          <PipelineCalendarView orders={filteredByEnquiry} />
+        </TabsContent>
       </Tabs>
     </div>
   );
