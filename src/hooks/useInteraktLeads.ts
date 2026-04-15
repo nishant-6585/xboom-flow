@@ -31,6 +31,8 @@ export interface InteraktLead {
   urgency: string | null;
   requested_timeline: string | null;
   purpose_of_purchase: string | null;
+  sales_person_id: string | null;
+  sales_person_name: string | null;
 }
 
 export function useInteraktLeads() {
