@@ -312,6 +312,10 @@ export default function Sales() {
           <TabsContent value="analytics" className="space-y-6">
             <SalesAnalyticsDashboard />
           </TabsContent>
+
+          <TabsContent value="category_funnel" className="space-y-6">
+            <CategoryFunnelDashboard />
+          </TabsContent>
         </Tabs>
       </main>
 
