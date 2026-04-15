@@ -31,6 +31,7 @@ import { CallbacksPanel } from "@/components/sales/CallbacksPanel";
 import { CompaniesPanel } from "@/components/crm/CompaniesPanel";
 import { UntouchedLeadsPanel } from "@/components/sales/UntouchedLeadsPanel";
 import { UntouchedLoginAlert } from "@/components/sales/UntouchedLoginAlert";
+import { MyLeadsPanel } from "@/components/sales/MyLeadsPanel";
 
 
 export default function Sales() {
