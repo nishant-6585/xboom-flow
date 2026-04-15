@@ -144,7 +144,9 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
       if (interaktDateEnd && d > endOfDay(interaktDateEnd)) matchesDate = false;
     }
 
-    return matchesSearch && matchesStatus && matchesDate;
+    const matchesSalesPerson = interaktSalesPersonFilter === 'all' || lead.sales_person_name === interaktSalesPersonFilter;
+
+    return matchesSearch && matchesStatus && matchesDate && matchesSalesPerson;
   });
 
   // Check if user can see all leads (admin, supply_chain, or sales_manager)
@@ -776,6 +778,15 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                     <SelectItem value="last_month">Last Month</SelectItem>
                   </SelectContent>
                 </Select>
+                <Select value={interaktSalesPersonFilter} onValueChange={setInteraktSalesPersonFilter}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Sales Person" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sales Persons</SelectItem>
+                    {interaktSalesPersons.map(sp => <SelectItem key={sp} value={sp}>{sp}</SelectItem>)}
+                  </SelectContent>
+                </Select>
                 <DateRangeFilter
                   startDate={interaktDateStart}
                   endDate={interaktDateEnd}
@@ -783,8 +794,8 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                   onEndDateChange={(d) => { setInteraktDateEnd(d); setInteraktDateFilter('all'); }}
                   onClear={() => { setInteraktDateStart(undefined); setInteraktDateEnd(undefined); }}
                 />
-                {(interaktSearch || interaktStatusFilter !== 'all' || interaktDateFilter !== 'all' || interaktDateStart || interaktDateEnd) && (
-                  <Button variant="ghost" size="sm" onClick={() => { setInteraktSearch(''); setInteraktStatusFilter('all'); setInteraktDateFilter('all'); setInteraktDateStart(undefined); setInteraktDateEnd(undefined); }}>
+                {(interaktSearch || interaktStatusFilter !== 'all' || interaktDateFilter !== 'all' || interaktDateStart || interaktDateEnd || interaktSalesPersonFilter !== 'all') && (
+                  <Button variant="ghost" size="sm" onClick={() => { setInteraktSearch(''); setInteraktStatusFilter('all'); setInteraktDateFilter('all'); setInteraktDateStart(undefined); setInteraktDateEnd(undefined); setInteraktSalesPersonFilter('all'); }}>
                     Clear filters
                   </Button>
                 )}
