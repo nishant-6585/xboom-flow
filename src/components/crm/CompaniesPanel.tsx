@@ -86,6 +86,74 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
     setAddOpen(false);
   };
 
+  const handleSyncFromLeads = async () => {
+    if (!user) return;
+    setSyncing(true);
+    try {
+      const skip = new Set(['unknown', 'test', 'na', 'n/a', '-', '', 'none']);
+      
+      // Fetch company names from all lead sources in parallel
+      const [enquiries, prospects, calls, interakt, emails, pipeline] = await Promise.all([
+        supabase.from('enquiries').select('customer_company').not('customer_company', 'is', null),
+        supabase.from('prospects').select('company').not('company', 'is', null),
+        supabase.from('call_logs').select('company').not('company', 'is', null),
+        supabase.from('interakt_leads').select('company').not('company', 'is', null),
+        supabase.from('email_leads').select('customer_company').not('customer_company', 'is', null),
+        supabase.from('pipeline_orders').select('customer_company').not('customer_company', 'is', null),
+      ]);
+
+      // Collect unique company names
+      const nameSet = new Set<string>();
+      const addNames = (rows: any[] | null, key: string) => {
+        rows?.forEach(r => {
+          const name = (r[key] || '').trim();
+          if (name && !skip.has(name.toLowerCase())) nameSet.add(name);
+        });
+      };
+      addNames(enquiries.data, 'customer_company');
+      addNames(prospects.data, 'company');
+      addNames(calls.data, 'company');
+      addNames(interakt.data, 'company');
+      addNames(emails.data, 'customer_company');
+      addNames(pipeline.data, 'customer_company');
+
+      // Get existing company names to avoid duplicates
+      const { data: existing } = await supabase.from('companies').select('name');
+      const existingNames = new Set((existing || []).map((c: any) => c.name.toLowerCase().trim()));
+
+      const newCompanies = Array.from(nameSet)
+        .filter(name => !existingNames.has(name.toLowerCase().trim()))
+        .map(name => ({
+          name,
+          status: 'lead',
+          created_by: user.id,
+          created_by_name: userName || '',
+        }));
+
+      if (newCompanies.length === 0) {
+        toast.info('All companies are already synced!');
+        setSyncing(false);
+        return;
+      }
+
+      // Insert in batches of 50
+      let created = 0;
+      for (let i = 0; i < newCompanies.length; i += 50) {
+        const batch = newCompanies.slice(i, i + 50);
+        const { error } = await supabase.from('companies').insert(batch as any);
+        if (error) throw error;
+        created += batch.length;
+      }
+
+      toast.success(`Synced ${created} companies from lead sources!`);
+      window.location.reload();
+    } catch (err: any) {
+      toast.error(`Sync failed: ${err.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card className="border-border/50">
