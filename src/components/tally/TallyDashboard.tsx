@@ -783,7 +783,6 @@ export function TallyDashboard() {
                         <button onClick={() => openProcDialog(r.orderId)} className="cursor-pointer hover:opacity-80 transition-opacity" title="View Procurement Payment Details">
                           <ProcPayBadge status={r.procurementPaymentStatus} />
                         </button>
-                        </button>
                       </TableCell>
                       <TableCell>
                         {r.inventoryFulfilled ? (
