@@ -21,6 +21,7 @@ import { AISalesAssistant } from "@/components/AISalesAssistant";
 import { SalesTargetsPanel } from "@/components/sales/SalesTargetsPanel";
 import { SalesFAQPanel } from "@/components/sales/SalesFAQPanel";
 import { SalesAnalyticsDashboard } from "@/components/sales/SalesAnalyticsDashboard";
+import { CategoryFunnelDashboard } from "@/components/sales/CategoryFunnelDashboard";
 import { TasksPanel } from "@/components/tasks/TasksPanel";
 import { PipelineOrders } from "@/components/pipeline/PipelineOrders";
 import { EnquiriesPanel } from "@/components/sales/EnquiriesPanel";
