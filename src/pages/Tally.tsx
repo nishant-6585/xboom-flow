@@ -14,7 +14,7 @@ export default function Tally() {
     );
   }
 
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "finance") {
     return <Navigate to="/" replace />;
   }
 
