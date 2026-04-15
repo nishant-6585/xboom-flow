@@ -13,8 +13,9 @@ import {
 } from "recharts";
 import {
   AlertTriangle, Clock, Users, TrendingUp, Eye, Timer, Flame, BarChart3,
-  Phone, Mail, MapPin, Package, User, Calendar, Activity,
+  Phone, Mail, MapPin, Package, User, Calendar, Activity, MessageSquare,
 } from "lucide-react";
+import { PieChart, Pie, Cell } from "recharts";
 import { useUntouchedLeads, useUntouchedStats, type UntouchedLead } from "@/hooks/useUntouchedLeads";
 import { formatDistanceToNow, format } from "date-fns";
 
@@ -291,9 +292,10 @@ export function UntouchedLeadsPanel() {
           <SelectContent>
             <SelectItem value="all">All Sources</SelectItem>
             <SelectItem value="enquiry">Enquiry</SelectItem>
-            <SelectItem value="call">Call</SelectItem>
+            <SelectItem value="call">MyOperator</SelectItem>
             <SelectItem value="form">Form</SelectItem>
             <SelectItem value="email">Email</SelectItem>
+            <SelectItem value="interakt">Interakt</SelectItem>
           </SelectContent>
         </Select>
       </div>
