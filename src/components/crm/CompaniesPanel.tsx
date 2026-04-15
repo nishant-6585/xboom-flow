@@ -245,11 +245,6 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                 <DialogTrigger asChild>
                   <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" />Add</Button>
                 </DialogTrigger>
-              </Dialog>
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={handleSyncFromLeads} disabled={syncing}>
-                {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                Sync from Leads
-              </Button>
                 <DialogContent>
                   <DialogHeader><DialogTitle>Add Company</DialogTitle></DialogHeader>
                   <div className="grid gap-3">
@@ -271,6 +266,10 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                   </div>
                 </DialogContent>
               </Dialog>
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={handleSyncFromLeads} disabled={syncing}>
+                {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                Sync from Leads
+              </Button>
             </div>
           </div>
         </CardHeader>
