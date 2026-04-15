@@ -244,19 +244,25 @@ export function TallyDashboard() {
       const amountReceived = o.amount_paid || 0;
       const pendingPayment = salesValue - amountReceived;
 
-      // Calculate procurement cost: prefer order_items (procurement_rate × quantity + GST)
-      // Fall back to inventory_procurements.total_amount if order_items have no data
-      const itemsProcCost = items.reduce((s, item) => {
+      // Calculate procurement cost with robust fallbacks across procurement sources
+      const itemsProcCost = items.reduce((sum, item) => {
         const rate = item.procurement_rate || 0;
-        const qty = item.quantity_procured ?? item.quantity ?? 0;
+        const qty = item.quantity_procured && item.quantity_procured > 0
+          ? item.quantity_procured
+          : (item.quantity || 0);
         const gst = item.procurement_gst_amount || 0;
-        return s + (rate * qty) + gst;
+        return sum + ((rate + gst) * qty);
       }, 0);
 
-      const procTableCost = procs.reduce((s, p) => s + (p.total_amount || 0), 0);
+      const orderLevelProcCost = (o.procurement_rate || 0) * (o.quantity || 0);
 
-      // Use whichever source has actual data; prefer order_items
-      const procurementValue = itemsProcCost > 0 ? itemsProcCost : procTableCost;
+      const procTableCost = procs.reduce((sum, p) => {
+        const total = p.total_amount || 0;
+        if (total > 0) return sum + total;
+        return sum + ((p.unit_price || 0) * (p.quantity || 0));
+      }, 0);
+
+      const procurementValue = itemsProcCost || orderLevelProcCost || procTableCost;
 
       const profit = salesValue - procurementValue;
       const profitMargin = salesValue > 0 ? (profit / salesValue) * 100 : 0;
