@@ -15,23 +15,12 @@ import { Button } from '@/components/ui/button';
 
 export function MobileBottomNav() {
   const location = useLocation();
-  const { role, signOut, profile } = useAuth();
+  const { role, roles, signOut, profile } = useAuth();
   const { taskCounts } = useTasks();
   const [moreOpen, setMoreOpen] = useState(false);
+...
+  const hasNavAccess = (itemRoles?: string[]) => !itemRoles || itemRoles.some((itemRole) => itemRole === role || roles.includes(itemRole as any));
 
-  if (!profile) return null;
-
-  const isActive = (path: string) => location.pathname === path;
-
-  // Core navigation items (max 4 + More)
-  const navItems = [
-    { path: "/", label: "Home", icon: Home },
-    { path: "/tasks", label: "Tasks", icon: ListTodo, badge: taskCounts?.new_tasks || 0 },
-    { path: "/sales", label: "Sales", icon: Zap, roles: ["sales", "sales_manager", "supply_chain", "admin"] },
-    { path: "/meetings", label: "Meetings", icon: Calendar },
-  ];
-
-  // More menu items based on role with icons
   const moreItems = [
     { path: "/orders", label: "Orders", icon: Package, roles: ["sales", "sales_manager", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
     { path: "/pricelist", label: "Pricelist", icon: FileSpreadsheet, roles: ["sales", "supply_chain", "admin"] },
@@ -42,13 +31,11 @@ export function MobileBottomNav() {
     { path: "/suppliers", label: "Suppliers", icon: Building2, roles: ["admin", "supply_chain", "finance"] },
     { path: "/finance", label: "Finance", icon: IndianRupee, roles: ["admin", "finance"] },
     { path: "/forms", label: "Forms", icon: ClipboardList, roles: ["sales", "supply_chain", "admin", "finance", "it", "marketing", "hr"] },
-    { path: "/tally", label: "Tally", icon: BookCheck, roles: ["admin"] },
+    { path: "/tally", label: "Tally", icon: BookCheck, roles: ["admin", "finance"] },
     { path: "/admin", label: "Admin", icon: Shield, roles: ["admin"] },
-  ].filter(item => !item.roles || item.roles.includes(role || ""));
+  ].filter(item => hasNavAccess(item.roles));
 
-  const filteredNavItems = navItems.filter(item => 
-    !item.roles || item.roles.includes(role || "")
-  );
+  const filteredNavItems = navItems.filter(item => hasNavAccess(item.roles));
 
   const handleMoreItemClick = () => {
     setMoreOpen(false);

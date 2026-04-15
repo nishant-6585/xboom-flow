@@ -4,7 +4,8 @@ import { Navigate } from "react-router-dom";
 import { TallyDashboard } from "@/components/tally/TallyDashboard";
 
 export default function Tally() {
-  const { role, loading: authLoading } = useAuth();
+  const { role, roles, loading: authLoading } = useAuth();
+  const canAccessTally = role === "admin" || role === "finance" || roles.includes("admin") || roles.includes("finance");
 
   if (authLoading) {
     return (
@@ -14,7 +15,7 @@ export default function Tally() {
     );
   }
 
-  if (role !== "admin" && role !== "finance") {
+  if (!canAccessTally) {
     return <Navigate to="/" replace />;
   }
 
