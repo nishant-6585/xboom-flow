@@ -117,7 +117,7 @@ export function useUntouchedLeads() {
           sales_person_id: f.sales_person_id, sales_person_name: f.sales_person_name,
           created_at: f.created_at, updated_at: f.updated_at, status: f.status,
           untouched_hours: hours, bucket,
-          phone: (f as any).phone_number || null,
+          phone: (f as any).phone || null,
           email: (f as any).email || null,
           company: (f as any).company || null,
         });
