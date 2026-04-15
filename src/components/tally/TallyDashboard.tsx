@@ -127,6 +127,9 @@ function getDateRange(period: TimePeriod): { start: Date; end: Date } {
 export function TallyDashboard() {
   const [allOrders, setAllOrders] = useState<TallyOrder[]>([]);
   const [procurements, setProcurements] = useState<TallyProcurement[]>([]);
+  const [orderItems, setOrderItems] = useState<TallyOrderItem[]>([]);
+  const [invoices, setInvoices] = useState<TallyInvoice[]>([]);
+  const [suppliers, setSuppliers] = useState<TallySupplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("orderNumber");
@@ -137,7 +140,7 @@ export function TallyDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [ordersRes, procRes] = await Promise.all([
+        const [ordersRes, procRes, itemsRes, invoicesRes, suppliersRes] = await Promise.all([
           supabase
             .from("orders")
             .select("id, order_number, product_name, product_category, quantity, customer_name, customer_company, total_sales_amount, amount_paid, payment_status, status, created_at, order_date, selling_price, procurement_rate, sales_person_name, sales_person_id")
@@ -145,11 +148,24 @@ export function TallyDashboard() {
             .order("created_at", { ascending: false }),
           supabase
             .from("inventory_procurements")
-            .select("id, procurement_number, order_id, product_name, quantity, unit_price, total_amount, payment_status, supplier_name")
+            .select("id, procurement_number, order_id, product_name, quantity, unit_price, total_amount, payment_status, supplier_name, po_number")
             .not("order_id", "is", null),
+          supabase
+            .from("order_items")
+            .select("id, order_id, product_name, quantity, procurement_rate, quantity_procured, procurement_gst_amount, supplier_id"),
+          supabase
+            .from("invoices")
+            .select("id, invoice_number, order_id, customer_gst")
+            .not("order_id", "is", null),
+          supabase
+            .from("suppliers")
+            .select("id, brand_name, contact_name"),
         ]);
         setAllOrders(ordersRes.data || []);
-        setProcurements(procRes.data || []);
+        setProcurements((procRes.data as TallyProcurement[]) || []);
+        setOrderItems(itemsRes.data || []);
+        setInvoices(invoicesRes.data || []);
+        setSuppliers(suppliersRes.data || []);
       } catch (err) {
         console.error("Error fetching tally data:", err);
       } finally {
@@ -177,6 +193,7 @@ export function TallyDashboard() {
     });
   }, [allOrders, timePeriod, salesPersonFilter]);
 
+  // Build lookup maps
   const procByOrder = useMemo(() => {
     const map = new Map<string, TallyProcurement[]>();
     procurements.forEach((p) => {
@@ -189,20 +206,83 @@ export function TallyDashboard() {
     return map;
   }, [procurements]);
 
+  const itemsByOrder = useMemo(() => {
+    const map = new Map<string, TallyOrderItem[]>();
+    orderItems.forEach((item) => {
+      const arr = map.get(item.order_id) || [];
+      arr.push(item);
+      map.set(item.order_id, arr);
+    });
+    return map;
+  }, [orderItems]);
+
+  const invoicesByOrder = useMemo(() => {
+    const map = new Map<string, TallyInvoice[]>();
+    invoices.forEach((inv) => {
+      if (inv.order_id) {
+        const arr = map.get(inv.order_id) || [];
+        arr.push(inv);
+        map.set(inv.order_id, arr);
+      }
+    });
+    return map;
+  }, [invoices]);
+
+  const suppliersMap = useMemo(() => {
+    const map = new Map<string, TallySupplier>();
+    suppliers.forEach((s) => map.set(s.id, s));
+    return map;
+  }, [suppliers]);
+
   const rows: TallyRow[] = useMemo(() => {
     return orders.map((o) => {
       const procs = procByOrder.get(o.id) || [];
+      const items = itemsByOrder.get(o.id) || [];
+      const invs = invoicesByOrder.get(o.id) || [];
+
       const salesValue = o.total_sales_amount || 0;
       const amountReceived = o.amount_paid || 0;
       const pendingPayment = salesValue - amountReceived;
-      const procurementValue = procs.reduce((s, p) => s + (p.total_amount || 0), 0);
+
+      // Calculate procurement cost: prefer order_items (procurement_rate × quantity + GST)
+      // Fall back to inventory_procurements.total_amount if order_items have no data
+      const itemsProcCost = items.reduce((s, item) => {
+        const rate = item.procurement_rate || 0;
+        const qty = item.quantity_procured ?? item.quantity ?? 0;
+        const gst = item.procurement_gst_amount || 0;
+        return s + (rate * qty) + gst;
+      }, 0);
+
+      const procTableCost = procs.reduce((s, p) => s + (p.total_amount || 0), 0);
+
+      // Use whichever source has actual data; prefer order_items
+      const procurementValue = itemsProcCost > 0 ? itemsProcCost : procTableCost;
+
       const profit = salesValue - procurementValue;
       const profitMargin = salesValue > 0 ? (profit / salesValue) * 100 : 0;
+
       const procPayStatuses = procs.map((p) => p.payment_status);
       const procPaymentStatus = procPayStatuses.length === 0
         ? "no_proc"
         : procPayStatuses.every((s) => s === "paid") ? "paid"
         : procPayStatuses.some((s) => s === "partial") ? "partial" : "pending";
+
+      // Invoice number(s)
+      const invoiceNumber = invs.map(i => i.invoice_number).filter(Boolean).join(", ") || "—";
+
+      // PO number: from order procurements
+      const poNumber = procs.map(p => p.po_number).filter(Boolean).join(", ") || "—";
+
+      // Supplier name(s): from order_items supplier_id → suppliers table, or from procurements
+      const itemSupplierNames = items
+        .map(item => item.supplier_id ? suppliersMap.get(item.supplier_id)?.brand_name : null)
+        .filter(Boolean);
+      const procSupplierNames = procs.map(p => p.supplier_name).filter(Boolean);
+      const allSuppliers = [...new Set([...itemSupplierNames, ...procSupplierNames])];
+      const supplierName = allSuppliers.join(", ") || "—";
+
+      // Customer GST from invoices
+      const customerGst = invs.map(i => i.customer_gst).filter(Boolean).join(", ") || "—";
 
       return {
         orderId: o.id,
@@ -222,9 +302,13 @@ export function TallyDashboard() {
         procurementPaymentStatus: procPaymentStatus,
         salesPersonName: o.sales_person_name,
         createdAt: o.created_at,
+        invoiceNumber,
+        poNumber,
+        supplierName,
+        customerGst,
       };
     });
-  }, [orders, procByOrder]);
+  }, [orders, procByOrder, itemsByOrder, invoicesByOrder, suppliersMap]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
