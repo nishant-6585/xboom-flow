@@ -31,6 +31,7 @@ import { CallbacksPanel } from "@/components/sales/CallbacksPanel";
 import { CompaniesPanel } from "@/components/crm/CompaniesPanel";
 import { UntouchedLeadsPanel } from "@/components/sales/UntouchedLeadsPanel";
 import { UntouchedLoginAlert } from "@/components/sales/UntouchedLoginAlert";
+import { MyLeadsPanel } from "@/components/sales/MyLeadsPanel";
 
 
 export default function Sales() {
@@ -88,6 +89,10 @@ export default function Sales() {
             {/* Primary Navigation - Row 1 */}
             <div className="bg-card/80 backdrop-blur-sm border border-border/50 shadow-sm rounded-2xl p-1.5">
               <TabsList className="bg-transparent flex flex-wrap justify-center gap-1 h-auto p-0">
+                <TabsTrigger value="my_leads" className={`${triggerBase} data-[state=active]:bg-emerald-600 data-[state=active]:text-white font-semibold`}>
+                  <Contact className="w-4 h-4" />
+                  My Leads
+                </TabsTrigger>
                 <TabsTrigger value="manager" className={triggerPrimary}>
                   <BarChart3 className="w-4 h-4" />
                   Dashboard
@@ -199,6 +204,10 @@ export default function Sales() {
 
           <TabsContent value="tasks" className="space-y-6">
             <TasksPanel />
+          </TabsContent>
+
+          <TabsContent value="my_leads" className="space-y-6">
+            <MyLeadsPanel />
           </TabsContent>
 
           <TabsContent value="manager" className="space-y-6">
