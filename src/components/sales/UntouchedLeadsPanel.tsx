@@ -13,8 +13,9 @@ import {
 } from "recharts";
 import {
   AlertTriangle, Clock, Users, TrendingUp, Eye, Timer, Flame, BarChart3,
-  Phone, Mail, MapPin, Package, User, Calendar, Activity,
+  Phone, Mail, MapPin, Package, User, Calendar, Activity, MessageSquare,
 } from "lucide-react";
+import { PieChart, Pie, Cell } from "recharts";
 import { useUntouchedLeads, useUntouchedStats, type UntouchedLead } from "@/hooks/useUntouchedLeads";
 import { formatDistanceToNow, format } from "date-fns";
 
@@ -48,6 +49,7 @@ function SourceBadge({ source }: { source: string }) {
     call: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
     form: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
     email: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
+    interakt: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
   };
   return <Badge variant="outline" className={colors[source] || ""}>{source}</Badge>;
 }
@@ -102,6 +104,33 @@ function LeadDetailDialog({ lead, open, onClose }: { lead: UntouchedLead | null;
                 <p className="font-medium">{lead.lead_source || "—"}</p>
               </div>
             </div>
+            {lead.phone && (
+              <div className="flex items-start gap-2">
+                <Phone className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-muted-foreground text-xs">Phone</p>
+                  <p className="font-medium">{lead.phone}</p>
+                </div>
+              </div>
+            )}
+            {lead.email && (
+              <div className="flex items-start gap-2">
+                <Mail className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-muted-foreground text-xs">Email</p>
+                  <p className="font-medium">{lead.email}</p>
+                </div>
+              </div>
+            )}
+            {lead.company && (
+              <div className="flex items-start gap-2">
+                <Activity className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-muted-foreground text-xs">Company</p>
+                  <p className="font-medium">{lead.company}</p>
+                </div>
+              </div>
+            )}
             <div className="flex items-start gap-2">
               <Calendar className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
               <div>
@@ -263,9 +292,10 @@ export function UntouchedLeadsPanel() {
           <SelectContent>
             <SelectItem value="all">All Sources</SelectItem>
             <SelectItem value="enquiry">Enquiry</SelectItem>
-            <SelectItem value="call">Call</SelectItem>
+            <SelectItem value="call">MyOperator</SelectItem>
             <SelectItem value="form">Form</SelectItem>
             <SelectItem value="email">Email</SelectItem>
+            <SelectItem value="interakt">Interakt</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -390,7 +420,31 @@ export function UntouchedLeadsPanel() {
               </CardContent>
             </Card>
 
-            {/* Heatmap */}
+            {/* Source-wise Bucket Breakdown */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                  Source-wise Bucket Breakdown
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={stats.bySource}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="source" className="text-xs" />
+                    <YAxis className="text-xs" />
+                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
+                    <Legend />
+                    <Bar dataKey="t1" name="T+1" stackId="s" fill={BUCKET_COLORS["T+1"]} />
+                    <Bar dataKey="t2" name="T+2" stackId="s" fill={BUCKET_COLORS["T+2"]} />
+                    <Bar dataKey="t3" name="T+3" stackId="s" fill={BUCKET_COLORS["T+3"]} />
+                    <Bar dataKey="tPlus" name="T++" stackId="s" fill={BUCKET_COLORS["T++"]} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
             <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
