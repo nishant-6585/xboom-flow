@@ -21,6 +21,7 @@ import { AISalesAssistant } from "@/components/AISalesAssistant";
 import { SalesTargetsPanel } from "@/components/sales/SalesTargetsPanel";
 import { SalesFAQPanel } from "@/components/sales/SalesFAQPanel";
 import { SalesAnalyticsDashboard } from "@/components/sales/SalesAnalyticsDashboard";
+import { CategoryFunnelDashboard } from "@/components/sales/CategoryFunnelDashboard";
 import { TasksPanel } from "@/components/tasks/TasksPanel";
 import { PipelineOrders } from "@/components/pipeline/PipelineOrders";
 import { EnquiriesPanel } from "@/components/sales/EnquiriesPanel";
@@ -186,6 +187,10 @@ export default function Sales() {
                   <PieChart className="w-3.5 h-3.5" />
                   Analytics
                 </TabsTrigger>
+                <TabsTrigger value="category_funnel" className={`${triggerSecondary} data-[state=active]:bg-emerald-600 data-[state=active]:text-white`}>
+                  <GitBranch className="w-3.5 h-3.5" />
+                  Category Funnel
+                </TabsTrigger>
                 <TabsTrigger value="faq" className={triggerSecondaryPrimary}>
                   <HelpCircle className="w-3.5 h-3.5" />
                   FAQ
@@ -306,6 +311,10 @@ export default function Sales() {
 
           <TabsContent value="analytics" className="space-y-6">
             <SalesAnalyticsDashboard />
+          </TabsContent>
+
+          <TabsContent value="category_funnel" className="space-y-6">
+            <CategoryFunnelDashboard />
           </TabsContent>
         </Tabs>
       </main>
