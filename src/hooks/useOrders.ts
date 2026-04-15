@@ -13,7 +13,7 @@ export type RefundStatus = 'pending' | 'approved' | 'done';
 export type OrderOutcome = 'pending' | 'won' | 'lost';
 export type LostReason = 'price' | 'timeline' | 'competitor' | 'no_response' | 'requirements_changed' | 'other';
 
-export type LeadSource = 'call' | 'chat' | 'email' | 'event' | 'walk-in' | 'referral' | 'repeated';
+export type LeadSource = 'call' | 'chat' | 'email' | 'event' | 'walk-in' | 'referral' | 'repeated' | 'abandon_cart' | 'myoperator' | 'interakt' | 'google_ads' | 'indiamart' | 'website_form' | 'exhibition' | 'social_media';
 
 export interface Order {
   id: string;
@@ -157,13 +157,21 @@ export const CUSTOMER_TYPES: { value: CustomerType; label: string }[] = [
 ];
 
 export const LEAD_SOURCES: { value: LeadSource; label: string }[] = [
+  { value: 'abandon_cart', label: 'Abandon Cart' },
   { value: 'call', label: 'Call' },
   { value: 'chat', label: 'Chat' },
   { value: 'email', label: 'Email' },
   { value: 'event', label: 'Event' },
-  { value: 'walk-in', label: 'Walk-in' },
+  { value: 'exhibition', label: 'Exhibition' },
+  { value: 'google_ads', label: 'Google Ads' },
+  { value: 'indiamart', label: 'IndiaMART' },
+  { value: 'interakt', label: 'Interakt' },
+  { value: 'myoperator', label: 'MyOperator' },
   { value: 'referral', label: 'Referral' },
-  { value: 'repeated', label: 'Repeated' },
+  { value: 'repeated', label: 'Repeated Customer' },
+  { value: 'social_media', label: 'Social Media' },
+  { value: 'walk-in', label: 'Walk-in' },
+  { value: 'website_form', label: 'Website Form' },
 ];
 
 export const REFUND_STATUSES: { value: RefundStatus; label: string }[] = [
