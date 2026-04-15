@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Search, Filter, Download, ChevronLeft, ChevronRight, StickyNote, Link2 } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Search, Download, ChevronLeft, ChevronRight, StickyNote, Link2, CalendarIcon, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { type BankTransaction, type ReconciliationAccount, type ReconciliationSubaccount, TRANSACTION_STATUSES, type TransactionStatus } from '@/hooks/useBankReconciliation';
 
 interface Props {
@@ -27,6 +31,8 @@ export function TransactionTable({ transactions, accounts, subaccounts, onUpdate
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [accountFilter, setAccountFilter] = useState<string>('all');
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
   const [detailTx, setDetailTx] = useState<BankTransaction | null>(null);
@@ -38,6 +44,16 @@ export function TransactionTable({ transactions, accounts, subaccounts, onUpdate
       if (statusFilter !== 'all' && t.status !== statusFilter) return false;
       if (typeFilter !== 'all' && t.transaction_type !== typeFilter) return false;
       if (accountFilter !== 'all' && t.account_id !== accountFilter) return false;
+      if (dateFrom) {
+        const txDate = new Date(t.transaction_date);
+        if (txDate < dateFrom) return false;
+      }
+      if (dateTo) {
+        const txDate = new Date(t.transaction_date);
+        const endOfDay = new Date(dateTo);
+        endOfDay.setHours(23, 59, 59, 999);
+        if (txDate > endOfDay) return false;
+      }
       if (search) {
         const q = search.toLowerCase();
         const match = [t.narration, t.bank_reference, t.internal_reference, t.notes]
@@ -46,7 +62,7 @@ export function TransactionTable({ transactions, accounts, subaccounts, onUpdate
       }
       return true;
     });
-  }, [transactions, search, statusFilter, typeFilter, accountFilter]);
+  }, [transactions, search, statusFilter, typeFilter, accountFilter, dateFrom, dateTo]);
 
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -87,6 +103,9 @@ export function TransactionTable({ transactions, accounts, subaccounts, onUpdate
     setDetailTx(null);
   };
 
+  const clearDates = () => { setDateFrom(undefined); setDateTo(undefined); };
+  const hasDateFilter = dateFrom || dateTo;
+
   return (
     <div className="space-y-3">
       {/* Toolbar */}
@@ -95,6 +114,39 @@ export function TransactionTable({ transactions, accounts, subaccounts, onUpdate
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search narration, reference..." className="pl-9 h-9" />
         </div>
+
+        {/* Date From */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className={cn("h-9 gap-1.5 text-xs", !dateFrom && "text-muted-foreground")}>
+              <CalendarIcon className="h-3.5 w-3.5" />
+              {dateFrom ? format(dateFrom, 'dd MMM yyyy') : 'From'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+          </PopoverContent>
+        </Popover>
+
+        {/* Date To */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className={cn("h-9 gap-1.5 text-xs", !dateTo && "text-muted-foreground")}>
+              <CalendarIcon className="h-3.5 w-3.5" />
+              {dateTo ? format(dateTo, 'dd MMM yyyy') : 'To'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className={cn("p-3 pointer-events-auto")} />
+          </PopoverContent>
+        </Popover>
+
+        {hasDateFilter && (
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={clearDates} title="Clear date filter">
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        )}
+
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[150px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
