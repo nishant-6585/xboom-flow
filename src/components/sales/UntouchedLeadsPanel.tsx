@@ -103,6 +103,33 @@ function LeadDetailDialog({ lead, open, onClose }: { lead: UntouchedLead | null;
                 <p className="font-medium">{lead.lead_source || "—"}</p>
               </div>
             </div>
+            {lead.phone && (
+              <div className="flex items-start gap-2">
+                <Phone className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-muted-foreground text-xs">Phone</p>
+                  <p className="font-medium">{lead.phone}</p>
+                </div>
+              </div>
+            )}
+            {lead.email && (
+              <div className="flex items-start gap-2">
+                <Mail className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-muted-foreground text-xs">Email</p>
+                  <p className="font-medium">{lead.email}</p>
+                </div>
+              </div>
+            )}
+            {lead.company && (
+              <div className="flex items-start gap-2">
+                <Activity className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-muted-foreground text-xs">Company</p>
+                  <p className="font-medium">{lead.company}</p>
+                </div>
+              </div>
+            )}
             <div className="flex items-start gap-2">
               <Calendar className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
               <div>
