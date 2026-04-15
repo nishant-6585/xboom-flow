@@ -49,6 +49,31 @@ interface TallyProcurement {
   total_amount: number | null;
   payment_status: string;
   supplier_name: string | null;
+  po_number: string | null;
+}
+
+interface TallyOrderItem {
+  id: string;
+  order_id: string;
+  product_name: string;
+  quantity: number;
+  procurement_rate: number | null;
+  quantity_procured: number | null;
+  procurement_gst_amount: number | null;
+  supplier_id: string | null;
+}
+
+interface TallyInvoice {
+  id: string;
+  invoice_number: string | null;
+  order_id: string | null;
+  customer_gst: string | null;
+}
+
+interface TallySupplier {
+  id: string;
+  brand_name: string | null;
+  contact_name: string | null;
 }
 
 interface TallyRow {
