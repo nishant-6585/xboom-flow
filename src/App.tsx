@@ -54,6 +54,7 @@ import DailyFlow from "./pages/DailyFlow";
 import AIAutomation from "./pages/AIAutomation";
 
 import CreditCards from "./pages/CreditCards";
+import BankReconciliation from "./pages/BankReconciliation";
 import DroneOperations from "./pages/DroneOperations";
 import NotFound from "./pages/NotFound";
 
@@ -111,6 +112,7 @@ function AppInner() {
         <Route path="/admin/ai-automation" element={<ProtectedRoute><AIAutomation /></ProtectedRoute>} />
         
         <Route path="/credit-cards" element={<ProtectedRoute><CreditCards /></ProtectedRoute>} />
+        <Route path="/bank-reconciliation" element={<ProtectedRoute><BankReconciliation /></ProtectedRoute>} />
         <Route path="/drone-operations" element={<ProtectedRoute><DroneOperations /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>

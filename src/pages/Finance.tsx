@@ -207,7 +207,11 @@ export default function Finance() {
               Track credits, debits, and cashflow analysis
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => navigate('/bank-reconciliation')}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Bank Reconciliation
+            </Button>
             <Button variant="outline" onClick={() => navigate('/payroll-reconciliation')}>
               <FileSpreadsheet className="h-4 w-4 mr-2" />
               Payroll Reconciliation
