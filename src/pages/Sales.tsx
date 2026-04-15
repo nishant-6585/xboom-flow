@@ -216,6 +216,10 @@ export default function Sales() {
             <TasksPanel />
           </TabsContent>
 
+          <TabsContent value="source_performance" className="space-y-6">
+            <LeadSourcePerformanceDashboard />
+          </TabsContent>
+
           <TabsContent value="my_leads" className="space-y-6">
             <MyLeadsPanel />
           </TabsContent>
