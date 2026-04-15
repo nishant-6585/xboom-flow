@@ -18,7 +18,18 @@ export function MobileBottomNav() {
   const { role, roles, signOut, profile } = useAuth();
   const { taskCounts } = useTasks();
   const [moreOpen, setMoreOpen] = useState(false);
-...
+
+  if (!profile) return null;
+
+  const isActive = (path: string) => location.pathname === path;
+
+  const navItems = [
+    { path: "/", label: "Home", icon: Home },
+    { path: "/tasks", label: "Tasks", icon: ListTodo, badge: taskCounts?.new_tasks || 0 },
+    { path: "/sales", label: "Sales", icon: Zap, roles: ["sales", "sales_manager", "supply_chain", "admin"] },
+    { path: "/meetings", label: "Meetings", icon: Calendar },
+  ];
+
   const hasNavAccess = (itemRoles?: string[]) => !itemRoles || itemRoles.some((itemRole) => itemRole === role || roles.includes(itemRole as any));
 
   const moreItems = [
