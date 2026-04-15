@@ -10,9 +10,10 @@ import { CashflowChart } from '@/components/finance/CashflowChart';
 import { ExpectedPaymentsForm } from '@/components/finance/ExpectedPaymentsForm';
 import { InvoiceAgingDashboard } from '@/components/finance/InvoiceAgingDashboard';
 import { PaymentRiskWidget } from '@/components/finance/PaymentRiskWidget';
+import { RecurringExpensesPanel } from '@/components/finance/recurring/RecurringExpensesPanel';
 import { 
   IndianRupee, TrendingUp, TrendingDown, Calendar, Plus, 
-  ArrowUpRight, ArrowDownRight, Loader2, Lock, FileSpreadsheet
+  ArrowUpRight, ArrowDownRight, Loader2, Lock, FileSpreadsheet, Repeat
 } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
 
@@ -229,7 +230,7 @@ export default function Finance() {
 
         {/* Main Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+          <TabsList className="grid w-full grid-cols-5 max-w-3xl">
             <TabsTrigger value="overview" className="gap-2">
               <ArrowUpRight className="h-4 w-4" />
               Credit / Debit
@@ -237,6 +238,10 @@ export default function Finance() {
             <TabsTrigger value="cashflow" className="gap-2">
               <TrendingUp className="h-4 w-4" />
               Cashflow
+            </TabsTrigger>
+            <TabsTrigger value="recurring" className="gap-2">
+              <Repeat className="h-4 w-4" />
+              Recurring
             </TabsTrigger>
             <TabsTrigger value="aging" className="gap-2">
               <Calendar className="h-4 w-4" />
@@ -262,6 +267,10 @@ export default function Finance() {
               onMarkReceived={markAsReceived}
               onDelete={deletePayment}
             />
+          </TabsContent>
+
+          <TabsContent value="recurring">
+            <RecurringExpensesPanel />
           </TabsContent>
 
           <TabsContent value="aging">
