@@ -42,6 +42,10 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
     setDiagnostics(null);
   };
 
+  const formatAmount = (n: number) => n > 0 ? `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-';
+
+  const parseFailureHelp = 'Try uploading a cleaned CSV with these columns: transaction_date, value_date, transaction_id, reference_no, narration, debit, credit, balance';
+
   const handleParse = async () => {
     if (!file) return;
     setUploading(true);
@@ -81,6 +85,10 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
       setDiagnostics(diag);
       setParsed(transactions);
       setStep('preview');
+
+      if (transactions.length === 0) {
+        toast.error(diag.reason || 'Unable to parse this bank export.');
+      }
     } catch (err: any) {
       console.error('Parse error:', err);
       toast.error(err.message || 'Failed to parse file');
@@ -162,8 +170,6 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
     }
   };
 
-  const formatAmount = (n: number) => n > 0 ? `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-';
-
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
       <DialogContent className={step === 'preview' ? 'sm:max-w-3xl' : 'sm:max-w-md'}>
@@ -201,7 +207,7 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
         )}
 
         {step === 'preview' && diagnostics && (
-          <div className="space-y-4">
+            <div className="space-y-4">
             {/* Diagnostics Summary */}
             <div className="rounded-lg border bg-muted/40 p-3 space-y-2 text-sm">
               <div className="flex items-center gap-2 font-medium">
@@ -211,56 +217,91 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                 <span className="text-muted-foreground">File</span><span className="truncate">{diagnostics.fileName}</span>
                 {diagnostics.sheetName && <><span className="text-muted-foreground">Sheet</span><span>{diagnostics.sheetName}</span></>}
+                <span className="text-muted-foreground">Rows Scanned</span><span>{diagnostics.rowsScanned}</span>
                 <span className="text-muted-foreground">Header Row</span><span>{diagnostics.detectedHeaderRow ?? 'Not found'}</span>
-                <span className="text-muted-foreground">Columns Detected</span><span>{diagnostics.detectedColumns.length}</span>
                 <span className="text-muted-foreground">Rows Skipped</span><span>{diagnostics.rowsSkipped}</span>
-                <span className="text-muted-foreground">Transactions Parsed</span>
-                <span className="font-semibold">{diagnostics.transactionsParsed}</span>
+                <span className="text-muted-foreground">Rows Parsed</span><span className="font-semibold">{diagnostics.transactionsParsed}</span>
               </div>
               {diagnostics.detectedColumns.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {diagnostics.detectedColumns.map((c, i) => (
-                    <Badge key={i} variant="outline" className="text-[10px] py-0">{c}</Badge>
-                  ))}
+                <div className="space-y-2 mt-1">
+                  <div>
+                    <p className="text-[11px] font-medium text-muted-foreground mb-1">Original Headers</p>
+                    <div className="flex flex-wrap gap-1">
+                      {diagnostics.detectedColumns.map((c, i) => (
+                        <Badge key={`header-${i}`} variant="outline" className="text-[10px] py-0">{c}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                  {diagnostics.mappedFields.length > 0 && (
+                    <div>
+                      <p className="text-[11px] font-medium text-muted-foreground mb-1">Mapped Fields</p>
+                      <div className="flex flex-wrap gap-1">
+                        {diagnostics.mappedFields.map((field, i) => (
+                          <Badge key={`field-${i}`} variant="secondary" className="text-[10px] py-0">{field}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               {diagnostics.reason && (
                 <div className="flex items-start gap-1.5 text-destructive text-xs mt-1">
                   <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                  {diagnostics.reason}
+                  <div className="space-y-1">
+                    <p>{diagnostics.reason}</p>
+                    {parsed.length === 0 && (
+                      <div className="rounded-md border border-dashed border-border bg-background/80 p-2 text-muted-foreground">
+                        {parseFailureHelp}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Preview Table */}
             {parsed.length > 0 && (
-              <ScrollArea className="h-[300px] rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs">Date</TableHead>
-                      <TableHead className="text-xs">Narration</TableHead>
-                      <TableHead className="text-xs text-right">Credit</TableHead>
-                      <TableHead className="text-xs text-right">Debit</TableHead>
-                      <TableHead className="text-xs text-right">Balance</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {parsed.slice(0, 50).map((tx, i) => (
-                      <TableRow key={i} className="text-xs">
-                        <TableCell className="py-1.5 whitespace-nowrap">{tx.transaction_date}</TableCell>
-                        <TableCell className="py-1.5 max-w-[200px] truncate">{tx.narration || '-'}</TableCell>
-                        <TableCell className="py-1.5 text-right text-green-600">{formatAmount(tx.credit_amount)}</TableCell>
-                        <TableCell className="py-1.5 text-right text-red-500">{formatAmount(tx.debit_amount)}</TableCell>
-                        <TableCell className="py-1.5 text-right">{tx.running_balance != null ? formatAmount(tx.running_balance) : '-'}</TableCell>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Previewing first {Math.min(parsed.length, 50)} parsed transactions before import.</p>
+                <div className="max-h-[320px] overflow-y-auto rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Txn Date</TableHead>
+                        <TableHead className="text-xs">Value Date</TableHead>
+                        <TableHead className="text-xs">Txn ID</TableHead>
+                        <TableHead className="text-xs">Reference No</TableHead>
+                        <TableHead className="text-xs">Narration</TableHead>
+                        <TableHead className="text-xs text-right">Debit</TableHead>
+                        <TableHead className="text-xs text-right">Credit</TableHead>
+                        <TableHead className="text-xs text-right">Balance</TableHead>
+                        <TableHead className="text-xs">Direction</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {parsed.slice(0, 50).map((tx, i) => (
+                        <TableRow key={i} className="text-xs">
+                          <TableCell className="py-1.5 whitespace-nowrap">{tx.transaction_date}</TableCell>
+                          <TableCell className="py-1.5 whitespace-nowrap">{tx.value_date || '-'}</TableCell>
+                          <TableCell className="py-1.5 whitespace-nowrap">{tx.transaction_id || '-'}</TableCell>
+                          <TableCell className="py-1.5 whitespace-nowrap">{tx.reference_no || '-'}</TableCell>
+                          <TableCell className="py-1.5 max-w-[260px] truncate">{tx.narration || '-'}</TableCell>
+                          <TableCell className="py-1.5 text-right text-red-500">{formatAmount(tx.debit_amount)}</TableCell>
+                          <TableCell className="py-1.5 text-right text-green-600">{formatAmount(tx.credit_amount)}</TableCell>
+                          <TableCell className="py-1.5 text-right">{tx.running_balance != null ? formatAmount(tx.running_balance) : '-'}</TableCell>
+                          <TableCell className="py-1.5">
+                            <Badge variant="outline" className="text-[10px]">{tx.direction}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                  {diagnostics.detectedColumns.map((c, i) => (
                 {parsed.length > 50 && (
                   <p className="text-xs text-muted-foreground text-center py-2">Showing first 50 of {parsed.length} transactions</p>
                 )}
-              </ScrollArea>
+              </div>
             )}
           </div>
         )}
