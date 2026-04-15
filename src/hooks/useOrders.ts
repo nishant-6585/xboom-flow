@@ -57,6 +57,7 @@ export interface Order {
   sales_notes: string | null;
   invoice_url: string | null;
   po_url: string | null;
+  po_number: string | null;
   order_date: string | null;
   created_at: string;
   updated_at: string;
