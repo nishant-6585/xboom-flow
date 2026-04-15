@@ -81,8 +81,8 @@ export function useUntouchedLeads() {
           sales_person_id: e.sales_person_id, sales_person_name: e.sales_person_name,
           created_at: e.created_at, updated_at: e.updated_at, status: e.status,
           untouched_hours: hours, bucket,
-          phone: (e as any).customer_phone || null,
-          email: (e as any).customer_email || null,
+          phone: null,
+          email: null,
           company: (e as any).customer_company || null,
         });
       });
