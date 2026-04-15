@@ -22,6 +22,7 @@ import { SalesTargetsPanel } from "@/components/sales/SalesTargetsPanel";
 import { SalesFAQPanel } from "@/components/sales/SalesFAQPanel";
 import { SalesAnalyticsDashboard } from "@/components/sales/SalesAnalyticsDashboard";
 import { CategoryFunnelDashboard } from "@/components/sales/CategoryFunnelDashboard";
+import { LeadSourcePerformanceDashboard } from "@/components/sales/LeadSourcePerformanceDashboard";
 import { TasksPanel } from "@/components/tasks/TasksPanel";
 import { PipelineOrders } from "@/components/pipeline/PipelineOrders";
 import { EnquiriesPanel } from "@/components/sales/EnquiriesPanel";
@@ -154,6 +155,10 @@ export default function Sales() {
                   <ListTodo className="w-4 h-4" />
                   Tasks
                 </TabsTrigger>
+                <TabsTrigger value="source_performance" className={`${triggerBase} data-[state=active]:bg-indigo-600 data-[state=active]:text-white`}>
+                  <BarChart3 className="w-4 h-4" />
+                  Source Tracker
+                </TabsTrigger>
               </TabsList>
             </div>
 
@@ -209,6 +214,10 @@ export default function Sales() {
 
           <TabsContent value="tasks" className="space-y-6">
             <TasksPanel />
+          </TabsContent>
+
+          <TabsContent value="source_performance" className="space-y-6">
+            <LeadSourcePerformanceDashboard />
           </TabsContent>
 
           <TabsContent value="my_leads" className="space-y-6">
