@@ -35,7 +35,6 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
   const [syncing, setSyncing] = useState(false);
   const [form, setForm] = useState({ name: '', industry: '', city: '', state: '', phone: '', email: '', website: '', notes: '' });
   const lastAutoOpenedId = useRef<string | null>(null);
-  const lastAutoOpenedId = useRef<string | null>(null);
 
   // Auto-open company when selectedLeadId is provided
   useEffect(() => {
