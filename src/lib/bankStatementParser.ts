@@ -126,6 +126,11 @@ function isHeaderRow(cells: string[]): boolean {
 
 // ── Date parsing ──────────────────────────────────────────────────
 
+const MONTH_ABBR: Record<string, string> = {
+  jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+  jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+};
+
 function parseDate(val: string | number | null | undefined): string | null {
   if (val == null) return null;
   // Excel serial date number
@@ -138,11 +143,35 @@ function parseDate(val: string | number | null | undefined): string | null {
   }
   const s = String(val).trim();
   if (!s) return null;
+  // ISO: 2026-04-14
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+  // DD/MM/YYYY or DD-MM-YYYY
   const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  // DD/MM/YY or DD-MM-YY
   const m2 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/);
   if (m2) return `20${m2[3]}-${m2[2].padStart(2, '0')}-${m2[1].padStart(2, '0')}`;
+  // DD/Mon/YYYY or DD-Mon-YYYY (e.g. 14/Apr/2026)
+  const m3 = s.match(/^(\d{1,2})[\/\-]([A-Za-z]{3})[\/\-](\d{4})$/);
+  if (m3) {
+    const mon = MONTH_ABBR[m3[2].toLowerCase()];
+    if (mon) return `${m3[3]}-${mon}-${m3[1].padStart(2, '0')}`;
+  }
+  // DD-Mon-YY (e.g. 14-Apr-26)
+  const m4 = s.match(/^(\d{1,2})[\/\-]([A-Za-z]{3})[\/\-](\d{2})$/);
+  if (m4) {
+    const mon = MONTH_ABBR[m4[2].toLowerCase()];
+    if (mon) return `20${m4[3]}-${mon}-${m4[1].padStart(2, '0')}`;
+  }
+  // DD Mon YYYY (e.g. 14 Apr 2026)
+  const m5 = s.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})$/);
+  if (m5) {
+    const mon = MONTH_ABBR[m5[2].toLowerCase()];
+    if (mon) return `${m5[3]}-${mon}-${m5[1].padStart(2, '0')}`;
+  }
+  // DD/MM/YYYY HH:MM:SS (with timestamp — e.g. "14/04/2026 02:42:17 PM")
+  const m6 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s+\d/);
+  if (m6) return `${m6[3]}-${m6[2].padStart(2, '0')}-${m6[1].padStart(2, '0')}`;
   return null;
 }
 
