@@ -1644,6 +1644,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               </div>
               
               {poUrl ? (
+                <div className="space-y-2">
                   {poUrl.split(',').map((url, idx) => (
                     <div key={idx} className="flex items-center justify-between p-3 bg-background rounded-lg border">
                       <a
