@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { CheckCircle2, AlertCircle, Percent } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Percent, ExternalLink, Unlink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { type BankTransaction } from '@/hooks/useBankReconciliation';
 import { toast } from 'sonner';
@@ -23,24 +23,30 @@ interface ProbableMatch {
   confidence: number;
 }
 
+interface CurrentMatchInfo {
+  type: string;
+  id: string;
+  label: string;
+  amount: number;
+  detail: string;
+  confidence: number;
+}
+
 const fmt = (n: number) => '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
 function calculateConfidence(txAmount: number, matchAmount: number, narration: string, matchLabel: string): number {
   let score = 0;
-  // Amount match
   const diff = Math.abs(txAmount - matchAmount);
   if (diff === 0) score += 50;
   else if (diff < txAmount * 0.05) score += 35;
   else if (diff < txAmount * 0.15) score += 20;
   else score += 5;
 
-  // Narration keyword match
   const narLower = (narration || '').toLowerCase();
   const labelWords = matchLabel.toLowerCase().split(/\s+/);
   const wordMatches = labelWords.filter(w => w.length > 2 && narLower.includes(w)).length;
   score += Math.min(wordMatches * 15, 45);
 
-  // Gateway keywords
   const gateways = ['payu', 'razorpay', 'easebuzz', 'phonepe', 'upi', 'neft', 'rtgs', 'imps'];
   if (gateways.some(g => narLower.includes(g))) score += 5;
 
@@ -50,11 +56,63 @@ function calculateConfidence(txAmount: number, matchAmount: number, narration: s
 export function MatchPanel({ transaction, onClose, onConfirmMatch }: Props) {
   const [matches, setMatches] = useState<ProbableMatch[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentMatch, setCurrentMatch] = useState<CurrentMatchInfo | null>(null);
+  const [loadingCurrent, setLoadingCurrent] = useState(false);
 
   useEffect(() => {
     if (!transaction) return;
     findMatches();
+    if (transaction.matched_entity_type && transaction.matched_entity_id) {
+      fetchCurrentMatch(transaction.matched_entity_type, transaction.matched_entity_id, transaction.match_confidence || 0);
+    } else {
+      setCurrentMatch(null);
+    }
   }, [transaction]);
+
+  const fetchCurrentMatch = async (entityType: string, entityId: string, confidence: number) => {
+    setLoadingCurrent(true);
+    try {
+      let label = '', amount = 0, detail = '';
+      if (entityType === 'order') {
+        const { data } = await supabase.from('orders').select('order_number, customer_name, customer_company, total_sales_amount, amount_paid, payment_status').eq('id', entityId).maybeSingle();
+        if (data) {
+          label = `${data.order_number} - ${data.customer_name}`;
+          amount = (data.total_sales_amount || 0) - (data.amount_paid || 0);
+          detail = `Outstanding: ${fmt(amount)} | ${data.customer_company || ''} | Status: ${data.payment_status}`;
+        }
+      } else if (entityType === 'procurement') {
+        const { data } = await supabase.from('inventory_procurements').select('procurement_number, po_number, total_amount, supplier_name').eq('id', entityId).maybeSingle();
+        if (data) {
+          label = `${data.po_number || data.procurement_number} - ${data.supplier_name || 'Supplier'}`;
+          amount = data.total_amount || 0;
+          detail = `Procurement: ${fmt(amount)}`;
+        }
+      } else if (entityType === 'expense') {
+        const { data } = await supabase.from('expenses').select('description, amount, expense_date').eq('id', entityId).maybeSingle() as { data: any };
+        if (data) {
+          label = `Expense: ${(data.description || '').substring(0, 50)}`;
+          amount = data.amount || 0;
+          detail = `Date: ${data.expense_date}`;
+        }
+      } else if (entityType === 'expected_payment') {
+        const { data } = await supabase.from('expected_payments').select('*').eq('id', entityId).maybeSingle();
+        if (data) {
+          label = `Expected: ${(data as any).source || 'Unknown'}`;
+          amount = (data as any).amount || 0;
+          detail = `Due: ${(data as any).expected_date} | ${(data as any).notes || ''}`;
+        }
+      }
+      if (label) {
+        setCurrentMatch({ type: entityType, id: entityId, label, amount, detail, confidence });
+      } else {
+        setCurrentMatch({ type: entityType, id: entityId, label: `${entityType} (${entityId.slice(0, 8)}...)`, amount: 0, detail: 'Entity details not found', confidence });
+      }
+    } catch (err) {
+      console.error('Error fetching current match:', err);
+    } finally {
+      setLoadingCurrent(false);
+    }
+  };
 
   const findMatches = async () => {
     if (!transaction) return;
@@ -65,7 +123,6 @@ export function MatchPanel({ transaction, onClose, onConfirmMatch }: Props) {
 
     try {
       if (transaction.transaction_type === 'credit') {
-        // Match against orders with outstanding
         const { data: orders } = await supabase
           .from('orders')
           .select('id, order_number, customer_name, customer_company, total_sales_amount, amount_paid, payment_status')
@@ -85,7 +142,6 @@ export function MatchPanel({ transaction, onClose, onConfirmMatch }: Props) {
           }
         });
 
-        // Match against expected payments
         const { data: expected } = await supabase
           .from('expected_payments')
           .select('*')
@@ -102,7 +158,6 @@ export function MatchPanel({ transaction, onClose, onConfirmMatch }: Props) {
           }
         });
       } else {
-        // Debit: match against supplier payments, expenses, procurements
         const { data: procs } = await supabase
           .from('inventory_procurements')
           .select('id, procurement_number, total_amount, supplier_id, suppliers(name)')
@@ -143,14 +198,22 @@ export function MatchPanel({ transaction, onClose, onConfirmMatch }: Props) {
     }
   };
 
+  const handleUnmatch = () => {
+    if (!transaction) return;
+    onConfirmMatch(transaction.id, '', '', 0);
+    toast.success('Match removed — transaction set back to unmatched');
+  };
+
   if (!transaction) return null;
+
+  const isMatched = transaction.status === 'auto_matched' || transaction.status === 'reconciled';
 
   return (
     <Sheet open={!!transaction} onOpenChange={o => !o && onClose()}>
       <SheetContent className="w-[450px] overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
-            {transaction.transaction_type === 'credit' ? 'Probable Receipt Match' : 'Probable Expense Match'}
+            {isMatched ? 'Matched Transaction Details' : transaction.transaction_type === 'credit' ? 'Probable Receipt Match' : 'Probable Expense Match'}
           </SheetTitle>
         </SheetHeader>
         <div className="mt-4 space-y-3">
@@ -165,8 +228,59 @@ export function MatchPanel({ transaction, onClose, onConfirmMatch }: Props) {
                   {fmt(transaction.credit_amount || transaction.debit_amount)}
                 </span>
               </div>
+              {transaction.bank_reference && (
+                <p className="text-xs text-muted-foreground mt-1">Ref: {transaction.bank_reference}</p>
+              )}
             </CardContent>
           </Card>
+
+          {/* Current Match (for auto_matched / reconciled) */}
+          {isMatched && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                Current Match
+              </h4>
+              {loadingCurrent ? (
+                <div className="text-xs text-muted-foreground py-4 text-center">Loading match details...</div>
+              ) : currentMatch ? (
+                <Card className="border-emerald-500/30 bg-emerald-500/5">
+                  <CardContent className="p-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className="text-[10px] capitalize">{currentMatch.type.replace('_', ' ')}</Badge>
+                          {currentMatch.confidence > 0 && (
+                            <span className={`text-xs font-bold ${currentMatch.confidence >= 70 ? 'text-emerald-600' : currentMatch.confidence >= 40 ? 'text-amber-600' : 'text-red-500'}`}>
+                              {currentMatch.confidence}% match
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm font-medium truncate">{currentMatch.label}</p>
+                        <p className="text-xs text-muted-foreground">{currentMatch.detail}</p>
+                        {currentMatch.amount > 0 && <p className="text-sm font-bold mt-1">{fmt(currentMatch.amount)}</p>}
+                      </div>
+                      <Button size="sm" variant="outline" className="ml-2 shrink-0 text-destructive hover:text-destructive" onClick={handleUnmatch} title="Remove this match">
+                        <Unlink className="h-3.5 w-3.5 mr-1" />Unmatch
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : transaction.account_id ? (
+                <Card className="border-emerald-500/30 bg-emerald-500/5">
+                  <CardContent className="p-3">
+                    <p className="text-sm text-muted-foreground">Matched via auto-rule to account/subaccount category.</p>
+                    <p className="text-xs text-muted-foreground mt-1">You can re-match below or change the account in the table.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <p className="text-xs text-muted-foreground">No match entity details available.</p>
+              )}
+              <div className="border-t pt-3 mt-3">
+                <h4 className="text-sm font-semibold mb-2">Other Possible Matches</h4>
+              </div>
+            </div>
+          )}
 
           {loading ? (
             <div className="text-center py-8 text-muted-foreground text-sm">Searching for matches...</div>
@@ -177,7 +291,7 @@ export function MatchPanel({ transaction, onClose, onConfirmMatch }: Props) {
             </div>
           ) : (
             matches.map(m => (
-              <Card key={`${m.type}-${m.id}`} className="hover:border-primary/50 transition-colors">
+              <Card key={`${m.type}-${m.id}`} className={`hover:border-primary/50 transition-colors ${currentMatch?.id === m.id ? 'border-emerald-500 bg-emerald-500/5' : ''}`}>
                 <CardContent className="p-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
@@ -189,13 +303,14 @@ export function MatchPanel({ transaction, onClose, onConfirmMatch }: Props) {
                             {m.confidence}%
                           </span>
                         </div>
+                        {currentMatch?.id === m.id && <Badge className="bg-emerald-100 text-emerald-800 text-[9px] border-0">Current</Badge>}
                       </div>
                       <p className="text-sm font-medium mt-1 truncate">{m.label}</p>
                       <p className="text-xs text-muted-foreground">{m.detail}</p>
                       <p className="text-sm font-bold mt-1">{fmt(m.amount)}</p>
                     </div>
-                    <Button size="sm" variant="outline" className="ml-2 shrink-0" onClick={() => onConfirmMatch(transaction.id, m.type, m.id, m.confidence)}>
-                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" />Confirm
+                    <Button size="sm" variant="outline" className="ml-2 shrink-0" onClick={() => onConfirmMatch(transaction.id, m.type, m.id, m.confidence)} disabled={currentMatch?.id === m.id}>
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" />{currentMatch?.id === m.id ? 'Matched' : 'Confirm'}
                     </Button>
                   </div>
                 </CardContent>
