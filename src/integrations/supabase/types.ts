@@ -8760,6 +8760,97 @@ export type Database = {
           },
         ]
       }
+      recurring_expenses: {
+        Row: {
+          account_id: string | null
+          created_at: string
+          created_by: string
+          created_by_name: string
+          default_amount: number
+          due_day: number | null
+          end_date: string | null
+          expense_name: string
+          frequency: string
+          id: string
+          is_active: boolean
+          last_linked_transaction_id: string | null
+          last_paid_amount: number | null
+          last_paid_date: string | null
+          next_due_date: string | null
+          notes: string | null
+          start_date: string
+          subaccount_id: string | null
+          updated_at: string
+          vendor_name: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string
+          created_by: string
+          created_by_name?: string
+          default_amount?: number
+          due_day?: number | null
+          end_date?: string | null
+          expense_name: string
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_linked_transaction_id?: string | null
+          last_paid_amount?: number | null
+          last_paid_date?: string | null
+          next_due_date?: string | null
+          notes?: string | null
+          start_date?: string
+          subaccount_id?: string | null
+          updated_at?: string
+          vendor_name?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string
+          created_by?: string
+          created_by_name?: string
+          default_amount?: number
+          due_day?: number | null
+          end_date?: string | null
+          expense_name?: string
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_linked_transaction_id?: string | null
+          last_paid_amount?: number | null
+          last_paid_date?: string | null
+          next_due_date?: string | null
+          notes?: string | null
+          start_date?: string
+          subaccount_id?: string | null
+          updated_at?: string
+          vendor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_expenses_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_expenses_last_linked_transaction_id_fkey"
+            columns: ["last_linked_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_expenses_subaccount_id_fkey"
+            columns: ["subaccount_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation_subaccounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       repairs: {
         Row: {
           advance_amount: number | null
