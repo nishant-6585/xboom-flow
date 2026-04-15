@@ -75,6 +75,21 @@ interface TallyInvoice {
   customer_gst: string | null;
 }
 
+interface TallyInventoryLink {
+  id: string;
+  order_id: string;
+  inventory_procurement_id: string;
+  quantity_used: number;
+  procurement?: {
+    po_number: string | null;
+    procurement_number: string | null;
+    unit_price: number | null;
+    total_amount: number | null;
+    supplier_name: string | null;
+    product_name: string;
+  };
+}
+
 interface TallySupplier {
   id: string;
   brand_name: string | null;
@@ -103,6 +118,9 @@ interface TallyRow {
   poNumber: string;
   supplierName: string;
   customerGst: string;
+  inventoryFulfilled: boolean;
+  inventorySourcePO: string;
+  inventoryCost: number;
 }
 
 type SortField = "orderNumber" | "salesValue" | "pendingPayment" | "procurementValue" | "profit" | "profitMargin";
@@ -135,6 +153,7 @@ export function TallyDashboard() {
   const [orderItems, setOrderItems] = useState<TallyOrderItem[]>([]);
   const [invoices, setInvoices] = useState<TallyInvoice[]>([]);
   const [suppliers, setSuppliers] = useState<TallySupplier[]>([]);
+  const [invLinks, setInvLinks] = useState<TallyInventoryLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("orderNumber");
@@ -202,7 +221,7 @@ export function TallyDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [ordersRes, procRes, itemsRes, invoicesRes, suppliersRes] = await Promise.all([
+      const [ordersRes, procRes, itemsRes, invoicesRes, suppliersRes, linksRes] = await Promise.all([
           supabase
             .from("orders")
             .select("id, order_number, product_name, product_category, quantity, customer_name, customer_company, total_sales_amount, amount_paid, payment_status, status, created_at, order_date, selling_price, procurement_rate, sales_person_name, sales_person_id")
@@ -222,12 +241,28 @@ export function TallyDashboard() {
           supabase
             .from("suppliers")
             .select("id, brand_name, contact_name"),
+          supabase
+            .from("order_procurement_links")
+            .select("id, order_id, inventory_procurement_id, quantity_used"),
         ]);
         setAllOrders(ordersRes.data || []);
         setProcurements((procRes.data as TallyProcurement[]) || []);
         setOrderItems(itemsRes.data || []);
         setInvoices(invoicesRes.data || []);
         setSuppliers(suppliersRes.data || []);
+
+        // Enrich inventory links with procurement details
+        const rawLinks = (linksRes.data || []) as TallyInventoryLink[];
+        if (rawLinks.length > 0) {
+          const procIds = [...new Set(rawLinks.map(l => l.inventory_procurement_id))];
+          const { data: linkedProcs } = await supabase
+            .from("inventory_procurements")
+            .select("id, po_number, procurement_number, unit_price, total_amount, supplier_name, product_name")
+            .in("id", procIds);
+          const procMap = new Map((linkedProcs || []).map((p: any) => [p.id, p]));
+          rawLinks.forEach(l => { l.procurement = procMap.get(l.inventory_procurement_id); });
+        }
+        setInvLinks(rawLinks);
       } catch (err) {
         console.error("Error fetching tally data:", err);
       } finally {
@@ -290,6 +325,16 @@ export function TallyDashboard() {
     return map;
   }, [invoices]);
 
+  const invLinksByOrder = useMemo(() => {
+    const map = new Map<string, TallyInventoryLink[]>();
+    invLinks.forEach((l) => {
+      const arr = map.get(l.order_id) || [];
+      arr.push(l);
+      map.set(l.order_id, arr);
+    });
+    return map;
+  }, [invLinks]);
+
   const suppliersMap = useMemo(() => {
     const map = new Map<string, TallySupplier>();
     suppliers.forEach((s) => map.set(s.id, s));
@@ -301,6 +346,7 @@ export function TallyDashboard() {
       const procs = procByOrder.get(o.id) || [];
       const items = itemsByOrder.get(o.id) || [];
       const invs = invoicesByOrder.get(o.id) || [];
+      const orderInvLinks = invLinksByOrder.get(o.id) || [];
 
       const salesValue = o.total_sales_amount || 0;
       const amountReceived = o.amount_paid || 0;
@@ -352,6 +398,16 @@ export function TallyDashboard() {
       // Customer GST from invoices
       const customerGst = invs.map(i => i.customer_gst).filter(Boolean).join(", ") || "—";
 
+      // Inventory fulfillment
+      const inventoryFulfilled = orderInvLinks.length > 0;
+      const inventorySourcePO = inventoryFulfilled
+        ? [...new Set(orderInvLinks.map(l => l.procurement?.po_number || l.procurement?.procurement_number).filter(Boolean))].join(", ") || "—"
+        : "—";
+      const inventoryCost = orderInvLinks.reduce((sum, l) => {
+        const unitPrice = l.procurement?.unit_price || 0;
+        return sum + unitPrice * l.quantity_used;
+      }, 0);
+
       return {
         orderId: o.id,
         orderNumber: o.order_number || "—",
@@ -374,9 +430,12 @@ export function TallyDashboard() {
         poNumber,
         supplierName,
         customerGst,
+        inventoryFulfilled,
+        inventorySourcePO,
+        inventoryCost,
       };
     });
-  }, [orders, procByOrder, itemsByOrder, invoicesByOrder, suppliersMap]);
+  }, [orders, procByOrder, itemsByOrder, invoicesByOrder, suppliersMap, invLinksByOrder]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -638,12 +697,14 @@ export function TallyDashboard() {
                   <TableHead className="text-right"><SortBtn field="profitMargin" label="Margin" /></TableHead>
                   <TableHead>Pay Status</TableHead>
                   <TableHead>Proc Pay</TableHead>
+                  <TableHead>Inv. Source</TableHead>
+                  <TableHead className="text-right">Inv. Cost</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={16} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={18} className="text-center py-10 text-muted-foreground">
                       No orders found for {periodLabel}
                     </TableCell>
                   </TableRow>
@@ -715,6 +776,19 @@ export function TallyDashboard() {
                       </TableCell>
                       <TableCell><PayBadge status={r.paymentStatus} /></TableCell>
                       <TableCell><ProcPayBadge status={r.procurementPaymentStatus} /></TableCell>
+                      <TableCell>
+                        {r.inventoryFulfilled ? (
+                          <div className="space-y-0.5">
+                            <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px]">Inventory</Badge>
+                            <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[100px]">{r.inventorySourcePO}</p>
+                          </div>
+                        ) : <span className="text-xs text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {r.inventoryCost > 0 ? (
+                          <span className="text-sm font-medium">{fmt(r.inventoryCost)}</span>
+                        ) : <span className="text-xs text-muted-foreground">—</span>}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}

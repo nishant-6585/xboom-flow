@@ -29,6 +29,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { ProductSelect } from '@/components/ProductSelect';
 import { PricelistItem } from '@/hooks/usePricelist';
+import { InventoryFulfillmentPanel } from '@/components/order/InventoryFulfillmentPanel';
 
 interface OrderDialogProps {
   order: Order | null;
@@ -1744,6 +1745,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
             </div>
 
             {/* Notes (Read-only display when not in edit mode) */}
+            {/* Inventory Fulfillment Section */}
+            {order && <InventoryFulfillmentPanel orderId={order.id} productName={order.product_name} />}
+
             {!canEditOrder && (order.sales_notes || order.customer_notes) && (
               <div className="space-y-3">
                 {order.sales_notes && (
