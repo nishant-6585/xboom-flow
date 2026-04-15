@@ -114,6 +114,9 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [paymentDueDate, setPaymentDueDate] = useState('');
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
   const [poUrl, setPoUrl] = useState<string | null>(null);
+  const [invoiceNumber, setInvoiceNumber] = useState<string>('');
+  const [poNumber, setPoNumber] = useState<string>('');
+  const [editingPoNumber, setEditingPoNumber] = useState(false);
   const [isRefundRequested, setIsRefundRequested] = useState(false);
   const [refundReason, setRefundReason] = useState('');
   const [refundStatus, setRefundStatus] = useState<RefundStatus>('pending');
