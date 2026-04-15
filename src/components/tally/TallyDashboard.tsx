@@ -94,6 +94,10 @@ interface TallyRow {
   procurementPaymentStatus: string;
   salesPersonName: string;
   createdAt: string;
+  invoiceNumber: string;
+  poNumber: string;
+  supplierName: string;
+  customerGst: string;
 }
 
 type SortField = "orderNumber" | "salesValue" | "pendingPayment" | "procurementValue" | "profit" | "profitMargin";
