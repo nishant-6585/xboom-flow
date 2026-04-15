@@ -9,7 +9,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  IndianRupee, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Search, ArrowUpDown, Calendar, User,
+  IndianRupee, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Search, ArrowUpDown, Calendar, User, ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,11 @@ import {
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, format, eachDayOfInterval, isWithinInterval, startOfDay,
 } from "date-fns";
+import { OrderDialog } from "@/components/OrderDialog";
+import { ProcurementOrderDialog } from "@/components/procurement/ProcurementOrderDialog";
+import { Order } from "@/hooks/useOrders";
+import { useSuppliers } from "@/hooks/useSuppliers";
+import { toast } from "sonner";
 
 interface TallyOrder {
   id: string;
