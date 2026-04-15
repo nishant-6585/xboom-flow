@@ -22,15 +22,28 @@ export default function BankReconciliation() {
   const canAccess = role === 'admin' || role === 'finance';
 
   const handleConfirmMatch = async (txId: string, entityType: string, entityId: string, confidence: number) => {
-    await updateTransaction(txId, {
-      matched_entity_type: entityType,
-      matched_entity_id: entityId,
-      match_confidence: confidence,
-      status: 'reconciled' as TransactionStatus,
-      matched_at: new Date().toISOString(),
-    } as any);
-    setMatchTx(null);
-    toast.success('Match confirmed and transaction reconciled');
+    if (!entityType && !entityId) {
+      // Unmatch
+      await updateTransaction(txId, {
+        matched_entity_type: null,
+        matched_entity_id: null,
+        match_confidence: null,
+        status: 'unmatched' as TransactionStatus,
+        matched_at: null,
+      } as any);
+      setMatchTx(null);
+      toast.success('Match removed');
+    } else {
+      await updateTransaction(txId, {
+        matched_entity_type: entityType,
+        matched_entity_id: entityId,
+        match_confidence: confidence,
+        status: 'reconciled' as TransactionStatus,
+        matched_at: new Date().toISOString(),
+      } as any);
+      setMatchTx(null);
+      toast.success('Match confirmed and transaction reconciled');
+    }
   };
 
   if (authLoading) {
