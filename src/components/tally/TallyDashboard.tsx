@@ -9,14 +9,14 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  IndianRupee, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Search, ArrowUpDown, Calendar, User, Filter,
+  IndianRupee, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Search, ArrowUpDown, Calendar, User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import {
-  startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, format, isWithinInterval, startOfDay,
+  startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, format, eachDayOfInterval, isWithinInterval, startOfDay,
 } from "date-fns";
 
 interface TallyOrder {
@@ -37,7 +37,6 @@ interface TallyOrder {
   procurement_rate: number | null;
   sales_person_name: string;
   sales_person_id: string;
-  po_number: string | null;
 }
 
 interface TallyProcurement {
@@ -53,11 +52,28 @@ interface TallyProcurement {
   po_number: string | null;
 }
 
+interface TallyOrderItem {
+  id: string;
+  order_id: string;
+  product_name: string;
+  quantity: number;
+  procurement_rate: number | null;
+  quantity_procured: number | null;
+  procurement_gst_amount: number | null;
+  supplier_id: string | null;
+}
+
 interface TallyInvoice {
   id: string;
-  invoice_number: string;
+  invoice_number: string | null;
   order_id: string | null;
   customer_gst: string | null;
+}
+
+interface TallySupplier {
+  id: string;
+  brand_name: string | null;
+  contact_name: string | null;
 }
 
 interface TallyRow {
@@ -66,7 +82,6 @@ interface TallyRow {
   customerName: string;
   customerCompany: string;
   productName: string;
-  productCategory: string;
   quantity: number;
   salesValue: number;
   amountReceived: number;
@@ -112,25 +127,23 @@ function getDateRange(period: TimePeriod): { start: Date; end: Date } {
 export function TallyDashboard() {
   const [allOrders, setAllOrders] = useState<TallyOrder[]>([]);
   const [procurements, setProcurements] = useState<TallyProcurement[]>([]);
+  const [orderItems, setOrderItems] = useState<TallyOrderItem[]>([]);
   const [invoices, setInvoices] = useState<TallyInvoice[]>([]);
+  const [suppliers, setSuppliers] = useState<TallySupplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("orderNumber");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("this_month");
   const [salesPersonFilter, setSalesPersonFilter] = useState<string>("all");
-  const [payStatusFilter, setPayStatusFilter] = useState<string>("all");
-  const [orderStatusFilter, setOrderStatusFilter] = useState<string>("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [ordersRes, procRes, invRes] = await Promise.all([
+        const [ordersRes, procRes, itemsRes, invoicesRes, suppliersRes] = await Promise.all([
           supabase
             .from("orders")
-            .select("id, order_number, product_name, product_category, quantity, customer_name, customer_company, total_sales_amount, amount_paid, payment_status, status, created_at, order_date, selling_price, procurement_rate, sales_person_name, sales_person_id, po_number")
+            .select("id, order_number, product_name, product_category, quantity, customer_name, customer_company, total_sales_amount, amount_paid, payment_status, status, created_at, order_date, selling_price, procurement_rate, sales_person_name, sales_person_id")
             .not("status", "eq", "cancelled")
             .order("created_at", { ascending: false }),
           supabase
@@ -138,13 +151,21 @@ export function TallyDashboard() {
             .select("id, procurement_number, order_id, product_name, quantity, unit_price, total_amount, payment_status, supplier_name, po_number")
             .not("order_id", "is", null),
           supabase
+            .from("order_items")
+            .select("id, order_id, product_name, quantity, procurement_rate, quantity_procured, procurement_gst_amount, supplier_id"),
+          supabase
             .from("invoices")
             .select("id, invoice_number, order_id, customer_gst")
             .not("order_id", "is", null),
+          supabase
+            .from("suppliers")
+            .select("id, brand_name, contact_name"),
         ]);
         setAllOrders(ordersRes.data || []);
-        setProcurements(procRes.data || []);
-        setInvoices(invRes.data || []);
+        setProcurements((procRes.data as TallyProcurement[]) || []);
+        setOrderItems(itemsRes.data || []);
+        setInvoices(invoicesRes.data || []);
+        setSuppliers(suppliersRes.data || []);
       } catch (err) {
         console.error("Error fetching tally data:", err);
       } finally {
@@ -154,18 +175,14 @@ export function TallyDashboard() {
     fetchData();
   }, []);
 
+  // Unique salesperson list
   const salesPersons = useMemo(() => {
     const names = new Set<string>();
     allOrders.forEach((o) => { if (o.sales_person_name) names.add(o.sales_person_name); });
     return Array.from(names).sort();
   }, [allOrders]);
 
-  const categories = useMemo(() => {
-    const cats = new Set<string>();
-    allOrders.forEach((o) => { if (o.product_category) cats.add(o.product_category); });
-    return Array.from(cats).sort();
-  }, [allOrders]);
-
+  // Filter orders by date range and salesperson
   const orders = useMemo(() => {
     const { start, end } = getDateRange(timePeriod);
     return allOrders.filter((o) => {
@@ -176,6 +193,7 @@ export function TallyDashboard() {
     });
   }, [allOrders, timePeriod, salesPersonFilter]);
 
+  // Build lookup maps
   const procByOrder = useMemo(() => {
     const map = new Map<string, TallyProcurement[]>();
     procurements.forEach((p) => {
@@ -188,7 +206,17 @@ export function TallyDashboard() {
     return map;
   }, [procurements]);
 
-  const invByOrder = useMemo(() => {
+  const itemsByOrder = useMemo(() => {
+    const map = new Map<string, TallyOrderItem[]>();
+    orderItems.forEach((item) => {
+      const arr = map.get(item.order_id) || [];
+      arr.push(item);
+      map.set(item.order_id, arr);
+    });
+    return map;
+  }, [orderItems]);
+
+  const invoicesByOrder = useMemo(() => {
     const map = new Map<string, TallyInvoice[]>();
     invoices.forEach((inv) => {
       if (inv.order_id) {
@@ -200,25 +228,60 @@ export function TallyDashboard() {
     return map;
   }, [invoices]);
 
+  const suppliersMap = useMemo(() => {
+    const map = new Map<string, TallySupplier>();
+    suppliers.forEach((s) => map.set(s.id, s));
+    return map;
+  }, [suppliers]);
+
   const rows: TallyRow[] = useMemo(() => {
     return orders.map((o) => {
       const procs = procByOrder.get(o.id) || [];
-      const invs = invByOrder.get(o.id) || [];
+      const items = itemsByOrder.get(o.id) || [];
+      const invs = invoicesByOrder.get(o.id) || [];
+
       const salesValue = o.total_sales_amount || 0;
       const amountReceived = o.amount_paid || 0;
       const pendingPayment = salesValue - amountReceived;
-      const procurementValue = procs.reduce((s, p) => s + (p.total_amount || 0), 0);
+
+      // Calculate procurement cost: prefer order_items (procurement_rate × quantity + GST)
+      // Fall back to inventory_procurements.total_amount if order_items have no data
+      const itemsProcCost = items.reduce((s, item) => {
+        const rate = item.procurement_rate || 0;
+        const qty = item.quantity_procured ?? item.quantity ?? 0;
+        const gst = item.procurement_gst_amount || 0;
+        return s + (rate * qty) + gst;
+      }, 0);
+
+      const procTableCost = procs.reduce((s, p) => s + (p.total_amount || 0), 0);
+
+      // Use whichever source has actual data; prefer order_items
+      const procurementValue = itemsProcCost > 0 ? itemsProcCost : procTableCost;
+
       const profit = salesValue - procurementValue;
       const profitMargin = salesValue > 0 ? (profit / salesValue) * 100 : 0;
+
       const procPayStatuses = procs.map((p) => p.payment_status);
       const procPaymentStatus = procPayStatuses.length === 0
         ? "no_proc"
         : procPayStatuses.every((s) => s === "paid") ? "paid"
         : procPayStatuses.some((s) => s === "partial") ? "partial" : "pending";
 
+      // Invoice number(s)
       const invoiceNumber = invs.map(i => i.invoice_number).filter(Boolean).join(", ") || "—";
-      const poNumber = o.po_number || procs.map(p => p.po_number).filter(Boolean).join(", ") || "—";
-      const supplierName = procs.map(p => p.supplier_name).filter(Boolean).join(", ") || "—";
+
+      // PO number: from order procurements
+      const poNumber = procs.map(p => p.po_number).filter(Boolean).join(", ") || "—";
+
+      // Supplier name(s): from order_items supplier_id → suppliers table, or from procurements
+      const itemSupplierNames = items
+        .map(item => item.supplier_id ? suppliersMap.get(item.supplier_id)?.brand_name : null)
+        .filter(Boolean);
+      const procSupplierNames = procs.map(p => p.supplier_name).filter(Boolean);
+      const allSuppliers = [...new Set([...itemSupplierNames, ...procSupplierNames])];
+      const supplierName = allSuppliers.join(", ") || "—";
+
+      // Customer GST from invoices
       const customerGst = invs.map(i => i.customer_gst).filter(Boolean).join(", ") || "—";
 
       return {
@@ -227,7 +290,6 @@ export function TallyDashboard() {
         customerName: o.customer_name,
         customerCompany: o.customer_company,
         productName: o.product_name,
-        productCategory: o.product_category,
         quantity: o.quantity,
         salesValue,
         amountReceived,
@@ -246,43 +308,31 @@ export function TallyDashboard() {
         customerGst,
       };
     });
-  }, [orders, procByOrder, invByOrder]);
+  }, [orders, procByOrder, itemsByOrder, invoicesByOrder, suppliersMap]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    let list = rows;
-
-    if (q) {
-      list = list.filter((r) =>
-        r.orderNumber.toLowerCase().includes(q) ||
-        r.customerName.toLowerCase().includes(q) ||
-        r.customerCompany.toLowerCase().includes(q) ||
-        r.productName.toLowerCase().includes(q) ||
-        r.invoiceNumber.toLowerCase().includes(q) ||
-        r.poNumber.toLowerCase().includes(q) ||
-        r.supplierName.toLowerCase().includes(q) ||
-        r.customerGst.toLowerCase().includes(q)
-      );
-    }
-
-    if (payStatusFilter !== "all") {
-      list = list.filter(r => r.paymentStatus === payStatusFilter);
-    }
-    if (orderStatusFilter !== "all") {
-      list = list.filter(r => r.orderStatus === orderStatusFilter);
-    }
-    if (categoryFilter !== "all") {
-      list = list.filter(r => r.productCategory === categoryFilter);
-    }
-
+    const list = q
+      ? rows.filter((r) =>
+          r.orderNumber.toLowerCase().includes(q) ||
+          r.customerName.toLowerCase().includes(q) ||
+          r.customerCompany.toLowerCase().includes(q) ||
+          r.productName.toLowerCase().includes(q) ||
+          r.invoiceNumber.toLowerCase().includes(q) ||
+          r.poNumber.toLowerCase().includes(q) ||
+          r.supplierName.toLowerCase().includes(q) ||
+          r.customerGst.toLowerCase().includes(q)
+        )
+      : rows;
     return [...list].sort((a, b) => {
       const av = a[sortField];
       const bv = b[sortField];
       if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv as string) : (bv as string).localeCompare(av);
       return sortDir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
     });
-  }, [rows, search, sortField, sortDir, payStatusFilter, orderStatusFilter, categoryFilter]);
+  }, [rows, search, sortField, sortDir]);
 
+  // Aggregates
   const totals = useMemo(() => {
     const totalSales = rows.reduce((s, r) => s + r.salesValue, 0);
     const totalReceived = rows.reduce((s, r) => s + r.amountReceived, 0);
@@ -293,14 +343,22 @@ export function TallyDashboard() {
     return { totalSales, totalReceived, totalPending, totalProcurement, totalProfit, avgMargin };
   }, [rows]);
 
+  // Comparison chart: Current month till date vs Previous month same dates
   const comparisonData = useMemo(() => {
     const now = new Date();
     const currentMonthStart = startOfMonth(now);
     const dayOfMonth = now.getDate();
     const prevMonthStart = startOfMonth(subMonths(now, 1));
+
+    // Days 1 to today's date
     const days = Array.from({ length: dayOfMonth }, (_, i) => i + 1);
 
     return days.map((day) => {
+      const currentDate = new Date(currentMonthStart);
+      currentDate.setDate(day);
+      const prevDate = new Date(prevMonthStart);
+      prevDate.setDate(day);
+
       const currentDayOrders = allOrders.filter((o) => {
         const d = new Date(o.order_date || o.created_at);
         return d.getDate() === day &&
@@ -343,7 +401,6 @@ export function TallyDashboard() {
   );
 
   const periodLabel = timePeriod === "this_week" ? "This Week" : timePeriod === "this_month" ? "Month Till Date" : "Previous Month";
-  const activeFilterCount = [payStatusFilter, orderStatusFilter, categoryFilter].filter(f => f !== "all").length;
 
   if (loading) {
     return (
@@ -375,91 +432,38 @@ export function TallyDashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Filters Row */}
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-            <Select value={timePeriod} onValueChange={(v) => setTimePeriod(v as TimePeriod)}>
-              <SelectTrigger className="w-[160px] h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="this_week">This Week</SelectItem>
-                <SelectItem value="this_month">This Month</SelectItem>
-                <SelectItem value="prev_month">Previous Month</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-muted-foreground" />
-            <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
-              <SelectTrigger className="w-[180px] h-9">
-                <SelectValue placeholder="All Salespersons" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Salespersons</SelectItem>
-                {salesPersons.map((name) => (
-                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setShowFilters(!showFilters)}>
-            <Filter className="h-3.5 w-3.5" />
-            Filters
-            {activeFilterCount > 0 && (
-              <Badge variant="secondary" className="h-5 min-w-5 px-1 text-[10px]">{activeFilterCount}</Badge>
-            )}
-          </Button>
-          <Badge variant="outline" className="text-xs">
-            {periodLabel} · {filtered.length} of {rows.length} orders
-          </Badge>
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-muted-foreground" />
+          <Select value={timePeriod} onValueChange={(v) => setTimePeriod(v as TimePeriod)}>
+            <SelectTrigger className="w-[160px] h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="this_week">This Week</SelectItem>
+              <SelectItem value="this_month">This Month</SelectItem>
+              <SelectItem value="prev_month">Previous Month</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-
-        {showFilters && (
-          <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border bg-muted/30">
-            <Select value={payStatusFilter} onValueChange={setPayStatusFilter}>
-              <SelectTrigger className="w-[160px] h-8 text-xs">
-                <SelectValue placeholder="Payment Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Pay Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="partial">Partial</SelectItem>
-                <SelectItem value="full">Full</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={orderStatusFilter} onValueChange={setOrderStatusFilter}>
-              <SelectTrigger className="w-[160px] h-8 text-xs">
-                <SelectValue placeholder="Order Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Order Status</SelectItem>
-                <SelectItem value="confirmed">Confirmed</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="dispatched">Dispatched</SelectItem>
-                <SelectItem value="delivered">Delivered</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[180px] h-8 text-xs">
-                <SelectValue placeholder="Product Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {activeFilterCount > 0 && (
-              <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setPayStatusFilter("all"); setOrderStatusFilter("all"); setCategoryFilter("all"); }}>
-                Clear Filters
-              </Button>
-            )}
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <User className="w-4 h-4 text-muted-foreground" />
+          <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
+            <SelectTrigger className="w-[180px] h-9">
+              <SelectValue placeholder="All Salespersons" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Salespersons</SelectItem>
+              {salesPersons.map((name) => (
+                <SelectItem key={name} value={name}>{name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Badge variant="outline" className="text-xs">
+          {periodLabel} · {rows.length} orders
+        </Badge>
       </div>
 
       {/* Summary Cards */}
@@ -479,7 +483,7 @@ export function TallyDashboard() {
         ))}
       </div>
 
-      {/* Comparison Chart */}
+      {/* Comparison Chart: Current Month vs Previous Month */}
       <Card className="glass">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -493,8 +497,21 @@ export function TallyDashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={comparisonData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="day" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} className="fill-muted-foreground" interval={Math.max(0, Math.floor(comparisonData.length / 10) - 1)} />
-                <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} className="fill-muted-foreground" tickFormatter={formatChartValue} />
+                <XAxis
+                  dataKey="day"
+                  tick={{ fontSize: 10 }}
+                  tickLine={false}
+                  axisLine={false}
+                  className="fill-muted-foreground"
+                  interval={Math.max(0, Math.floor(comparisonData.length / 10) - 1)}
+                />
+                <YAxis
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                  className="fill-muted-foreground"
+                  tickFormatter={formatChartValue}
+                />
                 <Tooltip
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null;
@@ -528,7 +545,7 @@ export function TallyDashboard() {
             <CardTitle className="text-lg">Order-Procurement Tally</CardTitle>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search order, customer, invoice, PO, supplier, GST..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+              <Input placeholder="Search order, customer, invoice, supplier, GST..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
           </div>
         </CardHeader>
@@ -541,9 +558,9 @@ export function TallyDashboard() {
                   <TableHead>Invoice #</TableHead>
                   <TableHead>PO #</TableHead>
                   <TableHead>Customer</TableHead>
-                  <TableHead>GST No.</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Supplier</TableHead>
+                  <TableHead>GST No.</TableHead>
                   <TableHead>Sales Person</TableHead>
                   <TableHead className="text-right"><SortBtn field="salesValue" label="Sales Value" /></TableHead>
                   <TableHead className="text-right">Received</TableHead>
@@ -566,17 +583,17 @@ export function TallyDashboard() {
                   filtered.map((r) => (
                     <TableRow key={r.orderId}>
                       <TableCell className="font-mono text-xs font-medium">{r.orderNumber}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{r.invoiceNumber}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{r.poNumber}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[100px] truncate">{r.invoiceNumber}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[100px] truncate">{r.poNumber}</TableCell>
                       <TableCell>
                         <div className="max-w-[140px]">
                           <p className="text-sm font-medium truncate">{r.customerName}</p>
                           <p className="text-xs text-muted-foreground truncate">{r.customerCompany}</p>
                         </div>
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground font-mono max-w-[120px] truncate">{r.customerGst}</TableCell>
                       <TableCell className="text-sm max-w-[120px] truncate">{r.productName}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[100px] truncate">{r.supplierName}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[100px] truncate">{r.supplierName}</TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground max-w-[100px] truncate">{r.customerGst}</TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-[100px] truncate">{r.salesPersonName}</TableCell>
                       <TableCell className="text-right font-medium text-sm">{fmt(r.salesValue)}</TableCell>
                       <TableCell className="text-right text-sm text-emerald-600 dark:text-emerald-400">{fmt(r.amountReceived)}</TableCell>
