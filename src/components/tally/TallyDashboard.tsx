@@ -545,7 +545,7 @@ export function TallyDashboard() {
             <CardTitle className="text-lg">Order-Procurement Tally</CardTitle>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search order, customer, product..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+              <Input placeholder="Search order, customer, invoice, supplier, GST..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
           </div>
         </CardHeader>
@@ -555,8 +555,12 @@ export function TallyDashboard() {
               <TableHeader>
                 <TableRow>
                   <TableHead><SortBtn field="orderNumber" label="Order #" /></TableHead>
+                  <TableHead>Invoice #</TableHead>
+                  <TableHead>PO #</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Product</TableHead>
+                  <TableHead>Supplier</TableHead>
+                  <TableHead>GST No.</TableHead>
                   <TableHead>Sales Person</TableHead>
                   <TableHead className="text-right"><SortBtn field="salesValue" label="Sales Value" /></TableHead>
                   <TableHead className="text-right">Received</TableHead>
@@ -571,7 +575,7 @@ export function TallyDashboard() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={12} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={16} className="text-center py-10 text-muted-foreground">
                       No orders found for {periodLabel}
                     </TableCell>
                   </TableRow>
@@ -579,6 +583,8 @@ export function TallyDashboard() {
                   filtered.map((r) => (
                     <TableRow key={r.orderId}>
                       <TableCell className="font-mono text-xs font-medium">{r.orderNumber}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[100px] truncate">{r.invoiceNumber}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[100px] truncate">{r.poNumber}</TableCell>
                       <TableCell>
                         <div className="max-w-[140px]">
                           <p className="text-sm font-medium truncate">{r.customerName}</p>
@@ -586,6 +592,8 @@ export function TallyDashboard() {
                         </div>
                       </TableCell>
                       <TableCell className="text-sm max-w-[120px] truncate">{r.productName}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[100px] truncate">{r.supplierName}</TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground max-w-[100px] truncate">{r.customerGst}</TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-[100px] truncate">{r.salesPersonName}</TableCell>
                       <TableCell className="text-right font-medium text-sm">{fmt(r.salesValue)}</TableCell>
                       <TableCell className="text-right text-sm text-emerald-600 dark:text-emerald-400">{fmt(r.amountReceived)}</TableCell>
