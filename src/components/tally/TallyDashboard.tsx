@@ -317,7 +317,11 @@ export function TallyDashboard() {
           r.orderNumber.toLowerCase().includes(q) ||
           r.customerName.toLowerCase().includes(q) ||
           r.customerCompany.toLowerCase().includes(q) ||
-          r.productName.toLowerCase().includes(q)
+          r.productName.toLowerCase().includes(q) ||
+          r.invoiceNumber.toLowerCase().includes(q) ||
+          r.poNumber.toLowerCase().includes(q) ||
+          r.supplierName.toLowerCase().includes(q) ||
+          r.customerGst.toLowerCase().includes(q)
         )
       : rows;
     return [...list].sort((a, b) => {
