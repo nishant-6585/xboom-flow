@@ -64,7 +64,7 @@ export function useMyLeads() {
         (async () => {
           let q = supabase
             .from("enquiries")
-            .select("id, customer_name, product_name, customer_company, created_at, status, customer_state")
+            .select("id, customer_name, product_name, customer_company, created_at, status, customer_state, customer_type")
             .order("created_at", { ascending: false })
             .limit(500);
           q = q.eq("sales_person_id", userId);
@@ -84,6 +84,7 @@ export function useMyLeads() {
               has_followup: false,
               next_followup_at: null,
               followup_status: null,
+              customer_type: r.customer_type || null,
             }, "enquiry"))
           );
         })()
