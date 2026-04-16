@@ -16,6 +16,7 @@ export interface MyLead {
   has_followup: boolean;
   next_followup_at: string | null;
   followup_status: string | null;
+  customer_type: string | null;
 }
 
 export function useMyLeads() {
@@ -63,7 +64,7 @@ export function useMyLeads() {
         (async () => {
           let q = supabase
             .from("enquiries")
-            .select("id, customer_name, product_name, customer_company, created_at, status, customer_state")
+            .select("id, customer_name, product_name, customer_company, created_at, status, customer_state, customer_type")
             .order("created_at", { ascending: false })
             .limit(500);
           q = q.eq("sales_person_id", userId);
@@ -83,6 +84,7 @@ export function useMyLeads() {
               has_followup: false,
               next_followup_at: null,
               followup_status: null,
+              customer_type: r.customer_type || null,
             }, "enquiry"))
           );
         })()
@@ -93,7 +95,7 @@ export function useMyLeads() {
         (async () => {
           let q = supabase
             .from("call_logs")
-            .select("id, customer_name, product_name, company, created_at, call_status, city, caller_number, email")
+            .select("id, customer_name, product_name, company, created_at, call_status, city, caller_number, email, customer_type")
             .order("created_at", { ascending: false })
             .limit(500);
           q = q.eq("sales_person_id", userId);
@@ -113,6 +115,7 @@ export function useMyLeads() {
               has_followup: false,
               next_followup_at: null,
               followup_status: null,
+              customer_type: r.customer_type || null,
             }, "call"))
           );
         })()
@@ -123,7 +126,7 @@ export function useMyLeads() {
         (async () => {
           let q = supabase
             .from("form_leads")
-            .select("id, customer_name, product_name, company, created_at, status, city, email")
+            .select("id, customer_name, product_name, company, created_at, status, city, email, customer_type")
             .order("created_at", { ascending: false })
             .limit(500);
           q = q.eq("sales_person_id", userId);
@@ -143,6 +146,7 @@ export function useMyLeads() {
               has_followup: false,
               next_followup_at: null,
               followup_status: null,
+              customer_type: r.customer_type || null,
             }, "form"))
           );
         })()
@@ -153,7 +157,7 @@ export function useMyLeads() {
         (async () => {
           let q = supabase
             .from("email_leads")
-            .select("id, customer_name, product_name, customer_company, created_at, status, city, email, phone_number")
+            .select("id, customer_name, product_name, customer_company, created_at, status, city, email, phone_number, customer_type")
             .order("created_at", { ascending: false })
             .limit(500);
           q = q.eq("sales_person_id", userId);
@@ -173,6 +177,7 @@ export function useMyLeads() {
               has_followup: false,
               next_followup_at: null,
               followup_status: null,
+              customer_type: r.customer_type || null,
             }, "email"))
           );
         })()
@@ -183,7 +188,7 @@ export function useMyLeads() {
         (async () => {
           let q = supabase
             .from("interakt_leads")
-            .select("id, customer_name, product_name, company, created_at, status, city, email, phone_number")
+            .select("id, customer_name, product_name, company, created_at, status, city, email, phone_number, customer_type")
             .order("created_at", { ascending: false })
             .limit(500);
           q = q.eq("sales_person_id", userId);
@@ -203,6 +208,7 @@ export function useMyLeads() {
               has_followup: false,
               next_followup_at: null,
               followup_status: null,
+              customer_type: r.customer_type || null,
             }, "interakt"))
           );
         })()
@@ -213,7 +219,7 @@ export function useMyLeads() {
         (async () => {
           let q = supabase
             .from("enquiries")
-            .select("id, customer_name, product_name, customer_company, created_at, status, customer_state")
+            .select("id, customer_name, product_name, customer_company, created_at, status, customer_state, customer_type")
             .eq("lead_source", "google_ads")
             .order("created_at", { ascending: false })
             .limit(500);
@@ -239,6 +245,7 @@ export function useMyLeads() {
                 has_followup: false,
                 next_followup_at: null,
                 followup_status: null,
+                customer_type: r.customer_type || null,
               }, "enquiry"));
             }
           });

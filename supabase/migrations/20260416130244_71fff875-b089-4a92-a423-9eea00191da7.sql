@@ -1,0 +1,1 @@
+ALTER TABLE public.enquiries ADD COLUMN customer_type text NOT NULL DEFAULT 'b2b';

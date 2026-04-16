@@ -3659,6 +3659,7 @@ export type Database = {
           customer_company: string
           customer_name: string
           customer_state: string | null
+          customer_type: string
           email_lead_id: string | null
           escalated_at: string | null
           escalated_by: string | null
@@ -3716,6 +3717,7 @@ export type Database = {
           customer_company: string
           customer_name: string
           customer_state?: string | null
+          customer_type?: string
           email_lead_id?: string | null
           escalated_at?: string | null
           escalated_by?: string | null
@@ -3773,6 +3775,7 @@ export type Database = {
           customer_company?: string
           customer_name?: string
           customer_state?: string | null
+          customer_type?: string
           email_lead_id?: string | null
           escalated_at?: string | null
           escalated_by?: string | null
