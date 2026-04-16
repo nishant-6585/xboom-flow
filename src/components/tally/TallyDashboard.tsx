@@ -177,7 +177,7 @@ export function TallyDashboard() {
         .eq("id", orderId)
         .single();
       if (error) throw error;
-      return data as Order;
+      return data as unknown as Order;
     } catch (err) {
       console.error("Error fetching order:", err);
       toast.error("Failed to load order details");

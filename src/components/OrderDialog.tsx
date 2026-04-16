@@ -116,6 +116,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
   const [poUrl, setPoUrl] = useState<string | null>(null);
   const [invoiceNumber, setInvoiceNumber] = useState<string>('');
+  const [editingInvoiceNumber, setEditingInvoiceNumber] = useState(false);
   const [poNumber, setPoNumber] = useState<string>('');
   const [editingPoNumber, setEditingPoNumber] = useState(false);
   const [isRefundRequested, setIsRefundRequested] = useState(false);
@@ -160,16 +161,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setInvoiceUrl(order.invoice_url || null);
       setPoUrl(order.po_url || null);
       setPoNumber(order.po_number || '');
-      
-      // Fetch invoice number from invoices table
-      supabase
-        .from('invoices')
-        .select('invoice_number')
-        .eq('order_id', order.id)
-        .limit(1)
-        .then(({ data }) => {
-          setInvoiceNumber(data?.[0]?.invoice_number || '');
-        });
+      setInvoiceNumber(order.invoice_number || '');
       setIsRefundRequested(order.is_refund_requested || false);
       setRefundReason(order.refund_reason || '');
       setRefundStatus((order.refund_status as RefundStatus) || 'pending');
@@ -221,14 +213,13 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('invoices')
-        .getPublicUrl(filePath);
+      // Store the storage path (not a public URL) so we can create signed URLs later
+      const storagePath = filePath;
 
       // Update order with invoice URL
-      const success = await onUpdate(order.id, { invoice_url: publicUrl });
+      const success = await onUpdate(order.id, { invoice_url: storagePath });
       if (success) {
-        setInvoiceUrl(publicUrl);
+        setInvoiceUrl(storagePath);
         toast.success('Invoice uploaded successfully');
       }
     } catch (error: any) {
@@ -1525,25 +1516,72 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 </h4>
               </div>
 
-              {invoiceNumber && (
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">Invoice No:</span>
-                  <span className="font-mono font-medium">{invoiceNumber}</span>
-                </div>
-              )}
+              {/* Invoice Number - editable */}
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">Invoice No:</span>
+                {editingInvoiceNumber ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <Input
+                      value={invoiceNumber}
+                      onChange={(e) => setInvoiceNumber(e.target.value)}
+                      placeholder="Enter invoice number"
+                      className="h-7 text-sm"
+                    />
+                    <Button
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={async () => {
+                        if (order) {
+                          await onUpdate(order.id, { invoice_number: invoiceNumber || null } as any);
+                        }
+                        setEditingInvoiceNumber(false);
+                      }}
+                    >
+                      Save
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingInvoiceNumber(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="font-mono font-medium">{invoiceNumber || '—'}</span>
+                    {canEditOrder && (
+                      <Button size="sm" variant="ghost" className="h-6 px-1.5 text-xs" onClick={() => setEditingInvoiceNumber(true)}>
+                        Edit
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
               
               {invoiceUrl ? (
                 <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
-                  <a
-                    href={invoiceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline flex items-center gap-2 text-sm"
+                  <Button
+                    variant="link"
+                    className="text-primary hover:underline flex items-center gap-2 text-sm p-0 h-auto"
+                    onClick={async () => {
+                      // Extract storage path - handle both old full URLs and new path-only values
+                      let storagePath = invoiceUrl;
+                      if (invoiceUrl.startsWith('http')) {
+                        // Old-style full URL: extract path after /object/public/invoices/
+                        const match = invoiceUrl.match(/\/invoices\/(.+)$/);
+                        storagePath = match ? match[1] : invoiceUrl;
+                      }
+                      const { data, error } = await supabase.storage
+                        .from('invoices')
+                        .createSignedUrl(storagePath, 300);
+                      if (error || !data?.signedUrl) {
+                        toast.error('Failed to open invoice');
+                        return;
+                      }
+                      window.open(data.signedUrl, '_blank');
+                    }}
                   >
                     <FileText className="h-4 w-4" />
                     View Invoice
                     <ExternalLink className="h-3 w-3" />
-                  </a>
+                  </Button>
                   {canEdit && (
                     <Button
                       variant="ghost"
