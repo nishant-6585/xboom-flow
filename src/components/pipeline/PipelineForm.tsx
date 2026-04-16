@@ -332,6 +332,18 @@ export function PipelineForm({ onSubmit }: PipelineFormProps) {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>Customer Type</Label>
+              <Select value={formData.customer_type} onValueChange={(v) => handleChange('customer_type', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="b2b">B2B</SelectItem>
+                  <SelectItem value="b2c">B2C</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Sales Person Selection - only for admin */}
             {isAdminOrSupplyChain && salesTeam.length > 0 && (
