@@ -51,6 +51,7 @@ export function PipelineForm({ onSubmit }: PipelineFormProps) {
     priority: 3,
     probability: 50,
     internal_notes: '',
+    customer_type: 'b2b',
   });
 
   useEffect(() => {
@@ -126,6 +127,7 @@ export function PipelineForm({ onSubmit }: PipelineFormProps) {
         priority: 3,
         probability: 50,
         internal_notes: '',
+        customer_type: 'b2b',
       });
       setClosureDate(undefined);
     }

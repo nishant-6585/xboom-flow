@@ -71,6 +71,7 @@ export interface PipelineOrderFormData {
   internal_notes?: string;
   lead_temperature?: LeadTemperature;
   is_mega_deal?: boolean;
+  customer_type?: 'b2b' | 'b2c';
 }
 
 export const PIPELINE_STATUSES = [
