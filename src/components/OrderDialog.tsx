@@ -1517,12 +1517,44 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 </h4>
               </div>
 
-              {invoiceNumber && (
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">Invoice No:</span>
-                  <span className="font-mono font-medium">{invoiceNumber}</span>
-                </div>
-              )}
+              {/* Invoice Number - editable */}
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">Invoice No:</span>
+                {editingInvoiceNumber ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <Input
+                      value={invoiceNumber}
+                      onChange={(e) => setInvoiceNumber(e.target.value)}
+                      placeholder="Enter invoice number"
+                      className="h-7 text-sm"
+                    />
+                    <Button
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={async () => {
+                        if (order) {
+                          await onUpdate(order.id, { invoice_number: invoiceNumber || null } as any);
+                        }
+                        setEditingInvoiceNumber(false);
+                      }}
+                    >
+                      Save
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingInvoiceNumber(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="font-mono font-medium">{invoiceNumber || '—'}</span>
+                    {canEditOrder && (
+                      <Button size="sm" variant="ghost" className="h-6 px-1.5 text-xs" onClick={() => setEditingInvoiceNumber(true)}>
+                        Edit
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
               
               {invoiceUrl ? (
                 <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
