@@ -106,6 +106,7 @@ export function PipelineForm({ onSubmit }: PipelineFormProps) {
       status: formData.status as any,
       priority: Number(formData.priority),
       probability: Number(formData.probability),
+      customer_type: formData.customer_type as 'b2b' | 'b2c',
     });
 
     if (success) {
