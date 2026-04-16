@@ -233,6 +233,14 @@ export function MyLeadsPanel() {
                 {PERIODS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Select value={customerTypeFilter} onValueChange={setCustomerTypeFilter}>
+              <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Types</SelectItem>
+                <SelectItem value="B2B">B2B</SelectItem>
+                <SelectItem value="B2C">B2C</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
