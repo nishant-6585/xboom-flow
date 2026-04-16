@@ -336,6 +336,7 @@ export function useOrders() {
           lead_source: (order.lead_source || null) as LeadSource | null,
           refund_status: (order.refund_status || null) as RefundStatus | null,
           discount_amount: order.discount_amount || null,
+          invoice_number: (order as any).invoice_number || null,
           is_rto: order.is_rto || false,
           rto_marked_at: order.rto_marked_at || null,
           rto_marked_by: order.rto_marked_by || null,
