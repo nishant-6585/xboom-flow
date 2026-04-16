@@ -56,6 +56,7 @@ export interface Order {
   customer_notes: string | null;
   sales_notes: string | null;
   invoice_url: string | null;
+  invoice_number: string | null;
   po_url: string | null;
   po_number: string | null;
   order_date: string | null;
@@ -254,7 +255,8 @@ export function useOrders() {
             escalated_at,
             escalated_by,
             escalation_reason,
-            order_date
+            order_date,
+            invoice_number
           `)
           .order('created_at', { ascending: false })
           .limit(5000);
@@ -282,6 +284,7 @@ export function useOrders() {
           payment_due_date: null,
           last_reminder_sent_at: null,
           invoice_url: null,
+          invoice_number: (order as any).invoice_number || null,
           po_url: null,
           po_number: null,
           order_date: (order as any).order_date || null,
