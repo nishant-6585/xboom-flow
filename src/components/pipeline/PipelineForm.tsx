@@ -51,6 +51,7 @@ export function PipelineForm({ onSubmit }: PipelineFormProps) {
     priority: 3,
     probability: 50,
     internal_notes: '',
+    customer_type: 'b2b',
   });
 
   useEffect(() => {
@@ -105,6 +106,7 @@ export function PipelineForm({ onSubmit }: PipelineFormProps) {
       status: formData.status as any,
       priority: Number(formData.priority),
       probability: Number(formData.probability),
+      customer_type: formData.customer_type as 'b2b' | 'b2c',
     });
 
     if (success) {
@@ -126,6 +128,7 @@ export function PipelineForm({ onSubmit }: PipelineFormProps) {
         priority: 3,
         probability: 50,
         internal_notes: '',
+        customer_type: 'b2b',
       });
       setClosureDate(undefined);
     }
@@ -326,6 +329,18 @@ export function PipelineForm({ onSubmit }: PipelineFormProps) {
                       {s.label}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Customer Type</Label>
+              <Select value={formData.customer_type} onValueChange={(v) => handleChange('customer_type', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="b2b">B2B</SelectItem>
+                  <SelectItem value="b2c">B2C</SelectItem>
                 </SelectContent>
               </Select>
             </div>

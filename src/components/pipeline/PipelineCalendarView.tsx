@@ -44,6 +44,13 @@ const TEMP_COLOR: Record<string, string> = {
 export function PipelineCalendarView({ orders, onEditOrder }: PipelineCalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [segment, setSegment] = useState<'all' | 'b2b' | 'b2c'>('all');
+
+  // Filter orders by segment
+  const filteredOrders = useMemo(() => {
+    if (segment === 'all') return orders;
+    return orders.filter(o => (o.customer_type || 'b2b') === segment);
+  }, [orders, segment]);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -54,26 +61,26 @@ export function PipelineCalendarView({ orders, onEditOrder }: PipelineCalendarVi
   // Group orders by expected_closure_date
   const ordersByDate = useMemo(() => {
     const map = new Map<string, PipelineOrder[]>();
-    orders.forEach(o => {
+    filteredOrders.forEach(o => {
       if (!o.expected_closure_date) return;
       const key = format(parseISO(o.expected_closure_date), "yyyy-MM-dd");
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(o);
     });
     return map;
-  }, [orders]);
+  }, [filteredOrders]);
 
   // Orders without closure date
-  const unscheduled = useMemo(() => orders.filter(o => !o.expected_closure_date && o.status !== "won" && o.status !== "lost"), [orders]);
+  const unscheduled = useMemo(() => filteredOrders.filter(o => !o.expected_closure_date && o.status !== "won" && o.status !== "lost"), [filteredOrders]);
 
   // Monthly summary
   const monthOrders = useMemo(() => {
-    return orders.filter(o => {
+    return filteredOrders.filter(o => {
       if (!o.expected_closure_date) return false;
       const d = parseISO(o.expected_closure_date);
       return isSameMonth(d, currentMonth);
     });
-  }, [orders, currentMonth]);
+  }, [filteredOrders, currentMonth]);
 
   const monthValue = monthOrders.reduce((s, o) => s + (o.expected_price || 0), 0);
   const activeMonthOrders = monthOrders.filter(o => o.status !== "won" && o.status !== "lost");
@@ -84,6 +91,21 @@ export function PipelineCalendarView({ orders, onEditOrder }: PipelineCalendarVi
 
   return (
     <div className="space-y-4">
+      {/* B2B / B2C Toggle */}
+      <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5 w-fit">
+        {(['all', 'b2b', 'b2c'] as const).map(v => (
+          <Button
+            key={v}
+            variant={segment === v ? 'default' : 'ghost'}
+            size="sm"
+            className="capitalize text-xs h-7 px-4"
+            onClick={() => setSegment(v)}
+          >
+            {v === 'all' ? 'All' : v.toUpperCase()}
+          </Button>
+        ))}
+      </div>
+
       {/* Month Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card>

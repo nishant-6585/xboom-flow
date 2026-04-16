@@ -7974,6 +7974,7 @@ export type Database = {
           customer_notes: string | null
           customer_phone: string | null
           customer_state: string | null
+          customer_type: string
           enquiry_id: string | null
           expected_closure_date: string | null
           expected_price: number | null
@@ -8004,6 +8005,7 @@ export type Database = {
           customer_notes?: string | null
           customer_phone?: string | null
           customer_state?: string | null
+          customer_type?: string
           enquiry_id?: string | null
           expected_closure_date?: string | null
           expected_price?: number | null
@@ -8034,6 +8036,7 @@ export type Database = {
           customer_notes?: string | null
           customer_phone?: string | null
           customer_state?: string | null
+          customer_type?: string
           enquiry_id?: string | null
           expected_closure_date?: string | null
           expected_price?: number | null

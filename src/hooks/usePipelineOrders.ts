@@ -47,6 +47,7 @@ export interface PipelineOrder {
   enquiry_id: string | null;
   lost_reason: string | null;
   lost_reason_notes: string | null;
+  customer_type: 'b2b' | 'b2c';
 }
 
 export interface PipelineOrderFormData {
@@ -70,6 +71,7 @@ export interface PipelineOrderFormData {
   internal_notes?: string;
   lead_temperature?: LeadTemperature;
   is_mega_deal?: boolean;
+  customer_type?: 'b2b' | 'b2c';
 }
 
 export const PIPELINE_STATUSES = [
