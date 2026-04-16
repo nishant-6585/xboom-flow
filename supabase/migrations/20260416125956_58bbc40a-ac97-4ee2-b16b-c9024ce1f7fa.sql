@@ -1,0 +1,1 @@
+ALTER TABLE public.pipeline_orders ADD COLUMN customer_type text NOT NULL DEFAULT 'b2b';
