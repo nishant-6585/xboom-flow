@@ -1557,16 +1557,31 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
               
               {invoiceUrl ? (
                 <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
-                  <a
-                    href={invoiceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline flex items-center gap-2 text-sm"
+                  <Button
+                    variant="link"
+                    className="text-primary hover:underline flex items-center gap-2 text-sm p-0 h-auto"
+                    onClick={async () => {
+                      // Extract storage path - handle both old full URLs and new path-only values
+                      let storagePath = invoiceUrl;
+                      if (invoiceUrl.startsWith('http')) {
+                        // Old-style full URL: extract path after /object/public/invoices/
+                        const match = invoiceUrl.match(/\/invoices\/(.+)$/);
+                        storagePath = match ? match[1] : invoiceUrl;
+                      }
+                      const { data, error } = await supabase.storage
+                        .from('invoices')
+                        .createSignedUrl(storagePath, 300);
+                      if (error || !data?.signedUrl) {
+                        toast.error('Failed to open invoice');
+                        return;
+                      }
+                      window.open(data.signedUrl, '_blank');
+                    }}
                   >
                     <FileText className="h-4 w-4" />
                     View Invoice
                     <ExternalLink className="h-3 w-3" />
-                  </a>
+                  </Button>
                   {canEdit && (
                     <Button
                       variant="ghost"
