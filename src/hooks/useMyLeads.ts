@@ -16,6 +16,7 @@ export interface MyLead {
   has_followup: boolean;
   next_followup_at: string | null;
   followup_status: string | null;
+  customer_type: string | null;
 }
 
 export function useMyLeads() {
