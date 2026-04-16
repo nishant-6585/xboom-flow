@@ -692,16 +692,30 @@ export function useHR() {
 
       if (error) throw error;
 
-      // Update attendance logs for each leave day
+      // Calculate working days (exclude weekends) for balance deduction
       const start = new Date(data.start_date);
       const end = new Date(data.end_date);
+      let workingDays = 0;
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const dayOfWeek = d.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) workingDays++;
+      }
+
+      // Adjust for half-day leave types
+      const isHalfDay = data.leave_type.startsWith('half_day');
+      const totalDays = isHalfDay ? workingDays * 0.5 : workingDays;
+
+      // Deduct leave balance
+      await deductLeaveBalance(data.employee_id, data.leave_type, totalDays);
+
+      // Update attendance logs for each leave day
+      const start2 = new Date(data.start_date);
+      const end2 = new Date(data.end_date);
+      for (let d = new Date(start2); d <= end2; d.setDate(d.getDate() + 1)) {
         const dateStr = d.toISOString().split('T')[0];
         const dayOfWeek = d.getDay();
-        // Skip weekends
         if (dayOfWeek === 0 || dayOfWeek === 6) continue;
 
-        // Upsert attendance log to mark as on_leave
         await supabase
           .from('attendance_logs')
           .upsert({
