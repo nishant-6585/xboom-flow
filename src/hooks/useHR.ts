@@ -565,6 +565,8 @@ export function useHR() {
     // Map leave types to balance-tracked types
     const balanceTypeMap: Record<string, string> = {
       EL: 'EL', half_day_EL: 'EL',
+      casual: 'EL', half_day_casual: 'EL',
+      paid: 'EL', half_day_paid: 'EL',
       sick: 'sick', half_day_sick: 'sick',
     };
     const balanceType = balanceTypeMap[leaveType];
