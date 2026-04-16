@@ -161,7 +161,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setInvoiceUrl(order.invoice_url || null);
       setPoUrl(order.po_url || null);
       setPoNumber(order.po_number || '');
-      setInvoiceNumber((order as any).invoice_number || '');
+      setInvoiceNumber(order.invoice_number || '');
       setIsRefundRequested(order.is_refund_requested || false);
       setRefundReason(order.refund_reason || '');
       setRefundStatus((order.refund_status as RefundStatus) || 'pending');
