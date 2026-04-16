@@ -44,6 +44,13 @@ const TEMP_COLOR: Record<string, string> = {
 export function PipelineCalendarView({ orders, onEditOrder }: PipelineCalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [segment, setSegment] = useState<'all' | 'b2b' | 'b2c'>('all');
+
+  // Filter orders by segment
+  const filteredOrders = useMemo(() => {
+    if (segment === 'all') return orders;
+    return orders.filter(o => (o.customer_type || 'b2b') === segment);
+  }, [orders, segment]);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);

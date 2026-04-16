@@ -47,6 +47,7 @@ export interface PipelineOrder {
   enquiry_id: string | null;
   lost_reason: string | null;
   lost_reason_notes: string | null;
+  customer_type: 'b2b' | 'b2c';
 }
 
 export interface PipelineOrderFormData {
