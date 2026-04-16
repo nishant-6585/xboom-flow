@@ -116,6 +116,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
   const [poUrl, setPoUrl] = useState<string | null>(null);
   const [invoiceNumber, setInvoiceNumber] = useState<string>('');
+  const [editingInvoiceNumber, setEditingInvoiceNumber] = useState(false);
   const [poNumber, setPoNumber] = useState<string>('');
   const [editingPoNumber, setEditingPoNumber] = useState(false);
   const [isRefundRequested, setIsRefundRequested] = useState(false);
@@ -160,16 +161,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setInvoiceUrl(order.invoice_url || null);
       setPoUrl(order.po_url || null);
       setPoNumber(order.po_number || '');
-      
-      // Fetch invoice number from invoices table
-      supabase
-        .from('invoices')
-        .select('invoice_number')
-        .eq('order_id', order.id)
-        .limit(1)
-        .then(({ data }) => {
-          setInvoiceNumber(data?.[0]?.invoice_number || '');
-        });
+      setInvoiceNumber((order as any).invoice_number || '');
       setIsRefundRequested(order.is_refund_requested || false);
       setRefundReason(order.refund_reason || '');
       setRefundStatus((order.refund_status as RefundStatus) || 'pending');
