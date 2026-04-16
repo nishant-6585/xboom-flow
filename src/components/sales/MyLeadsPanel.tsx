@@ -35,6 +35,7 @@ export function MyLeadsPanel() {
   const [sourceFilter, setSourceFilter] = useState("All");
   const [followupFilter, setFollowupFilter] = useState("All");
   const [period, setPeriod] = useState("all");
+  const [customerTypeFilter, setCustomerTypeFilter] = useState("All");
   const [selectedLead, setSelectedLead] = useState<MyLead | null>(null);
 
   const now = new Date();
@@ -60,6 +61,10 @@ export function MyLeadsPanel() {
     else if (followupFilter === "Without Follow-up") list = list.filter(l => !l.has_followup);
     else if (followupFilter === "Overdue") list = list.filter(l => l.has_followup && l.followup_status === "pending" && l.next_followup_at && isBefore(parseISO(l.next_followup_at), now));
 
+    // Customer type
+    if (customerTypeFilter === "B2B") list = list.filter(l => (l.customer_type || 'b2b') === 'b2b');
+    else if (customerTypeFilter === "B2C") list = list.filter(l => l.customer_type === 'b2c');
+
     // Search
     if (search.trim()) {
       const s = search.toLowerCase();
@@ -73,7 +78,7 @@ export function MyLeadsPanel() {
     }
 
     return list;
-  }, [leads, search, sourceFilter, followupFilter, period]);
+  }, [leads, search, sourceFilter, followupFilter, period, customerTypeFilter]);
 
   // Analytics
   const sourceStats = useMemo(() => {
