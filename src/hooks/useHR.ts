@@ -561,10 +561,62 @@ export function useHR() {
     }
   };
 
+  const deductLeaveBalance = async (employeeId: string, leaveType: string, totalDays: number) => {
+    // Map leave types to balance-tracked types
+    const balanceTypeMap: Record<string, string> = {
+      EL: 'EL', half_day_EL: 'EL',
+      sick: 'sick', half_day_sick: 'sick',
+    };
+    const balanceType = balanceTypeMap[leaveType];
+    if (!balanceType || totalDays <= 0) return; // No balance tracking for unpaid/wfh/casual
+
+    const year = new Date().getFullYear();
+    const { data: existing } = await supabase
+      .from('leave_balances')
+      .select('balance')
+      .eq('employee_id', employeeId)
+      .eq('leave_type', balanceType)
+      .eq('year', year)
+      .maybeSingle();
+
+    const oldBalance = existing?.balance ?? 0;
+    const newBalance = Math.max(0, oldBalance - totalDays);
+
+    const { error: balErr } = await supabase
+      .from('leave_balances')
+      .upsert({
+        employee_id: employeeId,
+        leave_type: balanceType,
+        year,
+        balance: newBalance,
+      }, { onConflict: 'employee_id,leave_type,year' });
+
+    if (balErr) console.error('Balance deduction error:', balErr);
+
+    // Record debit transaction
+    await supabase
+      .from('leave_transactions')
+      .insert({
+        employee_id: employeeId,
+        leave_type: balanceType,
+        transaction_type: 'debit',
+        amount: totalDays,
+        balance_after: newBalance,
+        credit_date: new Date().toISOString().split('T')[0],
+        remarks: `Leave approved: ${leaveType} (${totalDays} days)`,
+        created_by: user!.id,
+      });
+  };
+
   const approveLeave = async (leaveId: string, approve: boolean, comments?: string): Promise<boolean> => {
     if (!user || !profile) return false;
 
     try {
+      // Fetch leave request details for balance deduction
+      const { data: leaveReq } = approve
+        ? await supabase.from('leave_requests').select('employee_id, leave_type, total_days').eq('id', leaveId).single()
+        : { data: null };
+
       const { error } = await supabase
         .from('leave_requests')
         .update({
@@ -577,6 +629,12 @@ export function useHR() {
         .eq('id', leaveId);
 
       if (error) throw error;
+
+      // Deduct balance when approving
+      if (approve && leaveReq) {
+        await deductLeaveBalance(leaveReq.employee_id, leaveReq.leave_type, leaveReq.total_days ?? 0);
+      }
+
       toast.success(approve ? 'Leave approved' : 'Leave rejected');
       return true;
     } catch (error: any) {
@@ -634,16 +692,30 @@ export function useHR() {
 
       if (error) throw error;
 
-      // Update attendance logs for each leave day
+      // Calculate working days (exclude weekends) for balance deduction
       const start = new Date(data.start_date);
       const end = new Date(data.end_date);
+      let workingDays = 0;
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const dayOfWeek = d.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) workingDays++;
+      }
+
+      // Adjust for half-day leave types
+      const isHalfDay = data.leave_type.startsWith('half_day');
+      const totalDays = isHalfDay ? workingDays * 0.5 : workingDays;
+
+      // Deduct leave balance
+      await deductLeaveBalance(data.employee_id, data.leave_type, totalDays);
+
+      // Update attendance logs for each leave day
+      const start2 = new Date(data.start_date);
+      const end2 = new Date(data.end_date);
+      for (let d = new Date(start2); d <= end2; d.setDate(d.getDate() + 1)) {
         const dateStr = d.toISOString().split('T')[0];
         const dayOfWeek = d.getDay();
-        // Skip weekends
         if (dayOfWeek === 0 || dayOfWeek === 6) continue;
 
-        // Upsert attendance log to mark as on_leave
         await supabase
           .from('attendance_logs')
           .upsert({
