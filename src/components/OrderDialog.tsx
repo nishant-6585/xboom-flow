@@ -213,14 +213,13 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('invoices')
-        .getPublicUrl(filePath);
+      // Store the storage path (not a public URL) so we can create signed URLs later
+      const storagePath = filePath;
 
       // Update order with invoice URL
-      const success = await onUpdate(order.id, { invoice_url: publicUrl });
+      const success = await onUpdate(order.id, { invoice_url: storagePath });
       if (success) {
-        setInvoiceUrl(publicUrl);
+        setInvoiceUrl(storagePath);
         toast.success('Invoice uploaded successfully');
       }
     } catch (error: any) {
