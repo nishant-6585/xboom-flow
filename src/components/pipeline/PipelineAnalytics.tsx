@@ -1,10 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { PipelineOrder, PIPELINE_STATUSES } from '@/hooks/usePipelineOrders';
-import { format, parseISO, startOfWeek, endOfWeek, addDays, isWithinInterval, startOfMonth, endOfMonth, addMonths } from 'date-fns';
-import { TrendingUp, DollarSign, Users, Calendar, Target, PieChartIcon, FolderOpen } from 'lucide-react';
+import { format, parseISO, startOfWeek, endOfWeek, addDays, isWithinInterval, startOfMonth, endOfMonth, addMonths, endOfDay, startOfDay } from 'date-fns';
+import { TrendingUp, DollarSign, Users, Calendar, Target, PieChartIcon, FolderOpen, Filter } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
+import { Label } from '@/components/ui/label';
 
 interface PipelineAnalyticsProps {
   orders: PipelineOrder[];
