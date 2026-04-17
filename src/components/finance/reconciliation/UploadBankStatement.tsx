@@ -98,6 +98,7 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
   const [step, setStep] = useState<Step>('upload');
   const [parsed, setParsed] = useState<ParsedTransaction[]>([]);
   const [diagnostics, setDiagnostics] = useState<ParseDiagnostics | null>(null);
+  const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const reset = () => {
@@ -107,6 +108,7 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
     setStep('upload');
     setParsed([]);
     setDiagnostics(null);
+    setImportProgress(null);
   };
 
   const formatAmount = (n: number) => n > 0 ? `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-';
