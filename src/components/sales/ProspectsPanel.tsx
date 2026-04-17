@@ -22,12 +22,6 @@ import { ProspectEditDialog } from './ProspectEditDialog';
 import { OrderForm, OrderFormInitialData } from '@/components/OrderForm';
 import { toast } from 'sonner';
 import { LogCallDialog } from './LogCallDialog';
-import { supabase } from '@/integrations/supabase/client';
-
-interface FollowupStats {
-  completedCount: number;
-  lastCompletedAt: string | null;
-}
 
 const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'negotiation', 'converted', 'lost'];
 
@@ -80,32 +74,6 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
   const [orderWonProspect, setOrderWonProspect] = useState<Prospect | null>(null);
   const [logCallProspect, setLogCallProspect] = useState<Prospect | null>(null);
   const lastAutoOpenedId = useRef<string | null>(null);
-  const [followupStats, setFollowupStats] = useState<Record<string, FollowupStats>>({});
-
-  // Fetch follow-up stats for visible prospects
-  useEffect(() => {
-    const ids = prospects.map(p => p.id);
-    if (ids.length === 0) { setFollowupStats({}); return; }
-    (async () => {
-      const { data, error } = await supabase
-        .from('followups')
-        .select('source_id, status, completed_at')
-        .eq('source_type', 'prospect')
-        .in('source_id', ids);
-      if (error || !data) return;
-      const stats: Record<string, FollowupStats> = {};
-      for (const row of data as Array<{ source_id: string; status: string; completed_at: string | null }>) {
-        if (row.status !== 'completed') continue;
-        const cur = stats[row.source_id] || { completedCount: 0, lastCompletedAt: null };
-        cur.completedCount += 1;
-        if (row.completed_at && (!cur.lastCompletedAt || row.completed_at > cur.lastCompletedAt)) {
-          cur.lastCompletedAt = row.completed_at;
-        }
-        stats[row.source_id] = cur;
-      }
-      setFollowupStats(stats);
-    })();
-  }, [prospects]);
 
   // Auto-open prospect when selectedLeadId is provided
   useEffect(() => {
@@ -482,8 +450,6 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                       <TableHead className="w-[90px]">Status</TableHead>
                       <TableHead className="w-[90px]">Date</TableHead>
                       <TableHead className="w-[100px]">By</TableHead>
-                      <TableHead className="w-[100px]">Last Follow-up</TableHead>
-                      <TableHead className="w-[80px] text-center">Follow-ups</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -535,14 +501,6 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                         </TableCell>
                         <TableCell><span className="text-xs text-muted-foreground">{format(new Date(p.created_at), 'dd MMM')}</span></TableCell>
                         <TableCell><span className="text-xs text-muted-foreground">{p.created_by_name}</span></TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {followupStats[p.id]?.lastCompletedAt
-                            ? format(new Date(followupStats[p.id].lastCompletedAt as string), 'dd MMM yyyy')
-                            : '—'}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline" className="text-xs">{followupStats[p.id]?.completedCount || 0}</Badge>
-                        </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-0.5">
                             <Button

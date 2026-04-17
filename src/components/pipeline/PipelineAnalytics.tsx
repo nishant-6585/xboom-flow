@@ -2,12 +2,12 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { PipelineOrder, PIPELINE_STATUSES } from '@/hooks/usePipelineOrders';
-import { format, parseISO, startOfWeek, endOfWeek, addDays, isWithinInterval, startOfMonth, endOfMonth, addMonths } from 'date-fns';
-import { TrendingUp, DollarSign, Users, Calendar, Target, PieChartIcon, FolderOpen } from 'lucide-react';
+import { format, parseISO, startOfWeek, endOfWeek, addDays, isWithinInterval, startOfMonth, endOfMonth, addMonths, endOfDay, startOfDay } from 'date-fns';
+import { TrendingUp, DollarSign, Users, Calendar, Target, PieChartIcon, FolderOpen, Filter } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
+import { Label } from '@/components/ui/label';
 
 interface PipelineAnalyticsProps {
   orders: PipelineOrder[];
@@ -16,38 +16,67 @@ interface PipelineAnalyticsProps {
 
 const COLORS = ['#22c55e', '#ef4444', '#3b82f6', '#f59e0b', '#f97316', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#6366f1'];
 
-interface DrillDown {
-  title: string;
-  orders: PipelineOrder[];
-}
-
 export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProps) {
   const { role, user } = useAuth();
-  const [drill, setDrill] = useState<DrillDown | null>(null);
   
+  const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
+
+  const isSalesView = role === 'sales';
+
+  // Available sales persons for filter dropdown (only for non-sales roles)
+  const availableSalesPersons = useMemo(() => {
+    const map = new Map<string, string>();
+    orders.forEach(o => {
+      if (o.sales_person_id && !map.has(o.sales_person_id)) {
+        map.set(o.sales_person_id, o.sales_person_name || 'Unknown');
+      }
+    });
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [orders]);
+
   // Filter orders for sales role - only show their own pipeline
   const filteredOrders = useMemo(() => {
+    let result = orders;
     if (role === 'sales' && user) {
-      return orders.filter(o => o.sales_person_id === user.id);
+      result = result.filter(o => o.sales_person_id === user.id);
+    } else if (salesPersonFilter !== 'all') {
+      result = result.filter(o => o.sales_person_id === salesPersonFilter);
     }
-    return orders;
-  }, [orders, role, user]);
-  
-  const isSalesView = role === 'sales';
+    if (startDate || endDate) {
+      const s = startDate ? startOfDay(startDate) : null;
+      const e = endDate ? endOfDay(endDate) : null;
+      result = result.filter(o => {
+        if (!o.created_at) return false;
+        const d = parseISO(o.created_at);
+        if (s && d < s) return false;
+        if (e && d > e) return false;
+        return true;
+      });
+    }
+    return result;
+  }, [orders, role, user, salesPersonFilter, startDate, endDate]);
+
   const analytics = useMemo(() => {
     const now = new Date();
     const pendingOrders = filteredOrders.filter(o => !['won', 'lost'].includes(o.status));
     
+    // Total pipeline value (only pending orders)
     const totalPipelineValue = pendingOrders.reduce((sum, o) => sum + (o.expected_price || 0) * o.quantity, 0);
     
+    // Won value
     const wonOrders = filteredOrders.filter(o => o.status === 'won');
     const wonValue = wonOrders.reduce((sum, o) => sum + (o.expected_price || 0) * o.quantity, 0);
     
-    const bySalesPerson: Record<string, { name: string; value: number; count: number; spId: string }> = {};
+    // Pipeline by sales person (only show for non-sales roles)
+    const bySalesPerson: Record<string, { name: string; value: number; count: number }> = {};
     if (!isSalesView) {
       pendingOrders.forEach(o => {
         if (!bySalesPerson[o.sales_person_id]) {
-          bySalesPerson[o.sales_person_id] = { name: o.sales_person_name, value: 0, count: 0, spId: o.sales_person_id };
+          bySalesPerson[o.sales_person_id] = { name: o.sales_person_name, value: 0, count: 0 };
         }
         bySalesPerson[o.sales_person_id].value += (o.expected_price || 0) * o.quantity;
         bySalesPerson[o.sales_person_id].count++;
@@ -55,14 +84,14 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
     }
     const salesPersonData = Object.values(bySalesPerson).sort((a, b) => b.value - a.value);
     
-    const byStatus: Record<string, { label: string; value: number; count: number; statusKey: string }> = {};
+    // Pipeline by status
+    const byStatus: Record<string, { label: string; value: number; count: number }> = {};
     filteredOrders.forEach(o => {
       if (!byStatus[o.status]) {
         byStatus[o.status] = { 
           label: PIPELINE_STATUSES.find(s => s.value === o.status)?.label || o.status, 
           value: 0, 
-          count: 0,
-          statusKey: o.status,
+          count: 0 
         };
       }
       byStatus[o.status].value += (o.expected_price || 0) * o.quantity;
@@ -70,6 +99,7 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
     });
     const statusData = Object.values(byStatus);
     
+    // Pipeline by category
     const byCategory: Record<string, { category: string; value: number; count: number }> = {};
     pendingOrders.forEach(o => {
       const category = o.product_category || 'Uncategorized';
@@ -81,41 +111,46 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
     });
     const categoryData = Object.values(byCategory).sort((a, b) => b.value - a.value);
     
-    const weeklyData: { week: string; value: number; count: number; weekIndex: number }[] = [];
+    // Expected payments by week (next 4 weeks)
+    const weeklyData: { week: string; value: number; count: number }[] = [];
     for (let i = 0; i < 4; i++) {
       const weekStart = startOfWeek(addDays(now, i * 7), { weekStartsOn: 1 });
       const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+      
       const weekOrders = pendingOrders.filter(o => {
         if (!o.expected_closure_date) return false;
         const closureDate = parseISO(o.expected_closure_date);
         return isWithinInterval(closureDate, { start: weekStart, end: weekEnd });
       });
+      
       weeklyData.push({
         week: `Week ${i + 1} (${format(weekStart, 'dd MMM')})`,
         value: weekOrders.reduce((sum, o) => sum + (o.expected_price || 0) * o.quantity, 0),
         count: weekOrders.length,
-        weekIndex: i,
       });
     }
     
-    const monthlyData: { month: string; value: number; count: number; monthIndex: number }[] = [];
+    // Expected payments by month (next 3 months)
+    const monthlyData: { month: string; value: number; count: number }[] = [];
     for (let i = 0; i < 3; i++) {
       const monthDate = addMonths(now, i);
       const monthStart = startOfMonth(monthDate);
       const monthEnd = endOfMonth(monthDate);
+      
       const monthOrders = pendingOrders.filter(o => {
         if (!o.expected_closure_date) return false;
         const closureDate = parseISO(o.expected_closure_date);
         return isWithinInterval(closureDate, { start: monthStart, end: monthEnd });
       });
+      
       monthlyData.push({
         month: format(monthDate, 'MMMM yyyy'),
         value: monthOrders.reduce((sum, o) => sum + (o.expected_price || 0) * o.quantity, 0),
         count: monthOrders.length,
-        monthIndex: i,
       });
     }
     
+    // Conversion rate
     const totalClosedOrders = filteredOrders.filter(o => ['won', 'lost'].includes(o.status)).length;
     const conversionRate = totalClosedOrders > 0 
       ? ((wonOrders.length / totalClosedOrders) * 100).toFixed(1) 
@@ -132,7 +167,6 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
       categoryData,
       weeklyData,
       monthlyData,
-      pendingOrders,
     };
   }, [filteredOrders, isSalesView]);
 
@@ -143,43 +177,49 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
     return `₹${value.toFixed(0)}`;
   };
 
-  // Drill-down handlers
-  const drillBySalesPerson = (spId: string, name: string) => {
-    const list = analytics.pendingOrders.filter(o => o.sales_person_id === spId);
-    setDrill({ title: `Pipeline · ${name} (${list.length})`, orders: list });
-  };
-  const drillByCategory = (category: string) => {
-    const list = analytics.pendingOrders.filter(o => (o.product_category || 'Uncategorized') === category);
-    setDrill({ title: `Category · ${category} (${list.length})`, orders: list });
-  };
-  const drillByStatus = (statusKey: string, label: string) => {
-    const list = filteredOrders.filter(o => o.status === statusKey);
-    setDrill({ title: `Status · ${label} (${list.length})`, orders: list });
-  };
-  const drillByWeek = (weekIndex: number, weekLabel: string) => {
-    const now = new Date();
-    const weekStart = startOfWeek(addDays(now, weekIndex * 7), { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
-    const list = analytics.pendingOrders.filter(o => {
-      if (!o.expected_closure_date) return false;
-      return isWithinInterval(parseISO(o.expected_closure_date), { start: weekStart, end: weekEnd });
-    });
-    setDrill({ title: `Closures · ${weekLabel} (${list.length})`, orders: list });
-  };
-  const drillByMonth = (monthIndex: number, monthLabel: string) => {
-    const now = new Date();
-    const monthDate = addMonths(now, monthIndex);
-    const monthStart = startOfMonth(monthDate);
-    const monthEnd = endOfMonth(monthDate);
-    const list = analytics.pendingOrders.filter(o => {
-      if (!o.expected_closure_date) return false;
-      return isWithinInterval(parseISO(o.expected_closure_date), { start: monthStart, end: monthEnd });
-    });
-    setDrill({ title: `Closures · ${monthLabel} (${list.length})`, orders: list });
-  };
-
   return (
     <div className="space-y-6">
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <Filter className="h-4 w-4" />
+              Filters:
+            </div>
+            {!isSalesView && (
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs text-muted-foreground">Sales Person</Label>
+                <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
+                  <SelectTrigger className="w-[220px] h-9">
+                    <SelectValue placeholder="All sales persons" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sales Persons</SelectItem>
+                    {availableSalesPersons.map(sp => (
+                      <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground">Created Date Range</Label>
+              <DateRangeFilter
+                startDate={startDate}
+                endDate={endDate}
+                onStartDateChange={setStartDate}
+                onEndDateChange={setEndDate}
+                onClear={() => { setStartDate(undefined); setEndDate(undefined); }}
+              />
+            </div>
+            <div className="ml-auto text-sm text-muted-foreground">
+              Showing <span className="font-semibold text-foreground">{filteredOrders.length}</span> orders
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {isSalesView && (
         <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
           Showing analytics for your pipeline only
@@ -258,7 +298,6 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
               Expected Pipeline by Week
-              <span className="text-xs font-normal text-muted-foreground ml-auto">Click bars for details</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -267,14 +306,11 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="week" fontSize={12} />
                 <YAxis tickFormatter={formatCurrency} fontSize={12} />
-                <Tooltip formatter={(value: number) => [formatCurrency(value), 'Pipeline Value']} />
-                <Bar
-                  dataKey="value"
-                  fill="hsl(var(--primary))"
-                  radius={[4, 4, 0, 0]}
-                  cursor="pointer"
-                  onClick={(d: any) => drillByWeek(d.weekIndex, d.week)}
+                <Tooltip 
+                  formatter={(value: number) => [formatCurrency(value), 'Pipeline Value']}
+                  labelFormatter={(label) => `${label}`}
                 />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -285,7 +321,6 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
               Expected Pipeline by Month
-              <span className="text-xs font-normal text-muted-foreground ml-auto">Click points for details</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -294,29 +329,23 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" fontSize={12} />
                 <YAxis tickFormatter={formatCurrency} fontSize={12} />
-                <Tooltip formatter={(value: number) => [formatCurrency(value), 'Pipeline Value']} />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  dot={{ r: 6, cursor: 'pointer' }}
-                  activeDot={{ r: 8, cursor: 'pointer', onClick: (_e: any, payload: any) => drillByMonth(payload?.payload?.monthIndex, payload?.payload?.month) }}
+                <Tooltip 
+                  formatter={(value: number, name) => [formatCurrency(value), 'Pipeline Value']}
                 />
+                <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      {/* Pipeline by Sales Person */}
+      {/* Pipeline by Sales Person - only visible for non-sales roles */}
       {!isSalesView && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
               Pipeline Value by Sales Person
-              <span className="text-xs font-normal text-muted-foreground ml-auto">Click bars or rows for details</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -325,16 +354,14 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" tickFormatter={formatCurrency} fontSize={12} />
                 <YAxis dataKey="name" type="category" width={120} fontSize={12} />
-                <Tooltip formatter={(value: number) => [formatCurrency(value), 'Pipeline Value']} />
-                <Bar
-                  dataKey="value"
-                  fill="hsl(var(--primary))"
-                  radius={[0, 4, 4, 0]}
-                  cursor="pointer"
-                  onClick={(d: any) => drillBySalesPerson(d.spId, d.name)}
+                <Tooltip 
+                  formatter={(value: number) => [formatCurrency(value), 'Pipeline Value']}
+                  labelFormatter={(label) => `${label}`}
                 />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
+            {/* Summary table */}
             <div className="mt-4 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -346,11 +373,7 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
                 </thead>
                 <tbody>
                   {analytics.salesPersonData.map((sp, idx) => (
-                    <tr
-                      key={idx}
-                      className="border-b last:border-0 cursor-pointer hover:bg-muted/50"
-                      onClick={() => drillBySalesPerson(sp.spId, sp.name)}
-                    >
+                    <tr key={idx} className="border-b last:border-0">
                       <td className="py-2">{sp.name}</td>
                       <td className="text-right py-2">{sp.count}</td>
                       <td className="text-right py-2 font-medium">{formatCurrency(sp.value)}</td>
@@ -369,7 +392,6 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
           <CardTitle className="flex items-center gap-2">
             <FolderOpen className="h-5 w-5" />
             Pipeline by Product Category
-            <span className="text-xs font-normal text-muted-foreground ml-auto">Click bars or rows for details</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -379,14 +401,10 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" tickFormatter={formatCurrency} fontSize={12} />
                 <YAxis dataKey="category" type="category" width={120} fontSize={11} />
-                <Tooltip formatter={(value: number) => [formatCurrency(value), 'Pipeline Value']} />
-                <Bar
-                  dataKey="value"
-                  fill="hsl(var(--primary))"
-                  radius={[0, 4, 4, 0]}
-                  cursor="pointer"
-                  onClick={(d: any) => drillByCategory(d.category)}
+                <Tooltip 
+                  formatter={(value: number) => [formatCurrency(value), 'Pipeline Value']}
                 />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
             <div className="overflow-x-auto">
@@ -400,11 +418,7 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
                 </thead>
                 <tbody>
                   {analytics.categoryData.map((cat, idx) => (
-                    <tr
-                      key={idx}
-                      className="border-b last:border-0 cursor-pointer hover:bg-muted/50"
-                      onClick={() => drillByCategory(cat.category)}
-                    >
+                    <tr key={idx} className="border-b last:border-0">
                       <td className="py-2">{cat.category}</td>
                       <td className="text-right py-2">{cat.count}</td>
                       <td className="text-right py-2 font-medium">{formatCurrency(cat.value)}</td>
@@ -423,7 +437,6 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
           <CardTitle className="flex items-center gap-2">
             <PieChartIcon className="h-5 w-5" />
             Pipeline by Status
-            <span className="text-xs font-normal text-muted-foreground ml-auto">Click slices or rows for details</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -439,8 +452,6 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
                   fill="#8884d8"
                   dataKey="value"
                   label={({ label, percent }) => `${label} (${(percent * 100).toFixed(0)}%)`}
-                  cursor="pointer"
-                  onClick={(d: any) => drillByStatus(d.statusKey, d.label)}
                 >
                   {analytics.statusData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -451,11 +462,7 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
             </ResponsiveContainer>
             <div className="flex flex-col justify-center space-y-2">
               {analytics.statusData.map((status, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between cursor-pointer hover:bg-muted/50 rounded px-2 py-1"
-                  onClick={() => drillByStatus(status.statusKey, status.label)}
-                >
+                <div key={idx} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
                     <span>{status.label}</span>
@@ -470,54 +477,6 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
           </div>
         </CardContent>
       </Card>
-
-      {/* Drill-down dialog */}
-      <Dialog open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{drill?.title}</DialogTitle>
-          </DialogHeader>
-          {drill && drill.orders.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">No matching pipeline orders.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
-                  <TableHead className="text-right">Value</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Sales Person</TableHead>
-                  <TableHead>Closure</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {drill?.orders.map(o => (
-                  <TableRow key={o.id}>
-                    <TableCell>
-                      <div className="font-medium">{o.customer_name}</div>
-                      <div className="text-xs text-muted-foreground">{o.customer_company}</div>
-                    </TableCell>
-                    <TableCell className="text-sm">{o.product_name}</TableCell>
-                    <TableCell className="text-right">{o.quantity}</TableCell>
-                    <TableCell className="text-right font-medium">{formatCurrency((o.expected_price || 0) * o.quantity)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs">
-                        {PIPELINE_STATUSES.find(s => s.value === o.status)?.label || o.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">{o.sales_person_name}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {o.expected_closure_date ? format(parseISO(o.expected_closure_date), 'dd MMM yyyy') : '—'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
