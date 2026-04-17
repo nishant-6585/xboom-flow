@@ -113,6 +113,9 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
         return;
       }
 
+      const diag = createDiagnostics(file.name);
+      let transactions: ParsedTransaction[] = [];
+
       if (ext === 'pdf') {
         const rawRows = await extractPdfRows(file);
         diag.sheetName = 'PDF';
@@ -121,9 +124,6 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
           diag.reason = 'Could not detect a transactions table in this PDF. It may be scanned (image-only) or use a non-standard layout. Try CSV/Excel export from your bank.';
         }
       } else if (ext === 'csv') {
-      let transactions: ParsedTransaction[] = [];
-
-      if (ext === 'csv') {
         const text = await file.text();
         transactions = parseCSVContent(text, diag);
       } else {
@@ -132,7 +132,6 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
         const sheetName = wb.SheetNames[0];
         diag.sheetName = sheetName;
         const ws = wb.Sheets[sheetName];
-        // Get raw 2D array to preserve number types and handle metadata rows
         const rawRows: (string | number | null | undefined)[][] = XLSX.utils.sheet_to_json(ws, {
           header: 1,
           raw: true,
@@ -147,6 +146,8 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
 
       if (transactions.length === 0) {
         toast.error(diag.reason || 'Unable to parse this bank export.');
+      } else {
+        toast.success(`Parsed ${transactions.length} transactions`);
       }
     } catch (err: any) {
       console.error('Parse error:', err);
