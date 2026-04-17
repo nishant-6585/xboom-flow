@@ -114,11 +114,13 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
       }
 
       if (ext === 'pdf') {
-        toast.info('PDF parsing is under development — please use CSV or Excel for now.');
-        return;
-      }
-
-      const diag = createDiagnostics(file.name);
+        const rawRows = await extractPdfRows(file);
+        diag.sheetName = 'PDF';
+        transactions = parseExcelRows(rawRows, diag);
+        if (transactions.length === 0 && !diag.reason) {
+          diag.reason = 'Could not detect a transactions table in this PDF. It may be scanned (image-only) or use a non-standard layout. Try CSV/Excel export from your bank.';
+        }
+      } else if (ext === 'csv') {
       let transactions: ParsedTransaction[] = [];
 
       if (ext === 'csv') {
