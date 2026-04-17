@@ -484,6 +484,8 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                 </TableHead>
                 <TableHead>Status</TableHead>
                 {statusFilter === 'lost' && <TableHead>Lost Reason</TableHead>}
+                <TableHead>Last Follow-up</TableHead>
+                <TableHead className="text-center">Follow-ups</TableHead>
                 <TableHead>Priority</TableHead>
                 <TableHead>Sales Person</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
