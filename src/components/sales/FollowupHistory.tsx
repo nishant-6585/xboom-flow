@@ -1,13 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { CalendarCheck, Clock, CheckCircle2, Loader2 } from 'lucide-react';
+import { CalendarCheck, Clock, CheckCircle2, Loader2, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { FollowupScheduleDialog } from './FollowupScheduleDialog';
 
 interface FollowupHistoryProps {
   sourceType: 'pipeline' | 'prospect';
   sourceId: string;
+  customerName?: string;
+  customerCompany?: string | null;
+  productName?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  isACategory?: boolean;
 }
 
 interface FollowupRow {
@@ -21,27 +29,41 @@ interface FollowupRow {
   created_at: string;
 }
 
-export function FollowupHistory({ sourceType, sourceId }: FollowupHistoryProps) {
+export function FollowupHistory({
+  sourceType,
+  sourceId,
+  customerName,
+  customerCompany,
+  productName,
+  phone,
+  email,
+  isACategory,
+}: FollowupHistoryProps) {
   const [loading, setLoading] = useState(true);
   const [followups, setFollowups] = useState<FollowupRow[]>([]);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+
+  const fetchFollowups = useCallback(async () => {
+    if (!sourceId) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('followups')
+      .select('id,status,followup_at,remark,completed_at,completed_by_name,created_by_name,created_at')
+      .eq('source_type', sourceType)
+      .eq('source_id', sourceId)
+      .order('followup_at', { ascending: false });
+    if (!error && data) setFollowups(data as FollowupRow[]);
+    setLoading(false);
+  }, [sourceType, sourceId]);
 
   useEffect(() => {
-    if (!sourceId) return;
     let mounted = true;
     (async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('followups')
-        .select('id,status,followup_at,remark,completed_at,completed_by_name,created_by_name,created_at')
-        .eq('source_type', sourceType)
-        .eq('source_id', sourceId)
-        .order('followup_at', { ascending: false });
+      await fetchFollowups();
       if (!mounted) return;
-      if (!error && data) setFollowups(data as FollowupRow[]);
-      setLoading(false);
     })();
     return () => { mounted = false; };
-  }, [sourceType, sourceId]);
+  }, [fetchFollowups]);
 
   const completed = followups.filter(f => f.status === 'completed');
   const upcoming = followups
@@ -57,16 +79,31 @@ export function FollowupHistory({ sourceType, sourceId }: FollowupHistoryProps) 
     );
   }
 
+  const canSchedule = !!customerName;
+
   return (
     <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 text-sm font-semibold">
           <CalendarCheck className="h-4 w-4 text-primary" />
           Follow-up History
         </div>
-        <Badge variant="outline" className="text-xs">
-          {completed.length} done · {upcoming.length} upcoming
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs">
+            {completed.length} done · {upcoming.length} upcoming
+          </Badge>
+          {canSchedule && (
+            <Button
+              type="button"
+              size="sm"
+              variant="default"
+              className="h-7 rounded-lg gap-1"
+              onClick={() => setScheduleOpen(true)}
+            >
+              <Plus className="h-3.5 w-3.5" /> Schedule
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Next scheduled */}
@@ -119,6 +156,22 @@ export function FollowupHistory({ sourceType, sourceId }: FollowupHistoryProps) 
           </div>
         )}
       </div>
+
+      {canSchedule && (
+        <FollowupScheduleDialog
+          open={scheduleOpen}
+          onOpenChange={setScheduleOpen}
+          sourceType={sourceType}
+          sourceId={sourceId}
+          customerName={customerName!}
+          customerCompany={customerCompany}
+          productName={productName}
+          phone={phone}
+          email={email}
+          isACategory={isACategory}
+          onScheduled={fetchFollowups}
+        />
+      )}
     </div>
   );
 }
