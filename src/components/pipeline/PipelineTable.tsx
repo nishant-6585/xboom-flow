@@ -767,6 +767,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                     rows={2}
                   />
                 </div>
+                <FollowupHistory sourceType="pipeline" sourceId={editOrder.id} />
                 {editOrder.status === 'lost' && (
                   <div className="space-y-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
                     <div className="text-sm font-medium text-destructive flex items-center gap-2">
