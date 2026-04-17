@@ -28,6 +28,7 @@ import { useSuppliers } from '@/hooks/useSuppliers';
 import { toast } from 'sonner';
 import { LogCallDialog } from '@/components/sales/LogCallDialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { FollowupHistory } from '@/components/sales/FollowupHistory';
 
 interface PipelineTableProps {
   orders: PipelineOrder[];
@@ -614,7 +615,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
 
         {/* Edit Dialog */}
         <Dialog open={!!editOrder} onOpenChange={(open) => !open && setEditOrder(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Pipeline Order</DialogTitle>
             </DialogHeader>
@@ -766,6 +767,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                     rows={2}
                   />
                 </div>
+                <FollowupHistory sourceType="pipeline" sourceId={editOrder.id} />
                 {editOrder.status === 'lost' && (
                   <div className="space-y-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
                     <div className="text-sm font-medium text-destructive flex items-center gap-2">

@@ -17,6 +17,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { Prospect } from '@/hooks/useProspects';
+import { FollowupHistory } from './FollowupHistory';
 
 interface ProspectEditDialogProps {
   open: boolean;
@@ -358,6 +359,8 @@ export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: 
               <Label>Notes</Label>
               <Textarea value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} />
             </div>
+
+            {prospect && <FollowupHistory sourceType="prospect" sourceId={prospect.id} />}
           </div>
         </ScrollArea>
         <DialogFooter>
