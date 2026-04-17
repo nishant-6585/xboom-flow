@@ -271,18 +271,51 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
               className="pl-9"
             />
           </div>
-          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as PipelineStatus | 'all')}>
-            <SelectTrigger className="w-[160px]">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              {PIPELINE_STATUSES.map(s => (
-                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-[180px] justify-start h-10 font-normal">
+                <Filter className="h-4 w-4 mr-2" />
+                {multiStatusFilter.length > 0
+                  ? `${multiStatusFilter.length} status${multiStatusFilter.length > 1 ? 'es' : ''}`
+                  : statusFilter === 'all'
+                    ? 'All Statuses'
+                    : PIPELINE_STATUSES.find(s => s.value === statusFilter)?.label || 'Status'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[220px] p-2" align="start">
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-muted"
+                  onClick={() => { setMultiStatusFilter([]); setStatusFilter('all'); }}
+                >
+                  All Statuses
+                </button>
+                <div className="border-t my-1" />
+                {PIPELINE_STATUSES.map(s => {
+                  const checked = multiStatusFilter.includes(s.value as PipelineStatus);
+                  return (
+                    <label key={s.value} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) => {
+                          setMultiStatusFilter(prev => v
+                            ? [...prev, s.value as PipelineStatus]
+                            : prev.filter(x => x !== s.value));
+                        }}
+                      />
+                      {s.label}
+                    </label>
+                  );
+                })}
+                {multiStatusFilter.length > 0 && (
+                  <Button variant="ghost" size="sm" className="w-full text-xs mt-1" onClick={() => setMultiStatusFilter([])}>
+                    <X className="h-3 w-3 mr-1" /> Clear
+                  </Button>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-[180px]">
               <FolderOpen className="h-4 w-4 mr-2" />
