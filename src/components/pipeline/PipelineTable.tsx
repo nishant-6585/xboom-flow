@@ -27,6 +27,7 @@ import { useOrders } from '@/hooks/useOrders';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { toast } from 'sonner';
 import { LogCallDialog } from '@/components/sales/LogCallDialog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface PipelineTableProps {
   orders: PipelineOrder[];
@@ -35,6 +36,11 @@ interface PipelineTableProps {
   statusFilter?: PipelineStatus | 'all';
   onStatusFilterChange?: (status: PipelineStatus | 'all') => void;
   selectedLeadId?: string | null;
+}
+
+interface FollowupStats {
+  completedCount: number;
+  lastCompletedAt: string | null;
 }
 
 interface SalesTeamMember {
@@ -66,6 +72,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
   const { suppliers } = useSuppliers();
   const [searchTerm, setSearchTerm] = useState('');
   const [internalStatusFilter, setInternalStatusFilter] = useState<PipelineStatus | 'all'>('all');
+  const [multiStatusFilter, setMultiStatusFilter] = useState<PipelineStatus[]>([]);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [salesPersonFilter, setSalesPersonFilter] = useState('all');
   const [leadFilter, setLeadFilter] = useState<'all' | 'hot' | 'warm' | 'cold' | 'mega'>('all');
@@ -78,6 +85,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
   const lastAutoOpenedId = useRef<string | null>(null);
   const [orderWonDialog, setOrderWonDialog] = useState<PipelineOrder | null>(null);
   const [logCallOrder, setLogCallOrder] = useState<PipelineOrder | null>(null);
+  const [followupStats, setFollowupStats] = useState<Record<string, FollowupStats>>({});
 
   // Use external filter if provided, otherwise use internal
   const statusFilter = externalStatusFilter ?? internalStatusFilter;
@@ -92,6 +100,35 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
     };
     fetchSalesTeam();
   }, []);
+
+  // Fetch follow-up stats for visible pipeline orders
+  useEffect(() => {
+    const ids = orders.map(o => o.id);
+    if (ids.length === 0) {
+      setFollowupStats({});
+      return;
+    }
+    const fetchFollowups = async () => {
+      const { data, error } = await supabase
+        .from('followups')
+        .select('source_id, status, completed_at')
+        .eq('source_type', 'pipeline')
+        .in('source_id', ids);
+      if (error || !data) return;
+      const stats: Record<string, FollowupStats> = {};
+      for (const row of data as Array<{ source_id: string; status: string; completed_at: string | null }>) {
+        if (row.status !== 'completed') continue;
+        const cur = stats[row.source_id] || { completedCount: 0, lastCompletedAt: null };
+        cur.completedCount += 1;
+        if (row.completed_at && (!cur.lastCompletedAt || row.completed_at > cur.lastCompletedAt)) {
+          cur.lastCompletedAt = row.completed_at;
+        }
+        stats[row.source_id] = cur;
+      }
+      setFollowupStats(stats);
+    };
+    fetchFollowups();
+  }, [orders]);
 
   // Auto-open lead dialog when selectedLeadId is provided (once per id)
   useEffect(() => {
@@ -147,7 +184,9 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
       order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer_company.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.product_name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    const matchesStatus = multiStatusFilter.length > 0
+      ? multiStatusFilter.includes(order.status)
+      : (statusFilter === 'all' || order.status === statusFilter);
     const matchesCategory = categoryFilter === 'all' || order.product_category === categoryFilter;
     const matchesSalesPerson = salesPersonFilter === 'all' || order.sales_person_id === salesPersonFilter;
     
@@ -232,18 +271,51 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
               className="pl-9"
             />
           </div>
-          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as PipelineStatus | 'all')}>
-            <SelectTrigger className="w-[160px]">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              {PIPELINE_STATUSES.map(s => (
-                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-[180px] justify-start h-10 font-normal">
+                <Filter className="h-4 w-4 mr-2" />
+                {multiStatusFilter.length > 0
+                  ? `${multiStatusFilter.length} status${multiStatusFilter.length > 1 ? 'es' : ''}`
+                  : statusFilter === 'all'
+                    ? 'All Statuses'
+                    : PIPELINE_STATUSES.find(s => s.value === statusFilter)?.label || 'Status'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[220px] p-2" align="start">
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-muted"
+                  onClick={() => { setMultiStatusFilter([]); setStatusFilter('all'); }}
+                >
+                  All Statuses
+                </button>
+                <div className="border-t my-1" />
+                {PIPELINE_STATUSES.map(s => {
+                  const checked = multiStatusFilter.includes(s.value as PipelineStatus);
+                  return (
+                    <label key={s.value} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) => {
+                          setMultiStatusFilter(prev => v
+                            ? [...prev, s.value as PipelineStatus]
+                            : prev.filter(x => x !== s.value));
+                        }}
+                      />
+                      {s.label}
+                    </label>
+                  );
+                })}
+                {multiStatusFilter.length > 0 && (
+                  <Button variant="ghost" size="sm" className="w-full text-xs mt-1" onClick={() => setMultiStatusFilter([])}>
+                    <X className="h-3 w-3 mr-1" /> Clear
+                  </Button>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-[180px]">
               <FolderOpen className="h-4 w-4 mr-2" />
@@ -412,6 +484,8 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                 </TableHead>
                 <TableHead>Status</TableHead>
                 {statusFilter === 'lost' && <TableHead>Lost Reason</TableHead>}
+                <TableHead>Last Follow-up</TableHead>
+                <TableHead className="text-center">Follow-ups</TableHead>
                 <TableHead>Priority</TableHead>
                 <TableHead>Sales Person</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -420,7 +494,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
             <TableBody>
               {sortedOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                     No pipeline orders found
                   </TableCell>
                 </TableRow>
@@ -474,6 +548,14 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                         </div>
                       </TableCell>
                     )}
+                    <TableCell className="text-sm text-muted-foreground">
+                      {followupStats[order.id]?.lastCompletedAt
+                        ? format(new Date(followupStats[order.id].lastCompletedAt as string), 'dd MMM yyyy')
+                        : '—'}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline">{followupStats[order.id]?.completedCount || 0}</Badge>
+                    </TableCell>
                     <TableCell>{getPriorityBadge(order.priority)}</TableCell>
                     <TableCell>{order.sales_person_name}</TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
