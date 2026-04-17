@@ -360,7 +360,18 @@ export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: 
               <Textarea value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} />
             </div>
 
-            {prospect && <FollowupHistory sourceType="prospect" sourceId={prospect.id} />}
+            {prospect && (
+              <FollowupHistory
+                sourceType="prospect"
+                sourceId={prospect.id}
+                customerName={prospect.customer_name}
+                customerCompany={prospect.company}
+                productName={prospect.product_name}
+                phone={prospect.phone_number}
+                email={prospect.email}
+                isACategory={prospect.is_a_category}
+              />
+            )}
           </div>
         </ScrollArea>
         <DialogFooter>
