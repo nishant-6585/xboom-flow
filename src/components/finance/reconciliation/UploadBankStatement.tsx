@@ -265,6 +265,7 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
           </DialogTitle>
         </DialogHeader>
 
+        <div className="flex-1 overflow-y-auto pr-1 -mr-1">
         {step === 'upload' && (
           <div className="space-y-4">
             <div>
@@ -409,6 +410,7 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
             )}
           </div>
         )}
+        </div>
 
         <DialogFooter>
           {step === 'upload' && (
