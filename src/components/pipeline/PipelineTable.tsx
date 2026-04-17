@@ -72,6 +72,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
   const { suppliers } = useSuppliers();
   const [searchTerm, setSearchTerm] = useState('');
   const [internalStatusFilter, setInternalStatusFilter] = useState<PipelineStatus | 'all'>('all');
+  const [multiStatusFilter, setMultiStatusFilter] = useState<PipelineStatus[]>([]);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [salesPersonFilter, setSalesPersonFilter] = useState('all');
   const [leadFilter, setLeadFilter] = useState<'all' | 'hot' | 'warm' | 'cold' | 'mega'>('all');
@@ -84,6 +85,7 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
   const lastAutoOpenedId = useRef<string | null>(null);
   const [orderWonDialog, setOrderWonDialog] = useState<PipelineOrder | null>(null);
   const [logCallOrder, setLogCallOrder] = useState<PipelineOrder | null>(null);
+  const [followupStats, setFollowupStats] = useState<Record<string, FollowupStats>>({});
 
   // Use external filter if provided, otherwise use internal
   const statusFilter = externalStatusFilter ?? internalStatusFilter;
@@ -98,6 +100,35 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
     };
     fetchSalesTeam();
   }, []);
+
+  // Fetch follow-up stats for visible pipeline orders
+  useEffect(() => {
+    const ids = orders.map(o => o.id);
+    if (ids.length === 0) {
+      setFollowupStats({});
+      return;
+    }
+    const fetchFollowups = async () => {
+      const { data, error } = await supabase
+        .from('followups')
+        .select('source_id, status, completed_at')
+        .eq('source_type', 'pipeline')
+        .in('source_id', ids);
+      if (error || !data) return;
+      const stats: Record<string, FollowupStats> = {};
+      for (const row of data as Array<{ source_id: string; status: string; completed_at: string | null }>) {
+        if (row.status !== 'completed') continue;
+        const cur = stats[row.source_id] || { completedCount: 0, lastCompletedAt: null };
+        cur.completedCount += 1;
+        if (row.completed_at && (!cur.lastCompletedAt || row.completed_at > cur.lastCompletedAt)) {
+          cur.lastCompletedAt = row.completed_at;
+        }
+        stats[row.source_id] = cur;
+      }
+      setFollowupStats(stats);
+    };
+    fetchFollowups();
+  }, [orders]);
 
   // Auto-open lead dialog when selectedLeadId is provided (once per id)
   useEffect(() => {
