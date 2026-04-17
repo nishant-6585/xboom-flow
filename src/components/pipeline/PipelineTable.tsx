@@ -28,6 +28,7 @@ import { useSuppliers } from '@/hooks/useSuppliers';
 import { toast } from 'sonner';
 import { LogCallDialog } from '@/components/sales/LogCallDialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { FollowupHistory } from '@/components/sales/FollowupHistory';
 
 interface PipelineTableProps {
   orders: PipelineOrder[];
