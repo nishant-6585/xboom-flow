@@ -62,11 +62,21 @@ async function extractPdfRows(file: File): Promise<(string | number | null)[][]>
 }
 
 // Insert rows in safe batches to avoid payload/timeout limits on large statements
-async function batchInsert<T>(table: string, rows: T[], chunkSize = 500): Promise<void> {
+async function batchInsert<T>(
+  table: string,
+  rows: T[],
+  chunkSize = 250,
+  onProgress?: (done: number, total: number) => void,
+): Promise<void> {
   for (let i = 0; i < rows.length; i += chunkSize) {
     const chunk = rows.slice(i, i + chunkSize);
     const { error } = await supabase.from(table as any).insert(chunk as any);
-    if (error) throw new Error(`Batch ${i / chunkSize + 1} failed: ${error.message}`);
+    if (error) {
+      throw new Error(
+        `Batch ${Math.floor(i / chunkSize) + 1} of ${Math.ceil(rows.length / chunkSize)} failed at row ${i + 1}: ${error.message}`
+      );
+    }
+    onProgress?.(Math.min(i + chunkSize, rows.length), rows.length);
   }
 }
 
