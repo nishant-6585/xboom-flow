@@ -257,7 +257,7 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
-      <DialogContent className={step === 'preview' ? 'sm:max-w-3xl' : 'sm:max-w-md'}>
+      <DialogContent className={`${step === 'preview' ? 'sm:max-w-3xl' : 'sm:max-w-md'} max-h-[90vh] flex flex-col overflow-hidden`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
