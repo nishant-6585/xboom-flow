@@ -17,6 +17,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { Prospect } from '@/hooks/useProspects';
+import { FollowupHistory } from './FollowupHistory';
 
 interface ProspectEditDialogProps {
   open: boolean;
