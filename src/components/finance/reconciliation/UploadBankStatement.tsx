@@ -394,7 +394,19 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
         {step === 'importing' && (
           <div className="flex flex-col items-center justify-center py-8 gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Importing {parsed.length} transactions…</p>
+            <p className="text-sm text-muted-foreground">
+              {importProgress
+                ? `Importing ${importProgress.done.toLocaleString()} of ${importProgress.total.toLocaleString()} transactions…`
+                : `Preparing ${parsed.length.toLocaleString()} transactions…`}
+            </p>
+            {importProgress && importProgress.total > 0 && (
+              <div className="w-full max-w-xs h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all"
+                  style={{ width: `${Math.round((importProgress.done / importProgress.total) * 100)}%` }}
+                />
+              </div>
+            )}
           </div>
         )}
 
