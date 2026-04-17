@@ -27,6 +27,7 @@ import { useOrders } from '@/hooks/useOrders';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { toast } from 'sonner';
 import { LogCallDialog } from '@/components/sales/LogCallDialog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface PipelineTableProps {
   orders: PipelineOrder[];
@@ -35,6 +36,11 @@ interface PipelineTableProps {
   statusFilter?: PipelineStatus | 'all';
   onStatusFilterChange?: (status: PipelineStatus | 'all') => void;
   selectedLeadId?: string | null;
+}
+
+interface FollowupStats {
+  completedCount: number;
+  lastCompletedAt: string | null;
 }
 
 interface SalesTeamMember {
