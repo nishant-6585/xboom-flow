@@ -12,6 +12,64 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import * as XLSX from 'xlsx';
 
+// Lazy-load pdfjs only when needed (keeps initial bundle small)
+async function extractPdfRows(file: File): Promise<(string | number | null)[][]> {
+  const pdfjs: any = await import('pdfjs-dist/build/pdf.mjs');
+  // Use the worker bundled with the package via Vite ?url import
+  // @ts-ignore - vite-only import
+  const workerUrl = (await import('pdfjs-dist/build/pdf.worker.mjs?url')).default;
+  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+
+  const buffer = await file.arrayBuffer();
+  const pdf = await pdfjs.getDocument({ data: buffer }).promise;
+  const allRows: (string | number | null)[][] = [];
+
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    // Group items into rows by Y coordinate (within ~3px tolerance)
+    const lineMap = new Map<number, { x: number; str: string }[]>();
+    for (const item of content.items as any[]) {
+      const y = Math.round(item.transform[5]);
+      // bucket Y into bins of 3px to merge near-equal lines
+      const bucket = Math.round(y / 3) * 3;
+      const arr = lineMap.get(bucket) || [];
+      arr.push({ x: item.transform[4], str: item.str });
+      lineMap.set(bucket, arr);
+    }
+    // Sort lines top-to-bottom (higher Y = top in PDF coords)
+    const sortedYs = Array.from(lineMap.keys()).sort((a, b) => b - a);
+    for (const y of sortedYs) {
+      const cells = lineMap.get(y)!.sort((a, b) => a.x - b.x);
+      // Split into columns based on horizontal gaps
+      const row: string[] = [];
+      let current = '';
+      let lastX = -Infinity;
+      for (const c of cells) {
+        if (lastX !== -Infinity && c.x - lastX > 15) {
+          if (current.trim()) row.push(current.trim());
+          current = c.str;
+        } else {
+          current += (current ? ' ' : '') + c.str;
+        }
+        lastX = c.x + c.str.length * 4;
+      }
+      if (current.trim()) row.push(current.trim());
+      if (row.length > 0) allRows.push(row);
+    }
+  }
+  return allRows;
+}
+
+// Insert rows in safe batches to avoid payload/timeout limits on large statements
+async function batchInsert<T>(table: string, rows: T[], chunkSize = 500): Promise<void> {
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    const { error } = await supabase.from(table as any).insert(chunk as any);
+    if (error) throw new Error(`Batch ${i / chunkSize + 1} failed: ${error.message}`);
+  }
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -55,15 +113,17 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
         return;
       }
 
-      if (ext === 'pdf') {
-        toast.info('PDF parsing is under development — please use CSV or Excel for now.');
-        return;
-      }
-
       const diag = createDiagnostics(file.name);
       let transactions: ParsedTransaction[] = [];
 
-      if (ext === 'csv') {
+      if (ext === 'pdf') {
+        const rawRows = await extractPdfRows(file);
+        diag.sheetName = 'PDF';
+        transactions = parseExcelRows(rawRows, diag);
+        if (transactions.length === 0 && !diag.reason) {
+          diag.reason = 'Could not detect a transactions table in this PDF. It may be scanned (image-only) or use a non-standard layout. Try CSV/Excel export from your bank.';
+        }
+      } else if (ext === 'csv') {
         const text = await file.text();
         transactions = parseCSVContent(text, diag);
       } else {
@@ -72,7 +132,6 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
         const sheetName = wb.SheetNames[0];
         diag.sheetName = sheetName;
         const ws = wb.Sheets[sheetName];
-        // Get raw 2D array to preserve number types and handle metadata rows
         const rawRows: (string | number | null | undefined)[][] = XLSX.utils.sheet_to_json(ws, {
           header: 1,
           raw: true,
@@ -87,6 +146,8 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
 
       if (transactions.length === 0) {
         toast.error(diag.reason || 'Unable to parse this bank export.');
+      } else {
+        toast.success(`Parsed ${transactions.length} transactions`);
       }
     } catch (err: any) {
       console.error('Parse error:', err);
@@ -107,12 +168,12 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
       const { error: storageErr } = await supabase.storage.from('bank-statements').upload(path, file);
       if (storageErr) throw storageErr;
 
-      const fileType = ext === 'xls' ? 'xlsx' : ext as string;
+      const fileType = ext === 'pdf' ? 'pdf' : ext === 'csv' ? 'csv' : 'xlsx';
 
       const { data: upload, error: uploadErr } = await supabase.from('bank_reconciliation_uploads').insert({
         file_name: file.name,
         file_url: path,
-        file_type: fileType === 'csv' ? 'csv' : 'xlsx',
+        file_type: fileType,
         bank_name: bankName || null,
         account_number: accountNumber || null,
         upload_status: 'processing',
@@ -147,8 +208,9 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
         status: (tx as any).status || 'new',
       }));
 
-      const { error: insertErr } = await supabase.from('bank_transactions').insert(rows as any);
-      if (insertErr) throw insertErr;
+      // Batch insert in chunks of 500 to safely handle large statements
+      // (avoids PostgREST payload limits & request timeouts on big files)
+      await batchInsert('bank_transactions', rows, 500);
 
       await supabase.from('bank_reconciliation_uploads').update({
         upload_status: 'completed',
@@ -182,8 +244,9 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
         {step === 'upload' && (
           <div className="space-y-4">
             <div>
-              <Label>Statement File (CSV, Excel)</Label>
-              <Input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" onChange={e => setFile(e.target.files?.[0] || null)} className="mt-1" />
+              <Label>Statement File (CSV, Excel, PDF)</Label>
+              <Input ref={fileRef} type="file" accept=".csv,.xlsx,.xls,.pdf" onChange={e => setFile(e.target.files?.[0] || null)} className="mt-1" />
+              <p className="text-[11px] text-muted-foreground mt-1">PDF support is text-based only — scanned/image PDFs need OCR. For very large files, prefer CSV/Excel for best accuracy.</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
