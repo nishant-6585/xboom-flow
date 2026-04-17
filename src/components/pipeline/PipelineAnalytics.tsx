@@ -179,6 +179,47 @@ export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProp
 
   return (
     <div className="space-y-6">
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <Filter className="h-4 w-4" />
+              Filters:
+            </div>
+            {!isSalesView && (
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs text-muted-foreground">Sales Person</Label>
+                <Select value={salesPersonFilter} onValueChange={setSalesPersonFilter}>
+                  <SelectTrigger className="w-[220px] h-9">
+                    <SelectValue placeholder="All sales persons" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sales Persons</SelectItem>
+                    {availableSalesPersons.map(sp => (
+                      <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground">Created Date Range</Label>
+              <DateRangeFilter
+                startDate={startDate}
+                endDate={endDate}
+                onStartDateChange={setStartDate}
+                onEndDateChange={setEndDate}
+                onClear={() => { setStartDate(undefined); setEndDate(undefined); }}
+              />
+            </div>
+            <div className="ml-auto text-sm text-muted-foreground">
+              Showing <span className="font-semibold text-foreground">{filteredOrders.length}</span> orders
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {isSalesView && (
         <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
           Showing analytics for your pipeline only
