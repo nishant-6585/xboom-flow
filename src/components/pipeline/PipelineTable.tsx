@@ -548,6 +548,14 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                         </div>
                       </TableCell>
                     )}
+                    <TableCell className="text-sm text-muted-foreground">
+                      {followupStats[order.id]?.lastCompletedAt
+                        ? format(new Date(followupStats[order.id].lastCompletedAt as string), 'dd MMM yyyy')
+                        : '—'}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline">{followupStats[order.id]?.completedCount || 0}</Badge>
+                    </TableCell>
                     <TableCell>{getPriorityBadge(order.priority)}</TableCell>
                     <TableCell>{order.sales_person_name}</TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
