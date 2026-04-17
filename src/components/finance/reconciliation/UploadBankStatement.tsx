@@ -62,11 +62,21 @@ async function extractPdfRows(file: File): Promise<(string | number | null)[][]>
 }
 
 // Insert rows in safe batches to avoid payload/timeout limits on large statements
-async function batchInsert<T>(table: string, rows: T[], chunkSize = 500): Promise<void> {
+async function batchInsert<T>(
+  table: string,
+  rows: T[],
+  chunkSize = 250,
+  onProgress?: (done: number, total: number) => void,
+): Promise<void> {
   for (let i = 0; i < rows.length; i += chunkSize) {
     const chunk = rows.slice(i, i + chunkSize);
     const { error } = await supabase.from(table as any).insert(chunk as any);
-    if (error) throw new Error(`Batch ${i / chunkSize + 1} failed: ${error.message}`);
+    if (error) {
+      throw new Error(
+        `Batch ${Math.floor(i / chunkSize) + 1} of ${Math.ceil(rows.length / chunkSize)} failed at row ${i + 1}: ${error.message}`
+      );
+    }
+    onProgress?.(Math.min(i + chunkSize, rows.length), rows.length);
   }
 }
 
@@ -88,6 +98,7 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
   const [step, setStep] = useState<Step>('upload');
   const [parsed, setParsed] = useState<ParsedTransaction[]>([]);
   const [diagnostics, setDiagnostics] = useState<ParseDiagnostics | null>(null);
+  const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const reset = () => {
@@ -97,6 +108,7 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
     setStep('upload');
     setParsed([]);
     setDiagnostics(null);
+    setImportProgress(null);
   };
 
   const formatAmount = (n: number) => n > 0 ? `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-';
@@ -128,7 +140,15 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
         transactions = parseCSVContent(text, diag);
       } else {
         const buffer = await file.arrayBuffer();
-        const wb = XLSX.read(buffer, { type: 'array' });
+        // Use streaming-friendly options to reduce memory pressure on large files
+        const wb = XLSX.read(buffer, {
+          type: 'array',
+          cellDates: false,
+          cellFormula: false,
+          cellHTML: false,
+          cellStyles: false,
+          sheetRows: 0, // 0 = all rows; explicit for clarity
+        });
         const sheetName = wb.SheetNames[0];
         diag.sheetName = sheetName;
         const ws = wb.Sheets[sheetName];
@@ -136,6 +156,7 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
           header: 1,
           raw: true,
           defval: null,
+          blankrows: false,
         });
         transactions = parseExcelRows(rawRows, diag);
       }
@@ -208,9 +229,12 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
         status: (tx as any).status || 'new',
       }));
 
-      // Batch insert in chunks of 500 to safely handle large statements
+      // Batch insert in chunks of 250 to safely handle large statements
       // (avoids PostgREST payload limits & request timeouts on big files)
-      await batchInsert('bank_transactions', rows, 500);
+      setImportProgress({ done: 0, total: rows.length });
+      await batchInsert('bank_transactions', rows, 250, (done, total) => {
+        setImportProgress({ done, total });
+      });
 
       await supabase.from('bank_reconciliation_uploads').update({
         upload_status: 'completed',
@@ -370,7 +394,19 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
         {step === 'importing' && (
           <div className="flex flex-col items-center justify-center py-8 gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Importing {parsed.length} transactions…</p>
+            <p className="text-sm text-muted-foreground">
+              {importProgress
+                ? `Importing ${importProgress.done.toLocaleString()} of ${importProgress.total.toLocaleString()} transactions…`
+                : `Preparing ${parsed.length.toLocaleString()} transactions…`}
+            </p>
+            {importProgress && importProgress.total > 0 && (
+              <div className="w-full max-w-xs h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all"
+                  style={{ width: `${Math.round((importProgress.done / importProgress.total) * 100)}%` }}
+                />
+              </div>
+            )}
           </div>
         )}
 
