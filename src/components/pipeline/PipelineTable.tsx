@@ -184,7 +184,9 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
       order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer_company.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.product_name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    const matchesStatus = multiStatusFilter.length > 0
+      ? multiStatusFilter.includes(order.status)
+      : (statusFilter === 'all' || order.status === statusFilter);
     const matchesCategory = categoryFilter === 'all' || order.product_category === categoryFilter;
     const matchesSalesPerson = salesPersonFilter === 'all' || order.sales_person_id === salesPersonFilter;
     
