@@ -369,6 +369,7 @@ export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: 
                 productName={prospect.product_name}
                 phone={prospect.phone_number}
                 email={prospect.email}
+                isACategory={prospect.is_a_category}
               />
             )}
           </div>
