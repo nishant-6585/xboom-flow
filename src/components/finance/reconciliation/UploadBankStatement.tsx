@@ -168,12 +168,12 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
       const { error: storageErr } = await supabase.storage.from('bank-statements').upload(path, file);
       if (storageErr) throw storageErr;
 
-      const fileType = ext === 'xls' ? 'xlsx' : ext as string;
+      const fileType = ext === 'pdf' ? 'pdf' : ext === 'csv' ? 'csv' : 'xlsx';
 
       const { data: upload, error: uploadErr } = await supabase.from('bank_reconciliation_uploads').insert({
         file_name: file.name,
         file_url: path,
-        file_type: fileType === 'csv' ? 'csv' : 'xlsx',
+        file_type: fileType,
         bank_name: bankName || null,
         account_number: accountNumber || null,
         upload_status: 'processing',
@@ -208,8 +208,9 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
         status: (tx as any).status || 'new',
       }));
 
-      const { error: insertErr } = await supabase.from('bank_transactions').insert(rows as any);
-      if (insertErr) throw insertErr;
+      // Batch insert in chunks of 500 to safely handle large statements
+      // (avoids PostgREST payload limits & request timeouts on big files)
+      await batchInsert('bank_transactions', rows, 500);
 
       await supabase.from('bank_reconciliation_uploads').update({
         upload_status: 'completed',
