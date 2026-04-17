@@ -244,8 +244,9 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
         {step === 'upload' && (
           <div className="space-y-4">
             <div>
-              <Label>Statement File (CSV, Excel)</Label>
-              <Input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" onChange={e => setFile(e.target.files?.[0] || null)} className="mt-1" />
+              <Label>Statement File (CSV, Excel, PDF)</Label>
+              <Input ref={fileRef} type="file" accept=".csv,.xlsx,.xls,.pdf" onChange={e => setFile(e.target.files?.[0] || null)} className="mt-1" />
+              <p className="text-[11px] text-muted-foreground mt-1">PDF support is text-based only — scanned/image PDFs need OCR. For very large files, prefer CSV/Excel for best accuracy.</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
