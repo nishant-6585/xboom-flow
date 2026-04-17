@@ -229,9 +229,12 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
         status: (tx as any).status || 'new',
       }));
 
-      // Batch insert in chunks of 500 to safely handle large statements
+      // Batch insert in chunks of 250 to safely handle large statements
       // (avoids PostgREST payload limits & request timeouts on big files)
-      await batchInsert('bank_transactions', rows, 500);
+      setImportProgress({ done: 0, total: rows.length });
+      await batchInsert('bank_transactions', rows, 250, (done, total) => {
+        setImportProgress({ done, total });
+      });
 
       await supabase.from('bank_reconciliation_uploads').update({
         upload_status: 'completed',
