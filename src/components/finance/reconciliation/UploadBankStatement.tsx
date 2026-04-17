@@ -140,7 +140,15 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
         transactions = parseCSVContent(text, diag);
       } else {
         const buffer = await file.arrayBuffer();
-        const wb = XLSX.read(buffer, { type: 'array' });
+        // Use streaming-friendly options to reduce memory pressure on large files
+        const wb = XLSX.read(buffer, {
+          type: 'array',
+          cellDates: false,
+          cellFormula: false,
+          cellHTML: false,
+          cellStyles: false,
+          sheetRows: 0, // 0 = all rows; explicit for clarity
+        });
         const sheetName = wb.SheetNames[0];
         diag.sheetName = sheetName;
         const ws = wb.Sheets[sheetName];
@@ -148,6 +156,7 @@ export function UploadBankStatement({ open, onOpenChange, onUploadComplete, rule
           header: 1,
           raw: true,
           defval: null,
+          blankrows: false,
         });
         transactions = parseExcelRows(rawRows, diag);
       }
