@@ -359,6 +359,8 @@ export function ProspectEditDialog({ open, onOpenChange, prospect, onSuccess }: 
               <Label>Notes</Label>
               <Textarea value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} rows={3} />
             </div>
+
+            {prospect && <FollowupHistory sourceType="prospect" sourceId={prospect.id} />}
           </div>
         </ScrollArea>
         <DialogFooter>
