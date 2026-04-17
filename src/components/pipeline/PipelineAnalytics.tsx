@@ -19,15 +19,47 @@ const COLORS = ['#22c55e', '#ef4444', '#3b82f6', '#f59e0b', '#f97316', '#8b5cf6'
 export function PipelineAnalytics({ orders, onCardClick }: PipelineAnalyticsProps) {
   const { role, user } = useAuth();
   
+  const [salesPersonFilter, setSalesPersonFilter] = useState<string>('all');
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
+
+  const isSalesView = role === 'sales';
+
+  // Available sales persons for filter dropdown (only for non-sales roles)
+  const availableSalesPersons = useMemo(() => {
+    const map = new Map<string, string>();
+    orders.forEach(o => {
+      if (o.sales_person_id && !map.has(o.sales_person_id)) {
+        map.set(o.sales_person_id, o.sales_person_name || 'Unknown');
+      }
+    });
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [orders]);
+
   // Filter orders for sales role - only show their own pipeline
   const filteredOrders = useMemo(() => {
+    let result = orders;
     if (role === 'sales' && user) {
-      return orders.filter(o => o.sales_person_id === user.id);
+      result = result.filter(o => o.sales_person_id === user.id);
+    } else if (salesPersonFilter !== 'all') {
+      result = result.filter(o => o.sales_person_id === salesPersonFilter);
     }
-    return orders;
-  }, [orders, role, user]);
-  
-  const isSalesView = role === 'sales';
+    if (startDate || endDate) {
+      const s = startDate ? startOfDay(startDate) : null;
+      const e = endDate ? endOfDay(endDate) : null;
+      result = result.filter(o => {
+        if (!o.created_at) return false;
+        const d = parseISO(o.created_at);
+        if (s && d < s) return false;
+        if (e && d > e) return false;
+        return true;
+      });
+    }
+    return result;
+  }, [orders, role, user, salesPersonFilter, startDate, endDate]);
+
   const analytics = useMemo(() => {
     const now = new Date();
     const pendingOrders = filteredOrders.filter(o => !['won', 'lost'].includes(o.status));
