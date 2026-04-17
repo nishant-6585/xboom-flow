@@ -12,6 +12,64 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import * as XLSX from 'xlsx';
 
+// Lazy-load pdfjs only when needed (keeps initial bundle small)
+async function extractPdfRows(file: File): Promise<(string | number | null)[][]> {
+  const pdfjs: any = await import('pdfjs-dist/build/pdf.mjs');
+  // Use the worker bundled with the package via Vite ?url import
+  // @ts-ignore - vite-only import
+  const workerUrl = (await import('pdfjs-dist/build/pdf.worker.mjs?url')).default;
+  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+
+  const buffer = await file.arrayBuffer();
+  const pdf = await pdfjs.getDocument({ data: buffer }).promise;
+  const allRows: (string | number | null)[][] = [];
+
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    // Group items into rows by Y coordinate (within ~3px tolerance)
+    const lineMap = new Map<number, { x: number; str: string }[]>();
+    for (const item of content.items as any[]) {
+      const y = Math.round(item.transform[5]);
+      // bucket Y into bins of 3px to merge near-equal lines
+      const bucket = Math.round(y / 3) * 3;
+      const arr = lineMap.get(bucket) || [];
+      arr.push({ x: item.transform[4], str: item.str });
+      lineMap.set(bucket, arr);
+    }
+    // Sort lines top-to-bottom (higher Y = top in PDF coords)
+    const sortedYs = Array.from(lineMap.keys()).sort((a, b) => b - a);
+    for (const y of sortedYs) {
+      const cells = lineMap.get(y)!.sort((a, b) => a.x - b.x);
+      // Split into columns based on horizontal gaps
+      const row: string[] = [];
+      let current = '';
+      let lastX = -Infinity;
+      for (const c of cells) {
+        if (lastX !== -Infinity && c.x - lastX > 15) {
+          if (current.trim()) row.push(current.trim());
+          current = c.str;
+        } else {
+          current += (current ? ' ' : '') + c.str;
+        }
+        lastX = c.x + c.str.length * 4;
+      }
+      if (current.trim()) row.push(current.trim());
+      if (row.length > 0) allRows.push(row);
+    }
+  }
+  return allRows;
+}
+
+// Insert rows in safe batches to avoid payload/timeout limits on large statements
+async function batchInsert<T>(table: string, rows: T[], chunkSize = 500): Promise<void> {
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    const { error } = await supabase.from(table as any).insert(chunk as any);
+    if (error) throw new Error(`Batch ${i / chunkSize + 1} failed: ${error.message}`);
+  }
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
