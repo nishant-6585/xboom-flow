@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
   Bot,
@@ -49,6 +50,9 @@ import {
   ShieldCheck,
   ShieldAlert,
   ShieldX,
+  BadgeCheck,
+  Lightbulb,
+  UserX,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
