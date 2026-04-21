@@ -352,6 +352,111 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     return result;
   }, [logs, salesPersonFilter, agentFilter, missedOnly, departmentFilter, uniqueOnly]);
 
+  // Group logs by best phone (extracted preferred, else caller_number).
+  // Sort groups by HOT > Exact match > High intent > recent.
+  const groupedLogs = React.useMemo(() => {
+    const groupKey = (log: CallLog) => {
+      const e = aiEnrichment[log.id];
+      const proxy = (log.full_number || log.caller_number || '').replace(/\D/g, '').slice(-10);
+      const ext = (e?.extracted_phone_number || '').replace(/\D/g, '').slice(-10);
+      return ext || proxy || log.id;
+    };
+    const map = new Map<string, CallLog[]>();
+    filteredLogs.forEach((log) => {
+      const k = groupKey(log);
+      const arr = map.get(k) ?? [];
+      arr.push(log);
+      map.set(k, arr);
+    });
+    // Each group sorted by recency desc inside
+    const groups = Array.from(map.entries()).map(([key, items]) => {
+      const sorted = [...items].sort((a, b) => {
+        const aTs = String(deriveCallInfo(a).startTime || a.created_at);
+        const bTs = String(deriveCallInfo(b).startTime || b.created_at);
+        return bTs.localeCompare(aTs);
+      });
+      const lead = sorted[0];
+      const e = aiEnrichment[lead.id];
+      const isHot = !!e?.is_hot;
+      const isExact = e?.match_type === 'TRANSCRIPT_MATCH' && (e?.match_confidence ?? 0) >= 90;
+      const isHighIntent =
+        !!e?.intent && /\b(high|hot|urgent|ready|interest)\b/i.test(e.intent);
+      const ts = String(deriveCallInfo(lead).startTime || lead.created_at);
+      return { key, items: sorted, lead, isHot, isExact, isHighIntent, ts };
+    });
+    groups.sort((a, b) => {
+      // 1) HOT
+      if (a.isHot !== b.isHot) return a.isHot ? -1 : 1;
+      // 2) Exact match
+      if (a.isExact !== b.isExact) return a.isExact ? -1 : 1;
+      // 3) High intent
+      if (a.isHighIntent !== b.isHighIntent) return a.isHighIntent ? -1 : 1;
+      // 4) Recent
+      return b.ts.localeCompare(a.ts);
+    });
+    return groups;
+  }, [filteredLogs, aiEnrichment]);
+
+  // Top priority leads (HOT first, max 3)
+  const priorityLeads: PriorityLead[] = React.useMemo(() => {
+    return groupedLogs
+      .filter((g) => g.isHot)
+      .slice(0, 3)
+      .map((g) => {
+        const e = aiEnrichment[g.lead.id];
+        const proxy = g.lead.full_number || g.lead.caller_number;
+        const phone = e?.extracted_phone_number && e.extracted_phone_number !== proxy ? e.extracted_phone_number : proxy;
+        return {
+          callLogId: g.lead.id,
+          name: e?.extracted_name || 'Unidentified Caller',
+          phone,
+          intent: e?.intent ?? null,
+          budget: e?.budget ?? null,
+          requirement: e?.requirement ?? null,
+          callTime: deriveCallInfo(g.lead).startTime
+            ? formatCallTime(deriveCallInfo(g.lead).startTime, g.lead.created_at)
+            : null,
+        };
+      });
+  }, [groupedLogs, aiEnrichment]);
+
+  // Slack notification on new HOT lead (once per session per call_log_id)
+  useEffect(() => {
+    const newHot = groupedLogs.filter(
+      (g) => g.isHot && !slackedHotIds.current.has(g.lead.id),
+    );
+    if (newHot.length === 0) return;
+    newHot.forEach(async (g) => {
+      slackedHotIds.current.add(g.lead.id);
+      const e = aiEnrichment[g.lead.id];
+      // In-app toast
+      toast(`🔥 New HOT Lead: ${e?.extracted_name || 'Unidentified'}`, {
+        description: [e?.requirement, e?.budget].filter(Boolean).join(' · ') || 'Open MyOperator to act',
+      });
+      // Slack (best-effort, ignore errors)
+      try {
+        await supabase.functions.invoke('send-slack-notification', {
+          body: {
+            type: 'hot_lead',
+            data: {
+              customer_name: e?.extracted_name || 'Unidentified Caller',
+              customer_company: '—',
+              product_name: e?.requirement || 'Drone',
+              quantity: 1,
+              urgency: 'high',
+              product_category: e?.requirement || 'N/A',
+              lead_temperature: 'hot',
+              sales_person_name: g.lead.sales_person_name || 'Unassigned',
+              customer_state: 'N/A',
+            },
+          },
+        });
+      } catch (err) {
+        console.warn('[hot_lead slack] failed', err);
+      }
+    });
+  }, [groupedLogs, aiEnrichment]);
+
   const handleAssignChange = async (logId: string, newName: string) => {
     setUpdatingAssign(logId);
     try {
