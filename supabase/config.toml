@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.auto-recover-carts]
 verify_jwt = false
+
+[functions.elevenlabs-call-summary]
+verify_jwt = false
