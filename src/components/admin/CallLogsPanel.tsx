@@ -1122,10 +1122,12 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                       )}
                     </React.Fragment>
                   );
+                  });
                 })}
               </TableBody>
             </Table>
           </div>
+          </>
         )}
       </CardContent>
 
