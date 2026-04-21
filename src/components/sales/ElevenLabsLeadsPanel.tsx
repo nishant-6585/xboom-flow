@@ -55,6 +55,15 @@ type ElevenLead = {
   created_at: string;
 };
 
+type CallMapping = {
+  elevenlabs_call_log_id: string;
+  myoperator_call_log_id: string | null;
+  match_type: "TRANSCRIPT_MATCH" | "TIME_MATCH" | "UNMATCHED";
+  match_confidence: number;
+  extracted_phone_number: string | null;
+  extracted_name: string | null;
+};
+
 type AIAnalysis = {
   transcript: string | null;
   summary: string | null;
@@ -217,6 +226,8 @@ const parseTranscript = (raw: string | null): ChatTurn[] => {
 
 export function ElevenLabsLeadsPanel() {
   const [leads, setLeads] = useState<ElevenLead[]>([]);
+  const [mappings, setMappings] = useState<Record<string, CallMapping>>({});
+  const [rematching, setRematching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -238,7 +249,39 @@ export function ElevenLabsLeadsPanel() {
       .order("created_at", { ascending: false })
       .limit(500);
     if (!error && data) setLeads(data as ElevenLead[]);
+    const ids = (data ?? []).map((d: any) => d.id);
+    if (ids.length) {
+      const { data: maps } = await supabase
+        .from("call_mapping")
+        .select(
+          "elevenlabs_call_log_id,myoperator_call_log_id,match_type,match_confidence,extracted_phone_number,extracted_name",
+        )
+        .in("elevenlabs_call_log_id", ids);
+      const dict: Record<string, CallMapping> = {};
+      (maps ?? []).forEach((m: any) => (dict[m.elevenlabs_call_log_id] = m));
+      setMappings(dict);
+    } else {
+      setMappings({});
+    }
     setLoading(false);
+  };
+
+  const triggerRematch = async () => {
+    setRematching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("backfill-call-mapping", {
+        body: { limit: 100 },
+      });
+      if (error) throw error;
+      toast.success(
+        `Re-matched ${data?.processed ?? 0} leads — ${data?.matched_transcript ?? 0} via transcript, ${data?.matched_time ?? 0} via time`,
+      );
+      await load();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Re-match failed");
+    } finally {
+      setRematching(false);
+    }
   };
 
   useEffect(() => {
