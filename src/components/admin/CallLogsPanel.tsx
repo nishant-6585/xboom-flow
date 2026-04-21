@@ -943,6 +943,53 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                             >
                               <PhoneOutgoing className="w-4 h-4" />
                             </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-emerald-600 hover:text-emerald-700"
+                                    onClick={() => openWhatsApp(aiEnrichment[log.id]?.extracted_phone_number || log.full_number || log.caller_number)}
+                                  >
+                                    <MessageSquare className="w-4 h-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>WhatsApp</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className={`h-8 w-8 ${contactedIds.has(log.id) ? 'text-success' : 'text-muted-foreground hover:text-foreground'}`}
+                                    onClick={() => markContacted(log.id)}
+                                    disabled={contactedIds.has(log.id)}
+                                  >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>{contactedIds.has(log.id) ? 'Contacted ✓' : 'Mark Contacted'}</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className={`h-8 w-8 ${qualifiedIds.has(log.id) ? 'text-warning' : 'text-muted-foreground hover:text-foreground'}`}
+                                    onClick={() => markQualified(log.id)}
+                                    disabled={qualifiedIds.has(log.id)}
+                                  >
+                                    <Zap className="w-4 h-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>{qualifiedIds.has(log.id) ? 'Qualified ✓' : 'Mark Qualified'}</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                             <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
                               <Eye className="w-4 h-4 mr-1" /> Details
                             </Button>
