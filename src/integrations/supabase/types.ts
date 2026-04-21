@@ -1328,6 +1328,7 @@ export type Database = {
           call_log_id: string
           confidence_score: number | null
           created_at: string
+          extracted_data: Json | null
           id: string
           intent: string | null
           key_requirements: string[] | null
@@ -1344,6 +1345,7 @@ export type Database = {
           call_log_id: string
           confidence_score?: number | null
           created_at?: string
+          extracted_data?: Json | null
           id?: string
           intent?: string | null
           key_requirements?: string[] | null
@@ -1360,6 +1362,7 @@ export type Database = {
           call_log_id?: string
           confidence_score?: number | null
           created_at?: string
+          extracted_data?: Json | null
           id?: string
           intent?: string | null
           key_requirements?: string[] | null
@@ -1387,6 +1390,7 @@ export type Database = {
           agent_number: string | null
           assigned_agent_name: string | null
           assigned_agent_phone: string | null
+          budget: string | null
           call_duration: number | null
           call_id: string | null
           call_status: string
@@ -1410,19 +1414,24 @@ export type Database = {
           ivr_input: string | null
           lead_created: boolean
           lead_id: string | null
+          lead_score: number | null
           lead_source: string | null
+          lead_status: string | null
           notes: string | null
           outcall_info: string | null
+          priority: string | null
           product_category: string | null
           product_code: string | null
           product_name: string | null
           purpose_of_purchase: string | null
           quantity: number | null
           raw_payload: Json | null
+          raw_transcript: string | null
           recording_fetched_at: string | null
           recording_stream_url: string | null
           recording_url: string | null
           requested_timeline: string | null
+          requirement: string | null
           sales_person_id: string | null
           sales_person_name: string | null
           start_time: string | null
@@ -1434,6 +1443,7 @@ export type Database = {
           agent_number?: string | null
           assigned_agent_name?: string | null
           assigned_agent_phone?: string | null
+          budget?: string | null
           call_duration?: number | null
           call_id?: string | null
           call_status?: string
@@ -1457,19 +1467,24 @@ export type Database = {
           ivr_input?: string | null
           lead_created?: boolean
           lead_id?: string | null
+          lead_score?: number | null
           lead_source?: string | null
+          lead_status?: string | null
           notes?: string | null
           outcall_info?: string | null
+          priority?: string | null
           product_category?: string | null
           product_code?: string | null
           product_name?: string | null
           purpose_of_purchase?: string | null
           quantity?: number | null
           raw_payload?: Json | null
+          raw_transcript?: string | null
           recording_fetched_at?: string | null
           recording_stream_url?: string | null
           recording_url?: string | null
           requested_timeline?: string | null
+          requirement?: string | null
           sales_person_id?: string | null
           sales_person_name?: string | null
           start_time?: string | null
@@ -1481,6 +1496,7 @@ export type Database = {
           agent_number?: string | null
           assigned_agent_name?: string | null
           assigned_agent_phone?: string | null
+          budget?: string | null
           call_duration?: number | null
           call_id?: string | null
           call_status?: string
@@ -1504,19 +1520,24 @@ export type Database = {
           ivr_input?: string | null
           lead_created?: boolean
           lead_id?: string | null
+          lead_score?: number | null
           lead_source?: string | null
+          lead_status?: string | null
           notes?: string | null
           outcall_info?: string | null
+          priority?: string | null
           product_category?: string | null
           product_code?: string | null
           product_name?: string | null
           purpose_of_purchase?: string | null
           quantity?: number | null
           raw_payload?: Json | null
+          raw_transcript?: string | null
           recording_fetched_at?: string | null
           recording_stream_url?: string | null
           recording_url?: string | null
           requested_timeline?: string | null
+          requirement?: string | null
           sales_person_id?: string | null
           sales_person_name?: string | null
           start_time?: string | null
