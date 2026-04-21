@@ -475,17 +475,21 @@ export function ElevenLabsLeadsPanel() {
       }
       return true;
     });
-    // Sort: hot+matched first, then matched, then unmatched; tiebreaker priority/score/recency.
+    // Sort priority: HOT → Exact Match → High Intent → Recent.
+    // Lower rank value = appears first.
+    const matchRank = (id: string) => {
+      const m = mappings[id];
+      const conf = m?.match_confidence ?? 0;
+      if (m && m.match_type !== "UNMATCHED" && conf > 90) return 0; // Exact
+      if (m && m.match_type !== "UNMATCHED" && conf >= 70) return 1; // Likely
+      return 2; // Not linked
+    };
     return list.sort((a, b) => {
-      const ma = mappings[a.id];
-      const mb = mappings[b.id];
-      const aMatched = ma && ma.match_type !== "UNMATCHED" ? 0 : 1;
-      const bMatched = mb && mb.match_type !== "UNMATCHED" ? 0 : 1;
       const aHot = isHotLead(a) ? 0 : 1;
       const bHot = isHotLead(b) ? 0 : 1;
-      const groupA = aHot * 2 + aMatched;
-      const groupB = bHot * 2 + bMatched;
-      if (groupA !== groupB) return groupA - groupB;
+      if (aHot !== bHot) return aHot - bHot;
+      const mr = matchRank(a.id) - matchRank(b.id);
+      if (mr !== 0) return mr;
       const pr = priorityRank(a.priority) - priorityRank(b.priority);
       if (pr !== 0) return pr;
       const sc = (b.lead_score ?? 0) - (a.lead_score ?? 0);
