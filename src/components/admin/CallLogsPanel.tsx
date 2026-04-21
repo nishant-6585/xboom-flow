@@ -259,6 +259,9 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     budget: string | null;
     summary: string | null;
     match_type: string;
+    match_confidence: number;
+    requirement: string | null;
+    is_hot: boolean;
   }>>({});
 
   const SALES_PERSONS_LIST = ['suman das', 'Narasimha', 'mohammed musthak', 'Arjav chauhan'];
@@ -433,7 +436,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     (async () => {
       const { data: maps } = await supabase
         .from("call_mapping")
-        .select("elevenlabs_call_log_id,myoperator_call_log_id,match_type,extracted_name")
+        .select("elevenlabs_call_log_id,myoperator_call_log_id,match_type,match_confidence,extracted_name")
         .in("myoperator_call_log_id", ids)
         .neq("match_type", "UNMATCHED");
       if (cancelled || !maps?.length) {
@@ -448,7 +451,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
           .in("call_log_id", elevenIds),
         supabase
           .from("call_logs")
-          .select("id,customer_name,requirement,budget")
+          .select("id,customer_name,requirement,budget,priority,raw_transcript")
           .in("id", elevenIds),
       ]);
       const anaMap: Record<string, any> = {};
@@ -460,12 +463,19 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
         if (!m.myoperator_call_log_id) return;
         const a = anaMap[m.elevenlabs_call_log_id] ?? {};
         const lead = leadMap[m.elevenlabs_call_log_id] ?? {};
+        const hay = `${lead.raw_transcript ?? ""} ${a.summary ?? ""}`.toLowerCase();
+        const isHot =
+          (lead.priority ?? "").toLowerCase() === "high" ||
+          /\b(buy|price|quote|purchase|order|pay|discount|negotiate|urgent|asap)\b/.test(hay);
         enriched[m.myoperator_call_log_id] = {
           extracted_name: m.extracted_name ?? lead.customer_name ?? null,
           intent: a.intent ?? lead.requirement ?? null,
           budget: a.budget ?? lead.budget ?? null,
           summary: a.summary ?? null,
           match_type: m.match_type,
+          match_confidence: m.match_confidence ?? 0,
+          requirement: lead.requirement ?? null,
+          is_hot: isHot,
         };
       });
       if (!cancelled) setAiEnrichment(enriched);
@@ -652,7 +662,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                     <React.Fragment key={log.id}>
                       <TableRow
                         key={log.id}
-                        className={`cursor-pointer ${info.status === 'missed' ? 'bg-red-500/5' : ''} ${newIds.has(log.id) ? "bg-primary/10 animate-pulse border-l-4 border-l-primary" : ""}`}
+                        className={`cursor-pointer ${info.status === 'missed' ? 'bg-red-500/5' : ''} ${newIds.has(log.id) ? "bg-primary/10 animate-pulse border-l-4 border-l-primary" : aiEnrichment[log.id]?.is_hot ? 'border-l-4 border-l-destructive bg-destructive/5' : ''}`}
                         onClick={() => setEditingLog(log)}
                       >
                         <TableCell className="pr-0">{statusIcon(info.status)}</TableCell>
@@ -698,24 +708,41 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                         <TableCell className="text-sm">
                           <div className={info.status === 'missed' ? 'text-red-500 font-medium' : ''}>{info.whatText}</div>
                           {aiEnrichment[log.id] && (
-                            <div className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 text-[11px] text-primary">
-                              <Sparkles className="h-3 w-3" />
-                              <span className="font-semibold">AI</span>
-                              {aiEnrichment[log.id].extracted_name && (
-                                <span className="text-foreground">
-                                  {aiEnrichment[log.id].extracted_name}
-                                </span>
-                              )}
-                              {aiEnrichment[log.id].intent && (
-                                <span className="text-muted-foreground">· {aiEnrichment[log.id].intent}</span>
-                              )}
-                              {aiEnrichment[log.id].budget && (
-                                <span className="text-muted-foreground">· {aiEnrichment[log.id].budget}</span>
-                              )}
-                              <Badge variant="outline" className={`ml-1 h-4 px-1 text-[10px] ${aiEnrichment[log.id].match_type === 'TRANSCRIPT_MATCH' ? 'border-success/40 text-success' : 'border-warning/40 text-warning'}`}>
-                                {aiEnrichment[log.id].match_type === 'TRANSCRIPT_MATCH' ? 'Exact' : 'Likely'}
-                              </Badge>
-                            </div>
+                            (() => {
+                              const e = aiEnrichment[log.id];
+                              const conf = e.match_confidence || 0;
+                              const isExact = e.match_type === 'TRANSCRIPT_MATCH' && conf > 90;
+                              return (
+                                <div className="mt-1 flex flex-wrap items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-[11px]">
+                                  <span className="inline-flex items-center gap-1 font-semibold text-primary">
+                                    <Sparkles className="h-3 w-3" /> AI
+                                  </span>
+                                  {e.extracted_name && (
+                                    <span className="font-medium text-foreground">
+                                      {e.extracted_name}
+                                    </span>
+                                  )}
+                                  {e.requirement && (
+                                    <span className="text-muted-foreground">🎯 {e.requirement}</span>
+                                  )}
+                                  {e.budget && (
+                                    <span className="text-muted-foreground">💰 {e.budget}</span>
+                                  )}
+                                  {e.is_hot && (
+                                    <span className="inline-flex items-center gap-0.5 rounded-sm bg-destructive/15 text-destructive px-1 font-semibold">
+                                      🔥 HOT
+                                    </span>
+                                  )}
+                                  <Badge
+                                    variant="outline"
+                                    className={`h-4 px-1 text-[10px] ${isExact ? 'border-success/40 text-success bg-success/5' : 'border-warning/40 text-warning bg-warning/5'}`}
+                                    title={isExact ? 'Phone confirmed in transcript' : 'Matched by call time'}
+                                  >
+                                    {isExact ? 'Exact' : 'Likely'}{conf > 0 ? ` ${conf}%` : ''}
+                                  </Badge>
+                                </div>
+                              );
+                            })()
                           )}
                           {info.finalAgent && info.status === 'answered' && (
                             <div className="text-xs text-green-600 font-medium mt-0.5">

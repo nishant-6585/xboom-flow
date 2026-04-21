@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
   Bot,
@@ -49,6 +50,9 @@ import {
   ShieldCheck,
   ShieldAlert,
   ShieldX,
+  BadgeCheck,
+  Lightbulb,
+  UserX,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -115,7 +119,8 @@ const extractName = (transcript: string | null): string | null => {
 
 /**
  * Resolve the most useful display name for a lead.
- * Priority: extracted_name (mapping) → customer_name → transcript regex → phone-based label.
+ * Priority: extracted_name (mapping) → customer_name → transcript regex → "Unidentified Caller".
+ * Phone is shown separately below the name; we never substitute the phone for the name.
  */
 const resolveName = (
   lead: ElevenLead,
@@ -127,9 +132,67 @@ const resolveName = (
     extractName(lead.raw_transcript) ||
     "";
   if (candidate) return { name: candidate, isUnidentified: false };
-  const phone = mapping?.extracted_phone_number || lead.caller_number;
-  if (phone) return { name: `Lead: ${formatPhone(phone)}`, isUnidentified: false };
-  return { name: "Unidentified Lead", isUnidentified: true };
+  return { name: "Unidentified Caller", isUnidentified: true };
+};
+
+/**
+ * Build a "Why this matters" reason from transcript + summary signals.
+ * Returns null when there's nothing notable to surface.
+ */
+const whyThisMatters = (
+  lead: ElevenLead,
+  summary: string | null,
+): string | null => {
+  const text = `${summary ?? ""} ${lead.raw_transcript ?? ""} ${lead.notes ?? ""}`.toLowerCase();
+  const reasons: string[] = [];
+  if (/\b(price|pricing|cost|quote|quotation)\b/.test(text)) reasons.push("asked for pricing");
+  if (/\b(buy|purchase|order|book|confirm)\b/.test(text)) reasons.push("intent to purchase");
+  if (/\b(callback|call back|call me|reach me)\b/.test(text)) reasons.push("requested a callback");
+  if (/\b(budget|lakh|crore|inr|rs\.?\s*\d)/i.test(text) || lead.budget) reasons.push("shared budget");
+  if (/\b(urgent|asap|today|tomorrow|this week)\b/.test(text)) reasons.push("urgent timeline");
+  if (/\b(demo|trial|sample)\b/.test(text)) reasons.push("asked for a demo");
+  if (lead.requirement) reasons.push(`confirmed need for ${lead.requirement.toLowerCase()}`);
+  if (!reasons.length) return null;
+  const first = reasons[0].charAt(0).toUpperCase() + reasons[0].slice(1);
+  return [first, ...reasons.slice(1, 2)].join(" • ");
+};
+
+/**
+ * Sales-friendly match label with thresholds.
+ * >90 = Exact, 70–90 = Likely, otherwise "Not linked to call logs".
+ */
+const getMatchInfo = (matchType: string | undefined, confidence: number) => {
+  const conf = confidence || 0;
+  const linked = matchType && matchType !== "UNMATCHED";
+  if (linked && conf > 90) {
+    return {
+      label: "Exact Match",
+      Icon: ShieldCheck,
+      cls: "bg-success/15 text-success border-success/30",
+      tooltip: `Confidence ${conf}% — phone number was confirmed in the transcript.`,
+      confidence: conf,
+      linked: true as const,
+    };
+  }
+  if (linked && conf >= 70) {
+    return {
+      label: "Likely Match",
+      Icon: ShieldAlert,
+      cls: "bg-warning/15 text-warning border-warning/30",
+      tooltip: `Confidence ${conf}% — matched by call time and duration. Verify before relying on it.`,
+      confidence: conf,
+      linked: true as const,
+    };
+  }
+  return {
+    label: "Not linked to call logs",
+    Icon: ShieldX,
+    cls: "bg-muted text-muted-foreground border-border",
+    tooltip:
+      "This lead was captured via AI but not yet matched with MyOperator call records. Use ‘Link manually’ to attach it.",
+    confidence: conf,
+    linked: false as const,
+  };
 };
 
 /** Detect whether the lead shows clear buying signals. */
@@ -256,6 +319,7 @@ const parseTranscript = (raw: string | null): ChatTurn[] => {
 export function ElevenLabsLeadsPanel() {
   const [leads, setLeads] = useState<ElevenLead[]>([]);
   const [mappings, setMappings] = useState<Record<string, CallMapping>>({});
+  const [summaries, setSummaries] = useState<Record<string, string>>({});
   const [rematching, setRematching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -284,17 +348,29 @@ export function ElevenLabsLeadsPanel() {
     if (!error && data) setLeads(data as ElevenLead[]);
     const ids = (data ?? []).map((d: any) => d.id);
     if (ids.length) {
-      const { data: maps } = await supabase
-        .from("call_mapping")
-        .select(
-          "elevenlabs_call_log_id,myoperator_call_log_id,match_type,match_confidence,extracted_phone_number,extracted_name",
-        )
-        .in("elevenlabs_call_log_id", ids);
+      const [{ data: maps }, { data: ana }] = await Promise.all([
+        supabase
+          .from("call_mapping")
+          .select(
+            "elevenlabs_call_log_id,myoperator_call_log_id,match_type,match_confidence,extracted_phone_number,extracted_name",
+          )
+          .in("elevenlabs_call_log_id", ids),
+        supabase
+          .from("call_ai_analysis")
+          .select("call_log_id,summary")
+          .in("call_log_id", ids),
+      ]);
       const dict: Record<string, CallMapping> = {};
       (maps ?? []).forEach((m: any) => (dict[m.elevenlabs_call_log_id] = m));
       setMappings(dict);
+      const sumDict: Record<string, string> = {};
+      (ana ?? []).forEach((a: any) => {
+        if (a.summary) sumDict[a.call_log_id] = a.summary;
+      });
+      setSummaries(sumDict);
     } else {
       setMappings({});
+      setSummaries({});
     }
     setLoading(false);
   };
@@ -399,17 +475,21 @@ export function ElevenLabsLeadsPanel() {
       }
       return true;
     });
-    // Sort: hot+matched first, then matched, then unmatched; tiebreaker priority/score/recency.
+    // Sort priority: HOT → Exact Match → High Intent → Recent.
+    // Lower rank value = appears first.
+    const matchRank = (id: string) => {
+      const m = mappings[id];
+      const conf = m?.match_confidence ?? 0;
+      if (m && m.match_type !== "UNMATCHED" && conf > 90) return 0; // Exact
+      if (m && m.match_type !== "UNMATCHED" && conf >= 70) return 1; // Likely
+      return 2; // Not linked
+    };
     return list.sort((a, b) => {
-      const ma = mappings[a.id];
-      const mb = mappings[b.id];
-      const aMatched = ma && ma.match_type !== "UNMATCHED" ? 0 : 1;
-      const bMatched = mb && mb.match_type !== "UNMATCHED" ? 0 : 1;
       const aHot = isHotLead(a) ? 0 : 1;
       const bHot = isHotLead(b) ? 0 : 1;
-      const groupA = aHot * 2 + aMatched;
-      const groupB = bHot * 2 + bMatched;
-      if (groupA !== groupB) return groupA - groupB;
+      if (aHot !== bHot) return aHot - bHot;
+      const mr = matchRank(a.id) - matchRank(b.id);
+      if (mr !== 0) return mr;
       const pr = priorityRank(a.priority) - priorityRank(b.priority);
       if (pr !== 0) return pr;
       const sc = (b.lead_score ?? 0) - (a.lead_score ?? 0);
@@ -603,7 +683,7 @@ export function ElevenLabsLeadsPanel() {
             <SelectItem value="new">New</SelectItem>
             <SelectItem value="contacted">Contacted</SelectItem>
             <SelectItem value="qualified">Qualified</SelectItem>
-            <SelectItem value="converted">Converted</SelectItem>
+            <SelectItem value="closed">Closed</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -622,6 +702,7 @@ export function ElevenLabsLeadsPanel() {
           </CardContent>
         </Card>
       ) : (
+        <TooltipProvider delayDuration={200}>
         <div className="grid sm:grid-cols-2 gap-3">
           {filtered.map((l) => {
             const isNew = isNewLead(l.created_at);
@@ -629,34 +710,17 @@ export function ElevenLabsLeadsPanel() {
             const realPhone = mapping?.extracted_phone_number ?? l.caller_number;
             const phone = formatPhone(realPhone);
             const { name, isUnidentified } = resolveName(l, mapping);
-            const matchType = mapping?.match_type ?? "UNMATCHED";
-            const matchConfidence = mapping?.match_confidence ?? 0;
+            const phoneFromTranscript = !!mapping?.extracted_phone_number;
             const hot = isHotLead(l);
-            const matchBadge = (() => {
-              if (matchType === "TRANSCRIPT_MATCH")
-                return {
-                  label: "Exact Match",
-                  Icon: ShieldCheck,
-                  cls: "bg-success/15 text-success border-success/30",
-                };
-              if (matchType === "TIME_MATCH")
-                return {
-                  label: "Likely Match",
-                  Icon: ShieldAlert,
-                  cls: "bg-warning/15 text-warning border-warning/30",
-                };
-              return {
-                label: "Unmatched",
-                Icon: ShieldX,
-                cls: "bg-destructive/15 text-destructive border-destructive/30",
-              };
-            })();
+            const matchInfo = getMatchInfo(mapping?.match_type, mapping?.match_confidence ?? 0);
+            const reason = whyThisMatters(l, summaries[l.id] ?? null);
+            const status = (l.lead_status ?? "New").toString();
             return (
               <Card
                 key={l.id}
                 className={`group relative overflow-hidden transition-all hover:shadow-md cursor-pointer ${
                   hot
-                    ? "ring-1 ring-destructive/40 shadow-destructive/10"
+                    ? "ring-1 ring-destructive/40 shadow-destructive/10 border-l-4 border-l-destructive"
                     : isNew
                     ? "ring-1 ring-success/40 shadow-success/10"
                     : ""
@@ -677,19 +741,37 @@ export function ElevenLabsLeadsPanel() {
                 </div>
                 <CardContent className="p-4 space-y-3">
                   {/* Identity */}
-                  <div>
-                    <h3 className={`font-semibold text-base leading-tight pr-24 ${isUnidentified ? "text-muted-foreground italic" : ""}`}>
-                      {name}
-                    </h3>
-                    <p className="text-sm text-muted-foreground font-mono mt-0.5">
-                      {phone}
-                      {mapping?.extracted_phone_number &&
-                        mapping.extracted_phone_number !== l.caller_number && (
-                          <span className="ml-1.5 text-[10px] text-muted-foreground/70">
-                            (from transcript)
-                          </span>
-                        )}
-                    </p>
+                  <div className="space-y-0.5 pr-24">
+                    {isUnidentified ? (
+                      <>
+                        <h3 className="font-semibold text-base leading-tight flex items-center gap-1.5 text-muted-foreground italic">
+                          <UserX className="h-4 w-4" /> Unidentified Caller
+                        </h3>
+                        <p className="text-[11px] text-muted-foreground/80">Name not captured</p>
+                      </>
+                    ) : (
+                      <h3 className="font-semibold text-base leading-tight text-foreground">
+                        {name}
+                      </h3>
+                    )}
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      <p className="text-sm text-muted-foreground font-mono">{phone}</p>
+                      {phoneFromTranscript && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge
+                              variant="outline"
+                              className="h-5 px-1.5 text-[10px] gap-0.5 border-success/40 text-success bg-success/10"
+                            >
+                              <BadgeCheck className="h-3 w-3" /> Verified via conversation
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            This number was spoken by the caller during the AI conversation.
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
                   </div>
 
                   {/* Intent + Budget row */}
@@ -730,18 +812,37 @@ export function ElevenLabsLeadsPanel() {
                     </div>
                   </div>
 
-                  {/* Badges */}
-                  <div className="flex flex-wrap gap-1.5">
+                  {/* Why this matters */}
+                  {reason && (
+                    <div className="flex items-start gap-1.5 rounded-md bg-warning/5 border border-warning/20 px-2 py-1.5">
+                      <Lightbulb className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+                      <p className="text-xs text-foreground/80 leading-snug">
+                        <span className="font-medium text-warning">Why this matters: </span>
+                        {reason}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Status + Match badges */}
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <Badge variant="outline" className="text-xs capitalize">
-                      {l.lead_status ?? "New"}
+                      {status}
                     </Badge>
-                    <Badge variant="outline" className={`text-xs gap-1 ${matchBadge.cls}`}>
-                      <matchBadge.Icon className="h-3 w-3" />
-                      {matchBadge.label}
-                      {matchConfidence > 0 && (
-                        <span className="opacity-70">· {matchConfidence}%</span>
-                      )}
-                    </Badge>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge
+                          variant="outline"
+                          className={`text-xs gap-1 cursor-help ${matchInfo.cls}`}
+                        >
+                          <matchInfo.Icon className="h-3 w-3" />
+                          {matchInfo.label}
+                          {matchInfo.linked && matchInfo.confidence > 0 && (
+                            <span className="opacity-80">({matchInfo.confidence}%)</span>
+                          )}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">{matchInfo.tooltip}</TooltipContent>
+                    </Tooltip>
                   </div>
 
                   {/* CTAs */}
@@ -765,26 +866,34 @@ export function ElevenLabsLeadsPanel() {
                     >
                       <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
                     </Button>
-                    {matchType === "UNMATCHED" ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 gap-1.5"
-                        title="Link manually to a MyOperator call"
-                        onClick={() => openLinkDialog(l.id)}
-                      >
-                        <Link2 className="h-3.5 w-3.5" />
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 gap-1.5"
-                        title="Mark Qualified"
-                        onClick={() => updateLeadStatus(l.id, "Qualified")}
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                      </Button>
+                    <Select
+                      value={status}
+                      onValueChange={(v) => updateLeadStatus(l.id, v)}
+                    >
+                      <SelectTrigger className="h-8 w-[110px] text-xs" title="Update lead status">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="New">New</SelectItem>
+                        <SelectItem value="Contacted">Contacted</SelectItem>
+                        <SelectItem value="Qualified">Qualified</SelectItem>
+                        <SelectItem value="Closed">Closed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {!matchInfo.linked && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-2"
+                            onClick={() => openLinkDialog(l.id)}
+                          >
+                            <Link2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Link manually to a MyOperator call</TooltipContent>
+                      </Tooltip>
                     )}
                   </div>
                 </CardContent>
@@ -792,6 +901,7 @@ export function ElevenLabsLeadsPanel() {
             );
           })}
         </div>
+        </TooltipProvider>
       )}
 
       {/* Detail drawer */}
@@ -805,17 +915,39 @@ export function ElevenLabsLeadsPanel() {
               {(() => {
                 const m = mappings[selected.id];
                 const realPhone = m?.extracted_phone_number ?? selected.caller_number;
-                const { name } = resolveName(selected, m);
+                const { name, isUnidentified } = resolveName(selected, m);
+                const phoneFromTranscript = !!m?.extracted_phone_number;
+                const matchInfo = getMatchInfo(m?.match_type, m?.match_confidence ?? 0);
                 return (
                   <SheetHeader>
                     <SheetTitle className="flex items-center gap-2 text-lg">
                       <Bot className="h-5 w-5 text-primary" />
-                      {name}
+                      <span className={isUnidentified ? "text-muted-foreground italic" : ""}>{name}</span>
                     </SheetTitle>
-                    <SheetDescription className="font-mono">
-                      {formatPhone(realPhone)} •{" "}
-                      {format(new Date(selected.created_at), "dd MMM yyyy, HH:mm")}
+                    <SheetDescription className="font-mono flex flex-wrap items-center gap-1.5">
+                      <span>{formatPhone(realPhone)}</span>
+                      {phoneFromTranscript && (
+                        <Badge variant="outline" className="h-5 px-1.5 text-[10px] gap-0.5 border-success/40 text-success bg-success/10">
+                          <BadgeCheck className="h-3 w-3" /> Verified via conversation
+                        </Badge>
+                      )}
+                      <span className="text-muted-foreground">·</span>
+                      <span>{format(new Date(selected.created_at), "dd MMM yyyy, HH:mm")}</span>
                     </SheetDescription>
+                    <div className="flex flex-wrap gap-1.5 pt-1.5">
+                      <Badge variant="outline" className={`text-xs gap-1 ${matchInfo.cls}`}>
+                        <matchInfo.Icon className="h-3 w-3" />
+                        {matchInfo.label}
+                        {matchInfo.linked && matchInfo.confidence > 0 && (
+                          <span className="opacity-80">({matchInfo.confidence}%)</span>
+                        )}
+                      </Badge>
+                      {isUnidentified && (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
+                          Name not captured
+                        </Badge>
+                      )}
+                    </div>
                   </SheetHeader>
                 );
               })()}
@@ -850,7 +982,32 @@ export function ElevenLabsLeadsPanel() {
                   >
                     ⭐ Mark Qualified
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="col-span-2"
+                    onClick={() => updateLeadStatus(selected.id, "Closed")}
+                  >
+                    🔒 Mark Closed
+                  </Button>
                 </div>
+
+                {/* Why this matters */}
+                {(() => {
+                  const reason = whyThisMatters(selected, summaries[selected.id] ?? analysis?.summary ?? null);
+                  if (!reason) return null;
+                  return (
+                    <Card className="border-warning/30 bg-warning/5">
+                      <CardContent className="p-3 flex items-start gap-2">
+                        <Lightbulb className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                        <div className="text-sm">
+                          <div className="font-semibold text-warning mb-0.5">Why this matters</div>
+                          <p className="text-foreground/80 leading-snug">{reason}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
 
                 {/* Snapshot */}
                 <Card>
