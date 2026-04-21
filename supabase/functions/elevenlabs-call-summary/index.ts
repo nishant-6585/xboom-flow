@@ -505,12 +505,14 @@ Deno.serve(async (req) => {
       let myopId: string | null = null;
 
       // Step 1: transcript phone -> MyOperator
+      // Note: legacy MyOperator rows may have lead_source = NULL. We match on
+      // any non-ElevenLabs row (i.e. the call came through the phone system).
       if (extractedPhone) {
         const lastTen = extractedPhone.slice(-10);
         const { data: byPhone } = await supabase
           .from("call_logs")
-          .select("id, customer_name, caller_number, created_at")
-          .eq("lead_source", "MyOperator")
+          .select("id, customer_name, caller_number, created_at, lead_source")
+          .neq("lead_source", "ElevenLabs")
           .or(`caller_number.eq.${extractedPhone},caller_number.like.%${lastTen}`)
           .order("created_at", { ascending: false })
           .limit(1)
@@ -540,8 +542,8 @@ Deno.serve(async (req) => {
         const winEnd = new Date(created.getTime() + 5 * 60 * 1000).toISOString();
         const { data: candidates } = await supabase
           .from("call_logs")
-          .select("id, created_at, call_duration")
-          .eq("lead_source", "MyOperator")
+          .select("id, created_at, call_duration, lead_source")
+          .neq("lead_source", "ElevenLabs")
           .gte("created_at", winStart)
           .lte("created_at", winEnd)
           .limit(20);
