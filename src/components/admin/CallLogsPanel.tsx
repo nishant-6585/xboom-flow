@@ -259,6 +259,9 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     budget: string | null;
     summary: string | null;
     match_type: string;
+    match_confidence: number;
+    requirement: string | null;
+    is_hot: boolean;
   }>>({});
 
   const SALES_PERSONS_LIST = ['suman das', 'Narasimha', 'mohammed musthak', 'Arjav chauhan'];
