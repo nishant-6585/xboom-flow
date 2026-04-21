@@ -335,11 +335,11 @@ Deno.serve(async (req) => {
     console.error("[elevenlabs-call-summary] failed to log raw payload:", e);
   }
 
-  // 2) Validate required fields. If invalid, mark webhook as failed but still 200.
-  if (!callerId || !transcript) {
-    const reason = !callerId
-      ? "missing caller_id"
-      : "missing transcript";
+  // 2) Validate required fields. If no caller identity at all, we can't store
+  //    a usable lead — mark invalid. Empty transcripts are now allowed
+  //    (short / dropped calls still get a visible "No conversation" lead).
+  if (!callerId) {
+    const reason = "missing caller_id";
     console.warn("[elevenlabs-call-summary] validation failed:", reason);
     if (webhookLogId) {
       await supabase
@@ -350,17 +350,24 @@ Deno.serve(async (req) => {
     return ok({ received: true, skipped: true, reason });
   }
 
+  const safeTranscript = transcript ?? "";
+  const noConversation = !transcript || safeTranscript.trim().length < 10;
+
   // 3) Lead intelligence — name, intent, budget, priority, score.
-  const extractedName = extractName(transcript);
-  const extractedPhone = extractPhoneFromTranscript(transcript);
-  const intent = extractIntent(transcript);
-  const budget = extractBudget(transcript);
-  const { priority, score } = computePriorityAndScore(transcript);
+  const extractedName = transcript ? extractName(safeTranscript) : null;
+  const extractedPhone = extractedPhoneEarly;
+  const intent = transcript ? extractIntent(safeTranscript) : "No conversation captured";
+  const budget = transcript ? extractBudget(safeTranscript) : null;
+  const { priority, score } = transcript
+    ? computePriorityAndScore(safeTranscript)
+    : { priority: "Low", score: 0 };
   const extractedData = { name: extractedName, intent, budget, priority, score };
 
-  const notes = summary
-    ? `Summary: ${summary}\n\nTranscript:\n${transcript}`
-    : transcript;
+  const notes = noConversation
+    ? `No conversation captured (call duration: ${callDuration ?? 0}s).${summary ? `\n\nSummary: ${summary}` : ""}`
+    : summary
+      ? `Summary: ${summary}\n\nTranscript:\n${safeTranscript}`
+      : safeTranscript;
 
   // 4) Dedupe — look for an existing ElevenLabs lead from same caller in last 24h.
   let callLogId: string | null = null;
