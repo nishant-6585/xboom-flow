@@ -113,13 +113,30 @@ const extractName = (transcript: string | null): string | null => {
   return null;
 };
 
-const displayName = (lead: ElevenLead): string => {
-  if (lead.customer_name && lead.customer_name !== "Unknown")
-    return lead.customer_name;
-  const fromTranscript = extractName(lead.raw_transcript);
-  if (fromTranscript) return fromTranscript;
-  const digits = (lead.caller_number || "").replace(/\D/g, "").slice(-4);
-  return digits ? `Lead ····${digits}` : "Unknown Lead";
+/**
+ * Resolve the most useful display name for a lead.
+ * Priority: extracted_name (mapping) → customer_name → transcript regex → phone-based label.
+ */
+const resolveName = (
+  lead: ElevenLead,
+  mapping?: CallMapping,
+): { name: string; isUnidentified: boolean } => {
+  const candidate =
+    (mapping?.extracted_name && mapping.extracted_name.trim()) ||
+    (lead.customer_name && lead.customer_name !== "Unknown" ? lead.customer_name : "") ||
+    extractName(lead.raw_transcript) ||
+    "";
+  if (candidate) return { name: candidate, isUnidentified: false };
+  const phone = mapping?.extracted_phone_number || lead.caller_number;
+  if (phone) return { name: `Lead: ${formatPhone(phone)}`, isUnidentified: false };
+  return { name: "Unidentified Lead", isUnidentified: true };
+};
+
+/** Detect whether the lead shows clear buying signals. */
+const isHotLead = (lead: ElevenLead): boolean => {
+  if ((lead.priority ?? "").toLowerCase() === "high") return true;
+  const hay = `${lead.raw_transcript ?? ""} ${lead.notes ?? ""}`.toLowerCase();
+  return /\b(buy|price|quote|purchase|order|pay|discount|negotiate)\b/.test(hay);
 };
 
 const priorityReason = (transcript: string | null): string | null => {
