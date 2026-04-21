@@ -708,24 +708,41 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                         <TableCell className="text-sm">
                           <div className={info.status === 'missed' ? 'text-red-500 font-medium' : ''}>{info.whatText}</div>
                           {aiEnrichment[log.id] && (
-                            <div className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 text-[11px] text-primary">
-                              <Sparkles className="h-3 w-3" />
-                              <span className="font-semibold">AI</span>
-                              {aiEnrichment[log.id].extracted_name && (
-                                <span className="text-foreground">
-                                  {aiEnrichment[log.id].extracted_name}
-                                </span>
-                              )}
-                              {aiEnrichment[log.id].intent && (
-                                <span className="text-muted-foreground">· {aiEnrichment[log.id].intent}</span>
-                              )}
-                              {aiEnrichment[log.id].budget && (
-                                <span className="text-muted-foreground">· {aiEnrichment[log.id].budget}</span>
-                              )}
-                              <Badge variant="outline" className={`ml-1 h-4 px-1 text-[10px] ${aiEnrichment[log.id].match_type === 'TRANSCRIPT_MATCH' ? 'border-success/40 text-success' : 'border-warning/40 text-warning'}`}>
-                                {aiEnrichment[log.id].match_type === 'TRANSCRIPT_MATCH' ? 'Exact' : 'Likely'}
-                              </Badge>
-                            </div>
+                            (() => {
+                              const e = aiEnrichment[log.id];
+                              const conf = e.match_confidence || 0;
+                              const isExact = e.match_type === 'TRANSCRIPT_MATCH' && conf > 90;
+                              return (
+                                <div className="mt-1 flex flex-wrap items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-[11px]">
+                                  <span className="inline-flex items-center gap-1 font-semibold text-primary">
+                                    <Sparkles className="h-3 w-3" /> AI
+                                  </span>
+                                  {e.extracted_name && (
+                                    <span className="font-medium text-foreground">
+                                      {e.extracted_name}
+                                    </span>
+                                  )}
+                                  {e.requirement && (
+                                    <span className="text-muted-foreground">🎯 {e.requirement}</span>
+                                  )}
+                                  {e.budget && (
+                                    <span className="text-muted-foreground">💰 {e.budget}</span>
+                                  )}
+                                  {e.is_hot && (
+                                    <span className="inline-flex items-center gap-0.5 rounded-sm bg-destructive/15 text-destructive px-1 font-semibold">
+                                      🔥 HOT
+                                    </span>
+                                  )}
+                                  <Badge
+                                    variant="outline"
+                                    className={`h-4 px-1 text-[10px] ${isExact ? 'border-success/40 text-success bg-success/5' : 'border-warning/40 text-warning bg-warning/5'}`}
+                                    title={isExact ? 'Phone confirmed in transcript' : 'Matched by call time'}
+                                  >
+                                    {isExact ? 'Exact' : 'Likely'}{conf > 0 ? ` ${conf}%` : ''}
+                                  </Badge>
+                                </div>
+                              );
+                            })()
                           )}
                           {info.finalAgent && info.status === 'answered' && (
                             <div className="text-xs text-green-600 font-medium mt-0.5">
