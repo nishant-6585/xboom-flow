@@ -482,7 +482,7 @@ Deno.serve(async (req) => {
     try {
       const { error } = await supabase.from("call_ai_analysis").insert({
         call_log_id: callLogId,
-        transcript,
+        transcript: safeTranscript || null,
         summary,
         intent,
         budget,
