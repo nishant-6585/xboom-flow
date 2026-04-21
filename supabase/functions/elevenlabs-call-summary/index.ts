@@ -171,6 +171,7 @@ Deno.serve(async (req) => {
     }),
   );
 
+  try {
   // Initialise supabase with service role so we can insert across RLS.
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
@@ -404,4 +405,21 @@ Deno.serve(async (req) => {
     updated: isUpdate,
     extracted: extractedData,
   });
+  } catch (fatal) {
+    console.error("[elevenlabs-call-summary] FATAL:", fatal);
+    try {
+      const sb = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+        { auth: { persistSession: false } },
+      );
+      await sb.from("integration_errors").insert({
+        integration: "elevenlabs",
+        function_name: "elevenlabs-call-summary",
+        error_message: `fatal: ${String(fatal)}`,
+        error_details: { stack: (fatal as Error)?.stack ?? null } as never,
+      });
+    } catch (_) { /* swallow */ }
+    return ok({ received: true, error: "fatal" });
+  }
 });
