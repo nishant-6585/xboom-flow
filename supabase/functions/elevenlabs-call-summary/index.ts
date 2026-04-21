@@ -124,6 +124,53 @@ function extractName(transcript: string): string | null {
   return null;
 }
 
+/**
+ * Extract a valid Indian mobile number from a transcript.
+ * Looks for: +91XXXXXXXXXX, 91XXXXXXXXXX, 10-digit starting 6-9.
+ * Prefers numbers spoken after "my number is / number is / contact".
+ * Returns E.164 (+91XXXXXXXXXX) or null.
+ */
+function extractPhoneFromTranscript(transcript: string): string | null {
+  if (!transcript) return null;
+
+  const candidates: string[] = [];
+
+  const cuePatterns = [
+    /\bmy (?:number|mobile|phone|contact)(?:\s+is)?\s*[:\-]?\s*((?:\+?91[\s\-]?)?[6-9](?:[\s\-]?\d){9})/gi,
+    /\b(?:number|mobile|phone|contact)(?:\s+is)?\s*[:\-]?\s*((?:\+?91[\s\-]?)?[6-9](?:[\s\-]?\d){9})/gi,
+    /\bcall(?:\s+me)?\s+(?:on|at)\s*((?:\+?91[\s\-]?)?[6-9](?:[\s\-]?\d){9})/gi,
+  ];
+  for (const re of cuePatterns) {
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(transcript)) !== null) {
+      candidates.push(m[1]);
+    }
+  }
+
+  // Generic mobile patterns (lower priority)
+  const generic = [
+    /\+91[\s\-]?[6-9](?:[\s\-]?\d){9}/g,
+    /\b91[6-9]\d{9}\b/g,
+    /\b[6-9]\d{9}\b/g,
+  ];
+  for (const re of generic) {
+    const matches = transcript.match(re);
+    if (matches) candidates.push(...matches);
+  }
+
+  for (const raw of candidates) {
+    const digits = raw.replace(/\D/g, "");
+    let mobile: string | null = null;
+    if (digits.length === 10 && /^[6-9]/.test(digits)) mobile = digits;
+    else if (digits.length === 12 && digits.startsWith("91") && /^91[6-9]/.test(digits))
+      mobile = digits.slice(2);
+    else if (digits.length === 13 && digits.startsWith("091") && /^091[6-9]/.test(digits))
+      mobile = digits.slice(3);
+    if (mobile && /^[6-9]\d{9}$/.test(mobile)) return `+91${mobile}`;
+  }
+  return null;
+}
+
 /** Categorise intent from transcript content. */
 function extractIntent(t: string): string {
   const lc = t.toLowerCase();
