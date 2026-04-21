@@ -41,6 +41,8 @@ import { InteraktAnalytics } from './InteraktAnalytics';
 import { LogCallDialog } from './LogCallDialog';
 import { OutboundCallTracker } from './OutboundCallTracker';
 import { PhoneOutgoing } from 'lucide-react';
+import { ElevenLabsLeadsPanel } from './ElevenLabsLeadsPanel';
+import { Bot } from 'lucide-react';
 
 const LEAD_SOURCES = [
   'Website',
@@ -53,6 +55,7 @@ const LEAD_SOURCES = [
   'LinkedIn',
   'WhatsApp',
   'Interakt',
+  'ElevenLabs',
   'Referral',
   'Cold Call',
   'Exhibition',
@@ -321,6 +324,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <TabsTrigger value="myoperator" className="gap-1.5">
           <Phone className="h-3.5 w-3.5" />
           MyOperator
+        </TabsTrigger>
+        <TabsTrigger value="elevenlabs" className="gap-1.5">
+          <Bot className="h-3.5 w-3.5" />
+          AI Voice
         </TabsTrigger>
         <TabsTrigger value="call-tracker" className="gap-1.5">
           <PhoneOutgoing className="h-3.5 w-3.5" />
@@ -1042,6 +1049,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
       <TabsContent value="myoperator">
         <MyOperatorTabContent prospects={prospects} prospectSourceIds={prospectSourceIds} attentionSourceIds={attentionSourceIds} />
+      </TabsContent>
+
+      <TabsContent value="elevenlabs">
+        <ElevenLabsLeadsPanel />
       </TabsContent>
 
       <TabsContent value="call-tracker">
