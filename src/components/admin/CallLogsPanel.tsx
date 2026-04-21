@@ -775,8 +775,51 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                             />
                           </div>
                         </TableCell>
-                        <TableCell className={`font-mono text-sm font-medium ${info.status === 'missed' ? 'text-red-500' : 'text-primary'}`}>
-                          {log.full_number || log.caller_number}
+                        <TableCell className="text-sm">
+                          {(() => {
+                            const e = aiEnrichment[log.id];
+                            const proxyNum = log.full_number || log.caller_number;
+                            const realNum = e?.extracted_phone_number && e.extracted_phone_number !== proxyNum
+                              ? e.extracted_phone_number
+                              : proxyNum;
+                            const displayName = e?.extracted_name || null;
+                            return (
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className={`font-semibold ${info.status === 'missed' ? 'text-destructive' : 'text-foreground'}`}>
+                                    {displayName || 'Unidentified Caller'}
+                                  </span>
+                                  {e && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="inline-flex items-center gap-0.5 rounded-sm bg-primary/15 text-primary px-1 py-0.5 text-[10px] font-bold">
+                                            <Sparkles className="h-2.5 w-2.5" /> AI
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Enriched using AI conversation analysis</TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                </div>
+                                <div className={`font-mono text-xs ${info.status === 'missed' ? 'text-destructive/80' : 'text-primary'}`}>
+                                  {realNum}
+                                </div>
+                                {e?.extracted_phone_number && e.extracted_phone_number !== proxyNum && (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="inline-flex items-center gap-0.5 text-[10px] text-success">
+                                          <ShieldCheck className="h-2.5 w-2.5" /> Verified via conversation
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Real customer phone extracted from AI transcript (proxy: {proxyNum})</TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="text-sm">
                           <div className={info.status === 'missed' ? 'text-red-500 font-medium' : ''}>{info.whatText}</div>
