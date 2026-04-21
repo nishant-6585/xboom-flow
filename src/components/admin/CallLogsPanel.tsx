@@ -436,7 +436,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     (async () => {
       const { data: maps } = await supabase
         .from("call_mapping")
-        .select("elevenlabs_call_log_id,myoperator_call_log_id,match_type,extracted_name")
+        .select("elevenlabs_call_log_id,myoperator_call_log_id,match_type,match_confidence,extracted_name")
         .in("myoperator_call_log_id", ids)
         .neq("match_type", "UNMATCHED");
       if (cancelled || !maps?.length) {
@@ -451,7 +451,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
           .in("call_log_id", elevenIds),
         supabase
           .from("call_logs")
-          .select("id,customer_name,requirement,budget")
+          .select("id,customer_name,requirement,budget,priority,raw_transcript")
           .in("id", elevenIds),
       ]);
       const anaMap: Record<string, any> = {};
@@ -463,12 +463,19 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
         if (!m.myoperator_call_log_id) return;
         const a = anaMap[m.elevenlabs_call_log_id] ?? {};
         const lead = leadMap[m.elevenlabs_call_log_id] ?? {};
+        const hay = `${lead.raw_transcript ?? ""} ${a.summary ?? ""}`.toLowerCase();
+        const isHot =
+          (lead.priority ?? "").toLowerCase() === "high" ||
+          /\b(buy|price|quote|purchase|order|pay|discount|negotiate|urgent|asap)\b/.test(hay);
         enriched[m.myoperator_call_log_id] = {
           extracted_name: m.extracted_name ?? lead.customer_name ?? null,
           intent: a.intent ?? lead.requirement ?? null,
           budget: a.budget ?? lead.budget ?? null,
           summary: a.summary ?? null,
           match_type: m.match_type,
+          match_confidence: m.match_confidence ?? 0,
+          requirement: lead.requirement ?? null,
+          is_hot: isHot,
         };
       });
       if (!cancelled) setAiEnrichment(enriched);
