@@ -256,14 +256,21 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   // ElevenLabs AI mapping enrichment keyed by myoperator_call_log_id
   const [aiEnrichment, setAiEnrichment] = useState<Record<string, {
     extracted_name: string | null;
+    extracted_phone_number: string | null;
     intent: string | null;
     budget: string | null;
     summary: string | null;
+    next_action: string | null;
+    sentiment: string | null;
     match_type: string;
     match_confidence: number;
     requirement: string | null;
     is_hot: boolean;
+    elevenlabs_call_log_id: string;
   }>>({});
+  const [rematching, setRematching] = useState(false);
+  const [contactedIds, setContactedIds] = useState<Set<string>>(new Set());
+  const [qualifiedIds, setQualifiedIds] = useState<Set<string>>(new Set());
 
   const SALES_PERSONS_LIST = ['suman das', 'Narasimha', 'mohammed musthak', 'Arjav chauhan'];
 
