@@ -266,6 +266,10 @@ export function ElevenLabsLeadsPanel() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [linkTargetId, setLinkTargetId] = useState<string | null>(null);
+  const [linkOptions, setLinkOptions] = useState<Array<{ id: string; caller_number: string; created_at: string; call_duration: number | null }>>([]);
+  const [linkSearch, setLinkSearch] = useState("");
+  const [linking, setLinking] = useState(false);
 
   const load = async () => {
     setLoading(true);
