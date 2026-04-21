@@ -802,30 +802,37 @@ export function ElevenLabsLeadsPanel() {
         <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
           {selected && (
             <>
-              <SheetHeader>
-                <SheetTitle className="flex items-center gap-2 text-lg">
-                  <Bot className="h-5 w-5 text-primary" />
-                  {displayName(selected)}
-                </SheetTitle>
-                <SheetDescription className="font-mono">
-                  {formatPhone(selected.caller_number)} •{" "}
-                  {format(new Date(selected.created_at), "dd MMM yyyy, HH:mm")}
-                </SheetDescription>
-              </SheetHeader>
+              {(() => {
+                const m = mappings[selected.id];
+                const realPhone = m?.extracted_phone_number ?? selected.caller_number;
+                const { name } = resolveName(selected, m);
+                return (
+                  <SheetHeader>
+                    <SheetTitle className="flex items-center gap-2 text-lg">
+                      <Bot className="h-5 w-5 text-primary" />
+                      {name}
+                    </SheetTitle>
+                    <SheetDescription className="font-mono">
+                      {formatPhone(realPhone)} •{" "}
+                      {format(new Date(selected.created_at), "dd MMM yyyy, HH:mm")}
+                    </SheetDescription>
+                  </SheetHeader>
+                );
+              })()}
 
               <div className="mt-4 space-y-4">
                 {/* Quick action bar */}
                 <div className="grid grid-cols-2 gap-2">
                   <Button
                     className="gap-2"
-                    onClick={() => callTel(selected.caller_number)}
+                    onClick={() => callTel(mappings[selected.id]?.extracted_phone_number ?? selected.caller_number)}
                   >
                     <PhoneCall className="h-4 w-4" /> Call Now
                   </Button>
                   <Button
                     variant="outline"
                     className="gap-2"
-                    onClick={() => openWhatsApp(selected.caller_number)}
+                    onClick={() => openWhatsApp(mappings[selected.id]?.extracted_phone_number ?? selected.caller_number)}
                   >
                     <MessageCircle className="h-4 w-4" /> WhatsApp
                   </Button>
@@ -834,14 +841,14 @@ export function ElevenLabsLeadsPanel() {
                     size="sm"
                     onClick={() => updateLeadStatus(selected.id, "Contacted")}
                   >
-                    Mark Contacted
+                    ✅ Mark Contacted
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => updateLeadStatus(selected.id, "Qualified")}
                   >
-                    Mark Qualified
+                    ⭐ Mark Qualified
                   </Button>
                 </div>
 
