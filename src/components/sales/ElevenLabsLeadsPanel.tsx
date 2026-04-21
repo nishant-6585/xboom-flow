@@ -982,7 +982,32 @@ export function ElevenLabsLeadsPanel() {
                   >
                     ⭐ Mark Qualified
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="col-span-2"
+                    onClick={() => updateLeadStatus(selected.id, "Closed")}
+                  >
+                    🔒 Mark Closed
+                  </Button>
                 </div>
+
+                {/* Why this matters */}
+                {(() => {
+                  const reason = whyThisMatters(selected, summaries[selected.id] ?? analysis?.summary ?? null);
+                  if (!reason) return null;
+                  return (
+                    <Card className="border-warning/30 bg-warning/5">
+                      <CardContent className="p-3 flex items-start gap-2">
+                        <Lightbulb className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                        <div className="text-sm">
+                          <div className="font-semibold text-warning mb-0.5">Why this matters</div>
+                          <p className="text-foreground/80 leading-snug">{reason}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
 
                 {/* Snapshot */}
                 <Card>
