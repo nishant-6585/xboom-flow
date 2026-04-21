@@ -980,6 +980,62 @@ export function ElevenLabsLeadsPanel() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Manual Link Recovery Dialog */}
+      <Dialog open={!!linkTargetId} onOpenChange={(o) => !o && setLinkTargetId(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Link to MyOperator call</DialogTitle>
+            <DialogDescription>
+              Pick the matching MyOperator call so this AI lead is correctly attributed.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            placeholder="Search by phone number…"
+            value={linkSearch}
+            onChange={(e) => setLinkSearch(e.target.value)}
+          />
+          <ScrollArea className="h-72 mt-2 -mx-2 px-2">
+            <div className="space-y-1.5">
+              {linkOptions
+                .filter((o) =>
+                  linkSearch
+                    ? o.caller_number?.includes(linkSearch.replace(/\D/g, ""))
+                    : true,
+                )
+                .map((o) => (
+                  <button
+                    key={o.id}
+                    disabled={linking}
+                    onClick={() => linkManually(o.id)}
+                    className="w-full text-left flex items-center justify-between gap-3 rounded-md border bg-card hover:bg-accent transition-colors p-2.5 text-sm disabled:opacity-50"
+                  >
+                    <div>
+                      <div className="font-mono font-medium">
+                        {formatPhone(o.caller_number)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(o.created_at), "dd MMM yyyy HH:mm")} •{" "}
+                        {formatDuration(o.call_duration)}
+                      </div>
+                    </div>
+                    <Link2 className="h-4 w-4 text-primary" />
+                  </button>
+                ))}
+              {linkOptions.length === 0 && (
+                <div className="text-center text-sm text-muted-foreground py-8">
+                  No recent MyOperator calls found.
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setLinkTargetId(null)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
