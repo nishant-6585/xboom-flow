@@ -422,6 +422,59 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
+  // Fetch ElevenLabs AI enrichment for visible MyOperator logs
+  useEffect(() => {
+    if (logs.length === 0) {
+      setAiEnrichment({});
+      return;
+    }
+    const ids = logs.map((l) => l.id);
+    let cancelled = false;
+    (async () => {
+      const { data: maps } = await supabase
+        .from("call_mapping")
+        .select("elevenlabs_call_log_id,myoperator_call_log_id,match_type,extracted_name")
+        .in("myoperator_call_log_id", ids)
+        .neq("match_type", "UNMATCHED");
+      if (cancelled || !maps?.length) {
+        if (!cancelled) setAiEnrichment({});
+        return;
+      }
+      const elevenIds = maps.map((m: any) => m.elevenlabs_call_log_id);
+      const [{ data: ana }, { data: leadInfo }] = await Promise.all([
+        supabase
+          .from("call_ai_analysis")
+          .select("call_log_id,intent,budget,summary")
+          .in("call_log_id", elevenIds),
+        supabase
+          .from("call_logs")
+          .select("id,customer_name,requirement,budget")
+          .in("id", elevenIds),
+      ]);
+      const anaMap: Record<string, any> = {};
+      (ana ?? []).forEach((a: any) => (anaMap[a.call_log_id] = a));
+      const leadMap: Record<string, any> = {};
+      (leadInfo ?? []).forEach((l: any) => (leadMap[l.id] = l));
+      const enriched: Record<string, any> = {};
+      maps.forEach((m: any) => {
+        if (!m.myoperator_call_log_id) return;
+        const a = anaMap[m.elevenlabs_call_log_id] ?? {};
+        const lead = leadMap[m.elevenlabs_call_log_id] ?? {};
+        enriched[m.myoperator_call_log_id] = {
+          extracted_name: m.extracted_name ?? lead.customer_name ?? null,
+          intent: a.intent ?? lead.requirement ?? null,
+          budget: a.budget ?? lead.budget ?? null,
+          summary: a.summary ?? null,
+          match_type: m.match_type,
+        };
+      });
+      if (!cancelled) setAiEnrichment(enriched);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [logs]);
+
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(fetchLogs, 8000);
