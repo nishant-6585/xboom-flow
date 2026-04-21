@@ -110,19 +110,25 @@ Deno.serve(async (req) => {
   );
 
   // Extract fields (tolerant to multiple ElevenLabs payload shapes).
-  const callerId = asString(
-    pick(raw, [
-      "caller_id",
-      "from_number",
-      "from",
-      "phone_number",
-      "phone",
-      "caller",
-      "external_number",
-      "user_id",
-      "from_phone_number",
-    ]),
-  );
+  // Try ElevenLabs-specific paths first, then fall back to generic key search.
+  const r = raw as any;
+  const callerId =
+    asString(r?.data?.metadata?.phone_call?.external_number) ||
+    asString(r?.data?.user_id) ||
+    asString(r?.data?.conversation_initiation_client_data?.dynamic_variables?.system__caller_id) ||
+    asString(
+      pick(raw, [
+        "caller_id",
+        "from_number",
+        "from",
+        "phone_number",
+        "phone",
+        "caller",
+        "external_number",
+        "user_id",
+        "from_phone_number",
+      ]),
+    );
   const conversationId = asString(
     pick(raw, ["conversation_id", "conversationId", "call_sid", "agent_response_id"]),
   );
