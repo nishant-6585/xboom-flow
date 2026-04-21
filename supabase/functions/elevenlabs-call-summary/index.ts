@@ -181,8 +181,10 @@ Deno.serve(async (req) => {
   // Extract fields (tolerant to multiple ElevenLabs payload shapes).
   // Try ElevenLabs-specific paths first, then fall back to generic key search.
   const r = raw as any;
-  const callerId =
+  const rawCallerId =
     asString(r?.data?.metadata?.phone_call?.external_number) ||
+    asString(r?.metadata?.phone_call?.external_number) ||
+    asString(r?.data?.phone_number) ||
     asString(r?.data?.user_id) ||
     asString(r?.data?.conversation_initiation_client_data?.dynamic_variables?.system__caller_id) ||
     asString(
@@ -198,6 +200,7 @@ Deno.serve(async (req) => {
         "from_phone_number",
       ]),
     );
+  const callerId = normalisePhone(rawCallerId);
   const conversationId = asString(
     pick(raw, ["conversation_id", "conversationId", "call_sid", "agent_response_id"]),
   );
@@ -269,52 +272,114 @@ Deno.serve(async (req) => {
     return ok({ received: true, skipped: true, reason });
   }
 
-  // 3) Insert call log (acts as the "lead" record in this CRM).
+  // 3) Lead intelligence — name, intent, budget, priority, score.
+  const extractedName = extractName(transcript);
+  const intent = extractIntent(transcript);
+  const budget = extractBudget(transcript);
+  const { priority, score } = computePriorityAndScore(transcript);
+  const extractedData = { name: extractedName, intent, budget, priority, score };
+
+  const notes = summary
+    ? `Summary: ${summary}\n\nTranscript:\n${transcript}`
+    : transcript;
+
+  // 4) Dedupe — look for an existing ElevenLabs lead from same caller in last 24h.
   let callLogId: string | null = null;
+  let isUpdate = false;
   try {
-    const { data, error } = await supabase
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: existing } = await supabase
       .from("call_logs")
-      .insert({
-        call_id: conversationId,
-        caller_number: callerId,
-        full_number: callerId,
-        call_status: "completed",
-        call_type: "incoming",
-        call_duration: callDuration ?? 0,
-        customer_name: "Unknown",
-        lead_source: "ElevenLabs",
-        notes: summary
-          ? `Summary: ${summary}\n\nTranscript:\n${transcript}`
-          : transcript,
-        raw_payload: raw as never,
-        lead_created: true,
-      })
-      .select("id")
-      .single();
-    if (error) throw error;
-    callLogId = data?.id ?? null;
-    console.log("[elevenlabs-call-summary] call_logs insert ok", callLogId);
+      .select("id, notes, raw_transcript")
+      .eq("caller_number", callerId)
+      .eq("lead_source", "ElevenLabs")
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing?.id) {
+      isUpdate = true;
+      callLogId = existing.id;
+      const appendedNotes = `${existing.notes ?? ""}\n\n--- New call ${new Date().toISOString()} ---\n${notes}`;
+      const appendedTranscript = `${existing.raw_transcript ?? ""}\n\n--- ${new Date().toISOString()} ---\n${transcript}`;
+      const { error: upErr } = await supabase
+        .from("call_logs")
+        .update({
+          customer_name: extractedName ?? undefined,
+          requirement: intent,
+          budget: budget ?? undefined,
+          priority,
+          lead_score: score,
+          notes: appendedNotes,
+          raw_transcript: appendedTranscript,
+          call_duration: callDuration ?? 0,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id);
+      if (upErr) throw upErr;
+      console.log("[elevenlabs-call-summary] call_logs updated existing lead", callLogId);
+    } else {
+      const { data, error } = await supabase
+        .from("call_logs")
+        .insert({
+          call_id: conversationId,
+          caller_number: callerId,
+          full_number: callerId,
+          call_status: "completed",
+          call_type: "incoming",
+          call_duration: callDuration ?? 0,
+          customer_name: extractedName ?? "Unknown",
+          lead_source: "ElevenLabs",
+          requirement: intent,
+          budget,
+          lead_status: "New",
+          priority,
+          lead_score: score,
+          raw_transcript: transcript,
+          notes,
+          raw_payload: raw as never,
+          lead_created: true,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      callLogId = data?.id ?? null;
+      console.log("[elevenlabs-call-summary] call_logs insert ok", callLogId);
+    }
   } catch (e) {
-    console.error("[elevenlabs-call-summary] call_logs insert failed:", e);
+    console.error("[elevenlabs-call-summary] call_logs write failed:", e);
     if (webhookLogId) {
       await supabase
         .from("call_webhook_logs")
         .update({
           processing_status: "failed",
-          error_message: `call_logs insert: ${String(e)}`,
+          error_message: `call_logs write: ${String(e)}`,
         })
         .eq("id", webhookLogId);
     }
-    return ok({ received: true, error: "call_logs_insert_failed" });
+    // Log into integration_errors but never crash.
+    try {
+      await supabase.from("integration_errors").insert({
+        integration: "elevenlabs",
+        function_name: "elevenlabs-call-summary",
+        error_message: `call_logs write failed: ${String(e)}`,
+        error_details: { caller: callerId, conversation_id: conversationId } as never,
+      });
+    } catch (_) { /* ignore */ }
+    return ok({ received: true, error: "call_logs_write_failed" });
   }
 
-  // 4) Insert AI analysis row (transcript + summary).
+  // 5) Insert AI analysis row (transcript + summary + extracted data).
   if (callLogId) {
     try {
       const { error } = await supabase.from("call_ai_analysis").insert({
         call_log_id: callLogId,
         transcript,
         summary,
+        intent,
+        budget,
+        extracted_data: extractedData as never,
         raw_ai_response: raw as never,
       });
       if (error) throw error;
@@ -325,7 +390,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  // 5) Mark webhook log as processed.
+  // 6) Mark webhook log as processed.
   if (webhookLogId) {
     await supabase
       .from("call_webhook_logs")
@@ -333,5 +398,10 @@ Deno.serve(async (req) => {
       .eq("id", webhookLogId);
   }
 
-  return ok({ received: true, call_log_id: callLogId });
+  return ok({
+    received: true,
+    call_log_id: callLogId,
+    updated: isUpdate,
+    extracted: extractedData,
+  });
 });
