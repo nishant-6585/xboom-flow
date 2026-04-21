@@ -319,6 +319,7 @@ const parseTranscript = (raw: string | null): ChatTurn[] => {
 export function ElevenLabsLeadsPanel() {
   const [leads, setLeads] = useState<ElevenLead[]>([]);
   const [mappings, setMappings] = useState<Record<string, CallMapping>>({});
+  const [summaries, setSummaries] = useState<Record<string, string>>({});
   const [rematching, setRematching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
