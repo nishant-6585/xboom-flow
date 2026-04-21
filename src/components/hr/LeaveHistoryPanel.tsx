@@ -9,12 +9,18 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Calendar as CalendarIcon, Download, FileText, Users, Loader2, ChevronLeft, ChevronRight, Clock, CheckCircle2, XCircle, BarChart3 } from "lucide-react";
+import { Calendar as CalendarIcon, Download, FileText, Users, Loader2, ChevronLeft, ChevronRight, Clock, CheckCircle2, XCircle, BarChart3, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useLeaveHistory, LeaveHistoryFilters } from "@/hooks/useLeaveHistory";
 import { exportLeaveHistoryToExcel } from "@/utils/leaveHistoryExport";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 const LEAVE_TYPE_LABELS: Record<string, string> = {
   EL: 'Earned Leave',
@@ -51,13 +57,18 @@ interface EmployeeOption {
 }
 
 export function LeaveHistoryPanel() {
-  const { records, kpis, summaries, loading, totalCount, page, fetchAll, setPage, fetchForExport, pageSize } = useLeaveHistory();
+  const { records, kpis, summaries, loading, totalCount, page, fetchAll, setPage, fetchForExport, deleteLeaveEntry, pageSize } = useLeaveHistory();
+  const { role } = useAuth();
+  const canDelete = role === 'admin' || role === 'hr';
   const [filters, setFilters] = useState<LeaveHistoryFilters>(defaultFilters);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [exporting, setExporting] = useState(false);
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'records' | 'summary'>('records');
+  const [deleteTarget, setDeleteTarget] = useState<typeof records[number] | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   // Fetch employees for dropdown
   useEffect(() => {
@@ -286,6 +297,7 @@ export function LeaveHistoryPanel() {
                         <TableHead className="text-xs text-center">Days</TableHead>
                         <TableHead className="text-xs">Status</TableHead>
                         <TableHead className="text-xs">Applied On</TableHead>
+                        {canDelete && <TableHead className="text-xs text-right">Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -302,6 +314,19 @@ export function LeaveHistoryPanel() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">{format(new Date(r.created_at), 'dd MMM yyyy')}</TableCell>
+                          {canDelete && (
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => { setDeleteTarget(r); setDeleteReason(''); }}
+                                title="Delete leave entry"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
@@ -373,6 +398,64 @@ export function LeaveHistoryPanel() {
           </CardContent>
         </Card>
       )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) { setDeleteTarget(null); setDeleteReason(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete leave entry?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <div>
+                  This will permanently delete{' '}
+                  <span className="font-medium text-foreground">{deleteTarget?.employee_name}</span>'s{' '}
+                  <span className="font-medium text-foreground">{deleteTarget && (LEAVE_TYPE_LABELS[deleteTarget.leave_type] || deleteTarget.leave_type)}</span>{' '}
+                  ({deleteTarget?.total_days} day{(deleteTarget?.total_days ?? 0) === 1 ? '' : 's'}) from{' '}
+                  {deleteTarget && format(new Date(deleteTarget.start_date), 'dd MMM yyyy')} – {deleteTarget && format(new Date(deleteTarget.end_date), 'dd MMM yyyy')}.
+                </div>
+                {deleteTarget?.status === 'approved' && ['EL','half_day_EL','casual','half_day_casual','paid','half_day_paid','sick','half_day_sick'].includes(deleteTarget.leave_type) && (
+                  <div className="rounded-md bg-muted px-3 py-2 text-xs">
+                    💡 The leave balance ({deleteTarget.total_days} day{deleteTarget.total_days === 1 ? '' : 's'}) will be refunded to the employee.
+                  </div>
+                )}
+                <div>This action cannot be undone.</div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Reason (optional)</label>
+            <Textarea
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="e.g. Employee came to office / applied by mistake"
+              rows={2}
+              className="text-sm"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!deleteTarget) return;
+                setDeleting(true);
+                const ok = await deleteLeaveEntry(deleteTarget.id, deleteReason.trim() || undefined);
+                setDeleting(false);
+                if (ok) {
+                  setDeleteTarget(null);
+                  setDeleteReason('');
+                  // Refresh KPIs/summaries
+                  fetchAll(filters, page);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Deleting…</> : 'Delete entry'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

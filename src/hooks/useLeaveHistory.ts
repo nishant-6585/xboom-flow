@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export interface LeaveHistoryRecord {
   id: string;
@@ -260,9 +261,89 @@ export function useLeaveHistory() {
     }));
   }, []);
 
+  // Delete a leave entry. If it was approved and the leave_type is balance-tracked,
+  // refund the balance and record a credit transaction.
+  const deleteLeaveEntry = useCallback(async (leaveId: string, reason?: string): Promise<boolean> => {
+    try {
+      // Fetch the entry first so we know whether to refund balance
+      const { data: leave, error: fetchErr } = await supabase
+        .from('leave_requests')
+        .select('id, employee_id, leave_type, total_days, status')
+        .eq('id', leaveId)
+        .single();
+      if (fetchErr) throw fetchErr;
+      if (!leave) throw new Error('Leave entry not found');
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Refund balance only if the leave was approved and is balance-tracked
+      const balanceTypeMap: Record<string, string> = {
+        EL: 'EL', half_day_EL: 'EL',
+        casual: 'EL', half_day_casual: 'EL',
+        paid: 'EL', half_day_paid: 'EL',
+        sick: 'sick', half_day_sick: 'sick',
+      };
+      const balanceType = balanceTypeMap[leave.leave_type];
+      const days = leave.total_days || 0;
+
+      if (leave.status === 'approved' && balanceType && days > 0) {
+        const year = new Date().getFullYear();
+        const { data: existing } = await supabase
+          .from('leave_balances')
+          .select('balance')
+          .eq('employee_id', leave.employee_id)
+          .eq('leave_type', balanceType)
+          .eq('year', year)
+          .maybeSingle();
+
+        const oldBalance = existing?.balance ?? 0;
+        const newBalance = oldBalance + days;
+
+        await supabase
+          .from('leave_balances')
+          .upsert({
+            employee_id: leave.employee_id,
+            leave_type: balanceType,
+            year,
+            balance: newBalance,
+          }, { onConflict: 'employee_id,leave_type,year' });
+
+        await supabase
+          .from('leave_transactions')
+          .insert({
+            employee_id: leave.employee_id,
+            leave_type: balanceType,
+            transaction_type: 'credit',
+            amount: days,
+            balance_after: newBalance,
+            credit_date: new Date().toISOString().split('T')[0],
+            remarks: `Leave entry deleted (${leave.leave_type}, ${days} days)${reason ? `: ${reason}` : ''}`,
+            created_by: user?.id ?? 'system',
+          });
+      }
+
+      const { error: delErr } = await supabase
+        .from('leave_requests')
+        .delete()
+        .eq('id', leaveId);
+      if (delErr) throw delErr;
+
+      // Optimistically remove from local state
+      setRecords(prev => prev.filter(r => r.id !== leaveId));
+      setTotalCount(c => Math.max(0, c - 1));
+
+      toast.success('Leave entry deleted' + (leave.status === 'approved' && balanceType && days > 0 ? ' and balance refunded' : ''));
+      return true;
+    } catch (err: any) {
+      console.error('Error deleting leave entry:', err);
+      toast.error(err.message || 'Failed to delete leave entry');
+      return false;
+    }
+  }, []);
+
   return {
     records, kpis, summaries, loading, totalCount, page,
-    fetchAll, fetchLeaveHistory, setPage, fetchForExport,
+    fetchAll, fetchLeaveHistory, setPage, fetchForExport, deleteLeaveEntry,
     pageSize: PAGE_SIZE,
   };
 }
