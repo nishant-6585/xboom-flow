@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle, PhoneOutgoing } from "lucide-react";
+import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle, PhoneOutgoing, Sparkles } from "lucide-react";
 import { LogCallDialog } from '@/components/sales/LogCallDialog';
 import { CallLogEditDialog } from './CallLogEditDialog';
 import { format } from "date-fns";
@@ -252,6 +252,14 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [editingLog, setEditingLog] = useState<CallLog | null>(null);
   const [updatingAssign, setUpdatingAssign] = useState<string | null>(null);
   const [logCallData, setLogCallData] = useState<{ id: string; name: string; phone: string; company?: string; created_at?: string } | null>(null);
+  // ElevenLabs AI mapping enrichment keyed by myoperator_call_log_id
+  const [aiEnrichment, setAiEnrichment] = useState<Record<string, {
+    extracted_name: string | null;
+    intent: string | null;
+    budget: string | null;
+    summary: string | null;
+    match_type: string;
+  }>>({});
 
   const SALES_PERSONS_LIST = ['suman das', 'Narasimha', 'mohammed musthak', 'Arjav chauhan'];
 
@@ -413,6 +421,59 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   }, [searchPhone, statusFilter, dateRange?.start?.getTime(), dateRange?.end?.getTime()]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
+
+  // Fetch ElevenLabs AI enrichment for visible MyOperator logs
+  useEffect(() => {
+    if (logs.length === 0) {
+      setAiEnrichment({});
+      return;
+    }
+    const ids = logs.map((l) => l.id);
+    let cancelled = false;
+    (async () => {
+      const { data: maps } = await supabase
+        .from("call_mapping")
+        .select("elevenlabs_call_log_id,myoperator_call_log_id,match_type,extracted_name")
+        .in("myoperator_call_log_id", ids)
+        .neq("match_type", "UNMATCHED");
+      if (cancelled || !maps?.length) {
+        if (!cancelled) setAiEnrichment({});
+        return;
+      }
+      const elevenIds = maps.map((m: any) => m.elevenlabs_call_log_id);
+      const [{ data: ana }, { data: leadInfo }] = await Promise.all([
+        supabase
+          .from("call_ai_analysis")
+          .select("call_log_id,intent,budget,summary")
+          .in("call_log_id", elevenIds),
+        supabase
+          .from("call_logs")
+          .select("id,customer_name,requirement,budget")
+          .in("id", elevenIds),
+      ]);
+      const anaMap: Record<string, any> = {};
+      (ana ?? []).forEach((a: any) => (anaMap[a.call_log_id] = a));
+      const leadMap: Record<string, any> = {};
+      (leadInfo ?? []).forEach((l: any) => (leadMap[l.id] = l));
+      const enriched: Record<string, any> = {};
+      maps.forEach((m: any) => {
+        if (!m.myoperator_call_log_id) return;
+        const a = anaMap[m.elevenlabs_call_log_id] ?? {};
+        const lead = leadMap[m.elevenlabs_call_log_id] ?? {};
+        enriched[m.myoperator_call_log_id] = {
+          extracted_name: m.extracted_name ?? lead.customer_name ?? null,
+          intent: a.intent ?? lead.requirement ?? null,
+          budget: a.budget ?? lead.budget ?? null,
+          summary: a.summary ?? null,
+          match_type: m.match_type,
+        };
+      });
+      if (!cancelled) setAiEnrichment(enriched);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [logs]);
 
   useEffect(() => {
     if (!autoRefresh) return;
@@ -636,6 +697,26 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                         </TableCell>
                         <TableCell className="text-sm">
                           <div className={info.status === 'missed' ? 'text-red-500 font-medium' : ''}>{info.whatText}</div>
+                          {aiEnrichment[log.id] && (
+                            <div className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 text-[11px] text-primary">
+                              <Sparkles className="h-3 w-3" />
+                              <span className="font-semibold">AI</span>
+                              {aiEnrichment[log.id].extracted_name && (
+                                <span className="text-foreground">
+                                  {aiEnrichment[log.id].extracted_name}
+                                </span>
+                              )}
+                              {aiEnrichment[log.id].intent && (
+                                <span className="text-muted-foreground">· {aiEnrichment[log.id].intent}</span>
+                              )}
+                              {aiEnrichment[log.id].budget && (
+                                <span className="text-muted-foreground">· {aiEnrichment[log.id].budget}</span>
+                              )}
+                              <Badge variant="outline" className={`ml-1 h-4 px-1 text-[10px] ${aiEnrichment[log.id].match_type === 'TRANSCRIPT_MATCH' ? 'border-success/40 text-success' : 'border-warning/40 text-warning'}`}>
+                                {aiEnrichment[log.id].match_type === 'TRANSCRIPT_MATCH' ? 'Exact' : 'Likely'}
+                              </Badge>
+                            </div>
+                          )}
                           {info.finalAgent && info.status === 'answered' && (
                             <div className="text-xs text-green-600 font-medium mt-0.5">
                               Final Agent: {info.finalAgent}

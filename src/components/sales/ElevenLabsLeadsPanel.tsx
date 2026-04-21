@@ -18,6 +18,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -37,6 +45,10 @@ import {
   HelpCircle,
   XCircle,
   PhoneCall,
+  Link2,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldX,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -101,13 +113,30 @@ const extractName = (transcript: string | null): string | null => {
   return null;
 };
 
-const displayName = (lead: ElevenLead): string => {
-  if (lead.customer_name && lead.customer_name !== "Unknown")
-    return lead.customer_name;
-  const fromTranscript = extractName(lead.raw_transcript);
-  if (fromTranscript) return fromTranscript;
-  const digits = (lead.caller_number || "").replace(/\D/g, "").slice(-4);
-  return digits ? `Lead ····${digits}` : "Unknown Lead";
+/**
+ * Resolve the most useful display name for a lead.
+ * Priority: extracted_name (mapping) → customer_name → transcript regex → phone-based label.
+ */
+const resolveName = (
+  lead: ElevenLead,
+  mapping?: CallMapping,
+): { name: string; isUnidentified: boolean } => {
+  const candidate =
+    (mapping?.extracted_name && mapping.extracted_name.trim()) ||
+    (lead.customer_name && lead.customer_name !== "Unknown" ? lead.customer_name : "") ||
+    extractName(lead.raw_transcript) ||
+    "";
+  if (candidate) return { name: candidate, isUnidentified: false };
+  const phone = mapping?.extracted_phone_number || lead.caller_number;
+  if (phone) return { name: `Lead: ${formatPhone(phone)}`, isUnidentified: false };
+  return { name: "Unidentified Lead", isUnidentified: true };
+};
+
+/** Detect whether the lead shows clear buying signals. */
+const isHotLead = (lead: ElevenLead): boolean => {
+  if ((lead.priority ?? "").toLowerCase() === "high") return true;
+  const hay = `${lead.raw_transcript ?? ""} ${lead.notes ?? ""}`.toLowerCase();
+  return /\b(buy|price|quote|purchase|order|pay|discount|negotiate)\b/.test(hay);
 };
 
 const priorityReason = (transcript: string | null): string | null => {
@@ -237,6 +266,10 @@ export function ElevenLabsLeadsPanel() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [linkTargetId, setLinkTargetId] = useState<string | null>(null);
+  const [linkOptions, setLinkOptions] = useState<Array<{ id: string; caller_number: string; created_at: string; call_duration: number | null }>>([]);
+  const [linkSearch, setLinkSearch] = useState("");
+  const [linking, setLinking] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -366,15 +399,24 @@ export function ElevenLabsLeadsPanel() {
       }
       return true;
     });
-    // Sort by actionability: priority then score then recency
+    // Sort: hot+matched first, then matched, then unmatched; tiebreaker priority/score/recency.
     return list.sort((a, b) => {
+      const ma = mappings[a.id];
+      const mb = mappings[b.id];
+      const aMatched = ma && ma.match_type !== "UNMATCHED" ? 0 : 1;
+      const bMatched = mb && mb.match_type !== "UNMATCHED" ? 0 : 1;
+      const aHot = isHotLead(a) ? 0 : 1;
+      const bHot = isHotLead(b) ? 0 : 1;
+      const groupA = aHot * 2 + aMatched;
+      const groupB = bHot * 2 + bMatched;
+      if (groupA !== groupB) return groupA - groupB;
       const pr = priorityRank(a.priority) - priorityRank(b.priority);
       if (pr !== 0) return pr;
       const sc = (b.lead_score ?? 0) - (a.lead_score ?? 0);
       if (sc !== 0) return sc;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [leads, search, priorityFilter, intentFilter, statusFilter, budgetFilter]);
+  }, [leads, search, priorityFilter, intentFilter, statusFilter, budgetFilter, mappings]);
 
   const stats = useMemo(() => {
     const total = leads.length;
@@ -402,6 +444,52 @@ export function ElevenLabsLeadsPanel() {
   const openWhatsApp = (phone: string) => {
     const num = phone.replace(/\D/g, "");
     window.open(`https://wa.me/${num}`, "_blank");
+  };
+
+  // ---- Manual link recovery (UNMATCHED leads) ----
+  const openLinkDialog = async (elevenlabsId: string) => {
+    setLinkTargetId(elevenlabsId);
+    setLinkSearch("");
+    const { data } = await supabase
+      .from("call_logs")
+      .select("id,caller_number,created_at,call_duration")
+      .eq("lead_source", "MyOperator")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setLinkOptions((data ?? []) as any);
+  };
+
+  const linkManually = async (myoperatorId: string) => {
+    if (!linkTargetId) return;
+    setLinking(true);
+    try {
+      const existing = mappings[linkTargetId];
+      const payload = {
+        elevenlabs_call_log_id: linkTargetId,
+        myoperator_call_log_id: myoperatorId,
+        match_type: "TRANSCRIPT_MATCH" as const,
+        match_confidence: 100,
+        notes: "Manually linked by sales user",
+        matched_at: new Date().toISOString(),
+      };
+      let error;
+      if (existing) {
+        ({ error } = await supabase
+          .from("call_mapping")
+          .update(payload)
+          .eq("elevenlabs_call_log_id", linkTargetId));
+      } else {
+        ({ error } = await supabase.from("call_mapping").insert(payload));
+      }
+      if (error) throw error;
+      toast.success("Lead linked manually ✓");
+      setLinkTargetId(null);
+      await load();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to link");
+    } finally {
+      setLinking(false);
+    }
   };
 
   return (
@@ -540,48 +628,57 @@ export function ElevenLabsLeadsPanel() {
             const mapping = mappings[l.id];
             const realPhone = mapping?.extracted_phone_number ?? l.caller_number;
             const phone = formatPhone(realPhone);
-            const nameFromMapping = mapping?.extracted_name;
-            const name =
-              nameFromMapping && (!l.customer_name || l.customer_name === "Unknown")
-                ? nameFromMapping
-                : displayName(l);
+            const { name, isUnidentified } = resolveName(l, mapping);
             const matchType = mapping?.match_type ?? "UNMATCHED";
+            const matchConfidence = mapping?.match_confidence ?? 0;
+            const hot = isHotLead(l);
             const matchBadge = (() => {
               if (matchType === "TRANSCRIPT_MATCH")
                 return {
-                  label: "✅ Exact Match",
+                  label: "Exact Match",
+                  Icon: ShieldCheck,
                   cls: "bg-success/15 text-success border-success/30",
                 };
               if (matchType === "TIME_MATCH")
                 return {
-                  label: "⚠️ Approx Match",
+                  label: "Likely Match",
+                  Icon: ShieldAlert,
                   cls: "bg-warning/15 text-warning border-warning/30",
                 };
               return {
-                label: "❌ Unmatched",
-                cls: "bg-muted text-muted-foreground border-border",
+                label: "Unmatched",
+                Icon: ShieldX,
+                cls: "bg-destructive/15 text-destructive border-destructive/30",
               };
             })();
             return (
               <Card
                 key={l.id}
                 className={`group relative overflow-hidden transition-all hover:shadow-md cursor-pointer ${
-                  isNew ? "ring-1 ring-success/40 shadow-success/10" : ""
+                  hot
+                    ? "ring-1 ring-destructive/40 shadow-destructive/10"
+                    : isNew
+                    ? "ring-1 ring-success/40 shadow-success/10"
+                    : ""
                 }`}
                 onClick={() => setSelectedId(l.id)}
               >
-                {isNew && (
-                  <div className="absolute top-2 right-2">
-                    <Badge className="bg-success/15 text-success border-success/30 gap-1 animate-pulse">
-                      <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                      New
+                <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+                  {hot && (
+                    <Badge className="bg-destructive/15 text-destructive border-destructive/30 gap-1">
+                      <Flame className="h-3 w-3" /> HOT LEAD
                     </Badge>
-                  </div>
-                )}
+                  )}
+                  {isNew && !hot && (
+                    <Badge className="bg-success/15 text-success border-success/30 gap-1 animate-pulse">
+                      <span className="h-1.5 w-1.5 rounded-full bg-success" /> New
+                    </Badge>
+                  )}
+                </div>
                 <CardContent className="p-4 space-y-3">
                   {/* Identity */}
                   <div>
-                    <h3 className="font-semibold text-base leading-tight pr-16">
+                    <h3 className={`font-semibold text-base leading-tight pr-24 ${isUnidentified ? "text-muted-foreground italic" : ""}`}>
                       {name}
                     </h3>
                     <p className="text-sm text-muted-foreground font-mono mt-0.5">
@@ -601,7 +698,7 @@ export function ElevenLabsLeadsPanel() {
                       <div className="flex items-center gap-2 text-foreground">
                         <Target className="h-3.5 w-3.5 text-primary shrink-0" />
                         <span className="truncate">
-                          Interested in:{" "}
+                          🔍 Requirement:{" "}
                           <span className="font-medium">{l.requirement}</span>
                         </span>
                       </div>
@@ -610,8 +707,17 @@ export function ElevenLabsLeadsPanel() {
                       <div className="flex items-center gap-2 text-foreground">
                         <Wallet className="h-3.5 w-3.5 text-success shrink-0" />
                         <span>
-                          Budget:{" "}
+                          💰 Budget:{" "}
                           <span className="font-medium">{l.budget}</span>
+                        </span>
+                      </div>
+                    )}
+                    {l.priority && (
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Flame className="h-3.5 w-3.5 text-destructive shrink-0" />
+                        <span>
+                          🔥 Intent:{" "}
+                          <span className="font-medium capitalize">{l.priority}</span>
                         </span>
                       </div>
                     )}
@@ -626,21 +732,15 @@ export function ElevenLabsLeadsPanel() {
 
                   {/* Badges */}
                   <div className="flex flex-wrap gap-1.5">
-                    <Badge
-                      variant="outline"
-                      className={priorityClasses(l.priority)}
-                    >
-                      {l.priority === "High" && "🔥 "}
-                      {l.priority ?? "—"}
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      Score {l.lead_score ?? 0}
-                    </Badge>
                     <Badge variant="outline" className="text-xs capitalize">
                       {l.lead_status ?? "New"}
                     </Badge>
-                    <Badge variant="outline" className={`text-xs ${matchBadge.cls}`}>
+                    <Badge variant="outline" className={`text-xs gap-1 ${matchBadge.cls}`}>
+                      <matchBadge.Icon className="h-3 w-3" />
                       {matchBadge.label}
+                      {matchConfidence > 0 && (
+                        <span className="opacity-70">· {matchConfidence}%</span>
+                      )}
                     </Badge>
                   </div>
 
@@ -653,26 +753,39 @@ export function ElevenLabsLeadsPanel() {
                       size="sm"
                       variant="default"
                       className="flex-1 h-8 gap-1.5"
-                      onClick={() => callTel(l.caller_number)}
+                      onClick={() => callTel(realPhone)}
                     >
-                      <PhoneCall className="h-3.5 w-3.5" /> Call
+                      <PhoneCall className="h-3.5 w-3.5" /> Call Now
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       className="flex-1 h-8 gap-1.5"
-                      onClick={() => openWhatsApp(l.caller_number)}
+                      onClick={() => openWhatsApp(realPhone)}
                     >
                       <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 gap-1.5"
-                      onClick={() => setSelectedId(l.id)}
-                    >
-                      <UserPlus className="h-3.5 w-3.5" />
-                    </Button>
+                    {matchType === "UNMATCHED" ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1.5"
+                        title="Link manually to a MyOperator call"
+                        onClick={() => openLinkDialog(l.id)}
+                      >
+                        <Link2 className="h-3.5 w-3.5" />
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1.5"
+                        title="Mark Qualified"
+                        onClick={() => updateLeadStatus(l.id, "Qualified")}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -689,30 +802,37 @@ export function ElevenLabsLeadsPanel() {
         <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
           {selected && (
             <>
-              <SheetHeader>
-                <SheetTitle className="flex items-center gap-2 text-lg">
-                  <Bot className="h-5 w-5 text-primary" />
-                  {displayName(selected)}
-                </SheetTitle>
-                <SheetDescription className="font-mono">
-                  {formatPhone(selected.caller_number)} •{" "}
-                  {format(new Date(selected.created_at), "dd MMM yyyy, HH:mm")}
-                </SheetDescription>
-              </SheetHeader>
+              {(() => {
+                const m = mappings[selected.id];
+                const realPhone = m?.extracted_phone_number ?? selected.caller_number;
+                const { name } = resolveName(selected, m);
+                return (
+                  <SheetHeader>
+                    <SheetTitle className="flex items-center gap-2 text-lg">
+                      <Bot className="h-5 w-5 text-primary" />
+                      {name}
+                    </SheetTitle>
+                    <SheetDescription className="font-mono">
+                      {formatPhone(realPhone)} •{" "}
+                      {format(new Date(selected.created_at), "dd MMM yyyy, HH:mm")}
+                    </SheetDescription>
+                  </SheetHeader>
+                );
+              })()}
 
               <div className="mt-4 space-y-4">
                 {/* Quick action bar */}
                 <div className="grid grid-cols-2 gap-2">
                   <Button
                     className="gap-2"
-                    onClick={() => callTel(selected.caller_number)}
+                    onClick={() => callTel(mappings[selected.id]?.extracted_phone_number ?? selected.caller_number)}
                   >
                     <PhoneCall className="h-4 w-4" /> Call Now
                   </Button>
                   <Button
                     variant="outline"
                     className="gap-2"
-                    onClick={() => openWhatsApp(selected.caller_number)}
+                    onClick={() => openWhatsApp(mappings[selected.id]?.extracted_phone_number ?? selected.caller_number)}
                   >
                     <MessageCircle className="h-4 w-4" /> WhatsApp
                   </Button>
@@ -721,14 +841,14 @@ export function ElevenLabsLeadsPanel() {
                     size="sm"
                     onClick={() => updateLeadStatus(selected.id, "Contacted")}
                   >
-                    Mark Contacted
+                    ✅ Mark Contacted
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => updateLeadStatus(selected.id, "Qualified")}
                   >
-                    Mark Qualified
+                    ⭐ Mark Qualified
                   </Button>
                 </div>
 
@@ -860,6 +980,62 @@ export function ElevenLabsLeadsPanel() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Manual Link Recovery Dialog */}
+      <Dialog open={!!linkTargetId} onOpenChange={(o) => !o && setLinkTargetId(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Link to MyOperator call</DialogTitle>
+            <DialogDescription>
+              Pick the matching MyOperator call so this AI lead is correctly attributed.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            placeholder="Search by phone number…"
+            value={linkSearch}
+            onChange={(e) => setLinkSearch(e.target.value)}
+          />
+          <ScrollArea className="h-72 mt-2 -mx-2 px-2">
+            <div className="space-y-1.5">
+              {linkOptions
+                .filter((o) =>
+                  linkSearch
+                    ? o.caller_number?.includes(linkSearch.replace(/\D/g, ""))
+                    : true,
+                )
+                .map((o) => (
+                  <button
+                    key={o.id}
+                    disabled={linking}
+                    onClick={() => linkManually(o.id)}
+                    className="w-full text-left flex items-center justify-between gap-3 rounded-md border bg-card hover:bg-accent transition-colors p-2.5 text-sm disabled:opacity-50"
+                  >
+                    <div>
+                      <div className="font-mono font-medium">
+                        {formatPhone(o.caller_number)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(o.created_at), "dd MMM yyyy HH:mm")} •{" "}
+                        {formatDuration(o.call_duration)}
+                      </div>
+                    </div>
+                    <Link2 className="h-4 w-4 text-primary" />
+                  </button>
+                ))}
+              {linkOptions.length === 0 && (
+                <div className="text-center text-sm text-muted-foreground py-8">
+                  No recent MyOperator calls found.
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setLinkTargetId(null)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
