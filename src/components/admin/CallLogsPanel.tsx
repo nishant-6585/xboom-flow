@@ -272,8 +272,13 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     elevenlabs_call_log_id: string;
   }>>({});
   const [rematching, setRematching] = useState(false);
-  const [contactedIds, setContactedIds] = useState<Set<string>>(new Set());
-  const [qualifiedIds, setQualifiedIds] = useState<Set<string>>(new Set());
+  // Real persisted lead status tracking
+  const visibleLogIds = React.useMemo(() => logs.map((l) => l.id), [logs]);
+  const { statuses: leadStatusMap, setStatus: setLeadStatus } = useCallLeadStatuses(visibleLogIds);
+  // Track which call_log_ids we've already pinged Slack for in this session
+  const slackedHotIds = useRef<Set<string>>(new Set());
+  // Group expansion state (group key = normalized 10-digit phone)
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const SALES_PERSONS_LIST = ['suman das', 'Narasimha', 'mohammed musthak', 'Arjav chauhan'];
 
