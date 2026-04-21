@@ -96,17 +96,29 @@ function normalisePhone(raw: string | null): string | null {
 /** Best-effort name extraction from transcript. */
 function extractName(transcript: string): string | null {
   const patterns = [
+    // Most specific first — full names with two capitalised words
+    /\bmy name is ([A-Z][a-zA-Z]{1,20}\s[A-Z][a-zA-Z]{1,20})/,
+    /\bname is ([A-Z][a-zA-Z]{1,20}\s[A-Z][a-zA-Z]{1,20})/,
+    /\bthis is ([A-Z][a-zA-Z]{1,20}\s[A-Z][a-zA-Z]{1,20})/,
+    /\b([A-Z][a-zA-Z]{1,20}\s[A-Z][a-zA-Z]{1,20})\s+(?:here|side|speaking|calling)/,
     /\bmy name is ([A-Z][a-zA-Z]{1,20}(?:\s[A-Z][a-zA-Z]{1,20})?)/i,
     /\bthis is ([A-Z][a-zA-Z]{1,20}(?:\s[A-Z][a-zA-Z]{1,20})?)/i,
     /\bi am ([A-Z][a-zA-Z]{1,20}(?:\s[A-Z][a-zA-Z]{1,20})?)/i,
     /\bi'm ([A-Z][a-zA-Z]{1,20}(?:\s[A-Z][a-zA-Z]{1,20})?)/i,
+    /\bname[:\s]+([A-Z][a-zA-Z]{1,20}(?:\s[A-Z][a-zA-Z]{1,20})?)/i,
   ];
   for (const re of patterns) {
     const m = transcript.match(re);
     if (m?.[1]) {
       const n = m[1].trim();
       // filter common false positives
-      if (!/^(calling|interested|looking|here|from)$/i.test(n)) return n;
+      if (
+        !/^(calling|interested|looking|here|from|the|a|an|sure|okay|hello|hi|yes|no|agent|user|customer)$/i.test(
+          n,
+        )
+      ) {
+        return n;
+      }
     }
   }
   return null;
