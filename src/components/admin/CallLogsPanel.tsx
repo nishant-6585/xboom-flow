@@ -1197,11 +1197,111 @@ function InlineAudioPlayer({ recordingFile, duration, autoPlay = false }: { reco
 }
 
 /* ─── Call Log Details ─── */
-function CallLogDetails({ log }: { log: CallLog }) {
+interface CallLogDetailsProps {
+  log: CallLog;
+  enrichment?: {
+    extracted_name: string | null;
+    extracted_phone_number: string | null;
+    intent: string | null;
+    budget: string | null;
+    summary: string | null;
+    next_action: string | null;
+    sentiment: string | null;
+    match_type: string;
+    match_confidence: number;
+    requirement: string | null;
+    is_hot: boolean;
+    elevenlabs_call_log_id: string;
+  };
+  onRematch?: () => void;
+  rematching?: boolean;
+}
+
+function CallLogDetails({ log, enrichment, onRematch, rematching }: CallLogDetailsProps) {
   const info = deriveCallInfo(log);
+  const proxyNum = log.full_number || log.caller_number;
+  const isExact = enrichment?.match_type === 'TRANSCRIPT_MATCH' && (enrichment?.match_confidence || 0) > 90;
 
   return (
     <div className="space-y-5">
+      {/* AI Insights — top section */}
+      {enrichment ? (
+        <div className="rounded-lg border border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <h3 className="font-semibold text-sm text-primary">AI Insights</h3>
+              {enrichment.is_hot && (
+                <span className="inline-flex items-center gap-0.5 rounded-sm bg-destructive/15 text-destructive px-1.5 py-0.5 text-[10px] font-bold">
+                  🔥 HOT LEAD
+                </span>
+              )}
+            </div>
+            <Badge
+              variant="outline"
+              className={isExact ? 'border-success/40 text-success bg-success/5' : 'border-warning/40 text-warning bg-warning/5'}
+            >
+              {isExact ? '✅ Exact Match' : '⚡ Likely Match'}
+              {enrichment.match_confidence > 0 ? ` (${enrichment.match_confidence}%)` : ''}
+            </Badge>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <Detail label="Name" value={enrichment.extracted_name || 'Not captured'} />
+            <Detail
+              label="Phone"
+              value={
+                enrichment.extracted_phone_number ? (
+                  <span className="font-mono">
+                    {enrichment.extracted_phone_number}
+                    {enrichment.extracted_phone_number !== proxyNum && (
+                      <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] text-success font-sans">
+                        <ShieldCheck className="h-2.5 w-2.5" /> Verified via conversation
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="font-mono text-muted-foreground">{proxyNum}</span>
+                )
+              }
+            />
+            <Detail label="Intent" value={enrichment.intent || '—'} />
+            <Detail label="Budget" value={enrichment.budget || '—'} />
+            <Detail label="Requirement" value={enrichment.requirement || '—'} />
+            <Detail label="Sentiment" value={enrichment.sentiment || '—'} />
+          </div>
+          {enrichment.summary && (
+            <div className="mt-3 pt-3 border-t border-primary/20">
+              <p className="text-xs font-semibold text-muted-foreground mb-1">💡 Why this matters</p>
+              <p className="text-sm text-foreground">{enrichment.summary}</p>
+            </div>
+          )}
+          {enrichment.next_action && (
+            <div className="mt-2">
+              <p className="text-xs font-semibold text-muted-foreground mb-1">▶ Next action</p>
+              <p className="text-sm text-foreground">{enrichment.next_action}</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <h3 className="font-semibold text-sm">AI Insights</h3>
+                <p className="text-xs text-muted-foreground">No AI data found for this call.</p>
+              </div>
+            </div>
+            {onRematch && (
+              <Button size="sm" variant="outline" onClick={onRematch} disabled={rematching}>
+                <Wand2 className={`w-3.5 h-3.5 mr-1 ${rematching ? 'animate-spin' : ''}`} />
+                Re-match
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Info Grid */}
       <div className="grid grid-cols-2 gap-3 text-sm">
         <Detail label="Caller Number" value={log.full_number || log.caller_number} />
