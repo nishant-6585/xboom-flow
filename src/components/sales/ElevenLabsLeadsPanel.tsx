@@ -348,17 +348,29 @@ export function ElevenLabsLeadsPanel() {
     if (!error && data) setLeads(data as ElevenLead[]);
     const ids = (data ?? []).map((d: any) => d.id);
     if (ids.length) {
-      const { data: maps } = await supabase
-        .from("call_mapping")
-        .select(
-          "elevenlabs_call_log_id,myoperator_call_log_id,match_type,match_confidence,extracted_phone_number,extracted_name",
-        )
-        .in("elevenlabs_call_log_id", ids);
+      const [{ data: maps }, { data: ana }] = await Promise.all([
+        supabase
+          .from("call_mapping")
+          .select(
+            "elevenlabs_call_log_id,myoperator_call_log_id,match_type,match_confidence,extracted_phone_number,extracted_name",
+          )
+          .in("elevenlabs_call_log_id", ids),
+        supabase
+          .from("call_ai_analysis")
+          .select("call_log_id,summary")
+          .in("call_log_id", ids),
+      ]);
       const dict: Record<string, CallMapping> = {};
       (maps ?? []).forEach((m: any) => (dict[m.elevenlabs_call_log_id] = m));
       setMappings(dict);
+      const sumDict: Record<string, string> = {};
+      (ana ?? []).forEach((a: any) => {
+        if (a.summary) sumDict[a.call_log_id] = a.summary;
+      });
+      setSummaries(sumDict);
     } else {
       setMappings({});
+      setSummaries({});
     }
     setLoading(false);
   };
