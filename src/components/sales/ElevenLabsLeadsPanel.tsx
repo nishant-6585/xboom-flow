@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import {
   Bot,
   Phone,
@@ -28,10 +29,16 @@ import {
   Clock,
   Target,
   Wallet,
-  FileText,
   RefreshCw,
+  MessageCircle,
+  UserPlus,
+  CheckCircle2,
+  Flame,
+  HelpCircle,
+  XCircle,
+  PhoneCall,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 
 type ElevenLead = {
   id: string;
@@ -56,17 +63,17 @@ type AIAnalysis = {
   extracted_data: any;
 };
 
-const priorityColor = (p: string | null) => {
-  switch ((p ?? "").toLowerCase()) {
-    case "high":
-      return "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30";
-    case "medium":
-      return "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30";
-    case "low":
-      return "bg-slate-500/15 text-slate-700 dark:text-slate-400 border-slate-500/30";
-    default:
-      return "bg-muted text-muted-foreground";
-  }
+type ChatTurn = { role: "agent" | "user"; text: string };
+
+// ---------- Helpers ----------
+
+const formatPhone = (raw: string | null | undefined) => {
+  if (!raw) return "—";
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("91"))
+    return `+91 ${digits.slice(2, 7)} ${digits.slice(7)}`;
+  if (digits.length === 10) return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
+  return raw.startsWith("+") ? raw : `+${digits}`;
 };
 
 const formatDuration = (s: number | null) => {
@@ -76,12 +83,146 @@ const formatDuration = (s: number | null) => {
   return `${m}m ${sec}s`;
 };
 
+const extractName = (transcript: string | null): string | null => {
+  if (!transcript) return null;
+  const match = transcript.match(/my name is ([A-Za-z][A-Za-z\s]{1,30})/i);
+  if (match) return match[1].trim().split(/\s+/).slice(0, 3).join(" ");
+  const m2 = transcript.match(/this is ([A-Za-z][A-Za-z\s]{1,30})/i);
+  if (m2) return m2[1].trim().split(/\s+/).slice(0, 3).join(" ");
+  return null;
+};
+
+const displayName = (lead: ElevenLead): string => {
+  if (lead.customer_name && lead.customer_name !== "Unknown")
+    return lead.customer_name;
+  const fromTranscript = extractName(lead.raw_transcript);
+  if (fromTranscript) return fromTranscript;
+  const digits = (lead.caller_number || "").replace(/\D/g, "").slice(-4);
+  return digits ? `Lead ····${digits}` : "Unknown Lead";
+};
+
+const priorityReason = (transcript: string | null): string | null => {
+  if (!transcript) return null;
+  const lc = transcript.toLowerCase();
+  const hits: string[] = [];
+  ["buy", "price", "quote", "purchase", "urgent", "asap", "today"].forEach((w) => {
+    if (lc.includes(w)) hits.push(`"${w}"`);
+  });
+  return hits.length ? `Mentioned ${hits.slice(0, 3).join(" + ")}` : null;
+};
+
+const callOutcome = (
+  summary: string | null,
+  transcript: string | null,
+): { label: string; icon: typeof CheckCircle2; tone: string } => {
+  const text = `${summary ?? ""} ${transcript ?? ""}`.toLowerCase();
+  if (
+    /not interested|wrong number|do not call|stop calling|irrelevant/i.test(text)
+  )
+    return { label: "Not Relevant", icon: XCircle, tone: "text-destructive" };
+  if (/buy|price|quote|purchase|urgent|interested in buying|ready/i.test(text))
+    return { label: "Interested", icon: CheckCircle2, tone: "text-success" };
+  if (/explor|just looking|inquir|curious|info|information/i.test(text))
+    return { label: "Just Exploring", icon: HelpCircle, tone: "text-warning" };
+  return { label: "Follow-up", icon: HelpCircle, tone: "text-muted-foreground" };
+};
+
+const priorityRank = (p: string | null) => {
+  switch ((p ?? "").toLowerCase()) {
+    case "high":
+      return 0;
+    case "medium":
+      return 1;
+    case "low":
+      return 2;
+    default:
+      return 3;
+  }
+};
+
+const priorityClasses = (p: string | null) => {
+  switch ((p ?? "").toLowerCase()) {
+    case "high":
+      return "bg-destructive/15 text-destructive border-destructive/30";
+    case "medium":
+      return "bg-warning/15 text-warning border-warning/30";
+    case "low":
+      return "bg-muted text-muted-foreground border-border";
+    default:
+      return "bg-muted text-muted-foreground border-border";
+  }
+};
+
+const isNewLead = (createdAt: string) =>
+  Date.now() - new Date(createdAt).getTime() < 60 * 60 * 1000;
+
+// Parse transcript into chat turns. Supports JSON dumps from ElevenLabs and plain "Agent:/User:" text.
+const parseTranscript = (raw: string | null): ChatTurn[] => {
+  if (!raw) return [];
+  const trimmed = raw.trim();
+
+  // Try JSON first
+  if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      const arr = Array.isArray(parsed) ? parsed : parsed?.transcript ?? [];
+      if (Array.isArray(arr)) {
+        return arr
+          .map((m: any): ChatTurn | null => {
+            const text =
+              m?.message ??
+              m?.text ??
+              m?.content ??
+              (typeof m === "string" ? m : null);
+            const roleRaw = (m?.role ?? m?.speaker ?? "").toString().toLowerCase();
+            if (!text) return null;
+            const role: ChatTurn["role"] =
+              roleRaw.includes("agent") ||
+              roleRaw.includes("assistant") ||
+              roleRaw.includes("ai")
+                ? "agent"
+                : "user";
+            return { role, text: String(text).trim() };
+          })
+          .filter((x): x is ChatTurn => !!x && !!x.text);
+      }
+    } catch {
+      // fall through
+    }
+  }
+
+  // Plain text "Agent: ... User: ..."
+  const lineRe = /^(agent|assistant|ai|user|customer|caller)\s*[:\-]\s*(.+)$/i;
+  const lines = trimmed.split(/\r?\n/);
+  const turns: ChatTurn[] = [];
+  for (const line of lines) {
+    const l = line.trim();
+    if (!l) continue;
+    const m = l.match(lineRe);
+    if (m) {
+      const role: ChatTurn["role"] = /user|customer|caller/i.test(m[1])
+        ? "user"
+        : "agent";
+      turns.push({ role, text: m[2].trim() });
+    } else if (turns.length) {
+      turns[turns.length - 1].text += " " + l;
+    } else {
+      turns.push({ role: "user", text: l });
+    }
+  }
+  return turns;
+};
+
+// ---------- Component ----------
+
 export function ElevenLabsLeadsPanel() {
   const [leads, setLeads] = useState<ElevenLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [intentFilter, setIntentFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [budgetFilter, setBudgetFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -104,7 +245,6 @@ export function ElevenLabsLeadsPanel() {
     load();
   }, []);
 
-  // Realtime updates so new calls appear automatically
   useEffect(() => {
     const channel = supabase
       .channel("elevenlabs-leads")
@@ -146,8 +286,19 @@ export function ElevenLabsLeadsPanel() {
       });
   }, [selectedId]);
 
+  const budgetMatches = (b: string | null, filter: string) => {
+    if (filter === "all") return true;
+    if (!b) return filter === "unknown";
+    const num = parseFloat(b.replace(/[^\d.]/g, ""));
+    const lakhs = /lakh|lac|l\b/i.test(b) ? num : num >= 100000 ? num / 100000 : 0;
+    if (filter === "under1") return lakhs > 0 && lakhs < 1;
+    if (filter === "1to5") return lakhs >= 1 && lakhs <= 5;
+    if (filter === "5plus") return lakhs > 5;
+    return true;
+  };
+
   const filtered = useMemo(() => {
-    return leads.filter((l) => {
+    const list = leads.filter((l) => {
       if (
         priorityFilter !== "all" &&
         (l.priority ?? "").toLowerCase() !== priorityFilter
@@ -155,6 +306,12 @@ export function ElevenLabsLeadsPanel() {
         return false;
       if (intentFilter !== "all" && (l.requirement ?? "") !== intentFilter)
         return false;
+      if (
+        statusFilter !== "all" &&
+        (l.lead_status ?? "New").toLowerCase() !== statusFilter
+      )
+        return false;
+      if (!budgetMatches(l.budget, budgetFilter)) return false;
       if (search) {
         const q = search.toLowerCase();
         if (
@@ -166,32 +323,58 @@ export function ElevenLabsLeadsPanel() {
       }
       return true;
     });
-  }, [leads, search, priorityFilter, intentFilter]);
+    // Sort by actionability: priority then score then recency
+    return list.sort((a, b) => {
+      const pr = priorityRank(a.priority) - priorityRank(b.priority);
+      if (pr !== 0) return pr;
+      const sc = (b.lead_score ?? 0) - (a.lead_score ?? 0);
+      if (sc !== 0) return sc;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [leads, search, priorityFilter, intentFilter, statusFilter, budgetFilter]);
 
   const stats = useMemo(() => {
     const total = leads.length;
     const high = leads.filter((l) => l.priority === "High").length;
-    const medium = leads.filter((l) => l.priority === "Medium").length;
-    const low = leads.filter((l) => l.priority === "Low").length;
+    const newCount = leads.filter((l) => isNewLead(l.created_at)).length;
     const avgScore = total
       ? Math.round(leads.reduce((s, l) => s + (l.lead_score ?? 0), 0) / total)
       : 0;
-    return { total, high, medium, low, avgScore };
+    return { total, high, newCount, avgScore };
   }, [leads]);
+
+  const updateLeadStatus = async (id: string, status: string) => {
+    const { error } = await supabase
+      .from("call_logs")
+      .update({ lead_status: status })
+      .eq("id", id);
+    if (error) return toast.error("Failed to update status");
+    toast.success(`Marked as ${status}`);
+    load();
+  };
+
+  const callTel = (phone: string) => {
+    window.location.href = `tel:${phone}`;
+  };
+  const openWhatsApp = (phone: string) => {
+    const num = phone.replace(/\D/g, "");
+    window.open(`https://wa.me/${num}`, "_blank");
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="p-2 rounded-lg bg-primary/10">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20">
             <Bot className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold">AI Voice Calls (ElevenLabs)</h2>
+            <h2 className="text-xl font-semibold tracking-tight">
+              AI Voice Leads
+            </h2>
             <p className="text-sm text-muted-foreground">
-              Auto-captured leads from your AI agent — transcript, summary &
-              extracted intent
+              Sales-ready leads captured by your ElevenLabs AI agent
             </p>
           </div>
         </div>
@@ -201,18 +384,17 @@ export function ElevenLabsLeadsPanel() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Total", value: stats.total, icon: Phone },
-          { label: "High Priority", value: stats.high, icon: Sparkles },
-          { label: "Medium", value: stats.medium, icon: Target },
-          { label: "Low", value: stats.low, icon: Clock },
-          { label: "Avg Score", value: stats.avgScore, icon: Wallet },
+          { label: "Total Leads", value: stats.total, icon: Phone, tone: "text-foreground" },
+          { label: "🔥 High Priority", value: stats.high, icon: Flame, tone: "text-destructive" },
+          { label: "🟢 New (1h)", value: stats.newCount, icon: Sparkles, tone: "text-success" },
+          { label: "Avg Score", value: stats.avgScore, icon: Target, tone: "text-primary" },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2 rounded-md bg-muted">
-                <s.icon className="h-4 w-4 text-muted-foreground" />
+                <s.icon className={`h-4 w-4 ${s.tone}`} />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">{s.label}</p>
@@ -228,25 +410,14 @@ export function ElevenLabsLeadsPanel() {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search phone, name, transcript…"
+            placeholder="Search name, phone, transcript…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Priority" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All priorities</SelectItem>
-            <SelectItem value="high">High</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="low">Low</SelectItem>
-          </SelectContent>
-        </Select>
         <Select value={intentFilter} onValueChange={setIntentFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[150px]">
             <SelectValue placeholder="Intent" />
           </SelectTrigger>
           <SelectContent>
@@ -257,72 +428,171 @@ export function ElevenLabsLeadsPanel() {
             <SelectItem value="General Inquiry">General Inquiry</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={budgetFilter} onValueChange={setBudgetFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Budget" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any budget</SelectItem>
+            <SelectItem value="under1">Under ₹1L</SelectItem>
+            <SelectItem value="1to5">₹1L – ₹5L</SelectItem>
+            <SelectItem value="5plus">₹5L+</SelectItem>
+            <SelectItem value="unknown">Not specified</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Priority" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All priorities</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="low">Low</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All status</SelectItem>
+            <SelectItem value="new">New</SelectItem>
+            <SelectItem value="contacted">Contacted</SelectItem>
+            <SelectItem value="qualified">Qualified</SelectItem>
+            <SelectItem value="converted">Converted</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* List */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">
-            {filtered.length} call{filtered.length === 1 ? "" : "s"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="p-4 space-y-3">
-              {[...Array(4)].map((_, i) => (
-                <Skeleton key={i} className="h-14 w-full" />
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="p-10 text-center text-sm text-muted-foreground">
-              No ElevenLabs calls yet — they'll appear here automatically after
-              your AI agent finishes a call.
-            </div>
-          ) : (
-            <div className="divide-y">
-              {filtered.map((l) => (
-                <button
-                  key={l.id}
-                  onClick={() => setSelectedId(l.id)}
-                  className="w-full text-left p-4 hover:bg-muted/50 transition flex flex-wrap items-center gap-3"
-                >
-                  <div className="flex-1 min-w-[200px]">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">
-                        {l.customer_name && l.customer_name !== "Unknown"
-                          ? l.customer_name
-                          : "Unknown caller"}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        {l.caller_number}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {format(new Date(l.created_at), "dd MMM yyyy, HH:mm")} •{" "}
-                      {formatDuration(l.call_duration)}
+      {/* Lead Cards */}
+      {loading ? (
+        <div className="grid sm:grid-cols-2 gap-3">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-44 w-full" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <CardContent className="p-10 text-center text-sm text-muted-foreground">
+            No leads match your filters yet — calls will appear here automatically.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid sm:grid-cols-2 gap-3">
+          {filtered.map((l) => {
+            const isNew = isNewLead(l.created_at);
+            const phone = formatPhone(l.caller_number);
+            const name = displayName(l);
+            return (
+              <Card
+                key={l.id}
+                className={`group relative overflow-hidden transition-all hover:shadow-md cursor-pointer ${
+                  isNew ? "ring-1 ring-success/40 shadow-success/10" : ""
+                }`}
+                onClick={() => setSelectedId(l.id)}
+              >
+                {isNew && (
+                  <div className="absolute top-2 right-2">
+                    <Badge className="bg-success/15 text-success border-success/30 gap-1 animate-pulse">
+                      <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                      New
+                    </Badge>
+                  </div>
+                )}
+                <CardContent className="p-4 space-y-3">
+                  {/* Identity */}
+                  <div>
+                    <h3 className="font-semibold text-base leading-tight pr-16">
+                      {name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground font-mono mt-0.5">
+                      {phone}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
+
+                  {/* Intent + Budget row */}
+                  <div className="space-y-1.5 text-sm">
                     {l.requirement && (
-                      <Badge variant="outline">{l.requirement}</Badge>
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Target className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span className="truncate">
+                          Interested in:{" "}
+                          <span className="font-medium">{l.requirement}</span>
+                        </span>
+                      </div>
                     )}
                     {l.budget && (
-                      <Badge variant="outline" className="gap-1">
-                        <Wallet className="h-3 w-3" />
-                        {l.budget}
-                      </Badge>
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Wallet className="h-3.5 w-3.5 text-success shrink-0" />
+                        <span>
+                          Budget:{" "}
+                          <span className="font-medium">{l.budget}</span>
+                        </span>
+                      </div>
                     )}
-                    <Badge className={priorityColor(l.priority)}>
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                      <Clock className="h-3 w-3" />
+                      {formatDuration(l.call_duration)} •{" "}
+                      {formatDistanceToNow(new Date(l.created_at), {
+                        addSuffix: true,
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Badges */}
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge
+                      variant="outline"
+                      className={priorityClasses(l.priority)}
+                    >
+                      {l.priority === "High" && "🔥 "}
                       {l.priority ?? "—"}
                     </Badge>
-                    <Badge variant="secondary">Score {l.lead_score ?? 0}</Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      Score {l.lead_score ?? 0}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs capitalize">
+                      {l.lead_status ?? "New"}
+                    </Badge>
                   </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+
+                  {/* CTAs */}
+                  <div
+                    className="flex items-center gap-1.5 pt-2 border-t"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="flex-1 h-8 gap-1.5"
+                      onClick={() => callTel(l.caller_number)}
+                    >
+                      <PhoneCall className="h-3.5 w-3.5" /> Call
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 h-8 gap-1.5"
+                      onClick={() => openWhatsApp(l.caller_number)}
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5"
+                      onClick={() => setSelectedId(l.id)}
+                    >
+                      <UserPlus className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       {/* Detail drawer */}
       <Sheet
@@ -330,107 +600,176 @@ export function ElevenLabsLeadsPanel() {
         onOpenChange={(o) => !o && setSelectedId(null)}
       >
         <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <Bot className="h-5 w-5 text-primary" />
-              {selected?.customer_name && selected.customer_name !== "Unknown"
-                ? selected.customer_name
-                : "Unknown caller"}
-            </SheetTitle>
-            <SheetDescription>
-              {selected?.caller_number} •{" "}
-              {selected &&
-                format(new Date(selected.created_at), "dd MMM yyyy, HH:mm")}
-            </SheetDescription>
-          </SheetHeader>
-
           {selected && (
-            <div className="mt-4 space-y-4">
-              <div className="flex flex-wrap gap-2">
-                {selected.requirement && (
-                  <Badge variant="outline">{selected.requirement}</Badge>
-                )}
-                {selected.budget && (
-                  <Badge variant="outline" className="gap-1">
-                    <Wallet className="h-3 w-3" /> {selected.budget}
-                  </Badge>
-                )}
-                <Badge className={priorityColor(selected.priority)}>
-                  {selected.priority ?? "—"}
-                </Badge>
-                <Badge variant="secondary">
-                  Score {selected.lead_score ?? 0}
-                </Badge>
-                <Badge variant="outline" className="gap-1">
-                  <Clock className="h-3 w-3" />
-                  {formatDuration(selected.call_duration)}
-                </Badge>
-              </div>
+            <>
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2 text-lg">
+                  <Bot className="h-5 w-5 text-primary" />
+                  {displayName(selected)}
+                </SheetTitle>
+                <SheetDescription className="font-mono">
+                  {formatPhone(selected.caller_number)} •{" "}
+                  {format(new Date(selected.created_at), "dd MMM yyyy, HH:mm")}
+                </SheetDescription>
+              </SheetHeader>
 
-              {analysisLoading ? (
-                <Skeleton className="h-24 w-full" />
-              ) : (
-                <>
-                  {analysis?.summary && (
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Sparkles className="h-4 w-4 text-primary" /> AI
-                          Summary
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="text-sm whitespace-pre-wrap">
-                        {analysis.summary}
-                      </CardContent>
-                    </Card>
-                  )}
+              <div className="mt-4 space-y-4">
+                {/* Quick action bar */}
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    className="gap-2"
+                    onClick={() => callTel(selected.caller_number)}
+                  >
+                    <PhoneCall className="h-4 w-4" /> Call Now
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => openWhatsApp(selected.caller_number)}
+                  >
+                    <MessageCircle className="h-4 w-4" /> WhatsApp
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateLeadStatus(selected.id, "Contacted")}
+                  >
+                    Mark Contacted
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateLeadStatus(selected.id, "Qualified")}
+                  >
+                    Mark Qualified
+                  </Button>
+                </div>
 
-                  {analysis?.extracted_data && (
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Target className="h-4 w-4 text-primary" /> Extracted
-                          Lead Data
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="text-sm space-y-1">
-                        {Object.entries(analysis.extracted_data).map(
-                          ([k, v]) =>
-                            v ? (
-                              <div key={k} className="flex justify-between">
-                                <span className="text-muted-foreground capitalize">
-                                  {k}
-                                </span>
-                                <span className="font-medium">
-                                  {String(v)}
-                                </span>
+                {/* Snapshot */}
+                <Card>
+                  <CardContent className="p-4 space-y-2 text-sm">
+                    {selected.requirement && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">
+                          🔍 Requirement
+                        </span>
+                        <span className="font-medium">{selected.requirement}</span>
+                      </div>
+                    )}
+                    {selected.budget && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">💰 Budget</span>
+                        <span className="font-medium">{selected.budget}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">🔥 Intent</span>
+                      <Badge
+                        variant="outline"
+                        className={priorityClasses(selected.priority)}
+                      >
+                        {selected.priority ?? "—"}
+                      </Badge>
+                    </div>
+                    {priorityReason(selected.raw_transcript) && (
+                      <div className="text-xs text-muted-foreground italic">
+                        Reason: {priorityReason(selected.raw_transcript)}
+                      </div>
+                    )}
+                    {(() => {
+                      const o = callOutcome(
+                        analysis?.summary ?? null,
+                        selected.raw_transcript,
+                      );
+                      const Icon = o.icon;
+                      return (
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">
+                            📞 Outcome
+                          </span>
+                          <span
+                            className={`flex items-center gap-1.5 font-medium ${o.tone}`}
+                          >
+                            <Icon className="h-4 w-4" /> {o.label}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">⏱ Duration</span>
+                      <span>{formatDuration(selected.call_duration)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {analysisLoading ? (
+                  <Skeleton className="h-24 w-full" />
+                ) : (
+                  <>
+                    {analysis?.summary && (
+                      <Card>
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-2 text-sm font-semibold mb-2">
+                            <Sparkles className="h-4 w-4 text-primary" /> AI
+                            Summary
+                          </div>
+                          <p className="text-sm leading-relaxed text-foreground/90">
+                            {analysis.summary}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Conversation transcript */}
+                    {(() => {
+                      const turns = parseTranscript(
+                        analysis?.transcript ?? selected.raw_transcript,
+                      );
+                      if (turns.length === 0) return null;
+                      return (
+                        <Card>
+                          <CardContent className="p-4">
+                            <div className="flex items-center gap-2 text-sm font-semibold mb-3">
+                              <MessageCircle className="h-4 w-4 text-primary" />
+                              Conversation
+                            </div>
+                            <ScrollArea className="h-80 pr-3">
+                              <div className="space-y-2.5">
+                                {turns.map((t, i) => (
+                                  <div
+                                    key={i}
+                                    className={`flex ${
+                                      t.role === "user"
+                                        ? "justify-end"
+                                        : "justify-start"
+                                    }`}
+                                  >
+                                    <div
+                                      className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm leading-snug ${
+                                        t.role === "user"
+                                          ? "bg-primary text-primary-foreground rounded-br-sm"
+                                          : "bg-muted text-foreground rounded-bl-sm"
+                                      }`}
+                                    >
+                                      <div
+                                        className={`text-[10px] uppercase tracking-wide mb-0.5 opacity-70`}
+                                      >
+                                        {t.role === "user" ? "Caller" : "Agent"}
+                                      </div>
+                                      {t.text}
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
-                            ) : null,
-                        )}
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {(analysis?.transcript || selected.raw_transcript) && (
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-primary" />{" "}
-                          Transcript
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ScrollArea className="h-72 rounded-md border bg-muted/30 p-3">
-                          <pre className="text-xs whitespace-pre-wrap font-mono">
-                            {analysis?.transcript ?? selected.raw_transcript}
-                          </pre>
-                        </ScrollArea>
-                      </CardContent>
-                    </Card>
-                  )}
-                </>
-              )}
-            </div>
+                            </ScrollArea>
+                          </CardContent>
+                        </Card>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+            </>
           )}
         </SheetContent>
       </Sheet>
