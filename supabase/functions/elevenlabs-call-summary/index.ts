@@ -118,10 +118,13 @@ Deno.serve(async (req) => {
       "phone_number",
       "phone",
       "caller",
+      "external_number",
+      "user_id",
+      "from_phone_number",
     ]),
   );
   const conversationId = asString(
-    pick(raw, ["conversation_id", "conversationId", "id", "call_sid"]),
+    pick(raw, ["conversation_id", "conversationId", "call_sid", "agent_response_id"]),
   );
   const transcript = buildTranscript(raw);
   const summary = asString(
@@ -130,9 +133,15 @@ Deno.serve(async (req) => {
       "transcript_summary",
       "call_summary",
       "conversation_summary",
+      "call_summary_title",
     ]),
   );
-  const durationRaw = pick(raw, ["call_duration_secs", "duration", "duration_secs"]);
+  const durationRaw = pick(raw, [
+    "call_duration_secs",
+    "duration",
+    "duration_secs",
+    "call_duration_seconds",
+  ]);
   const callDuration =
     typeof durationRaw === "number"
       ? Math.round(durationRaw)
