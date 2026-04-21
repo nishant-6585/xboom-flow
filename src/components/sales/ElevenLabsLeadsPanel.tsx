@@ -582,48 +582,57 @@ export function ElevenLabsLeadsPanel() {
             const mapping = mappings[l.id];
             const realPhone = mapping?.extracted_phone_number ?? l.caller_number;
             const phone = formatPhone(realPhone);
-            const nameFromMapping = mapping?.extracted_name;
-            const name =
-              nameFromMapping && (!l.customer_name || l.customer_name === "Unknown")
-                ? nameFromMapping
-                : displayName(l);
+            const { name, isUnidentified } = resolveName(l, mapping);
             const matchType = mapping?.match_type ?? "UNMATCHED";
+            const matchConfidence = mapping?.match_confidence ?? 0;
+            const hot = isHotLead(l);
             const matchBadge = (() => {
               if (matchType === "TRANSCRIPT_MATCH")
                 return {
-                  label: "✅ Exact Match",
+                  label: "Exact Match",
+                  Icon: ShieldCheck,
                   cls: "bg-success/15 text-success border-success/30",
                 };
               if (matchType === "TIME_MATCH")
                 return {
-                  label: "⚠️ Approx Match",
+                  label: "Likely Match",
+                  Icon: ShieldAlert,
                   cls: "bg-warning/15 text-warning border-warning/30",
                 };
               return {
-                label: "❌ Unmatched",
-                cls: "bg-muted text-muted-foreground border-border",
+                label: "Unmatched",
+                Icon: ShieldX,
+                cls: "bg-destructive/15 text-destructive border-destructive/30",
               };
             })();
             return (
               <Card
                 key={l.id}
                 className={`group relative overflow-hidden transition-all hover:shadow-md cursor-pointer ${
-                  isNew ? "ring-1 ring-success/40 shadow-success/10" : ""
+                  hot
+                    ? "ring-1 ring-destructive/40 shadow-destructive/10"
+                    : isNew
+                    ? "ring-1 ring-success/40 shadow-success/10"
+                    : ""
                 }`}
                 onClick={() => setSelectedId(l.id)}
               >
-                {isNew && (
-                  <div className="absolute top-2 right-2">
-                    <Badge className="bg-success/15 text-success border-success/30 gap-1 animate-pulse">
-                      <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                      New
+                <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+                  {hot && (
+                    <Badge className="bg-destructive/15 text-destructive border-destructive/30 gap-1">
+                      <Flame className="h-3 w-3" /> HOT LEAD
                     </Badge>
-                  </div>
-                )}
+                  )}
+                  {isNew && !hot && (
+                    <Badge className="bg-success/15 text-success border-success/30 gap-1 animate-pulse">
+                      <span className="h-1.5 w-1.5 rounded-full bg-success" /> New
+                    </Badge>
+                  )}
+                </div>
                 <CardContent className="p-4 space-y-3">
                   {/* Identity */}
                   <div>
-                    <h3 className="font-semibold text-base leading-tight pr-16">
+                    <h3 className={`font-semibold text-base leading-tight pr-24 ${isUnidentified ? "text-muted-foreground italic" : ""}`}>
                       {name}
                     </h3>
                     <p className="text-sm text-muted-foreground font-mono mt-0.5">
@@ -643,7 +652,7 @@ export function ElevenLabsLeadsPanel() {
                       <div className="flex items-center gap-2 text-foreground">
                         <Target className="h-3.5 w-3.5 text-primary shrink-0" />
                         <span className="truncate">
-                          Interested in:{" "}
+                          🔍 Requirement:{" "}
                           <span className="font-medium">{l.requirement}</span>
                         </span>
                       </div>
@@ -652,8 +661,17 @@ export function ElevenLabsLeadsPanel() {
                       <div className="flex items-center gap-2 text-foreground">
                         <Wallet className="h-3.5 w-3.5 text-success shrink-0" />
                         <span>
-                          Budget:{" "}
+                          💰 Budget:{" "}
                           <span className="font-medium">{l.budget}</span>
+                        </span>
+                      </div>
+                    )}
+                    {l.priority && (
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Flame className="h-3.5 w-3.5 text-destructive shrink-0" />
+                        <span>
+                          🔥 Intent:{" "}
+                          <span className="font-medium capitalize">{l.priority}</span>
                         </span>
                       </div>
                     )}
@@ -668,21 +686,15 @@ export function ElevenLabsLeadsPanel() {
 
                   {/* Badges */}
                   <div className="flex flex-wrap gap-1.5">
-                    <Badge
-                      variant="outline"
-                      className={priorityClasses(l.priority)}
-                    >
-                      {l.priority === "High" && "🔥 "}
-                      {l.priority ?? "—"}
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      Score {l.lead_score ?? 0}
-                    </Badge>
                     <Badge variant="outline" className="text-xs capitalize">
                       {l.lead_status ?? "New"}
                     </Badge>
-                    <Badge variant="outline" className={`text-xs ${matchBadge.cls}`}>
+                    <Badge variant="outline" className={`text-xs gap-1 ${matchBadge.cls}`}>
+                      <matchBadge.Icon className="h-3 w-3" />
                       {matchBadge.label}
+                      {matchConfidence > 0 && (
+                        <span className="opacity-70">· {matchConfidence}%</span>
+                      )}
                     </Badge>
                   </div>
 
@@ -695,26 +707,39 @@ export function ElevenLabsLeadsPanel() {
                       size="sm"
                       variant="default"
                       className="flex-1 h-8 gap-1.5"
-                      onClick={() => callTel(l.caller_number)}
+                      onClick={() => callTel(realPhone)}
                     >
-                      <PhoneCall className="h-3.5 w-3.5" /> Call
+                      <PhoneCall className="h-3.5 w-3.5" /> Call Now
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       className="flex-1 h-8 gap-1.5"
-                      onClick={() => openWhatsApp(l.caller_number)}
+                      onClick={() => openWhatsApp(realPhone)}
                     >
                       <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 gap-1.5"
-                      onClick={() => setSelectedId(l.id)}
-                    >
-                      <UserPlus className="h-3.5 w-3.5" />
-                    </Button>
+                    {matchType === "UNMATCHED" ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1.5"
+                        title="Link manually to a MyOperator call"
+                        onClick={() => openLinkDialog(l.id)}
+                      >
+                        <Link2 className="h-3.5 w-3.5" />
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1.5"
+                        title="Mark Qualified"
+                        onClick={() => updateLeadStatus(l.id, "Qualified")}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
