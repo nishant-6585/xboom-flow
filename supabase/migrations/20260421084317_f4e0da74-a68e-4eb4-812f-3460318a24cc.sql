@@ -1,0 +1,1 @@
+UPDATE public.call_logs SET customer_name = 'Piyush Sharma', updated_at = now() WHERE id = '022c793c-d3ee-4984-8f44-a40770bed637' AND lead_source = 'ElevenLabs';
