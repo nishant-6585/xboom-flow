@@ -110,18 +110,27 @@ Deno.serve(async (req) => {
   );
 
   // Extract fields (tolerant to multiple ElevenLabs payload shapes).
-  const callerId = asString(
-    pick(raw, [
-      "caller_id",
-      "from_number",
-      "from",
-      "phone_number",
-      "phone",
-      "caller",
-    ]),
-  );
+  // Try ElevenLabs-specific paths first, then fall back to generic key search.
+  const r = raw as any;
+  const callerId =
+    asString(r?.data?.metadata?.phone_call?.external_number) ||
+    asString(r?.data?.user_id) ||
+    asString(r?.data?.conversation_initiation_client_data?.dynamic_variables?.system__caller_id) ||
+    asString(
+      pick(raw, [
+        "caller_id",
+        "from_number",
+        "from",
+        "phone_number",
+        "phone",
+        "caller",
+        "external_number",
+        "user_id",
+        "from_phone_number",
+      ]),
+    );
   const conversationId = asString(
-    pick(raw, ["conversation_id", "conversationId", "id", "call_sid"]),
+    pick(raw, ["conversation_id", "conversationId", "call_sid", "agent_response_id"]),
   );
   const transcript = buildTranscript(raw);
   const summary = asString(
@@ -130,9 +139,15 @@ Deno.serve(async (req) => {
       "transcript_summary",
       "call_summary",
       "conversation_summary",
+      "call_summary_title",
     ]),
   );
-  const durationRaw = pick(raw, ["call_duration_secs", "duration", "duration_secs"]);
+  const durationRaw = pick(raw, [
+    "call_duration_secs",
+    "duration",
+    "duration_secs",
+    "call_duration_seconds",
+  ]);
   const callDuration =
     typeof durationRaw === "number"
       ? Math.round(durationRaw)
