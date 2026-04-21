@@ -119,7 +119,8 @@ const extractName = (transcript: string | null): string | null => {
 
 /**
  * Resolve the most useful display name for a lead.
- * Priority: extracted_name (mapping) → customer_name → transcript regex → phone-based label.
+ * Priority: extracted_name (mapping) → customer_name → transcript regex → "Unidentified Caller".
+ * Phone is shown separately below the name; we never substitute the phone for the name.
  */
 const resolveName = (
   lead: ElevenLead,
@@ -131,9 +132,67 @@ const resolveName = (
     extractName(lead.raw_transcript) ||
     "";
   if (candidate) return { name: candidate, isUnidentified: false };
-  const phone = mapping?.extracted_phone_number || lead.caller_number;
-  if (phone) return { name: `Lead: ${formatPhone(phone)}`, isUnidentified: false };
-  return { name: "Unidentified Lead", isUnidentified: true };
+  return { name: "Unidentified Caller", isUnidentified: true };
+};
+
+/**
+ * Build a "Why this matters" reason from transcript + summary signals.
+ * Returns null when there's nothing notable to surface.
+ */
+const whyThisMatters = (
+  lead: ElevenLead,
+  summary: string | null,
+): string | null => {
+  const text = `${summary ?? ""} ${lead.raw_transcript ?? ""} ${lead.notes ?? ""}`.toLowerCase();
+  const reasons: string[] = [];
+  if (/\b(price|pricing|cost|quote|quotation)\b/.test(text)) reasons.push("asked for pricing");
+  if (/\b(buy|purchase|order|book|confirm)\b/.test(text)) reasons.push("intent to purchase");
+  if (/\b(callback|call back|call me|reach me)\b/.test(text)) reasons.push("requested a callback");
+  if (/\b(budget|lakh|crore|inr|rs\.?\s*\d)/i.test(text) || lead.budget) reasons.push("shared budget");
+  if (/\b(urgent|asap|today|tomorrow|this week)\b/.test(text)) reasons.push("urgent timeline");
+  if (/\b(demo|trial|sample)\b/.test(text)) reasons.push("asked for a demo");
+  if (lead.requirement) reasons.push(`confirmed need for ${lead.requirement.toLowerCase()}`);
+  if (!reasons.length) return null;
+  const first = reasons[0].charAt(0).toUpperCase() + reasons[0].slice(1);
+  return [first, ...reasons.slice(1, 2)].join(" • ");
+};
+
+/**
+ * Sales-friendly match label with thresholds.
+ * >90 = Exact, 70–90 = Likely, otherwise "Not linked to call logs".
+ */
+const getMatchInfo = (matchType: string | undefined, confidence: number) => {
+  const conf = confidence || 0;
+  const linked = matchType && matchType !== "UNMATCHED";
+  if (linked && conf > 90) {
+    return {
+      label: "Exact Match",
+      Icon: ShieldCheck,
+      cls: "bg-success/15 text-success border-success/30",
+      tooltip: `Confidence ${conf}% — phone number was confirmed in the transcript.`,
+      confidence: conf,
+      linked: true as const,
+    };
+  }
+  if (linked && conf >= 70) {
+    return {
+      label: "Likely Match",
+      Icon: ShieldAlert,
+      cls: "bg-warning/15 text-warning border-warning/30",
+      tooltip: `Confidence ${conf}% — matched by call time and duration. Verify before relying on it.`,
+      confidence: conf,
+      linked: true as const,
+    };
+  }
+  return {
+    label: "Not linked to call logs",
+    Icon: ShieldX,
+    cls: "bg-muted text-muted-foreground border-border",
+    tooltip:
+      "This lead was captured via AI but not yet matched with MyOperator call records. Use ‘Link manually’ to attach it.",
+    confidence: conf,
+    linked: false as const,
+  };
 };
 
 /** Detect whether the lead shows clear buying signals. */
