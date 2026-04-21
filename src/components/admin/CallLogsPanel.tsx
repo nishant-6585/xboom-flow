@@ -444,7 +444,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     (async () => {
       const { data: maps } = await supabase
         .from("call_mapping")
-        .select("elevenlabs_call_log_id,myoperator_call_log_id,match_type,match_confidence,extracted_name")
+        .select("elevenlabs_call_log_id,myoperator_call_log_id,match_type,match_confidence,extracted_name,extracted_phone_number")
         .in("myoperator_call_log_id", ids)
         .neq("match_type", "UNMATCHED");
       if (cancelled || !maps?.length) {
@@ -455,7 +455,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
       const [{ data: ana }, { data: leadInfo }] = await Promise.all([
         supabase
           .from("call_ai_analysis")
-          .select("call_log_id,intent,budget,summary")
+          .select("call_log_id,intent,budget,summary,next_action,sentiment")
           .in("call_log_id", elevenIds),
         supabase
           .from("call_logs")
@@ -477,13 +477,17 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
           /\b(buy|price|quote|purchase|order|pay|discount|negotiate|urgent|asap)\b/.test(hay);
         enriched[m.myoperator_call_log_id] = {
           extracted_name: m.extracted_name ?? lead.customer_name ?? null,
+          extracted_phone_number: m.extracted_phone_number ?? null,
           intent: a.intent ?? lead.requirement ?? null,
           budget: a.budget ?? lead.budget ?? null,
           summary: a.summary ?? null,
+          next_action: a.next_action ?? null,
+          sentiment: a.sentiment ?? null,
           match_type: m.match_type,
           match_confidence: m.match_confidence ?? 0,
           requirement: lead.requirement ?? null,
           is_hot: isHot,
+          elevenlabs_call_log_id: m.elevenlabs_call_log_id,
         };
       });
       if (!cancelled) setAiEnrichment(enriched);
