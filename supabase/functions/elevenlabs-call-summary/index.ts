@@ -512,7 +512,7 @@ Deno.serve(async (req) => {
         const { data: byPhone } = await supabase
           .from("call_logs")
           .select("id, customer_name, caller_number, created_at, lead_source")
-          .or(`lead_source.is.null,lead_source.neq.ElevenLabs`)
+          .not("lead_source", "eq", "ElevenLabs")
           .or(`caller_number.eq.${extractedPhone},caller_number.like.%${lastTen}`)
           .order("created_at", { ascending: false })
           .limit(1)
@@ -543,7 +543,7 @@ Deno.serve(async (req) => {
         const { data: candidates } = await supabase
           .from("call_logs")
           .select("id, created_at, call_duration, lead_source")
-          .or(`lead_source.is.null,lead_source.neq.ElevenLabs`)
+          .not("lead_source", "eq", "ElevenLabs")
           .gte("created_at", winStart)
           .lte("created_at", winEnd)
           .limit(20);
