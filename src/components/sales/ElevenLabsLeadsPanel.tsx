@@ -915,17 +915,39 @@ export function ElevenLabsLeadsPanel() {
               {(() => {
                 const m = mappings[selected.id];
                 const realPhone = m?.extracted_phone_number ?? selected.caller_number;
-                const { name } = resolveName(selected, m);
+                const { name, isUnidentified } = resolveName(selected, m);
+                const phoneFromTranscript = !!m?.extracted_phone_number;
+                const matchInfo = getMatchInfo(m?.match_type, m?.match_confidence ?? 0);
                 return (
                   <SheetHeader>
                     <SheetTitle className="flex items-center gap-2 text-lg">
                       <Bot className="h-5 w-5 text-primary" />
-                      {name}
+                      <span className={isUnidentified ? "text-muted-foreground italic" : ""}>{name}</span>
                     </SheetTitle>
-                    <SheetDescription className="font-mono">
-                      {formatPhone(realPhone)} •{" "}
-                      {format(new Date(selected.created_at), "dd MMM yyyy, HH:mm")}
+                    <SheetDescription className="font-mono flex flex-wrap items-center gap-1.5">
+                      <span>{formatPhone(realPhone)}</span>
+                      {phoneFromTranscript && (
+                        <Badge variant="outline" className="h-5 px-1.5 text-[10px] gap-0.5 border-success/40 text-success bg-success/10">
+                          <BadgeCheck className="h-3 w-3" /> Verified via conversation
+                        </Badge>
+                      )}
+                      <span className="text-muted-foreground">·</span>
+                      <span>{format(new Date(selected.created_at), "dd MMM yyyy, HH:mm")}</span>
                     </SheetDescription>
+                    <div className="flex flex-wrap gap-1.5 pt-1.5">
+                      <Badge variant="outline" className={`text-xs gap-1 ${matchInfo.cls}`}>
+                        <matchInfo.Icon className="h-3 w-3" />
+                        {matchInfo.label}
+                        {matchInfo.linked && matchInfo.confidence > 0 && (
+                          <span className="opacity-80">({matchInfo.confidence}%)</span>
+                        )}
+                      </Badge>
+                      {isUnidentified && (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
+                          Name not captured
+                        </Badge>
+                      )}
+                    </div>
                   </SheetHeader>
                 );
               })()}
