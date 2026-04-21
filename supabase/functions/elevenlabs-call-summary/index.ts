@@ -3,7 +3,8 @@
 //
 // Always returns 200 to avoid ElevenLabs retry loops.
 // Stores raw payload in call_webhook_logs (source = 'elevenlabs')
-// Creates a call_logs row + call_ai_analysis row with transcript & summary.
+// Creates (or updates within 24h) a call_logs lead + call_ai_analysis row
+// with transcript, summary, extracted name/intent/budget, priority and score.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -76,6 +77,74 @@ function buildTranscript(payload: unknown): string | null {
     if (lines.length) return lines.join("\n");
   }
   return null;
+}
+
+/** Normalise phone numbers to a best-effort E.164 string. */
+function normalisePhone(raw: string | null): string | null {
+  if (!raw) return null;
+  let s = raw.trim().replace(/[\s\-()]/g, "");
+  if (!s) return null;
+  if (s.startsWith("00")) s = "+" + s.slice(2);
+  if (!s.startsWith("+")) {
+    // 10-digit Indian mobile → assume +91; otherwise just prefix +.
+    if (/^[6-9]\d{9}$/.test(s)) s = "+91" + s;
+    else if (/^\d{11,15}$/.test(s)) s = "+" + s;
+  }
+  return /^\+\d{8,15}$/.test(s) ? s : raw.trim() || null;
+}
+
+/** Best-effort name extraction from transcript. */
+function extractName(transcript: string): string | null {
+  const patterns = [
+    /\bmy name is ([A-Z][a-zA-Z]{1,20}(?:\s[A-Z][a-zA-Z]{1,20})?)/i,
+    /\bthis is ([A-Z][a-zA-Z]{1,20}(?:\s[A-Z][a-zA-Z]{1,20})?)/i,
+    /\bi am ([A-Z][a-zA-Z]{1,20}(?:\s[A-Z][a-zA-Z]{1,20})?)/i,
+    /\bi'm ([A-Z][a-zA-Z]{1,20}(?:\s[A-Z][a-zA-Z]{1,20})?)/i,
+  ];
+  for (const re of patterns) {
+    const m = transcript.match(re);
+    if (m?.[1]) {
+      const n = m[1].trim();
+      // filter common false positives
+      if (!/^(calling|interested|looking|here|from)$/i.test(n)) return n;
+    }
+  }
+  return null;
+}
+
+/** Categorise intent from transcript content. */
+function extractIntent(t: string): string {
+  const lc = t.toLowerCase();
+  if (/\bdrone(s)?\b|\buav\b|\bquadcopter\b/.test(lc)) return "Drone";
+  if (/\brobot(ic|ics|s)?\b/.test(lc)) return "Robotics";
+  if (/\bai\b|\bautomation\b/.test(lc)) return "AI / Automation";
+  return "General Inquiry";
+}
+
+/** Extract a budget hint like "1 lakh", "50000", "under 2 lakh". */
+function extractBudget(t: string): string | null {
+  const lc = t.toLowerCase();
+  // "X lakh / lakhs / crore"
+  const lakh = lc.match(/(?:under|around|about|upto|up to)?\s*(\d+(?:\.\d+)?)\s*(lakh|lakhs|crore|cr)\b/);
+  if (lakh) return `${lakh[1]} ${lakh[2]}`;
+  // "rs 50000", "₹50,000", "50k"
+  const rs = lc.match(/(?:rs\.?|inr|₹)\s*([\d,]{3,})/);
+  if (rs) return `₹${rs[1].replace(/,/g, "")}`;
+  const k = lc.match(/\b(\d{2,4})\s*k\b/);
+  if (k) return `₹${Number(k[1]) * 1000}`;
+  const plain = lc.match(/\b(\d{4,7})\s*(?:rupees|inr)?\b/);
+  if (plain && Number(plain[1]) >= 1000) return `₹${plain[1]}`;
+  return null;
+}
+
+/** Compute priority + score from transcript signals. */
+function computePriorityAndScore(t: string): { priority: string; score: number } {
+  const lc = t.toLowerCase();
+  const highSignals = ["buy", "purchase", "price", "quote", "quotation", "urgent", "order"];
+  const medSignals = ["interested", "demo", "details", "information", "specification"];
+  if (highSignals.some((w) => lc.includes(w))) return { priority: "High", score: 80 };
+  if (medSignals.some((w) => lc.includes(w))) return { priority: "Medium", score: 50 };
+  return { priority: "Low", score: 20 };
 }
 
 Deno.serve(async (req) => {
