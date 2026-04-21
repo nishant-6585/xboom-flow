@@ -388,7 +388,7 @@ Deno.serve(async (req) => {
       isUpdate = true;
       callLogId = existing.id;
       const appendedNotes = `${existing.notes ?? ""}\n\n--- New call ${new Date().toISOString()} ---\n${notes}`;
-      const appendedTranscript = `${existing.raw_transcript ?? ""}\n\n--- ${new Date().toISOString()} ---\n${transcript}`;
+      const appendedTranscript = `${existing.raw_transcript ?? ""}\n\n--- ${new Date().toISOString()} ---\n${safeTranscript || "(no conversation captured)"}`;
 
       // Only override existing fields when the new value is meaningful AND
       // the existing value is missing/weaker. Never downgrade a known lead
@@ -443,7 +443,7 @@ Deno.serve(async (req) => {
           lead_status: "New",
           priority,
           lead_score: score,
-          raw_transcript: transcript,
+          raw_transcript: safeTranscript || null,
           notes,
           raw_payload: raw as never,
           lead_created: true,
