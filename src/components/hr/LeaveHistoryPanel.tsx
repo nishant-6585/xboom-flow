@@ -297,6 +297,7 @@ export function LeaveHistoryPanel() {
                         <TableHead className="text-xs text-center">Days</TableHead>
                         <TableHead className="text-xs">Status</TableHead>
                         <TableHead className="text-xs">Applied On</TableHead>
+                        {canDelete && <TableHead className="text-xs text-right">Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -313,6 +314,19 @@ export function LeaveHistoryPanel() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">{format(new Date(r.created_at), 'dd MMM yyyy')}</TableCell>
+                          {canDelete && (
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => { setDeleteTarget(r); setDeleteReason(''); }}
+                                title="Delete leave entry"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
