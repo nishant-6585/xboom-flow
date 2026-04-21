@@ -479,21 +479,24 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
         if (!m.myoperator_call_log_id) return;
         const a = anaMap[m.elevenlabs_call_log_id] ?? {};
         const lead = leadMap[m.elevenlabs_call_log_id] ?? {};
-        const hay = `${lead.raw_transcript ?? ""} ${a.summary ?? ""}`.toLowerCase();
-        const isHot =
-          (lead.priority ?? "").toLowerCase() === "high" ||
-          /\b(buy|price|quote|purchase|order|pay|discount|negotiate|urgent|asap)\b/.test(hay);
+        const intent = (a.intent ?? lead.requirement ?? null) as string | null;
+        const budget = (a.budget ?? lead.budget ?? null) as string | null;
+        const requirement = (lead.requirement ?? null) as string | null;
+        // STRICT: AI intent High OR (budget AND requirement)
+        const intentHigh = !!intent && /\b(high|hot|urgent|ready)\b/i.test(intent);
+        const priorityHigh = (lead.priority ?? "").toLowerCase() === "high";
+        const isHot = intentHigh || priorityHigh || (!!budget && !!requirement);
         enriched[m.myoperator_call_log_id] = {
           extracted_name: m.extracted_name ?? lead.customer_name ?? null,
           extracted_phone_number: m.extracted_phone_number ?? null,
-          intent: a.intent ?? lead.requirement ?? null,
-          budget: a.budget ?? lead.budget ?? null,
+          intent,
+          budget,
           summary: a.summary ?? null,
           next_action: a.next_action ?? null,
           sentiment: a.sentiment ?? null,
           match_type: m.match_type,
           match_confidence: m.match_confidence ?? 0,
-          requirement: lead.requirement ?? null,
+          requirement,
           is_hot: isHot,
           elevenlabs_call_log_id: m.elevenlabs_call_log_id,
         };
