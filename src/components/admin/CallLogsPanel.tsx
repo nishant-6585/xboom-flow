@@ -561,18 +561,22 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     }
   };
 
-  const markContacted = (id: string) => {
-    setContactedIds((prev) => new Set(prev).add(id));
-    toast.success('Marked as contacted');
+  const handleSetStatus = async (callLogId: string, status: LeadStatus) => {
+    await setLeadStatus(callLogId, status);
   };
-  const markQualified = (id: string) => {
-    setQualifiedIds((prev) => new Set(prev).add(id));
-    toast.success('Marked as qualified');
-  };
+
   const openWhatsApp = (phone: string) => {
     const num = (phone || '').replace(/\D/g, '');
     if (!num) return;
     window.open(`https://wa.me/${num}`, '_blank');
+  };
+
+  // Resolve the best phone to dial / WhatsApp: prefer extracted (verified) number
+  const bestPhone = (log: CallLog): { phone: string; isVerified: boolean } => {
+    const proxy = log.full_number || log.caller_number;
+    const extracted = aiEnrichment[log.id]?.extracted_phone_number;
+    if (extracted && extracted !== proxy) return { phone: extracted, isVerified: true };
+    return { phone: proxy, isVerified: false };
   };
 
   const statusIcon = (status: string) => {
