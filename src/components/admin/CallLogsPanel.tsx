@@ -503,6 +503,24 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     return () => clearInterval(interval);
   }, [autoRefresh, fetchLogs]);
 
+  // Realtime: refresh enrichment when new ElevenLabs mappings arrive
+  useEffect(() => {
+    const channel = supabase
+      .channel('call_mapping_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'call_mapping' },
+        () => {
+          // Trigger enrichment refresh by updating a deps source
+          setLogs((prev) => [...prev]);
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const triggerSync = async () => {
     setSyncing(true);
     try {
@@ -515,6 +533,38 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     } finally {
       setSyncing(false);
     }
+  };
+
+  const triggerRematch = async () => {
+    setRematching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('backfill-call-mapping', {
+        method: 'POST',
+        body: { limit: 50 },
+      });
+      if (error) throw error;
+      toast.success(`AI re-match complete: ${data?.matched || 0} linked, ${data?.unmatched || 0} unmatched`);
+      // Force enrichment refresh
+      setLogs((prev) => [...prev]);
+    } catch (err: any) {
+      toast.error(err.message || 'Re-match failed');
+    } finally {
+      setRematching(false);
+    }
+  };
+
+  const markContacted = (id: string) => {
+    setContactedIds((prev) => new Set(prev).add(id));
+    toast.success('Marked as contacted');
+  };
+  const markQualified = (id: string) => {
+    setQualifiedIds((prev) => new Set(prev).add(id));
+    toast.success('Marked as qualified');
+  };
+  const openWhatsApp = (phone: string) => {
+    const num = (phone || '').replace(/\D/g, '');
+    if (!num) return;
+    window.open(`https://wa.me/${num}`, '_blank');
   };
 
   const statusIcon = (status: string) => {
