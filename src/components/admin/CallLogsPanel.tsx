@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle, PhoneOutgoing, Sparkles, MessageSquare, Zap, Wand2, ShieldCheck } from "lucide-react";
+import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle, PhoneOutgoing, Sparkles, MessageSquare, Wand2, ShieldCheck, Flame, Users, ChevronRight } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { LogCallDialog } from '@/components/sales/LogCallDialog';
 import { CallLogEditDialog } from './CallLogEditDialog';
@@ -17,6 +17,9 @@ import { ProspectButton } from "@/components/sales/ProspectButton";
 import { AttentionButton } from "@/components/sales/AttentionButton";
 import { EnquiryConvertButton } from "@/components/sales/EnquiryConvertButton";
 import type { Prospect } from "@/hooks/useProspects";
+import { useCallLeadStatuses, type LeadStatus } from "@/hooks/useCallLeadStatus";
+import { LeadStatusBadge, LeadStatusControls, LeadTimeline } from "./LeadStatusControls";
+import { PriorityLeadsSection, type PriorityLead } from "./PriorityLeadsSection";
 
 interface CallLogsPanelProps {
   prospects?: Prospect[];
@@ -269,8 +272,13 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     elevenlabs_call_log_id: string;
   }>>({});
   const [rematching, setRematching] = useState(false);
-  const [contactedIds, setContactedIds] = useState<Set<string>>(new Set());
-  const [qualifiedIds, setQualifiedIds] = useState<Set<string>>(new Set());
+  // Real persisted lead status tracking
+  const visibleLogIds = React.useMemo(() => logs.map((l) => l.id), [logs]);
+  const { statuses: leadStatusMap, setStatus: setLeadStatus } = useCallLeadStatuses(visibleLogIds);
+  // Track which call_log_ids we've already pinged Slack for in this session
+  const slackedHotIds = useRef<Set<string>>(new Set());
+  // Group expansion state (group key = normalized 10-digit phone)
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const SALES_PERSONS_LIST = ['suman das', 'Narasimha', 'mohammed musthak', 'Arjav chauhan'];
 
@@ -343,6 +351,111 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     }
     return result;
   }, [logs, salesPersonFilter, agentFilter, missedOnly, departmentFilter, uniqueOnly]);
+
+  // Group logs by best phone (extracted preferred, else caller_number).
+  // Sort groups by HOT > Exact match > High intent > recent.
+  const groupedLogs = React.useMemo(() => {
+    const groupKey = (log: CallLog) => {
+      const e = aiEnrichment[log.id];
+      const proxy = (log.full_number || log.caller_number || '').replace(/\D/g, '').slice(-10);
+      const ext = (e?.extracted_phone_number || '').replace(/\D/g, '').slice(-10);
+      return ext || proxy || log.id;
+    };
+    const map = new Map<string, CallLog[]>();
+    filteredLogs.forEach((log) => {
+      const k = groupKey(log);
+      const arr = map.get(k) ?? [];
+      arr.push(log);
+      map.set(k, arr);
+    });
+    // Each group sorted by recency desc inside
+    const groups = Array.from(map.entries()).map(([key, items]) => {
+      const sorted = [...items].sort((a, b) => {
+        const aTs = String(deriveCallInfo(a).startTime || a.created_at);
+        const bTs = String(deriveCallInfo(b).startTime || b.created_at);
+        return bTs.localeCompare(aTs);
+      });
+      const lead = sorted[0];
+      const e = aiEnrichment[lead.id];
+      const isHot = !!e?.is_hot;
+      const isExact = e?.match_type === 'TRANSCRIPT_MATCH' && (e?.match_confidence ?? 0) >= 90;
+      const isHighIntent =
+        !!e?.intent && /\b(high|hot|urgent|ready|interest)\b/i.test(e.intent);
+      const ts = String(deriveCallInfo(lead).startTime || lead.created_at);
+      return { key, items: sorted, lead, isHot, isExact, isHighIntent, ts };
+    });
+    groups.sort((a, b) => {
+      // 1) HOT
+      if (a.isHot !== b.isHot) return a.isHot ? -1 : 1;
+      // 2) Exact match
+      if (a.isExact !== b.isExact) return a.isExact ? -1 : 1;
+      // 3) High intent
+      if (a.isHighIntent !== b.isHighIntent) return a.isHighIntent ? -1 : 1;
+      // 4) Recent
+      return b.ts.localeCompare(a.ts);
+    });
+    return groups;
+  }, [filteredLogs, aiEnrichment]);
+
+  // Top priority leads (HOT first, max 3)
+  const priorityLeads: PriorityLead[] = React.useMemo(() => {
+    return groupedLogs
+      .filter((g) => g.isHot)
+      .slice(0, 3)
+      .map((g) => {
+        const e = aiEnrichment[g.lead.id];
+        const proxy = g.lead.full_number || g.lead.caller_number;
+        const phone = e?.extracted_phone_number && e.extracted_phone_number !== proxy ? e.extracted_phone_number : proxy;
+        return {
+          callLogId: g.lead.id,
+          name: e?.extracted_name || 'Unidentified Caller',
+          phone,
+          intent: e?.intent ?? null,
+          budget: e?.budget ?? null,
+          requirement: e?.requirement ?? null,
+          callTime: deriveCallInfo(g.lead).startTime
+            ? formatCallTime(deriveCallInfo(g.lead).startTime, g.lead.created_at)
+            : null,
+        };
+      });
+  }, [groupedLogs, aiEnrichment]);
+
+  // Slack notification on new HOT lead (once per session per call_log_id)
+  useEffect(() => {
+    const newHot = groupedLogs.filter(
+      (g) => g.isHot && !slackedHotIds.current.has(g.lead.id),
+    );
+    if (newHot.length === 0) return;
+    newHot.forEach(async (g) => {
+      slackedHotIds.current.add(g.lead.id);
+      const e = aiEnrichment[g.lead.id];
+      // In-app toast
+      toast(`🔥 New HOT Lead: ${e?.extracted_name || 'Unidentified'}`, {
+        description: [e?.requirement, e?.budget].filter(Boolean).join(' · ') || 'Open MyOperator to act',
+      });
+      // Slack (best-effort, ignore errors)
+      try {
+        await supabase.functions.invoke('send-slack-notification', {
+          body: {
+            type: 'hot_lead',
+            data: {
+              customer_name: e?.extracted_name || 'Unidentified Caller',
+              customer_company: '—',
+              product_name: e?.requirement || 'Drone',
+              quantity: 1,
+              urgency: 'high',
+              product_category: e?.requirement || 'N/A',
+              lead_temperature: 'hot',
+              sales_person_name: g.lead.sales_person_name || 'Unassigned',
+              customer_state: 'N/A',
+            },
+          },
+        });
+      } catch (err) {
+        console.warn('[hot_lead slack] failed', err);
+      }
+    });
+  }, [groupedLogs, aiEnrichment]);
 
   const handleAssignChange = async (logId: string, newName: string) => {
     setUpdatingAssign(logId);
@@ -471,21 +584,24 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
         if (!m.myoperator_call_log_id) return;
         const a = anaMap[m.elevenlabs_call_log_id] ?? {};
         const lead = leadMap[m.elevenlabs_call_log_id] ?? {};
-        const hay = `${lead.raw_transcript ?? ""} ${a.summary ?? ""}`.toLowerCase();
-        const isHot =
-          (lead.priority ?? "").toLowerCase() === "high" ||
-          /\b(buy|price|quote|purchase|order|pay|discount|negotiate|urgent|asap)\b/.test(hay);
+        const intent = (a.intent ?? lead.requirement ?? null) as string | null;
+        const budget = (a.budget ?? lead.budget ?? null) as string | null;
+        const requirement = (lead.requirement ?? null) as string | null;
+        // STRICT: AI intent High OR (budget AND requirement)
+        const intentHigh = !!intent && /\b(high|hot|urgent|ready)\b/i.test(intent);
+        const priorityHigh = (lead.priority ?? "").toLowerCase() === "high";
+        const isHot = intentHigh || priorityHigh || (!!budget && !!requirement);
         enriched[m.myoperator_call_log_id] = {
           extracted_name: m.extracted_name ?? lead.customer_name ?? null,
           extracted_phone_number: m.extracted_phone_number ?? null,
-          intent: a.intent ?? lead.requirement ?? null,
-          budget: a.budget ?? lead.budget ?? null,
+          intent,
+          budget,
           summary: a.summary ?? null,
           next_action: a.next_action ?? null,
           sentiment: a.sentiment ?? null,
           match_type: m.match_type,
           match_confidence: m.match_confidence ?? 0,
-          requirement: lead.requirement ?? null,
+          requirement,
           is_hot: isHot,
           elevenlabs_call_log_id: m.elevenlabs_call_log_id,
         };
@@ -553,18 +669,22 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     }
   };
 
-  const markContacted = (id: string) => {
-    setContactedIds((prev) => new Set(prev).add(id));
-    toast.success('Marked as contacted');
+  const handleSetStatus = async (callLogId: string, status: LeadStatus) => {
+    await setLeadStatus(callLogId, status);
   };
-  const markQualified = (id: string) => {
-    setQualifiedIds((prev) => new Set(prev).add(id));
-    toast.success('Marked as qualified');
-  };
+
   const openWhatsApp = (phone: string) => {
     const num = (phone || '').replace(/\D/g, '');
     if (!num) return;
     window.open(`https://wa.me/${num}`, '_blank');
+  };
+
+  // Resolve the best phone to dial / WhatsApp: prefer extracted (verified) number
+  const bestPhone = (log: CallLog): { phone: string; isVerified: boolean } => {
+    const proxy = log.full_number || log.caller_number;
+    const extracted = aiEnrichment[log.id]?.extracted_phone_number;
+    if (extracted && extracted !== proxy) return { phone: extracted, isVerified: true };
+    return { phone: proxy, isVerified: false };
   };
 
   const statusIcon = (status: string) => {
@@ -711,6 +831,16 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
             <p className="text-sm">Check webhook configuration or click "Backfill Now" to sync.</p>
           </div>
         ) : (
+          <>
+            <PriorityLeadsSection
+              leads={priorityLeads}
+              onCall={(p) => window.open(`tel:${p}`)}
+              onWhatsApp={openWhatsApp}
+              onOpen={(id) => {
+                const lg = logs.find((l) => l.id === id);
+                if (lg) setSelectedLog(lg);
+              }}
+            />
           <div className="rounded-md border overflow-auto">
             <Table>
               <TableHeader>
@@ -727,15 +857,27 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredLogs.map((log) => {
+                {groupedLogs.flatMap((group) => {
+                  const isExpanded = expandedGroups.has(group.key);
+                  const visibleItems = isExpanded ? group.items : [group.lead];
+                  return visibleItems.map((log, idx) => {
                   const info = deriveCallInfo(log);
                   const logKey = log.call_id || log.id;
+                  const isFirstInGroup = idx === 0;
+                  const groupCount = group.items.length;
+                  const e = aiEnrichment[log.id];
+                  const isMedium = !group.isHot && !!e && (group.isExact || group.isHighIntent);
+                  const rowHotClass = group.isHot && isFirstInGroup
+                    ? 'border-l-4 border-l-destructive bg-destructive/10'
+                    : isMedium && isFirstInGroup
+                      ? 'border-l-4 border-l-warning bg-warning/5'
+                      : '';
 
                   return (
                     <React.Fragment key={log.id}>
                       <TableRow
                         key={log.id}
-                        className={`cursor-pointer ${info.status === 'missed' ? 'bg-red-500/5' : ''} ${newIds.has(log.id) ? "bg-primary/10 animate-pulse border-l-4 border-l-primary" : aiEnrichment[log.id]?.is_hot ? 'border-l-4 border-l-destructive bg-destructive/5' : ''}`}
+                        className={`cursor-pointer ${info.status === 'missed' ? 'bg-destructive/5' : ''} ${newIds.has(log.id) ? "bg-primary/10 animate-pulse border-l-4 border-l-primary" : rowHotClass} ${!isFirstInGroup ? 'bg-muted/20' : ''}`}
                         onClick={() => setEditingLog(log)}
                       >
                         <TableCell className="pr-0">{statusIcon(info.status)}</TableCell>
@@ -950,46 +1092,21 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8 text-emerald-600 hover:text-emerald-700"
-                                    onClick={() => openWhatsApp(aiEnrichment[log.id]?.extracted_phone_number || log.full_number || log.caller_number)}
+                                    onClick={() => openWhatsApp(bestPhone(log).phone)}
                                   >
                                     <MessageSquare className="w-4 h-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>WhatsApp</TooltipContent>
+                                <TooltipContent>
+                                  WhatsApp
+                                  {bestPhone(log).isVerified && ' · Using verified number from conversation'}
+                                </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className={`h-8 w-8 ${contactedIds.has(log.id) ? 'text-success' : 'text-muted-foreground hover:text-foreground'}`}
-                                    onClick={() => markContacted(log.id)}
-                                    disabled={contactedIds.has(log.id)}
-                                  >
-                                    <CheckCircle2 className="w-4 h-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>{contactedIds.has(log.id) ? 'Contacted ✓' : 'Mark Contacted'}</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className={`h-8 w-8 ${qualifiedIds.has(log.id) ? 'text-warning' : 'text-muted-foreground hover:text-foreground'}`}
-                                    onClick={() => markQualified(log.id)}
-                                    disabled={qualifiedIds.has(log.id)}
-                                  >
-                                    <Zap className="w-4 h-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>{qualifiedIds.has(log.id) ? 'Qualified ✓' : 'Mark Qualified'}</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                            <LeadStatusControls
+                              status={leadStatusMap[log.id]}
+                              onChange={(s) => handleSetStatus(log.id, s)}
+                            />
                             <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
                               <Eye className="w-4 h-4 mr-1" /> Details
                             </Button>
@@ -1005,10 +1122,12 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                       )}
                     </React.Fragment>
                   );
+                  });
                 })}
               </TableBody>
             </Table>
           </div>
+          </>
         )}
       </CardContent>
 

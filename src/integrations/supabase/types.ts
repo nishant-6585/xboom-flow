@@ -1384,6 +1384,59 @@ export type Database = {
           },
         ]
       }
+      call_lead_status: {
+        Row: {
+          call_log_id: string
+          closed_at: string | null
+          contacted_at: string | null
+          created_at: string
+          id: string
+          lost_at: string | null
+          notes: string | null
+          qualified_at: string | null
+          status: string
+          updated_at: string
+          updated_by: string | null
+          updated_by_name: string | null
+        }
+        Insert: {
+          call_log_id: string
+          closed_at?: string | null
+          contacted_at?: string | null
+          created_at?: string
+          id?: string
+          lost_at?: string | null
+          notes?: string | null
+          qualified_at?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Update: {
+          call_log_id?: string
+          closed_at?: string | null
+          contacted_at?: string | null
+          created_at?: string
+          id?: string
+          lost_at?: string | null
+          notes?: string | null
+          qualified_at?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_lead_status_call_log_id_fkey"
+            columns: ["call_log_id"]
+            isOneToOne: true
+            referencedRelation: "call_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_logs: {
         Row: {
           agent_name: string | null
