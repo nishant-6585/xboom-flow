@@ -291,7 +291,7 @@ Deno.serve(async (req) => {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { data: existing } = await supabase
       .from("call_logs")
-      .select("id, notes, raw_transcript")
+      .select("id, notes, raw_transcript, customer_name, requirement, budget, priority, lead_score, call_duration")
       .eq("caller_number", callerId)
       .eq("lead_source", "ElevenLabs")
       .gte("created_at", since)
@@ -304,19 +304,40 @@ Deno.serve(async (req) => {
       callLogId = existing.id;
       const appendedNotes = `${existing.notes ?? ""}\n\n--- New call ${new Date().toISOString()} ---\n${notes}`;
       const appendedTranscript = `${existing.raw_transcript ?? ""}\n\n--- ${new Date().toISOString()} ---\n${transcript}`;
+
+      // Only override existing fields when the new value is meaningful AND
+      // the existing value is missing/weaker. Never downgrade a known lead
+      // (e.g. don't replace "Piyush Sharma" with "Unknown" or High → Low).
+      const priorityRank: Record<string, number> = { Low: 1, Medium: 2, High: 3 };
+      const existingNameIsReal =
+        existing.customer_name &&
+        existing.customer_name.trim() !== "" &&
+        existing.customer_name.toLowerCase() !== "unknown";
+
+      const updates: Record<string, unknown> = {
+        notes: appendedNotes,
+        raw_transcript: appendedTranscript,
+        updated_at: new Date().toISOString(),
+      };
+      if (extractedName && !existingNameIsReal) updates.customer_name = extractedName;
+      if (intent && !existing.requirement) updates.requirement = intent;
+      if (budget && !existing.budget) updates.budget = budget;
+      if (
+        priority &&
+        (priorityRank[priority] ?? 0) > (priorityRank[existing.priority ?? ""] ?? 0)
+      ) {
+        updates.priority = priority;
+      }
+      if (typeof score === "number" && score > (existing.lead_score ?? 0)) {
+        updates.lead_score = score;
+      }
+      if (callDuration && callDuration > (existing.call_duration ?? 0)) {
+        updates.call_duration = callDuration;
+      }
+
       const { error: upErr } = await supabase
         .from("call_logs")
-        .update({
-          customer_name: extractedName ?? undefined,
-          requirement: intent,
-          budget: budget ?? undefined,
-          priority,
-          lead_score: score,
-          notes: appendedNotes,
-          raw_transcript: appendedTranscript,
-          call_duration: callDuration ?? 0,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updates)
         .eq("id", existing.id);
       if (upErr) throw upErr;
       console.log("[elevenlabs-call-summary] call_logs updated existing lead", callLogId);
