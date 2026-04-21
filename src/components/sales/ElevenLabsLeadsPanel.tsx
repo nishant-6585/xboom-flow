@@ -446,6 +446,52 @@ export function ElevenLabsLeadsPanel() {
     window.open(`https://wa.me/${num}`, "_blank");
   };
 
+  // ---- Manual link recovery (UNMATCHED leads) ----
+  const openLinkDialog = async (elevenlabsId: string) => {
+    setLinkTargetId(elevenlabsId);
+    setLinkSearch("");
+    const { data } = await supabase
+      .from("call_logs")
+      .select("id,caller_number,created_at,call_duration")
+      .eq("lead_source", "MyOperator")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setLinkOptions((data ?? []) as any);
+  };
+
+  const linkManually = async (myoperatorId: string) => {
+    if (!linkTargetId) return;
+    setLinking(true);
+    try {
+      const existing = mappings[linkTargetId];
+      const payload = {
+        elevenlabs_call_log_id: linkTargetId,
+        myoperator_call_log_id: myoperatorId,
+        match_type: "TRANSCRIPT_MATCH" as const,
+        match_confidence: 100,
+        notes: "Manually linked by sales user",
+        matched_at: new Date().toISOString(),
+      };
+      let error;
+      if (existing) {
+        ({ error } = await supabase
+          .from("call_mapping")
+          .update(payload)
+          .eq("elevenlabs_call_log_id", linkTargetId));
+      } else {
+        ({ error } = await supabase.from("call_mapping").insert(payload));
+      }
+      if (error) throw error;
+      toast.success("Lead linked manually ✓");
+      setLinkTargetId(null);
+      await load();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to link");
+    } finally {
+      setLinking(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
