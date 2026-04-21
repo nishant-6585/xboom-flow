@@ -1546,6 +1546,63 @@ export type Database = {
         }
         Relationships: []
       }
+      call_mapping: {
+        Row: {
+          created_at: string
+          elevenlabs_call_log_id: string
+          extracted_name: string | null
+          extracted_phone_number: string | null
+          id: string
+          match_confidence: number
+          match_type: string
+          matched_at: string | null
+          myoperator_call_log_id: string | null
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          elevenlabs_call_log_id: string
+          extracted_name?: string | null
+          extracted_phone_number?: string | null
+          id?: string
+          match_confidence?: number
+          match_type?: string
+          matched_at?: string | null
+          myoperator_call_log_id?: string | null
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          elevenlabs_call_log_id?: string
+          extracted_name?: string | null
+          extracted_phone_number?: string | null
+          id?: string
+          match_confidence?: number
+          match_type?: string
+          matched_at?: string | null
+          myoperator_call_log_id?: string | null
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_mapping_elevenlabs_call_log_id_fkey"
+            columns: ["elevenlabs_call_log_id"]
+            isOneToOne: true
+            referencedRelation: "call_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_mapping_myoperator_call_log_id_fkey"
+            columns: ["myoperator_call_log_id"]
+            isOneToOne: false
+            referencedRelation: "call_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_webhook_logs: {
         Row: {
           call_sid: string | null
