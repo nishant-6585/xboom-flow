@@ -831,6 +831,16 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
             <p className="text-sm">Check webhook configuration or click "Backfill Now" to sync.</p>
           </div>
         ) : (
+          <>
+            <PriorityLeadsSection
+              leads={priorityLeads}
+              onCall={(p) => window.open(`tel:${p}`)}
+              onWhatsApp={openWhatsApp}
+              onOpen={(id) => {
+                const lg = logs.find((l) => l.id === id);
+                if (lg) setSelectedLog(lg);
+              }}
+            />
           <div className="rounded-md border overflow-auto">
             <Table>
               <TableHeader>
@@ -847,15 +857,27 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredLogs.map((log) => {
+                {groupedLogs.flatMap((group) => {
+                  const isExpanded = expandedGroups.has(group.key);
+                  const visibleItems = isExpanded ? group.items : [group.lead];
+                  return visibleItems.map((log, idx) => {
                   const info = deriveCallInfo(log);
                   const logKey = log.call_id || log.id;
+                  const isFirstInGroup = idx === 0;
+                  const groupCount = group.items.length;
+                  const e = aiEnrichment[log.id];
+                  const isMedium = !group.isHot && !!e && (group.isExact || group.isHighIntent);
+                  const rowHotClass = group.isHot && isFirstInGroup
+                    ? 'border-l-4 border-l-destructive bg-destructive/10'
+                    : isMedium && isFirstInGroup
+                      ? 'border-l-4 border-l-warning bg-warning/5'
+                      : '';
 
                   return (
                     <React.Fragment key={log.id}>
                       <TableRow
                         key={log.id}
-                        className={`cursor-pointer ${info.status === 'missed' ? 'bg-red-500/5' : ''} ${newIds.has(log.id) ? "bg-primary/10 animate-pulse border-l-4 border-l-primary" : aiEnrichment[log.id]?.is_hot ? 'border-l-4 border-l-destructive bg-destructive/5' : ''}`}
+                        className={`cursor-pointer ${info.status === 'missed' ? 'bg-destructive/5' : ''} ${newIds.has(log.id) ? "bg-primary/10 animate-pulse border-l-4 border-l-primary" : rowHotClass} ${!isFirstInGroup ? 'bg-muted/20' : ''}`}
                         onClick={() => setEditingLog(log)}
                       >
                         <TableCell className="pr-0">{statusIcon(info.status)}</TableCell>
