@@ -395,15 +395,24 @@ export function ElevenLabsLeadsPanel() {
       }
       return true;
     });
-    // Sort by actionability: priority then score then recency
+    // Sort: hot+matched first, then matched, then unmatched; tiebreaker priority/score/recency.
     return list.sort((a, b) => {
+      const ma = mappings[a.id];
+      const mb = mappings[b.id];
+      const aMatched = ma && ma.match_type !== "UNMATCHED" ? 0 : 1;
+      const bMatched = mb && mb.match_type !== "UNMATCHED" ? 0 : 1;
+      const aHot = isHotLead(a) ? 0 : 1;
+      const bHot = isHotLead(b) ? 0 : 1;
+      const groupA = aHot * 2 + aMatched;
+      const groupB = bHot * 2 + bMatched;
+      if (groupA !== groupB) return groupA - groupB;
       const pr = priorityRank(a.priority) - priorityRank(b.priority);
       if (pr !== 0) return pr;
       const sc = (b.lead_score ?? 0) - (a.lead_score ?? 0);
       if (sc !== 0) return sc;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [leads, search, priorityFilter, intentFilter, statusFilter, budgetFilter]);
+  }, [leads, search, priorityFilter, intentFilter, statusFilter, budgetFilter, mappings]);
 
   const stats = useMemo(() => {
     const total = leads.length;
