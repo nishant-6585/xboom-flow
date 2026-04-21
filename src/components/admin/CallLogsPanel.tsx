@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle, PhoneOutgoing } from "lucide-react";
+import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle, PhoneOutgoing, Sparkles } from "lucide-react";
 import { LogCallDialog } from '@/components/sales/LogCallDialog';
 import { CallLogEditDialog } from './CallLogEditDialog';
 import { format } from "date-fns";
@@ -252,6 +252,14 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [editingLog, setEditingLog] = useState<CallLog | null>(null);
   const [updatingAssign, setUpdatingAssign] = useState<string | null>(null);
   const [logCallData, setLogCallData] = useState<{ id: string; name: string; phone: string; company?: string; created_at?: string } | null>(null);
+  // ElevenLabs AI mapping enrichment keyed by myoperator_call_log_id
+  const [aiEnrichment, setAiEnrichment] = useState<Record<string, {
+    extracted_name: string | null;
+    intent: string | null;
+    budget: string | null;
+    summary: string | null;
+    match_type: string;
+  }>>({});
 
   const SALES_PERSONS_LIST = ['suman das', 'Narasimha', 'mohammed musthak', 'Arjav chauhan'];
 
