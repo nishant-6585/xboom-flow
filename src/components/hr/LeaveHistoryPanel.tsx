@@ -57,13 +57,18 @@ interface EmployeeOption {
 }
 
 export function LeaveHistoryPanel() {
-  const { records, kpis, summaries, loading, totalCount, page, fetchAll, setPage, fetchForExport, pageSize } = useLeaveHistory();
+  const { records, kpis, summaries, loading, totalCount, page, fetchAll, setPage, fetchForExport, deleteLeaveEntry, pageSize } = useLeaveHistory();
+  const { role } = useAuth();
+  const canDelete = role === 'admin' || role === 'hr';
   const [filters, setFilters] = useState<LeaveHistoryFilters>(defaultFilters);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [exporting, setExporting] = useState(false);
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'records' | 'summary'>('records');
+  const [deleteTarget, setDeleteTarget] = useState<typeof records[number] | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   // Fetch employees for dropdown
   useEffect(() => {
