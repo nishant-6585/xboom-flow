@@ -1024,7 +1024,14 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
               Detailed view of the call session
             </DialogDescription>
           </DialogHeader>
-          {selectedLog && <CallLogDetails log={selectedLog} />}
+          {selectedLog && (
+            <CallLogDetails
+              log={selectedLog}
+              enrichment={aiEnrichment[selectedLog.id]}
+              onRematch={triggerRematch}
+              rematching={rematching}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
