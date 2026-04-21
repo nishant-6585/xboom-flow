@@ -598,6 +598,17 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
               <Download className={`w-4 h-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
               {syncing ? "Syncing..." : "Backfill Now"}
             </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={triggerRematch} disabled={rematching}>
+                    <Wand2 className={`w-4 h-4 mr-1 ${rematching ? "animate-spin" : ""}`} />
+                    {rematching ? "Re-matching..." : "Re-match AI Leads"}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Re-runs AI ↔ MyOperator linking using transcript & timing</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Button variant={autoRefresh ? "default" : "outline"} size="sm" onClick={() => setAutoRefresh(!autoRefresh)}>
               {autoRefresh ? "Auto-Refresh ON" : "Auto-Refresh OFF"}
             </Button>
