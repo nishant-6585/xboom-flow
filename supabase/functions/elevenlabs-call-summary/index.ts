@@ -260,11 +260,29 @@ Deno.serve(async (req) => {
         "from_phone_number",
       ]),
     );
-  const callerId = normalisePhone(rawCallerId);
+  // Carrier proxy / forwarding numbers used by MyOperator → ElevenLabs bridge.
+  // When the webhook caller_id matches one of these, the real customer number
+  // must come from the transcript instead.
+  const PROXY_NUMBERS = new Set([
+    "+917314599710",
+  ]);
+  const proxyCallerId = normalisePhone(rawCallerId);
   const conversationId = asString(
     pick(raw, ["conversation_id", "conversationId", "call_sid", "agent_response_id"]),
   );
   const transcript = buildTranscript(raw);
+  // Extract real customer phone from transcript as early as possible so we can
+  // prefer it over carrier proxy numbers.
+  const extractedPhoneEarly = transcript ? extractPhoneFromTranscript(transcript) : null;
+  const callerIsProxy = proxyCallerId ? PROXY_NUMBERS.has(proxyCallerId) : false;
+  // Identity priority:
+  //   1. transcript-extracted real number (when caller_id is a known proxy)
+  //   2. transcript-extracted real number (when no caller_id at all)
+  //   3. webhook caller_id (direct customer number)
+  const callerId =
+    (callerIsProxy && extractedPhoneEarly) ? extractedPhoneEarly :
+    (!proxyCallerId && extractedPhoneEarly) ? extractedPhoneEarly :
+    proxyCallerId;
   const summary = asString(
     pick(raw, [
       "summary",
@@ -317,11 +335,11 @@ Deno.serve(async (req) => {
     console.error("[elevenlabs-call-summary] failed to log raw payload:", e);
   }
 
-  // 2) Validate required fields. If invalid, mark webhook as failed but still 200.
-  if (!callerId || !transcript) {
-    const reason = !callerId
-      ? "missing caller_id"
-      : "missing transcript";
+  // 2) Validate required fields. If no caller identity at all, we can't store
+  //    a usable lead — mark invalid. Empty transcripts are now allowed
+  //    (short / dropped calls still get a visible "No conversation" lead).
+  if (!callerId) {
+    const reason = "missing caller_id";
     console.warn("[elevenlabs-call-summary] validation failed:", reason);
     if (webhookLogId) {
       await supabase
@@ -332,17 +350,24 @@ Deno.serve(async (req) => {
     return ok({ received: true, skipped: true, reason });
   }
 
+  const safeTranscript = transcript ?? "";
+  const noConversation = !transcript || safeTranscript.trim().length < 10;
+
   // 3) Lead intelligence — name, intent, budget, priority, score.
-  const extractedName = extractName(transcript);
-  const extractedPhone = extractPhoneFromTranscript(transcript);
-  const intent = extractIntent(transcript);
-  const budget = extractBudget(transcript);
-  const { priority, score } = computePriorityAndScore(transcript);
+  const extractedName = transcript ? extractName(safeTranscript) : null;
+  const extractedPhone = extractedPhoneEarly;
+  const intent = transcript ? extractIntent(safeTranscript) : "No conversation captured";
+  const budget = transcript ? extractBudget(safeTranscript) : null;
+  const { priority, score } = transcript
+    ? computePriorityAndScore(safeTranscript)
+    : { priority: "Low", score: 0 };
   const extractedData = { name: extractedName, intent, budget, priority, score };
 
-  const notes = summary
-    ? `Summary: ${summary}\n\nTranscript:\n${transcript}`
-    : transcript;
+  const notes = noConversation
+    ? `No conversation captured (call duration: ${callDuration ?? 0}s).${summary ? `\n\nSummary: ${summary}` : ""}`
+    : summary
+      ? `Summary: ${summary}\n\nTranscript:\n${safeTranscript}`
+      : safeTranscript;
 
   // 4) Dedupe — look for an existing ElevenLabs lead from same caller in last 24h.
   let callLogId: string | null = null;
@@ -363,7 +388,7 @@ Deno.serve(async (req) => {
       isUpdate = true;
       callLogId = existing.id;
       const appendedNotes = `${existing.notes ?? ""}\n\n--- New call ${new Date().toISOString()} ---\n${notes}`;
-      const appendedTranscript = `${existing.raw_transcript ?? ""}\n\n--- ${new Date().toISOString()} ---\n${transcript}`;
+      const appendedTranscript = `${existing.raw_transcript ?? ""}\n\n--- ${new Date().toISOString()} ---\n${safeTranscript || "(no conversation captured)"}`;
 
       // Only override existing fields when the new value is meaningful AND
       // the existing value is missing/weaker. Never downgrade a known lead
@@ -418,7 +443,7 @@ Deno.serve(async (req) => {
           lead_status: "New",
           priority,
           lead_score: score,
-          raw_transcript: transcript,
+          raw_transcript: safeTranscript || null,
           notes,
           raw_payload: raw as never,
           lead_created: true,
@@ -457,7 +482,7 @@ Deno.serve(async (req) => {
     try {
       const { error } = await supabase.from("call_ai_analysis").insert({
         call_log_id: callLogId,
-        transcript,
+        transcript: safeTranscript || null,
         summary,
         intent,
         budget,
@@ -480,12 +505,14 @@ Deno.serve(async (req) => {
       let myopId: string | null = null;
 
       // Step 1: transcript phone -> MyOperator
+      // Note: legacy MyOperator rows may have lead_source = NULL. We match on
+      // any non-ElevenLabs row (i.e. the call came through the phone system).
       if (extractedPhone) {
         const lastTen = extractedPhone.slice(-10);
         const { data: byPhone } = await supabase
           .from("call_logs")
-          .select("id, customer_name, caller_number, created_at")
-          .eq("lead_source", "MyOperator")
+          .select("id, customer_name, caller_number, created_at, lead_source")
+          .not("lead_source", "eq", "ElevenLabs")
           .or(`caller_number.eq.${extractedPhone},caller_number.like.%${lastTen}`)
           .order("created_at", { ascending: false })
           .limit(1)
@@ -515,8 +542,8 @@ Deno.serve(async (req) => {
         const winEnd = new Date(created.getTime() + 5 * 60 * 1000).toISOString();
         const { data: candidates } = await supabase
           .from("call_logs")
-          .select("id, created_at, call_duration")
-          .eq("lead_source", "MyOperator")
+          .select("id, created_at, call_duration, lead_source")
+          .not("lead_source", "eq", "ElevenLabs")
           .gte("created_at", winStart)
           .lte("created_at", winEnd)
           .limit(20);
