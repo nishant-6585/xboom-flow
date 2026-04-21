@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle, PhoneOutgoing, Sparkles, MessageSquare, Zap, Wand2, ShieldCheck } from "lucide-react";
+import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle, PhoneOutgoing, Sparkles, MessageSquare, Wand2, ShieldCheck, Flame, Users, ChevronRight } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { LogCallDialog } from '@/components/sales/LogCallDialog';
 import { CallLogEditDialog } from './CallLogEditDialog';
@@ -17,6 +17,9 @@ import { ProspectButton } from "@/components/sales/ProspectButton";
 import { AttentionButton } from "@/components/sales/AttentionButton";
 import { EnquiryConvertButton } from "@/components/sales/EnquiryConvertButton";
 import type { Prospect } from "@/hooks/useProspects";
+import { useCallLeadStatuses, type LeadStatus } from "@/hooks/useCallLeadStatus";
+import { LeadStatusBadge, LeadStatusControls, LeadTimeline } from "./LeadStatusControls";
+import { PriorityLeadsSection, type PriorityLead } from "./PriorityLeadsSection";
 
 interface CallLogsPanelProps {
   prospects?: Prospect[];
