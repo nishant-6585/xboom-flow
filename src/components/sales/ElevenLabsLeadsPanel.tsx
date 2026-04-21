@@ -371,7 +371,7 @@ export function ElevenLabsLeadsPanel() {
           </div>
           <div>
             <h2 className="text-xl font-semibold tracking-tight">
-              AI Voice Leads
+              ElevenLabs Leads
             </h2>
             <p className="text-sm text-muted-foreground">
               Sales-ready leads captured by your ElevenLabs AI agent
