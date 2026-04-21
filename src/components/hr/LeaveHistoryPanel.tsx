@@ -9,12 +9,18 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Calendar as CalendarIcon, Download, FileText, Users, Loader2, ChevronLeft, ChevronRight, Clock, CheckCircle2, XCircle, BarChart3 } from "lucide-react";
+import { Calendar as CalendarIcon, Download, FileText, Users, Loader2, ChevronLeft, ChevronRight, Clock, CheckCircle2, XCircle, BarChart3, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useLeaveHistory, LeaveHistoryFilters } from "@/hooks/useLeaveHistory";
 import { exportLeaveHistoryToExcel } from "@/utils/leaveHistoryExport";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 const LEAVE_TYPE_LABELS: Record<string, string> = {
   EL: 'Earned Leave',
