@@ -398,6 +398,64 @@ export function LeaveHistoryPanel() {
           </CardContent>
         </Card>
       )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) { setDeleteTarget(null); setDeleteReason(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete leave entry?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <div>
+                  This will permanently delete{' '}
+                  <span className="font-medium text-foreground">{deleteTarget?.employee_name}</span>'s{' '}
+                  <span className="font-medium text-foreground">{deleteTarget && (LEAVE_TYPE_LABELS[deleteTarget.leave_type] || deleteTarget.leave_type)}</span>{' '}
+                  ({deleteTarget?.total_days} day{(deleteTarget?.total_days ?? 0) === 1 ? '' : 's'}) from{' '}
+                  {deleteTarget && format(new Date(deleteTarget.start_date), 'dd MMM yyyy')} – {deleteTarget && format(new Date(deleteTarget.end_date), 'dd MMM yyyy')}.
+                </div>
+                {deleteTarget?.status === 'approved' && ['EL','half_day_EL','casual','half_day_casual','paid','half_day_paid','sick','half_day_sick'].includes(deleteTarget.leave_type) && (
+                  <div className="rounded-md bg-muted px-3 py-2 text-xs">
+                    💡 The leave balance ({deleteTarget.total_days} day{deleteTarget.total_days === 1 ? '' : 's'}) will be refunded to the employee.
+                  </div>
+                )}
+                <div>This action cannot be undone.</div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Reason (optional)</label>
+            <Textarea
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="e.g. Employee came to office / applied by mistake"
+              rows={2}
+              className="text-sm"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!deleteTarget) return;
+                setDeleting(true);
+                const ok = await deleteLeaveEntry(deleteTarget.id, deleteReason.trim() || undefined);
+                setDeleting(false);
+                if (ok) {
+                  setDeleteTarget(null);
+                  setDeleteReason('');
+                  // Refresh KPIs/summaries
+                  fetchAll(filters, page);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Deleting…</> : 'Delete entry'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
