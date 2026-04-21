@@ -421,9 +421,21 @@ export function ElevenLabsLeadsPanel() {
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={load} className="gap-2">
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={triggerRematch}
+            disabled={rematching}
+            className="gap-2"
+          >
+            <Sparkles className={`h-4 w-4 ${rematching ? "animate-pulse" : ""}`} />
+            {rematching ? "Re-matching…" : "Re-match Leads"}
+          </Button>
+          <Button variant="outline" size="sm" onClick={load} className="gap-2">
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -525,8 +537,31 @@ export function ElevenLabsLeadsPanel() {
         <div className="grid sm:grid-cols-2 gap-3">
           {filtered.map((l) => {
             const isNew = isNewLead(l.created_at);
-            const phone = formatPhone(l.caller_number);
-            const name = displayName(l);
+            const mapping = mappings[l.id];
+            const realPhone = mapping?.extracted_phone_number ?? l.caller_number;
+            const phone = formatPhone(realPhone);
+            const nameFromMapping = mapping?.extracted_name;
+            const name =
+              nameFromMapping && (!l.customer_name || l.customer_name === "Unknown")
+                ? nameFromMapping
+                : displayName(l);
+            const matchType = mapping?.match_type ?? "UNMATCHED";
+            const matchBadge = (() => {
+              if (matchType === "TRANSCRIPT_MATCH")
+                return {
+                  label: "✅ Exact Match",
+                  cls: "bg-success/15 text-success border-success/30",
+                };
+              if (matchType === "TIME_MATCH")
+                return {
+                  label: "⚠️ Approx Match",
+                  cls: "bg-warning/15 text-warning border-warning/30",
+                };
+              return {
+                label: "❌ Unmatched",
+                cls: "bg-muted text-muted-foreground border-border",
+              };
+            })();
             return (
               <Card
                 key={l.id}
@@ -551,6 +586,12 @@ export function ElevenLabsLeadsPanel() {
                     </h3>
                     <p className="text-sm text-muted-foreground font-mono mt-0.5">
                       {phone}
+                      {mapping?.extracted_phone_number &&
+                        mapping.extracted_phone_number !== l.caller_number && (
+                          <span className="ml-1.5 text-[10px] text-muted-foreground/70">
+                            (from transcript)
+                          </span>
+                        )}
                     </p>
                   </div>
 
@@ -597,6 +638,9 @@ export function ElevenLabsLeadsPanel() {
                     </Badge>
                     <Badge variant="outline" className="text-xs capitalize">
                       {l.lead_status ?? "New"}
+                    </Badge>
+                    <Badge variant="outline" className={`text-xs ${matchBadge.cls}`}>
+                      {matchBadge.label}
                     </Badge>
                   </div>
 
