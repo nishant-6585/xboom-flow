@@ -55,6 +55,15 @@ type ElevenLead = {
   created_at: string;
 };
 
+type CallMapping = {
+  elevenlabs_call_log_id: string;
+  myoperator_call_log_id: string | null;
+  match_type: "TRANSCRIPT_MATCH" | "TIME_MATCH" | "UNMATCHED";
+  match_confidence: number;
+  extracted_phone_number: string | null;
+  extracted_name: string | null;
+};
+
 type AIAnalysis = {
   transcript: string | null;
   summary: string | null;
@@ -217,6 +226,8 @@ const parseTranscript = (raw: string | null): ChatTurn[] => {
 
 export function ElevenLabsLeadsPanel() {
   const [leads, setLeads] = useState<ElevenLead[]>([]);
+  const [mappings, setMappings] = useState<Record<string, CallMapping>>({});
+  const [rematching, setRematching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -238,7 +249,39 @@ export function ElevenLabsLeadsPanel() {
       .order("created_at", { ascending: false })
       .limit(500);
     if (!error && data) setLeads(data as ElevenLead[]);
+    const ids = (data ?? []).map((d: any) => d.id);
+    if (ids.length) {
+      const { data: maps } = await supabase
+        .from("call_mapping")
+        .select(
+          "elevenlabs_call_log_id,myoperator_call_log_id,match_type,match_confidence,extracted_phone_number,extracted_name",
+        )
+        .in("elevenlabs_call_log_id", ids);
+      const dict: Record<string, CallMapping> = {};
+      (maps ?? []).forEach((m: any) => (dict[m.elevenlabs_call_log_id] = m));
+      setMappings(dict);
+    } else {
+      setMappings({});
+    }
     setLoading(false);
+  };
+
+  const triggerRematch = async () => {
+    setRematching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("backfill-call-mapping", {
+        body: { limit: 100 },
+      });
+      if (error) throw error;
+      toast.success(
+        `Re-matched ${data?.processed ?? 0} leads — ${data?.matched_transcript ?? 0} via transcript, ${data?.matched_time ?? 0} via time`,
+      );
+      await load();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Re-match failed");
+    } finally {
+      setRematching(false);
+    }
   };
 
   useEffect(() => {
@@ -378,9 +421,21 @@ export function ElevenLabsLeadsPanel() {
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={load} className="gap-2">
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={triggerRematch}
+            disabled={rematching}
+            className="gap-2"
+          >
+            <Sparkles className={`h-4 w-4 ${rematching ? "animate-pulse" : ""}`} />
+            {rematching ? "Re-matching…" : "Re-match Leads"}
+          </Button>
+          <Button variant="outline" size="sm" onClick={load} className="gap-2">
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -482,8 +537,31 @@ export function ElevenLabsLeadsPanel() {
         <div className="grid sm:grid-cols-2 gap-3">
           {filtered.map((l) => {
             const isNew = isNewLead(l.created_at);
-            const phone = formatPhone(l.caller_number);
-            const name = displayName(l);
+            const mapping = mappings[l.id];
+            const realPhone = mapping?.extracted_phone_number ?? l.caller_number;
+            const phone = formatPhone(realPhone);
+            const nameFromMapping = mapping?.extracted_name;
+            const name =
+              nameFromMapping && (!l.customer_name || l.customer_name === "Unknown")
+                ? nameFromMapping
+                : displayName(l);
+            const matchType = mapping?.match_type ?? "UNMATCHED";
+            const matchBadge = (() => {
+              if (matchType === "TRANSCRIPT_MATCH")
+                return {
+                  label: "✅ Exact Match",
+                  cls: "bg-success/15 text-success border-success/30",
+                };
+              if (matchType === "TIME_MATCH")
+                return {
+                  label: "⚠️ Approx Match",
+                  cls: "bg-warning/15 text-warning border-warning/30",
+                };
+              return {
+                label: "❌ Unmatched",
+                cls: "bg-muted text-muted-foreground border-border",
+              };
+            })();
             return (
               <Card
                 key={l.id}
@@ -508,6 +586,12 @@ export function ElevenLabsLeadsPanel() {
                     </h3>
                     <p className="text-sm text-muted-foreground font-mono mt-0.5">
                       {phone}
+                      {mapping?.extracted_phone_number &&
+                        mapping.extracted_phone_number !== l.caller_number && (
+                          <span className="ml-1.5 text-[10px] text-muted-foreground/70">
+                            (from transcript)
+                          </span>
+                        )}
                     </p>
                   </div>
 
@@ -554,6 +638,9 @@ export function ElevenLabsLeadsPanel() {
                     </Badge>
                     <Badge variant="outline" className="text-xs capitalize">
                       {l.lead_status ?? "New"}
+                    </Badge>
+                    <Badge variant="outline" className={`text-xs ${matchBadge.cls}`}>
+                      {matchBadge.label}
                     </Badge>
                   </div>
 

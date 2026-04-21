@@ -124,6 +124,53 @@ function extractName(transcript: string): string | null {
   return null;
 }
 
+/**
+ * Extract a valid Indian mobile number from a transcript.
+ * Looks for: +91XXXXXXXXXX, 91XXXXXXXXXX, 10-digit starting 6-9.
+ * Prefers numbers spoken after "my number is / number is / contact".
+ * Returns E.164 (+91XXXXXXXXXX) or null.
+ */
+function extractPhoneFromTranscript(transcript: string): string | null {
+  if (!transcript) return null;
+
+  const candidates: string[] = [];
+
+  const cuePatterns = [
+    /\bmy (?:number|mobile|phone|contact)(?:\s+is)?\s*[:\-]?\s*((?:\+?91[\s\-]?)?[6-9](?:[\s\-]?\d){9})/gi,
+    /\b(?:number|mobile|phone|contact)(?:\s+is)?\s*[:\-]?\s*((?:\+?91[\s\-]?)?[6-9](?:[\s\-]?\d){9})/gi,
+    /\bcall(?:\s+me)?\s+(?:on|at)\s*((?:\+?91[\s\-]?)?[6-9](?:[\s\-]?\d){9})/gi,
+  ];
+  for (const re of cuePatterns) {
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(transcript)) !== null) {
+      candidates.push(m[1]);
+    }
+  }
+
+  // Generic mobile patterns (lower priority)
+  const generic = [
+    /\+91[\s\-]?[6-9](?:[\s\-]?\d){9}/g,
+    /\b91[6-9]\d{9}\b/g,
+    /\b[6-9]\d{9}\b/g,
+  ];
+  for (const re of generic) {
+    const matches = transcript.match(re);
+    if (matches) candidates.push(...matches);
+  }
+
+  for (const raw of candidates) {
+    const digits = raw.replace(/\D/g, "");
+    let mobile: string | null = null;
+    if (digits.length === 10 && /^[6-9]/.test(digits)) mobile = digits;
+    else if (digits.length === 12 && digits.startsWith("91") && /^91[6-9]/.test(digits))
+      mobile = digits.slice(2);
+    else if (digits.length === 13 && digits.startsWith("091") && /^091[6-9]/.test(digits))
+      mobile = digits.slice(3);
+    if (mobile && /^[6-9]\d{9}$/.test(mobile)) return `+91${mobile}`;
+  }
+  return null;
+}
+
 /** Categorise intent from transcript content. */
 function extractIntent(t: string): string {
   const lc = t.toLowerCase();
@@ -287,6 +334,7 @@ Deno.serve(async (req) => {
 
   // 3) Lead intelligence — name, intent, budget, priority, score.
   const extractedName = extractName(transcript);
+  const extractedPhone = extractPhoneFromTranscript(transcript);
   const intent = extractIntent(transcript);
   const budget = extractBudget(transcript);
   const { priority, score } = computePriorityAndScore(transcript);
@@ -424,11 +472,106 @@ Deno.serve(async (req) => {
     }
   }
 
+  // 5b) Build / update call_mapping row.
+  if (callLogId) {
+    try {
+      let matchType: "TRANSCRIPT_MATCH" | "TIME_MATCH" | "UNMATCHED" = "UNMATCHED";
+      let matchConfidence = 0;
+      let myopId: string | null = null;
+
+      // Step 1: transcript phone -> MyOperator
+      if (extractedPhone) {
+        const lastTen = extractedPhone.slice(-10);
+        const { data: byPhone } = await supabase
+          .from("call_logs")
+          .select("id, customer_name, caller_number, created_at")
+          .eq("lead_source", "MyOperator")
+          .or(`caller_number.eq.${extractedPhone},caller_number.like.%${lastTen}`)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (byPhone?.id) {
+          myopId = byPhone.id;
+          matchType = "TRANSCRIPT_MATCH";
+          matchConfidence = 95;
+
+          // Enrich MyOperator row with extracted name when missing
+          if (extractedName) {
+            const existingName = byPhone.customer_name?.trim().toLowerCase();
+            if (!existingName || existingName === "unknown") {
+              await supabase
+                .from("call_logs")
+                .update({ customer_name: extractedName })
+                .eq("id", byPhone.id);
+            }
+          }
+        }
+      }
+
+      // Step 2: time-based fallback (±60s window, similar duration)
+      if (matchType === "UNMATCHED") {
+        const created = new Date();
+        const winStart = new Date(created.getTime() - 5 * 60 * 1000).toISOString();
+        const winEnd = new Date(created.getTime() + 5 * 60 * 1000).toISOString();
+        const { data: candidates } = await supabase
+          .from("call_logs")
+          .select("id, created_at, call_duration")
+          .eq("lead_source", "MyOperator")
+          .gte("created_at", winStart)
+          .lte("created_at", winEnd)
+          .limit(20);
+        if (candidates?.length) {
+          let best: { id: string; conf: number } | null = null;
+          for (const c of candidates) {
+            const tDiff = Math.abs(
+              new Date(c.created_at).getTime() - created.getTime(),
+            ) / 1000;
+            const dDiff = callDuration && c.call_duration
+              ? Math.abs(callDuration - c.call_duration)
+              : 999;
+            if (tDiff <= 60 && dDiff <= 30) {
+              const conf = Math.round(85 - tDiff * 0.2 - dDiff * 0.3);
+              if (!best || conf > best.conf) best = { id: c.id, conf };
+            }
+          }
+          if (best) {
+            myopId = best.id;
+            matchType = "TIME_MATCH";
+            matchConfidence = Math.max(70, Math.min(85, best.conf));
+          }
+        }
+      }
+
+      const mappingRow = {
+        elevenlabs_call_log_id: callLogId,
+        myoperator_call_log_id: myopId,
+        match_type: matchType,
+        match_confidence: matchConfidence,
+        extracted_phone_number: extractedPhone,
+        extracted_name: extractedName,
+        matched_at: matchType !== "UNMATCHED" ? new Date().toISOString() : null,
+      };
+      const { error: mapErr } = await supabase
+        .from("call_mapping")
+        .upsert(mappingRow, { onConflict: "elevenlabs_call_log_id" });
+      if (mapErr) throw mapErr;
+      console.log(
+        "[elevenlabs-call-summary] call_mapping",
+        JSON.stringify({ matchType, matchConfidence, extractedPhone, myopId }),
+      );
+    } catch (e) {
+      console.error("[elevenlabs-call-summary] call_mapping write failed:", e);
+    }
+  }
+
   // 6) Mark webhook log as processed.
   if (webhookLogId) {
     await supabase
       .from("call_webhook_logs")
-      .update({ processing_status: "processed" })
+      .update({
+        processing_status: "processed",
+        error_message: extractedPhone ? `extracted_phone=${extractedPhone}` : null,
+      })
       .eq("id", webhookLogId);
   }
 
@@ -436,7 +579,7 @@ Deno.serve(async (req) => {
     received: true,
     call_log_id: callLogId,
     updated: isUpdate,
-    extracted: extractedData,
+    extracted: { ...extractedData, phone: extractedPhone },
   });
   } catch (fatal) {
     console.error("[elevenlabs-call-summary] FATAL:", fatal);
