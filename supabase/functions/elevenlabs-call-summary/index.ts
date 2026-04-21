@@ -260,11 +260,29 @@ Deno.serve(async (req) => {
         "from_phone_number",
       ]),
     );
-  const callerId = normalisePhone(rawCallerId);
+  // Carrier proxy / forwarding numbers used by MyOperator → ElevenLabs bridge.
+  // When the webhook caller_id matches one of these, the real customer number
+  // must come from the transcript instead.
+  const PROXY_NUMBERS = new Set([
+    "+917314599710",
+  ]);
+  const proxyCallerId = normalisePhone(rawCallerId);
   const conversationId = asString(
     pick(raw, ["conversation_id", "conversationId", "call_sid", "agent_response_id"]),
   );
   const transcript = buildTranscript(raw);
+  // Extract real customer phone from transcript as early as possible so we can
+  // prefer it over carrier proxy numbers.
+  const extractedPhoneEarly = transcript ? extractPhoneFromTranscript(transcript) : null;
+  const callerIsProxy = proxyCallerId ? PROXY_NUMBERS.has(proxyCallerId) : false;
+  // Identity priority:
+  //   1. transcript-extracted real number (when caller_id is a known proxy)
+  //   2. transcript-extracted real number (when no caller_id at all)
+  //   3. webhook caller_id (direct customer number)
+  const callerId =
+    (callerIsProxy && extractedPhoneEarly) ? extractedPhoneEarly :
+    (!proxyCallerId && extractedPhoneEarly) ? extractedPhoneEarly :
+    proxyCallerId;
   const summary = asString(
     pick(raw, [
       "summary",
