@@ -312,7 +312,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
 
   return (
     <Tabs defaultValue="leads" className="space-y-6">
-      <TabsList>
+      <TabsList className="flex flex-wrap h-auto gap-1 w-full justify-start">
         <TabsTrigger value="leads">All Leads</TabsTrigger>
         <TabsTrigger value="interakt" className="gap-1.5">
           <MessageCircle className="h-3.5 w-3.5" />
