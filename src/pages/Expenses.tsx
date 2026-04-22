@@ -438,7 +438,7 @@ export default function Expenses() {
                   Record Received Cash
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <Wallet className="w-5 h-5" />
