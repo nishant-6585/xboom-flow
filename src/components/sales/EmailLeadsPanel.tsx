@@ -513,7 +513,9 @@ export function EmailLeadsPanel() {
                       </button>
                     </TableHead>
                     <TableHead>Company</TableHead>
-                    <TableHead>Contact</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Subject</TableHead>
                     <TableHead>Source</TableHead>
                     <TableHead>Product</TableHead>
                     <TableHead>
@@ -593,12 +595,14 @@ export function EmailLeadsPanel() {
                             </TooltipProvider>
                           </TableCell>
                           <TableCell className="text-sm">{lead.customer_company || '-'}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-col gap-0.5">
-                              {lead.email && <span className="text-xs text-muted-foreground truncate max-w-[140px]">{lead.email}</span>}
-                              {lead.phone_number && <span className="text-xs text-muted-foreground">{lead.phone_number}</span>}
-                              {!lead.email && !lead.phone_number && <span className="text-xs text-muted-foreground">-</span>}
-                            </div>
+                          <TableCell className="text-xs text-muted-foreground max-w-[180px]">
+                            {lead.email ? <span className="block truncate">{lead.email}</span> : '-'}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                            {lead.phone_number || '-'}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground max-w-[220px]">
+                            {(lead as any).subject ? <span className="block truncate">{(lead as any).subject}</span> : '-'}
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className={`text-[10px] ${mailBadgeColor(lead.mail_source)}`}>
@@ -693,7 +697,7 @@ export function EmailLeadsPanel() {
                         {/* Expandable Detail Row */}
                         {isExpanded && (
                           <TableRow key={`${lead.id}-detail`} className="bg-muted/20 hover:bg-muted/30">
-                            <TableCell colSpan={13} className="p-4">
+                            <TableCell colSpan={17} className="p-4">
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                 <div className="space-y-2">
                                   <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Lead Details</h4>
