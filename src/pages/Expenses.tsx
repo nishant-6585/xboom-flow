@@ -493,14 +493,14 @@ export default function Expenses() {
                   Add Expense
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
+              <DialogContent className="max-w-md max-h-[90vh] flex flex-col p-0 gap-0">
+                <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
                   <DialogTitle className="flex items-center gap-2">
                     <Receipt className="w-5 h-5" />
                     Add New Expense
                   </DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4 pt-4">
+                <div className="space-y-4 pt-2 px-6 pb-6 overflow-y-auto flex-1">
                   {/* Petty Cash Balance Banner */}
                   {myBalance > 0 && (
                     <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
