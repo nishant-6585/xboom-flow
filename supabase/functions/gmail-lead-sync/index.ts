@@ -496,22 +496,39 @@ Deno.serve(async (req) => {
             }
 
             // Extract lead data
-            const name = extractName(from);
-            const phone = extractPhone(bodyText);
-            const product = extractProduct(`${subject} ${bodyText}`);
+            const parsedForm = parseXboomFormBody(bodyText);
+
+            const name = (parsedForm?.name && parsedForm.name.trim())
+              || extractName(from);
+            const phone = (parsedForm?.phone && parsedForm.phone.replace(/[\s-]/g, ""))
+              || extractPhone(bodyText);
+            const parsedEmail = parsedForm?.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parsedForm.email)
+              ? parsedForm.email.trim()
+              : null;
+            const product = (parsedForm?.intent && parsedForm.intent.trim())
+              || extractProduct(`${subject} ${bodyText}`);
+            const company = parsedForm?.company?.trim() || null;
+            const city = (parsedForm?.location || parsedForm?.city)?.trim() || null;
+            const timeline = parsedForm?.timeline?.trim() || null;
+            const message = parsedForm?.message?.trim() || null;
 
             // ---- INSERT with thread_id and ingested_at ----
             const { error: insertError } = await supabase.from("email_leads").insert({
               customer_name: name,
-              email: senderEmail,
+              email: parsedEmail || senderEmail,
               phone_number: phone,
               product_name: product,
+              customer_company: company,
+              city,
+              requested_timeline: timeline,
               mail_source: `gmail:${integration.email}`,
               lead_source: "gmail",
               subject: subject || null,
               body_text: bodyText ? bodyText.substring(0, 10000) : null,
               body_html: bodyHtml ? bodyHtml.substring(0, 50000) : null,
-              notes: `Subject: ${subject}\n\n${bodyText.substring(0, 500)}`,
+              notes: message
+                ? `Subject: ${subject}\n\nMessage: ${message}`
+                : `Subject: ${subject}\n\n${bodyText.substring(0, 500)}`,
               status: "pending",
               processing_status: "pending",
               ai_processed: false,
