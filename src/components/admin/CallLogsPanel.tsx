@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle, PhoneOutgoing, Sparkles, MessageSquare, Wand2, ShieldCheck, Flame, Users, ChevronRight } from "lucide-react";
+import { RefreshCw, Phone, Play, Pause, Eye, Search, Loader2, PhoneIncoming, PhoneMissed, PhoneOff, Download, Volume2, AlertTriangle, ArrowRight, CheckCircle2, XCircle, PhoneOutgoing, MessageSquare } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { LogCallDialog } from '@/components/sales/LogCallDialog';
 import { CallLogEditDialog } from './CallLogEditDialog';
@@ -17,9 +17,6 @@ import { ProspectButton } from "@/components/sales/ProspectButton";
 import { AttentionButton } from "@/components/sales/AttentionButton";
 import { EnquiryConvertButton } from "@/components/sales/EnquiryConvertButton";
 import type { Prospect } from "@/hooks/useProspects";
-import { useCallLeadStatuses, type LeadStatus } from "@/hooks/useCallLeadStatus";
-import { LeadStatusBadge, LeadStatusControls, LeadTimeline } from "./LeadStatusControls";
-import { PriorityLeadsSection, type PriorityLead } from "./PriorityLeadsSection";
 
 interface CallLogsPanelProps {
   prospects?: Prospect[];
@@ -256,29 +253,6 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
   const [editingLog, setEditingLog] = useState<CallLog | null>(null);
   const [updatingAssign, setUpdatingAssign] = useState<string | null>(null);
   const [logCallData, setLogCallData] = useState<{ id: string; name: string; phone: string; company?: string; created_at?: string } | null>(null);
-  // ElevenLabs AI mapping enrichment keyed by myoperator_call_log_id
-  const [aiEnrichment, setAiEnrichment] = useState<Record<string, {
-    extracted_name: string | null;
-    extracted_phone_number: string | null;
-    intent: string | null;
-    budget: string | null;
-    summary: string | null;
-    next_action: string | null;
-    sentiment: string | null;
-    match_type: string;
-    match_confidence: number;
-    requirement: string | null;
-    is_hot: boolean;
-    elevenlabs_call_log_id: string;
-  }>>({});
-  const [rematching, setRematching] = useState(false);
-  // Real persisted lead status tracking
-  const visibleLogIds = React.useMemo(() => logs.map((l) => l.id), [logs]);
-  const { statuses: leadStatusMap, setStatus: setLeadStatus } = useCallLeadStatuses(visibleLogIds);
-  // Track which call_log_ids we've already pinged Slack for in this session
-  const slackedHotIds = useRef<Set<string>>(new Set());
-  // Group expansion state (group key = normalized 10-digit phone)
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const SALES_PERSONS_LIST = ['suman das', 'Narasimha', 'mohammed musthak', 'Arjav chauhan'];
 
@@ -351,111 +325,6 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     }
     return result;
   }, [logs, salesPersonFilter, agentFilter, missedOnly, departmentFilter, uniqueOnly]);
-
-  // Group logs by best phone (extracted preferred, else caller_number).
-  // Sort groups by HOT > Exact match > High intent > recent.
-  const groupedLogs = React.useMemo(() => {
-    const groupKey = (log: CallLog) => {
-      const e = aiEnrichment[log.id];
-      const proxy = (log.full_number || log.caller_number || '').replace(/\D/g, '').slice(-10);
-      const ext = (e?.extracted_phone_number || '').replace(/\D/g, '').slice(-10);
-      return ext || proxy || log.id;
-    };
-    const map = new Map<string, CallLog[]>();
-    filteredLogs.forEach((log) => {
-      const k = groupKey(log);
-      const arr = map.get(k) ?? [];
-      arr.push(log);
-      map.set(k, arr);
-    });
-    // Each group sorted by recency desc inside
-    const groups = Array.from(map.entries()).map(([key, items]) => {
-      const sorted = [...items].sort((a, b) => {
-        const aTs = String(deriveCallInfo(a).startTime || a.created_at);
-        const bTs = String(deriveCallInfo(b).startTime || b.created_at);
-        return bTs.localeCompare(aTs);
-      });
-      const lead = sorted[0];
-      const e = aiEnrichment[lead.id];
-      const isHot = !!e?.is_hot;
-      const isExact = e?.match_type === 'TRANSCRIPT_MATCH' && (e?.match_confidence ?? 0) >= 90;
-      const isHighIntent =
-        !!e?.intent && /\b(high|hot|urgent|ready|interest)\b/i.test(e.intent);
-      const ts = String(deriveCallInfo(lead).startTime || lead.created_at);
-      return { key, items: sorted, lead, isHot, isExact, isHighIntent, ts };
-    });
-    groups.sort((a, b) => {
-      // 1) HOT
-      if (a.isHot !== b.isHot) return a.isHot ? -1 : 1;
-      // 2) Exact match
-      if (a.isExact !== b.isExact) return a.isExact ? -1 : 1;
-      // 3) High intent
-      if (a.isHighIntent !== b.isHighIntent) return a.isHighIntent ? -1 : 1;
-      // 4) Recent
-      return b.ts.localeCompare(a.ts);
-    });
-    return groups;
-  }, [filteredLogs, aiEnrichment]);
-
-  // Top priority leads (HOT first, max 3)
-  const priorityLeads: PriorityLead[] = React.useMemo(() => {
-    return groupedLogs
-      .filter((g) => g.isHot)
-      .slice(0, 3)
-      .map((g) => {
-        const e = aiEnrichment[g.lead.id];
-        const proxy = g.lead.full_number || g.lead.caller_number;
-        const phone = e?.extracted_phone_number && e.extracted_phone_number !== proxy ? e.extracted_phone_number : proxy;
-        return {
-          callLogId: g.lead.id,
-          name: e?.extracted_name || 'Unidentified Caller',
-          phone,
-          intent: e?.intent ?? null,
-          budget: e?.budget ?? null,
-          requirement: e?.requirement ?? null,
-          callTime: deriveCallInfo(g.lead).startTime
-            ? formatCallTime(deriveCallInfo(g.lead).startTime, g.lead.created_at)
-            : null,
-        };
-      });
-  }, [groupedLogs, aiEnrichment]);
-
-  // Slack notification on new HOT lead (once per session per call_log_id)
-  useEffect(() => {
-    const newHot = groupedLogs.filter(
-      (g) => g.isHot && !slackedHotIds.current.has(g.lead.id),
-    );
-    if (newHot.length === 0) return;
-    newHot.forEach(async (g) => {
-      slackedHotIds.current.add(g.lead.id);
-      const e = aiEnrichment[g.lead.id];
-      // In-app toast
-      toast(`🔥 New HOT Lead: ${e?.extracted_name || 'Unidentified'}`, {
-        description: [e?.requirement, e?.budget].filter(Boolean).join(' · ') || 'Open MyOperator to act',
-      });
-      // Slack (best-effort, ignore errors)
-      try {
-        await supabase.functions.invoke('send-slack-notification', {
-          body: {
-            type: 'hot_lead',
-            data: {
-              customer_name: e?.extracted_name || 'Unidentified Caller',
-              customer_company: '—',
-              product_name: e?.requirement || 'Drone',
-              quantity: 1,
-              urgency: 'high',
-              product_category: e?.requirement || 'N/A',
-              lead_temperature: 'hot',
-              sales_person_name: g.lead.sales_person_name || 'Unassigned',
-              customer_state: 'N/A',
-            },
-          },
-        });
-      } catch (err) {
-        console.warn('[hot_lead slack] failed', err);
-      }
-    });
-  }, [groupedLogs, aiEnrichment]);
 
   const handleAssignChange = async (logId: string, newName: string) => {
     setUpdatingAssign(logId);
@@ -546,96 +415,11 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
-  // Fetch ElevenLabs AI enrichment for visible MyOperator logs
-  useEffect(() => {
-    if (logs.length === 0) {
-      setAiEnrichment({});
-      return;
-    }
-    const ids = logs.map((l) => l.id);
-    let cancelled = false;
-    (async () => {
-      const { data: maps } = await supabase
-        .from("call_mapping")
-        .select("elevenlabs_call_log_id,myoperator_call_log_id,match_type,match_confidence,extracted_name,extracted_phone_number")
-        .in("myoperator_call_log_id", ids)
-        .neq("match_type", "UNMATCHED");
-      if (cancelled || !maps?.length) {
-        if (!cancelled) setAiEnrichment({});
-        return;
-      }
-      const elevenIds = maps.map((m: any) => m.elevenlabs_call_log_id);
-      const [{ data: ana }, { data: leadInfo }] = await Promise.all([
-        supabase
-          .from("call_ai_analysis")
-          .select("call_log_id,intent,budget,summary,next_action,sentiment")
-          .in("call_log_id", elevenIds),
-        supabase
-          .from("call_logs")
-          .select("id,customer_name,requirement,budget,priority,raw_transcript")
-          .in("id", elevenIds),
-      ]);
-      const anaMap: Record<string, any> = {};
-      (ana ?? []).forEach((a: any) => (anaMap[a.call_log_id] = a));
-      const leadMap: Record<string, any> = {};
-      (leadInfo ?? []).forEach((l: any) => (leadMap[l.id] = l));
-      const enriched: Record<string, any> = {};
-      maps.forEach((m: any) => {
-        if (!m.myoperator_call_log_id) return;
-        const a = anaMap[m.elevenlabs_call_log_id] ?? {};
-        const lead = leadMap[m.elevenlabs_call_log_id] ?? {};
-        const intent = (a.intent ?? lead.requirement ?? null) as string | null;
-        const budget = (a.budget ?? lead.budget ?? null) as string | null;
-        const requirement = (lead.requirement ?? null) as string | null;
-        // STRICT: AI intent High OR (budget AND requirement)
-        const intentHigh = !!intent && /\b(high|hot|urgent|ready)\b/i.test(intent);
-        const priorityHigh = (lead.priority ?? "").toLowerCase() === "high";
-        const isHot = intentHigh || priorityHigh || (!!budget && !!requirement);
-        enriched[m.myoperator_call_log_id] = {
-          extracted_name: m.extracted_name ?? lead.customer_name ?? null,
-          extracted_phone_number: m.extracted_phone_number ?? null,
-          intent,
-          budget,
-          summary: a.summary ?? null,
-          next_action: a.next_action ?? null,
-          sentiment: a.sentiment ?? null,
-          match_type: m.match_type,
-          match_confidence: m.match_confidence ?? 0,
-          requirement,
-          is_hot: isHot,
-          elevenlabs_call_log_id: m.elevenlabs_call_log_id,
-        };
-      });
-      if (!cancelled) setAiEnrichment(enriched);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [logs]);
-
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(fetchLogs, 8000);
     return () => clearInterval(interval);
   }, [autoRefresh, fetchLogs]);
-
-  // Realtime: refresh enrichment when new ElevenLabs mappings arrive
-  useEffect(() => {
-    const channel = supabase
-      .channel('call_mapping_realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'call_mapping' },
-        () => {
-          // Trigger enrichment refresh by updating a deps source
-          setLogs((prev) => [...prev]);
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
 
   const triggerSync = async () => {
     setSyncing(true);
@@ -651,41 +435,13 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
     }
   };
 
-  const triggerRematch = async () => {
-    setRematching(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('backfill-call-mapping', {
-        method: 'POST',
-        body: { limit: 50 },
-      });
-      if (error) throw error;
-      toast.success(`AI re-match complete: ${data?.matched || 0} linked, ${data?.unmatched || 0} unmatched`);
-      // Force enrichment refresh
-      setLogs((prev) => [...prev]);
-    } catch (err: any) {
-      toast.error(err.message || 'Re-match failed');
-    } finally {
-      setRematching(false);
-    }
-  };
-
-  const handleSetStatus = async (callLogId: string, status: LeadStatus) => {
-    await setLeadStatus(callLogId, status);
-  };
-
   const openWhatsApp = (phone: string) => {
     const num = (phone || '').replace(/\D/g, '');
     if (!num) return;
     window.open(`https://wa.me/${num}`, '_blank');
   };
 
-  // Resolve the best phone to dial / WhatsApp: prefer extracted (verified) number
-  const bestPhone = (log: CallLog): { phone: string; isVerified: boolean } => {
-    const proxy = log.full_number || log.caller_number;
-    const extracted = aiEnrichment[log.id]?.extracted_phone_number;
-    if (extracted && extracted !== proxy) return { phone: extracted, isVerified: true };
-    return { phone: proxy, isVerified: false };
-  };
+  const bestPhone = (log: CallLog): string => log.full_number || log.caller_number;
 
   const statusIcon = (status: string) => {
     switch (status) {
@@ -718,17 +474,6 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
               <Download className={`w-4 h-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
               {syncing ? "Syncing..." : "Backfill Now"}
             </Button>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={triggerRematch} disabled={rematching}>
-                    <Wand2 className={`w-4 h-4 mr-1 ${rematching ? "animate-spin" : ""}`} />
-                    {rematching ? "Re-matching..." : "Re-match AI Leads"}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Re-runs AI ↔ MyOperator linking using transcript & timing</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
             <Button variant={autoRefresh ? "default" : "outline"} size="sm" onClick={() => setAutoRefresh(!autoRefresh)}>
               {autoRefresh ? "Auto-Refresh ON" : "Auto-Refresh OFF"}
             </Button>
@@ -831,16 +576,6 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
             <p className="text-sm">Check webhook configuration or click "Backfill Now" to sync.</p>
           </div>
         ) : (
-          <>
-            <PriorityLeadsSection
-              leads={priorityLeads}
-              onCall={(p) => window.open(`tel:${p}`)}
-              onWhatsApp={openWhatsApp}
-              onOpen={(id) => {
-                const lg = logs.find((l) => l.id === id);
-                if (lg) setSelectedLog(lg);
-              }}
-            />
           <div className="rounded-md border overflow-auto">
             <Table>
               <TableHeader>
@@ -857,27 +592,14 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {groupedLogs.flatMap((group) => {
-                  const isExpanded = expandedGroups.has(group.key);
-                  const visibleItems = isExpanded ? group.items : [group.lead];
-                  return visibleItems.map((log, idx) => {
+                {filteredLogs.map((log) => {
                   const info = deriveCallInfo(log);
                   const logKey = log.call_id || log.id;
-                  const isFirstInGroup = idx === 0;
-                  const groupCount = group.items.length;
-                  const e = aiEnrichment[log.id];
-                  const isMedium = !group.isHot && !!e && (group.isExact || group.isHighIntent);
-                  const rowHotClass = group.isHot && isFirstInGroup
-                    ? 'border-l-4 border-l-destructive bg-destructive/10'
-                    : isMedium && isFirstInGroup
-                      ? 'border-l-4 border-l-warning bg-warning/5'
-                      : '';
-
                   return (
                     <React.Fragment key={log.id}>
                       <TableRow
                         key={log.id}
-                        className={`cursor-pointer ${info.status === 'missed' ? 'bg-destructive/5' : ''} ${newIds.has(log.id) ? "bg-primary/10 animate-pulse border-l-4 border-l-primary" : rowHotClass} ${!isFirstInGroup ? 'bg-muted/20' : ''}`}
+                        className={`cursor-pointer ${info.status === 'missed' ? 'bg-destructive/5' : ''} ${newIds.has(log.id) ? "bg-primary/10 animate-pulse border-l-4 border-l-primary" : ''}`}
                         onClick={() => setEditingLog(log)}
                       >
                         <TableCell className="pr-0">{statusIcon(info.status)}</TableCell>
@@ -918,90 +640,17 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                           </div>
                         </TableCell>
                         <TableCell className="text-sm">
-                          {(() => {
-                            const e = aiEnrichment[log.id];
-                            const proxyNum = log.full_number || log.caller_number;
-                            const realNum = e?.extracted_phone_number && e.extracted_phone_number !== proxyNum
-                              ? e.extracted_phone_number
-                              : proxyNum;
-                            const displayName = e?.extracted_name || null;
-                            return (
-                              <div className="space-y-0.5">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className={`font-semibold ${info.status === 'missed' ? 'text-destructive' : 'text-foreground'}`}>
-                                    {displayName || 'Unidentified Caller'}
-                                  </span>
-                                  {e && (
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <span className="inline-flex items-center gap-0.5 rounded-sm bg-primary/15 text-primary px-1 py-0.5 text-[10px] font-bold">
-                                            <Sparkles className="h-2.5 w-2.5" /> AI
-                                          </span>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Enriched using AI conversation analysis</TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  )}
-                                </div>
-                                <div className={`font-mono text-xs ${info.status === 'missed' ? 'text-destructive/80' : 'text-primary'}`}>
-                                  {realNum}
-                                </div>
-                                {e?.extracted_phone_number && e.extracted_phone_number !== proxyNum && (
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <span className="inline-flex items-center gap-0.5 text-[10px] text-success">
-                                          <ShieldCheck className="h-2.5 w-2.5" /> Verified via conversation
-                                        </span>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Real customer phone extracted from AI transcript (proxy: {proxyNum})</TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                )}
-                              </div>
-                            );
-                          })()}
+                          <div className="space-y-0.5">
+                            <div className={`font-semibold ${info.status === 'missed' ? 'text-destructive' : 'text-foreground'}`}>
+                              {(log as any).customer_name || 'Unknown'}
+                            </div>
+                            <div className={`font-mono text-xs ${info.status === 'missed' ? 'text-destructive/80' : 'text-primary'}`}>
+                              {log.full_number || log.caller_number}
+                            </div>
+                          </div>
                         </TableCell>
                         <TableCell className="text-sm">
                           <div className={info.status === 'missed' ? 'text-red-500 font-medium' : ''}>{info.whatText}</div>
-                          {aiEnrichment[log.id] && (
-                            (() => {
-                              const e = aiEnrichment[log.id];
-                              const conf = e.match_confidence || 0;
-                              const isExact = e.match_type === 'TRANSCRIPT_MATCH' && conf > 90;
-                              return (
-                                <div className="mt-1 flex flex-wrap items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-[11px]">
-                                  <span className="inline-flex items-center gap-1 font-semibold text-primary">
-                                    <Sparkles className="h-3 w-3" /> AI
-                                  </span>
-                                  {e.extracted_name && (
-                                    <span className="font-medium text-foreground">
-                                      {e.extracted_name}
-                                    </span>
-                                  )}
-                                  {e.requirement && (
-                                    <span className="text-muted-foreground">🎯 {e.requirement}</span>
-                                  )}
-                                  {e.budget && (
-                                    <span className="text-muted-foreground">💰 {e.budget}</span>
-                                  )}
-                                  {e.is_hot && (
-                                    <span className="inline-flex items-center gap-0.5 rounded-sm bg-destructive/15 text-destructive px-1 font-semibold">
-                                      🔥 HOT
-                                    </span>
-                                  )}
-                                  <Badge
-                                    variant="outline"
-                                    className={`h-4 px-1 text-[10px] ${isExact ? 'border-success/40 text-success bg-success/5' : 'border-warning/40 text-warning bg-warning/5'}`}
-                                    title={isExact ? 'Phone confirmed in transcript' : 'Matched by call time'}
-                                  >
-                                    {isExact ? 'Exact' : 'Likely'}{conf > 0 ? ` ${conf}%` : ''}
-                                  </Badge>
-                                </div>
-                              );
-                            })()
-                          )}
                           {info.finalAgent && info.status === 'answered' && (
                             <div className="text-xs text-green-600 font-medium mt-0.5">
                               Final Agent: {info.finalAgent}
@@ -1085,28 +734,15 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                             >
                               <PhoneOutgoing className="w-4 h-4" />
                             </Button>
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-emerald-600 hover:text-emerald-700"
-                                    onClick={() => openWhatsApp(bestPhone(log).phone)}
-                                  >
-                                    <MessageSquare className="w-4 h-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  WhatsApp
-                                  {bestPhone(log).isVerified && ' · Using verified number from conversation'}
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                            <LeadStatusControls
-                              status={leadStatusMap[log.id]}
-                              onChange={(s) => handleSetStatus(log.id, s)}
-                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-emerald-600 hover:text-emerald-700"
+                              onClick={() => openWhatsApp(bestPhone(log))}
+                              title="WhatsApp"
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                            </Button>
                             <Button variant="ghost" size="sm" onClick={() => setSelectedLog(log)}>
                               <Eye className="w-4 h-4 mr-1" /> Details
                             </Button>
@@ -1122,12 +758,10 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
                       )}
                     </React.Fragment>
                   );
-                  });
                 })}
               </TableBody>
             </Table>
           </div>
-          </>
         )}
       </CardContent>
 
@@ -1144,12 +778,7 @@ export function CallLogsPanel({ prospects = [], prospectSourceIds = new Set(), a
             </DialogDescription>
           </DialogHeader>
           {selectedLog && (
-            <CallLogDetails
-              log={selectedLog}
-              enrichment={aiEnrichment[selectedLog.id]}
-              onRematch={triggerRematch}
-              rematching={rematching}
-            />
+            <CallLogDetails log={selectedLog} />
           )}
         </DialogContent>
       </Dialog>
@@ -1318,109 +947,13 @@ function InlineAudioPlayer({ recordingFile, duration, autoPlay = false }: { reco
 /* ─── Call Log Details ─── */
 interface CallLogDetailsProps {
   log: CallLog;
-  enrichment?: {
-    extracted_name: string | null;
-    extracted_phone_number: string | null;
-    intent: string | null;
-    budget: string | null;
-    summary: string | null;
-    next_action: string | null;
-    sentiment: string | null;
-    match_type: string;
-    match_confidence: number;
-    requirement: string | null;
-    is_hot: boolean;
-    elevenlabs_call_log_id: string;
-  };
-  onRematch?: () => void;
-  rematching?: boolean;
 }
 
-function CallLogDetails({ log, enrichment, onRematch, rematching }: CallLogDetailsProps) {
+function CallLogDetails({ log }: CallLogDetailsProps) {
   const info = deriveCallInfo(log);
-  const proxyNum = log.full_number || log.caller_number;
-  const isExact = enrichment?.match_type === 'TRANSCRIPT_MATCH' && (enrichment?.match_confidence || 0) > 90;
 
   return (
     <div className="space-y-5">
-      {/* AI Insights — top section */}
-      {enrichment ? (
-        <div className="rounded-lg border border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <h3 className="font-semibold text-sm text-primary">AI Insights</h3>
-              {enrichment.is_hot && (
-                <span className="inline-flex items-center gap-0.5 rounded-sm bg-destructive/15 text-destructive px-1.5 py-0.5 text-[10px] font-bold">
-                  🔥 HOT LEAD
-                </span>
-              )}
-            </div>
-            <Badge
-              variant="outline"
-              className={isExact ? 'border-success/40 text-success bg-success/5' : 'border-warning/40 text-warning bg-warning/5'}
-            >
-              {isExact ? '✅ Exact Match' : '⚡ Likely Match'}
-              {enrichment.match_confidence > 0 ? ` (${enrichment.match_confidence}%)` : ''}
-            </Badge>
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <Detail label="Name" value={enrichment.extracted_name || 'Not captured'} />
-            <Detail
-              label="Phone"
-              value={
-                enrichment.extracted_phone_number ? (
-                  <span className="font-mono">
-                    {enrichment.extracted_phone_number}
-                    {enrichment.extracted_phone_number !== proxyNum && (
-                      <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] text-success font-sans">
-                        <ShieldCheck className="h-2.5 w-2.5" /> Verified via conversation
-                      </span>
-                    )}
-                  </span>
-                ) : (
-                  <span className="font-mono text-muted-foreground">{proxyNum}</span>
-                )
-              }
-            />
-            <Detail label="Intent" value={enrichment.intent || '—'} />
-            <Detail label="Budget" value={enrichment.budget || '—'} />
-            <Detail label="Requirement" value={enrichment.requirement || '—'} />
-            <Detail label="Sentiment" value={enrichment.sentiment || '—'} />
-          </div>
-          {enrichment.summary && (
-            <div className="mt-3 pt-3 border-t border-primary/20">
-              <p className="text-xs font-semibold text-muted-foreground mb-1">💡 Why this matters</p>
-              <p className="text-sm text-foreground">{enrichment.summary}</p>
-            </div>
-          )}
-          {enrichment.next_action && (
-            <div className="mt-2">
-              <p className="text-xs font-semibold text-muted-foreground mb-1">▶ Next action</p>
-              <p className="text-sm text-foreground">{enrichment.next_action}</p>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <h3 className="font-semibold text-sm">AI Insights</h3>
-                <p className="text-xs text-muted-foreground">No AI data found for this call.</p>
-              </div>
-            </div>
-            {onRematch && (
-              <Button size="sm" variant="outline" onClick={onRematch} disabled={rematching}>
-                <Wand2 className={`w-3.5 h-3.5 mr-1 ${rematching ? 'animate-spin' : ''}`} />
-                Re-match
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Info Grid */}
       <div className="grid grid-cols-2 gap-3 text-sm">
         <Detail label="Caller Number" value={log.full_number || log.caller_number} />
