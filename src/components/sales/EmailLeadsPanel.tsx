@@ -537,7 +537,6 @@ export function EmailLeadsPanel() {
                       </button>
                     </TableHead>
                     <TableHead>Cust. Type</TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead>Assigned To</TableHead>
                     <TableHead>
                       <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('created_at')}>
@@ -633,11 +632,6 @@ export function EmailLeadsPanel() {
                               <span className="text-xs text-muted-foreground">—</span>
                             )}
                           </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={statusColor(lead.status)}>
-                              {lead.status}
-                            </Badge>
-                          </TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <Select
                               value={lead.sales_person_id || 'unassigned'}
@@ -703,7 +697,7 @@ export function EmailLeadsPanel() {
                         {/* Expandable Detail Row */}
                         {isExpanded && (
                           <TableRow key={`${lead.id}-detail`} className="bg-muted/20 hover:bg-muted/30">
-                            <TableCell colSpan={17} className="p-4">
+                            <TableCell colSpan={16} className="p-4">
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                 <div className="space-y-2">
                                   <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Lead Details</h4>
