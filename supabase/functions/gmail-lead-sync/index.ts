@@ -18,6 +18,20 @@ const SPAM_SUBJECT_INDICATORS = ["unsubscribe", "newsletter", "you have been rem
 // Bulk sender threshold: if a sender sends more than this many emails per day, flag as bulk
 const BULK_SENDER_THRESHOLD = 10;
 
+// Per-mailbox subject allowlists. If a mailbox has an entry here, ONLY emails whose subject
+// contains one of the listed substrings (case-insensitive) will be ingested as leads.
+// Other emails for these mailboxes are skipped silently (logged as dropped).
+const SUBJECT_ALLOWLIST_BY_MAILBOX: Record<string, string[]> = {
+  "contact@xboom.in": ["[XBOOM contact]", "[XBOOM popup]"],
+};
+
+function passesSubjectAllowlist(mailbox: string, subject: string): boolean {
+  const allow = SUBJECT_ALLOWLIST_BY_MAILBOX[mailbox.toLowerCase()];
+  if (!allow || allow.length === 0) return true; // no filter configured
+  const subjLower = (subject || "").toLowerCase();
+  return allow.some((token) => subjLower.includes(token.toLowerCase()));
+}
+
 interface GmailMessage {
   id: string;
   threadId: string;
