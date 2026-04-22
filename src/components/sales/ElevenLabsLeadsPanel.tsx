@@ -46,11 +46,11 @@ import {
   HelpCircle,
   XCircle,
   PhoneCall,
-  Link2,
-  ShieldCheck,
-  ShieldAlert,
-  ShieldX,
-  BadgeCheck,
+  
+  
+  
+  
+  
   Lightbulb,
   UserX,
 } from "lucide-react";
@@ -69,15 +69,6 @@ type ElevenLead = {
   raw_transcript: string | null;
   notes: string | null;
   created_at: string;
-};
-
-type CallMapping = {
-  elevenlabs_call_log_id: string;
-  myoperator_call_log_id: string | null;
-  match_type: "TRANSCRIPT_MATCH" | "TIME_MATCH" | "UNMATCHED";
-  match_confidence: number;
-  extracted_phone_number: string | null;
-  extracted_name: string | null;
 };
 
 type AIAnalysis = {
@@ -122,12 +113,8 @@ const extractName = (transcript: string | null): string | null => {
  * Priority: extracted_name (mapping) → customer_name → transcript regex → "Unidentified Caller".
  * Phone is shown separately below the name; we never substitute the phone for the name.
  */
-const resolveName = (
-  lead: ElevenLead,
-  mapping?: CallMapping,
-): { name: string; isUnidentified: boolean } => {
+const resolveName = (lead: ElevenLead): { name: string; isUnidentified: boolean } => {
   const candidate =
-    (mapping?.extracted_name && mapping.extracted_name.trim()) ||
     (lead.customer_name && lead.customer_name !== "Unknown" ? lead.customer_name : "") ||
     extractName(lead.raw_transcript) ||
     "";
@@ -157,43 +144,6 @@ const whyThisMatters = (
   return [first, ...reasons.slice(1, 2)].join(" • ");
 };
 
-/**
- * Sales-friendly match label with thresholds.
- * >90 = Exact, 70–90 = Likely, otherwise "Not linked to call logs".
- */
-const getMatchInfo = (matchType: string | undefined, confidence: number) => {
-  const conf = confidence || 0;
-  const linked = matchType && matchType !== "UNMATCHED";
-  if (linked && conf > 90) {
-    return {
-      label: "Exact Match",
-      Icon: ShieldCheck,
-      cls: "bg-success/15 text-success border-success/30",
-      tooltip: `Confidence ${conf}% — phone number was confirmed in the transcript.`,
-      confidence: conf,
-      linked: true as const,
-    };
-  }
-  if (linked && conf >= 70) {
-    return {
-      label: "Likely Match",
-      Icon: ShieldAlert,
-      cls: "bg-warning/15 text-warning border-warning/30",
-      tooltip: `Confidence ${conf}% — matched by call time and duration. Verify before relying on it.`,
-      confidence: conf,
-      linked: true as const,
-    };
-  }
-  return {
-    label: "Not linked to call logs",
-    Icon: ShieldX,
-    cls: "bg-muted text-muted-foreground border-border",
-    tooltip:
-      "This lead was captured via AI but not yet matched with MyOperator call records. Use ‘Link manually’ to attach it.",
-    confidence: conf,
-    linked: false as const,
-  };
-};
 
 /** Detect whether the lead shows clear buying signals. */
 const isHotLead = (lead: ElevenLead): boolean => {
@@ -318,9 +268,7 @@ const parseTranscript = (raw: string | null): ChatTurn[] => {
 
 export function ElevenLabsLeadsPanel() {
   const [leads, setLeads] = useState<ElevenLead[]>([]);
-  const [mappings, setMappings] = useState<Record<string, CallMapping>>({});
   const [summaries, setSummaries] = useState<Record<string, string>>({});
-  const [rematching, setRematching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -330,10 +278,6 @@ export function ElevenLabsLeadsPanel() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [linkTargetId, setLinkTargetId] = useState<string | null>(null);
-  const [linkOptions, setLinkOptions] = useState<Array<{ id: string; caller_number: string; created_at: string; call_duration: number | null }>>([]);
-  const [linkSearch, setLinkSearch] = useState("");
-  const [linking, setLinking] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -348,49 +292,19 @@ export function ElevenLabsLeadsPanel() {
     if (!error && data) setLeads(data as ElevenLead[]);
     const ids = (data ?? []).map((d: any) => d.id);
     if (ids.length) {
-      const [{ data: maps }, { data: ana }] = await Promise.all([
-        supabase
-          .from("call_mapping")
-          .select(
-            "elevenlabs_call_log_id,myoperator_call_log_id,match_type,match_confidence,extracted_phone_number,extracted_name",
-          )
-          .in("elevenlabs_call_log_id", ids),
-        supabase
-          .from("call_ai_analysis")
-          .select("call_log_id,summary")
-          .in("call_log_id", ids),
-      ]);
-      const dict: Record<string, CallMapping> = {};
-      (maps ?? []).forEach((m: any) => (dict[m.elevenlabs_call_log_id] = m));
-      setMappings(dict);
+      const { data: ana } = await supabase
+        .from("call_ai_analysis")
+        .select("call_log_id,summary")
+        .in("call_log_id", ids);
       const sumDict: Record<string, string> = {};
       (ana ?? []).forEach((a: any) => {
         if (a.summary) sumDict[a.call_log_id] = a.summary;
       });
       setSummaries(sumDict);
     } else {
-      setMappings({});
       setSummaries({});
     }
     setLoading(false);
-  };
-
-  const triggerRematch = async () => {
-    setRematching(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("backfill-call-mapping", {
-        body: { limit: 100 },
-      });
-      if (error) throw error;
-      toast.success(
-        `Re-matched ${data?.processed ?? 0} leads — ${data?.matched_transcript ?? 0} via transcript, ${data?.matched_time ?? 0} via time`,
-      );
-      await load();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Re-match failed");
-    } finally {
-      setRematching(false);
-    }
   };
 
   useEffect(() => {
@@ -475,28 +389,17 @@ export function ElevenLabsLeadsPanel() {
       }
       return true;
     });
-    // Sort priority: HOT → Exact Match → High Intent → Recent.
-    // Lower rank value = appears first.
-    const matchRank = (id: string) => {
-      const m = mappings[id];
-      const conf = m?.match_confidence ?? 0;
-      if (m && m.match_type !== "UNMATCHED" && conf > 90) return 0; // Exact
-      if (m && m.match_type !== "UNMATCHED" && conf >= 70) return 1; // Likely
-      return 2; // Not linked
-    };
     return list.sort((a, b) => {
       const aHot = isHotLead(a) ? 0 : 1;
       const bHot = isHotLead(b) ? 0 : 1;
       if (aHot !== bHot) return aHot - bHot;
-      const mr = matchRank(a.id) - matchRank(b.id);
-      if (mr !== 0) return mr;
       const pr = priorityRank(a.priority) - priorityRank(b.priority);
       if (pr !== 0) return pr;
       const sc = (b.lead_score ?? 0) - (a.lead_score ?? 0);
       if (sc !== 0) return sc;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [leads, search, priorityFilter, intentFilter, statusFilter, budgetFilter, mappings]);
+  }, [leads, search, priorityFilter, intentFilter, statusFilter, budgetFilter]);
 
   const stats = useMemo(() => {
     const total = leads.length;
@@ -526,52 +429,6 @@ export function ElevenLabsLeadsPanel() {
     window.open(`https://wa.me/${num}`, "_blank");
   };
 
-  // ---- Manual link recovery (UNMATCHED leads) ----
-  const openLinkDialog = async (elevenlabsId: string) => {
-    setLinkTargetId(elevenlabsId);
-    setLinkSearch("");
-    const { data } = await supabase
-      .from("call_logs")
-      .select("id,caller_number,created_at,call_duration")
-      .eq("lead_source", "MyOperator")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    setLinkOptions((data ?? []) as any);
-  };
-
-  const linkManually = async (myoperatorId: string) => {
-    if (!linkTargetId) return;
-    setLinking(true);
-    try {
-      const existing = mappings[linkTargetId];
-      const payload = {
-        elevenlabs_call_log_id: linkTargetId,
-        myoperator_call_log_id: myoperatorId,
-        match_type: "TRANSCRIPT_MATCH" as const,
-        match_confidence: 100,
-        notes: "Manually linked by sales user",
-        matched_at: new Date().toISOString(),
-      };
-      let error;
-      if (existing) {
-        ({ error } = await supabase
-          .from("call_mapping")
-          .update(payload)
-          .eq("elevenlabs_call_log_id", linkTargetId));
-      } else {
-        ({ error } = await supabase.from("call_mapping").insert(payload));
-      }
-      if (error) throw error;
-      toast.success("Lead linked manually ✓");
-      setLinkTargetId(null);
-      await load();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Failed to link");
-    } finally {
-      setLinking(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -590,16 +447,6 @@ export function ElevenLabsLeadsPanel() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={triggerRematch}
-            disabled={rematching}
-            className="gap-2"
-          >
-            <Sparkles className={`h-4 w-4 ${rematching ? "animate-pulse" : ""}`} />
-            {rematching ? "Re-matching…" : "Re-match Leads"}
-          </Button>
           <Button variant="outline" size="sm" onClick={load} className="gap-2">
             <RefreshCw className="h-4 w-4" /> Refresh
           </Button>
@@ -706,13 +553,10 @@ export function ElevenLabsLeadsPanel() {
         <div className="grid sm:grid-cols-2 gap-3">
           {filtered.map((l) => {
             const isNew = isNewLead(l.created_at);
-            const mapping = mappings[l.id];
-            const realPhone = mapping?.extracted_phone_number ?? l.caller_number;
+            const realPhone = l.caller_number;
             const phone = formatPhone(realPhone);
-            const { name, isUnidentified } = resolveName(l, mapping);
-            const phoneFromTranscript = !!mapping?.extracted_phone_number;
+            const { name, isUnidentified } = resolveName(l);
             const hot = isHotLead(l);
-            const matchInfo = getMatchInfo(mapping?.match_type, mapping?.match_confidence ?? 0);
             const reason = whyThisMatters(l, summaries[l.id] ?? null);
             const status = (l.lead_status ?? "New").toString();
             return (
@@ -754,24 +598,7 @@ export function ElevenLabsLeadsPanel() {
                         {name}
                       </h3>
                     )}
-                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                      <p className="text-sm text-muted-foreground font-mono">{phone}</p>
-                      {phoneFromTranscript && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge
-                              variant="outline"
-                              className="h-5 px-1.5 text-[10px] gap-0.5 border-success/40 text-success bg-success/10"
-                            >
-                              <BadgeCheck className="h-3 w-3" /> Verified via conversation
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            This number was spoken by the caller during the AI conversation.
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
+                    <p className="text-sm text-muted-foreground font-mono mt-0.5">{phone}</p>
                   </div>
 
                   {/* Intent + Budget row */}
@@ -823,26 +650,10 @@ export function ElevenLabsLeadsPanel() {
                     </div>
                   )}
 
-                  {/* Status + Match badges */}
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Badge variant="outline" className="text-xs capitalize">
                       {status}
                     </Badge>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Badge
-                          variant="outline"
-                          className={`text-xs gap-1 cursor-help ${matchInfo.cls}`}
-                        >
-                          <matchInfo.Icon className="h-3 w-3" />
-                          {matchInfo.label}
-                          {matchInfo.linked && matchInfo.confidence > 0 && (
-                            <span className="opacity-80">({matchInfo.confidence}%)</span>
-                          )}
-                        </Badge>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">{matchInfo.tooltip}</TooltipContent>
-                    </Tooltip>
                   </div>
 
                   {/* CTAs */}
@@ -880,21 +691,6 @@ export function ElevenLabsLeadsPanel() {
                         <SelectItem value="Closed">Closed</SelectItem>
                       </SelectContent>
                     </Select>
-                    {!matchInfo.linked && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 px-2"
-                            onClick={() => openLinkDialog(l.id)}
-                          >
-                            <Link2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Link manually to a MyOperator call</TooltipContent>
-                      </Tooltip>
-                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -913,11 +709,8 @@ export function ElevenLabsLeadsPanel() {
           {selected && (
             <>
               {(() => {
-                const m = mappings[selected.id];
-                const realPhone = m?.extracted_phone_number ?? selected.caller_number;
-                const { name, isUnidentified } = resolveName(selected, m);
-                const phoneFromTranscript = !!m?.extracted_phone_number;
-                const matchInfo = getMatchInfo(m?.match_type, m?.match_confidence ?? 0);
+                const realPhone = selected.caller_number;
+                const { name, isUnidentified } = resolveName(selected);
                 return (
                   <SheetHeader>
                     <SheetTitle className="flex items-center gap-2 text-lg">
@@ -926,28 +719,9 @@ export function ElevenLabsLeadsPanel() {
                     </SheetTitle>
                     <SheetDescription className="font-mono flex flex-wrap items-center gap-1.5">
                       <span>{formatPhone(realPhone)}</span>
-                      {phoneFromTranscript && (
-                        <Badge variant="outline" className="h-5 px-1.5 text-[10px] gap-0.5 border-success/40 text-success bg-success/10">
-                          <BadgeCheck className="h-3 w-3" /> Verified via conversation
-                        </Badge>
-                      )}
                       <span className="text-muted-foreground">·</span>
                       <span>{format(new Date(selected.created_at), "dd MMM yyyy, HH:mm")}</span>
                     </SheetDescription>
-                    <div className="flex flex-wrap gap-1.5 pt-1.5">
-                      <Badge variant="outline" className={`text-xs gap-1 ${matchInfo.cls}`}>
-                        <matchInfo.Icon className="h-3 w-3" />
-                        {matchInfo.label}
-                        {matchInfo.linked && matchInfo.confidence > 0 && (
-                          <span className="opacity-80">({matchInfo.confidence}%)</span>
-                        )}
-                      </Badge>
-                      {isUnidentified && (
-                        <Badge variant="outline" className="text-xs text-muted-foreground">
-                          Name not captured
-                        </Badge>
-                      )}
-                    </div>
                   </SheetHeader>
                 );
               })()}
@@ -957,14 +731,14 @@ export function ElevenLabsLeadsPanel() {
                 <div className="grid grid-cols-2 gap-2">
                   <Button
                     className="gap-2"
-                    onClick={() => callTel(mappings[selected.id]?.extracted_phone_number ?? selected.caller_number)}
+                    onClick={() => callTel(selected.caller_number)}
                   >
                     <PhoneCall className="h-4 w-4" /> Call Now
                   </Button>
                   <Button
                     variant="outline"
                     className="gap-2"
-                    onClick={() => openWhatsApp(mappings[selected.id]?.extracted_phone_number ?? selected.caller_number)}
+                    onClick={() => openWhatsApp(selected.caller_number)}
                   >
                     <MessageCircle className="h-4 w-4" /> WhatsApp
                   </Button>
@@ -1138,61 +912,6 @@ export function ElevenLabsLeadsPanel() {
         </SheetContent>
       </Sheet>
 
-      {/* Manual Link Recovery Dialog */}
-      <Dialog open={!!linkTargetId} onOpenChange={(o) => !o && setLinkTargetId(null)}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Link to MyOperator call</DialogTitle>
-            <DialogDescription>
-              Pick the matching MyOperator call so this AI lead is correctly attributed.
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            placeholder="Search by phone number…"
-            value={linkSearch}
-            onChange={(e) => setLinkSearch(e.target.value)}
-          />
-          <ScrollArea className="h-72 mt-2 -mx-2 px-2">
-            <div className="space-y-1.5">
-              {linkOptions
-                .filter((o) =>
-                  linkSearch
-                    ? o.caller_number?.includes(linkSearch.replace(/\D/g, ""))
-                    : true,
-                )
-                .map((o) => (
-                  <button
-                    key={o.id}
-                    disabled={linking}
-                    onClick={() => linkManually(o.id)}
-                    className="w-full text-left flex items-center justify-between gap-3 rounded-md border bg-card hover:bg-accent transition-colors p-2.5 text-sm disabled:opacity-50"
-                  >
-                    <div>
-                      <div className="font-mono font-medium">
-                        {formatPhone(o.caller_number)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(o.created_at), "dd MMM yyyy HH:mm")} •{" "}
-                        {formatDuration(o.call_duration)}
-                      </div>
-                    </div>
-                    <Link2 className="h-4 w-4 text-primary" />
-                  </button>
-                ))}
-              {linkOptions.length === 0 && (
-                <div className="text-center text-sm text-muted-foreground py-8">
-                  No recent MyOperator calls found.
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setLinkTargetId(null)}>
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
