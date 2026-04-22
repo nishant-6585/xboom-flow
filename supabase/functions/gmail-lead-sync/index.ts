@@ -392,6 +392,18 @@ Deno.serve(async (req) => {
               continue;
             }
 
+            // ---- Per-mailbox subject allowlist (e.g. contact@xboom.in only accepts XBOOM-tagged subjects) ----
+            if (!passesSubjectAllowlist(integration.email, subject)) {
+              blocked++;
+              dropLog.push({
+                gmail_id: msgId,
+                sender: senderEmail,
+                subject,
+                reason: `subject_not_allowlisted:${integration.email}`,
+              });
+              continue;
+            }
+
             // ---- Sender frequency check: detect bulk senders ----
             if (senderEmail) {
               const isBulkSender = await trackSenderFrequency(supabase, senderEmail);
