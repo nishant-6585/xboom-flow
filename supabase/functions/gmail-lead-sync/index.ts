@@ -66,8 +66,10 @@ function parseXboomFormBody(bodyText: string): Record<string, string> | null {
         continue;
       }
     }
-    // Append continuation lines to the last known key (mainly for Message)
-    if (currentKey && line) {
+    // Only allow multiline continuation for the message field.
+    // Other fields like phone/email must stay single-line to avoid absorbing
+    // flattened content such as "Subject:..." from HTML/plaintext conversions.
+    if (currentKey === "message" && line) {
       result[currentKey] = (result[currentKey] ? result[currentKey] + "\n" : "") + line;
     }
   }
@@ -500,7 +502,7 @@ Deno.serve(async (req) => {
 
             const name = (parsedForm?.name && parsedForm.name.trim())
               || extractName(from);
-            const phone = (parsedForm?.phone && parsedForm.phone.replace(/[\s-]/g, ""))
+            const phone = (parsedForm?.phone && (parsedForm.phone.match(/(?:\+?\d[\d\s-]{7,}\d)|(?:\b\d{10,15}\b)/)?.[0] || "").replace(/[^\d+]/g, ""))
               || extractPhone(bodyText);
             const parsedEmail = parsedForm?.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parsedForm.email)
               ? parsedForm.email.trim()

@@ -242,6 +242,12 @@ export function EmailLeadsPanel() {
 
   const canManage = role === 'admin' || role === 'sales_manager';
 
+  const getCleanPhone = (phone: string | null) => {
+    if (!phone) return null;
+    const match = phone.match(/(?:\+?\d[\d\s-]{7,}\d)|(?:\b\d{10,15}\b)/);
+    return match ? match[0].replace(/[^\d+]/g, '') : null;
+  };
+
   // Pipeline funnel
   const funnelStages = metrics ? [
     { label: 'Total', value: metrics.total, icon: Inbox, color: 'text-foreground' },
@@ -599,7 +605,7 @@ export function EmailLeadsPanel() {
                             {lead.email ? <span className="block truncate">{lead.email}</span> : '-'}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                            {lead.phone_number || '-'}
+                            {getCleanPhone(lead.phone_number) || '-'}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground max-w-[220px]">
                             {(lead as any).subject ? <span className="block truncate">{(lead as any).subject}</span> : '-'}
