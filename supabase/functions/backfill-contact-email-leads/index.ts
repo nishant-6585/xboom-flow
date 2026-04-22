@@ -75,7 +75,10 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    const cronSecret = req.headers.get("x-cron-secret");
+    const expectedCronSecret = Deno.env.get("CRON_SECRET");
+
+    if (!authHeader && (!cronSecret || cronSecret !== expectedCronSecret)) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -83,28 +86,30 @@ Deno.serve(async (req) => {
     }
 
     const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await serviceClient.auth.getUser(token);
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      const { data: { user }, error: userError } = await serviceClient.auth.getUser(token);
 
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+      if (userError || !user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
-    const { data: roles } = await serviceClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id);
+      const { data: roles } = await serviceClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
 
-    const allowedRoles = ["admin", "sales_manager"];
-    const hasAccess = (roles || []).some((entry: { role: string }) => allowedRoles.includes(entry.role));
-    if (!hasAccess) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const allowedRoles = ["admin", "sales_manager"];
+      const hasAccess = (roles || []).some((entry: { role: string }) => allowedRoles.includes(entry.role));
+      if (!hasAccess) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const body = await req.json().catch(() => ({}));
