@@ -32,6 +32,49 @@ function passesSubjectAllowlist(mailbox: string, subject: string): boolean {
   return allow.some((token) => subjLower.includes(token.toLowerCase()));
 }
 
+/**
+ * Parse the structured "Key: Value" body used by XBOOM contact / popup forms.
+ * Example body lines:
+ *   Intent: buy-drone
+ *   Name: vishal
+ *   Company: TinoP
+ *   Email: alter@xboom.in
+ *   Phone: 7795067437
+ *   Location: BANGALORE
+ *   Timeline: 1-month
+ *   Message: HELLO, ...
+ * Returns null if no recognizable fields are found.
+ */
+function parseXboomFormBody(bodyText: string): Record<string, string> | null {
+  if (!bodyText) return null;
+  const knownKeys = [
+    "intent", "name", "company", "email", "phone",
+    "location", "city", "timeline", "message", "product", "quantity",
+  ];
+  const result: Record<string, string> = {};
+  let currentKey: string | null = null;
+
+  const lines = bodyText.split(/\r?\n/);
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    const match = line.match(/^([A-Za-z][A-Za-z _-]{0,30}):\s*(.*)$/);
+    if (match) {
+      const key = match[1].trim().toLowerCase().replace(/\s+/g, "_");
+      if (knownKeys.includes(key)) {
+        currentKey = key;
+        result[key] = match[2].trim();
+        continue;
+      }
+    }
+    // Append continuation lines to the last known key (mainly for Message)
+    if (currentKey && line) {
+      result[currentKey] = (result[currentKey] ? result[currentKey] + "\n" : "") + line;
+    }
+  }
+
+  return Object.keys(result).length > 0 ? result : null;
+}
+
 interface GmailMessage {
   id: string;
   threadId: string;
