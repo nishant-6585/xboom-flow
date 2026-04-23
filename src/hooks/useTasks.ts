@@ -185,11 +185,15 @@ export function useTasks() {
     if (!user || !profile) return false;
 
     try {
-      const { error } = await supabase.from('tasks').insert({
+      const payload = {
         ...formData,
+        description: formData.description?.trim() || null,
+        due_date: formData.due_date?.trim() ? new Date(formData.due_date).toISOString() : null,
         assigned_by: user.id,
         assigned_by_name: profile.name,
-      } as any);
+      };
+
+      const { error } = await supabase.from('tasks').insert(payload as any);
 
       if (error) throw error;
       toast.success('Task created successfully');
