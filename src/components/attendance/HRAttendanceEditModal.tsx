@@ -204,7 +204,6 @@ export function HRAttendanceEditModal({
       }
 
       toast.success(`Attendance ${hasExistingLog ? 'updated' : 'created'} successfully ✅`);
-      onOpenChange(false);
       onSaved();
     } catch (e: any) {
       toast.error(e.message || 'Failed to save attendance edit');
