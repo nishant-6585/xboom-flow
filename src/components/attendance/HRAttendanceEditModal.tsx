@@ -42,7 +42,8 @@ export function HRAttendanceEditModal({
   onSaved,
 }: HRAttendanceEditModalProps) {
   const { user, profile } = useAuth();
-  const isNewRecord = !log || !log.check_in_time;
+  const hasExistingLog = Boolean(log?.id);
+  const isMissingAttendanceData = !log?.check_in_time;
 
   const [status, setStatus] = useState<AttendanceStatusOption>(() => {
     if (!log?.check_in_time) return 'present';
@@ -105,7 +106,7 @@ export function HRAttendanceEditModal({
       const oldCheckIn = log?.check_in_time || null;
       const oldCheckOut = log?.check_out_time || null;
 
-      if (isNewRecord) {
+      if (!hasExistingLog) {
         // Create new attendance log
         const { data: inserted, error } = await supabase
           .from('attendance_logs')
@@ -159,6 +160,9 @@ export function HRAttendanceEditModal({
           if (log?.is_provisional_checkout) {
             updatePayload.is_provisional_checkout = false;
           }
+        } else {
+          updatePayload.check_in_time = null;
+          updatePayload.check_out_time = null;
         }
 
         const { error } = await supabase
@@ -199,8 +203,7 @@ export function HRAttendanceEditModal({
         });
       }
 
-      toast.success(`Attendance ${isNewRecord ? 'created' : 'updated'} successfully ✅`);
-      onOpenChange(false);
+      toast.success(`Attendance ${hasExistingLog ? 'updated' : 'created'} successfully ✅`);
       onSaved();
     } catch (e: any) {
       toast.error(e.message || 'Failed to save attendance edit');
@@ -234,7 +237,7 @@ export function HRAttendanceEditModal({
           <div className="flex items-center gap-2">
             <CalendarCheck className="h-4 w-4 text-muted-foreground" />
             <p className="text-sm font-medium">{format(parseISO(date), 'EEEE, dd MMM yyyy')}</p>
-            {isNewRecord && (
+            {isMissingAttendanceData && (
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-red-300 bg-red-50 text-red-700">
                 No Record
               </Badge>
@@ -242,7 +245,7 @@ export function HRAttendanceEditModal({
           </div>
 
           {/* Current values if editing */}
-          {!isNewRecord && log && (
+          {hasExistingLog && log && (
             <div className="grid grid-cols-3 gap-2 rounded-lg bg-muted/40 p-3 text-sm">
               <div>
                 <p className="text-xs text-muted-foreground">Current Status</p>
@@ -332,7 +335,7 @@ export function HRAttendanceEditModal({
             disabled={saving || !reason.trim()}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
-            {saving ? 'Saving…' : isNewRecord ? 'Create Record' : 'Save Changes'}
+            {saving ? 'Saving…' : hasExistingLog ? 'Save Changes' : 'Create Record'}
           </Button>
         </DialogFooter>
       </DialogContent>
