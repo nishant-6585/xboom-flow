@@ -69,9 +69,9 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
     }
 
     const matchesSearch = 
-      e.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.customer_company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.product_name.toLowerCase().includes(searchQuery.toLowerCase());
+      (e.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+      (e.customer_company?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+      (e.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
     
     const matchesCategory = categoryFilter === 'all' || e.product_category === categoryFilter;
     const matchesStatus = statusFilter === 'all' || e.status === statusFilter;

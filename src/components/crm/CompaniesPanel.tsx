@@ -53,7 +53,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(c =>
-        c.name.toLowerCase().includes(q) ||
+        (c.name?.toLowerCase().includes(q) ?? false) ||
         c.city?.toLowerCase().includes(q) ||
         c.industry?.toLowerCase().includes(q) ||
         c.email?.toLowerCase().includes(q)

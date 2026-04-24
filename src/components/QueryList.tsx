@@ -16,9 +16,9 @@ export function QueryList({ queries, onQueryClick }: QueryListProps) {
 
   const filteredQueries = queries.filter((query) => {
     const matchesSearch =
-      query.productName.toLowerCase().includes(search.toLowerCase()) ||
-      query.productCode.toLowerCase().includes(search.toLowerCase()) ||
-      query.customerName.toLowerCase().includes(search.toLowerCase());
+      (query.productName?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
+      (query.productCode?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
+      (query.customerName?.toLowerCase().includes(search.toLowerCase()) ?? false);
     
     const matchesStatus = activeTab === "all" || query.status === activeTab;
 
