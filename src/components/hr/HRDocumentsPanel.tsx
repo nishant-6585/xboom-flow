@@ -479,6 +479,20 @@ export function HRDocumentsPanel() {
                             <Pencil className="h-4 w-4 mr-2" /> Rename
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            onClick={() => {
+                              openMoveDialog([
+                                {
+                                  id: folder.id,
+                                  type: "folder",
+                                  name: folder.name,
+                                  parentId: folder.parent_id,
+                                },
+                              ]);
+                            }}
+                          >
+                            <ArrowRightLeft className="h-4 w-4 mr-2" /> Move
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => {
                               if (confirm(`Delete folder "${folder.name}" and all its contents?`)) {
