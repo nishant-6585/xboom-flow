@@ -55,8 +55,8 @@ export function ProcurementLedger() {
 
   const filteredSummaries = useMemo(() => {
     return supplierSummaries.filter(summary => 
-      summary.supplier.name.toLowerCase().includes(search.toLowerCase()) ||
-      summary.supplier.contact_name.toLowerCase().includes(search.toLowerCase())
+      (summary.supplier.name?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
+      (summary.supplier.contact_name?.toLowerCase().includes(search.toLowerCase()) ?? false)
     );
   }, [supplierSummaries, search]);
 
