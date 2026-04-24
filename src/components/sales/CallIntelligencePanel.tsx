@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useCallIntelligence, CallAiAnalysis } from '@/hooks/useCallIntelligence';
 import { useAuth } from '@/hooks/useAuth';
+import { CallButton } from '@/components/calls/CallButton';
 import {
   Phone, PhoneCall, PhoneOff, PhoneMissed, Play, Brain,
   ChevronDown, Clock, Target, MessageSquare, Loader2,
@@ -21,11 +22,10 @@ interface CallIntelligencePanelProps {
 }
 
 export function CallIntelligencePanel({ leadId, customerPhone, customerName }: CallIntelligencePanelProps) {
-  const { callLogs, loadingCalls, initiateCall, triggerAnalysis, fetchAnalysis } = useCallIntelligence(leadId);
+  const { callLogs, loadingCalls, triggerAnalysis, fetchAnalysis, refetchCalls } = useCallIntelligence(leadId);
   const { role } = useAuth();
   const [analysisMap, setAnalysisMap] = useState<Record<string, CallAiAnalysis>>({});
   const [loadingAnalysis, setLoadingAnalysis] = useState<Record<string, boolean>>({});
-  const [callingInProgress, setCallingInProgress] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
 
   // Load analysis for each call log
@@ -41,13 +41,6 @@ export function CallIntelligencePanel({ leadId, customerPhone, customerName }: C
       }
     });
   }, [callLogs]);
-
-  const handleInitiateCall = async () => {
-    if (!customerPhone) return;
-    setCallingInProgress(true);
-    await initiateCall(customerPhone, leadId);
-    setCallingInProgress(false);
-  };
 
   const handleTriggerAnalysis = async (callLogId: string, recordingUrl?: string | null) => {
     setAnalyzingId(callLogId);
@@ -116,18 +109,14 @@ export function CallIntelligencePanel({ leadId, customerPhone, customerName }: C
           Call Intelligence
         </h3>
         {customerPhone && (
-          <Button
-            onClick={handleInitiateCall}
-            disabled={callingInProgress}
-            size="sm"
-          >
-            {callingInProgress ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Phone className="h-4 w-4 mr-2" />
-            )}
-            {callingInProgress ? 'Connecting...' : 'Call Now'}
-          </Button>
+          <CallButton
+            phoneNumber={customerPhone}
+            entityType="lead"
+            entityId={leadId}
+            label="Call Now"
+            variant="default"
+            onAfterCall={refetchCalls}
+          />
         )}
       </div>
 
