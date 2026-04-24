@@ -353,6 +353,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       customer_type: customerType,
       customer_name: customerName || null,
       customer_company: customerCompany || null,
+      customer_gst: customerGst || null,
       shipping_address: shippingAddress || null,
       supplier_name: supplierName || null,
       supplier_contact: supplierContact || null,
@@ -408,6 +409,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     trackField('customer_type', order.customer_type, customerType);
     trackField('customer_name', order.customer_name, customerName || null);
     trackField('customer_company', order.customer_company, customerCompany || null);
+    trackField('customer_gst', (order as any).customer_gst, customerGst || null);
     trackField('shipping_address', order.shipping_address, shippingAddress || null);
     trackField('supplier_name', order.supplier_name, supplierName || null);
     trackField('supplier_contact', order.supplier_contact, supplierContact || null);
