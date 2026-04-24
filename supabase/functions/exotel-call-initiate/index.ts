@@ -1,5 +1,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -8,24 +13,70 @@ const EXOTEL_API_KEY = Deno.env.get("EXOTEL_API_KEY");
 const EXOTEL_API_TOKEN = Deno.env.get("EXOTEL_API_TOKEN");
 const EXOTEL_CALLER_ID_ENV = Deno.env.get("EXOTEL_CALLER_ID");
 const EXOTEL_FLOW_URL = Deno.env.get("EXOTEL_FLOW_URL");
+const EXOTEL_STATUS_CALLBACK_URL_ENV = Deno.env.get("EXOTEL_STATUS_CALLBACK_URL");
+const EXOTEL_TIME_LIMIT_ENV = Deno.env.get("EXOTEL_TIME_LIMIT"); // seconds
+const EXOTEL_TIME_OUT_ENV = Deno.env.get("EXOTEL_TIME_OUT");     // seconds
 
 // India region endpoint
 const EXOTEL_API_BASE = "https://api.in.exotel.com";
 
-/** Resolve Caller ID: prefer admin-configured DB value, fallback to env secret */
-async function resolveCallerId(supabaseAdmin: ReturnType<typeof createClient>): Promise<string | null> {
+/** Read an `app_settings` value safely */
+async function readSetting<T = any>(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  key: string
+): Promise<T | null> {
   try {
     const { data } = await supabaseAdmin
       .from("app_settings")
       .select("value")
-      .eq("key", "exotel_caller_id")
+      .eq("key", key)
       .maybeSingle();
-    const dbVal = (data?.value as { caller_id?: string } | null)?.caller_id?.trim();
-    if (dbVal) return dbVal;
+    return (data?.value as T) ?? null;
   } catch {
-    // fall through to env
+    return null;
   }
+}
+
+/** Resolve Caller ID: DB override → env fallback */
+async function resolveCallerId(
+  supabaseAdmin: ReturnType<typeof createClient>
+): Promise<string | null> {
+  const dbVal = await readSetting<{ caller_id?: string }>(
+    supabaseAdmin,
+    "exotel_caller_id"
+  );
+  const fromDb = dbVal?.caller_id?.trim();
+  if (fromDb) return fromDb;
   return EXOTEL_CALLER_ID_ENV?.trim() || null;
+}
+
+/** Resolve numeric setting from DB → env → default */
+async function resolveNumericSetting(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  key: string,
+  envValue: string | undefined,
+  defaultValue: number
+): Promise<number> {
+  const dbVal = await readSetting<{ value?: number | string }>(supabaseAdmin, key);
+  const fromDb = Number(dbVal?.value);
+  if (Number.isFinite(fromDb) && fromDb > 0) return fromDb;
+  const fromEnv = Number(envValue);
+  if (Number.isFinite(fromEnv) && fromEnv > 0) return fromEnv;
+  return defaultValue;
+}
+
+/** Resolve StatusCallback URL: DB → env → default to exotel-webhook */
+async function resolveStatusCallback(
+  supabaseAdmin: ReturnType<typeof createClient>
+): Promise<string> {
+  const dbVal = await readSetting<{ url?: string }>(
+    supabaseAdmin,
+    "exotel_status_callback_url"
+  );
+  const fromDb = dbVal?.url?.trim();
+  if (fromDb) return fromDb;
+  if (EXOTEL_STATUS_CALLBACK_URL_ENV?.trim()) return EXOTEL_STATUS_CALLBACK_URL_ENV.trim();
+  return `${SUPABASE_URL}/functions/v1/exotel-webhook`;
 }
 
 /** POST to Exotel with one retry on 5xx / network failure */
