@@ -154,10 +154,10 @@ export default function Orders() {
     const searchLower = searchQuery.toLowerCase().trim();
     const matchesSearch = searchQuery === '' || 
       (o.order_number?.toLowerCase().includes(searchLower)) ||
-      o.product_name.toLowerCase().includes(searchLower) ||
-      o.customer_name.toLowerCase().includes(searchLower) ||
-      o.customer_company.toLowerCase().includes(searchLower) ||
-      o.product_code?.toLowerCase().includes(searchLower);
+      (o.product_name?.toLowerCase().includes(searchLower) ?? false) ||
+      (o.customer_name?.toLowerCase().includes(searchLower) ?? false) ||
+      (o.customer_company?.toLowerCase().includes(searchLower) ?? false) ||
+      (o.product_code?.toLowerCase().includes(searchLower) ?? false);
     
     const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
     const matchesPaymentTerms = paymentTermsFilter === 'all' || o.payment_terms === paymentTermsFilter;
@@ -183,8 +183,8 @@ export default function Orders() {
     const searchLower = shopifySearchQuery.toLowerCase().trim();
     const matchesSearch = shopifySearchQuery === '' || 
       (o.order_number?.toLowerCase().includes(searchLower)) ||
-      o.product_name.toLowerCase().includes(searchLower) ||
-      o.customer_name.toLowerCase().includes(searchLower) ||
+      (o.product_name?.toLowerCase().includes(searchLower) ?? false) ||
+      (o.customer_name?.toLowerCase().includes(searchLower) ?? false) ||
       (o.customer_company?.toLowerCase().includes(searchLower) ?? false) ||
       (o.product_code?.toLowerCase().includes(searchLower) ?? false);
     
@@ -244,9 +244,9 @@ export default function Orders() {
     const searchLower = wooSearchQuery.toLowerCase().trim();
     const matchesSearch = wooSearchQuery === '' ||
       (o.order_number?.toLowerCase().includes(searchLower)) ||
-      o.woo_order_id.toLowerCase().includes(searchLower) ||
-      o.product_name.toLowerCase().includes(searchLower) ||
-      o.customer_name.toLowerCase().includes(searchLower) ||
+      (o.woo_order_id?.toLowerCase().includes(searchLower) ?? false) ||
+      (o.product_name?.toLowerCase().includes(searchLower) ?? false) ||
+      (o.customer_name?.toLowerCase().includes(searchLower) ?? false) ||
       (o.customer_email?.toLowerCase().includes(searchLower) ?? false);
     const matchesStatus = wooStatusFilter === 'all' || o.order_status === wooStatusFilter;
     const matchesPayment = wooPaymentStatusFilter === 'all' || o.payment_status === wooPaymentStatusFilter;

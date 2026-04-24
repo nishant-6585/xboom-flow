@@ -74,7 +74,7 @@ export function FollowupsPanel() {
     if (search) {
       const q = search.toLowerCase();
       items = items.filter(f =>
-        f.customer_name.toLowerCase().includes(q) ||
+        (f.customer_name?.toLowerCase().includes(q) ?? false) ||
         f.customer_company?.toLowerCase().includes(q) ||
         f.product_name?.toLowerCase().includes(q) ||
         f.created_by_name?.toLowerCase().includes(q)

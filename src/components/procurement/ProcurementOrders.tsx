@@ -98,9 +98,9 @@ export function ProcurementOrders() {
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
       const matchesSearch = 
-        order.product_name.toLowerCase().includes(search.toLowerCase()) ||
-        order.customer_name.toLowerCase().includes(search.toLowerCase()) ||
-        order.customer_company.toLowerCase().includes(search.toLowerCase()) ||
+        (order.product_name?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
+        (order.customer_name?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
+        (order.customer_company?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
         (order.supplier_name?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
         (order.order_number?.toLowerCase().includes(search.toLowerCase()) ?? false);
       

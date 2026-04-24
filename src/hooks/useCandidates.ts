@@ -159,8 +159,8 @@ export function useCandidates(filters?: CandidateFilters) {
         const s = filters.search.toLowerCase();
         results = results.filter(
           (c) =>
-            c.full_name.toLowerCase().includes(s) ||
-            c.email.toLowerCase().includes(s) ||
+            (c.full_name?.toLowerCase().includes(s) ?? false) ||
+            (c.email?.toLowerCase().includes(s) ?? false) ||
             c.current_company?.toLowerCase().includes(s) ||
             c.location_city?.toLowerCase().includes(s) ||
             c.location?.toLowerCase().includes(s) ||
