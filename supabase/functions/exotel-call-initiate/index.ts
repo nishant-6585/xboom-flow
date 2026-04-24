@@ -260,9 +260,8 @@ Deno.serve(async (req) => {
     formData.append("TimeOut", String(finalTimeOut));
     formData.append("StatusCallback", statusCallbackUrl);
     formData.append("StatusCallbackContentType", "application/json");
-    // Lifecycle events we care about
+    // Lifecycle events — Exotel /Calls/connect only supports "terminal"
     formData.append("StatusCallbackEvents[0]", "terminal");
-    formData.append("StatusCallbackEvents[1]", "answered");
     // CustomField is echoed back in the StatusCallback webhook
     formData.append("CustomField", customField);
 
