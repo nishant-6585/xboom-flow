@@ -6,8 +6,55 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const EXOTEL_SID = Deno.env.get("EXOTEL_SID");
 const EXOTEL_API_KEY = Deno.env.get("EXOTEL_API_KEY");
 const EXOTEL_API_TOKEN = Deno.env.get("EXOTEL_API_TOKEN");
-const EXOTEL_CALLER_ID = Deno.env.get("EXOTEL_CALLER_ID");
+const EXOTEL_CALLER_ID_ENV = Deno.env.get("EXOTEL_CALLER_ID");
 const EXOTEL_FLOW_URL = Deno.env.get("EXOTEL_FLOW_URL");
+
+// India region endpoint
+const EXOTEL_API_BASE = "https://api.in.exotel.com";
+
+/** Resolve Caller ID: prefer admin-configured DB value, fallback to env secret */
+async function resolveCallerId(supabaseAdmin: ReturnType<typeof createClient>): Promise<string | null> {
+  try {
+    const { data } = await supabaseAdmin
+      .from("app_settings")
+      .select("value")
+      .eq("key", "exotel_caller_id")
+      .maybeSingle();
+    const dbVal = (data?.value as { caller_id?: string } | null)?.caller_id?.trim();
+    if (dbVal) return dbVal;
+  } catch {
+    // fall through to env
+  }
+  return EXOTEL_CALLER_ID_ENV?.trim() || null;
+}
+
+/** POST to Exotel with one retry on 5xx / network failure */
+async function exotelPostWithRetry(url: string, body: string, authHeader: string): Promise<{ res: Response; text: string }> {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15_000);
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: authHeader,
+        },
+        body,
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      const text = await res.text();
+      if (res.ok || res.status < 500) return { res, text };
+      // 5xx → retry once
+      if (attempt === 2) return { res, text };
+    } catch (err) {
+      if (attempt === 2) throw err;
+    }
+  }
+  // unreachable
+  throw new Error("exotel_unreachable");
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
