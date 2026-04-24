@@ -565,6 +565,23 @@ Deno.serve(async (req) => {
             const timeline = parsedForm?.timeline?.trim() || null;
             const message = parsedForm?.message?.trim() || null;
 
+            // ---- Auto-assignment for contact@xboom.in [XBOOM popup] ----
+            let assignedSalesPersonId: string | null = null;
+            let assignedSalesPersonName: string | null = null;
+            const isPopupLead =
+              integration.email.toLowerCase() === "contact@xboom.in" &&
+              (subject || "").toLowerCase().includes("[xboom popup]");
+            if (isPopupLead) {
+              const assignee = await pickPopupAssignee(
+                supabase,
+                `${subject || ""}\n${bodyText || ""}`,
+              );
+              if (assignee) {
+                assignedSalesPersonId = assignee.user_id;
+                assignedSalesPersonName = assignee.name;
+              }
+            }
+
             // ---- INSERT with thread_id and ingested_at ----
             const { error: insertError } = await supabase.from("email_leads").insert({
               customer_name: name,
@@ -588,6 +605,8 @@ Deno.serve(async (req) => {
               email_lead_id: emailLeadId,
               thread_id: threadId || null,
               ingested_at: ingestTimestamp,
+              sales_person_id: assignedSalesPersonId,
+              sales_person_name: assignedSalesPersonName,
             });
 
             if (!insertError) {
