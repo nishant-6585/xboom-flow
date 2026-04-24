@@ -46,6 +46,7 @@ import {
 import { Navigate, useNavigate } from "react-router-dom";
 import { SlackSettingsPanel } from "@/components/admin/SlackSettingsPanel";
 import { MyOperatorSettingsPanel } from "@/components/admin/MyOperatorSettingsPanel";
+import { ExotelSettingsPanel } from "@/components/admin/ExotelSettingsPanel";
 
 import { FormPermissionsPanel } from "@/components/admin/FormPermissionsPanel";
 import { AdminSignatureSettings } from "@/components/admin/AdminSignatureSettings";
@@ -1129,6 +1130,7 @@ const Admin = () => {
             <div className="space-y-6">
               <SlackSettingsPanel />
               <MyOperatorSettingsPanel />
+              <ExotelSettingsPanel />
             </div>
           </TabsContent>
 
