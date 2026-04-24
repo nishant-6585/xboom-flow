@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CallButton } from "@/components/calls/CallButton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
@@ -421,9 +422,6 @@ export function ElevenLabsLeadsPanel() {
     load();
   };
 
-  const callTel = (phone: string) => {
-    window.location.href = `tel:${phone}`;
-  };
   const openWhatsApp = (phone: string) => {
     const num = phone.replace(/\D/g, "");
     window.open(`https://wa.me/${num}`, "_blank");
