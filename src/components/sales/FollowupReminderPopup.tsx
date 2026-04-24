@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Bell, Phone, Mail, Clock, User } from 'lucide-react';
 import { format, differenceInMinutes } from 'date-fns';
+import { CallButton } from '@/components/calls/CallButton';
 
 // Notification sound - using a simple beep via Web Audio
 function playNotificationSound() {
@@ -139,9 +140,19 @@ export function FollowupReminderPopup() {
             )}
             <div className="flex items-center gap-3 text-xs">
               {activeReminder.phone && (
-                <a href={`tel:${activeReminder.phone}`} className="flex items-center gap-1 text-primary hover:underline">
-                  <Phone className="w-3 h-3" />{activeReminder.phone}
-                </a>
+                <div className="flex items-center gap-1.5">
+                  <span className="flex items-center gap-1 text-muted-foreground">
+                    <Phone className="w-3 h-3" />{activeReminder.phone}
+                  </span>
+                  <CallButton
+                    phoneNumber={activeReminder.phone}
+                    entityType={activeReminder.source_type as any}
+                    entityId={activeReminder.source_id}
+                    iconOnly
+                    variant="ghost"
+                    className="h-6 w-6"
+                  />
+                </div>
               )}
               {activeReminder.email && (
                 <a href={`mailto:${activeReminder.email}`} className="flex items-center gap-1 text-primary hover:underline">

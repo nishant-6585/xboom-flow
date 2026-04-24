@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { format, isToday, isBefore } from 'date-fns';
 import { CalendarCheck, Phone, PhoneOff, ArrowRight, Clock, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CallButton } from '@/components/calls/CallButton';
 
 export function FollowupCallbackWidget() {
   const { followups, loading: followupsLoading } = useFollowups();
@@ -125,9 +126,14 @@ export function FollowupCallbackWidget() {
                 <span className="font-medium truncate block">{cb.customer_name || cb.caller_number}</span>
                 <span className="text-[10px] text-muted-foreground">Missed call · Call back</span>
               </div>
-              <a href={`tel:${cb.caller_number}`} className="text-primary text-xs hover:underline shrink-0">
-                <Phone className="w-3.5 h-3.5" />
-              </a>
+              <CallButton
+                phoneNumber={cb.caller_number}
+                entityType="lead"
+                entityId={cb.id}
+                iconOnly
+                variant="ghost"
+                className="h-7 w-7 shrink-0"
+              />
             </div>
           ))}
         </div>

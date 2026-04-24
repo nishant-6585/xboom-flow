@@ -17,6 +17,7 @@ import {
   Plus, CheckCircle2, Clock, AlertTriangle, Calendar, Send
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CallButton } from '@/components/calls/CallButton';
 
 const ACTIVITY_TYPES = [
   { value: 'call', label: 'Call', icon: Phone, color: 'bg-blue-500/15 text-blue-700 dark:text-blue-400' },
@@ -89,10 +90,18 @@ export function CrmContactDetail({ prospect, open, onClose }: Props) {
           {/* Contact Info */}
           <div className="grid grid-cols-2 gap-3 mb-6">
             {prospect.phone_number && (
-              <a href={`tel:${prospect.phone_number}`} className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-sm">
-                <Phone className="h-4 w-4 text-primary" />
-                <span className="truncate">{prospect.phone_number}</span>
-              </a>
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 text-sm">
+                <Phone className="h-4 w-4 text-primary shrink-0" />
+                <span className="truncate flex-1">{prospect.phone_number}</span>
+                <CallButton
+                  phoneNumber={prospect.phone_number}
+                  entityType="prospect"
+                  entityId={prospect.id}
+                  iconOnly
+                  variant="ghost"
+                  className="h-7 w-7 shrink-0"
+                />
+              </div>
             )}
             {prospect.email && (
               <a href={`mailto:${prospect.email}`} className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-sm">

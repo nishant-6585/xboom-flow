@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { CallButton } from '@/components/calls/CallButton';
 
 export interface LeadContactData {
   id: string;
@@ -203,9 +204,17 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
           {/* Quick contact actions */}
           <div className="flex items-center gap-2 mt-3 flex-wrap">
             {lead.phone && (
-              <a href={`tel:${lead.phone}`} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors bg-background border rounded-md px-2.5 py-1.5">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-background border rounded-md px-2.5 py-1 pr-1">
                 <Phone className="w-3.5 h-3.5" /> {lead.phone}
-              </a>
+                <CallButton
+                  phoneNumber={lead.phone}
+                  entityType={lead.source_type as any}
+                  entityId={lead.id}
+                  iconOnly
+                  variant="ghost"
+                  className="h-6 w-6 ml-1"
+                />
+              </div>
             )}
             {lead.email && (
               <a href={`mailto:${lead.email}`} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors bg-background border rounded-md px-2.5 py-1.5">
