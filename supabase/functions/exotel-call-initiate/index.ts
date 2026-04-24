@@ -335,6 +335,21 @@ Deno.serve(async (req) => {
         sales_person_name: profile?.name || "Unknown",
         lead_source: "exotel",
         start_time: new Date().toISOString(),
+        raw_payload: {
+          request: {
+            from: formattedPhone,
+            callerId,
+            url: EXOTEL_FLOW_URL,
+            timeLimit: finalTimeLimit,
+            timeOut: finalTimeOut,
+            statusCallback: statusCallbackUrl,
+            customField: customFieldObj,
+          },
+          response: {
+            status: exotelResponse.status,
+            body: responseText?.slice(0, 2000),
+          },
+        },
       } as any)
       .select()
       .single();
@@ -348,6 +363,8 @@ Deno.serve(async (req) => {
         success: true,
         call_sid: callSid,
         call_log_id: callLog?.id,
+        time_limit: finalTimeLimit,
+        time_out: finalTimeOut,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
