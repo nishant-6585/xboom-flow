@@ -570,6 +570,25 @@ export function HRDocumentsPanel() {
               {currentDocuments.map((doc) => (
                 <Card key={doc.id} className="group">
                   <CardContent className="p-3 flex items-center gap-3">
+                    {isHROrAdmin && (
+                      <Checkbox
+                        checked={selectedDocIds.has(doc.id)}
+                        onCheckedChange={(checked) => {
+                          setSelectedDocIds((prev) => {
+                            const next = new Set(prev);
+                            if (checked) next.add(doc.id);
+                            else next.delete(doc.id);
+                            return next;
+                          });
+                        }}
+                        className={cn(
+                          "transition-opacity",
+                          selectedFolderIds.size > 0 || selectedDocIds.size > 0
+                            ? "opacity-100"
+                            : "opacity-0 group-hover:opacity-100"
+                        )}
+                      />
+                    )}
                     <div className="p-2 rounded bg-muted">
                       <FileText className="h-4 w-4 text-muted-foreground" />
                     </div>
