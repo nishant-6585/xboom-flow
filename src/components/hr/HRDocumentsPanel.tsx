@@ -234,13 +234,36 @@ export function HRDocumentsPanel() {
     setRenameOpen(false);
   };
 
-  const handleMove = async () => {
-    if (!moveDocId || !moveFolderId) return;
-    await moveDocument(moveDocId, moveFolderId);
-    setMoveDocId(null);
-    setMoveFolderId("");
-    setMoveOpen(false);
+  const openMoveDialog = (items: MoveItem[]) => {
+    if (items.length === 0) return;
+    setMoveItemsList(items);
+    setMoveOpen(true);
   };
+
+  const clearSelection = () => {
+    setSelectedDocIds(new Set());
+    setSelectedFolderIds(new Set());
+  };
+
+  const handleMoveConfirm = async (destinationId: string | null) => {
+    await moveItems(
+      moveItemsList.map((it) => ({ id: it.id, type: it.type })),
+      destinationId
+    );
+    clearSelection();
+  };
+
+  const handleCreateFolderInDialog = async (
+    name: string,
+    parentId: string | null
+  ): Promise<string | null> => {
+    return await createFolderAndReturnId(name, parentId, 'hr_policies');
+  };
+
+  // Reset selection when navigating folders
+  useEffect(() => {
+    clearSelection();
+  }, [currentFolderId]);
 
   const handleViewDocument = async (doc: HRDocument) => {
     const url = await getSignedUrl(doc.file_url);
