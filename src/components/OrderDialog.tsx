@@ -133,6 +133,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [orderDate, setOrderDate] = useState<Date | undefined>(undefined);
   const [customerName, setCustomerName] = useState('');
   const [customerCompany, setCustomerCompany] = useState('');
+  const [customerGst, setCustomerGst] = useState('');
 
   useEffect(() => {
     if (order) {
@@ -176,6 +177,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setOrderDate(order.order_date ? new Date(order.order_date) : new Date(order.created_at));
       setCustomerName(order.customer_name || '');
       setCustomerCompany(order.customer_company || '');
+      setCustomerGst((order as any).customer_gst || '');
       setEscalationReason('');
       setShowEscalationForm(false);
       
