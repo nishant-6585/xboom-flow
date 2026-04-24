@@ -143,6 +143,27 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Enforce HTTPS for Exotel Flow URL (auto-upgrade http → https, reject anything else)
+    let safeFlowUrl = EXOTEL_FLOW_URL.trim();
+    if (safeFlowUrl.startsWith("http://")) {
+      console.warn(
+        "[exotel-call-initiate] EXOTEL_FLOW_URL uses http:// — auto-upgrading to https://. " +
+        "Please update the secret to use https:// directly."
+      );
+      safeFlowUrl = "https://" + safeFlowUrl.slice("http://".length);
+    } else if (!safeFlowUrl.startsWith("https://")) {
+      await supabaseAdmin.from("integration_errors").insert({
+        integration: "exotel",
+        function_name: "exotel-call-initiate",
+        error_message: "EXOTEL_FLOW_URL must start with https://",
+        error_details: { flow_url: safeFlowUrl },
+      });
+      return new Response(
+        JSON.stringify({ error: "Invalid EXOTEL_FLOW_URL: must use https://" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Resolve Caller ID (DB → env fallback)
     const callerId = await resolveCallerId(supabaseAdmin);
     if (!callerId) {
