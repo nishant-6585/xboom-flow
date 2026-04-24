@@ -26,6 +26,7 @@ export interface Order {
   customer_name: string;
   customer_company: string;
   customer_email: string | null;
+  customer_gst: string | null;
   sales_person_id: string;
   sales_person_name: string;
   shipping_address: string | null;
