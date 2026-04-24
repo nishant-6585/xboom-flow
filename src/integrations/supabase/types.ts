@@ -1405,6 +1405,8 @@ export type Database = {
           department: string | null
           email: string | null
           end_time: string | null
+          entity_id: string | null
+          entity_type: string | null
           exotel_call_sid: string | null
           full_number: string | null
           id: string
@@ -1458,6 +1460,8 @@ export type Database = {
           department?: string | null
           email?: string | null
           end_time?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
           exotel_call_sid?: string | null
           full_number?: string | null
           id?: string
@@ -1511,6 +1515,8 @@ export type Database = {
           department?: string | null
           email?: string | null
           end_time?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
           exotel_call_sid?: string | null
           full_number?: string | null
           id?: string
