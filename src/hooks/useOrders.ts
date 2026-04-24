@@ -99,6 +99,7 @@ export interface OrderFormData {
   customer_name: string;
   customer_company: string;
   customer_email?: string;
+  customer_gst?: string;
   sales_person_id?: string;
   sales_person_name?: string;
   is_website_order?: boolean;
