@@ -803,6 +803,13 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <span className="text-muted-foreground">Company:</span>
                     <span className="font-medium">{customerCompany || order.customer_company}</span>
                   </div>
+                  {(customerGst || (order as any).customer_gst) && (
+                    <div className="flex items-center gap-2 col-span-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">GST Number:</span>
+                      <span className="font-medium font-mono">{customerGst || (order as any).customer_gst}</span>
+                    </div>
+                  )}
                   {canSeeProcurement && (
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
