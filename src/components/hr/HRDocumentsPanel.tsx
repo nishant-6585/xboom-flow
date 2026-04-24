@@ -576,9 +576,14 @@ export function HRDocumentsPanel() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
-                                setMoveDocId(doc.id);
-                                setMoveFolderId("");
-                                setMoveOpen(true);
+                                openMoveDialog([
+                                  {
+                                    id: doc.id,
+                                    type: "document",
+                                    name: doc.name,
+                                    parentId: doc.folder_id,
+                                  },
+                                ]);
                               }}
                             >
                               <ArrowRightLeft className="h-4 w-4 mr-2" /> Move
@@ -837,37 +842,15 @@ export function HRDocumentsPanel() {
         </DialogContent>
       </Dialog>
 
-      {/* Move Dialog */}
-      <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Move Document</DialogTitle>
-          </DialogHeader>
-          <div>
-            <label className="text-sm font-medium">Select destination folder</label>
-            <Select value={moveFolderId} onValueChange={setMoveFolderId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose folder..." />
-              </SelectTrigger>
-              <SelectContent>
-                {folders.map((folder) => (
-                  <SelectItem key={folder.id} value={folder.id}>
-                    {folder.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setMoveOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleMove} disabled={!moveFolderId}>
-              Move
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Move Items Dialog */}
+      <MoveItemsDialog
+        open={moveOpen}
+        onOpenChange={setMoveOpen}
+        items={moveItemsList}
+        folders={folders}
+        onMove={handleMoveConfirm}
+        onCreateFolder={handleCreateFolderInDialog}
+      />
 
       {/* Document Viewer */}
       <DocumentViewer
