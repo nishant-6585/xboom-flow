@@ -39,6 +39,7 @@ import {
 import { CandidateStatusBadge, LifecycleStatusBadge } from "./CandidateStatusBadge";
 import { CandidateFormDialog } from "./CandidateFormDialog";
 import { CandidateDetailDialog } from "./CandidateDetailDialog";
+import { CallButton } from "@/components/calls/CallButton";
 
 const STATUSES: { value: CandidateStatus | "all"; label: string }[] = [
   { value: "all", label: "All Status" },
@@ -245,6 +246,16 @@ export function CandidatesPanel() {
                   <TableCell><CandidateStatusBadge status={c.status} /></TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
+                      {c.phone && (
+                        <CallButton
+                          phoneNumber={c.phone}
+                          entityType="candidate"
+                          entityId={c.id}
+                          iconOnly
+                          variant="ghost"
+                          className="h-8 w-8 text-emerald-600 hover:text-emerald-700"
+                        />
+                      )}
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetailCandidate(c)}>
                         <Eye className="w-4 h-4" />
                       </Button>

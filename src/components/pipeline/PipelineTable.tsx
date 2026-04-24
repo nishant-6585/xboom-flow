@@ -15,6 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { CalendarIcon, Trash2, Search, Filter, User, FolderOpen, Flame, Thermometer, Snowflake, Star, X, ArrowUpDown, AlertTriangle, CheckCircle, XCircle, PhoneOutgoing } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
+import { CallButton } from '@/components/calls/CallButton';
 import { cn } from '@/lib/utils';
 import { PipelineOrder, PIPELINE_STATUSES, PipelineStatus, LeadTemperature, PIPELINE_LOST_REASONS } from '@/hooks/usePipelineOrders';
 import { PRODUCT_CATEGORIES } from '@/hooks/useEnquiries';
@@ -596,6 +597,16 @@ export function PipelineTable({ orders, onUpdate, onDelete, statusFilter: extern
                             </Tooltip>
                           )}
                         </TooltipProvider>
+                        {order.customer_phone && (
+                          <CallButton
+                            phoneNumber={order.customer_phone}
+                            entityType="pipeline"
+                            entityId={order.id}
+                            iconOnly
+                            variant="ghost"
+                            className="h-7 w-7 text-emerald-600 hover:text-emerald-700"
+                          />
+                        )}
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary" onClick={() => setLogCallOrder(order)} title="Log Call">
                           <PhoneOutgoing className="h-3.5 w-3.5" />
                         </Button>

@@ -31,6 +31,7 @@ import {
   Clock, Upload, Download, Trash2, Plus, Star, Edit, FileText,
   Calendar, UserCheck, ClipboardList, Eye
 } from "lucide-react";
+import { CallButton } from "@/components/calls/CallButton";
 import {
   Candidate,
   CandidateStatus,
@@ -169,7 +170,15 @@ export function CandidateDetailDialog({ open, onClose, candidate, onEdit }: Prop
             {candidate.phone && (
               <div className="flex items-center gap-2 text-sm">
                 <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
-                <span>{candidate.phone}</span>
+                <span className="flex-1">{candidate.phone}</span>
+                <CallButton
+                  phoneNumber={candidate.phone}
+                  entityType="candidate"
+                  entityId={candidate.id}
+                  iconOnly
+                  variant="ghost"
+                  className="h-7 w-7"
+                />
               </div>
             )}
             {(candidate.location_city || candidate.location) && (
