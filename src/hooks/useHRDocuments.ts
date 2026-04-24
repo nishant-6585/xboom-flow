@@ -232,6 +232,38 @@ export function useHRDocuments() {
     }
   };
 
+  // Like createFolder but returns the new id (used by the Move dialog).
+  const createFolderAndReturnId = async (
+    name: string,
+    parentId: string | null,
+    folderType: string = 'hr_policies'
+  ): Promise<string | null> => {
+    if (!user || !profile) return null;
+    try {
+      const { data, error } = await supabase
+        .from('hr_folders')
+        .insert({
+          name,
+          parent_id: parentId,
+          folder_type: folderType,
+          employee_id: null,
+          created_by: user.id,
+          created_by_name: profile.name,
+          visibility: 'private',
+        })
+        .select('id')
+        .single();
+      if (error) throw error;
+      toast.success('Folder created');
+      await fetchFolders();
+      return (data?.id as string) || null;
+    } catch (error: any) {
+      console.error('Error creating folder:', error);
+      toast.error(error.message || 'Failed to create folder');
+      return null;
+    }
+  };
+
   const renameFolder = async (folderId: string, newName: string) => {
     try {
       const { error } = await supabase
@@ -338,6 +370,57 @@ export function useHRDocuments() {
     }
   };
 
+  const moveFolder = async (folderId: string, newParentId: string | null) => {
+    try {
+      const { error } = await supabase
+        .from('hr_folders')
+        .update({ parent_id: newParentId })
+        .eq('id', folderId);
+      if (error) throw error;
+      await fetchFolders();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to move folder');
+      throw error;
+    }
+  };
+
+  // Bulk move: items can be folders or documents. destinationId null = root (only valid for folders).
+  const moveItems = async (
+    items: { id: string; type: 'folder' | 'document' }[],
+    destinationId: string | null
+  ) => {
+    try {
+      const folderIds = items.filter(i => i.type === 'folder').map(i => i.id);
+      const docIds = items.filter(i => i.type === 'document').map(i => i.id);
+
+      if (docIds.length > 0) {
+        if (!destinationId) {
+          throw new Error('Documents must be moved into a folder');
+        }
+        const { error } = await supabase
+          .from('hr_documents')
+          .update({ folder_id: destinationId })
+          .in('id', docIds);
+        if (error) throw error;
+      }
+
+      if (folderIds.length > 0) {
+        const { error } = await supabase
+          .from('hr_folders')
+          .update({ parent_id: destinationId })
+          .in('id', folderIds);
+        if (error) throw error;
+      }
+
+      await Promise.all([fetchFolders(), fetchDocuments()]);
+      toast.success(`Moved ${items.length} item${items.length > 1 ? 's' : ''} successfully`);
+    } catch (error: any) {
+      console.error('Error moving items:', error);
+      toast.error(error.message || 'Failed to move items');
+      throw error;
+    }
+  };
+
   const getSignedUrl = async (filePath: string): Promise<string | null> => {
     try {
       const { data, error } = await supabase.storage
@@ -360,12 +443,15 @@ export function useHRDocuments() {
     employees,
     departments,
     createFolder,
+    createFolderAndReturnId,
     renameFolder,
     deleteFolder,
     uploadDocument,
     deleteDocument,
     renameDocument,
     moveDocument,
+    moveFolder,
+    moveItems,
     getSignedUrl,
     fetchDocuments,
     fetchAll,

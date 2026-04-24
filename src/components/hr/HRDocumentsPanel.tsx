@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -50,7 +51,9 @@ import {
 } from "lucide-react";
 import { DocumentViewer } from "./DocumentViewer";
 import { SharingPanel, getVisibilityLabel } from "./SharingPanel";
+import { MoveItemsDialog, MoveItem } from "./MoveItemsDialog";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const FOLDER_TYPES = [
   { value: "hr_policies", label: "HR Policies", icon: ShieldCheck },
@@ -73,12 +76,13 @@ export function HRDocumentsPanel() {
     employees,
     departments,
     createFolder,
+    createFolderAndReturnId,
     renameFolder,
     deleteFolder,
     uploadDocument,
     deleteDocument,
     renameDocument,
-    moveDocument,
+    moveItems,
     getSignedUrl,
     fetchDocuments,
     fetchFolderShares,
@@ -107,8 +111,11 @@ export function HRDocumentsPanel() {
   const [renameValue, setRenameValue] = useState("");
 
   const [moveOpen, setMoveOpen] = useState(false);
-  const [moveDocId, setMoveDocId] = useState<string | null>(null);
-  const [moveFolderId, setMoveFolderId] = useState<string>("");
+  const [moveItemsList, setMoveItemsList] = useState<MoveItem[]>([]);
+
+  // Multi-select
+  const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
+  const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
@@ -228,13 +235,36 @@ export function HRDocumentsPanel() {
     setRenameOpen(false);
   };
 
-  const handleMove = async () => {
-    if (!moveDocId || !moveFolderId) return;
-    await moveDocument(moveDocId, moveFolderId);
-    setMoveDocId(null);
-    setMoveFolderId("");
-    setMoveOpen(false);
+  const openMoveDialog = (items: MoveItem[]) => {
+    if (items.length === 0) return;
+    setMoveItemsList(items);
+    setMoveOpen(true);
   };
+
+  const clearSelection = () => {
+    setSelectedDocIds(new Set());
+    setSelectedFolderIds(new Set());
+  };
+
+  const handleMoveConfirm = async (destinationId: string | null) => {
+    await moveItems(
+      moveItemsList.map((it) => ({ id: it.id, type: it.type })),
+      destinationId
+    );
+    clearSelection();
+  };
+
+  const handleCreateFolderInDialog = async (
+    name: string,
+    parentId: string | null
+  ): Promise<string | null> => {
+    return await createFolderAndReturnId(name, parentId, 'hr_policies');
+  };
+
+  // Reset selection when navigating folders
+  useEffect(() => {
+    clearSelection();
+  }, [currentFolderId]);
 
   const handleViewDocument = async (doc: HRDocument) => {
     const url = await getSignedUrl(doc.file_url);
@@ -394,8 +424,59 @@ export function HRDocumentsPanel() {
         </div>
       </div>
 
+      {/* Bulk-selection action bar */}
+      {isHROrAdmin && (selectedFolderIds.size > 0 || selectedDocIds.size > 0) && (
+        <div className="sticky top-2 z-20 flex items-center justify-between gap-3 bg-primary/10 border border-primary/30 rounded-md px-3 py-2 backdrop-blur">
+          <div className="text-sm font-medium">
+            {selectedFolderIds.size + selectedDocIds.size} selected
+            <span className="text-xs text-muted-foreground ml-2">
+              ({selectedFolderIds.size} folder{selectedFolderIds.size === 1 ? "" : "s"},{" "}
+              {selectedDocIds.size} document{selectedDocIds.size === 1 ? "" : "s"})
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={clearSelection}
+            >
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                const items: MoveItem[] = [
+                  ...Array.from(selectedFolderIds)
+                    .map((id) => folders.find((f) => f.id === id))
+                    .filter((f): f is HRFolder => Boolean(f))
+                    .map((f) => ({
+                      id: f.id,
+                      type: "folder" as const,
+                      name: f.name,
+                      parentId: f.parent_id,
+                    })),
+                  ...Array.from(selectedDocIds)
+                    .map((id) => documents.find((d) => d.id === id))
+                    .filter((d): d is HRDocument => Boolean(d))
+                    .map((d) => ({
+                      id: d.id,
+                      type: "document" as const,
+                      name: d.name,
+                      parentId: d.folder_id,
+                    })),
+                ];
+                openMoveDialog(items);
+              }}
+            >
+              <ArrowRightLeft className="h-4 w-4 mr-1.5" /> Move
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Folders Grid */}
       {currentFolders.length > 0 && (
+        // bulk-toolbar is rendered above
         <div>
           <h3 className="text-sm font-medium text-muted-foreground mb-2">Folders</h3>
           <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
@@ -406,12 +487,42 @@ export function HRDocumentsPanel() {
                   key={folder.id}
                   className="cursor-pointer hover:border-primary/50 transition-colors group"
                   onClick={() => {
+                    if (selectedFolderIds.size > 0 || selectedDocIds.size > 0) {
+                      // In selection mode, clicking a folder card toggles its selection
+                      setSelectedFolderIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(folder.id)) next.delete(folder.id);
+                        else next.add(folder.id);
+                        return next;
+                      });
+                      return;
+                    }
                     setCurrentFolderId(folder.id);
                     fetchDocuments(folder.id);
                     setSearchQuery("");
                   }}
                 >
                   <CardContent className="p-4 flex items-center gap-3">
+                    {isHROrAdmin && (
+                      <Checkbox
+                        checked={selectedFolderIds.has(folder.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        onCheckedChange={(checked) => {
+                          setSelectedFolderIds((prev) => {
+                            const next = new Set(prev);
+                            if (checked) next.add(folder.id);
+                            else next.delete(folder.id);
+                            return next;
+                          });
+                        }}
+                        className={cn(
+                          "transition-opacity",
+                          selectedFolderIds.size > 0 || selectedDocIds.size > 0
+                            ? "opacity-100"
+                            : "opacity-0 group-hover:opacity-100"
+                        )}
+                      />
+                    )}
                     <div className="p-2 rounded-lg bg-primary/10 text-primary">
                       <Icon className="h-5 w-5" />
                     </div>
@@ -448,6 +559,20 @@ export function HRDocumentsPanel() {
                             }}
                           >
                             <Pencil className="h-4 w-4 mr-2" /> Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              openMoveDialog([
+                                {
+                                  id: folder.id,
+                                  type: "folder",
+                                  name: folder.name,
+                                  parentId: folder.parent_id,
+                                },
+                              ]);
+                            }}
+                          >
+                            <ArrowRightLeft className="h-4 w-4 mr-2" /> Move
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-destructive"
@@ -496,6 +621,25 @@ export function HRDocumentsPanel() {
               {currentDocuments.map((doc) => (
                 <Card key={doc.id} className="group">
                   <CardContent className="p-3 flex items-center gap-3">
+                    {isHROrAdmin && (
+                      <Checkbox
+                        checked={selectedDocIds.has(doc.id)}
+                        onCheckedChange={(checked) => {
+                          setSelectedDocIds((prev) => {
+                            const next = new Set(prev);
+                            if (checked) next.add(doc.id);
+                            else next.delete(doc.id);
+                            return next;
+                          });
+                        }}
+                        className={cn(
+                          "transition-opacity",
+                          selectedFolderIds.size > 0 || selectedDocIds.size > 0
+                            ? "opacity-100"
+                            : "opacity-0 group-hover:opacity-100"
+                        )}
+                      />
+                    )}
                     <div className="p-2 rounded bg-muted">
                       <FileText className="h-4 w-4 text-muted-foreground" />
                     </div>
@@ -547,9 +691,14 @@ export function HRDocumentsPanel() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
-                                setMoveDocId(doc.id);
-                                setMoveFolderId("");
-                                setMoveOpen(true);
+                                openMoveDialog([
+                                  {
+                                    id: doc.id,
+                                    type: "document",
+                                    name: doc.name,
+                                    parentId: doc.folder_id,
+                                  },
+                                ]);
                               }}
                             >
                               <ArrowRightLeft className="h-4 w-4 mr-2" /> Move
@@ -808,37 +957,15 @@ export function HRDocumentsPanel() {
         </DialogContent>
       </Dialog>
 
-      {/* Move Dialog */}
-      <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Move Document</DialogTitle>
-          </DialogHeader>
-          <div>
-            <label className="text-sm font-medium">Select destination folder</label>
-            <Select value={moveFolderId} onValueChange={setMoveFolderId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose folder..." />
-              </SelectTrigger>
-              <SelectContent>
-                {folders.map((folder) => (
-                  <SelectItem key={folder.id} value={folder.id}>
-                    {folder.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setMoveOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleMove} disabled={!moveFolderId}>
-              Move
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Move Items Dialog */}
+      <MoveItemsDialog
+        open={moveOpen}
+        onOpenChange={setMoveOpen}
+        items={moveItemsList}
+        folders={folders}
+        onMove={handleMoveConfirm}
+        onCreateFolder={handleCreateFolderInDialog}
+      />
 
       {/* Document Viewer */}
       <DocumentViewer
