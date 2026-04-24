@@ -107,6 +107,42 @@ async function exotelPostWithRetry(url: string, body: string, authHeader: string
   throw new Error("exotel_unreachable");
 }
 
+function parseExotelErrorMessage(xml: string): string | null {
+  const messageMatch = xml.match(/<Message>(.*?)<\/Message>/is);
+  return messageMatch?.[1]?.replace(/\s+/g, " ").trim() || null;
+}
+
+function mapExotelError(message: string | null, status: number): { code: string; userMessage: string } {
+  const normalized = (message || "").toLowerCase();
+
+  if (normalized.includes("could not find the callerid")) {
+    return {
+      code: "EXOTEL_INVALID_CALLER_ID",
+      userMessage:
+        "Exotel Caller ID is invalid or not enabled for outbound calls. Please update the verified Exotel number in Admin → Exotel settings.",
+    };
+  }
+
+  if (normalized.includes("invalid call parameters")) {
+    return {
+      code: "EXOTEL_INVALID_PARAMETERS",
+      userMessage: message || "Exotel rejected the call parameters.",
+    };
+  }
+
+  if (status >= 500) {
+    return {
+      code: "EXOTEL_SERVICE_UNAVAILABLE",
+      userMessage: "Exotel is temporarily unavailable. Please retry in a moment.",
+    };
+  }
+
+  return {
+    code: "EXOTEL_CALL_FAILED",
+    userMessage: message || "Failed to initiate call.",
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -316,6 +352,9 @@ Deno.serve(async (req) => {
     });
 
     if (!exotelResponse.ok) {
+      const exotelMessage = parseExotelErrorMessage(responseText);
+      const mappedError = mapExotelError(exotelMessage, exotelResponse.status);
+
       // Log integration error
       await supabaseAdmin.from("integration_errors").insert({
         integration: "exotel",
@@ -323,6 +362,8 @@ Deno.serve(async (req) => {
         error_message: `Exotel API error: ${exotelResponse.status}`,
         error_details: {
           status: exotelResponse.status,
+          exotel_message: exotelMessage,
+          error_code: mappedError.code,
           body: responseText,
           request: {
             from: formattedPhone,
@@ -334,8 +375,12 @@ Deno.serve(async (req) => {
         },
       });
 
-      return new Response(JSON.stringify({ error: "Failed to initiate call" }), {
-        status: 502,
+      return new Response(JSON.stringify({
+        success: false,
+        error: mappedError.userMessage,
+        code: mappedError.code,
+      }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
