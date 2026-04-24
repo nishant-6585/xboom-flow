@@ -702,6 +702,33 @@ export type Database = {
           },
         ]
       }
+      app_settings: {
+        Row: {
+          description: string | null
+          key: string
+          updated_at: string
+          updated_by: string | null
+          updated_by_name: string | null
+          value: Json
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+          value?: Json
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       attendance_audit_log: {
         Row: {
           attendance_log_id: string
