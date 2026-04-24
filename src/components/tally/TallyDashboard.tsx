@@ -32,6 +32,7 @@ interface TallyOrder {
   quantity: number;
   customer_name: string;
   customer_company: string;
+  customer_gst: string | null;
   total_sales_amount: number | null;
   amount_paid: number | null;
   payment_status: string;
@@ -224,7 +225,7 @@ export function TallyDashboard() {
       const [ordersRes, procRes, itemsRes, invoicesRes, suppliersRes, linksRes] = await Promise.all([
           supabase
             .from("orders")
-            .select("id, order_number, product_name, product_category, quantity, customer_name, customer_company, total_sales_amount, amount_paid, payment_status, status, created_at, order_date, selling_price, procurement_rate, sales_person_name, sales_person_id")
+            .select("id, order_number, product_name, product_category, quantity, customer_name, customer_company, customer_gst, total_sales_amount, amount_paid, payment_status, status, created_at, order_date, selling_price, procurement_rate, sales_person_name, sales_person_id")
             .not("status", "eq", "cancelled")
             .order("created_at", { ascending: false }),
           supabase
@@ -395,8 +396,9 @@ export function TallyDashboard() {
       const allSuppliers = [...new Set([...itemSupplierNames, ...procSupplierNames])];
       const supplierName = allSuppliers.join(", ") || "—";
 
-      // Customer GST from invoices
-      const customerGst = invs.map(i => i.customer_gst).filter(Boolean).join(", ") || "—";
+      // Customer GST: prefer order-level GST, fall back to invoice GST
+      const invoiceGst = invs.map(i => i.customer_gst).filter(Boolean).join(", ");
+      const customerGst = o.customer_gst?.trim() || invoiceGst || "—";
 
       // Inventory fulfillment
       const inventoryFulfilled = orderInvLinks.length > 0;
