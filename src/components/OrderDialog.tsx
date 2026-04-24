@@ -765,6 +765,17 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="inline_customer_gst">GST Number <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                    <Input
+                      id="inline_customer_gst"
+                      value={customerGst}
+                      onChange={e => setCustomerGst(e.target.value.toUpperCase())}
+                      disabled={loading}
+                      placeholder="e.g., 29ABCDE1234F1Z5"
+                      maxLength={15}
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="inline_committed_timeline">Committed Timeline</Label>
                     <Input
                       id="inline_committed_timeline"
