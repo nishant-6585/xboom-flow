@@ -424,8 +424,59 @@ export function HRDocumentsPanel() {
         </div>
       </div>
 
+      {/* Bulk-selection action bar */}
+      {isHROrAdmin && (selectedFolderIds.size > 0 || selectedDocIds.size > 0) && (
+        <div className="sticky top-2 z-20 flex items-center justify-between gap-3 bg-primary/10 border border-primary/30 rounded-md px-3 py-2 backdrop-blur">
+          <div className="text-sm font-medium">
+            {selectedFolderIds.size + selectedDocIds.size} selected
+            <span className="text-xs text-muted-foreground ml-2">
+              ({selectedFolderIds.size} folder{selectedFolderIds.size === 1 ? "" : "s"},{" "}
+              {selectedDocIds.size} document{selectedDocIds.size === 1 ? "" : "s"})
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={clearSelection}
+            >
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                const items: MoveItem[] = [
+                  ...Array.from(selectedFolderIds)
+                    .map((id) => folders.find((f) => f.id === id))
+                    .filter((f): f is HRFolder => Boolean(f))
+                    .map((f) => ({
+                      id: f.id,
+                      type: "folder" as const,
+                      name: f.name,
+                      parentId: f.parent_id,
+                    })),
+                  ...Array.from(selectedDocIds)
+                    .map((id) => documents.find((d) => d.id === id))
+                    .filter((d): d is HRDocument => Boolean(d))
+                    .map((d) => ({
+                      id: d.id,
+                      type: "document" as const,
+                      name: d.name,
+                      parentId: d.folder_id,
+                    })),
+                ];
+                openMoveDialog(items);
+              }}
+            >
+              <ArrowRightLeft className="h-4 w-4 mr-1.5" /> Move
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Folders Grid */}
       {currentFolders.length > 0 && (
+        // bulk-toolbar is rendered above
         <div>
           <h3 className="text-sm font-medium text-muted-foreground mb-2">Folders</h3>
           <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
