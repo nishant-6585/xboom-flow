@@ -252,7 +252,7 @@ Deno.serve(async (req) => {
     // CallerId = your verified Exotel virtual number
     formData.append("CallerId", callerId);
     // Url = Exotel App / Flow that hands off to the ElevenLabs agent
-    formData.append("Url", EXOTEL_FLOW_URL);
+    formData.append("Url", safeFlowUrl);
     // Transactional call (skip DND restrictions where applicable)
     formData.append("CallType", "trans");
     formData.append("Record", "true");
@@ -273,7 +273,7 @@ Deno.serve(async (req) => {
       url: exotelUrl,
       from: formattedPhone,
       callerId,
-      flowUrl: EXOTEL_FLOW_URL,
+      flowUrl: safeFlowUrl,
       timeLimit: finalTimeLimit,
       timeOut: finalTimeOut,
       statusCallbackUrl,
@@ -360,7 +360,7 @@ Deno.serve(async (req) => {
           request: {
             from: formattedPhone,
             callerId,
-            url: EXOTEL_FLOW_URL,
+            url: safeFlowUrl,
             timeLimit: finalTimeLimit,
             timeOut: finalTimeOut,
             statusCallback: statusCallbackUrl,
