@@ -9,6 +9,7 @@ import { Mail, Phone, MapPin, Building2, Package, Brain, CheckCircle, XCircle, C
 import { ProspectButton } from './ProspectButton';
 import { EnquiryConvertButton } from './EnquiryConvertButton';
 import { AttentionButton } from './AttentionButton';
+import { CallButton } from '@/components/calls/CallButton';
 
 interface Props {
   lead: EmailLead | null;
@@ -113,7 +114,15 @@ export function EmailLeadDetailDrawer({
                 {lead.phone_number && (
                   <div className="flex items-center gap-2">
                     <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
-                    <a href={`tel:${lead.phone_number}`} className="text-sm text-primary hover:underline">{lead.phone_number}</a>
+                    <span className="text-sm flex-1">{lead.phone_number}</span>
+                    <CallButton
+                      phoneNumber={lead.phone_number}
+                      entityType="lead"
+                      entityId={lead.id}
+                      iconOnly
+                      variant="ghost"
+                      className="h-7 w-7"
+                    />
                   </div>
                 )}
                 {lead.city && (

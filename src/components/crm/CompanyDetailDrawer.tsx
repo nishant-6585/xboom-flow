@@ -16,6 +16,7 @@ import {
   TrendingUp, IndianRupee, RefreshCw, Loader2, Star
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CallButton } from '@/components/calls/CallButton';
 
 interface Props {
   company: Company | null;
@@ -101,7 +102,20 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
             {/* Company Info */}
             <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
               {company.city && <div className="flex items-center gap-1.5 text-muted-foreground"><MapPin className="h-3 w-3" />{company.city}{company.state ? `, ${company.state}` : ''}</div>}
-              {company.phone && <div className="flex items-center gap-1.5 text-muted-foreground"><Phone className="h-3 w-3" />{company.phone}</div>}
+              {company.phone && (
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Phone className="h-3 w-3" />
+                  <span className="flex-1 truncate">{company.phone}</span>
+                  <CallButton
+                    phoneNumber={company.phone}
+                    entityType="company"
+                    entityId={company.id}
+                    iconOnly
+                    variant="ghost"
+                    className="h-6 w-6"
+                  />
+                </div>
+              )}
               {company.email && <div className="flex items-center gap-1.5 text-muted-foreground"><Mail className="h-3 w-3" />{company.email}</div>}
               {company.website && <div className="flex items-center gap-1.5 text-muted-foreground"><Globe className="h-3 w-3" />{company.website}</div>}
             </div>
@@ -177,9 +191,21 @@ export function CompanyDetailDrawer({ company, open, onClose }: Props) {
                               {c.email && <span className="flex items-center gap-1"><Mail className="h-2.5 w-2.5" />{c.email}</span>}
                             </div>
                           </div>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => deleteContact(c.id)}>
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            {c.phone && (
+                              <CallButton
+                                phoneNumber={c.phone}
+                                entityType="company"
+                                entityId={company.id}
+                                iconOnly
+                                variant="ghost"
+                                className="h-7 w-7"
+                              />
+                            )}
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => deleteContact(c.id)}>
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
                         </CardContent>
                       </Card>
                     ))}

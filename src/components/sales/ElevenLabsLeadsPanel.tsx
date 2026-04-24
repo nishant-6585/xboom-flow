@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CallButton } from "@/components/calls/CallButton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
@@ -421,9 +422,6 @@ export function ElevenLabsLeadsPanel() {
     load();
   };
 
-  const callTel = (phone: string) => {
-    window.location.href = `tel:${phone}`;
-  };
   const openWhatsApp = (phone: string) => {
     const num = phone.replace(/\D/g, "");
     window.open(`https://wa.me/${num}`, "_blank");
@@ -661,14 +659,15 @@ export function ElevenLabsLeadsPanel() {
                     className="flex items-center gap-1.5 pt-2 border-t"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Button
-                      size="sm"
+                    <CallButton
+                      phoneNumber={realPhone}
+                      entityType="lead"
+                      entityId={l.id}
+                      label="Call Now"
                       variant="default"
-                      className="flex-1 h-8 gap-1.5"
-                      onClick={() => callTel(realPhone)}
-                    >
-                      <PhoneCall className="h-3.5 w-3.5" /> Call Now
-                    </Button>
+                      size="sm"
+                      className="flex-1 h-8"
+                    />
                     <Button
                       size="sm"
                       variant="outline"
@@ -729,12 +728,13 @@ export function ElevenLabsLeadsPanel() {
               <div className="mt-4 space-y-4">
                 {/* Quick action bar */}
                 <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    className="gap-2"
-                    onClick={() => callTel(selected.caller_number)}
-                  >
-                    <PhoneCall className="h-4 w-4" /> Call Now
-                  </Button>
+                  <CallButton
+                    phoneNumber={selected.caller_number}
+                    entityType="lead"
+                    entityId={selected.id}
+                    label="Call Now"
+                    variant="default"
+                  />
                   <Button
                     variant="outline"
                     className="gap-2"

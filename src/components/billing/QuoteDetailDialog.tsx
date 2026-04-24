@@ -11,6 +11,7 @@ import { useEditHistory, EditHistoryRecord } from '@/hooks/useEditHistory';
 import { downloadQuotePdf } from '@/lib/quotePdfGenerator';
 import { format } from 'date-fns';
 import { Download, User, Building2, Mail, Phone, MapPin, Calendar, Loader2, Pencil, History, ChevronDown, ChevronUp } from 'lucide-react';
+import { CallButton } from '@/components/calls/CallButton';
 
 interface QuoteDetailDialogProps {
   quote: Quote | null;
@@ -111,7 +112,15 @@ export function QuoteDetailDialog({ quote, open, onOpenChange, onEdit }: QuoteDe
                   {quote.customer_phone && (
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span>{quote.customer_phone}</span>
+                      <span className="flex-1">{quote.customer_phone}</span>
+                      <CallButton
+                        phoneNumber={quote.customer_phone}
+                        entityType="customer"
+                        entityId={quote.id}
+                        iconOnly
+                        variant="ghost"
+                        className="h-7 w-7"
+                      />
                     </div>
                   )}
                   {quote.customer_address && (

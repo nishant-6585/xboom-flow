@@ -14,6 +14,7 @@ import { EnquiryConvertButton } from "../EnquiryConvertButton";
 import { useProspects } from "@/hooks/useProspects";
 import { useAttentionItems } from "@/hooks/useAttentionItems";
 import { LeadContactDrawer, LeadContactData } from "../LeadContactDrawer";
+import { CallButton } from "@/components/calls/CallButton";
 
 interface GoogleAdsLead {
   id: string;
@@ -351,11 +352,14 @@ export function GoogleAdsLeadsTab() {
                         <TableCell>
                           <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
                             {phone && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                                <a href={`tel:${phone}`} title="Call">
-                                  <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                                </a>
-                              </Button>
+                              <CallButton
+                                phoneNumber={phone}
+                                entityType="lead"
+                                entityId={lead.id}
+                                iconOnly
+                                variant="ghost"
+                                className="h-7 w-7 text-emerald-600 hover:text-emerald-700"
+                              />
                             )}
                             {phone && (
                               <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
