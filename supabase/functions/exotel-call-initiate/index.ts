@@ -1,5 +1,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -8,24 +13,70 @@ const EXOTEL_API_KEY = Deno.env.get("EXOTEL_API_KEY");
 const EXOTEL_API_TOKEN = Deno.env.get("EXOTEL_API_TOKEN");
 const EXOTEL_CALLER_ID_ENV = Deno.env.get("EXOTEL_CALLER_ID");
 const EXOTEL_FLOW_URL = Deno.env.get("EXOTEL_FLOW_URL");
+const EXOTEL_STATUS_CALLBACK_URL_ENV = Deno.env.get("EXOTEL_STATUS_CALLBACK_URL");
+const EXOTEL_TIME_LIMIT_ENV = Deno.env.get("EXOTEL_TIME_LIMIT"); // seconds
+const EXOTEL_TIME_OUT_ENV = Deno.env.get("EXOTEL_TIME_OUT");     // seconds
 
 // India region endpoint
 const EXOTEL_API_BASE = "https://api.in.exotel.com";
 
-/** Resolve Caller ID: prefer admin-configured DB value, fallback to env secret */
-async function resolveCallerId(supabaseAdmin: ReturnType<typeof createClient>): Promise<string | null> {
+/** Read an `app_settings` value safely */
+async function readSetting<T = any>(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  key: string
+): Promise<T | null> {
   try {
     const { data } = await supabaseAdmin
       .from("app_settings")
       .select("value")
-      .eq("key", "exotel_caller_id")
+      .eq("key", key)
       .maybeSingle();
-    const dbVal = (data?.value as { caller_id?: string } | null)?.caller_id?.trim();
-    if (dbVal) return dbVal;
+    return (data?.value as T) ?? null;
   } catch {
-    // fall through to env
+    return null;
   }
+}
+
+/** Resolve Caller ID: DB override → env fallback */
+async function resolveCallerId(
+  supabaseAdmin: ReturnType<typeof createClient>
+): Promise<string | null> {
+  const dbVal = await readSetting<{ caller_id?: string }>(
+    supabaseAdmin,
+    "exotel_caller_id"
+  );
+  const fromDb = dbVal?.caller_id?.trim();
+  if (fromDb) return fromDb;
   return EXOTEL_CALLER_ID_ENV?.trim() || null;
+}
+
+/** Resolve numeric setting from DB → env → default */
+async function resolveNumericSetting(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  key: string,
+  envValue: string | undefined,
+  defaultValue: number
+): Promise<number> {
+  const dbVal = await readSetting<{ value?: number | string }>(supabaseAdmin, key);
+  const fromDb = Number(dbVal?.value);
+  if (Number.isFinite(fromDb) && fromDb > 0) return fromDb;
+  const fromEnv = Number(envValue);
+  if (Number.isFinite(fromEnv) && fromEnv > 0) return fromEnv;
+  return defaultValue;
+}
+
+/** Resolve StatusCallback URL: DB → env → default to exotel-webhook */
+async function resolveStatusCallback(
+  supabaseAdmin: ReturnType<typeof createClient>
+): Promise<string> {
+  const dbVal = await readSetting<{ url?: string }>(
+    supabaseAdmin,
+    "exotel_status_callback_url"
+  );
+  const fromDb = dbVal?.url?.trim();
+  if (fromDb) return fromDb;
+  if (EXOTEL_STATUS_CALLBACK_URL_ENV?.trim()) return EXOTEL_STATUS_CALLBACK_URL_ENV.trim();
+  return `${SUPABASE_URL}/functions/v1/exotel-webhook`;
 }
 
 /** POST to Exotel with one retry on 5xx / network failure */
@@ -63,8 +114,8 @@ Deno.serve(async (req) => {
 
   try {
     // Validate JWT
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    const reqAuthHeader = req.headers.get("Authorization");
+    if (!reqAuthHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -73,7 +124,7 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const supabaseUser = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      global: { headers: { Authorization: authHeader } },
+      global: { headers: { Authorization: reqAuthHeader } },
     });
 
     const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
@@ -101,6 +152,21 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Resolve optional tunables (DB → env → default)
+    const timeLimit = await resolveNumericSetting(
+      supabaseAdmin,
+      "exotel_time_limit",
+      EXOTEL_TIME_LIMIT_ENV,
+      14400
+    );
+    const timeOut = await resolveNumericSetting(
+      supabaseAdmin,
+      "exotel_time_out",
+      EXOTEL_TIME_OUT_ENV,
+      30
+    );
+    const statusCallbackUrl = await resolveStatusCallback(supabaseAdmin);
+
     const body = await req.json();
     const {
       phone_number,
@@ -110,6 +176,10 @@ Deno.serve(async (req) => {
       // backward-compat alias
       lead_id,
       salesperson_id,
+      // optional per-call overrides
+      time_limit: timeLimitOverride,
+      time_out: timeOutOverride,
+      extra_metadata,
     } = body;
 
     // Basic validation: digits only, 8–15 digits after stripping
@@ -136,6 +206,22 @@ Deno.serve(async (req) => {
     const cleanPhone = digitsOnly.replace(/^0+/, "");
     const formattedPhone = cleanPhone.startsWith("91") ? cleanPhone : `91${cleanPhone}`;
 
+    // Build CustomField metadata (round-tripped via webhook so we can map calls back)
+    const customFieldObj: Record<string, unknown> = {
+      entity_type: resolvedEntityType,
+      entity_id: resolvedEntityId,
+      user_id: salesperson_id || user.id,
+      user_name: profile?.name || "Unknown",
+    };
+    if (extra_metadata && typeof extra_metadata === "object") {
+      Object.assign(customFieldObj, extra_metadata);
+    }
+    const customField = JSON.stringify(customFieldObj);
+
+    // Resolve final tunables (per-call override wins, then DB/env, then default)
+    const finalTimeLimit = Number(timeLimitOverride) > 0 ? Number(timeLimitOverride) : timeLimit;
+    const finalTimeOut = Number(timeOutOverride) > 0 ? Number(timeOutOverride) : timeOut;
+
     // Initiate Exotel call — route to ElevenLabs Flow via Url param (India region)
     const exotelUrl = `${EXOTEL_API_BASE}/v1/Accounts/${EXOTEL_SID}/Calls/connect`;
 
@@ -146,14 +232,37 @@ Deno.serve(async (req) => {
     formData.append("CallerId", callerId);
     // Url = Exotel App / Flow that hands off to the ElevenLabs agent
     formData.append("Url", EXOTEL_FLOW_URL);
+    // Transactional call (skip DND restrictions where applicable)
+    formData.append("CallType", "trans");
     formData.append("Record", "true");
-    formData.append("StatusCallback", `${SUPABASE_URL}/functions/v1/exotel-webhook`);
+    formData.append("TimeLimit", String(finalTimeLimit));
+    formData.append("TimeOut", String(finalTimeOut));
+    formData.append("StatusCallback", statusCallbackUrl);
+    formData.append("StatusCallbackContentType", "application/json");
+    // Lifecycle events we care about
+    formData.append("StatusCallbackEvents[0]", "terminal");
+    formData.append("StatusCallbackEvents[1]", "answered");
+    // CustomField is echoed back in the StatusCallback webhook
+    formData.append("CustomField", customField);
 
-    const authHeader = `Basic ${btoa(`${EXOTEL_API_KEY}:${EXOTEL_API_TOKEN}`)}`;
+    const exotelAuthHeader = `Basic ${btoa(`${EXOTEL_API_KEY}:${EXOTEL_API_TOKEN}`)}`;
+
+    // Debug log of outbound request (no secrets)
+    console.log("[exotel-call-initiate] Outbound request", {
+      url: exotelUrl,
+      from: formattedPhone,
+      callerId,
+      flowUrl: EXOTEL_FLOW_URL,
+      timeLimit: finalTimeLimit,
+      timeOut: finalTimeOut,
+      statusCallbackUrl,
+      customField: customFieldObj,
+    });
+
     let exotelResponse: Response;
     let responseText: string;
     try {
-      const out = await exotelPostWithRetry(exotelUrl, formData.toString(), authHeader);
+      const out = await exotelPostWithRetry(exotelUrl, formData.toString(), exotelAuthHeader);
       exotelResponse = out.res;
       responseText = out.text;
     } catch (e: any) {
@@ -161,7 +270,7 @@ Deno.serve(async (req) => {
         integration: "exotel",
         function_name: "exotel-call-initiate",
         error_message: `Exotel network/timeout: ${e?.message || "unknown"}`,
-        error_details: { phone: formattedPhone },
+        error_details: { phone: formattedPhone, customField: customFieldObj },
       });
       return new Response(JSON.stringify({ error: "Exotel unreachable. Please retry." }), {
         status: 504,
@@ -179,13 +288,30 @@ Deno.serve(async (req) => {
       // If XML parsing fails, log it
     }
 
+    console.log("[exotel-call-initiate] Exotel response", {
+      status: exotelResponse.status,
+      ok: exotelResponse.ok,
+      callSid,
+      bodyPreview: responseText?.slice(0, 500),
+    });
+
     if (!exotelResponse.ok) {
       // Log integration error
       await supabaseAdmin.from("integration_errors").insert({
         integration: "exotel",
         function_name: "exotel-call-initiate",
         error_message: `Exotel API error: ${exotelResponse.status}`,
-        error_details: { status: exotelResponse.status, body: responseText },
+        error_details: {
+          status: exotelResponse.status,
+          body: responseText,
+          request: {
+            from: formattedPhone,
+            callerId,
+            timeLimit: finalTimeLimit,
+            timeOut: finalTimeOut,
+            customField: customFieldObj,
+          },
+        },
       });
 
       return new Response(JSON.stringify({ error: "Failed to initiate call" }), {
@@ -209,6 +335,21 @@ Deno.serve(async (req) => {
         sales_person_name: profile?.name || "Unknown",
         lead_source: "exotel",
         start_time: new Date().toISOString(),
+        raw_payload: {
+          request: {
+            from: formattedPhone,
+            callerId,
+            url: EXOTEL_FLOW_URL,
+            timeLimit: finalTimeLimit,
+            timeOut: finalTimeOut,
+            statusCallback: statusCallbackUrl,
+            customField: customFieldObj,
+          },
+          response: {
+            status: exotelResponse.status,
+            body: responseText?.slice(0, 2000),
+          },
+        },
       } as any)
       .select()
       .single();
@@ -222,6 +363,8 @@ Deno.serve(async (req) => {
         success: true,
         call_sid: callSid,
         call_log_id: callLog?.id,
+        time_limit: finalTimeLimit,
+        time_out: finalTimeOut,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

@@ -48,6 +48,23 @@ Deno.serve(async (req) => {
       processing_status: "processing",
     });
 
+    // Parse CustomField (round-tripped from exotel-call-initiate)
+    let customMeta: Record<string, any> = {};
+    const rawCustom = payload.CustomField ?? payload.custom_field ?? null;
+    if (rawCustom) {
+      if (typeof rawCustom === "string") {
+        try { customMeta = JSON.parse(rawCustom); } catch { customMeta = { raw: rawCustom }; }
+      } else if (typeof rawCustom === "object") {
+        customMeta = rawCustom as Record<string, any>;
+      }
+    }
+
+    console.log("[exotel-webhook] Event received", {
+      callSid,
+      status: payload.Status || payload.CallStatus,
+      customMeta,
+    });
+
     // Map Exotel status to internal status
     const exotelStatus = (payload.Status || payload.CallStatus || "").toLowerCase();
     let internalStatus = "initiated";
@@ -68,14 +85,21 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (existingLog) {
+        const updatePayload: Record<string, any> = {
+          call_status: internalStatus,
+          call_duration: callDuration || undefined,
+          recording_url: recordingUrl || undefined,
+          end_time: endTime || new Date().toISOString(),
+        };
+        // Backfill entity linkage from CustomField if missing
+        if (customMeta?.entity_type) updatePayload.entity_type = customMeta.entity_type;
+        if (customMeta?.entity_id) updatePayload.entity_id = customMeta.entity_id;
+        if (customMeta?.entity_type === "lead" && customMeta?.entity_id) {
+          updatePayload.lead_id = customMeta.entity_id;
+        }
         await supabase
           .from("call_logs")
-          .update({
-            call_status: internalStatus,
-            call_duration: callDuration || undefined,
-            recording_url: recordingUrl || undefined,
-            end_time: endTime || new Date().toISOString(),
-          } as any)
+          .update(updatePayload as any)
           .eq("id", existingLog.id);
 
         // If recording available, trigger AI analysis asynchronously
@@ -102,10 +126,16 @@ Deno.serve(async (req) => {
         await supabase.from("call_logs").insert({
           caller_number: fromNumber,
           call_status: internalStatus,
-          call_type: "inbound",
+          // If CustomField is present we know it was an outbound call we initiated
+          call_type: customMeta?.entity_type ? "outbound" : "inbound",
           exotel_call_sid: callSid,
           call_duration: callDuration || null,
           recording_url: recordingUrl || null,
+          entity_type: customMeta?.entity_type || null,
+          entity_id: customMeta?.entity_id || null,
+          lead_id: customMeta?.entity_type === "lead" ? customMeta?.entity_id : null,
+          sales_person_id: customMeta?.user_id || null,
+          sales_person_name: customMeta?.user_name || null,
           lead_source: "exotel",
           start_time: payload.StartTime || new Date().toISOString(),
           end_time: endTime || null,
