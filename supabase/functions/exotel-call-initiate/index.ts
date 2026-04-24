@@ -114,8 +114,8 @@ Deno.serve(async (req) => {
 
   try {
     // Validate JWT
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    const reqAuthHeader = req.headers.get("Authorization");
+    if (!reqAuthHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const supabaseUser = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      global: { headers: { Authorization: authHeader } },
+      global: { headers: { Authorization: reqAuthHeader } },
     });
 
     const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
