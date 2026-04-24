@@ -84,12 +84,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Validate Exotel config
-    if (!EXOTEL_SID || !EXOTEL_API_KEY || !EXOTEL_API_TOKEN || !EXOTEL_CALLER_ID || !EXOTEL_FLOW_URL) {
-      return new Response(JSON.stringify({ error: "Exotel not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Validate base Exotel config (Caller ID resolved separately below)
+    if (!EXOTEL_SID || !EXOTEL_API_KEY || !EXOTEL_API_TOKEN || !EXOTEL_FLOW_URL) {
+      return new Response(
+        JSON.stringify({ error: "Exotel not configured. Missing API credentials or Flow URL." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Resolve Caller ID (DB → env fallback)
+    const callerId = await resolveCallerId(supabaseAdmin);
+    if (!callerId) {
+      return new Response(
+        JSON.stringify({ error: "Exotel Caller ID not configured. Set it in Admin → Integrations." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const body = await req.json();
@@ -127,29 +136,39 @@ Deno.serve(async (req) => {
     const cleanPhone = digitsOnly.replace(/^0+/, "");
     const formattedPhone = cleanPhone.startsWith("91") ? cleanPhone : `91${cleanPhone}`;
 
-    // Initiate Exotel call — route to ElevenLabs Flow via Url param
-    const exotelUrl = `https://api.exotel.com/v1/Accounts/${EXOTEL_SID}/Calls/connect`;
+    // Initiate Exotel call — route to ElevenLabs Flow via Url param (India region)
+    const exotelUrl = `${EXOTEL_API_BASE}/v1/Accounts/${EXOTEL_SID}/Calls/connect`;
 
     const formData = new URLSearchParams();
     // From = customer (the number Exotel will dial out to)
     formData.append("From", formattedPhone);
     // CallerId = your verified Exotel virtual number
-    formData.append("CallerId", EXOTEL_CALLER_ID);
+    formData.append("CallerId", callerId);
     // Url = Exotel App / Flow that hands off to the ElevenLabs agent
     formData.append("Url", EXOTEL_FLOW_URL);
     formData.append("Record", "true");
     formData.append("StatusCallback", `${SUPABASE_URL}/functions/v1/exotel-webhook`);
 
-    const exotelResponse = await fetch(exotelUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${btoa(`${EXOTEL_API_KEY}:${EXOTEL_API_TOKEN}`)}`,
-      },
-      body: formData.toString(),
-    });
+    const authHeader = `Basic ${btoa(`${EXOTEL_API_KEY}:${EXOTEL_API_TOKEN}`)}`;
+    let exotelResponse: Response;
+    let responseText: string;
+    try {
+      const out = await exotelPostWithRetry(exotelUrl, formData.toString(), authHeader);
+      exotelResponse = out.res;
+      responseText = out.text;
+    } catch (e: any) {
+      await supabaseAdmin.from("integration_errors").insert({
+        integration: "exotel",
+        function_name: "exotel-call-initiate",
+        error_message: `Exotel network/timeout: ${e?.message || "unknown"}`,
+        error_details: { phone: formattedPhone },
+      });
+      return new Response(JSON.stringify({ error: "Exotel unreachable. Please retry." }), {
+        status: 504,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    const responseText = await exotelResponse.text();
     let callSid = "";
 
     try {
