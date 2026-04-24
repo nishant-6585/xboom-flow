@@ -75,12 +75,13 @@ export function HRDocumentsPanel() {
     employees,
     departments,
     createFolder,
+    createFolderAndReturnId,
     renameFolder,
     deleteFolder,
     uploadDocument,
     deleteDocument,
     renameDocument,
-    moveDocument,
+    moveItems,
     getSignedUrl,
     fetchDocuments,
     fetchFolderShares,
@@ -109,8 +110,11 @@ export function HRDocumentsPanel() {
   const [renameValue, setRenameValue] = useState("");
 
   const [moveOpen, setMoveOpen] = useState(false);
-  const [moveDocId, setMoveDocId] = useState<string | null>(null);
-  const [moveFolderId, setMoveFolderId] = useState<string>("");
+  const [moveItemsList, setMoveItemsList] = useState<MoveItem[]>([]);
+
+  // Multi-select
+  const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
+  const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
