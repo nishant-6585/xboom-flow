@@ -32,6 +32,57 @@ function passesSubjectAllowlist(mailbox: string, subject: string): boolean {
   return allow.some((token) => subjLower.includes(token.toLowerCase()));
 }
 
+// ---- Auto-assignment configuration for contact@xboom.in [XBOOM popup] leads ----
+// Round-robin pool (sales reps) and special humanoid override (sales manager).
+const POPUP_ROUND_ROBIN_POOL: Array<{ id: string; user_id: string; name: string }> = [
+  { id: "3e24144f-d6c9-4b1b-ab65-ec38d57377be", user_id: "e05f9afe-0160-4956-bb1f-496028386062", name: "Arjav chauhan" },
+  { id: "79d3bb1a-b683-4bf9-9b3d-fe469d177f93", user_id: "a790b58d-8e3d-4333-b6d6-08be631c865d", name: "Narasimha" },
+  { id: "2c6d8abd-3455-4c3d-9990-b39f26325109", user_id: "457fc2d5-9fc5-439a-938e-5b998549b811", name: "mohammed musthak" },
+  { id: "a91c7591-0610-4173-8fad-20f218d9acba", user_id: "456e91f8-34cc-4f92-a1c1-a092f2bbed39", name: "suman das" },
+];
+const HUMANOID_OWNER = {
+  id: "ec0e3f49-bd42-4541-8fb3-c2af228ac615",
+  user_id: "7b4818c1-a3d0-44bc-9aac-3744e018e441",
+  name: "Anvesh Apkari",
+};
+const HUMANOID_KEYWORDS = ["humanoid robot", "humanoid robots", "humanoid"];
+
+function mentionsHumanoid(text: string): boolean {
+  const t = (text || "").toLowerCase();
+  return HUMANOID_KEYWORDS.some((k) => t.includes(k));
+}
+
+/**
+ * Decide auto-assignment for a [XBOOM popup] lead from contact@xboom.in.
+ * - If body/subject mentions humanoid robots -> Anvesh Apkari (sales manager)
+ * - Otherwise round-robin across the 4 sales reps using DB count to balance load.
+ */
+async function pickPopupAssignee(
+  supabase: ReturnType<typeof createClient>,
+  combinedText: string,
+): Promise<{ id: string; user_id: string; name: string } | null> {
+  if (mentionsHumanoid(combinedText)) {
+    return HUMANOID_OWNER;
+  }
+
+  // Round-robin: pick the rep with the fewest popup assignments so far.
+  // Counts are scoped to popup leads from contact@xboom.in to keep this fair
+  // and independent of other lead sources.
+  const counts: Array<{ rep: typeof POPUP_ROUND_ROBIN_POOL[number]; count: number }> = [];
+  for (const rep of POPUP_ROUND_ROBIN_POOL) {
+    const { count } = await supabase
+      .from("email_leads")
+      .select("id", { count: "exact", head: true })
+      .eq("sales_person_id", rep.user_id)
+      .eq("mail_source", "gmail:contact@xboom.in")
+      .ilike("subject", "%[XBOOM popup]%");
+    counts.push({ rep, count: count ?? 0 });
+  }
+  // Lowest count wins; ties broken by pool order (stable sort).
+  counts.sort((a, b) => a.count - b.count);
+  return counts[0]?.rep ?? null;
+}
+
 /**
  * Parse the structured "Key: Value" body used by XBOOM contact / popup forms.
  * Example body lines:
