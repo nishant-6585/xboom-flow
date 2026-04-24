@@ -137,6 +137,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     customer_name: initialData?.customer_name || '',
     customer_company: initialData?.customer_company || '',
     customer_email: initialData?.customer_email || '',
+    customer_gst: '',
     sales_person_id: initialData?.sales_person_id || '',
     sales_person_name: initialData?.sales_person_name || '',
     is_website_order: false,
@@ -644,6 +645,18 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="customer_gst">GST Number <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                      <Input
+                        id="customer_gst"
+                        value={formData.customer_gst || ''}
+                        onChange={e => setFormData(prev => ({ ...prev, customer_gst: e.target.value.toUpperCase() }))}
+                        disabled={loading}
+                        placeholder="e.g., 29ABCDE1234F1Z5"
+                        maxLength={15}
+                        className="h-11"
+                      />
                     </div>
                   </div>
 

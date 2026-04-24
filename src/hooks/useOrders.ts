@@ -26,6 +26,7 @@ export interface Order {
   customer_name: string;
   customer_company: string;
   customer_email: string | null;
+  customer_gst: string | null;
   sales_person_id: string;
   sales_person_name: string;
   shipping_address: string | null;
@@ -98,6 +99,7 @@ export interface OrderFormData {
   customer_name: string;
   customer_company: string;
   customer_email?: string;
+  customer_gst?: string;
   sales_person_id?: string;
   sales_person_name?: string;
   is_website_order?: boolean;
@@ -229,6 +231,7 @@ export function useOrders() {
             customer_name,
             customer_company,
             customer_email,
+            customer_gst,
             sales_person_id,
             sales_person_name,
             shipping_address,
@@ -272,6 +275,7 @@ export function useOrders() {
           payment_status: (order.payment_status || 'pending') as PaymentStatus,
           lead_source: null,
           customer_email: order.customer_email || null,
+          customer_gst: (order as any).customer_gst || null,
           supplier_id: null,
           supplier_name: null,
           supplier_contact: null,

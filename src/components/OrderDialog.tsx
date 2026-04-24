@@ -133,6 +133,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
   const [orderDate, setOrderDate] = useState<Date | undefined>(undefined);
   const [customerName, setCustomerName] = useState('');
   const [customerCompany, setCustomerCompany] = useState('');
+  const [customerGst, setCustomerGst] = useState('');
 
   useEffect(() => {
     if (order) {
@@ -176,6 +177,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setOrderDate(order.order_date ? new Date(order.order_date) : new Date(order.created_at));
       setCustomerName(order.customer_name || '');
       setCustomerCompany(order.customer_company || '');
+      setCustomerGst((order as any).customer_gst || '');
       setEscalationReason('');
       setShowEscalationForm(false);
       
@@ -351,6 +353,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       customer_type: customerType,
       customer_name: customerName || null,
       customer_company: customerCompany || null,
+      customer_gst: customerGst || null,
       shipping_address: shippingAddress || null,
       supplier_name: supplierName || null,
       supplier_contact: supplierContact || null,
@@ -406,6 +409,7 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
     trackField('customer_type', order.customer_type, customerType);
     trackField('customer_name', order.customer_name, customerName || null);
     trackField('customer_company', order.customer_company, customerCompany || null);
+    trackField('customer_gst', (order as any).customer_gst, customerGst || null);
     trackField('shipping_address', order.shipping_address, shippingAddress || null);
     trackField('supplier_name', order.supplier_name, supplierName || null);
     trackField('supplier_contact', order.supplier_contact, supplierContact || null);
@@ -761,6 +765,17 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="inline_customer_gst">GST Number <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                    <Input
+                      id="inline_customer_gst"
+                      value={customerGst}
+                      onChange={e => setCustomerGst(e.target.value.toUpperCase())}
+                      disabled={loading}
+                      placeholder="e.g., 29ABCDE1234F1Z5"
+                      maxLength={15}
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="inline_committed_timeline">Committed Timeline</Label>
                     <Input
                       id="inline_committed_timeline"
@@ -788,6 +803,13 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                     <span className="text-muted-foreground">Company:</span>
                     <span className="font-medium">{customerCompany || order.customer_company}</span>
                   </div>
+                  {(customerGst || (order as any).customer_gst) && (
+                    <div className="flex items-center gap-2 col-span-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">GST Number:</span>
+                      <span className="font-medium font-mono">{customerGst || (order as any).customer_gst}</span>
+                    </div>
+                  )}
                   {canSeeProcurement && (
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
@@ -1926,6 +1948,18 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                       placeholder="Company name"
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="customer_gst">GST Number <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                  <Input
+                    id="customer_gst"
+                    value={customerGst}
+                    onChange={e => setCustomerGst(e.target.value.toUpperCase())}
+                    disabled={loading}
+                    placeholder="e.g., 29ABCDE1234F1Z5"
+                    maxLength={15}
+                  />
                 </div>
 
                 <div className="space-y-2">
