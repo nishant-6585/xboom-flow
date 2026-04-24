@@ -137,6 +137,7 @@ export function OrderForm({ onSubmit, enquiries = [], suppliers = [], showProcur
     customer_name: initialData?.customer_name || '',
     customer_company: initialData?.customer_company || '',
     customer_email: initialData?.customer_email || '',
+    customer_gst: '',
     sales_person_id: initialData?.sales_person_id || '',
     sales_person_name: initialData?.sales_person_name || '',
     is_website_order: false,
