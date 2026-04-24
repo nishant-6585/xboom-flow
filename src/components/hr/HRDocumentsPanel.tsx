@@ -53,6 +53,7 @@ import { DocumentViewer } from "./DocumentViewer";
 import { SharingPanel, getVisibilityLabel } from "./SharingPanel";
 import { MoveItemsDialog, MoveItem } from "./MoveItemsDialog";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const FOLDER_TYPES = [
   { value: "hr_policies", label: "HR Policies", icon: ShieldCheck },
