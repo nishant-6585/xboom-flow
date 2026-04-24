@@ -1951,6 +1951,18 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="customer_gst">GST Number <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                  <Input
+                    id="customer_gst"
+                    value={customerGst}
+                    onChange={e => setCustomerGst(e.target.value.toUpperCase())}
+                    disabled={loading}
+                    placeholder="e.g., 29ABCDE1234F1Z5"
+                    maxLength={15}
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="shipping_address">Shipping Address</Label>
                   <Textarea
                     id="shipping_address"
