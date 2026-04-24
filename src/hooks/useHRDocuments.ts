@@ -232,6 +232,38 @@ export function useHRDocuments() {
     }
   };
 
+  // Like createFolder but returns the new id (used by the Move dialog).
+  const createFolderAndReturnId = async (
+    name: string,
+    parentId: string | null,
+    folderType: string = 'hr_policies'
+  ): Promise<string | null> => {
+    if (!user || !profile) return null;
+    try {
+      const { data, error } = await supabase
+        .from('hr_folders')
+        .insert({
+          name,
+          parent_id: parentId,
+          folder_type: folderType,
+          employee_id: null,
+          created_by: user.id,
+          created_by_name: profile.name,
+          visibility: 'private',
+        })
+        .select('id')
+        .single();
+      if (error) throw error;
+      toast.success('Folder created');
+      await fetchFolders();
+      return (data?.id as string) || null;
+    } catch (error: any) {
+      console.error('Error creating folder:', error);
+      toast.error(error.message || 'Failed to create folder');
+      return null;
+    }
+  };
+
   const renameFolder = async (folderId: string, newName: string) => {
     try {
       const { error } = await supabase
@@ -411,6 +443,7 @@ export function useHRDocuments() {
     employees,
     departments,
     createFolder,
+    createFolderAndReturnId,
     renameFolder,
     deleteFolder,
     uploadDocument,
