@@ -435,12 +435,42 @@ export function HRDocumentsPanel() {
                   key={folder.id}
                   className="cursor-pointer hover:border-primary/50 transition-colors group"
                   onClick={() => {
+                    if (selectedFolderIds.size > 0 || selectedDocIds.size > 0) {
+                      // In selection mode, clicking a folder card toggles its selection
+                      setSelectedFolderIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(folder.id)) next.delete(folder.id);
+                        else next.add(folder.id);
+                        return next;
+                      });
+                      return;
+                    }
                     setCurrentFolderId(folder.id);
                     fetchDocuments(folder.id);
                     setSearchQuery("");
                   }}
                 >
                   <CardContent className="p-4 flex items-center gap-3">
+                    {isHROrAdmin && (
+                      <Checkbox
+                        checked={selectedFolderIds.has(folder.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        onCheckedChange={(checked) => {
+                          setSelectedFolderIds((prev) => {
+                            const next = new Set(prev);
+                            if (checked) next.add(folder.id);
+                            else next.delete(folder.id);
+                            return next;
+                          });
+                        }}
+                        className={cn(
+                          "transition-opacity",
+                          selectedFolderIds.size > 0 || selectedDocIds.size > 0
+                            ? "opacity-100"
+                            : "opacity-0 group-hover:opacity-100"
+                        )}
+                      />
+                    )}
                     <div className="p-2 rounded-lg bg-primary/10 text-primary">
                       <Icon className="h-5 w-5" />
                     </div>
