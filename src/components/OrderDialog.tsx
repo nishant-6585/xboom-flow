@@ -180,11 +180,21 @@ export function OrderDialog({ order, open, onOpenChange, onUpdate, onDelete, onE
       setCustomerGst((order as any).customer_gst || '');
       setEscalationReason('');
       setShowEscalationForm(false);
-      
+
+      // Reset all inline edit flags when switching orders or reopening dialog
+      setEditingCustomerInfo(false);
+      setEditingShipping(false);
+      setEditingPayment(false);
+      setEditingTracking(false);
+      setEditingOrderItems(false);
+      setEditedOrderItems({});
+      setEditingInvoiceNumber(false);
+      setEditingPoNumber(false);
+
       // Fetch order items
       fetchOrderItems(order.id).then(setOrderItems);
     }
-  }, [order, fetchOrderItems]);
+  }, [order?.id, fetchOrderItems]);
 
   if (!order) return null;
 
