@@ -122,7 +122,13 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
   const [isListening, setIsListening] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const [size, setSize] = useState({ w: 720, h: 650 });
+  const [size, setSize] = useState(() => {
+    if (typeof window === 'undefined') return { w: 720, h: 650 };
+    const margin = 32; // 16px on each side
+    const w = Math.min(720, Math.max(320, window.innerWidth - margin));
+    const h = Math.min(650, Math.max(360, window.innerHeight - margin));
+    return { w, h };
+  });
   const resizingRef = useRef(false);
   const startRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -139,11 +145,13 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
     const onMouseMove = (ev: MouseEvent) => {
       if (!resizingRef.current) return;
       const newSize = { ...startRef.current };
+      const maxW = Math.max(320, window.innerWidth - 32);
+      const maxH = Math.max(360, window.innerHeight - 32);
       if (edge === 'right' || edge === 'top-right') {
-        newSize.w = Math.max(480, Math.min(1400, startRef.current.w + (ev.clientX - startRef.current.x)));
+        newSize.w = Math.max(320, Math.min(maxW, startRef.current.w + (ev.clientX - startRef.current.x)));
       }
       if (edge === 'top' || edge === 'top-right') {
-        newSize.h = Math.max(400, Math.min(900, startRef.current.h + (startRef.current.y - ev.clientY)));
+        newSize.h = Math.max(360, Math.min(maxH, startRef.current.h + (startRef.current.y - ev.clientY)));
       }
       setSize({ w: newSize.w, h: newSize.h });
     };
@@ -157,6 +165,25 @@ export function PortalChatWindow({ onClose }: PortalChatWindowProps) {
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
   }, [size]);
+
+  // Re-clamp panel size when the viewport changes so the close button is never
+  // pushed off-screen on smaller laptops.
+  useEffect(() => {
+    const handleResize = () => {
+      const margin = 32;
+      setSize((prev) => {
+        const maxW = Math.max(320, window.innerWidth - margin);
+        const maxH = Math.max(360, window.innerHeight - margin);
+        const nextW = Math.min(prev.w, maxW);
+        const nextH = Math.min(prev.h, maxH);
+        if (nextW === prev.w && nextH === prev.h) return prev;
+        return { w: nextW, h: nextH };
+      });
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Load chats on mount
   useEffect(() => { fetchChats(); }, [fetchChats]);
