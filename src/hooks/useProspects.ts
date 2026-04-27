@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 
 export interface Prospect {
   id: string;
-  source_type: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads';
+  source_type: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads' | 'lead';
   source_id: string;
   customer_name: string;
   phone_number: string | null;
