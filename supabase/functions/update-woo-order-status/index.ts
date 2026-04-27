@@ -48,13 +48,25 @@ const ACTIVE_STATUSES = new Set([
 /** Roles allowed to bypass terminal-state lock and force-reopen an order. */
 const REOPEN_ROLES = new Set(["admin", "supply_chain", "sales_manager"]);
 
-/** Statuses that should trigger a customer-facing WhatsApp notification. */
-const NOTIFIABLE_STATUSES = new Set(["processing", "completed", "cancelled"]);
+/** Statuses that should trigger a customer-facing WhatsApp notification.
+ * Shipment events (shipped/out_for_delivery/delivered) are queued separately
+ * by the woocommerce_orders.tracking_status DB trigger.
+ */
+const NOTIFIABLE_STATUSES = new Set([
+  "processing",
+  "completed",
+  "delivered",
+  "cancelled",
+]);
 
-/** WhatsApp template name per status (provider-agnostic identifiers). */
+/** WhatsApp template name per status (provider-agnostic identifiers).
+ * The actual template id used by the provider lives in notification_templates;
+ * this is just a human-friendly fallback label for the queue row.
+ */
 const WHATSAPP_TEMPLATES: Record<string, string> = {
   processing: "order_processing_v1",
   completed: "order_completed_v1",
+  delivered: "order_delivered_v1",
   cancelled: "order_cancelled_v1",
 };
 
