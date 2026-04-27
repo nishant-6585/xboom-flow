@@ -81,6 +81,13 @@ export default function Orders() {
   const [wooViewMode, setWooViewMode] = useState<'cards' | 'table'>('cards');
   const [wooPage, setWooPage] = useState(1);
   const WOO_PAGE_SIZE = 50;
+  const [wooSyncing, setWooSyncing] = useState(false);
+  // Tick every 60s so the "last synced" relative label stays fresh
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setNowTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Manual orders pagination
   const [manualPage, setManualPage] = useState(1);
