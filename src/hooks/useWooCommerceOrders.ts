@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -43,36 +43,77 @@ export function useWooCommerceOrders() {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inFlightRef = useRef(false);
 
   const fetchOrders = useCallback(async () => {
+    // Prevent overlapping fetches — realtime can fire many events during a backfill
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     try {
       setLoading(true);
 
-      // Get total count
-      const { count, error: countError } = await supabase
+      // Only select fields the UI actually uses. raw_data + line_items are heavy
+      // JSONB blobs that 5–10x the payload size and slow down both transfer and
+      // JSON parsing in the browser.
+      const LIST_COLUMNS = [
+        'id',
+        'woo_order_id',
+        'order_number',
+        'source',
+        'order_status',
+        'financial_status',
+        'fulfillment_status',
+        'product_name',
+        'product_category',
+        'quantity',
+        'customer_name',
+        'customer_company',
+        'customer_email',
+        'selling_price',
+        'total_sales_amount',
+        'amount_paid',
+        'payment_status',
+        'currency',
+        'woo_created_at',
+        'woo_updated_at',
+        'created_at',
+        'updated_at',
+      ].join(',');
+
+      // First page also returns the exact count (single round-trip vs HEAD+SELECT).
+      const batchSize = 2000;
+      const first = await supabase
         .from('woocommerce_orders')
-        .select('id', { count: 'exact', head: true });
+        .select(LIST_COLUMNS, { count: 'exact' })
+        .order('woo_created_at', { ascending: false, nullsFirst: false })
+        .range(0, batchSize - 1);
 
-      if (countError) throw countError;
-      setTotalCount(count ?? 0);
+      if (first.error) throw first.error;
+      const total = first.count ?? 0;
+      setTotalCount(total);
+      const firstBatch = (first.data ?? []) as unknown as WooCommerceOrder[];
 
-      // Fetch all orders (paginated from DB if needed)
-      const allOrders: WooCommerceOrder[] = [];
-      let from = 0;
-      const batchSize = 1000;
-      let keepGoing = true;
-
-      while (keepGoing) {
-        const { data, error } = await supabase
-          .from('woocommerce_orders')
-          .select('*')
-          .order('woo_created_at', { ascending: false, nullsFirst: false })
-          .range(from, from + batchSize - 1);
-
-        if (error) throw error;
-        if (data) allOrders.push(...(data as WooCommerceOrder[]));
-        if (!data || data.length < batchSize) keepGoing = false;
-        else from += batchSize;
+      // Fetch remaining pages in parallel instead of sequentially.
+      const allOrders: WooCommerceOrder[] = [...firstBatch];
+      if (total > batchSize) {
+        const ranges: Array<[number, number]> = [];
+        for (let from = batchSize; from < total; from += batchSize) {
+          ranges.push([from, Math.min(from + batchSize - 1, total - 1)]);
+        }
+        const results = await Promise.all(
+          ranges.map(([from, to]) =>
+            supabase
+              .from('woocommerce_orders')
+              .select(LIST_COLUMNS)
+              .order('woo_created_at', { ascending: false, nullsFirst: false })
+              .range(from, to),
+          ),
+        );
+        for (const r of results) {
+          if (r.error) throw r.error;
+          if (r.data) allOrders.push(...(r.data as unknown as WooCommerceOrder[]));
+        }
       }
 
       console.log('[useWooCommerceOrders] Fetched orders from DB:', allOrders.length);
@@ -86,8 +127,18 @@ export function useWooCommerceOrders() {
       });
     } finally {
       setLoading(false);
+      inFlightRef.current = false;
     }
   }, [toast]);
+
+  // Coalesce many realtime events (e.g. during a backfill) into a single refetch.
+  const scheduleRefetch = useCallback(() => {
+    if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current);
+    refetchTimerRef.current = setTimeout(() => {
+      refetchTimerRef.current = null;
+      fetchOrders();
+    }, 5000);
+  }, [fetchOrders]);
 
   useEffect(() => {
     fetchOrders();
@@ -95,89 +146,81 @@ export function useWooCommerceOrders() {
     const channel = supabase
       .channel('woocommerce_orders_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'woocommerce_orders' }, () => {
-        fetchOrders();
+        scheduleRefetch();
       })
       .subscribe();
 
     return () => {
+      if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current);
       supabase.removeChannel(channel);
     };
-  }, [fetchOrders]);
+  }, [fetchOrders, scheduleRefetch]);
 
-  // Computed stats — single source of truth = WooCommerce status
-  // Build a dynamic per-status count map so the UI can mirror WooCommerce 1:1
-  // (no hard-coded status list — picks up custom statuses like delivered, return-requested, etc.)
-  const statusCounts: Record<string, number> = {};
-  for (const o of orders) {
-    const s = (o.order_status || 'unknown').toLowerCase();
-    statusCounts[s] = (statusCounts[s] || 0) + 1;
-  }
+  // Computed stats — memoized so they only recalc when orders actually change.
+  // Single pass over the array instead of 6+ passes.
+  const stats = useMemo(() => {
+    const SUCCESS_STATUSES = ['completed', 'delivered'];
+    const FAILED_STATUSES = ['failed', 'cancelled'];
+    const PENDING_STATUSES = ['pending', 'on-hold'];
 
-  // Grouped status buckets for a clearer business-friendly UI
-  // Success = completed + delivered
-  // Failed  = failed + cancelled
-  // Pending = pending + on-hold
-  const SUCCESS_STATUSES = ['completed', 'delivered'];
-  const FAILED_STATUSES = ['failed', 'cancelled'];
-  const PENDING_STATUSES = ['pending', 'on-hold'];
-  const PROCESSING_STATUSES = ['processing'];
+    const statusCounts: Record<string, number> = {};
+    let successCount = 0, failedCount = 0, pendingCount = 0, processingCount = 0;
+    let totalRevenue = 0, completedRevenue = 0, lostRevenue = 0;
+    let lastSyncedAtMs = 0;
+    let lastSyncedAt: string | null = null;
+    let todayOrders = 0;
+    const todayStr = new Date().toDateString();
 
-  const sumStatuses = (keys: string[]) =>
-    keys.reduce((acc, k) => acc + (statusCounts[k] || 0), 0);
+    for (const o of orders) {
+      const s = (o.order_status || 'unknown').toLowerCase();
+      statusCounts[s] = (statusCounts[s] || 0) + 1;
 
-  const sumRevenue = (keys: string[]) =>
-    orders.reduce((acc, o) => {
-      const s = (o.order_status || '').toLowerCase();
-      if (!keys.includes(s)) return acc;
-      return acc + (Number(o.total_sales_amount) || 0);
-    }, 0);
+      const amount = Number(o.total_sales_amount) || 0;
+      const isFailed = FAILED_STATUSES.includes(s);
+      const isSuccess = SUCCESS_STATUSES.includes(s);
 
-  // Total Revenue = sum of orders NOT cancelled/failed (per spec)
-  const totalRevenue = orders.reduce((acc, o) => {
-    const s = (o.order_status || '').toLowerCase();
-    if (FAILED_STATUSES.includes(s)) return acc;
-    return acc + (Number(o.total_sales_amount) || 0);
-  }, 0);
-  const completedRevenue = sumRevenue(SUCCESS_STATUSES);
-  const lostRevenue = sumRevenue(FAILED_STATUSES);
+      if (!isFailed) totalRevenue += amount;
+      if (isSuccess) { completedRevenue += amount; successCount++; }
+      if (isFailed) { lostRevenue += amount; failedCount++; }
+      if (PENDING_STATUSES.includes(s)) pendingCount++;
+      if (s === 'processing') processingCount++;
 
-  // Latest sync timestamp (most recent woo_updated_at / created_at in DB)
-  let lastSyncedAt: string | null = null;
-  for (const o of orders) {
-    const t = o.woo_updated_at || o.updated_at || o.created_at;
-    if (!t) continue;
-    if (!lastSyncedAt || new Date(t) > new Date(lastSyncedAt)) {
-      lastSyncedAt = t;
-    }
-  }
+      const t = o.woo_updated_at || o.updated_at || o.created_at;
+      if (t) {
+        const ms = new Date(t).getTime();
+        if (ms > lastSyncedAtMs) {
+          lastSyncedAtMs = ms;
+          lastSyncedAt = t;
+        }
+      }
 
-  const todayStr = new Date().toDateString();
-  const stats = {
-    totalOrders: orders.length,
-    statusCounts,
-    grouped: {
-      success: sumStatuses(SUCCESS_STATUSES),
-      failed: sumStatuses(FAILED_STATUSES),
-      pending: sumStatuses(PENDING_STATUSES),
-      processing: sumStatuses(PROCESSING_STATUSES),
-    },
-    revenue: {
-      total: totalRevenue,
-      completed: completedRevenue,
-      lost: lostRevenue,
-    },
-    lastSyncedAt,
-    completedOrders: statusCounts['completed'] || 0,
-    processingOrders: statusCounts['processing'] || 0,
-    pendingOrders: statusCounts['pending'] || 0,
-    failedOrders: statusCounts['failed'] || 0,
-    cancelledOrders: statusCounts['cancelled'] || 0,
-    todayOrders: orders.filter(o => {
       const d = o.woo_created_at || o.created_at;
-      if (!d) return false;
-      return new Date(d).toDateString() === todayStr;
-    }).length,
-  };
+      if (d && new Date(d).toDateString() === todayStr) todayOrders++;
+    }
+
+    return {
+      totalOrders: orders.length,
+      statusCounts,
+      grouped: {
+        success: successCount,
+        failed: failedCount,
+        pending: pendingCount,
+        processing: processingCount,
+      },
+      revenue: {
+        total: totalRevenue,
+        completed: completedRevenue,
+        lost: lostRevenue,
+      },
+      lastSyncedAt,
+      completedOrders: statusCounts['completed'] || 0,
+      processingOrders: statusCounts['processing'] || 0,
+      pendingOrders: statusCounts['pending'] || 0,
+      failedOrders: statusCounts['failed'] || 0,
+      cancelledOrders: statusCounts['cancelled'] || 0,
+      todayOrders,
+    };
+  }, [orders]);
 
   return {
     wooOrders: orders,
