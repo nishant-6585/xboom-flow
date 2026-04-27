@@ -66,7 +66,7 @@ function truncate(s: string | null, n = 80) {
   return s.length > n ? s.slice(0, n) + "…" : s;
 }
 
-export default function Leads() {
+export default function QFormsPanel() {
   const [rows, setRows] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
@@ -147,12 +147,12 @@ export default function Leads() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-4">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Leads</h1>
+          <h2 className="text-xl font-bold">QForms</h2>
           <p className="text-sm text-muted-foreground">
-            Inbound submissions from xboom.in forms
+            Inbound submissions from xboom.in website forms
           </p>
         </div>
         <Badge variant="secondary">{filtered.length} leads</Badge>
