@@ -317,7 +317,29 @@ export default function QFormsPanel() {
             Inbound submissions from xboom.in website forms — auto-assigned round-robin to sales
           </p>
         </div>
-        <Badge variant="secondary">{filtered.length} leads</Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary">{filtered.length} leads</Badge>
+          <div className="inline-flex rounded-md border border-border/50 bg-muted/40 p-0.5">
+            <Button
+              size="sm"
+              variant={viewMode === "table" ? "secondary" : "ghost"}
+              className="h-7 px-2"
+              onClick={() => setViewMode("table")}
+              title="Table view"
+            >
+              <TableIcon className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === "cards" ? "secondary" : "ghost"}
+              className="h-7 px-2"
+              onClick={() => setViewMode("cards")}
+              title="Card view"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Stat cards */}
