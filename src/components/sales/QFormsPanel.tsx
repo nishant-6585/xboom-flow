@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { format, startOfDay, subDays, isToday, isYesterday } from "date-fns";
 import {
   ChevronDown, ChevronRight, Search, X, Phone, Mail, MessageCircle,
-  UserCheck, Inbox, CheckCircle2, Flame, FileText,
+  UserCheck, Inbox, CheckCircle2, Flame, FileText, LayoutGrid, Table as TableIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
