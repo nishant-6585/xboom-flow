@@ -3,7 +3,7 @@ import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import {
   Bot, Phone, Search, Sparkles, Clock, Target, Wallet, RefreshCw,
   MessageCircle, Flame, Mail, ChevronDown, ChevronRight, UserX,
-  Lightbulb, CheckCircle2, HelpCircle, XCircle,
+  Lightbulb, CheckCircle2, HelpCircle, XCircle, LayoutGrid, Table as TableIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -211,6 +211,7 @@ export function ElevenLabsLeadsPanel() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
   const load = async () => {
     setLoading(true);
@@ -394,9 +395,19 @@ export function ElevenLabsLeadsPanel() {
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={load} className="gap-2">
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-md border border-border/50 bg-muted/40 p-0.5">
+            <Button size="sm" variant={viewMode === "table" ? "secondary" : "ghost"} className="h-7 px-2" onClick={() => setViewMode("table")} title="Table view">
+              <TableIcon className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="sm" variant={viewMode === "cards" ? "secondary" : "ghost"} className="h-7 px-2" onClick={() => setViewMode("cards")} title="Card view">
+              <LayoutGrid className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <Button variant="outline" size="sm" onClick={load} className="gap-2">
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -497,6 +508,7 @@ export function ElevenLabsLeadsPanel() {
       </Card>
 
       {/* Table */}
+      {viewMode === "table" && (
       <Card>
         <Table>
           <TableHeader>
@@ -687,6 +699,111 @@ export function ElevenLabsLeadsPanel() {
           </TableBody>
         </Table>
       </Card>
+      )}
+
+      {viewMode === "cards" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {loading && (
+            <div className="col-span-full text-center text-muted-foreground py-8">Loading…</div>
+          )}
+          {!loading && filtered.length === 0 && (
+            <div className="col-span-full text-center text-muted-foreground py-8">
+              No leads match your filters yet — calls will appear here automatically.
+            </div>
+          )}
+          {!loading && filtered.map(r => {
+            const { name, isUnidentified } = resolveName(r);
+            const phone = formatPhone(r.caller_number);
+            const status = (r.lead_status ?? "New") as Status;
+            const tempClass = TEMP_COLORS[r.lead_temperature] ?? TEMP_COLORS.warm;
+            const hot = isHotLead(r);
+            const newish = isNewLead(r.created_at);
+            return (
+              <Card
+                key={r.id}
+                className={`p-3 cursor-pointer hover:border-primary/40 transition-colors space-y-2 ${hot ? "border-l-2 border-l-destructive" : newish ? "border-l-2 border-l-success" : ""}`}
+                onClick={() => setSelectedId(r.id)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className={isUnidentified ? "italic text-muted-foreground truncate" : "font-medium truncate"}>
+                      {isUnidentified ? (
+                        <span className="inline-flex items-center gap-1"><UserX className="h-3.5 w-3.5" /> Unidentified Caller</span>
+                      ) : name}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {format(new Date(r.created_at), "dd MMM, HH:mm")}
+                      {newish && <Badge className="ml-1 h-4 px-1 text-[10px] bg-success/15 text-success border-success/30">New</Badge>}
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground whitespace-nowrap flex items-center gap-1">
+                    <Clock className="h-3 w-3" />{formatDuration(r.call_duration)}
+                  </div>
+                </div>
+
+                <div className="text-xs font-mono" onClick={(e) => e.stopPropagation()}>
+                  <a className="text-primary hover:underline" href={`tel:${r.caller_number}`}>{phone}</a>
+                </div>
+
+                <div className="text-xs space-y-0.5">
+                  <div className="flex items-center gap-1">
+                    <Target className="h-3 w-3 text-primary" />
+                    <span className={r.requirement ? "" : "italic text-muted-foreground"}>
+                      {r.requirement ?? "Not captured"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <Wallet className="h-3 w-3" />
+                    <span className={r.budget ? "" : "italic"}>{r.budget ?? "—"}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                  <Select value={r.lead_temperature ?? "warm"} onValueChange={(v) => updateLead(r.id, { lead_temperature: v })}>
+                    <SelectTrigger className={`h-7 px-2 text-[11px] border w-auto ${tempClass}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="hot">🔥 Hot</SelectItem>
+                      <SelectItem value="warm">Warm</SelectItem>
+                      <SelectItem value="cold">Cold</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={status} onValueChange={(v) => updateLeadStatus(r.id, v)}>
+                    <SelectTrigger className={`h-7 text-xs w-auto ${STATUS_COLORS[status] ?? ""}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40" onClick={(e) => e.stopPropagation()}>
+                  <div className="text-[11px] text-muted-foreground truncate">
+                    {r.assigned_to_name ? `→ ${r.assigned_to_name}` : <span className="italic">Unassigned</span>}
+                    <span className="mx-1">·</span>
+                    {relativeTime(r.last_contacted_at)}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="Call">
+                      <a href={`tel:${r.caller_number}`} onClick={() => markContacted(r)}>
+                        <Phone className="h-3.5 w-3.5 text-blue-600" />
+                      </a>
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="WhatsApp" onClick={() => { openWhatsApp(r.caller_number); markContacted(r); }}>
+                      <MessageCircle className="h-3.5 w-3.5 text-green-600" />
+                    </Button>
+                    <ProspectButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={r.caller_number} email={null} company={null} city={null} productName={r.requirement || ""} notes={r.notes || r.raw_transcript} />
+                    <AttentionButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={r.caller_number} email={null} company={null} city={null} productName={r.requirement || ""} notes={r.notes || r.raw_transcript} />
+                    <EnquiryConvertButton sourceType="lead" sourceId={r.id} customerName={isUnidentified ? "Unknown" : name} phoneNumber={r.caller_number} email={null} company={null} city={null} productName={r.requirement || ""} urgency={r.priority} notes={r.notes || r.raw_transcript} isAlreadyConverted={r.is_enquiry_converted} />
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       {/* Detail drawer */}
       <Sheet open={!!selectedId} onOpenChange={(o) => !o && setSelectedId(null)}>
