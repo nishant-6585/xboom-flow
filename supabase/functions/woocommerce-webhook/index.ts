@@ -9,10 +9,24 @@ const corsHeaders = {
 /**
  * Classify a WooCommerce order into one of two buckets.
  *  - "orders":     status in (processing, completed)
- *  - "abandoned":  status in (pending, on-hold, failed, cancelled, refunded, ...)
+ *  - "abandoned":  status in (pending, on-hold, failed, cancelled, refunded, …)
+ * Any unknown status defaults to "abandoned" (safer for revenue accounting).
  */
+const ORDER_STATUSES = new Set(["processing", "completed"]);
+const ABANDONED_STATUSES = new Set([
+  "pending",
+  "on-hold",
+  "failed",
+  "cancelled",
+  "refunded",
+]);
+
 function classifyBucket(status: string): "orders" | "abandoned" {
-  return status === "processing" || status === "completed" ? "orders" : "abandoned";
+  const s = (status || "").toLowerCase().trim();
+  if (ORDER_STATUSES.has(s)) return "orders";
+  if (ABANDONED_STATUSES.has(s)) return "abandoned";
+  console.warn(`[woocommerce-webhook] Unknown WooCommerce status "${status}" — defaulting to "abandoned"`);
+  return "abandoned";
 }
 
 Deno.serve(async (req) => {
@@ -100,6 +114,7 @@ async function processOrder(supabase: any, payload: any, orderId: string, topic:
 
   const wooStatus: string = payload?.status || "pending";
   const bucket = classifyBucket(wooStatus);
+  console.log(`[woocommerce-webhook] Classification → status="${wooStatus}" bucket="${bucket}" order_id=${orderId}`);
 
   const paymentStatusMap: Record<string, string> = {
     completed: "paid",

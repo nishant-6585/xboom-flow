@@ -39,7 +39,7 @@ export default function Orders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
-  const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, syncing: wooSyncing, syncProgress: wooSyncProgress, stats: wooStats, syncFromAPI: syncWooOrders } = useWooCommerceOrders();
+  const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, stats: wooStats } = useWooCommerceOrders();
   // Both Website Orders and Abandoned tabs read from the SAME hook; classification is by `bucket`.
   const wooOrderBucketRows = wooOrders.filter(o => o.bucket === 'orders');
   const wooAbandonedBucketRows = wooOrders.filter(o => o.bucket === 'abandoned');
@@ -1074,16 +1074,9 @@ export default function Orders() {
                   <p className="text-xs text-muted-foreground">{wooTotalCount.toLocaleString()} orders from xboom.in website</p>
                 </div>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={syncWooOrders}
-                disabled={wooSyncing}
-                className="gap-2"
-              >
-                {wooSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                {wooSyncing ? (wooSyncProgress || 'Syncing...') : 'Sync Orders'}
-              </Button>
+              <span className="text-[11px] text-muted-foreground italic">
+                Webhook-driven · auto-syncs from xboom.in
+              </span>
             </div>
 
             {/* Summary Stats */}
@@ -1094,7 +1087,12 @@ export default function Orders() {
               </CardContent></Card>
               <Card><CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold text-primary">₹{wooStats.totalRevenue.toLocaleString('en-IN')}</p>
+                <p
+                  className="text-2xl font-bold text-primary truncate"
+                  title={`₹${wooStats.totalRevenue.toLocaleString('en-IN')}`}
+                >
+                  ₹{new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 2 }).format(wooStats.totalRevenue)}
+                </p>
               </CardContent></Card>
               <Card><CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground">Completed</p>
@@ -1321,7 +1319,12 @@ export default function Orders() {
                 </CardContent></Card>
                 <Card><CardContent className="p-4 text-center">
                   <p className="text-xs text-muted-foreground">Lost Revenue</p>
-                  <p className="text-2xl font-bold text-destructive">₹{wooStats.abandonedValue.toLocaleString('en-IN')}</p>
+                  <p
+                    className="text-2xl font-bold text-destructive truncate"
+                    title={`₹${wooStats.abandonedValue.toLocaleString('en-IN')}`}
+                  >
+                    ₹{new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 2 }).format(wooStats.abandonedValue)}
+                  </p>
                 </CardContent></Card>
                 <Card><CardContent className="p-4 text-center">
                   <p className="text-xs text-muted-foreground">Confirmed Orders</p>
@@ -1329,25 +1332,19 @@ export default function Orders() {
                 </CardContent></Card>
                 <Card><CardContent className="p-4 text-center">
                   <p className="text-xs text-muted-foreground">Confirmed Revenue</p>
-                  <p className="text-2xl font-bold text-primary">₹{wooStats.totalRevenue.toLocaleString('en-IN')}</p>
+                  <p
+                    className="text-2xl font-bold text-primary truncate"
+                    title={`₹${wooStats.totalRevenue.toLocaleString('en-IN')}`}
+                  >
+                    ₹{new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 2 }).format(wooStats.totalRevenue)}
+                  </p>
                 </CardContent></Card>
               </div>
 
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Showing WooCommerce orders with status: <span className="font-medium">pending, on-hold, failed, cancelled, refunded</span>.
-                  When status moves to processing/completed, the order automatically moves to <strong>XBoom Website</strong>.
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={syncWooOrders}
-                  disabled={wooSyncing}
-                >
-                  {wooSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                  {wooSyncing ? 'Syncing…' : 'Sync from xboom.in'}
-                </Button>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Showing WooCommerce orders with status: <span className="font-medium">pending, on-hold, failed, cancelled, refunded</span>.
+                When status moves to processing/completed, the order automatically moves to <strong>XBoom Website</strong>.
+              </p>
 
               {wooLoading ? (
                 <div className="flex items-center justify-center py-12">
