@@ -1,4 +1,6 @@
 // @ts-nocheck
+// TEMP: Disabled TypeScript checking due to Supabase Deno SDK type inference issue
+// Do NOT remove until Database types are available in edge runtime
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
