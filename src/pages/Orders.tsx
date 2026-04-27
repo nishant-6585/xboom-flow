@@ -18,6 +18,8 @@ import { RefundRequestsTable } from '@/components/RefundRequestsTable';
 import { PipelineOrders } from '@/components/pipeline/PipelineOrders';
 import { WooOrderCard } from '@/components/orders/WooOrderCard';
 import { WooSyncHealthCard } from '@/components/orders/WooSyncHealthCard';
+import { WooOrderDetailDialog } from '@/components/orders/WooOrderDetailDialog';
+import { useWooSyncHealth } from '@/hooks/useWooSyncHealth';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
 import { SupportCallsDashboard } from '@/components/orders/SupportCallsDashboard';
@@ -40,7 +42,10 @@ export default function Orders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
-  const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, stats: wooStats } = useWooCommerceOrders();
+  const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, stats: wooStats, refetch: refetchWooOrders } = useWooCommerceOrders();
+  const { gap: wooGap, wooTotal: wooApiTotal, dbTotal: wooDbTotal, refetch: refetchWooSync } = useWooSyncHealth();
+  const [selectedWooOrder, setSelectedWooOrder] = useState<typeof wooOrders[number] | null>(null);
+  const [wooDetailOpen, setWooDetailOpen] = useState(false);
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
@@ -347,6 +352,11 @@ export default function Orders() {
         title: 'Sync triggered',
         description: data?.message || 'Pulling latest orders from WooCommerce…',
       });
+      // Auto-refresh after a short delay to give the function time to write rows
+      setTimeout(() => {
+        refetchWooOrders();
+        refetchWooSync();
+      }, 3000);
     } catch (err: any) {
       toast({
         title: 'Sync failed',
