@@ -1087,7 +1087,12 @@ export default function Orders() {
               </CardContent></Card>
               <Card><CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold text-primary">₹{wooStats.totalRevenue.toLocaleString('en-IN')}</p>
+                <p
+                  className="text-2xl font-bold text-primary truncate"
+                  title={`₹${wooStats.totalRevenue.toLocaleString('en-IN')}`}
+                >
+                  ₹{new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 2 }).format(wooStats.totalRevenue)}
+                </p>
               </CardContent></Card>
               <Card><CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground">Completed</p>
