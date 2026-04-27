@@ -229,7 +229,18 @@ export default function Orders() {
       (o.product_name?.toLowerCase().includes(searchLower) ?? false) ||
       (o.customer_name?.toLowerCase().includes(searchLower) ?? false) ||
       (o.customer_email?.toLowerCase().includes(searchLower) ?? false);
-    const matchesStatus = wooStatusFilter === 'all' || o.order_status === wooStatusFilter;
+    // Status filter supports both raw statuses and grouped buckets (success/failed/pending)
+    const status = (o.order_status || '').toLowerCase();
+    const matchesStatus =
+      wooStatusFilter === 'all'
+        ? true
+        : wooStatusFilter === 'success'
+          ? ['completed', 'delivered'].includes(status)
+          : wooStatusFilter === 'failed'
+            ? ['failed', 'cancelled'].includes(status)
+            : wooStatusFilter === 'pending'
+              ? ['pending', 'on-hold'].includes(status)
+              : status === wooStatusFilter;
     const matchesPayment = wooPaymentStatusFilter === 'all' || o.payment_status === wooPaymentStatusFilter;
     return matchesSearch && matchesStatus && matchesPayment;
   });
