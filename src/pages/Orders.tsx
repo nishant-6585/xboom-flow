@@ -310,6 +310,53 @@ export default function Orders() {
   const hasActiveShopifyFilters = shopifyStatusFilter !== 'all' || shopifyPaymentStatusFilter !== 'all' ||
     !!shopifyStartDate || !!shopifyEndDate || !!shopifySearchQuery;
 
+  const hasActiveWooFilters =
+    wooStatusFilter !== 'all' || wooPaymentStatusFilter !== 'all' || !!wooSearchQuery;
+
+  const formatINR = (n: number) => {
+    if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(2)} Cr`;
+    if (n >= 100_000) return `₹${(n / 100_000).toFixed(2)} L`;
+    if (n >= 1_000) return `₹${(n / 1_000).toFixed(1)}K`;
+    return `₹${Math.round(n).toLocaleString('en-IN')}`;
+  };
+
+  const timeAgo = (iso: string | null) => {
+    if (!iso) return 'never';
+    const diff = Date.now() - new Date(iso).getTime();
+    if (diff < 0) return 'just now';
+    const sec = Math.floor(diff / 1000);
+    if (sec < 60) return `${sec}s ago`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `${min} min ago`;
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return `${hr} hr ago`;
+    const day = Math.floor(hr / 24);
+    return `${day}d ago`;
+  };
+
+  const handleWooManualSync = async () => {
+    if (wooSyncing) return;
+    setWooSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-website-orders', {
+        body: { incremental: true },
+      });
+      if (error) throw error;
+      toast({
+        title: 'Sync triggered',
+        description: data?.message || 'Pulling latest orders from WooCommerce…',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Sync failed',
+        description: err?.message || 'Could not start sync',
+        variant: 'destructive',
+      });
+    } finally {
+      setWooSyncing(false);
+    }
+  };
+
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-background via-background to-muted/10 flex flex-col">
       <Header />
