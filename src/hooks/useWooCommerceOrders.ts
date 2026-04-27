@@ -7,6 +7,8 @@ export interface WooCommerceOrder {
   woo_order_id: string;
   order_number: string | null;
   source: string;
+  /** "orders" → paid/processing/completed; "abandoned" → pending/failed/cancelled */
+  bucket: 'orders' | 'abandoned';
   order_status: string | null;
   financial_status: string | null;
   fulfillment_status: string | null;
@@ -159,8 +161,14 @@ export function useWooCommerceOrders() {
 
   // Computed stats
   const stats = {
-    totalOrders: orders.length,
-    totalRevenue: orders.reduce((sum, o) => sum + (o.total_sales_amount || 0), 0),
+    totalOrders: orders.filter(o => o.bucket === 'orders').length,
+    totalAbandoned: orders.filter(o => o.bucket === 'abandoned').length,
+    totalRevenue: orders
+      .filter(o => o.bucket === 'orders')
+      .reduce((sum, o) => sum + (o.total_sales_amount || 0), 0),
+    abandonedValue: orders
+      .filter(o => o.bucket === 'abandoned')
+      .reduce((sum, o) => sum + (o.total_sales_amount || 0), 0),
     completedOrders: orders.filter(o => o.order_status === 'completed').length,
     todayOrders: orders.filter(o => {
       const d = o.woo_created_at || o.created_at;
@@ -170,5 +178,20 @@ export function useWooCommerceOrders() {
     }).length,
   };
 
-  return { wooOrders: orders, totalCount, loading, syncing, syncProgress, stats, refetch: fetchOrders, syncFromAPI };
+  // Split by bucket so Orders & Abandoned tabs each consume their own slice.
+  const orderBucketRows = orders.filter(o => o.bucket === 'orders');
+  const abandonedBucketRows = orders.filter(o => o.bucket === 'abandoned');
+
+  return {
+    wooOrders: orders,
+    orderBucketRows,
+    abandonedBucketRows,
+    totalCount,
+    loading,
+    syncing,
+    syncProgress,
+    stats,
+    refetch: fetchOrders,
+    syncFromAPI,
+  };
 }
