@@ -80,7 +80,13 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    let page = 1;
+    // Allow caller to bound the work so we don't hit the 150s idle timeout.
+    // Defaults: process up to 20 pages (2000 orders) per invocation.
+    let body: any = {};
+    try { body = await req.json(); } catch (_) { /* no body */ }
+    let page = Math.max(1, parseInt(body.start_page) || 1);
+    const maxPages = Math.max(1, Math.min(parseInt(body.max_pages) || 20, 100));
+    const endPage = page + maxPages - 1;
     const perPage = 100;
     let hasMore = true;
     let totalFetched = 0;
@@ -161,14 +167,15 @@ Deno.serve(async (req) => {
         page++;
       }
 
-      // Safety: max 500 pages (50k orders)
-      if (page > 500) {
-        console.log("[sync] Hit max page limit (500)");
+      // Stop after the requested batch to avoid edge-runtime idle timeout.
+      if (page > endPage) {
+        console.log(`[sync] Reached batch limit (page ${endPage})`);
         break;
       }
     }
 
-    console.log(`[sync] Done. Pages: ${page}, Fetched: ${totalFetched}, Upserted: ${totalUpserted}, Errors: ${totalErrors}`);
+    const nextPage = hasMore ? page : null;
+    console.log(`[sync] Done. Last page: ${page}, Fetched: ${totalFetched}, Upserted: ${totalUpserted}, Errors: ${totalErrors}, Next: ${nextPage}`);
 
     return new Response(
       JSON.stringify({
@@ -177,8 +184,12 @@ Deno.serve(async (req) => {
         upserted: totalUpserted,
         errors: totalErrors,
         pages_fetched: page,
+        next_page: nextPage,
+        has_more: hasMore,
         page_results: pageResults,
-        message: `Synced ${totalUpserted} orders across ${page} pages`,
+        message: hasMore
+          ? `Synced ${totalUpserted} orders. Call again with start_page=${nextPage} to continue.`
+          : `Synced ${totalUpserted} orders across ${page} pages (complete)`,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
