@@ -117,6 +117,7 @@ export default function QFormsPanel() {
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
   const canManage = role === "admin" || role === "sales" || role === "sales_manager";
 
