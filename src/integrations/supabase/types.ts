@@ -11270,12 +11270,14 @@ export type Database = {
         Row: {
           amount_paid: number | null
           bucket: string
+          courier: string | null
           created_at: string
           currency: string | null
           customer_company: string | null
           customer_email: string | null
           customer_name: string
           customer_phone: string | null
+          expected_delivery: string | null
           financial_status: string | null
           fulfillment_status: string | null
           id: string
@@ -11294,6 +11296,8 @@ export type Database = {
           shipping_address: string | null
           source: string
           total_sales_amount: number | null
+          tracking_number: string | null
+          tracking_status: string | null
           updated_at: string
           woo_created_at: string | null
           woo_order_id: string
@@ -11302,12 +11306,14 @@ export type Database = {
         Insert: {
           amount_paid?: number | null
           bucket?: string
+          courier?: string | null
           created_at?: string
           currency?: string | null
           customer_company?: string | null
           customer_email?: string | null
           customer_name?: string
           customer_phone?: string | null
+          expected_delivery?: string | null
           financial_status?: string | null
           fulfillment_status?: string | null
           id?: string
@@ -11326,6 +11332,8 @@ export type Database = {
           shipping_address?: string | null
           source?: string
           total_sales_amount?: number | null
+          tracking_number?: string | null
+          tracking_status?: string | null
           updated_at?: string
           woo_created_at?: string | null
           woo_order_id: string
@@ -11334,12 +11342,14 @@ export type Database = {
         Update: {
           amount_paid?: number | null
           bucket?: string
+          courier?: string | null
           created_at?: string
           currency?: string | null
           customer_company?: string | null
           customer_email?: string | null
           customer_name?: string
           customer_phone?: string | null
+          expected_delivery?: string | null
           financial_status?: string | null
           fulfillment_status?: string | null
           id?: string
@@ -11358,6 +11368,8 @@ export type Database = {
           shipping_address?: string | null
           source?: string
           total_sales_amount?: number | null
+          tracking_number?: string | null
+          tracking_status?: string | null
           updated_at?: string
           woo_created_at?: string | null
           woo_order_id?: string

@@ -104,3 +104,9 @@ verify_jwt = false
 
 [functions.elevenlabs-call-summary]
 verify_jwt = false
+
+[functions.get-order-status]
+verify_jwt = false
+
+[functions.update-order-status]
+verify_jwt = false
