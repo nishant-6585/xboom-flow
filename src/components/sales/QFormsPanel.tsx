@@ -21,6 +21,10 @@ import {
 } from "@/components/ui/collapsible";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { toast } from "@/hooks/use-toast";
+import {
+  ResponsiveContainer, LineChart, Line, BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
+} from "recharts";
 import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { ProspectButton } from "./ProspectButton";
 import { AttentionButton } from "./AttentionButton";
@@ -208,6 +212,36 @@ export default function QFormsPanel() {
       map.set(k, (map.get(k) ?? 0) + 1);
     });
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  }, [rows]);
+
+  // Daily submissions over the last 30 days (within the currently filtered rows)
+  const dailyTrend = useMemo(() => {
+    const days = 30;
+    const buckets = new Map<string, number>();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = subDays(startOfDay(new Date()), i);
+      buckets.set(format(d, "yyyy-MM-dd"), 0);
+    }
+    rows.forEach(r => {
+      const key = format(new Date(r.created_at), "yyyy-MM-dd");
+      if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + 1);
+    });
+    return Array.from(buckets.entries()).map(([date, count]) => ({
+      date: format(new Date(date), "dd MMM"),
+      count,
+    }));
+  }, [rows]);
+
+  // Full form-type ranking for the bar chart
+  const formTypeChart = useMemo(() => {
+    const map = new Map<string, number>();
+    rows.forEach(r => {
+      const k = r.form_type ?? "unknown";
+      map.set(k, (map.get(k) ?? 0) + 1);
+    });
+    return Array.from(map.entries())
+      .map(([form_type, count]) => ({ form_type, count }))
+      .sort((a, b) => b.count - a.count);
   }, [rows]);
 
   const toggleRow = (id: number) => {
