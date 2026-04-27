@@ -105,18 +105,27 @@ export function useWooCommerceOrders() {
   }, [fetchOrders]);
 
   // Computed stats — single source of truth = WooCommerce status
+  // Build a dynamic per-status count map so the UI can mirror WooCommerce 1:1
+  // (no hard-coded status list — picks up custom statuses like delivered, return-requested, etc.)
+  const statusCounts: Record<string, number> = {};
+  for (const o of orders) {
+    const s = (o.order_status || 'unknown').toLowerCase();
+    statusCounts[s] = (statusCounts[s] || 0) + 1;
+  }
+
+  const todayStr = new Date().toDateString();
   const stats = {
     totalOrders: orders.length,
-    completedOrders: orders.filter(o => o.order_status === 'completed').length,
-    processingOrders: orders.filter(o => o.order_status === 'processing').length,
-    pendingOrders: orders.filter(o => o.order_status === 'pending').length,
-    failedOrders: orders.filter(o => o.order_status === 'failed').length,
-    cancelledOrders: orders.filter(o => o.order_status === 'cancelled').length,
+    statusCounts,
+    completedOrders: statusCounts['completed'] || 0,
+    processingOrders: statusCounts['processing'] || 0,
+    pendingOrders: statusCounts['pending'] || 0,
+    failedOrders: statusCounts['failed'] || 0,
+    cancelledOrders: statusCounts['cancelled'] || 0,
     todayOrders: orders.filter(o => {
       const d = o.woo_created_at || o.created_at;
       if (!d) return false;
-      const orderDate = new Date(d).toDateString();
-      return orderDate === new Date().toDateString();
+      return new Date(d).toDateString() === todayStr;
     }).length,
   };
 
