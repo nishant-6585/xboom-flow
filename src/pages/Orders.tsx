@@ -1156,7 +1156,7 @@ export default function Orders() {
             </div>
 
             {/* Sync health dashboard — Woo total vs DB, gap, last sync, status */}
-            <WooSyncHealthCard />
+            <WooSyncHealthCard onSyncTriggered={() => refetchWooOrders()} />
 
             {/* Sync gap warnings */}
             {wooGap !== null && wooGap > 0 && (
