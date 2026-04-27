@@ -1314,63 +1314,6 @@ export default function Orders() {
             </TabsContent>
           )}
 
-          {/* Abandoned Carts Tab — same source-of-truth as Website Orders, filtered by bucket='abandoned' */}
-          <TabsContent value="abandoned">
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Total Abandoned</p>
-                  <p className="text-2xl font-bold text-destructive">{wooStats.totalAbandoned}</p>
-                </CardContent></Card>
-                <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Lost Revenue</p>
-                  <p
-                    className="text-2xl font-bold text-destructive truncate"
-                    title={`₹${wooStats.abandonedValue.toLocaleString('en-IN')}`}
-                  >
-                    ₹{new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 2 }).format(wooStats.abandonedValue)}
-                  </p>
-                </CardContent></Card>
-                <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Confirmed Orders</p>
-                  <p className="text-2xl font-bold text-primary">{wooStats.totalOrders}</p>
-                </CardContent></Card>
-                <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Confirmed Revenue</p>
-                  <p
-                    className="text-2xl font-bold text-primary truncate"
-                    title={`₹${wooStats.totalRevenue.toLocaleString('en-IN')}`}
-                  >
-                    ₹{new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 2 }).format(wooStats.totalRevenue)}
-                  </p>
-                </CardContent></Card>
-              </div>
-
-              <p className="text-sm text-muted-foreground">
-                Showing WooCommerce orders with status: <span className="font-medium">pending, on-hold, failed, cancelled, refunded</span>.
-                When status moves to processing/completed, the order automatically moves to <strong>XBoom Website</strong>.
-              </p>
-
-              {wooLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : wooAbandonedBucketRows.length === 0 ? (
-                <Card><CardContent className="py-12 text-center text-muted-foreground">
-                  <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No abandoned orders</p>
-                  <p className="text-sm">Orders with pending/failed/cancelled status from xboom.in will appear here.</p>
-                </CardContent></Card>
-              ) : (
-                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {wooAbandonedBucketRows.map((order) => (
-                    <WooOrderCard key={order.id} order={order} />
-                  ))}
-                </div>
-              )}
-            </div>
-          </TabsContent>
-
           {isAdmin && (
             <TabsContent value="analytics">
               <OrderProfitAnalytics orders={manualOrders} onCardClick={handleAnalyticsCardClick} />
