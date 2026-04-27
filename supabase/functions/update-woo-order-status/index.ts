@@ -48,6 +48,16 @@ const ACTIVE_STATUSES = new Set([
 /** Roles allowed to bypass terminal-state lock and force-reopen an order. */
 const REOPEN_ROLES = new Set(["admin", "supply_chain", "sales_manager"]);
 
+/** Statuses that should trigger a customer-facing WhatsApp notification. */
+const NOTIFIABLE_STATUSES = new Set(["processing", "completed", "cancelled"]);
+
+/** WhatsApp template name per status (provider-agnostic identifiers). */
+const WHATSAPP_TEMPLATES: Record<string, string> = {
+  processing: "order_processing_v1",
+  completed: "order_completed_v1",
+  cancelled: "order_cancelled_v1",
+};
+
 /**
  * Validate a transition. Returns null if allowed, or an error string if not.
  * The only allowed reopen path is `cancelled → processing` with allow_reopen=true.
@@ -173,7 +183,7 @@ Deno.serve(async (req) => {
   // Look up current row
   const { data: existing } = await admin
     .from("woocommerce_orders")
-    .select("woo_order_id, order_number, order_status")
+    .select("woo_order_id, order_number, order_status, customer_name, customer_phone, customer_email, total_sales_amount, currency")
     .eq("woo_order_id", wooOrderId)
     .maybeSingle();
 
@@ -273,18 +283,73 @@ Deno.serve(async (req) => {
   }
 
   // ------------ AUDIT LOG ------------
-  await admin.from("woocommerce_order_status_logs").insert({
-    woo_order_id: wooOrderId,
-    order_number: existing.order_number,
-    previous_status: previousStatus,
-    new_status: newStatus,
-    changed_by: userId,
-    changed_by_email: userEmail,
-    source: "xboom_ui",
-    woo_api_success: wooOk,
-    woo_api_response: wooResponse,
-    error_message: errMsg,
-  });
+  const { data: logRow } = await admin
+    .from("woocommerce_order_status_logs")
+    .insert({
+      woo_order_id: wooOrderId,
+      order_number: existing.order_number,
+      previous_status: previousStatus,
+      new_status: newStatus,
+      changed_by: userId,
+      changed_by_email: userEmail,
+      source: "xboom_ui",
+      woo_api_success: wooOk,
+      woo_api_response: wooResponse,
+      error_message: errMsg,
+    })
+    .select("id")
+    .maybeSingle();
+
+  // ------------ QUEUE WHATSAPP NOTIFICATION ------------
+  // Only queue when WooCommerce accepted the change AND the new status is
+  // customer-notifiable. Idempotency is enforced by the unique index on
+  // (woo_order_id, status_trigger, channel) — duplicates are silently ignored.
+  // This MUST NOT fail the request.
+  if (wooOk && NOTIFIABLE_STATUSES.has(newStatus)) {
+    try {
+      const customerName =
+        (existing as { customer_name?: string | null }).customer_name || null;
+      const customerPhone =
+        (existing as { customer_phone?: string | null }).customer_phone || null;
+      const customerEmail =
+        (existing as { customer_email?: string | null }).customer_email || null;
+      const amount =
+        Number((existing as { total_sales_amount?: number | null }).total_sales_amount) || 0;
+      const currency =
+        (existing as { currency?: string | null }).currency || "INR";
+
+      const { error: notifErr } = await admin
+        .from("order_notifications")
+        .insert({
+          woo_order_id: wooOrderId,
+          order_number: existing.order_number,
+          status_trigger: newStatus,
+          channel: "whatsapp",
+          phone: customerPhone,
+          template_name: WHATSAPP_TEMPLATES[newStatus] || `order_${newStatus}`,
+          payload: {
+            customer_name: customerName,
+            customer_email: customerEmail,
+            order_id: wooOrderId,
+            order_number: existing.order_number,
+            amount,
+            currency,
+            status: newStatus,
+          },
+          status_log_id: logRow?.id ?? null,
+          // status defaults to 'pending', next_attempt_at defaults to now()
+        });
+      if (notifErr && notifErr.code !== "23505") {
+        // 23505 = unique_violation → idempotent skip; anything else is a real error to log.
+        console.warn(
+          `[update-woo-order-status] Failed to queue notification:`,
+          notifErr,
+        );
+      }
+    } catch (e) {
+      console.warn(`[update-woo-order-status] Notification queue exception:`, e);
+    }
+  }
 
   if (!wooOk) {
     return new Response(
