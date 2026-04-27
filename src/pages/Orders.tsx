@@ -1067,20 +1067,24 @@ export default function Orders() {
               </span>
             </div>
 
-            {/* Summary Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Summary Stats — one tile per WooCommerce status (dynamic, mirrors DB exactly) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               <Card><CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground">Processing Orders</p>
-                <p className="text-2xl font-bold text-blue-600">{wooStats.processingOrders.toLocaleString()}</p>
-              </CardContent></Card>
-              <Card><CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground">Completed Orders</p>
-                <p className="text-2xl font-bold text-green-600">{wooStats.completedOrders.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Total Orders</p>
+                <p className="text-2xl font-bold text-primary">{wooTotalCount.toLocaleString()}</p>
               </CardContent></Card>
               <Card><CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground">Today's Orders</p>
                 <p className="text-2xl font-bold text-primary">{wooStats.todayOrders.toLocaleString()}</p>
               </CardContent></Card>
+              {Object.entries(wooStats.statusCounts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([status, count]) => (
+                  <Card key={status}><CardContent className="p-4 text-center">
+                    <p className="text-xs text-muted-foreground capitalize">{status.replace(/-/g, ' ')}</p>
+                    <p className="text-2xl font-bold text-foreground">{count.toLocaleString()}</p>
+                  </CardContent></Card>
+                ))}
             </div>
 
             {/* Filters */}
@@ -1137,26 +1141,29 @@ export default function Orders() {
                     </Button>
                   </div>
                 </div>
-                {/* Status filter chips */}
+                {/* Status filter chips — dynamically derived from DB so custom WooCommerce statuses appear */}
                 <div className="flex flex-wrap gap-2 mt-4">
-                  {[
-                    { value: 'all', label: 'All' },
-                    { value: 'processing', label: 'Processing' },
-                    { value: 'completed', label: 'Completed' },
-                    { value: 'pending', label: 'Pending' },
-                    { value: 'failed', label: 'Failed' },
-                    { value: 'cancelled', label: 'Cancelled' },
-                  ].map((chip) => (
-                    <Button
-                      key={chip.value}
-                      variant={wooStatusFilter === chip.value ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setWooStatusFilter(chip.value)}
-                      className="h-8 rounded-full text-xs px-3"
-                    >
-                      {chip.label}
-                    </Button>
-                  ))}
+                  <Button
+                    variant={wooStatusFilter === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setWooStatusFilter('all')}
+                    className="h-8 rounded-full text-xs px-3"
+                  >
+                    All ({wooTotalCount.toLocaleString()})
+                  </Button>
+                  {Object.entries(wooStats.statusCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([status, count]) => (
+                      <Button
+                        key={status}
+                        variant={wooStatusFilter === status ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setWooStatusFilter(status)}
+                        className="h-8 rounded-full text-xs px-3 capitalize"
+                      >
+                        {status.replace(/-/g, ' ')} ({count.toLocaleString()})
+                      </Button>
+                    ))}
                 </div>
               </CardContent>
             </Card>
