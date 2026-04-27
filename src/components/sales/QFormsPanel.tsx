@@ -22,6 +22,8 @@ import {
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { toast } from "@/hooks/use-toast";
 import { EnquiryConvertButton } from "./EnquiryConvertButton";
+import { ProspectButton } from "./ProspectButton";
+import { AttentionButton } from "./AttentionButton";
 import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
 
 const FORM_TYPES = [
@@ -499,6 +501,28 @@ export default function QFormsPanel() {
                             </a>
                           </Button>
                         )}
+                        <ProspectButton
+                          sourceType="lead"
+                          sourceId={String(r.id)}
+                          customerName={r.name ?? "Unknown"}
+                          phoneNumber={r.phone}
+                          email={r.email}
+                          company={r.company}
+                          city={r.location}
+                          productName={r.subject || r.form_type || ""}
+                          notes={r.message}
+                        />
+                        <AttentionButton
+                          sourceType="lead"
+                          sourceId={String(r.id)}
+                          customerName={r.name ?? "Unknown"}
+                          phoneNumber={r.phone}
+                          email={r.email}
+                          company={r.company}
+                          city={r.location}
+                          productName={r.subject || r.form_type || ""}
+                          notes={r.message}
+                        />
                         <EnquiryConvertButton
                           sourceType="lead"
                           sourceId={String(r.id)}
