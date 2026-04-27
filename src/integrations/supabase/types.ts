@@ -6283,6 +6283,75 @@ export type Database = {
         }
         Relationships: []
       }
+      leads: {
+        Row: {
+          company: string | null
+          created_at: string
+          destinations: Json | null
+          email: string | null
+          form_type: string | null
+          id: number
+          ip: string | null
+          location: string | null
+          message: string | null
+          name: string | null
+          page_url: string | null
+          payload: Json | null
+          phone: string | null
+          role: string | null
+          sector: string | null
+          status: string
+          subject: string | null
+          submitted_at: string | null
+          urgency: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          destinations?: Json | null
+          email?: string | null
+          form_type?: string | null
+          id?: never
+          ip?: string | null
+          location?: string | null
+          message?: string | null
+          name?: string | null
+          page_url?: string | null
+          payload?: Json | null
+          phone?: string | null
+          role?: string | null
+          sector?: string | null
+          status?: string
+          subject?: string | null
+          submitted_at?: string | null
+          urgency?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          destinations?: Json | null
+          email?: string | null
+          form_type?: string | null
+          id?: never
+          ip?: string | null
+          location?: string | null
+          message?: string | null
+          name?: string | null
+          page_url?: string | null
+          payload?: Json | null
+          phone?: string | null
+          role?: string | null
+          sector?: string | null
+          status?: string
+          subject?: string | null
+          submitted_at?: string | null
+          urgency?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       leave_balances: {
         Row: {
           balance: number
