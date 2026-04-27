@@ -19,7 +19,7 @@ const SOURCE_LABEL_MAP: Record<string, string> = {
 };
 
 interface ProspectButtonProps {
-  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads';
+  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads' | 'lead';
   sourceId: string;
   customerName: string;
   phoneNumber?: string | null;
