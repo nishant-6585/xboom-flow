@@ -3,7 +3,7 @@ import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import {
   Bot, Phone, Search, Sparkles, Clock, Target, Wallet, RefreshCw,
   MessageCircle, Flame, Mail, ChevronDown, ChevronRight, UserX,
-  Lightbulb, CheckCircle2, HelpCircle, XCircle,
+  Lightbulb, CheckCircle2, HelpCircle, XCircle, LayoutGrid, Table as TableIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
