@@ -1179,14 +1179,14 @@ export default function Orders() {
                 <CardContent className="flex flex-col items-center justify-center py-20">
                   <Globe className="h-16 w-16 text-muted-foreground/30 mb-6" />
                   <p className="text-lg font-semibold text-muted-foreground mb-2">
-                    {wooOrderBucketRows.length > 0 ? 'No orders match current filters' : 'No orders received from website yet'}
+                    {wooOrders.length > 0 ? 'No orders match selected status' : 'No orders synced yet from WooCommerce'}
                   </p>
                   <p className="text-sm text-muted-foreground/60">
-                    {wooOrderBucketRows.length > 0
+                    {wooOrders.length > 0
                       ? 'Try adjusting search or status filters above'
                       : 'Orders placed on xboom.in will appear here automatically'}
                   </p>
-                  {wooOrderBucketRows.length > 0 && (
+                  {wooOrders.length > 0 && (
                     <Button
                       variant="outline"
                       size="sm"
