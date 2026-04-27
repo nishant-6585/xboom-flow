@@ -1,5 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { CalendarDays, Package, User, IndianRupee, Clock, Truck } from 'lucide-react';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
 import { WooOrderStatusActions } from './WooOrderStatusActions';
@@ -93,12 +94,22 @@ export function WooOrderCard({ order, onClick, onUpdated }: WooOrderCardProps) {
   const courier = o.courier || null;
   const trackingNumber = o.tracking_number || null;
   const hasTracking = Boolean(tracking || courier || trackingNumber);
+  const normalizedStatus = (order.order_status || '').toLowerCase();
+  const isTerminal =
+    normalizedStatus === 'cancelled' ||
+    normalizedStatus === 'failed' ||
+    normalizedStatus === 'refunded';
+  const isCancelled = normalizedStatus === 'cancelled';
 
-  return (
+  const card = (
     <Card
-      className={`shadow-sm border-border/60 hover:shadow-lg hover:border-primary/20 transition-all duration-200 group ${
-        onClick ? 'cursor-pointer' : ''
-      }`}
+      className={`shadow-sm transition-all duration-200 group ${
+        isCancelled
+          ? 'border-red-500/20 bg-red-500/[0.03] opacity-90 hover:opacity-100 hover:border-red-500/30'
+          : isTerminal
+            ? 'border-border/40 bg-muted/20 opacity-90 hover:opacity-100'
+            : 'border-border/60 hover:shadow-lg hover:border-primary/20'
+      } ${onClick ? 'cursor-pointer' : ''}`}
       onClick={onClick ? () => onClick(order) : undefined}
     >
       <CardContent className="p-0">
@@ -198,4 +209,22 @@ export function WooOrderCard({ order, onClick, onUpdated }: WooOrderCardProps) {
       </CardContent>
     </Card>
   );
+
+  if (isTerminal) {
+    const tip = isCancelled
+      ? 'This order is cancelled and cannot be modified'
+      : `This order is ${normalizedStatus} and cannot be modified`;
+    return (
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div>{card}</div>
+          </TooltipTrigger>
+          <TooltipContent side="top">{tip}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return card;
 }
