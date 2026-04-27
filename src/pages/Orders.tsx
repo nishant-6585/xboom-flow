@@ -1074,16 +1074,9 @@ export default function Orders() {
                   <p className="text-xs text-muted-foreground">{wooTotalCount.toLocaleString()} orders from xboom.in website</p>
                 </div>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={syncWooOrders}
-                disabled={wooSyncing}
-                className="gap-2"
-              >
-                {wooSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                {wooSyncing ? (wooSyncProgress || 'Syncing...') : 'Sync Orders'}
-              </Button>
+              <span className="text-[11px] text-muted-foreground italic">
+                Webhook-driven · auto-syncs from xboom.in
+              </span>
             </div>
 
             {/* Summary Stats */}
