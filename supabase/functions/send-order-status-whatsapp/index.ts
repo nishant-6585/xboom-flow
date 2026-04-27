@@ -2,8 +2,10 @@
 // via the WhatsApp provider. Designed to be invoked by pg_cron every 2 minutes
 // or manually via { notification_id } for retry-from-UI.
 //
-// Provider is currently STUBBED — replace `sendViaProvider` when the WABA
-// provider (Interakt / Meta) is wired up. The queue contract stays identical.
+// Provider abstraction:
+//   sendWhatsApp({ provider, templateId, phone, variables })
+// routes to either Interakt or Meta WABA, both modular and swappable.
+// Atomic claim via claim_pending_notifications() RPC ensures no duplicate sends.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -15,11 +17,13 @@ const corsHeaders = {
 
 const MAX_RETRIES = 3;
 const BATCH_SIZE = 20;
-// retry_count is incremented BEFORE scheduling the next attempt, so:
-//   after 1st failure → retry_count=1 → wait 2 min  (BACKOFF_MIN[1])
-//   after 2nd failure → retry_count=2 → wait 5 min  (BACKOFF_MIN[2])
-//   after 3rd failure → retry_count=3 → terminal 'failed'
+// retry_count is incremented BEFORE scheduling the next attempt:
+//   1st failure → retry_count=1 → wait 2 min
+//   2nd failure → retry_count=2 → wait 5 min
+//   3rd failure → retry_count=3 → terminal 'failed'
 const BACKOFF_MIN: Record<number, number> = { 1: 2, 2: 5, 3: 15 };
+
+const WORKER_ID = `worker-${crypto.randomUUID().slice(0, 8)}`;
 
 interface NotificationRow {
   id: string;
@@ -31,45 +35,287 @@ interface NotificationRow {
   template_name: string;
   payload: Record<string, unknown>;
   retry_count: number;
+  status: string;
+  provider: string | null;
+}
+
+interface TemplateRow {
+  id: string;
+  event_type: string;
+  provider: "interakt" | "meta";
+  template_id: string;
+  language: string;
+  variables: string[];
+  is_active: boolean;
+}
+
+interface SendArgs {
+  provider: "interakt" | "meta";
+  templateId: string;
+  phone: string;
+  variables: Record<string, unknown>;
+  language?: string;
 }
 
 interface SendResult {
   ok: boolean;
   response: unknown;
+  messageId?: string | null;
   error?: string;
 }
 
 // ---------------------------------------------------------------------------
-// Provider stub. Returns ok=true if a phone is present (so the queue can be
-// exercised end-to-end). Replace with a real fetch() call to the WABA provider.
+// PROVIDER MODULES
 // ---------------------------------------------------------------------------
-async function sendViaProvider(n: NotificationRow): Promise<SendResult> {
-  if (!n.phone) {
-    return { ok: false, response: null, error: "No phone number on order" };
+
+/**
+ * Interakt WABA: https://www.interakt.shop/resource-center/developer-docs/
+ * POST https://api.interakt.ai/v1/public/message/
+ * Headers: Authorization: Basic <API_KEY base64>  (Interakt issues already-base64 keys)
+ */
+async function sendInterakt(args: SendArgs): Promise<SendResult> {
+  const apiKey = Deno.env.get("INTERAKT_API_KEY");
+  if (!apiKey) {
+    return { ok: false, response: null, error: "INTERAKT_API_KEY not configured" };
   }
-  console.log(
-    `[whatsapp] STUB send template=${n.template_name} order=${n.woo_order_id} phone=${n.phone}`,
-  );
-  // Pretend success — provider integration is intentionally deferred.
-  return {
-    ok: true,
-    response: {
-      stub: true,
-      template: n.template_name,
-      to: n.phone,
-      sent_at: new Date().toISOString(),
+
+  // Strip any non-digit chars; Interakt accepts countryCode + phoneNumber separately.
+  const digits = String(args.phone).replace(/\D/g, "");
+  if (digits.length < 10) {
+    return { ok: false, response: null, error: `Invalid phone: ${args.phone}` };
+  }
+  // Default to India if 10 digits, else assume the leading digits are the country code.
+  const countryCode = digits.length === 10 ? "91" : digits.slice(0, digits.length - 10);
+  const phoneNumber = digits.slice(-10);
+
+  // Interakt expects bodyValues as an ordered array of stringified vars.
+  // The template's `variables` jsonb is the canonical order.
+  const bodyValues = Array.isArray(args.variables)
+    ? (args.variables as unknown[]).map((v) => String(v ?? ""))
+    : Object.values(args.variables).map((v) => String(v ?? ""));
+
+  const payload = {
+    countryCode,
+    phoneNumber,
+    callbackData: `order_notification_${Date.now()}`,
+    type: "Template",
+    template: {
+      name: args.templateId,
+      languageCode: args.language || "en",
+      bodyValues,
     },
   };
+
+  try {
+    const resp = await fetch("https://api.interakt.ai/v1/public/message/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    const text = await resp.text();
+    let json: any;
+    try { json = JSON.parse(text); } catch { json = { raw: text.slice(0, 500) }; }
+
+    if (!resp.ok || json?.result === false) {
+      return {
+        ok: false,
+        response: json,
+        error: `Interakt ${resp.status}: ${json?.message || json?.error || "send failed"}`,
+      };
+    }
+    return {
+      ok: true,
+      response: json,
+      messageId: json?.id || json?.data?.id || json?.messageId || null,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      response: null,
+      error: e instanceof Error ? e.message : "Interakt request failed",
+    };
+  }
 }
+
+/**
+ * Meta WABA Cloud API: https://developers.facebook.com/docs/whatsapp/cloud-api
+ * POST https://graph.facebook.com/v20.0/{phone-number-id}/messages
+ */
+async function sendMeta(args: SendArgs): Promise<SendResult> {
+  const token = Deno.env.get("META_WABA_TOKEN");
+  const phoneId = Deno.env.get("META_WABA_PHONE_NUMBER_ID");
+  if (!token || !phoneId) {
+    return {
+      ok: false,
+      response: null,
+      error: "META_WABA_TOKEN / META_WABA_PHONE_NUMBER_ID not configured",
+    };
+  }
+
+  const digits = String(args.phone).replace(/\D/g, "");
+  if (digits.length < 10) {
+    return { ok: false, response: null, error: `Invalid phone: ${args.phone}` };
+  }
+  const to = digits.length === 10 ? `91${digits}` : digits;
+
+  const params = (Array.isArray(args.variables)
+    ? (args.variables as unknown[])
+    : Object.values(args.variables)
+  ).map((v) => ({ type: "text", text: String(v ?? "") }));
+
+  const payload = {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: args.templateId,
+      language: { code: args.language || "en" },
+      components: params.length > 0 ? [{ type: "body", parameters: params }] : [],
+    },
+  };
+
+  try {
+    const resp = await fetch(
+      `https://graph.facebook.com/v20.0/${phoneId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      },
+    );
+    const text = await resp.text();
+    let json: any;
+    try { json = JSON.parse(text); } catch { json = { raw: text.slice(0, 500) }; }
+
+    if (!resp.ok || json?.error) {
+      return {
+        ok: false,
+        response: json,
+        error: `Meta ${resp.status}: ${json?.error?.message || "send failed"}`,
+      };
+    }
+    return {
+      ok: true,
+      response: json,
+      messageId: json?.messages?.[0]?.id || null,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      response: null,
+      error: e instanceof Error ? e.message : "Meta request failed",
+    };
+  }
+}
+
+/**
+ * Provider router.
+ */
+async function sendWhatsApp(args: SendArgs): Promise<SendResult> {
+  switch (args.provider) {
+    case "interakt": return sendInterakt(args);
+    case "meta":     return sendMeta(args);
+    default:
+      return { ok: false, response: null, error: `Unknown provider: ${args.provider}` };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// TEMPLATE RESOLUTION
+// ---------------------------------------------------------------------------
+
+async function resolveTemplate(
+  admin: ReturnType<typeof createClient>,
+  eventType: string,
+): Promise<TemplateRow | null> {
+  // Active templates only; if both providers are active we prefer Interakt.
+  const { data } = await admin
+    .from("notification_templates")
+    .select("id, event_type, provider, template_id, language, variables, is_active")
+    .eq("event_type", eventType)
+    .eq("is_active", true)
+    .order("provider", { ascending: true }); // 'interakt' < 'meta' alphabetically
+  const rows = (data || []) as TemplateRow[];
+  return rows[0] || null;
+}
+
+/**
+ * Map a notification's payload (object) to the ordered variable list required
+ * by the template definition.
+ */
+function buildVariables(
+  template: TemplateRow,
+  payload: Record<string, unknown>,
+): unknown[] {
+  return template.variables.map((name) => payload[name] ?? "");
+}
+
+// ---------------------------------------------------------------------------
+// QUEUE PROCESSING
+// ---------------------------------------------------------------------------
 
 async function processOne(
   admin: ReturnType<typeof createClient>,
   n: NotificationRow,
-): Promise<{ id: string; outcome: "sent" | "retry" | "failed"; error?: string }> {
+): Promise<{ id: string; outcome: "sent" | "retry" | "failed" | "skipped"; error?: string }> {
   const now = new Date();
+
+  // SAFETY: never re-send a row that's already 'sent' (defence-in-depth on top
+  // of the atomic claim).
+  if (n.status === "sent") {
+    return { id: n.id, outcome: "skipped" };
+  }
+
+  // Resolve template + provider
+  const template = await resolveTemplate(admin, n.status_trigger);
+  if (!template) {
+    await admin
+      .from("order_notifications")
+      .update({
+        status: "failed",
+        error_message: `No active template for event '${n.status_trigger}'`,
+        retry_count: MAX_RETRIES,
+        last_attempt_at: now.toISOString(),
+        locked_at: null,
+        locked_by: null,
+      })
+      .eq("id", n.id);
+    return { id: n.id, outcome: "failed", error: "No active template" };
+  }
+
+  if (!n.phone) {
+    await admin
+      .from("order_notifications")
+      .update({
+        status: "failed",
+        error_message: "No phone number on order",
+        retry_count: MAX_RETRIES,
+        last_attempt_at: now.toISOString(),
+        provider: template.provider,
+        template_id: template.id,
+        locked_at: null,
+        locked_by: null,
+      })
+      .eq("id", n.id);
+    return { id: n.id, outcome: "failed", error: "No phone" };
+  }
+
+  // Send
   let result: SendResult;
   try {
-    result = await sendViaProvider(n);
+    result = await sendWhatsApp({
+      provider: template.provider,
+      templateId: template.template_id,
+      phone: n.phone,
+      variables: buildVariables(template, n.payload || {}),
+      language: template.language,
+    });
   } catch (e) {
     result = {
       ok: false,
@@ -85,8 +331,13 @@ async function processOne(
         status: "sent",
         sent_at: now.toISOString(),
         last_attempt_at: now.toISOString(),
+        provider: template.provider,
+        template_id: template.id,
+        provider_message_id: result.messageId ?? null,
         provider_response: result.response,
         error_message: null,
+        locked_at: null,
+        locked_by: null,
       })
       .eq("id", n.id);
     return { id: n.id, outcome: "sent" };
@@ -94,16 +345,20 @@ async function processOne(
 
   // Failure path
   const nextRetry = n.retry_count + 1;
+  const baseUpdate = {
+    last_attempt_at: now.toISOString(),
+    error_message: result.error || "Send failed",
+    provider: template.provider,
+    template_id: template.id,
+    provider_response: result.response,
+    locked_at: null,
+    locked_by: null,
+  };
+
   if (nextRetry >= MAX_RETRIES) {
     await admin
       .from("order_notifications")
-      .update({
-        status: "failed",
-        retry_count: nextRetry,
-        last_attempt_at: now.toISOString(),
-        error_message: result.error || "Send failed",
-        provider_response: result.response,
-      })
+      .update({ ...baseUpdate, status: "failed", retry_count: nextRetry })
       .eq("id", n.id);
     return { id: n.id, outcome: "failed", error: result.error };
   }
@@ -113,16 +368,18 @@ async function processOne(
   await admin
     .from("order_notifications")
     .update({
+      ...baseUpdate,
       status: "pending",
       retry_count: nextRetry,
-      last_attempt_at: now.toISOString(),
       next_attempt_at: next.toISOString(),
-      error_message: result.error || "Send failed",
-      provider_response: result.response,
     })
     .eq("id", n.id);
   return { id: n.id, outcome: "retry", error: result.error };
 }
+
+// ---------------------------------------------------------------------------
+// HTTP ENTRY POINT
+// ---------------------------------------------------------------------------
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -139,49 +396,55 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  let body: { notification_id?: string } = {};
-  try {
-    body = await req.json();
-  } catch {
-    body = {};
-  }
+  let body: { notification_id?: string; notification_ids?: string[] } = {};
+  try { body = await req.json(); } catch { body = {}; }
 
-  // Manual single-row mode (used by "Retry WhatsApp" button on the order card)
   let rows: NotificationRow[] = [];
-  if (body.notification_id) {
-    const { data, error } = await admin
+
+  // -------------------------------------------------------
+  // Manual single / bulk retry mode
+  // -------------------------------------------------------
+  if (body.notification_id || (body.notification_ids && body.notification_ids.length > 0)) {
+    const ids = body.notification_id
+      ? [body.notification_id]
+      : body.notification_ids!;
+
+    // Reset to pending so the worker treats them as eligible — only failed/pending
+    // rows are re-enqueueable, never 'sent'.
+    await admin
       .from("order_notifications")
-      .select(
-        "id, woo_order_id, order_number, status_trigger, channel, phone, template_name, payload, retry_count",
-      )
-      .eq("id", body.notification_id)
-      .in("status", ["pending", "failed"])
-      .limit(1);
+      .update({
+        status: "pending",
+        next_attempt_at: new Date().toISOString(),
+        locked_at: null,
+        locked_by: null,
+      })
+      .in("id", ids)
+      .in("status", ["pending", "failed"]);
+
+    // Now atomically claim them
+    const { data, error } = await admin.rpc("claim_pending_notifications", {
+      _worker_id: WORKER_ID,
+      _limit: ids.length,
+    });
     if (error) {
       return new Response(JSON.stringify({ error: error.message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    rows = (data || []) as NotificationRow[];
-    // Manual retry resets the schedule so the worker doesn't ignore it
-    if (rows.length > 0) {
-      await admin
-        .from("order_notifications")
-        .update({ status: "pending", next_attempt_at: new Date().toISOString() })
-        .eq("id", rows[0].id);
-    }
+    // Filter to only the requested ids (claim may pick up others if they happen
+    // to be due at the same instant)
+    const idSet = new Set(ids);
+    rows = ((data || []) as NotificationRow[]).filter((r) => idSet.has(r.id));
   } else {
-    // Cron drain mode
-    const { data, error } = await admin
-      .from("order_notifications")
-      .select(
-        "id, woo_order_id, order_number, status_trigger, channel, phone, template_name, payload, retry_count",
-      )
-      .eq("status", "pending")
-      .lte("next_attempt_at", new Date().toISOString())
-      .order("next_attempt_at", { ascending: true })
-      .limit(BATCH_SIZE);
+    // -------------------------------------------------------
+    // Cron drain mode: atomic batch claim
+    // -------------------------------------------------------
+    const { data, error } = await admin.rpc("claim_pending_notifications", {
+      _worker_id: WORKER_ID,
+      _limit: BATCH_SIZE,
+    });
     if (error) {
       return new Response(JSON.stringify({ error: error.message }), {
         status: 500,
@@ -193,28 +456,25 @@ Deno.serve(async (req) => {
 
   if (rows.length === 0) {
     return new Response(
-      JSON.stringify({ success: true, processed: 0, sent: 0, retried: 0, failed: 0 }),
+      JSON.stringify({
+        success: true, worker: WORKER_ID, processed: 0, sent: 0, retried: 0, failed: 0,
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
-  // Process sequentially so we don't blast the provider; the batch is small.
-  const results: { sent: number; retried: number; failed: number; errors: string[] } = {
-    sent: 0,
-    retried: 0,
-    failed: 0,
-    errors: [],
-  };
+  const results = { sent: 0, retried: 0, failed: 0, skipped: 0, errors: [] as string[] };
   for (const n of rows) {
     const r = await processOne(admin, n);
     if (r.outcome === "sent") results.sent++;
     else if (r.outcome === "retry") results.retried++;
-    else results.failed++;
+    else if (r.outcome === "failed") results.failed++;
+    else results.skipped++;
     if (r.error) results.errors.push(`${r.id}: ${r.error}`);
   }
 
   return new Response(
-    JSON.stringify({ success: true, processed: rows.length, ...results }),
+    JSON.stringify({ success: true, worker: WORKER_ID, processed: rows.length, ...results }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 });

@@ -6861,6 +6861,45 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          event_type: string
+          id: string
+          is_active: boolean
+          language: string
+          provider: string
+          template_id: string
+          updated_at: string
+          variables: Json
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          event_type: string
+          id?: string
+          is_active?: boolean
+          language?: string
+          provider: string
+          template_id: string
+          updated_at?: string
+          variables?: Json
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          event_type?: string
+          id?: string
+          is_active?: boolean
+          language?: string
+          provider?: string
+          template_id?: string
+          updated_at?: string
+          variables?: Json
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -7029,16 +7068,21 @@ export type Database = {
           error_message: string | null
           id: string
           last_attempt_at: string | null
+          locked_at: string | null
+          locked_by: string | null
           next_attempt_at: string
           order_number: string | null
           payload: Json
           phone: string | null
+          provider: string | null
+          provider_message_id: string | null
           provider_response: Json | null
           retry_count: number
           sent_at: string | null
           status: Database["public"]["Enums"]["order_notification_status"]
           status_log_id: string | null
           status_trigger: string
+          template_id: string | null
           template_name: string
           updated_at: string
           woo_order_id: string
@@ -7049,16 +7093,21 @@ export type Database = {
           error_message?: string | null
           id?: string
           last_attempt_at?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
           next_attempt_at?: string
           order_number?: string | null
           payload?: Json
           phone?: string | null
+          provider?: string | null
+          provider_message_id?: string | null
           provider_response?: Json | null
           retry_count?: number
           sent_at?: string | null
           status?: Database["public"]["Enums"]["order_notification_status"]
           status_log_id?: string | null
           status_trigger: string
+          template_id?: string | null
           template_name: string
           updated_at?: string
           woo_order_id: string
@@ -7069,16 +7118,21 @@ export type Database = {
           error_message?: string | null
           id?: string
           last_attempt_at?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
           next_attempt_at?: string
           order_number?: string | null
           payload?: Json
           phone?: string | null
+          provider?: string | null
+          provider_message_id?: string | null
           provider_response?: Json | null
           retry_count?: number
           sent_at?: string | null
           status?: Database["public"]["Enums"]["order_notification_status"]
           status_log_id?: string | null
           status_trigger?: string
+          template_id?: string | null
           template_name?: string
           updated_at?: string
           woo_order_id?: string
@@ -7089,6 +7143,13 @@ export type Database = {
             columns: ["status_log_id"]
             isOneToOne: false
             referencedRelation: "woocommerce_order_status_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_notifications_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "notification_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -12009,6 +12070,40 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_pending_notifications: {
+        Args: { _limit?: number; _worker_id: string }
+        Returns: {
+          channel: string
+          created_at: string
+          error_message: string | null
+          id: string
+          last_attempt_at: string | null
+          locked_at: string | null
+          locked_by: string | null
+          next_attempt_at: string
+          order_number: string | null
+          payload: Json
+          phone: string | null
+          provider: string | null
+          provider_message_id: string | null
+          provider_response: Json | null
+          retry_count: number
+          sent_at: string | null
+          status: Database["public"]["Enums"]["order_notification_status"]
+          status_log_id: string | null
+          status_trigger: string
+          template_id: string | null
+          template_name: string
+          updated_at: string
+          woo_order_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "order_notifications"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       cleanup_expired_devices: { Args: never; Returns: undefined }
       cleanup_rate_limit_buckets: { Args: never; Returns: undefined }
       count_admins: { Args: never; Returns: number }
@@ -12024,6 +12119,17 @@ export type Database = {
       credit_monthly_el: {
         Args: { p_credit_amount?: number; p_month: number; p_year: number }
         Returns: Json
+      }
+      enqueue_order_notification: {
+        Args: {
+          _channel?: string
+          _event_type: string
+          _order_number: string
+          _payload: Json
+          _phone: string
+          _woo_order_id: string
+        }
+        Returns: string
       }
       fetch_pending_shopify_orders: {
         Args: { batch_size?: number }

@@ -16,6 +16,8 @@ export interface OrderNotification {
   sent_at: string | null;
   error_message: string | null;
   created_at: string;
+  provider?: string | null;
+  provider_message_id?: string | null;
 }
 
 /**
@@ -71,4 +73,62 @@ export function useLatestWhatsappNotification(wooOrderId: string | null | undefi
   }, [notification, fetchLatest]);
 
   return { notification, loading, retrying, retry, refetch: fetchLatest };
+}
+
+/**
+ * Fetch the full notification timeline for a single order. Used in the order
+ * detail dialog. Each row also exposes a per-row retry action.
+ */
+export function useOrderNotificationTimeline(
+  wooOrderId: string | null | undefined,
+  enabled: boolean,
+) {
+  const [items, setItems] = useState<OrderNotification[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+
+  const fetchAll = useCallback(async () => {
+    if (!wooOrderId || !enabled) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('order_notifications')
+      .select(
+        'id, woo_order_id, status_trigger, channel, status, retry_count, last_attempt_at, next_attempt_at, sent_at, error_message, created_at, provider, provider_message_id',
+      )
+      .eq('woo_order_id', wooOrderId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (!error) {
+      setItems((data || []) as OrderNotification[]);
+    }
+    setLoading(false);
+  }, [wooOrderId, enabled]);
+
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  const retryOne = useCallback(
+    async (id: string) => {
+      setRetryingId(id);
+      try {
+        const { data, error } = await supabase.functions.invoke(
+          'send-order-status-whatsapp',
+          { body: { notification_id: id } },
+        );
+        if (error) throw error;
+        if (data && data.success === false) throw new Error(data.error || 'Retry failed');
+        toast({ title: 'WhatsApp retry queued' });
+        await fetchAll();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Retry failed';
+        toast({ title: 'Retry failed', description: msg, variant: 'destructive' });
+      } finally {
+        setRetryingId(null);
+      }
+    },
+    [fetchAll],
+  );
+
+  return { items, loading, retryingId, retryOne, refetch: fetchAll };
 }

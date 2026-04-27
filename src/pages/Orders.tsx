@@ -20,6 +20,7 @@ import { WooOrderCard } from '@/components/orders/WooOrderCard';
 import { WooSyncHealthCard } from '@/components/orders/WooSyncHealthCard';
 import { WooOrderDetailDialog } from '@/components/orders/WooOrderDetailDialog';
 import { useWooSyncHealth } from '@/hooks/useWooSyncHealth';
+import { useNotificationOrderSets } from '@/hooks/useNotificationOrderSets';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
 import { SupportCallsDashboard } from '@/components/orders/SupportCallsDashboard';
@@ -44,6 +45,15 @@ export default function Orders() {
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
   const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, stats: wooStats, refetch: refetchWooOrders } = useWooCommerceOrders();
   const { gap: wooGap, wooTotal: wooApiTotal, dbTotal: wooDbTotal, refetch: refetchWooSync } = useWooSyncHealth();
+  const {
+    failedOrderIds: wooFailedNotifIds,
+    pendingOrderIds: wooPendingNotifIds,
+    failedCount: wooFailedNotifCount,
+    pendingCount: wooPendingNotifCount,
+    refetch: refetchWooNotifs,
+  } = useNotificationOrderSets();
+  const [wooBulkRetrying, setWooBulkRetrying] = useState(false);
+  const [wooNotifFilter, setWooNotifFilter] = useState<'all' | 'failed' | 'pending'>('all');
   const [selectedWooOrder, setSelectedWooOrder] = useState<typeof wooOrders[number] | null>(null);
   const [wooDetailOpen, setWooDetailOpen] = useState(false);
   const { enquiries } = useEnquiries();
@@ -106,7 +116,7 @@ export default function Orders() {
   useEffect(() => { setManualPage(1); }, [searchQuery, statusFilter, paymentStatusFilter, orderTypeFilter, outcomeFilter, salesPersonFilter, paymentTermsFilter, startDate, endDate]);
 
   // Reset woo page when filters change
-  useEffect(() => { setWooPage(1); }, [wooSearchQuery, wooStatusFilter, wooPaymentStatusFilter]);
+  useEffect(() => { setWooPage(1); }, [wooSearchQuery, wooStatusFilter, wooPaymentStatusFilter, wooNotifFilter]);
 
   useEffect(() => {
     if (tabFromUrl === 'pipeline') {
@@ -248,7 +258,13 @@ export default function Orders() {
               ? ['pending', 'on-hold'].includes(status)
               : status === wooStatusFilter;
     const matchesPayment = wooPaymentStatusFilter === 'all' || o.payment_status === wooPaymentStatusFilter;
-    return matchesSearch && matchesStatus && matchesPayment;
+    const matchesNotif =
+      wooNotifFilter === 'all'
+        ? true
+        : wooNotifFilter === 'failed'
+          ? wooFailedNotifIds.has(o.woo_order_id)
+          : wooPendingNotifIds.has(o.woo_order_id);
+    return matchesSearch && matchesStatus && matchesPayment && matchesNotif;
   });
 
   const wooTotalPages = Math.ceil(filteredWooOrders.length / WOO_PAGE_SIZE);
@@ -317,7 +333,10 @@ export default function Orders() {
     !!shopifyStartDate || !!shopifyEndDate || !!shopifySearchQuery;
 
   const hasActiveWooFilters =
-    wooStatusFilter !== 'all' || wooPaymentStatusFilter !== 'all' || !!wooSearchQuery;
+    wooStatusFilter !== 'all' ||
+    wooPaymentStatusFilter !== 'all' ||
+    wooNotifFilter !== 'all' ||
+    !!wooSearchQuery;
 
   const formatINR = (n: number) => {
     if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(2)} Cr`;
@@ -365,6 +384,64 @@ export default function Orders() {
       });
     } finally {
       setWooSyncing(false);
+    }
+  };
+
+  const handleRetryAllFailedWhatsapp = async () => {
+    if (wooBulkRetrying) return;
+    setWooBulkRetrying(true);
+    try {
+      // Fetch all failed notification ids in chunks of 1000.
+      const ids: string[] = [];
+      let from = 0;
+      const PAGE = 1000;
+      // Defensive cap so we never spin forever.
+      for (let i = 0; i < 10; i++) {
+        const { data, error } = await supabase
+          .from('order_notifications')
+          .select('id')
+          .eq('channel', 'whatsapp')
+          .eq('status', 'failed')
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const batch = (data || []).map((r) => r.id);
+        ids.push(...batch);
+        if (batch.length < PAGE) break;
+        from += PAGE;
+      }
+
+      if (ids.length === 0) {
+        toast({ title: 'Nothing to retry', description: 'No failed notifications.' });
+        return;
+      }
+
+      // Send to the worker in chunks of 50 so we don't overshoot the function payload.
+      let totalSent = 0;
+      let totalRetried = 0;
+      let totalFailed = 0;
+      const CHUNK = 50;
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const chunk = ids.slice(i, i + CHUNK);
+        const { data, error } = await supabase.functions.invoke(
+          'send-order-status-whatsapp',
+          { body: { notification_ids: chunk } },
+        );
+        if (error) throw error;
+        totalSent += data?.sent ?? 0;
+        totalRetried += data?.retried ?? 0;
+        totalFailed += data?.failed ?? 0;
+      }
+
+      toast({
+        title: 'Bulk retry complete',
+        description: `${ids.length} attempted · ${totalSent} sent · ${totalRetried} re-queued · ${totalFailed} failed`,
+      });
+      await refetchWooNotifs();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Bulk retry failed';
+      toast({ title: 'Bulk retry failed', description: msg, variant: 'destructive' });
+    } finally {
+      setWooBulkRetrying(false);
     }
   };
 
@@ -1363,6 +1440,53 @@ export default function Orders() {
                   >
                     ❌ Failed ({wooStats.grouped.failed.toLocaleString()})
                   </Button>
+                </div>
+
+                {/* WhatsApp notification filters + bulk retry */}
+                <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-border/40">
+                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground mr-1">
+                    WhatsApp:
+                  </span>
+                  <Button
+                    variant={wooNotifFilter === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setWooNotifFilter('all')}
+                    className="h-8 rounded-full text-xs px-3"
+                  >
+                    All
+                  </Button>
+                  <Button
+                    variant={wooNotifFilter === 'failed' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setWooNotifFilter('failed')}
+                    className="h-8 rounded-full text-xs px-3"
+                  >
+                    ❌ Failed ({wooFailedNotifCount.toLocaleString()})
+                  </Button>
+                  <Button
+                    variant={wooNotifFilter === 'pending' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setWooNotifFilter('pending')}
+                    className="h-8 rounded-full text-xs px-3"
+                  >
+                    ⏳ Pending ({wooPendingNotifCount.toLocaleString()})
+                  </Button>
+                  <div className="ml-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRetryAllFailedWhatsapp}
+                      disabled={wooBulkRetrying || wooFailedNotifCount === 0}
+                      className="h-8 rounded-full text-xs px-3 gap-1.5"
+                    >
+                      {wooBulkRetrying ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      )}
+                      Retry all failed
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
