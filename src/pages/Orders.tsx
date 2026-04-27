@@ -387,6 +387,64 @@ export default function Orders() {
     }
   };
 
+  const handleRetryAllFailedWhatsapp = async () => {
+    if (wooBulkRetrying) return;
+    setWooBulkRetrying(true);
+    try {
+      // Fetch all failed notification ids in chunks of 1000.
+      const ids: string[] = [];
+      let from = 0;
+      const PAGE = 1000;
+      // Defensive cap so we never spin forever.
+      for (let i = 0; i < 10; i++) {
+        const { data, error } = await supabase
+          .from('order_notifications')
+          .select('id')
+          .eq('channel', 'whatsapp')
+          .eq('status', 'failed')
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const batch = (data || []).map((r) => r.id);
+        ids.push(...batch);
+        if (batch.length < PAGE) break;
+        from += PAGE;
+      }
+
+      if (ids.length === 0) {
+        toast({ title: 'Nothing to retry', description: 'No failed notifications.' });
+        return;
+      }
+
+      // Send to the worker in chunks of 50 so we don't overshoot the function payload.
+      let totalSent = 0;
+      let totalRetried = 0;
+      let totalFailed = 0;
+      const CHUNK = 50;
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const chunk = ids.slice(i, i + CHUNK);
+        const { data, error } = await supabase.functions.invoke(
+          'send-order-status-whatsapp',
+          { body: { notification_ids: chunk } },
+        );
+        if (error) throw error;
+        totalSent += data?.sent ?? 0;
+        totalRetried += data?.retried ?? 0;
+        totalFailed += data?.failed ?? 0;
+      }
+
+      toast({
+        title: 'Bulk retry complete',
+        description: `${ids.length} attempted · ${totalSent} sent · ${totalRetried} re-queued · ${totalFailed} failed`,
+      });
+      await refetchWooNotifs();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Bulk retry failed';
+      toast({ title: 'Bulk retry failed', description: msg, variant: 'destructive' });
+    } finally {
+      setWooBulkRetrying(false);
+    }
+  };
+
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-background via-background to-muted/10 flex flex-col">
       <Header />
