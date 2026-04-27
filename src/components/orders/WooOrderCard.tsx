@@ -1,7 +1,15 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CalendarDays, Package, User, IndianRupee, Clock } from 'lucide-react';
+import { CalendarDays, Package, User, IndianRupee, Clock, Truck } from 'lucide-react';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
+
+// Cast to allow optional tracking fields that may not yet exist on the WooCommerceOrder type
+type OrderWithTracking = WooCommerceOrder & {
+  tracking_status?: string | null;
+  tracking_number?: string | null;
+  courier?: string | null;
+  expected_delivery?: string | null;
+};
 
 const statusColors: Record<string, string> = {
   completed: 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400',
@@ -77,6 +85,11 @@ export function WooOrderCard({ order }: WooOrderCardProps) {
   const updatedRel = formatRelative(order.woo_updated_at || order.updated_at);
   const statusClass = statusColors[order.order_status || ''] || statusColors.pending;
   const paymentClass = paymentColors[order.payment_status || ''] || paymentColors.pending;
+  const o = order as OrderWithTracking;
+  const tracking = o.tracking_status || null;
+  const courier = o.courier || null;
+  const trackingNumber = o.tracking_number || null;
+  const hasTracking = Boolean(tracking || courier || trackingNumber);
 
   return (
     <Card className="shadow-sm border-border/60 hover:shadow-lg hover:border-primary/20 transition-all duration-200 group">
@@ -144,6 +157,25 @@ export function WooOrderCard({ order }: WooOrderCardProps) {
               </span>
             )}
           </div>
+
+          {/* Tracking info */}
+          {hasTracking && (
+            <div className="flex items-start gap-2.5 pt-2 border-t border-border/30">
+              <Truck className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+              <div className="min-w-0 flex-1 space-y-0.5">
+                {tracking && (
+                  <p className="text-xs font-medium capitalize truncate">{tracking}</p>
+                )}
+                {(courier || trackingNumber) && (
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {courier && <span>{courier}</span>}
+                    {courier && trackingNumber && <span> · </span>}
+                    {trackingNumber && <span className="font-mono">{trackingNumber}</span>}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
