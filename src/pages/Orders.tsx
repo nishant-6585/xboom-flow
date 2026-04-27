@@ -1525,6 +1525,17 @@ export default function Orders() {
                 <Button variant="outline" size="sm" onClick={() => setWooPage(wooTotalPages)} disabled={wooPage === wooTotalPages} className="h-8 px-3 rounded-lg text-xs">»</Button>
               </div>
             )}
+
+            {/* Order detail + status history dialog */}
+            <WooOrderDetailDialog
+              order={selectedWooOrder}
+              open={wooDetailOpen}
+              onOpenChange={setWooDetailOpen}
+              onUpdated={() => {
+                refetchWooOrders();
+                refetchWooSync();
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="pipeline">
