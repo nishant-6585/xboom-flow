@@ -395,9 +395,19 @@ export function ElevenLabsLeadsPanel() {
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={load} className="gap-2">
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-md border border-border/50 bg-muted/40 p-0.5">
+            <Button size="sm" variant={viewMode === "table" ? "secondary" : "ghost"} className="h-7 px-2" onClick={() => setViewMode("table")} title="Table view">
+              <TableIcon className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="sm" variant={viewMode === "cards" ? "secondary" : "ghost"} className="h-7 px-2" onClick={() => setViewMode("cards")} title="Card view">
+              <LayoutGrid className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <Button variant="outline" size="sm" onClick={load} className="gap-2">
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
