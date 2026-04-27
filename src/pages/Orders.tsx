@@ -39,7 +39,7 @@ export default function Orders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
-  const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, syncing: wooSyncing, syncProgress: wooSyncProgress, stats: wooStats, syncFromAPI: syncWooOrders } = useWooCommerceOrders();
+  const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, stats: wooStats } = useWooCommerceOrders();
   // Both Website Orders and Abandoned tabs read from the SAME hook; classification is by `bucket`.
   const wooOrderBucketRows = wooOrders.filter(o => o.bucket === 'orders');
   const wooAbandonedBucketRows = wooOrders.filter(o => o.bucket === 'abandoned');
@@ -1326,21 +1326,10 @@ export default function Orders() {
                 </CardContent></Card>
               </div>
 
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Showing WooCommerce orders with status: <span className="font-medium">pending, on-hold, failed, cancelled, refunded</span>.
-                  When status moves to processing/completed, the order automatically moves to <strong>XBoom Website</strong>.
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={syncWooOrders}
-                  disabled={wooSyncing}
-                >
-                  {wooSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                  {wooSyncing ? 'Syncing…' : 'Sync from xboom.in'}
-                </Button>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Showing WooCommerce orders with status: <span className="font-medium">pending, on-hold, failed, cancelled, refunded</span>.
+                When status moves to processing/completed, the order automatically moves to <strong>XBoom Website</strong>.
+              </p>
 
               {wooLoading ? (
                 <div className="flex items-center justify-center py-12">
