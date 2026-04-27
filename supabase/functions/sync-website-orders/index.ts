@@ -223,15 +223,32 @@ Deno.serve(async (req) => {
 
       if (orders.length > 0) {
         const mapped = orders.map(mapOrder).filter(Boolean);
-        for (let i = 0; i < mapped.length; i += 500) {
-          const chunk = mapped.slice(i, i + 500);
+        // The woocommerce_orders table has a per-row trigger
+        // (handle_woocommerce_order_automation) that can be expensive,
+        // so we keep chunks small (25) to stay well under the
+        // PostgREST/PG statement_timeout. On chunk failure we retry
+        // each row individually so one bad row doesn't kill 24 good ones.
+        const CHUNK = 25;
+        for (let i = 0; i < mapped.length; i += CHUNK) {
+          const chunk = mapped.slice(i, i + CHUNK);
           const { error } = await supabase
             .from("woocommerce_orders")
             .upsert(chunk, { onConflict: "woo_order_id" });
 
           if (error) {
-            console.error(`[sync] Upsert error page ${page} chunk ${i}:`, error.message);
-            totalErrors += chunk.length;
+            console.warn(`[sync] Chunk upsert failed page ${page} offset ${i} (${chunk.length} rows): ${error.message}. Falling back to per-row.`);
+            // Per-row fallback so one offender doesn't sink the chunk
+            for (const row of chunk) {
+              const { error: rowErr } = await supabase
+                .from("woocommerce_orders")
+                .upsert(row, { onConflict: "woo_order_id" });
+              if (rowErr) {
+                console.error(`[sync] Row upsert failed for woo_order_id=${(row as any).woo_order_id}: ${rowErr.message}`);
+                totalErrors += 1;
+              } else {
+                totalUpserted += 1;
+              }
+            }
           } else {
             totalUpserted += chunk.length;
           }
