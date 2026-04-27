@@ -140,7 +140,7 @@ const SMART_DENIALS: Record<string, { message: string; who_can_access: string; a
 
 // Check for temporary permissions
 async function checkTempPermission(
-  client: ReturnType<typeof createClient>,
+  client: any,
   userId: string,
   dataType: string,
   targetEntityId?: string
@@ -201,7 +201,7 @@ function stripSensitiveFields(
 
 // Log access to ai_access_logs
 async function logAccess(
-  client: ReturnType<typeof createClient>,
+  client: any,
   userId: string,
   roles: string[],
   queryText: string,
@@ -845,7 +845,7 @@ function getRoleTitle(roles: string[]): string {
 // =====================================================
 
 async function executeToolCall(
-  client: ReturnType<typeof createClient>,
+  client: any,
   toolName: string,
   args: Record<string, unknown>,
   userId: string,
