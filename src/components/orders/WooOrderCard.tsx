@@ -1,6 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CalendarDays, Package, User, IndianRupee } from 'lucide-react';
+import { CalendarDays, Package, User, IndianRupee, Clock } from 'lucide-react';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
 
 const statusColors: Record<string, string> = {
@@ -47,6 +47,24 @@ function formatDate(dateStr: string | null): string {
   }
 }
 
+function formatRelative(dateStr: string | null): string {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr).getTime();
+    const diffMs = Date.now() - d;
+    const mins = Math.round(diffMs / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.round(hrs / 24);
+    if (days < 30) return `${days}d ago`;
+    return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+  } catch {
+    return '';
+  }
+}
+
 interface WooOrderCardProps {
   order: WooCommerceOrder;
 }
@@ -56,6 +74,7 @@ export function WooOrderCard({ order }: WooOrderCardProps) {
   const customer = getCustomerDisplay(order);
   const amount = order.total_sales_amount || order.selling_price || 0;
   const date = formatDate(order.woo_created_at || order.created_at);
+  const updatedRel = formatRelative(order.woo_updated_at || order.updated_at);
   const statusClass = statusColors[order.order_status || ''] || statusColors.pending;
   const paymentClass = paymentColors[order.payment_status || ''] || paymentColors.pending;
 
@@ -108,12 +127,23 @@ export function WooOrderCard({ order }: WooOrderCardProps) {
           </div>
 
           {/* Date */}
-          {date && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <CalendarDays className="h-3.5 w-3.5" />
-              {date}
-            </div>
-          )}
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            {date && (
+              <span className="flex items-center gap-1.5">
+                <CalendarDays className="h-3.5 w-3.5" />
+                {date}
+              </span>
+            )}
+            {updatedRel && (
+              <span
+                className="flex items-center gap-1.5"
+                title={`Last updated: ${new Date(order.woo_updated_at || order.updated_at).toLocaleString('en-IN')}`}
+              >
+                <Clock className="h-3.5 w-3.5" />
+                {updatedRel}
+              </span>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
