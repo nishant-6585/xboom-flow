@@ -184,7 +184,7 @@ export function ProspectButton({
 }
 
 interface ACategoryButtonProps {
-  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads';
+  sourceType: 'enquiry' | 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads' | 'lead';
   sourceId: string;
   isACategory: boolean;
   onToggle?: () => void;
