@@ -704,6 +704,11 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
     </div>
       </TabsContent>
 
+      {/* QForms Tab */}
+      <TabsContent value="qforms" className="space-y-6">
+        <QFormsPanel />
+      </TabsContent>
+
       {/* Interakt Tab */}
       <TabsContent value="interakt" className="space-y-6">
         <div className="space-y-6">
