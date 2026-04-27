@@ -21,6 +21,10 @@ import {
 } from "@/components/ui/collapsible";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { toast } from "@/hooks/use-toast";
+import {
+  ResponsiveContainer, LineChart, Line, BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
+} from "recharts";
 import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { ProspectButton } from "./ProspectButton";
 import { AttentionButton } from "./AttentionButton";
@@ -210,6 +214,36 @@ export default function QFormsPanel() {
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).slice(0, 6);
   }, [rows]);
 
+  // Daily submissions over the last 30 days (within the currently filtered rows)
+  const dailyTrend = useMemo(() => {
+    const days = 30;
+    const buckets = new Map<string, number>();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = subDays(startOfDay(new Date()), i);
+      buckets.set(format(d, "yyyy-MM-dd"), 0);
+    }
+    rows.forEach(r => {
+      const key = format(new Date(r.created_at), "yyyy-MM-dd");
+      if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + 1);
+    });
+    return Array.from(buckets.entries()).map(([date, count]) => ({
+      date: format(new Date(date), "dd MMM"),
+      count,
+    }));
+  }, [rows]);
+
+  // Full form-type ranking for the bar chart
+  const formTypeChart = useMemo(() => {
+    const map = new Map<string, number>();
+    rows.forEach(r => {
+      const k = r.form_type ?? "unknown";
+      map.set(k, (map.get(k) ?? 0) + 1);
+    });
+    return Array.from(map.entries())
+      .map(([form_type, count]) => ({ form_type, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [rows]);
+
   const toggleRow = (id: number) => {
     setExpanded(prev => {
       const next = new Set(prev);
@@ -311,6 +345,73 @@ export default function QFormsPanel() {
           </div>
         </Card>
       )}
+
+      {/* Charts: daily trend + form-type breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="p-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+            Daily submissions (last 30 days)
+          </div>
+          <div className="h-[260px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={dailyTrend} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <RTooltip
+                  contentStyle={{
+                    background: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+            Submissions by form type
+          </div>
+          <div className="h-[260px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={formTypeChart}
+                layout="vertical"
+                margin={{ top: 5, right: 16, left: 8, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                <YAxis
+                  type="category"
+                  dataKey="form_type"
+                  tick={{ fontSize: 11 }}
+                  width={140}
+                />
+                <RTooltip
+                  contentStyle={{
+                    background: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
+                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      </div>
 
       <Card className="p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
