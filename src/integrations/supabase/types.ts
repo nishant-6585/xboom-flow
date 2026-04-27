@@ -11266,6 +11266,51 @@ export type Database = {
         }
         Relationships: []
       }
+      woocommerce_order_status_logs: {
+        Row: {
+          changed_by: string | null
+          changed_by_email: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          new_status: string
+          order_number: string | null
+          previous_status: string | null
+          source: string
+          woo_api_response: Json | null
+          woo_api_success: boolean | null
+          woo_order_id: string
+        }
+        Insert: {
+          changed_by?: string | null
+          changed_by_email?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          new_status: string
+          order_number?: string | null
+          previous_status?: string | null
+          source?: string
+          woo_api_response?: Json | null
+          woo_api_success?: boolean | null
+          woo_order_id: string
+        }
+        Update: {
+          changed_by?: string | null
+          changed_by_email?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          new_status?: string
+          order_number?: string | null
+          previous_status?: string | null
+          source?: string
+          woo_api_response?: Json | null
+          woo_api_success?: boolean | null
+          woo_order_id?: string
+        }
+        Relationships: []
+      }
       woocommerce_orders: {
         Row: {
           amount_paid: number | null
@@ -11371,6 +11416,96 @@ export type Database = {
           woo_created_at?: string | null
           woo_order_id?: string
           woo_updated_at?: string | null
+        }
+        Relationships: []
+      }
+      woocommerce_sync_runs: {
+        Row: {
+          completed_at: string | null
+          end_page: number | null
+          errors: number | null
+          has_more: boolean | null
+          id: string
+          message: string | null
+          mode: string
+          modified_after: string | null
+          next_page: number | null
+          orders_fetched: number | null
+          orders_upserted: number | null
+          pages_fetched: number | null
+          start_page: number | null
+          started_at: string
+          status: string
+          total_in_woocommerce: number | null
+          triggered_by: string
+        }
+        Insert: {
+          completed_at?: string | null
+          end_page?: number | null
+          errors?: number | null
+          has_more?: boolean | null
+          id?: string
+          message?: string | null
+          mode: string
+          modified_after?: string | null
+          next_page?: number | null
+          orders_fetched?: number | null
+          orders_upserted?: number | null
+          pages_fetched?: number | null
+          start_page?: number | null
+          started_at?: string
+          status?: string
+          total_in_woocommerce?: number | null
+          triggered_by?: string
+        }
+        Update: {
+          completed_at?: string | null
+          end_page?: number | null
+          errors?: number | null
+          has_more?: boolean | null
+          id?: string
+          message?: string | null
+          mode?: string
+          modified_after?: string | null
+          next_page?: number | null
+          orders_fetched?: number | null
+          orders_upserted?: number | null
+          pages_fetched?: number | null
+          start_page?: number | null
+          started_at?: string
+          status?: string
+          total_in_woocommerce?: number | null
+          triggered_by?: string
+        }
+        Relationships: []
+      }
+      woocommerce_sync_state: {
+        Row: {
+          id: number
+          last_backfill_completed_at: string | null
+          last_backfill_started_at: string | null
+          last_incremental_at: string | null
+          total_in_woocommerce: number | null
+          total_orders_synced: number | null
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          last_backfill_completed_at?: string | null
+          last_backfill_started_at?: string | null
+          last_incremental_at?: string | null
+          total_in_woocommerce?: number | null
+          total_orders_synced?: number | null
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          last_backfill_completed_at?: string | null
+          last_backfill_started_at?: string | null
+          last_incremental_at?: string | null
+          total_in_woocommerce?: number | null
+          total_orders_synced?: number | null
+          updated_at?: string
         }
         Relationships: []
       }

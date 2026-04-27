@@ -132,10 +132,12 @@ export function useWooCommerceOrders() {
       return acc + (Number(o.total_sales_amount) || 0);
     }, 0);
 
-  const totalRevenue = orders.reduce(
-    (acc, o) => acc + (Number(o.total_sales_amount) || 0),
-    0,
-  );
+  // Total Revenue = sum of orders NOT cancelled/failed (per spec)
+  const totalRevenue = orders.reduce((acc, o) => {
+    const s = (o.order_status || '').toLowerCase();
+    if (FAILED_STATUSES.includes(s)) return acc;
+    return acc + (Number(o.total_sales_amount) || 0);
+  }, 0);
   const completedRevenue = sumRevenue(SUCCESS_STATUSES);
   const lostRevenue = sumRevenue(FAILED_STATUSES);
 

@@ -10,6 +10,19 @@ const corsHeaders = {
 // status=any returns ALL statuses including custom ones (delivered,
 // return-requested, return-approved, return-cancelled, etc.) — no
 // filtering, no transforms. We store the raw WooCommerce status.
+//
+// MODES:
+//   mode=backfill     → walk all pages from start_page (default 1) until
+//                       WooCommerce returns < per_page items. Self-chains:
+//                       after processing `max_pages` (default 10) it
+//                       invokes itself with `start_page=next_page` so the
+//                       full ~20k history can finish in the background
+//                       without hitting the edge-runtime wall-time limit.
+//   mode=incremental  → uses `modified_after` from `woocommerce_sync_state`
+//                       (or the value in the request body) to fetch only
+//                       changed orders since the last successful run.
+//   mode=manual       → same as incremental but flagged for UI-triggered
+//                       runs so we can show the source in audit/health UI.
 const WC_SITE_URL = (Deno.env.get("WC_SITE_URL") || "https://xboom.in").replace(/\/$/, "");
 const WC_KEY = Deno.env.get("WC_CONSUMER_KEY") || "";
 const WC_SECRET = Deno.env.get("WC_CONSUMER_SECRET") || "";
@@ -99,18 +112,57 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Bound the work so we don't hit the edge-runtime idle timeout.
-    // Defaults: 20 pages (2000 orders) per invocation; caller passes
-    // start_page to continue, or `modified_after` for incremental syncs.
+    // Parse request body (all fields optional)
     let body: any = {};
     try { body = await req.json(); } catch (_) { /* no body */ }
 
+    // Backwards compat: previous callers used `incremental: true` instead of `mode`.
+    let mode: "backfill" | "incremental" | "manual" =
+      body.mode === "backfill" || body.mode === "incremental" || body.mode === "manual"
+        ? body.mode
+        : (body.incremental ? "incremental" : "backfill");
+
+    // For incremental/manual we look up `modified_after` from sync_state if
+    // not explicitly provided. WooCommerce expects ISO 8601 without TZ
+    // (treated as site timezone — close enough for a 15-min sync window).
+    let modifiedAfter: string | null = body.modified_after || null;
+    if ((mode === "incremental" || mode === "manual") && !modifiedAfter) {
+      const { data: state } = await supabase
+        .from("woocommerce_sync_state")
+        .select("last_incremental_at")
+        .eq("id", 1)
+        .maybeSingle();
+      if (state?.last_incremental_at) {
+        // Subtract a 5-minute safety window to handle clock skew / late updates
+        const t = new Date(new Date(state.last_incremental_at).getTime() - 5 * 60_000);
+        modifiedAfter = t.toISOString().replace(/\.\d+Z$/, "");
+      } else {
+        // First incremental run ever — pull last 24h to seed
+        const t = new Date(Date.now() - 24 * 60 * 60_000);
+        modifiedAfter = t.toISOString().replace(/\.\d+Z$/, "");
+      }
+    }
+
     let page = Math.max(1, parseInt(body.start_page) || 1);
-    const maxPages = Math.max(1, Math.min(parseInt(body.max_pages) || 20, 100));
+    const maxPages = Math.max(1, Math.min(parseInt(body.max_pages) || 10, 100));
     const endPage = page + maxPages - 1;
     const perPage = 100;
     const status = body.status || "any"; // ALL statuses by default
-    const modifiedAfter: string | null = body.modified_after || null; // ISO 8601, no TZ
+    const triggeredBy: string = body.triggered_by || (mode === "incremental" ? "cron" : "system");
+
+    // Open a sync run row so the UI dashboard / audit can see what's happening.
+    const { data: runRow } = await supabase
+      .from("woocommerce_sync_runs")
+      .insert({
+        mode,
+        status: "running",
+        start_page: page,
+        modified_after: modifiedAfter,
+        triggered_by: triggeredBy,
+      })
+      .select("id")
+      .single();
+    const runId: string | null = runRow?.id || null;
 
     let hasMore = true;
     let totalFetched = 0;
@@ -171,15 +223,32 @@ Deno.serve(async (req) => {
 
       if (orders.length > 0) {
         const mapped = orders.map(mapOrder).filter(Boolean);
-        for (let i = 0; i < mapped.length; i += 500) {
-          const chunk = mapped.slice(i, i + 500);
+        // The woocommerce_orders table has a per-row trigger
+        // (handle_woocommerce_order_automation) that can be expensive,
+        // so we keep chunks small (25) to stay well under the
+        // PostgREST/PG statement_timeout. On chunk failure we retry
+        // each row individually so one bad row doesn't kill 24 good ones.
+        const CHUNK = 25;
+        for (let i = 0; i < mapped.length; i += CHUNK) {
+          const chunk = mapped.slice(i, i + CHUNK);
           const { error } = await supabase
             .from("woocommerce_orders")
             .upsert(chunk, { onConflict: "woo_order_id" });
 
           if (error) {
-            console.error(`[sync] Upsert error page ${page} chunk ${i}:`, error.message);
-            totalErrors += chunk.length;
+            console.warn(`[sync] Chunk upsert failed page ${page} offset ${i} (${chunk.length} rows): ${error.message}. Falling back to per-row.`);
+            // Per-row fallback so one offender doesn't sink the chunk
+            for (const row of chunk) {
+              const { error: rowErr } = await supabase
+                .from("woocommerce_orders")
+                .upsert(row, { onConflict: "woo_order_id" });
+              if (rowErr) {
+                console.error(`[sync] Row upsert failed for woo_order_id=${(row as any).woo_order_id}: ${rowErr.message}`);
+                totalErrors += 1;
+              } else {
+                totalUpserted += 1;
+              }
+            }
           } else {
             totalUpserted += chunk.length;
           }
@@ -203,20 +272,104 @@ Deno.serve(async (req) => {
     const nextPage = hasMore ? page : null;
     console.log(`[sync] Done. Last page: ${page}, Fetched: ${totalFetched}, Upserted: ${totalUpserted}, Errors: ${totalErrors}, Total in WC: ${totalAvailable}, Next: ${nextPage}`);
 
+    // Persist run + state
+    const runStatus =
+      totalErrors > 0 && totalUpserted === 0 ? "failed" :
+      totalErrors > 0 ? "partial" : "success";
+
+    if (runId) {
+      await supabase
+        .from("woocommerce_sync_runs")
+        .update({
+          status: runStatus,
+          end_page: page,
+          pages_fetched: pageResults.length,
+          orders_fetched: totalFetched,
+          orders_upserted: totalUpserted,
+          errors: totalErrors,
+          total_in_woocommerce: totalAvailable,
+          next_page: nextPage,
+          has_more: hasMore,
+          message: hasMore
+            ? `Batch ${page - pageResults.length + 1}-${page}: ${totalUpserted} upserted, more remaining`
+            : `Sync complete: ${totalUpserted} orders across ${pageResults.length} pages`,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", runId);
+    }
+
+    // Update sync_state singleton
+    const stateUpdate: Record<string, unknown> = {
+      total_in_woocommerce: totalAvailable,
+      updated_at: new Date().toISOString(),
+    };
+    if (mode === "incremental" || mode === "manual") {
+      stateUpdate.last_incremental_at = new Date().toISOString();
+    }
+    if (mode === "backfill" && !hasMore) {
+      stateUpdate.last_backfill_completed_at = new Date().toISOString();
+    }
+    if (mode === "backfill" && page === 1 + (pageResults.length ? 0 : 0) && body.start_page == null) {
+      // First page of a backfill chain
+      stateUpdate.last_backfill_started_at = new Date().toISOString();
+    }
+    // Recompute total_orders_synced via a count query
+    const { count: dbCount } = await supabase
+      .from("woocommerce_orders")
+      .select("id", { count: "exact", head: true });
+    if (typeof dbCount === "number") stateUpdate.total_orders_synced = dbCount;
+
+    await supabase.from("woocommerce_sync_state").update(stateUpdate).eq("id", 1);
+
+    // Self-chain backfills so the full history finishes without manual clicks.
+    if (mode === "backfill" && hasMore && nextPage) {
+      console.log(`[sync] Self-chaining backfill: invoking next batch at page ${nextPage}`);
+      // Fire-and-forget; we don't await the response so this invocation
+      // returns quickly and the next one runs in its own context.
+      try {
+        const fnUrl = `${supabaseUrl}/functions/v1/sync-website-orders`;
+        // EdgeRuntime.waitUntil keeps the request alive in the background
+        const p = fetch(fnUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({
+            mode: "backfill",
+            start_page: nextPage,
+            max_pages: maxPages,
+            triggered_by: triggeredBy,
+          }),
+        }).catch((e) => console.error("[sync] chain invoke error:", e));
+        // @ts-ignore — EdgeRuntime is a Deno Deploy global
+        if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
+          // @ts-ignore
+          EdgeRuntime.waitUntil(p);
+        }
+      } catch (e) {
+        console.error("[sync] failed to schedule next chain:", e);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
+        run_id: runId,
+        mode,
         total_fetched: totalFetched,
         upserted: totalUpserted,
         errors: totalErrors,
         total_available_in_woocommerce: totalAvailable,
-        pages_fetched: page,
+        pages_fetched: pageResults.length,
         next_page: nextPage,
         has_more: hasMore,
         page_results: pageResults,
         message: hasMore
-          ? `Synced ${totalUpserted} orders. Call again with start_page=${nextPage} to continue.`
-          : `Synced ${totalUpserted} orders across ${page} pages (complete)`,
+          ? (mode === "backfill"
+              ? `Synced ${totalUpserted} orders. Backfill continues in background from page ${nextPage}.`
+              : `Synced ${totalUpserted} orders. Call again with start_page=${nextPage} to continue.`)
+          : `Synced ${totalUpserted} orders across ${pageResults.length} pages (complete)`,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
