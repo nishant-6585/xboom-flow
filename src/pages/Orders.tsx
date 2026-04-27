@@ -1158,6 +1158,31 @@ export default function Orders() {
             {/* Sync health dashboard — Woo total vs DB, gap, last sync, status */}
             <WooSyncHealthCard />
 
+            {/* Sync gap warnings */}
+            {wooGap !== null && wooGap > 0 && (
+              <div
+                className={`rounded-lg border p-3 text-sm flex items-start gap-2 ${
+                  wooGap > 100
+                    ? 'border-red-500/40 bg-red-500/5 text-red-700 dark:text-red-400'
+                    : 'border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400'
+                }`}
+              >
+                <span className="font-bold">⚠</span>
+                <div className="flex-1">
+                  <p className="font-semibold">
+                    {wooGap > 100 ? 'Data mismatch detected.' : 'Data still syncing.'}
+                  </p>
+                  <p className="text-xs opacity-90">
+                    WooCommerce reports {wooApiTotal?.toLocaleString('en-IN') ?? '—'} orders,
+                    XBoom has {wooDbTotal?.toLocaleString('en-IN') ?? '—'} ({wooGap.toLocaleString('en-IN')} missing).
+                    {wooGap > 100
+                      ? ' Run a Full backfill from the Sync Health card above.'
+                      : ' Some orders may not be visible until the next sync completes.'}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Primary metrics — business-friendly, simplified */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               <Card className="border-primary/20 bg-primary/5">
