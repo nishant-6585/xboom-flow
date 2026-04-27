@@ -41,8 +41,10 @@ export default function Orders() {
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
   const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, stats: wooStats } = useWooCommerceOrders();
   // Both Website Orders and Abandoned tabs read from the SAME hook; classification is by `bucket`.
-  const wooOrderBucketRows = wooOrders.filter(o => o.bucket === 'orders');
-  const wooAbandonedBucketRows = wooOrders.filter(o => o.bucket === 'abandoned');
+  // Normalize bucket value (trim + lowercase) so any stray formatting from the DB doesn't drop rows from the UI.
+  const normalizeBucket = (b: unknown) => String(b ?? '').trim().toLowerCase();
+  const wooOrderBucketRows = wooOrders.filter(o => normalizeBucket(o.bucket) === 'orders');
+  const wooAbandonedBucketRows = wooOrders.filter(o => normalizeBucket(o.bucket) === 'abandoned');
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
@@ -1080,27 +1082,18 @@ export default function Orders() {
             </div>
 
             {/* Summary Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Card><CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground">Total Orders</p>
-                <p className="text-2xl font-bold text-foreground">{wooStats.totalOrders.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Processing Orders</p>
+                <p className="text-2xl font-bold text-blue-600">{wooStats.processingOrders.toLocaleString()}</p>
               </CardContent></Card>
               <Card><CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground">Total Revenue</p>
-                <p
-                  className="text-2xl font-bold text-primary truncate"
-                  title={`₹${wooStats.totalRevenue.toLocaleString('en-IN')}`}
-                >
-                  ₹{new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 2 }).format(wooStats.totalRevenue)}
-                </p>
-              </CardContent></Card>
-              <Card><CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground">Completed</p>
+                <p className="text-xs text-muted-foreground">Completed Orders</p>
                 <p className="text-2xl font-bold text-green-600">{wooStats.completedOrders.toLocaleString()}</p>
               </CardContent></Card>
               <Card><CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground">Today's Orders</p>
-                <p className="text-2xl font-bold text-blue-600">{wooStats.todayOrders}</p>
+                <p className="text-2xl font-bold text-primary">{wooStats.todayOrders.toLocaleString()}</p>
               </CardContent></Card>
             </div>
 
@@ -1127,21 +1120,6 @@ export default function Orders() {
                       </Button>
                     )}
                   </div>
-                  <Select value={wooStatusFilter} onValueChange={setWooStatusFilter}>
-                    <SelectTrigger className="w-[160px] h-11 rounded-xl">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Statuses</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="processing">Processing</SelectItem>
-                      <SelectItem value="on-hold">On Hold</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                      <SelectItem value="refunded">Refunded</SelectItem>
-                      <SelectItem value="failed">Failed</SelectItem>
-                    </SelectContent>
-                  </Select>
                   <Select value={wooPaymentStatusFilter} onValueChange={setWooPaymentStatusFilter}>
                     <SelectTrigger className="w-[160px] h-11 rounded-xl">
                       <SelectValue placeholder="Payment" />
@@ -1173,6 +1151,27 @@ export default function Orders() {
                     </Button>
                   </div>
                 </div>
+                {/* Status filter chips */}
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {[
+                    { value: 'all', label: 'All' },
+                    { value: 'processing', label: 'Processing' },
+                    { value: 'completed', label: 'Completed' },
+                    { value: 'pending', label: 'Pending' },
+                    { value: 'failed', label: 'Failed' },
+                    { value: 'cancelled', label: 'Cancelled' },
+                  ].map((chip) => (
+                    <Button
+                      key={chip.value}
+                      variant={wooStatusFilter === chip.value ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setWooStatusFilter(chip.value)}
+                      className="h-8 rounded-full text-xs px-3"
+                    >
+                      {chip.label}
+                    </Button>
+                  ))}
+                </div>
               </CardContent>
             </Card>
 
@@ -1193,8 +1192,28 @@ export default function Orders() {
               <Card className="border-dashed border-2 bg-gradient-to-br from-muted/30 to-muted/10">
                 <CardContent className="flex flex-col items-center justify-center py-20">
                   <Globe className="h-16 w-16 text-muted-foreground/30 mb-6" />
-                  <p className="text-lg font-semibold text-muted-foreground mb-2">No website orders found</p>
-                  <p className="text-sm text-muted-foreground/60">Orders placed on xboom.in will appear here automatically</p>
+                  <p className="text-lg font-semibold text-muted-foreground mb-2">
+                    {wooOrderBucketRows.length > 0 ? 'No orders match current filters' : 'No orders received from website yet'}
+                  </p>
+                  <p className="text-sm text-muted-foreground/60">
+                    {wooOrderBucketRows.length > 0
+                      ? 'Try adjusting search or status filters above'
+                      : 'Orders placed on xboom.in will appear here automatically'}
+                  </p>
+                  {wooOrderBucketRows.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-4"
+                      onClick={() => {
+                        setWooSearchQuery('');
+                        setWooStatusFilter('all');
+                        setWooPaymentStatusFilter('all');
+                      }}
+                    >
+                      Clear filters
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             ) : wooViewMode === 'table' ? (

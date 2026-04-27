@@ -170,6 +170,7 @@ export function useWooCommerceOrders() {
       .filter(o => o.bucket === 'abandoned')
       .reduce((sum, o) => sum + (o.total_sales_amount || 0), 0),
     completedOrders: orders.filter(o => o.order_status === 'completed').length,
+    processingOrders: orders.filter(o => o.order_status === 'processing').length,
     todayOrders: orders.filter(o => {
       const d = o.woo_created_at || o.created_at;
       if (!d) return false;
@@ -179,8 +180,15 @@ export function useWooCommerceOrders() {
   };
 
   // Split by bucket so Orders & Abandoned tabs each consume their own slice.
-  const orderBucketRows = orders.filter(o => o.bucket === 'orders');
-  const abandonedBucketRows = orders.filter(o => o.bucket === 'abandoned');
+  // Normalize bucket so trailing whitespace / casing never causes filter mismatches.
+  const normalizedBucket = (b: unknown): 'orders' | 'abandoned' | 'unknown' => {
+    const v = String(b ?? '').trim().toLowerCase();
+    if (v === 'orders') return 'orders';
+    if (v === 'abandoned') return 'abandoned';
+    return 'unknown';
+  };
+  const orderBucketRows = orders.filter(o => normalizedBucket(o.bucket) === 'orders');
+  const abandonedBucketRows = orders.filter(o => normalizedBucket(o.bucket) === 'abandoned');
 
   return {
     wooOrders: orders,
