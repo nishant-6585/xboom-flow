@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, ArrowRight, History, AlertCircle } from 'lucide-react';
+import { Loader2, ArrowRight, History, AlertCircle, MessageCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
 import { WooOrderStatusActions } from './WooOrderStatusActions';
+import { useOrderNotificationTimeline } from '@/hooks/useOrderNotification';
 
 interface StatusLog {
   id: string;
@@ -41,6 +43,13 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
   const [logsLoading, setLogsLoading] = useState(false);
   // Bumping this re-mounts the actions component so it picks up the new currentStatus
   const [actionsKey, setActionsKey] = useState(0);
+
+  const {
+    items: notifications,
+    loading: notifLoading,
+    retryingId,
+    retryOne,
+  } = useOrderNotificationTimeline(order?.woo_order_id ?? null, open);
 
   useEffect(() => {
     if (!open || !order) return;
@@ -157,6 +166,93 @@ export function WooOrderDetailDialog({ order, open, onOpenChange, onUpdated }: P
                       )}
                     </li>
                   ))}
+                </ul>
+              )}
+            </section>
+
+            <Separator />
+
+            {/* Communication timeline */}
+            <section>
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <MessageCircle className="h-4 w-4" /> Communication Timeline
+              </h3>
+
+              {notifLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                </div>
+              ) : notifications.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No notifications sent yet.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {notifications.map((n) => {
+                    const icon =
+                      n.status === 'sent' ? '✅' : n.status === 'failed' ? '❌' : '⏳';
+                    const canRetry = n.status === 'failed' || n.status === 'pending';
+                    return (
+                      <li
+                        key={n.id}
+                        className="rounded-md border border-border/50 p-2.5 text-xs space-y-1"
+                      >
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                            <span aria-hidden>{icon}</span>
+                            <Badge variant="outline" className="capitalize text-[10px] px-1.5 py-0">
+                              {n.status_trigger.replace(/_/g, ' ')}
+                            </Badge>
+                            <span className="text-muted-foreground capitalize">
+                              WhatsApp · {n.status}
+                            </span>
+                            {n.provider && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">
+                                {n.provider}
+                              </Badge>
+                            )}
+                            {n.retry_count > 0 && (
+                              <span className="text-muted-foreground">
+                                · {n.retry_count} retries
+                              </span>
+                            )}
+                          </div>
+                          {canRetry && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2 text-[10px] gap-1"
+                              disabled={retryingId === n.id}
+                              onClick={() => retryOne(n.id)}
+                            >
+                              {retryingId === n.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <>
+                                  <RefreshCw className="h-3 w-3" /> Retry
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between text-muted-foreground">
+                          <span className="truncate">
+                            {n.sent_at
+                              ? `Sent ${fmtDate(n.sent_at)}`
+                              : n.last_attempt_at
+                                ? `Last attempt ${fmtDate(n.last_attempt_at)}`
+                                : `Created ${fmtDate(n.created_at)}`}
+                          </span>
+                          {n.provider_message_id && (
+                            <span className="font-mono truncate ml-2">
+                              {n.provider_message_id.slice(0, 16)}…
+                            </span>
+                          )}
+                        </div>
+                        {n.error_message && (
+                          <p className="text-destructive">{n.error_message}</p>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </section>
