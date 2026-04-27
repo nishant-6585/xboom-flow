@@ -14,7 +14,7 @@ export type Database = {
   }
   public: {
     Tables: {
-      abandoned_carts: {
+      abandoned_carts_archive: {
         Row: {
           auto_email_1_sent_at: string | null
           auto_email_2_sent_at: string | null
@@ -22,15 +22,15 @@ export type Database = {
           cart_items: Json | null
           cart_value: number | null
           contacted_at: string | null
-          created_at: string
+          created_at: string | null
           currency: string | null
           customer_email: string | null
-          customer_name: string
+          customer_name: string | null
           customer_phone: string | null
-          id: string
+          id: string | null
           last_contacted_by: string | null
           last_contacted_by_name: string | null
-          priority: string
+          priority: string | null
           recovered_amount: number | null
           recovered_at: string | null
           recovered_order_id: string | null
@@ -39,8 +39,8 @@ export type Database = {
           recovery_source: string | null
           session_id: string | null
           source: string | null
-          status: string
-          updated_at: string
+          status: string | null
+          updated_at: string | null
         }
         Insert: {
           auto_email_1_sent_at?: string | null
@@ -49,15 +49,15 @@ export type Database = {
           cart_items?: Json | null
           cart_value?: number | null
           contacted_at?: string | null
-          created_at?: string
+          created_at?: string | null
           currency?: string | null
           customer_email?: string | null
-          customer_name?: string
+          customer_name?: string | null
           customer_phone?: string | null
-          id?: string
+          id?: string | null
           last_contacted_by?: string | null
           last_contacted_by_name?: string | null
-          priority?: string
+          priority?: string | null
           recovered_amount?: number | null
           recovered_at?: string | null
           recovered_order_id?: string | null
@@ -66,8 +66,8 @@ export type Database = {
           recovery_source?: string | null
           session_id?: string | null
           source?: string | null
-          status?: string
-          updated_at?: string
+          status?: string | null
+          updated_at?: string | null
         }
         Update: {
           auto_email_1_sent_at?: string | null
@@ -76,15 +76,15 @@ export type Database = {
           cart_items?: Json | null
           cart_value?: number | null
           contacted_at?: string | null
-          created_at?: string
+          created_at?: string | null
           currency?: string | null
           customer_email?: string | null
-          customer_name?: string
+          customer_name?: string | null
           customer_phone?: string | null
-          id?: string
+          id?: string | null
           last_contacted_by?: string | null
           last_contacted_by_name?: string | null
-          priority?: string
+          priority?: string | null
           recovered_amount?: number | null
           recovered_at?: string | null
           recovered_order_id?: string | null
@@ -93,8 +93,8 @@ export type Database = {
           recovery_source?: string | null
           session_id?: string | null
           source?: string | null
-          status?: string
-          updated_at?: string
+          status?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -11269,6 +11269,7 @@ export type Database = {
       woocommerce_orders: {
         Row: {
           amount_paid: number | null
+          bucket: string
           created_at: string
           currency: string | null
           customer_company: string | null
@@ -11300,6 +11301,7 @@ export type Database = {
         }
         Insert: {
           amount_paid?: number | null
+          bucket?: string
           created_at?: string
           currency?: string | null
           customer_company?: string | null
@@ -11331,6 +11333,7 @@ export type Database = {
         }
         Update: {
           amount_paid?: number | null
+          bucket?: string
           created_at?: string
           currency?: string | null
           customer_company?: string | null
