@@ -11269,7 +11269,6 @@ export type Database = {
       woocommerce_orders: {
         Row: {
           amount_paid: number | null
-          bucket: string
           courier: string | null
           created_at: string
           currency: string | null
@@ -11305,7 +11304,6 @@ export type Database = {
         }
         Insert: {
           amount_paid?: number | null
-          bucket?: string
           courier?: string | null
           created_at?: string
           currency?: string | null
@@ -11341,7 +11339,6 @@ export type Database = {
         }
         Update: {
           amount_paid?: number | null
-          bucket?: string
           courier?: string | null
           created_at?: string
           currency?: string | null

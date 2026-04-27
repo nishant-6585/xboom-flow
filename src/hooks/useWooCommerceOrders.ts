@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -7,8 +7,6 @@ export interface WooCommerceOrder {
   woo_order_id: string;
   order_number: string | null;
   source: string;
-  /** "orders" → paid/processing/completed; "abandoned" → pending/failed/cancelled */
-  bucket: 'orders' | 'abandoned';
   order_status: string | null;
   financial_status: string | null;
   fulfillment_status: string | null;
@@ -34,15 +32,16 @@ export interface WooCommerceOrder {
   woo_updated_at: string | null;
   created_at: string;
   updated_at: string;
+  tracking_status: string | null;
+  tracking_number: string | null;
+  courier: string | null;
+  expected_delivery: string | null;
 }
 
 export function useWooCommerceOrders() {
   const [orders, setOrders] = useState<WooCommerceOrder[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState('');
-  const lastSyncRef = useRef<number>(0);
   const { toast } = useToast();
 
   const fetchOrders = useCallback(async () => {
@@ -90,60 +89,6 @@ export function useWooCommerceOrders() {
     }
   }, [toast]);
 
-  const syncFromAPI = useCallback(async () => {
-    // Debounce: prevent re-sync within 30 seconds
-    const now = Date.now();
-    if (now - lastSyncRef.current < 30000) {
-      toast({
-        title: 'Please wait',
-        description: 'Sync was triggered recently. Please wait 30 seconds.',
-      });
-      return;
-    }
-
-    try {
-      setSyncing(true);
-      setSyncProgress('Starting sync...');
-      lastSyncRef.current = now;
-
-      const { data, error } = await supabase.functions.invoke('sync-website-orders', {
-        method: 'POST',
-      });
-
-      if (error) throw error;
-
-      console.log('[useWooCommerceOrders] Sync result:', data);
-
-      if (data?.success === false) {
-        toast({
-          title: 'Sync Warning',
-          description: data?.error || 'API returned an error',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      setSyncProgress(`Synced ${data?.upserted || 0} orders across ${data?.pages_fetched || 1} pages`);
-
-      toast({
-        title: 'Sync Complete',
-        description: data?.message || `Synced ${data?.upserted || 0} orders`,
-      });
-
-      await fetchOrders();
-    } catch (error: unknown) {
-      console.error('[useWooCommerceOrders] Sync error:', error);
-      toast({
-        title: 'Sync Error',
-        description: 'Failed to sync orders from xboom.in',
-        variant: 'destructive',
-      });
-    } finally {
-      setSyncing(false);
-      setTimeout(() => setSyncProgress(''), 5000);
-    }
-  }, [toast, fetchOrders]);
-
   useEffect(() => {
     fetchOrders();
 
@@ -159,18 +104,14 @@ export function useWooCommerceOrders() {
     };
   }, [fetchOrders]);
 
-  // Computed stats
+  // Computed stats — single source of truth = WooCommerce status
   const stats = {
-    totalOrders: orders.filter(o => o.bucket === 'orders').length,
-    totalAbandoned: orders.filter(o => o.bucket === 'abandoned').length,
-    totalRevenue: orders
-      .filter(o => o.bucket === 'orders')
-      .reduce((sum, o) => sum + (o.total_sales_amount || 0), 0),
-    abandonedValue: orders
-      .filter(o => o.bucket === 'abandoned')
-      .reduce((sum, o) => sum + (o.total_sales_amount || 0), 0),
+    totalOrders: orders.length,
     completedOrders: orders.filter(o => o.order_status === 'completed').length,
     processingOrders: orders.filter(o => o.order_status === 'processing').length,
+    pendingOrders: orders.filter(o => o.order_status === 'pending').length,
+    failedOrders: orders.filter(o => o.order_status === 'failed').length,
+    cancelledOrders: orders.filter(o => o.order_status === 'cancelled').length,
     todayOrders: orders.filter(o => {
       const d = o.woo_created_at || o.created_at;
       if (!d) return false;
@@ -179,27 +120,11 @@ export function useWooCommerceOrders() {
     }).length,
   };
 
-  // Split by bucket so Orders & Abandoned tabs each consume their own slice.
-  // Normalize bucket so trailing whitespace / casing never causes filter mismatches.
-  const normalizedBucket = (b: unknown): 'orders' | 'abandoned' | 'unknown' => {
-    const v = String(b ?? '').trim().toLowerCase();
-    if (v === 'orders') return 'orders';
-    if (v === 'abandoned') return 'abandoned';
-    return 'unknown';
-  };
-  const orderBucketRows = orders.filter(o => normalizedBucket(o.bucket) === 'orders');
-  const abandonedBucketRows = orders.filter(o => normalizedBucket(o.bucket) === 'abandoned');
-
   return {
     wooOrders: orders,
-    orderBucketRows,
-    abandonedBucketRows,
     totalCount,
     loading,
-    syncing,
-    syncProgress,
     stats,
     refetch: fetchOrders,
-    syncFromAPI,
   };
 }

@@ -6,29 +6,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-wc-webhook-topic, x-wc-webhook-signature, x-wc-webhook-source, xboom_secret",
 };
 
-/**
- * Classify a WooCommerce order into one of two buckets.
- *  - "orders":     status in (processing, completed)
- *  - "abandoned":  status in (pending, on-hold, failed, cancelled, refunded, …)
- * Any unknown status defaults to "abandoned" (safer for revenue accounting).
- */
-const ORDER_STATUSES = new Set(["processing", "completed"]);
-const ABANDONED_STATUSES = new Set([
-  "pending",
-  "on-hold",
-  "failed",
-  "cancelled",
-  "refunded",
-]);
-
-function classifyBucket(status: string): "orders" | "abandoned" {
-  const s = (status || "").toLowerCase().trim();
-  if (ORDER_STATUSES.has(s)) return "orders";
-  if (ABANDONED_STATUSES.has(s)) return "abandoned";
-  console.warn(`[woocommerce-webhook] Unknown WooCommerce status "${status}" — defaulting to "abandoned"`);
-  return "abandoned";
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -113,8 +90,7 @@ async function processOrder(supabase: any, payload: any, orderId: string, topic:
   const shippingAddress = shippingParts.join(", ") || null;
 
   const wooStatus: string = payload?.status || "pending";
-  const bucket = classifyBucket(wooStatus);
-  console.log(`[woocommerce-webhook] Classification → status="${wooStatus}" bucket="${bucket}" order_id=${orderId}`);
+  console.log(`[woocommerce-webhook] Status="${wooStatus}" order_id=${orderId}`);
 
   const paymentStatusMap: Record<string, string> = {
     completed: "paid",
@@ -133,7 +109,6 @@ async function processOrder(supabase: any, payload: any, orderId: string, topic:
     woo_order_id: orderId,
     order_number: payload?.number ? String(payload.number) : orderId,
     source: "xboom_website",
-    bucket,
     order_status: wooStatus,
     financial_status: wooStatus,
     fulfillment_status: wooStatus === "completed" ? "fulfilled" : "unfulfilled",
@@ -169,6 +144,6 @@ async function processOrder(supabase: any, payload: any, orderId: string, topic:
 
   const action = topic === "order.created" ? "Created" : "Updated";
   console.log(
-    `[woocommerce-webhook] ${action} order #${orderId} — bucket=${bucket}, status=${wooStatus}, total=${orderTotal}`,
+    `[woocommerce-webhook] ${action} order #${orderId} — status=${wooStatus}, total=${orderTotal}`,
   );
 }

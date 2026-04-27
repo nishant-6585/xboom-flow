@@ -126,12 +126,6 @@ Deno.serve(async (req) => {
   if (courier !== undefined) updates.courier = courier;
   if (expected_delivery !== undefined) updates.expected_delivery = expected_delivery;
 
-  // Re-bucket if status moves
-  if (status !== undefined) {
-    updates.bucket =
-      status === "processing" || status === "completed" ? "orders" : "abandoned";
-  }
-
   const { error: updErr } = await supabase
     .from("woocommerce_orders")
     .update(updates)

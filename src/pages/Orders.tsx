@@ -40,11 +40,6 @@ export default function Orders() {
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
   const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, stats: wooStats } = useWooCommerceOrders();
-  // Both Website Orders and Abandoned tabs read from the SAME hook; classification is by `bucket`.
-  // Normalize bucket value (trim + lowercase) so any stray formatting from the DB doesn't drop rows from the UI.
-  const normalizeBucket = (b: unknown) => String(b ?? '').trim().toLowerCase();
-  const wooOrderBucketRows = wooOrders.filter(o => normalizeBucket(o.bucket) === 'orders');
-  const wooAbandonedBucketRows = wooOrders.filter(o => normalizeBucket(o.bucket) === 'abandoned');
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
@@ -218,8 +213,8 @@ export default function Orders() {
   );
 
   // WooCommerce filtered orders
-  // Website Orders tab → only bucket = 'orders'
-  const filteredWooOrders = wooOrderBucketRows.filter(o => {
+  // Website Orders tab → all WooCommerce orders, filtered by status
+  const filteredWooOrders = wooOrders.filter(o => {
     const searchLower = wooSearchQuery.toLowerCase().trim();
     const matchesSearch = wooSearchQuery === '' ||
       (o.order_number?.toLowerCase().includes(searchLower)) ||
@@ -350,15 +345,6 @@ export default function Orders() {
                   <Badge variant="secondary" className="ml-1 h-5 px-2 text-xs bg-primary/10 text-primary font-semibold">
                     {wooTotalCount.toLocaleString()}
                   </Badge>
-                </TabsTrigger>
-                <TabsTrigger value="abandoned" className="gap-2">
-                  <ShoppingCart className="h-4 w-4" />
-                  <span className="hidden sm:inline font-medium">Abandoned Carts</span>
-                  {wooStats.totalAbandoned > 0 && (
-                    <Badge variant="destructive" className="ml-1 h-5 px-2 text-xs font-semibold">
-                      {wooStats.totalAbandoned}
-                    </Badge>
-                  )}
                 </TabsTrigger>
                 <TabsTrigger value="pipeline" className="gap-2">
                   <Target className="h-4 w-4" />
@@ -1193,14 +1179,14 @@ export default function Orders() {
                 <CardContent className="flex flex-col items-center justify-center py-20">
                   <Globe className="h-16 w-16 text-muted-foreground/30 mb-6" />
                   <p className="text-lg font-semibold text-muted-foreground mb-2">
-                    {wooOrderBucketRows.length > 0 ? 'No orders match current filters' : 'No orders received from website yet'}
+                    {wooOrders.length > 0 ? 'No orders match selected status' : 'No orders synced yet from WooCommerce'}
                   </p>
                   <p className="text-sm text-muted-foreground/60">
-                    {wooOrderBucketRows.length > 0
+                    {wooOrders.length > 0
                       ? 'Try adjusting search or status filters above'
                       : 'Orders placed on xboom.in will appear here automatically'}
                   </p>
-                  {wooOrderBucketRows.length > 0 && (
+                  {wooOrders.length > 0 && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -1327,63 +1313,6 @@ export default function Orders() {
               <RefundRequestsTable orders={orders} onUpdateOrder={updateOrder} />
             </TabsContent>
           )}
-
-          {/* Abandoned Carts Tab — same source-of-truth as Website Orders, filtered by bucket='abandoned' */}
-          <TabsContent value="abandoned">
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Total Abandoned</p>
-                  <p className="text-2xl font-bold text-destructive">{wooStats.totalAbandoned}</p>
-                </CardContent></Card>
-                <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Lost Revenue</p>
-                  <p
-                    className="text-2xl font-bold text-destructive truncate"
-                    title={`₹${wooStats.abandonedValue.toLocaleString('en-IN')}`}
-                  >
-                    ₹{new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 2 }).format(wooStats.abandonedValue)}
-                  </p>
-                </CardContent></Card>
-                <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Confirmed Orders</p>
-                  <p className="text-2xl font-bold text-primary">{wooStats.totalOrders}</p>
-                </CardContent></Card>
-                <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Confirmed Revenue</p>
-                  <p
-                    className="text-2xl font-bold text-primary truncate"
-                    title={`₹${wooStats.totalRevenue.toLocaleString('en-IN')}`}
-                  >
-                    ₹{new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 2 }).format(wooStats.totalRevenue)}
-                  </p>
-                </CardContent></Card>
-              </div>
-
-              <p className="text-sm text-muted-foreground">
-                Showing WooCommerce orders with status: <span className="font-medium">pending, on-hold, failed, cancelled, refunded</span>.
-                When status moves to processing/completed, the order automatically moves to <strong>XBoom Website</strong>.
-              </p>
-
-              {wooLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : wooAbandonedBucketRows.length === 0 ? (
-                <Card><CardContent className="py-12 text-center text-muted-foreground">
-                  <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No abandoned orders</p>
-                  <p className="text-sm">Orders with pending/failed/cancelled status from xboom.in will appear here.</p>
-                </CardContent></Card>
-              ) : (
-                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {wooAbandonedBucketRows.map((order) => (
-                    <WooOrderCard key={order.id} order={order} />
-                  ))}
-                </div>
-              )}
-            </div>
-          </TabsContent>
 
           {isAdmin && (
             <TabsContent value="analytics">
