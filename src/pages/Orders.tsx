@@ -17,6 +17,7 @@ import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { RefundRequestsTable } from '@/components/RefundRequestsTable';
 import { PipelineOrders } from '@/components/pipeline/PipelineOrders';
 import { WooOrderCard } from '@/components/orders/WooOrderCard';
+import { WooSyncHealthCard } from '@/components/orders/WooSyncHealthCard';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
 import { SupportCallsDashboard } from '@/components/orders/SupportCallsDashboard';
@@ -1143,6 +1144,9 @@ export default function Orders() {
                 </Button>
               </div>
             </div>
+
+            {/* Sync health dashboard — Woo total vs DB, gap, last sync, status */}
+            <WooSyncHealthCard />
 
             {/* Primary metrics — business-friendly, simplified */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
