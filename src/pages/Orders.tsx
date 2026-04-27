@@ -213,8 +213,8 @@ export default function Orders() {
   );
 
   // WooCommerce filtered orders
-  // Website Orders tab → only bucket = 'orders'
-  const filteredWooOrders = wooOrderBucketRows.filter(o => {
+  // Website Orders tab → all WooCommerce orders, filtered by status
+  const filteredWooOrders = wooOrders.filter(o => {
     const searchLower = wooSearchQuery.toLowerCase().trim();
     const matchesSearch = wooSearchQuery === '' ||
       (o.order_number?.toLowerCase().includes(searchLower)) ||
