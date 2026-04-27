@@ -1441,6 +1441,53 @@ export default function Orders() {
                     ❌ Failed ({wooStats.grouped.failed.toLocaleString()})
                   </Button>
                 </div>
+
+                {/* WhatsApp notification filters + bulk retry */}
+                <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-border/40">
+                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground mr-1">
+                    WhatsApp:
+                  </span>
+                  <Button
+                    variant={wooNotifFilter === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setWooNotifFilter('all')}
+                    className="h-8 rounded-full text-xs px-3"
+                  >
+                    All
+                  </Button>
+                  <Button
+                    variant={wooNotifFilter === 'failed' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setWooNotifFilter('failed')}
+                    className="h-8 rounded-full text-xs px-3"
+                  >
+                    ❌ Failed ({wooFailedNotifCount.toLocaleString()})
+                  </Button>
+                  <Button
+                    variant={wooNotifFilter === 'pending' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setWooNotifFilter('pending')}
+                    className="h-8 rounded-full text-xs px-3"
+                  >
+                    ⏳ Pending ({wooPendingNotifCount.toLocaleString()})
+                  </Button>
+                  <div className="ml-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRetryAllFailedWhatsapp}
+                      disabled={wooBulkRetrying || wooFailedNotifCount === 0}
+                      className="h-8 rounded-full text-xs px-3 gap-1.5"
+                    >
+                      {wooBulkRetrying ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      )}
+                      Retry all failed
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
