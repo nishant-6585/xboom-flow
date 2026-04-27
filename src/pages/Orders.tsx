@@ -258,7 +258,13 @@ export default function Orders() {
               ? ['pending', 'on-hold'].includes(status)
               : status === wooStatusFilter;
     const matchesPayment = wooPaymentStatusFilter === 'all' || o.payment_status === wooPaymentStatusFilter;
-    return matchesSearch && matchesStatus && matchesPayment;
+    const matchesNotif =
+      wooNotifFilter === 'all'
+        ? true
+        : wooNotifFilter === 'failed'
+          ? wooFailedNotifIds.has(o.woo_order_id)
+          : wooPendingNotifIds.has(o.woo_order_id);
+    return matchesSearch && matchesStatus && matchesPayment && matchesNotif;
   });
 
   const wooTotalPages = Math.ceil(filteredWooOrders.length / WOO_PAGE_SIZE);
@@ -327,7 +333,10 @@ export default function Orders() {
     !!shopifyStartDate || !!shopifyEndDate || !!shopifySearchQuery;
 
   const hasActiveWooFilters =
-    wooStatusFilter !== 'all' || wooPaymentStatusFilter !== 'all' || !!wooSearchQuery;
+    wooStatusFilter !== 'all' ||
+    wooPaymentStatusFilter !== 'all' ||
+    wooNotifFilter !== 'all' ||
+    !!wooSearchQuery;
 
   const formatINR = (n: number) => {
     if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(2)} Cr`;
