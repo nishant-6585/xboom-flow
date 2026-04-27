@@ -1,4 +1,6 @@
 // @ts-nocheck
+// TEMP: Disabled TypeScript checking due to Supabase Deno SDK type inference issue
+// Do NOT remove until Database types are available in edge runtime
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
