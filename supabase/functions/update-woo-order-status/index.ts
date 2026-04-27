@@ -31,6 +31,57 @@ const ALLOWED_STATUSES = new Set([
 // Roles allowed to push status changes back to WooCommerce
 const ALLOWED_ROLES = new Set(["admin", "supply_chain", "sales_manager", "finance"]);
 
+// Terminal states cannot be left without an explicit reopen.
+const TERMINAL_STATUSES = new Set(["cancelled", "failed", "refunded"]);
+
+// Statuses considered "active" — an order returning to active life from a terminal
+// state requires an explicit override flag.
+const ACTIVE_STATUSES = new Set([
+  "pending",
+  "processing",
+  "on-hold",
+  "completed",
+  "delivered",
+  "partially-paid",
+]);
+
+/** Roles allowed to bypass terminal-state lock and force-reopen an order. */
+const REOPEN_ROLES = new Set(["admin", "supply_chain", "sales_manager"]);
+
+/**
+ * Validate a transition. Returns null if allowed, or an error string if not.
+ * The only allowed reopen path is `cancelled → processing` with allow_reopen=true.
+ */
+function validateTransition(
+  from: string,
+  to: string,
+  allowReopen: boolean,
+): string | null {
+  if (from === to) return null;
+
+  // Terminal → anything: locked unless explicit reopen
+  if (TERMINAL_STATUSES.has(from)) {
+    if (!allowReopen) {
+      return `Order is in a final state (${from}) and cannot be changed without reopen.`;
+    }
+    // Only cancelled orders are reopenable, and only into processing.
+    if (from !== "cancelled") {
+      return `${from} orders cannot be reopened.`;
+    }
+    if (to !== "processing") {
+      return `Reopen must move the order to 'processing' (got '${to}').`;
+    }
+    return null;
+  }
+
+  // From an active state, terminal exits and other active transitions are fine.
+  if (ACTIVE_STATUSES.has(from) || from === "" || from === "any") {
+    return null;
+  }
+
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -87,7 +138,12 @@ Deno.serve(async (req) => {
   }
 
   // ------------ INPUT ------------
-  let body: { woo_order_id?: string; new_status?: string; note?: string };
+  let body: {
+    woo_order_id?: string;
+    new_status?: string;
+    note?: string;
+    allow_reopen?: boolean;
+  };
   try {
     body = await req.json();
   } catch {
@@ -99,6 +155,7 @@ Deno.serve(async (req) => {
 
   const wooOrderId = String(body.woo_order_id || "").trim();
   const newStatus = String(body.new_status || "").trim().toLowerCase();
+  const allowReopen = body.allow_reopen === true;
 
   if (!wooOrderId || !/^\d+$/.test(wooOrderId)) {
     return new Response(JSON.stringify({ error: "Invalid woo_order_id" }), {
@@ -126,12 +183,38 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-  const previousStatus = existing.order_status;
+  const previousStatus = (existing.order_status || "").toLowerCase();
 
   if (previousStatus === newStatus) {
     return new Response(
       JSON.stringify({ success: true, no_change: true, status: newStatus }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  // ------------ TRANSITION VALIDATION ------------
+  // Only privileged roles can ever pass `allow_reopen`.
+  const canReopen = userRoles.some((r: string) => REOPEN_ROLES.has(r));
+  const effectiveAllowReopen = allowReopen && canReopen;
+
+  const transitionErr = validateTransition(previousStatus, newStatus, effectiveAllowReopen);
+  if (transitionErr) {
+    // Audit the rejected attempt
+    await admin.from("woocommerce_order_status_logs").insert({
+      woo_order_id: wooOrderId,
+      order_number: existing.order_number,
+      previous_status: previousStatus,
+      new_status: newStatus,
+      changed_by: userId,
+      changed_by_email: userEmail,
+      source: "xboom_ui",
+      woo_api_success: false,
+      woo_api_response: null,
+      error_message: `Blocked: ${transitionErr}`,
+    });
+    return new Response(
+      JSON.stringify({ success: false, error: transitionErr, code: "INVALID_TRANSITION" }),
+      { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
