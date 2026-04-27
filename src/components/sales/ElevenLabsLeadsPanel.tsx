@@ -211,6 +211,7 @@ export function ElevenLabsLeadsPanel() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
   const load = async () => {
     setLoading(true);
