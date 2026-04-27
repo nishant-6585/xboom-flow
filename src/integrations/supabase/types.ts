@@ -6285,6 +6285,8 @@ export type Database = {
       }
       leads: {
         Row: {
+          assigned_to: string | null
+          assigned_to_name: string | null
           company: string | null
           created_at: string
           destinations: Json | null
@@ -6292,6 +6294,9 @@ export type Database = {
           form_type: string | null
           id: number
           ip: string | null
+          is_enquiry_converted: boolean
+          last_contacted_at: string | null
+          lead_temperature: string
           location: string | null
           message: string | null
           name: string | null
@@ -6307,6 +6312,8 @@ export type Database = {
           user_agent: string | null
         }
         Insert: {
+          assigned_to?: string | null
+          assigned_to_name?: string | null
           company?: string | null
           created_at?: string
           destinations?: Json | null
@@ -6314,6 +6321,9 @@ export type Database = {
           form_type?: string | null
           id?: never
           ip?: string | null
+          is_enquiry_converted?: boolean
+          last_contacted_at?: string | null
+          lead_temperature?: string
           location?: string | null
           message?: string | null
           name?: string | null
@@ -6329,6 +6339,8 @@ export type Database = {
           user_agent?: string | null
         }
         Update: {
+          assigned_to?: string | null
+          assigned_to_name?: string | null
           company?: string | null
           created_at?: string
           destinations?: Json | null
@@ -6336,6 +6348,9 @@ export type Database = {
           form_type?: string | null
           id?: never
           ip?: string | null
+          is_enquiry_converted?: boolean
+          last_contacted_at?: string | null
+          lead_temperature?: string
           location?: string | null
           message?: string | null
           name?: string | null
