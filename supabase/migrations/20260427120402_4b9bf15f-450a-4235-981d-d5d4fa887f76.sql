@@ -1,0 +1,1 @@
+ALTER VIEW public.notification_metrics_today SET (security_invoker = on);
