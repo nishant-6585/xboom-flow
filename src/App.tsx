@@ -57,6 +57,7 @@ import CreditCards from "./pages/CreditCards";
 import BankReconciliation from "./pages/BankReconciliation";
 import DroneOperations from "./pages/DroneOperations";
 import NotFound from "./pages/NotFound";
+import Leads from "./pages/Leads";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -114,6 +115,7 @@ function AppInner() {
         <Route path="/credit-cards" element={<ProtectedRoute><CreditCards /></ProtectedRoute>} />
         <Route path="/bank-reconciliation" element={<ProtectedRoute><BankReconciliation /></ProtectedRoute>} />
         <Route path="/drone-operations" element={<ProtectedRoute><DroneOperations /></ProtectedRoute>} />
+        <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <AuthGuardedWidgets isMobile={isMobile} />
