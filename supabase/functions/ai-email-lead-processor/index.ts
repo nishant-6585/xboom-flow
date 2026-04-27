@@ -1,5 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySupabaseClient = any;
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -180,7 +183,7 @@ function determineStatus(aiResult: AIExtractionResult, emailText: string): strin
 }
 
 async function createEnquiryFromLead(
-  supabase: ReturnType<typeof createClient>,
+  supabase: AnySupabaseClient,
   lead: Record<string, any>,
   aiResult: AIExtractionResult
 ): Promise<{ created: boolean; error?: string }> {
@@ -224,7 +227,7 @@ async function createEnquiryFromLead(
  * Update pipeline stats after AI processing batch
  */
 async function updatePipelineStats(
-  supabase: ReturnType<typeof createClient>,
+  supabase: AnySupabaseClient,
   stats: {
     processed: number;
     rejected: number;
