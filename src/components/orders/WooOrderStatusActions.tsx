@@ -1,7 +1,19 @@
 import { useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle2, PlayCircle, XCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Loader2, CheckCircle2, PlayCircle, XCircle, Lock, RotateCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -14,6 +26,20 @@ export const WOO_STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'failed', label: 'Failed' },
   { value: 'refunded', label: 'Refunded' },
 ];
+
+/** Statuses that lock the order — no further changes allowed except explicit reopen. */
+export const TERMINAL_STATUSES = new Set(['cancelled', 'failed', 'refunded']);
+
+/**
+ * Returns the list of statuses a user is allowed to transition INTO from `from`.
+ * Terminal states return [] (caller should render the locked UI / reopen flow).
+ */
+function allowedTransitions(from: string): string[] {
+  if (TERMINAL_STATUSES.has(from)) return [];
+  // From any non-terminal state, allow moving to any other non-terminal state
+  // plus cancellation/failure/refund (terminal exits).
+  return WOO_STATUS_OPTIONS.map((s) => s.value).filter((v) => v !== from);
+}
 
 interface Props {
   wooOrderId: string;
@@ -35,25 +61,34 @@ export function WooOrderStatusActions({
   const normalized = (currentStatus || 'pending').toLowerCase();
   const [selected, setSelected] = useState<string>(normalized);
   const [busy, setBusy] = useState(false);
+  const [confirmReopen, setConfirmReopen] = useState(false);
 
-  // Keep select in sync if parent prop changes (e.g. realtime update)
-  // Without this, after a successful update the select would still show the old prop
-  // because useState only initializes once.
-  // We use a small effect-equivalent check via key on parent, but to be safe:
-  if (!busy && selected !== normalized && selected === normalized) {
-    // no-op placeholder to keep TS happy; parent re-mounts via key when needed
-  }
+  const isTerminal = TERMINAL_STATUSES.has(normalized);
+  const allowed = allowedTransitions(normalized);
 
-  const update = async (status: string) => {
+  const update = async (status: string, opts: { allowReopen?: boolean } = {}) => {
     if (busy) return;
     if (status === normalized) {
       toast({ title: 'No change', description: `Already ${status}.` });
       return;
     }
+    // Frontend guard against invalid transitions
+    if (isTerminal && !opts.allowReopen) {
+      toast({
+        title: 'Order is in a final state',
+        description: `Cannot move ${normalized} → ${status} without reopen.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     setBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke('update-woo-order-status', {
-        body: { woo_order_id: wooOrderId, new_status: status },
+        body: {
+          woo_order_id: wooOrderId,
+          new_status: status,
+          allow_reopen: opts.allowReopen === true,
+        },
       });
       if (error) throw error;
       if (data && data.success === false) throw new Error(data.error || 'Update failed');
@@ -76,6 +111,90 @@ export function WooOrderStatusActions({
     if (stopPropagation) e.stopPropagation();
   };
 
+  // ---------------- Terminal state UI ----------------
+  if (isTerminal) {
+    const reopenable = normalized === 'cancelled';
+    return (
+      <TooltipProvider delayDuration={200}>
+        <div
+          className="flex items-center justify-between gap-2"
+          onClick={stop}
+          onPointerDown={stop}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                variant="outline"
+                className="gap-1 text-[10px] font-medium text-muted-foreground border-dashed"
+              >
+                <Lock className="h-3 w-3" /> Final state
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              This order is {normalized} and cannot be modified.
+            </TooltipContent>
+          </Tooltip>
+
+          {reopenable && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-xs gap-1"
+                onClick={() => setConfirmReopen(true)}
+                disabled={busy}
+              >
+                {busy ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <>
+                    <RotateCcw className="h-3 w-3" /> Reopen
+                  </>
+                )}
+              </Button>
+              <AlertDialog open={confirmReopen} onOpenChange={setConfirmReopen}>
+                <AlertDialogContent onClick={stop}>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reopen this order?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will move order #{wooOrderId} back to{' '}
+                      <strong>Processing</strong> in WooCommerce. Continue?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      disabled={busy}
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        await update('processing', { allowReopen: true });
+                        setConfirmReopen(false);
+                      }}
+                    >
+                      {busy ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                          Reopening…
+                        </>
+                      ) : (
+                        'Reopen Order'
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          )}
+        </div>
+      </TooltipProvider>
+    );
+  }
+
+  // ---------------- Active state UI ----------------
+  const visibleOptions = WOO_STATUS_OPTIONS.filter(
+    (s) => s.value === normalized || allowed.includes(s.value),
+  );
+
   if (variant === 'inline') {
     return (
       <div className="flex items-center gap-1.5" onClick={stop} onPointerDown={stop}>
@@ -88,7 +207,7 @@ export function WooOrderStatusActions({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {WOO_STATUS_OPTIONS.map((s) => (
+            {visibleOptions.map((s) => (
               <SelectItem key={s.value} value={s.value} className="text-xs">
                 {s.label}
               </SelectItem>
@@ -116,7 +235,7 @@ export function WooOrderStatusActions({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {WOO_STATUS_OPTIONS.map((s) => (
+            {visibleOptions.map((s) => (
               <SelectItem key={s.value} value={s.value}>
                 {s.label}
               </SelectItem>
