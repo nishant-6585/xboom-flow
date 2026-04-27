@@ -95,6 +95,7 @@ async function processOrder(supabase: any, payload: any, orderId: string, topic:
   const paymentStatusMap: Record<string, string> = {
     completed: "paid",
     processing: "paid",
+    delivered: "paid",
     "on-hold": "pending",
     pending: "pending",
     failed: "failed",
@@ -102,7 +103,7 @@ async function processOrder(supabase: any, payload: any, orderId: string, topic:
     refunded: "refunded",
   };
 
-  const isPaid = wooStatus === "completed" || wooStatus === "processing";
+  const isPaid = wooStatus === "completed" || wooStatus === "processing" || wooStatus === "delivered";
   const orderTotal = parseFloat(payload?.total || "0");
 
   const orderData = {
@@ -111,7 +112,7 @@ async function processOrder(supabase: any, payload: any, orderId: string, topic:
     source: "xboom_website",
     order_status: wooStatus,
     financial_status: wooStatus,
-    fulfillment_status: wooStatus === "completed" ? "fulfilled" : "unfulfilled",
+    fulfillment_status: (wooStatus === "completed" || wooStatus === "delivered") ? "fulfilled" : "unfulfilled",
     product_name: productName,
     product_code: firstItem.sku || null,
     product_category: "Consumer Drones",
