@@ -18,6 +18,8 @@ import { RefundRequestsTable } from '@/components/RefundRequestsTable';
 import { PipelineOrders } from '@/components/pipeline/PipelineOrders';
 import { WooOrderCard } from '@/components/orders/WooOrderCard';
 import { WooSyncHealthCard } from '@/components/orders/WooSyncHealthCard';
+import { WooOrderDetailDialog } from '@/components/orders/WooOrderDetailDialog';
+import { useWooSyncHealth } from '@/hooks/useWooSyncHealth';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
 import { SupportCallsDashboard } from '@/components/orders/SupportCallsDashboard';
@@ -40,7 +42,10 @@ export default function Orders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
-  const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, stats: wooStats } = useWooCommerceOrders();
+  const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, stats: wooStats, refetch: refetchWooOrders } = useWooCommerceOrders();
+  const { gap: wooGap, wooTotal: wooApiTotal, dbTotal: wooDbTotal, refetch: refetchWooSync } = useWooSyncHealth();
+  const [selectedWooOrder, setSelectedWooOrder] = useState<typeof wooOrders[number] | null>(null);
+  const [wooDetailOpen, setWooDetailOpen] = useState(false);
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
@@ -347,6 +352,11 @@ export default function Orders() {
         title: 'Sync triggered',
         description: data?.message || 'Pulling latest orders from WooCommerce…',
       });
+      // Auto-refresh after a short delay to give the function time to write rows
+      setTimeout(() => {
+        refetchWooOrders();
+        refetchWooSync();
+      }, 3000);
     } catch (err: any) {
       toast({
         title: 'Sync failed',
@@ -1146,7 +1156,32 @@ export default function Orders() {
             </div>
 
             {/* Sync health dashboard — Woo total vs DB, gap, last sync, status */}
-            <WooSyncHealthCard />
+            <WooSyncHealthCard onSyncTriggered={() => refetchWooOrders()} />
+
+            {/* Sync gap warnings */}
+            {wooGap !== null && wooGap > 0 && (
+              <div
+                className={`rounded-lg border p-3 text-sm flex items-start gap-2 ${
+                  wooGap > 100
+                    ? 'border-red-500/40 bg-red-500/5 text-red-700 dark:text-red-400'
+                    : 'border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400'
+                }`}
+              >
+                <span className="font-bold">⚠</span>
+                <div className="flex-1">
+                  <p className="font-semibold">
+                    {wooGap > 100 ? 'Data mismatch detected.' : 'Data still syncing.'}
+                  </p>
+                  <p className="text-xs opacity-90">
+                    WooCommerce reports {wooApiTotal?.toLocaleString('en-IN') ?? '—'} orders,
+                    XBoom has {wooDbTotal?.toLocaleString('en-IN') ?? '—'} ({wooGap.toLocaleString('en-IN')} missing).
+                    {wooGap > 100
+                      ? ' Run a Full backfill from the Sync Health card above.'
+                      : ' Some orders may not be visible until the next sync completes.'}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Primary metrics — business-friendly, simplified */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -1456,7 +1491,18 @@ export default function Orders() {
             ) : (
               <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {paginatedWooOrders.map((order) => (
-                  <WooOrderCard key={order.id} order={order} />
+                  <WooOrderCard
+                    key={order.id}
+                    order={order}
+                    onClick={(o) => {
+                      setSelectedWooOrder(o);
+                      setWooDetailOpen(true);
+                    }}
+                    onUpdated={() => {
+                      refetchWooOrders();
+                      refetchWooSync();
+                    }}
+                  />
                 ))}
               </div>
             )}
@@ -1479,6 +1525,17 @@ export default function Orders() {
                 <Button variant="outline" size="sm" onClick={() => setWooPage(wooTotalPages)} disabled={wooPage === wooTotalPages} className="h-8 px-3 rounded-lg text-xs">»</Button>
               </div>
             )}
+
+            {/* Order detail + status history dialog */}
+            <WooOrderDetailDialog
+              order={selectedWooOrder}
+              open={wooDetailOpen}
+              onOpenChange={setWooDetailOpen}
+              onUpdated={() => {
+                refetchWooOrders();
+                refetchWooSync();
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="pipeline">

@@ -2,6 +2,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CalendarDays, Package, User, IndianRupee, Clock, Truck } from 'lucide-react';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
+import { WooOrderStatusActions } from './WooOrderStatusActions';
 
 // Cast to allow optional tracking fields that may not yet exist on the WooCommerceOrder type
 type OrderWithTracking = WooCommerceOrder & {
@@ -75,9 +76,11 @@ function formatRelative(dateStr: string | null): string {
 
 interface WooOrderCardProps {
   order: WooCommerceOrder;
+  onClick?: (order: WooCommerceOrder) => void;
+  onUpdated?: () => void;
 }
 
-export function WooOrderCard({ order }: WooOrderCardProps) {
+export function WooOrderCard({ order, onClick, onUpdated }: WooOrderCardProps) {
   const product = getProductDisplay(order);
   const customer = getCustomerDisplay(order);
   const amount = order.total_sales_amount || order.selling_price || 0;
@@ -92,7 +95,12 @@ export function WooOrderCard({ order }: WooOrderCardProps) {
   const hasTracking = Boolean(tracking || courier || trackingNumber);
 
   return (
-    <Card className="shadow-sm border-border/60 hover:shadow-lg hover:border-primary/20 transition-all duration-200 group">
+    <Card
+      className={`shadow-sm border-border/60 hover:shadow-lg hover:border-primary/20 transition-all duration-200 group ${
+        onClick ? 'cursor-pointer' : ''
+      }`}
+      onClick={onClick ? () => onClick(order) : undefined}
+    >
       <CardContent className="p-0">
         {/* Header */}
         <div className="flex items-center justify-between p-4 pb-3 border-b border-border/30">
@@ -176,6 +184,16 @@ export function WooOrderCard({ order }: WooOrderCardProps) {
               </div>
             </div>
           )}
+
+          {/* Status update actions */}
+          <div className="pt-2 border-t border-border/30">
+            <WooOrderStatusActions
+              wooOrderId={order.woo_order_id}
+              currentStatus={order.order_status}
+              variant="inline"
+              onUpdated={onUpdated}
+            />
+          </div>
         </div>
       </CardContent>
     </Card>

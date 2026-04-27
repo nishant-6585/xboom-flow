@@ -27,7 +27,12 @@ const HEALTH_META: Record<SyncHealth, { label: string; icon: typeof CheckCircle2
   unknown:  { label: 'Unknown',  icon: AlertTriangle, cls: 'bg-muted text-muted-foreground border-border' },
 };
 
-export function WooSyncHealthCard() {
+interface Props {
+  /** Called after a manual sync/backfill is triggered, so the parent can refresh order lists too. */
+  onSyncTriggered?: () => void;
+}
+
+export function WooSyncHealthCard({ onSyncTriggered }: Props = {}) {
   const { state, recentRuns, loading, health, wooTotal, dbTotal, gap, refetch } = useWooSyncHealth();
   const [running, setRunning] = useState<null | 'incremental' | 'backfill'>(null);
 
@@ -39,11 +44,18 @@ export function WooSyncHealthCard() {
       });
       if (error) throw error;
       toast({ title: `${mode === 'backfill' ? 'Backfill' : 'Incremental sync'} started`, description: 'Running in background — this card refreshes automatically.' });
-      setTimeout(refetch, 2000);
+      setTimeout(() => {
+        refetch();
+        onSyncTriggered?.();
+      }, 3000);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Failed to start sync';
       // Background self-chain may close the request before responding — that's expected.
       toast({ title: 'Sync started', description: msg.includes('FunctionsFetchError') ? 'Running in background.' : msg });
+      setTimeout(() => {
+        refetch();
+        onSyncTriggered?.();
+      }, 3000);
     } finally {
       setRunning(null);
     }
