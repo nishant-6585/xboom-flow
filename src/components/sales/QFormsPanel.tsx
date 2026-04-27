@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { format } from "date-fns";
-import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
+import { format, startOfDay, subDays, isToday, isYesterday } from "date-fns";
+import {
+  ChevronDown, ChevronRight, Search, X, Phone, Mail, MessageCircle,
+  UserCheck, Inbox, CheckCircle2, Flame, FileText,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +21,8 @@ import {
 } from "@/components/ui/collapsible";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { toast } from "@/hooks/use-toast";
+import { EnquiryConvertButton } from "./EnquiryConvertButton";
+import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
 
 const FORM_TYPES = [
   "contact", "quote", "demo", "dealer", "newsletter", "popup",
@@ -39,6 +45,12 @@ const STATUS_COLORS: Record<Status, string> = {
   archived:  "bg-muted text-muted-foreground",
 };
 
+const TEMP_COLORS: Record<string, string> = {
+  hot:  "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30",
+  warm: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+  cold: "bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30",
+};
+
 interface Lead {
   id: number;
   created_at: string;
@@ -59,24 +71,48 @@ interface Lead {
   submitted_at: string | null;
   payload: Record<string, any> | null;
   status: Status;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  last_contacted_at: string | null;
+  is_enquiry_converted: boolean;
+  lead_temperature: string;
 }
+
+interface SalesUser { user_id: string; name: string }
 
 function truncate(s: string | null, n = 80) {
   if (!s) return "";
   return s.length > n ? s.slice(0, n) + "…" : s;
 }
 
+function relativeTime(iso?: string | null) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isToday(d)) return `Today, ${format(d, "HH:mm")}`;
+  if (isYesterday(d)) return `Yesterday, ${format(d, "HH:mm")}`;
+  return format(d, "dd MMM, HH:mm");
+}
+
 export default function QFormsPanel() {
+  const { user, profile, role } = useAuth();
   const [rows, setRows] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [salesPool, setSalesPool] = useState<SalesUser[]>([]);
+
+  // Drawer
+  const [drawerLead, setDrawerLead] = useState<Lead | null>(null);
 
   // Filters
   const [formType, setFormType] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
+  const [assignee, setAssignee] = useState<string>("all");
+  const [temperature, setTemperature] = useState<string>("all");
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [search, setSearch] = useState("");
+
+  const canManage = role === "admin" || role === "sales" || role === "sales_manager";
 
   const load = async () => {
     setLoading(true);
@@ -87,6 +123,12 @@ export default function QFormsPanel() {
       .limit(1000);
     if (formType !== "all") q = q.eq("form_type", formType);
     if (status !== "all") q = q.eq("status", status);
+    if (assignee !== "all") {
+      if (assignee === "unassigned") q = q.is("assigned_to", null);
+      else if (assignee === "mine" && user) q = q.eq("assigned_to", user.id);
+      else q = q.eq("assigned_to", assignee);
+    }
+    if (temperature !== "all") q = q.eq("lead_temperature", temperature);
     if (startDate) q = q.gte("created_at", startDate.toISOString());
     if (endDate) {
       const e = new Date(endDate);
@@ -102,13 +144,32 @@ export default function QFormsPanel() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [formType, status, startDate, endDate]);
+  // Load sales pool (for assignment dropdown)
+  useEffect(() => {
+    (async () => {
+      const { data: roleRows } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["sales", "sales_manager"]);
+      const ids = Array.from(new Set((roleRows ?? []).map((r: any) => r.user_id)));
+      if (ids.length === 0) return;
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("user_id, name")
+        .eq("is_approved", true)
+        .in("user_id", ids);
+      setSalesPool(((profs ?? []) as any).sort((a: any, b: any) => a.name.localeCompare(b.name)));
+    })();
+  }, []);
+
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ },
+    [formType, status, assignee, temperature, startDate, endDate]);
 
   // Realtime new leads
   useEffect(() => {
     const ch = supabase
-      .channel("leads-incoming")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "leads" }, () => load())
+      .channel("qforms-leads-incoming")
+      .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -118,11 +179,34 @@ export default function QFormsPanel() {
     const term = search.trim().toLowerCase();
     if (!term) return rows;
     return rows.filter(r =>
-      [r.name, r.email, r.phone, r.company, r.message]
+      [r.name, r.email, r.phone, r.company, r.message, r.assigned_to_name]
         .filter(Boolean)
         .some(v => v!.toString().toLowerCase().includes(term))
     );
   }, [rows, search]);
+
+  // Stats (computed on full rows ignoring search but respecting filters)
+  const stats = useMemo(() => {
+    const total = rows.length;
+    const newCount = rows.filter(r => r.status === "new").length;
+    const contacted = rows.filter(r => r.status === "contacted" || r.status === "qualified").length;
+    const converted = rows.filter(r => r.status === "converted" || r.is_enquiry_converted).length;
+    const today = startOfDay(new Date()).toISOString();
+    const todayCount = rows.filter(r => r.created_at >= today).length;
+    const week = subDays(new Date(), 7).toISOString();
+    const weekCount = rows.filter(r => r.created_at >= week).length;
+    const unassigned = rows.filter(r => !r.assigned_to).length;
+    return { total, newCount, contacted, converted, todayCount, weekCount, unassigned };
+  }, [rows]);
+
+  const formTypeBreakdown = useMemo(() => {
+    const map = new Map<string, number>();
+    rows.forEach(r => {
+      const k = r.form_type ?? "unknown";
+      map.set(k, (map.get(k) ?? 0) + 1);
+    });
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  }, [rows]);
 
   const toggleRow = (id: number) => {
     setExpanded(prev => {
@@ -132,19 +216,60 @@ export default function QFormsPanel() {
     });
   };
 
-  const updateStatus = async (id: number, value: Status) => {
+  const updateLeadField = async (id: number, patch: Partial<Lead>) => {
     const prev = rows;
-    setRows(rs => rs.map(r => r.id === id ? { ...r, status: value } : r));
-    const { error } = await supabase.from("leads" as any).update({ status: value }).eq("id", id);
+    setRows(rs => rs.map(r => r.id === id ? { ...r, ...patch } : r));
+    const { error } = await supabase.from("leads" as any).update(patch as any).eq("id", id);
     if (error) {
       setRows(prev);
-      toast({ title: "Failed to update status", description: error.message, variant: "destructive" });
+      toast({ title: "Update failed", description: error.message, variant: "destructive" });
     }
   };
 
-  const clearFilters = () => {
-    setFormType("all"); setStatus("all"); setStartDate(undefined); setEndDate(undefined); setSearch("");
+  const assignTo = async (lead: Lead, userId: string) => {
+    const target = salesPool.find(s => s.user_id === userId);
+    if (!target) return;
+    await updateLeadField(lead.id, {
+      assigned_to: target.user_id,
+      assigned_to_name: target.name,
+    });
+    toast({ title: `Assigned to ${target.name}` });
   };
+
+  const markContacted = async (lead: Lead) => {
+    await updateLeadField(lead.id, {
+      status: "contacted",
+      last_contacted_at: new Date().toISOString(),
+    });
+  };
+
+  const clearFilters = () => {
+    setFormType("all"); setStatus("all"); setAssignee("all"); setTemperature("all");
+    setStartDate(undefined); setEndDate(undefined); setSearch("");
+  };
+
+  // Build LeadContactData for drawer
+  const drawerData: LeadContactData | null = drawerLead ? {
+    id: String(drawerLead.id),
+    source_type: 'lead',
+    customer_name: drawerLead.name ?? "—",
+    phone: drawerLead.phone,
+    email: drawerLead.email,
+    company: drawerLead.company,
+    city: drawerLead.location,
+    notes: drawerLead.message,
+    status: drawerLead.status,
+    assigned_to_name: drawerLead.assigned_to_name,
+    created_at: drawerLead.created_at,
+    extras: {
+      "Form type": drawerLead.form_type,
+      "Subject": drawerLead.subject,
+      "Urgency": drawerLead.urgency,
+      "Sector": drawerLead.sector,
+      "Role": drawerLead.role,
+      "Page URL": drawerLead.page_url,
+    },
+  } : null;
 
   return (
     <div className="space-y-4">
@@ -152,16 +277,43 @@ export default function QFormsPanel() {
         <div>
           <h2 className="text-xl font-bold">QForms</h2>
           <p className="text-sm text-muted-foreground">
-            Inbound submissions from xboom.in website forms
+            Inbound submissions from xboom.in website forms — auto-assigned round-robin to sales
           </p>
         </div>
         <Badge variant="secondary">{filtered.length} leads</Badge>
       </div>
 
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        <StatCard icon={Inbox} label="Total" value={stats.total} tint="text-foreground" />
+        <StatCard icon={Flame} label="New" value={stats.newCount} tint="text-blue-600" />
+        <StatCard icon={Phone} label="Contacted" value={stats.contacted} tint="text-amber-600" />
+        <StatCard icon={CheckCircle2} label="Converted" value={stats.converted} tint="text-emerald-600" />
+        <StatCard icon={FileText} label="Today" value={stats.todayCount} tint="text-purple-600" />
+        <StatCard icon={FileText} label="Last 7d" value={stats.weekCount} tint="text-indigo-600" />
+        <StatCard icon={UserCheck} label="Unassigned" value={stats.unassigned} tint="text-rose-600" />
+      </div>
+
+      {/* Form-type breakdown */}
+      {formTypeBreakdown.length > 0 && (
+        <Card className="p-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+            Top form types
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {formTypeBreakdown.map(([k, v]) => (
+              <Badge key={k} variant="outline" className="text-xs">
+                {k} <span className="ml-1.5 font-bold text-foreground">{v}</span>
+              </Badge>
+            ))}
+          </div>
+        </Card>
+      )}
+
       <Card className="p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <Select value={formType} onValueChange={setFormType}>
-            <SelectTrigger className="w-[220px]"><SelectValue placeholder="Form type" /></SelectTrigger>
+            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Form type" /></SelectTrigger>
             <SelectContent className="max-h-80">
               <SelectItem value="all">All form types</SelectItem>
               {FORM_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
@@ -169,10 +321,30 @@ export default function QFormsPanel() {
           </Select>
 
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectTrigger className="w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
               {STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
+
+          <Select value={assignee} onValueChange={setAssignee}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Assignee" /></SelectTrigger>
+            <SelectContent className="max-h-80">
+              <SelectItem value="all">All assignees</SelectItem>
+              <SelectItem value="mine">Assigned to me</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {salesPool.map(s => <SelectItem key={s.user_id} value={s.user_id}>{s.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+
+          <Select value={temperature} onValueChange={setTemperature}>
+            <SelectTrigger className="w-[140px]"><SelectValue placeholder="Temperature" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All temps</SelectItem>
+              <SelectItem value="hot">🔥 Hot</SelectItem>
+              <SelectItem value="warm">Warm</SelectItem>
+              <SelectItem value="cold">Cold</SelectItem>
             </SelectContent>
           </Select>
 
@@ -192,7 +364,7 @@ export default function QFormsPanel() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search name, email, phone, company, message…"
+            placeholder="Search name, email, phone, company, assignee, message…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -208,13 +380,13 @@ export default function QFormsPanel() {
               <TableHead>Submitted</TableHead>
               <TableHead>Form</TableHead>
               <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Urgency</TableHead>
-              <TableHead>Message</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>Company / Location</TableHead>
+              <TableHead>Temp</TableHead>
+              <TableHead>Assignee</TableHead>
+              <TableHead>Last contact</TableHead>
               <TableHead className="w-[140px]">Status</TableHead>
+              <TableHead className="w-[180px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -227,35 +399,120 @@ export default function QFormsPanel() {
             {!loading && filtered.map(r => {
               const isOpen = expanded.has(r.id);
               const submitted = r.submitted_at || r.created_at;
-              const submittedFmt = submitted ? format(new Date(submitted), "dd MMM yyyy, HH:mm") : "—";
+              const submittedFmt = submitted ? format(new Date(submitted), "dd MMM, HH:mm") : "—";
+              const tempClass = TEMP_COLORS[r.lead_temperature] ?? TEMP_COLORS.warm;
               return (
                 <>
-                  <TableRow key={r.id} className="cursor-pointer" onClick={() => toggleRow(r.id)}>
-                    <TableCell className="w-8 px-2">
+                  <TableRow
+                    key={r.id}
+                    className="cursor-pointer hover:bg-muted/30"
+                    onClick={() => setDrawerLead(r)}
+                  >
+                    <TableCell className="w-8 px-2" onClick={(e) => { e.stopPropagation(); toggleRow(r.id); }}>
                       {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-xs">{submittedFmt}</TableCell>
                     <TableCell><Badge variant="outline" className="text-xs">{r.form_type ?? "—"}</Badge></TableCell>
                     <TableCell className="font-medium">{r.name ?? "—"}</TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      {r.email ? <a className="text-primary hover:underline" href={`mailto:${r.email}`}>{r.email}</a> : "—"}
+                    <TableCell onClick={(e) => e.stopPropagation()} className="text-xs space-y-0.5">
+                      {r.email && <a className="text-primary hover:underline block" href={`mailto:${r.email}`}>{r.email}</a>}
+                      {r.phone && <a className="text-primary hover:underline block" href={`tel:${r.phone}`}>{r.phone}</a>}
+                      {!r.email && !r.phone && "—"}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <div>{r.company ?? "—"}</div>
+                      <div className="text-muted-foreground">{r.location ?? ""}</div>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      {r.phone ? <a className="text-primary hover:underline" href={`tel:${r.phone}`}>{r.phone}</a> : "—"}
+                      <Select
+                        value={r.lead_temperature}
+                        onValueChange={(v) => updateLeadField(r.id, { lead_temperature: v })}
+                      >
+                        <SelectTrigger className={`h-7 px-2 text-[11px] border ${tempClass}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="hot">🔥 Hot</SelectItem>
+                          <SelectItem value="warm">Warm</SelectItem>
+                          <SelectItem value="cold">Cold</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
-                    <TableCell>{r.company ?? "—"}</TableCell>
-                    <TableCell>{r.location ?? "—"}</TableCell>
-                    <TableCell>{r.urgency ? <Badge variant="secondary" className="text-xs">{r.urgency}</Badge> : "—"}</TableCell>
-                    <TableCell className="max-w-[260px] text-sm text-muted-foreground">{truncate(r.message)}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v as Status)}>
-                        <SelectTrigger className={`h-8 text-xs ${STATUS_COLORS[r.status] ?? ""}`}>
+                      {canManage ? (
+                        <Select
+                          value={r.assigned_to ?? "unassigned"}
+                          onValueChange={(v) => v !== "unassigned" && assignTo(r, v)}
+                        >
+                          <SelectTrigger className="h-7 text-xs w-[140px]">
+                            <SelectValue placeholder="Unassigned" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-80">
+                            <SelectItem value="unassigned" disabled>Unassigned</SelectItem>
+                            {salesPool.map(s => (
+                              <SelectItem key={s.user_id} value={s.user_id}>{s.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-xs">{r.assigned_to_name ?? "—"}</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {relativeTime(r.last_contacted_at)}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select value={r.status} onValueChange={(v) => updateLeadField(r.id, { status: v as Status })}>
+                        <SelectTrigger className={`h-7 text-xs ${STATUS_COLORS[r.status] ?? ""}`}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           {STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {r.phone && (
+                          <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="Call">
+                            <a href={`tel:${r.phone}`} onClick={() => markContacted(r)}>
+                              <Phone className="h-3.5 w-3.5 text-blue-600" />
+                            </a>
+                          </Button>
+                        )}
+                        {r.phone && (
+                          <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="WhatsApp">
+                            <a
+                              href={`https://wa.me/${r.phone.replace(/[^0-9]/g, "")}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={() => markContacted(r)}
+                            >
+                              <MessageCircle className="h-3.5 w-3.5 text-green-600" />
+                            </a>
+                          </Button>
+                        )}
+                        {r.email && (
+                          <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="Email">
+                            <a href={`mailto:${r.email}`} onClick={() => markContacted(r)}>
+                              <Mail className="h-3.5 w-3.5 text-amber-600" />
+                            </a>
+                          </Button>
+                        )}
+                        <EnquiryConvertButton
+                          sourceType="lead"
+                          sourceId={String(r.id)}
+                          customerName={r.name ?? "Unknown"}
+                          phoneNumber={r.phone}
+                          email={r.email}
+                          company={r.company}
+                          city={r.location}
+                          productName={r.subject || r.form_type || ""}
+                          urgency={r.urgency}
+                          notes={r.message}
+                          isAlreadyConverted={r.is_enquiry_converted}
+                        />
+                      </div>
                     </TableCell>
                   </TableRow>
                   {isOpen && (
@@ -271,7 +528,37 @@ export default function QFormsPanel() {
           </TableBody>
         </Table>
       </Card>
+
+      <LeadContactDrawer
+        open={!!drawerLead}
+        onOpenChange={(o) => { if (!o) setDrawerLead(null); }}
+        lead={drawerData}
+        onSave={async (updates) => {
+          if (!drawerLead) return;
+          await updateLeadField(drawerLead.id, {
+            name: updates.customer_name,
+            phone: updates.phone ?? null,
+            email: updates.email ?? null,
+            company: updates.company ?? null,
+            location: updates.city ?? null,
+            message: updates.notes ?? null,
+          });
+          toast({ title: "Lead updated" });
+        }}
+      />
     </div>
+  );
+}
+
+function StatCard({ icon: Icon, label, value, tint }: { icon: any; label: string; value: number; tint: string }) {
+  return (
+    <Card className="p-3 flex items-center gap-3">
+      <div className={`shrink-0 ${tint}`}><Icon className="h-5 w-5" /></div>
+      <div>
+        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+        <div className="text-lg font-bold leading-tight">{value}</div>
+      </div>
+    </Card>
   );
 }
 
@@ -281,6 +568,8 @@ function LeadDetail({ lead }: { lead: Lead }) {
     ["Phone", lead.phone], ["Company", lead.company], ["Subject", lead.subject],
     ["Message", lead.message], ["Location", lead.location], ["Role", lead.role],
     ["Urgency", lead.urgency], ["Sector", lead.sector],
+    ["Assigned to", lead.assigned_to_name],
+    ["Last contacted", lead.last_contacted_at ? format(new Date(lead.last_contacted_at), "dd MMM yyyy, HH:mm") : null],
   ];
   const payloadEntries = lead.payload ? Object.entries(lead.payload) : [];
 

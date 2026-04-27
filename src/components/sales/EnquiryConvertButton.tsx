@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 import { toast } from 'sonner';
 
 interface EnquiryConvertButtonProps {
-  sourceType: 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads';
+  sourceType: 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads' | 'lead';
   sourceId: string;
   customerName: string;
   phoneNumber?: string | null;
@@ -221,6 +221,8 @@ export function EnquiryConvertButton({
         await supabase.from('email_leads').update({ is_enquiry_converted: true }).eq('id', sourceId);
       } else if (sourceType === 'form_lead') {
         await supabase.from('form_leads').update({ is_enquiry_converted: true }).eq('id', sourceId);
+      } else if (sourceType === 'lead') {
+        await supabase.from('leads' as any).update({ is_enquiry_converted: true, status: 'converted' }).eq('id', Number(sourceId));
       }
 
       setConverted(true);
