@@ -498,6 +498,7 @@ export default function QFormsPanel() {
         </div>
       </Card>
 
+      {viewMode === "table" && (
       <Card>
         <Table>
           <TableHeader>
@@ -676,6 +677,99 @@ export default function QFormsPanel() {
           </TableBody>
         </Table>
       </Card>
+      )}
+
+      {viewMode === "cards" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {loading && (
+            <div className="col-span-full text-center text-muted-foreground py-8">Loading…</div>
+          )}
+          {!loading && filtered.length === 0 && (
+            <div className="col-span-full text-center text-muted-foreground py-8">
+              No leads match the current filters.
+            </div>
+          )}
+          {!loading && filtered.map(r => {
+            const submitted = r.submitted_at || r.created_at;
+            const submittedFmt = submitted ? format(new Date(submitted), "dd MMM, HH:mm") : "—";
+            const tempClass = TEMP_COLORS[r.lead_temperature] ?? TEMP_COLORS.warm;
+            return (
+              <Card
+                key={r.id}
+                className="p-3 cursor-pointer hover:border-primary/40 transition-colors space-y-2"
+                onClick={() => setDrawerLead(r)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{r.name ?? <span className="italic text-muted-foreground">Unnamed lead</span>}</div>
+                    <div className="text-[11px] text-muted-foreground">{submittedFmt}</div>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] shrink-0">{r.form_type ?? "—"}</Badge>
+                </div>
+
+                <div className="text-xs space-y-0.5" onClick={(e) => e.stopPropagation()}>
+                  {r.email && <a className="text-primary hover:underline block truncate" href={`mailto:${r.email}`}>{r.email}</a>}
+                  {r.phone && <a className="text-primary hover:underline block" href={`tel:${r.phone}`}>{r.phone}</a>}
+                  {!r.email && !r.phone && <span className="italic text-muted-foreground">No contact</span>}
+                </div>
+
+                <div className="text-xs">
+                  <div className={r.company ? "" : "italic text-muted-foreground"}>{r.company ?? "No company"}</div>
+                  <div className="text-muted-foreground">{r.location ?? ""}</div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                  <Select value={r.lead_temperature} onValueChange={(v) => updateLeadField(r.id, { lead_temperature: v })}>
+                    <SelectTrigger className={`h-7 px-2 text-[11px] border w-auto ${tempClass}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="hot">🔥 Hot</SelectItem>
+                      <SelectItem value="warm">Warm</SelectItem>
+                      <SelectItem value="cold">Cold</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={r.status} onValueChange={(v) => updateLeadField(r.id, { status: v as Status })}>
+                    <SelectTrigger className={`h-7 text-xs w-auto ${STATUS_COLORS[r.status] ?? ""}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40" onClick={(e) => e.stopPropagation()}>
+                  <div className="text-[11px] text-muted-foreground truncate">
+                    {r.assigned_to_name ? `→ ${r.assigned_to_name}` : <span className="italic">Unassigned</span>}
+                    <span className="mx-1">·</span>
+                    {relativeTime(r.last_contacted_at)}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {r.phone && (
+                      <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="Call">
+                        <a href={`tel:${r.phone}`} onClick={() => markContacted(r)}>
+                          <Phone className="h-3.5 w-3.5 text-blue-600" />
+                        </a>
+                      </Button>
+                    )}
+                    {r.phone && (
+                      <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="WhatsApp">
+                        <a href={`https://wa.me/${r.phone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noreferrer" onClick={() => markContacted(r)}>
+                          <MessageCircle className="h-3.5 w-3.5 text-green-600" />
+                        </a>
+                      </Button>
+                    )}
+                    <ProspectButton sourceType="lead" sourceId={String(r.id)} customerName={r.name ?? "Unknown"} phoneNumber={r.phone} email={r.email} company={r.company} city={r.location} productName={r.subject || r.form_type || ""} notes={r.message} />
+                    <AttentionButton sourceType="lead" sourceId={String(r.id)} customerName={r.name ?? "Unknown"} phoneNumber={r.phone} email={r.email} company={r.company} city={r.location} productName={r.subject || r.form_type || ""} notes={r.message} />
+                    <EnquiryConvertButton sourceType="lead" sourceId={String(r.id)} customerName={r.name ?? "Unknown"} phoneNumber={r.phone} email={r.email} company={r.company} city={r.location} productName={r.subject || r.form_type || ""} urgency={r.urgency} notes={r.message} isAlreadyConverted={r.is_enquiry_converted} />
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       <LeadContactDrawer
         open={!!drawerLead}
