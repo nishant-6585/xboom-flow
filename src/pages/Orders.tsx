@@ -346,15 +346,6 @@ export default function Orders() {
                     {wooTotalCount.toLocaleString()}
                   </Badge>
                 </TabsTrigger>
-                <TabsTrigger value="abandoned" className="gap-2">
-                  <ShoppingCart className="h-4 w-4" />
-                  <span className="hidden sm:inline font-medium">Abandoned Carts</span>
-                  {wooStats.totalAbandoned > 0 && (
-                    <Badge variant="destructive" className="ml-1 h-5 px-2 text-xs font-semibold">
-                      {wooStats.totalAbandoned}
-                    </Badge>
-                  )}
-                </TabsTrigger>
                 <TabsTrigger value="pipeline" className="gap-2">
                   <Target className="h-4 w-4" />
                   <span className="hidden sm:inline font-medium">Pipeline</span>
