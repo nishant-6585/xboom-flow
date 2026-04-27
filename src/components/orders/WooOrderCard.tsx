@@ -4,6 +4,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { CalendarDays, Package, User, IndianRupee, Clock, Truck } from 'lucide-react';
 import type { WooCommerceOrder } from '@/hooks/useWooCommerceOrders';
 import { WooOrderStatusActions } from './WooOrderStatusActions';
+import { WooWhatsappStatus } from './WooWhatsappStatus';
 
 // Cast to allow optional tracking fields that may not yet exist on the WooCommerceOrder type
 type OrderWithTracking = WooCommerceOrder & {
@@ -198,6 +199,9 @@ export function WooOrderCard({ order, onClick, onUpdated }: WooOrderCardProps) {
 
           {/* Status update actions */}
           <div className="pt-2 border-t border-border/30">
+            <div className="flex items-center justify-end mb-1.5">
+              <WooWhatsappStatus wooOrderId={order.woo_order_id} />
+            </div>
             <WooOrderStatusActions
               wooOrderId={order.woo_order_id}
               currentStatus={order.order_status}
