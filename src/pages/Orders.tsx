@@ -24,12 +24,11 @@ import { SupportCallsDashboard } from '@/components/orders/SupportCallsDashboard
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
 import { useWooCommerceOrders } from '@/hooks/useWooCommerceOrders';
-import { useAbandonedCarts, getCartAgeStatus, type CartTimeFilter } from '@/hooks/useAbandonedCarts';
 import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidget';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe, ShoppingCart, RefreshCw, Mail, XCircle, Send, Phone } from 'lucide-react';
+import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe, ShoppingCart, RefreshCw, Phone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth } from 'date-fns';
@@ -42,7 +41,9 @@ export default function Orders() {
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
   const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, syncing: wooSyncing, syncProgress: wooSyncProgress, stats: wooStats, syncFromAPI: syncWooOrders } = useWooCommerceOrders();
-  const { carts: abandonedCarts, loading: cartsLoading, stats: cartStats, recoverCart, timeFilter, setTimeFilter } = useAbandonedCarts();
+  // Both Website Orders and Abandoned tabs read from the SAME hook; classification is by `bucket`.
+  const wooOrderBucketRows = wooOrders.filter(o => o.bucket === 'orders');
+  const wooAbandonedBucketRows = wooOrders.filter(o => o.bucket === 'abandoned');
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
@@ -64,10 +65,6 @@ export default function Orders() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [syncingCarts, setSyncingCarts] = useState(false);
-  const [selectedCartItems, setSelectedCartItems] = useState<Record<string, unknown>[] | null>(null);
-  const [selectedCartForAction, setSelectedCartForAction] = useState<typeof abandonedCarts[0] | null>(null);
-  const [recoveringCartId, setRecoveringCartId] = useState<string | null>(null);
   const [supportCallLogs, setSupportCallLogs] = useState<any[]>([]);
 
   // Shopify tab filters
@@ -118,26 +115,6 @@ export default function Orders() {
   const isAdmin = role === 'admin';
   const canViewRefunds = role === 'supply_chain' || role === 'admin';
   const canViewProcurementWidget = role === 'admin' || role === 'supply_chain' || role === 'finance';
-
-  const handleSyncAbandonedCarts = async () => {
-    setSyncingCarts(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('sync-abandoned-carts');
-      if (error) throw error;
-      toast({
-        title: 'Sync Complete',
-        description: `Fetched ${data?.total_fetched ?? 0} carts — ${data?.inserted ?? 0} new, ${data?.duplicates ?? 0} duplicates`,
-      });
-    } catch (err: any) {
-      toast({
-        title: 'Sync Failed',
-        description: err?.message || 'Could not sync abandoned carts',
-        variant: 'destructive',
-      });
-    } finally {
-      setSyncingCarts(false);
-    }
-  };
 
   const refundCount = orders.filter(o => o.is_refund_requested).length;
 
@@ -240,7 +217,8 @@ export default function Orders() {
   );
 
   // WooCommerce filtered orders
-  const filteredWooOrders = wooOrders.filter(o => {
+  // Website Orders tab → only bucket = 'orders'
+  const filteredWooOrders = wooOrderBucketRows.filter(o => {
     const searchLower = wooSearchQuery.toLowerCase().trim();
     const matchesSearch = wooSearchQuery === '' ||
       (o.order_number?.toLowerCase().includes(searchLower)) ||
@@ -375,9 +353,9 @@ export default function Orders() {
                 <TabsTrigger value="abandoned" className="gap-2">
                   <ShoppingCart className="h-4 w-4" />
                   <span className="hidden sm:inline font-medium">Abandoned Carts</span>
-                  {cartStats.active > 0 && (
+                  {wooStats.totalAbandoned > 0 && (
                     <Badge variant="destructive" className="ml-1 h-5 px-2 text-xs font-semibold">
-                      {cartStats.active}
+                      {wooStats.totalAbandoned}
                     </Badge>
                   )}
                 </TabsTrigger>
@@ -1334,292 +1312,60 @@ export default function Orders() {
             </TabsContent>
           )}
 
-          {/* Abandoned Carts Tab */}
+          {/* Abandoned Carts Tab — same source-of-truth as Website Orders, filtered by bucket='abandoned' */}
           <TabsContent value="abandoned">
             <div className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Active (&lt;24h)</p>
-                  <p className="text-2xl font-bold text-destructive">{cartStats.active}</p>
+                  <p className="text-xs text-muted-foreground">Total Abandoned</p>
+                  <p className="text-2xl font-bold text-destructive">{wooStats.totalAbandoned}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">At Risk (24-72h)</p>
-                  <p className="text-2xl font-bold text-amber-600">{cartStats.atRisk}</p>
+                  <p className="text-xs text-muted-foreground">Lost Revenue</p>
+                  <p className="text-2xl font-bold text-destructive">₹{wooStats.abandonedValue.toLocaleString('en-IN')}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Recovered</p>
-                  <p className="text-2xl font-bold text-primary">{cartStats.recovered}</p>
+                  <p className="text-xs text-muted-foreground">Confirmed Orders</p>
+                  <p className="text-2xl font-bold text-primary">{wooStats.totalOrders}</p>
                 </CardContent></Card>
                 <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Emails Sent</p>
-                  <p className="text-2xl font-bold">{cartStats.emailsSent}</p>
-                </CardContent></Card>
-                <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">At-Risk Revenue</p>
-                  <p className="text-2xl font-bold text-destructive">₹{cartStats.atRiskRevenue.toLocaleString()}</p>
-                </CardContent></Card>
-                <Card><CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Conversion Rate</p>
-                  <p className="text-2xl font-bold text-primary">{cartStats.conversionRate}%</p>
+                  <p className="text-xs text-muted-foreground">Confirmed Revenue</p>
+                  <p className="text-2xl font-bold text-primary">₹{wooStats.totalRevenue.toLocaleString('en-IN')}</p>
                 </CardContent></Card>
               </div>
 
               <div className="flex items-center justify-between">
-                <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as CartTimeFilter)}>
-                  <SelectTrigger className="w-[180px]">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="24h">Last 24 hours</SelectItem>
-                    <SelectItem value="3d">Last 3 days</SelectItem>
-                    <SelectItem value="7d">Last 7 days</SelectItem>
-                    <SelectItem value="30d">Last 30 days</SelectItem>
-                    <SelectItem value="all">All time</SelectItem>
-                  </SelectContent>
-                </Select>
+                <p className="text-sm text-muted-foreground">
+                  Showing WooCommerce orders with status: <span className="font-medium">pending, on-hold, failed, cancelled, refunded</span>.
+                  When status moves to processing/completed, the order automatically moves to <strong>XBoom Website</strong>.
+                </p>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleSyncAbandonedCarts}
-                  disabled={syncingCarts}
+                  onClick={syncWooOrders}
+                  disabled={wooSyncing}
                 >
-                  {syncingCarts ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                  {syncingCarts ? 'Syncing...' : 'Sync Abandoned Carts'}
+                  {wooSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                  {wooSyncing ? 'Syncing…' : 'Sync from xboom.in'}
                 </Button>
               </div>
 
-              {cartsLoading ? (
+              {wooLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
-              ) : abandonedCarts.length === 0 ? (
+              ) : wooAbandonedBucketRows.length === 0 ? (
                 <Card><CardContent className="py-12 text-center text-muted-foreground">
                   <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No abandoned carts yet</p>
-                  <p className="text-sm">Carts will appear here when customers abandon checkout on XBoom website</p>
+                  <p className="font-medium">No abandoned orders</p>
+                  <p className="text-sm">Orders with pending/failed/cancelled status from xboom.in will appear here.</p>
                 </CardContent></Card>
               ) : (
-                <>
-                <div className="overflow-x-auto rounded-lg border border-border">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-muted/50 border-b border-border">
-                        <th className="text-left p-3 font-medium">Customer</th>
-                        <th className="text-left p-3 font-medium">Contact</th>
-                        <th className="text-left p-3 font-medium">Products</th>
-                        <th className="text-left p-3 font-medium">Cart Value</th>
-                        <th className="text-left p-3 font-medium">Status</th>
-                        <th className="text-left p-3 font-medium">Emails</th>
-                        <th className="text-left p-3 font-medium">Abandoned</th>
-                        <th className="text-left p-3 font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {abandonedCarts.map((cart) => {
-                        const timeDiff = Date.now() - new Date(cart.created_at).getTime();
-                        const hours = Math.floor(timeDiff / (1000 * 60 * 60));
-                        const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
-                        const timeAgo = hours > 24
-                          ? `${Math.floor(hours / 24)}d ${hours % 24}h ago`
-                          : hours > 0
-                            ? `${hours}h ${minutes}m ago`
-                            : `${minutes}m ago`;
-                        const items = Array.isArray(cart.cart_items) ? cart.cart_items as Record<string, unknown>[] : [];
-                        const isRecovering = recoveringCartId === cart.id;
-                        const canRecover = cart.status === 'active' || cart.status === 'contacted';
-
-                        return (
-                          <tr key={cart.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                            <td className="p-3 max-w-[180px]">
-                              <div className="flex items-center gap-1">
-                                <p className="font-medium text-sm truncate" title={cart.customer_email || 'Guest'}>
-                                  {cart.customer_email || 'Guest'}
-                                </p>
-                                {(cart.priority === 'high' || (cart.cart_value || 0) > 10000) && (
-                                  <Badge variant="destructive" className="text-[10px] h-4 px-1 shrink-0">🔥 HIGH</Badge>
-                                )}
-                              </div>
-                              {cart.last_contacted_by_name && (
-                                <p className="text-xs text-muted-foreground truncate">Last by: {cart.last_contacted_by_name}</p>
-                              )}
-                            </td>
-                            <td className="p-3 max-w-[180px]">
-                              <p className="text-xs truncate" title={cart.customer_email || ''}>
-                                {cart.customer_email || '—'}
-                              </p>
-                            </td>
-                            <td className="p-3">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-xs h-7 px-2"
-                                onClick={() => setSelectedCartForAction(cart)}
-                              >
-                                <Package className="h-3 w-3 mr-1" />
-                                {items.length} item{items.length !== 1 ? 's' : ''}
-                              </Button>
-                            </td>
-                            <td className="p-3 font-semibold">
-                              ₹{(cart.cart_value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                            <td className="p-3">
-                              {cart.status === 'recovered' ? (
-                                <Badge variant="default">✅ Recovered</Badge>
-                              ) : cart.status === 'lost' ? (
-                                <Badge variant="secondary">❌ Lost</Badge>
-                              ) : cart.status === 'contacted' ? (
-                                <Badge variant="outline">📧 Contacted</Badge>
-                              ) : (() => {
-                                const ageStatus = getCartAgeStatus(cart.created_at);
-                                if (ageStatus === 'active') return <Badge variant="destructive">🔴 Active</Badge>;
-                                if (ageStatus === 'at_risk') return <Badge className="bg-amber-500 text-white hover:bg-amber-600">🟠 At Risk</Badge>;
-                                return <Badge variant="secondary">⚪ Cold</Badge>;
-                              })()}
-                            </td>
-                            <td className="p-3 text-xs text-center">
-                              {cart.recovery_emails_sent || 0}
-                            </td>
-                            <td className="p-3 text-muted-foreground text-xs">
-                              <Clock className="h-3 w-3 inline mr-1" />
-                              {timeAgo}
-                            </td>
-                            <td className="p-3">
-                              <div className="flex gap-1">
-                                {canRecover && cart.customer_email && (
-                                  <Button
-                                    variant="default"
-                                    size="sm"
-                                    className="text-xs h-7"
-                                    disabled={isRecovering}
-                                    onClick={async () => {
-                                      setRecoveringCartId(cart.id);
-                                      try {
-                                        await recoverCart(cart.id, 'send_email', user?.email || 'Admin');
-                                      } finally {
-                                        setRecoveringCartId(null);
-                                      }
-                                    }}
-                                  >
-                                    {isRecovering ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3 mr-1" />}
-                                    Recover
-                                  </Button>
-                                )}
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-xs h-7"
-                                  onClick={() => setSelectedCartForAction(cart)}
-                                >
-                                  Details
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {wooAbandonedBucketRows.map((order) => (
+                    <WooOrderCard key={order.id} order={order} />
+                  ))}
                 </div>
-
-                {/* Cart Details & Recovery Modal */}
-                <Dialog open={selectedCartForAction !== null} onOpenChange={(open) => !open && setSelectedCartForAction(null)}>
-                  <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                      <DialogTitle>Cart Details & Recovery</DialogTitle>
-                      <DialogDescription>
-                        {selectedCartForAction?.customer_email || 'Guest'} — ₹{(selectedCartForAction?.cart_value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </DialogDescription>
-                    </DialogHeader>
-
-                    {/* Cart Items */}
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      <p className="text-sm font-medium">Products:</p>
-                      {(() => {
-                        const items = Array.isArray(selectedCartForAction?.cart_items) ? selectedCartForAction.cart_items as Record<string, unknown>[] : [];
-                        return items.length === 0 ? (
-                          <p className="text-sm text-muted-foreground text-center py-2">No product details</p>
-                        ) : items.map((item, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-2 rounded border border-border bg-muted/30">
-                            <div>
-                              <p className="text-sm font-medium">{String(item.product_id || item.name || 'N/A')}</p>
-                              <p className="text-xs text-muted-foreground">Qty: {String(item.quantity || 1)}</p>
-                            </div>
-                            <p className="text-sm font-semibold">₹{Number(item.line_total || item.price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
-                          </div>
-                        ));
-                      })()}
-                    </div>
-
-                    {/* Status Info */}
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-muted-foreground">Status:</span>
-                      <Badge variant="outline">{selectedCartForAction?.status}</Badge>
-                      {(selectedCartForAction?.recovery_emails_sent || 0) > 0 && (
-                        <span className="text-muted-foreground text-xs">
-                          ({selectedCartForAction?.recovery_emails_sent} email{(selectedCartForAction?.recovery_emails_sent || 0) > 1 ? 's' : ''} sent)
-                        </span>
-                      )}
-                    </div>
-                    {selectedCartForAction?.recovery_notes && (
-                      <p className="text-xs text-muted-foreground">Notes: {selectedCartForAction.recovery_notes}</p>
-                    )}
-
-                    {/* Recovery Actions */}
-                    {(selectedCartForAction?.status === 'active' || selectedCartForAction?.status === 'contacted') && (
-                      <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-                        {selectedCartForAction?.customer_email && (
-                          <Button
-                            size="sm"
-                            disabled={recoveringCartId === selectedCartForAction?.id}
-                            onClick={async () => {
-                              if (!selectedCartForAction) return;
-                              setRecoveringCartId(selectedCartForAction.id);
-                              try {
-                                await recoverCart(selectedCartForAction.id, 'send_email', user?.email || 'Admin');
-                              } finally {
-                                setRecoveringCartId(null);
-                              }
-                            }}
-                          >
-                            {recoveringCartId === selectedCartForAction?.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Mail className="h-3 w-3 mr-1" />}
-                            Send Email Reminder
-                          </Button>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-primary border-primary"
-                          onClick={async () => {
-                            if (!selectedCartForAction) return;
-                            await recoverCart(selectedCartForAction.id, 'mark_recovered', user?.email || 'Admin');
-                            setSelectedCartForAction(null);
-                          }}
-                        >
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Mark Recovered
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-destructive border-destructive"
-                          onClick={async () => {
-                            if (!selectedCartForAction) return;
-                            await recoverCart(selectedCartForAction.id, 'mark_lost', user?.email || 'Admin');
-                            setSelectedCartForAction(null);
-                          }}
-                        >
-                          <XCircle className="h-3 w-3 mr-1" />
-                          Mark as Lost
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* WhatsApp placeholder */}
-                    <p className="text-xs text-muted-foreground italic pt-1">💬 WhatsApp recovery coming soon</p>
-                  </DialogContent>
-                </Dialog>
-                </>
               )}
             </div>
           </TabsContent>
