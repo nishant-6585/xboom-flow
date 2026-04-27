@@ -24,12 +24,11 @@ import { SupportCallsDashboard } from '@/components/orders/SupportCallsDashboard
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
 import { useWooCommerceOrders } from '@/hooks/useWooCommerceOrders';
-import { useAbandonedCarts, getCartAgeStatus, type CartTimeFilter } from '@/hooks/useAbandonedCarts';
 import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidget';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe, ShoppingCart, RefreshCw, Mail, XCircle, Send, Phone } from 'lucide-react';
+import { Loader2, Package, Plus, BarChart3, LayoutGrid, Table, RotateCcw, Target, ArrowLeft, Search, Filter, X, ChevronDown, TrendingUp, Clock, CheckCircle2, ShoppingBag, Globe, ShoppingCart, RefreshCw, Phone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { startOfDay, endOfDay, isWithinInterval, startOfMonth } from 'date-fns';
@@ -42,7 +41,9 @@ export default function Orders() {
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
   const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, syncing: wooSyncing, syncProgress: wooSyncProgress, stats: wooStats, syncFromAPI: syncWooOrders } = useWooCommerceOrders();
-  const { carts: abandonedCarts, loading: cartsLoading, stats: cartStats, recoverCart, timeFilter, setTimeFilter } = useAbandonedCarts();
+  // Both Website Orders and Abandoned tabs read from the SAME hook; classification is by `bucket`.
+  const wooOrderBucketRows = wooOrders.filter(o => o.bucket === 'orders');
+  const wooAbandonedBucketRows = wooOrders.filter(o => o.bucket === 'abandoned');
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
@@ -64,10 +65,6 @@ export default function Orders() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [syncingCarts, setSyncingCarts] = useState(false);
-  const [selectedCartItems, setSelectedCartItems] = useState<Record<string, unknown>[] | null>(null);
-  const [selectedCartForAction, setSelectedCartForAction] = useState<typeof abandonedCarts[0] | null>(null);
-  const [recoveringCartId, setRecoveringCartId] = useState<string | null>(null);
   const [supportCallLogs, setSupportCallLogs] = useState<any[]>([]);
 
   // Shopify tab filters
@@ -118,26 +115,6 @@ export default function Orders() {
   const isAdmin = role === 'admin';
   const canViewRefunds = role === 'supply_chain' || role === 'admin';
   const canViewProcurementWidget = role === 'admin' || role === 'supply_chain' || role === 'finance';
-
-  const handleSyncAbandonedCarts = async () => {
-    setSyncingCarts(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('sync-abandoned-carts');
-      if (error) throw error;
-      toast({
-        title: 'Sync Complete',
-        description: `Fetched ${data?.total_fetched ?? 0} carts — ${data?.inserted ?? 0} new, ${data?.duplicates ?? 0} duplicates`,
-      });
-    } catch (err: any) {
-      toast({
-        title: 'Sync Failed',
-        description: err?.message || 'Could not sync abandoned carts',
-        variant: 'destructive',
-      });
-    } finally {
-      setSyncingCarts(false);
-    }
-  };
 
   const refundCount = orders.filter(o => o.is_refund_requested).length;
 
