@@ -1491,7 +1491,18 @@ export default function Orders() {
             ) : (
               <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {paginatedWooOrders.map((order) => (
-                  <WooOrderCard key={order.id} order={order} />
+                  <WooOrderCard
+                    key={order.id}
+                    order={order}
+                    onClick={(o) => {
+                      setSelectedWooOrder(o);
+                      setWooDetailOpen(true);
+                    }}
+                    onUpdated={() => {
+                      refetchWooOrders();
+                      refetchWooSync();
+                    }}
+                  />
                 ))}
               </div>
             )}
