@@ -81,6 +81,13 @@ export default function Orders() {
   const [wooViewMode, setWooViewMode] = useState<'cards' | 'table'>('cards');
   const [wooPage, setWooPage] = useState(1);
   const WOO_PAGE_SIZE = 50;
+  const [wooSyncing, setWooSyncing] = useState(false);
+  // Tick every 60s so the "last synced" relative label stays fresh
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setNowTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Manual orders pagination
   const [manualPage, setManualPage] = useState(1);
@@ -222,7 +229,18 @@ export default function Orders() {
       (o.product_name?.toLowerCase().includes(searchLower) ?? false) ||
       (o.customer_name?.toLowerCase().includes(searchLower) ?? false) ||
       (o.customer_email?.toLowerCase().includes(searchLower) ?? false);
-    const matchesStatus = wooStatusFilter === 'all' || o.order_status === wooStatusFilter;
+    // Status filter supports both raw statuses and grouped buckets (success/failed/pending)
+    const status = (o.order_status || '').toLowerCase();
+    const matchesStatus =
+      wooStatusFilter === 'all'
+        ? true
+        : wooStatusFilter === 'success'
+          ? ['completed', 'delivered'].includes(status)
+          : wooStatusFilter === 'failed'
+            ? ['failed', 'cancelled'].includes(status)
+            : wooStatusFilter === 'pending'
+              ? ['pending', 'on-hold'].includes(status)
+              : status === wooStatusFilter;
     const matchesPayment = wooPaymentStatusFilter === 'all' || o.payment_status === wooPaymentStatusFilter;
     return matchesSearch && matchesStatus && matchesPayment;
   });
@@ -291,6 +309,53 @@ export default function Orders() {
 
   const hasActiveShopifyFilters = shopifyStatusFilter !== 'all' || shopifyPaymentStatusFilter !== 'all' ||
     !!shopifyStartDate || !!shopifyEndDate || !!shopifySearchQuery;
+
+  const hasActiveWooFilters =
+    wooStatusFilter !== 'all' || wooPaymentStatusFilter !== 'all' || !!wooSearchQuery;
+
+  const formatINR = (n: number) => {
+    if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(2)} Cr`;
+    if (n >= 100_000) return `₹${(n / 100_000).toFixed(2)} L`;
+    if (n >= 1_000) return `₹${(n / 1_000).toFixed(1)}K`;
+    return `₹${Math.round(n).toLocaleString('en-IN')}`;
+  };
+
+  const timeAgo = (iso: string | null) => {
+    if (!iso) return 'never';
+    const diff = Date.now() - new Date(iso).getTime();
+    if (diff < 0) return 'just now';
+    const sec = Math.floor(diff / 1000);
+    if (sec < 60) return `${sec}s ago`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `${min} min ago`;
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return `${hr} hr ago`;
+    const day = Math.floor(hr / 24);
+    return `${day}d ago`;
+  };
+
+  const handleWooManualSync = async () => {
+    if (wooSyncing) return;
+    setWooSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-website-orders', {
+        body: { incremental: true },
+      });
+      if (error) throw error;
+      toast({
+        title: 'Sync triggered',
+        description: data?.message || 'Pulling latest orders from WooCommerce…',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Sync failed',
+        description: err?.message || 'Could not start sync',
+        variant: 'destructive',
+      });
+    } finally {
+      setWooSyncing(false);
+    }
+  };
 
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-background via-background to-muted/10 flex flex-col">
@@ -1062,30 +1127,106 @@ export default function Orders() {
                   <p className="text-xs text-muted-foreground">{wooTotalCount.toLocaleString()} orders from xboom.in website</p>
                 </div>
               </div>
-              <span className="text-[11px] text-muted-foreground italic">
-                Webhook-driven · auto-syncs from xboom.in
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] text-muted-foreground hidden sm:inline">
+                  Last synced: <span className="font-medium text-foreground">{timeAgo(wooStats.lastSyncedAt)}</span>
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleWooManualSync}
+                  disabled={wooSyncing || wooLoading}
+                  className="h-9 gap-2 rounded-lg"
+                >
+                  <RefreshCw className={`h-4 w-4 ${wooSyncing ? 'animate-spin' : ''}`} />
+                  {wooSyncing ? 'Syncing…' : 'Sync Now'}
+                </Button>
+              </div>
             </div>
 
-            {/* Summary Stats — one tile per WooCommerce status (dynamic, mirrors DB exactly) */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              <Card><CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground">Total Orders</p>
-                <p className="text-2xl font-bold text-primary">{wooTotalCount.toLocaleString()}</p>
-              </CardContent></Card>
-              <Card><CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground">Today's Orders</p>
-                <p className="text-2xl font-bold text-primary">{wooStats.todayOrders.toLocaleString()}</p>
-              </CardContent></Card>
-              {Object.entries(wooStats.statusCounts)
-                .sort((a, b) => b[1] - a[1])
-                .map(([status, count]) => (
-                  <Card key={status}><CardContent className="p-4 text-center">
-                    <p className="text-xs text-muted-foreground capitalize">{status.replace(/-/g, ' ')}</p>
-                    <p className="text-2xl font-bold text-foreground">{count.toLocaleString()}</p>
-                  </CardContent></Card>
-                ))}
+            {/* Primary metrics — business-friendly, simplified */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              <Card className="border-primary/20 bg-primary/5">
+                <CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Total Orders</p>
+                  <p className="text-2xl font-bold text-primary">{wooTotalCount.toLocaleString()}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Processing</p>
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{wooStats.grouped.processing.toLocaleString()}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Completed</p>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">{wooStats.grouped.success.toLocaleString()}</p>
+                  <p className="text-[10px] text-muted-foreground/80 mt-0.5">incl. delivered</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Cancelled + Failed</p>
+                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">{wooStats.grouped.failed.toLocaleString()}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Today's Orders</p>
+                  <p className="text-2xl font-bold text-foreground">{wooStats.todayOrders.toLocaleString()}</p>
+                </CardContent>
+              </Card>
             </div>
+
+            {/* Revenue metrics */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">Total Revenue</p>
+                  <p className="text-xl font-bold text-primary mt-1">{formatINR(wooStats.revenue.total)}</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">Completed Revenue</p>
+                  <p className="text-xl font-bold text-green-600 dark:text-green-400 mt-1">{formatINR(wooStats.revenue.completed)}</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/20">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">Lost Revenue</p>
+                  <p className="text-xl font-bold text-red-600 dark:text-red-400 mt-1">{formatINR(wooStats.revenue.lost)}</p>
+                  <p className="text-[10px] text-muted-foreground/80 mt-0.5">cancelled + failed</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Secondary statuses — collapsible so it doesn't overwhelm */}
+            {Object.keys(wooStats.statusCounts).length > 0 && (
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1.5 h-8">
+                    <ChevronDown className="h-3.5 w-3.5" />
+                    Show all statuses ({Object.keys(wooStats.statusCounts).length})
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mt-2">
+                    {Object.entries(wooStats.statusCounts)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([status, count]) => (
+                        <Card key={status} className="bg-muted/20">
+                          <CardContent className="p-3 text-center">
+                            <p className="text-[11px] text-muted-foreground capitalize truncate">{status.replace(/-/g, ' ')}</p>
+                            <p className="text-base font-semibold text-foreground">{count.toLocaleString()}</p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
 
             {/* Filters */}
             <Card className="border border-border/60 shadow-sm bg-gradient-to-br from-card to-muted/10 backdrop-blur-sm">
@@ -1141,7 +1282,7 @@ export default function Orders() {
                     </Button>
                   </div>
                 </div>
-                {/* Status filter chips — dynamically derived from DB so custom WooCommerce statuses appear */}
+                {/* Status filter chips — grouped buckets first, individual statuses below */}
                 <div className="flex flex-wrap gap-2 mt-4">
                   <Button
                     variant={wooStatusFilter === 'all' ? 'default' : 'outline'}
@@ -1151,19 +1292,38 @@ export default function Orders() {
                   >
                     All ({wooTotalCount.toLocaleString()})
                   </Button>
-                  {Object.entries(wooStats.statusCounts)
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([status, count]) => (
-                      <Button
-                        key={status}
-                        variant={wooStatusFilter === status ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setWooStatusFilter(status)}
-                        className="h-8 rounded-full text-xs px-3 capitalize"
-                      >
-                        {status.replace(/-/g, ' ')} ({count.toLocaleString()})
-                      </Button>
-                    ))}
+                  <Button
+                    variant={wooStatusFilter === 'success' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setWooStatusFilter('success')}
+                    className="h-8 rounded-full text-xs px-3"
+                  >
+                    ✅ Success ({wooStats.grouped.success.toLocaleString()})
+                  </Button>
+                  <Button
+                    variant={wooStatusFilter === 'pending' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setWooStatusFilter('pending')}
+                    className="h-8 rounded-full text-xs px-3"
+                  >
+                    ⏳ Pending ({wooStats.grouped.pending.toLocaleString()})
+                  </Button>
+                  <Button
+                    variant={wooStatusFilter === 'processing' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setWooStatusFilter('processing')}
+                    className="h-8 rounded-full text-xs px-3"
+                  >
+                    🔄 Processing ({wooStats.grouped.processing.toLocaleString()})
+                  </Button>
+                  <Button
+                    variant={wooStatusFilter === 'failed' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setWooStatusFilter('failed')}
+                    className="h-8 rounded-full text-xs px-3"
+                  >
+                    ❌ Failed ({wooStats.grouped.failed.toLocaleString()})
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -1185,27 +1345,46 @@ export default function Orders() {
               <Card className="border-dashed border-2 bg-gradient-to-br from-muted/30 to-muted/10">
                 <CardContent className="flex flex-col items-center justify-center py-20">
                   <Globe className="h-16 w-16 text-muted-foreground/30 mb-6" />
-                  <p className="text-lg font-semibold text-muted-foreground mb-2">
-                    {wooOrders.length > 0 ? 'No orders match selected status' : 'No orders synced yet from WooCommerce'}
-                  </p>
-                  <p className="text-sm text-muted-foreground/60">
-                    {wooOrders.length > 0
-                      ? 'Try adjusting search or status filters above'
-                      : 'Orders placed on xboom.in will appear here automatically'}
-                  </p>
-                  {wooOrders.length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-4"
-                      onClick={() => {
-                        setWooSearchQuery('');
-                        setWooStatusFilter('all');
-                        setWooPaymentStatusFilter('all');
-                      }}
-                    >
-                      Clear filters
-                    </Button>
+                  {wooOrders.length === 0 ? (
+                    <>
+                      <p className="text-lg font-semibold text-muted-foreground mb-2">
+                        No orders synced yet
+                      </p>
+                      <p className="text-sm text-muted-foreground/70 max-w-md text-center">
+                        Orders placed on xboom.in will appear here automatically. You can also pull the latest data manually.
+                      </p>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="mt-5 gap-2"
+                        onClick={handleWooManualSync}
+                        disabled={wooSyncing}
+                      >
+                        <RefreshCw className={`h-4 w-4 ${wooSyncing ? 'animate-spin' : ''}`} />
+                        {wooSyncing ? 'Syncing…' : 'Sync Now'}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-lg font-semibold text-muted-foreground mb-2">
+                        No orders match your filters
+                      </p>
+                      <p className="text-sm text-muted-foreground/70 max-w-md text-center">
+                        {wooOrders.length.toLocaleString()} orders exist, but the current search or status filters are hiding them. Try clearing filters to see all data.
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-5"
+                        onClick={() => {
+                          setWooSearchQuery('');
+                          setWooStatusFilter('all');
+                          setWooPaymentStatusFilter('all');
+                        }}
+                      >
+                        Clear filters
+                      </Button>
+                    </>
                   )}
                 </CardContent>
               </Card>

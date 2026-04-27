@@ -113,10 +113,58 @@ export function useWooCommerceOrders() {
     statusCounts[s] = (statusCounts[s] || 0) + 1;
   }
 
+  // Grouped status buckets for a clearer business-friendly UI
+  // Success = completed + delivered
+  // Failed  = failed + cancelled
+  // Pending = pending + on-hold
+  const SUCCESS_STATUSES = ['completed', 'delivered'];
+  const FAILED_STATUSES = ['failed', 'cancelled'];
+  const PENDING_STATUSES = ['pending', 'on-hold'];
+  const PROCESSING_STATUSES = ['processing'];
+
+  const sumStatuses = (keys: string[]) =>
+    keys.reduce((acc, k) => acc + (statusCounts[k] || 0), 0);
+
+  const sumRevenue = (keys: string[]) =>
+    orders.reduce((acc, o) => {
+      const s = (o.order_status || '').toLowerCase();
+      if (!keys.includes(s)) return acc;
+      return acc + (Number(o.total_sales_amount) || 0);
+    }, 0);
+
+  const totalRevenue = orders.reduce(
+    (acc, o) => acc + (Number(o.total_sales_amount) || 0),
+    0,
+  );
+  const completedRevenue = sumRevenue(SUCCESS_STATUSES);
+  const lostRevenue = sumRevenue(FAILED_STATUSES);
+
+  // Latest sync timestamp (most recent woo_updated_at / created_at in DB)
+  let lastSyncedAt: string | null = null;
+  for (const o of orders) {
+    const t = o.woo_updated_at || o.updated_at || o.created_at;
+    if (!t) continue;
+    if (!lastSyncedAt || new Date(t) > new Date(lastSyncedAt)) {
+      lastSyncedAt = t;
+    }
+  }
+
   const todayStr = new Date().toDateString();
   const stats = {
     totalOrders: orders.length,
     statusCounts,
+    grouped: {
+      success: sumStatuses(SUCCESS_STATUSES),
+      failed: sumStatuses(FAILED_STATUSES),
+      pending: sumStatuses(PENDING_STATUSES),
+      processing: sumStatuses(PROCESSING_STATUSES),
+    },
+    revenue: {
+      total: totalRevenue,
+      completed: completedRevenue,
+      lost: lostRevenue,
+    },
+    lastSyncedAt,
     completedOrders: statusCounts['completed'] || 0,
     processingOrders: statusCounts['processing'] || 0,
     pendingOrders: statusCounts['pending'] || 0,
