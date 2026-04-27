@@ -353,9 +353,9 @@ export default function Orders() {
                 <TabsTrigger value="abandoned" className="gap-2">
                   <ShoppingCart className="h-4 w-4" />
                   <span className="hidden sm:inline font-medium">Abandoned Carts</span>
-                  {cartStats.active > 0 && (
+                  {wooStats.totalAbandoned > 0 && (
                     <Badge variant="destructive" className="ml-1 h-5 px-2 text-xs font-semibold">
-                      {cartStats.active}
+                      {wooStats.totalAbandoned}
                     </Badge>
                   )}
                 </TabsTrigger>
