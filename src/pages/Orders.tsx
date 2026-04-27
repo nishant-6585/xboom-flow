@@ -40,11 +40,6 @@ export default function Orders() {
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
   const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, stats: wooStats } = useWooCommerceOrders();
-  // Both Website Orders and Abandoned tabs read from the SAME hook; classification is by `bucket`.
-  // Normalize bucket value (trim + lowercase) so any stray formatting from the DB doesn't drop rows from the UI.
-  const normalizeBucket = (b: unknown) => String(b ?? '').trim().toLowerCase();
-  const wooOrderBucketRows = wooOrders.filter(o => normalizeBucket(o.bucket) === 'orders');
-  const wooAbandonedBucketRows = wooOrders.filter(o => normalizeBucket(o.bucket) === 'abandoned');
   const { enquiries } = useEnquiries();
   const { suppliers } = useSuppliers();
   
