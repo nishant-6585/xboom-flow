@@ -20,6 +20,7 @@ import { WooOrderCard } from '@/components/orders/WooOrderCard';
 import { WooSyncHealthCard } from '@/components/orders/WooSyncHealthCard';
 import { WooOrderDetailDialog } from '@/components/orders/WooOrderDetailDialog';
 import { useWooSyncHealth } from '@/hooks/useWooSyncHealth';
+import { useNotificationOrderSets } from '@/hooks/useNotificationOrderSets';
 import { UnlinkedOrdersWidget } from '@/components/procurement/UnlinkedOrdersWidget';
 import { CallLogsPanel } from '@/components/admin/CallLogsPanel';
 import { SupportCallsDashboard } from '@/components/orders/SupportCallsDashboard';
@@ -44,6 +45,15 @@ export default function Orders() {
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
   const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, stats: wooStats, refetch: refetchWooOrders } = useWooCommerceOrders();
   const { gap: wooGap, wooTotal: wooApiTotal, dbTotal: wooDbTotal, refetch: refetchWooSync } = useWooSyncHealth();
+  const {
+    failedOrderIds: wooFailedNotifIds,
+    pendingOrderIds: wooPendingNotifIds,
+    failedCount: wooFailedNotifCount,
+    pendingCount: wooPendingNotifCount,
+    refetch: refetchWooNotifs,
+  } = useNotificationOrderSets();
+  const [wooBulkRetrying, setWooBulkRetrying] = useState(false);
+  const [wooNotifFilter, setWooNotifFilter] = useState<'all' | 'failed' | 'pending'>('all');
   const [selectedWooOrder, setSelectedWooOrder] = useState<typeof wooOrders[number] | null>(null);
   const [wooDetailOpen, setWooDetailOpen] = useState(false);
   const { enquiries } = useEnquiries();
@@ -106,7 +116,7 @@ export default function Orders() {
   useEffect(() => { setManualPage(1); }, [searchQuery, statusFilter, paymentStatusFilter, orderTypeFilter, outcomeFilter, salesPersonFilter, paymentTermsFilter, startDate, endDate]);
 
   // Reset woo page when filters change
-  useEffect(() => { setWooPage(1); }, [wooSearchQuery, wooStatusFilter, wooPaymentStatusFilter]);
+  useEffect(() => { setWooPage(1); }, [wooSearchQuery, wooStatusFilter, wooPaymentStatusFilter, wooNotifFilter]);
 
   useEffect(() => {
     if (tabFromUrl === 'pipeline') {
