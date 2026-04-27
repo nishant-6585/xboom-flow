@@ -6861,6 +6861,57 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_circuit_state: {
+        Row: {
+          id: boolean
+          is_open: boolean
+          last_reason: string | null
+          opened_at: string | null
+          reopen_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: boolean
+          is_open?: boolean
+          last_reason?: string | null
+          opened_at?: string | null
+          reopen_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: boolean
+          is_open?: boolean
+          last_reason?: string | null
+          opened_at?: string | null
+          reopen_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      notification_rate_limits: {
+        Row: {
+          count: number
+          max_per_minute: number
+          provider: string
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          max_per_minute?: number
+          provider: string
+          updated_at?: string
+          window_start?: string
+        }
+        Update: {
+          count?: number
+          max_per_minute?: number
+          provider?: string
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       notification_templates: {
         Row: {
           created_at: string
@@ -7065,18 +7116,22 @@ export type Database = {
         Row: {
           channel: string
           created_at: string
+          dlq_moved: boolean
           error_message: string | null
           id: string
           last_attempt_at: string | null
+          latency_ms: number | null
           locked_at: string | null
           locked_by: string | null
           next_attempt_at: string
           order_number: string | null
           payload: Json
           phone: string | null
+          priority: number
           provider: string | null
           provider_message_id: string | null
           provider_response: Json | null
+          provider_status_code: number | null
           retry_count: number
           sent_at: string | null
           status: Database["public"]["Enums"]["order_notification_status"]
@@ -7090,18 +7145,22 @@ export type Database = {
         Insert: {
           channel?: string
           created_at?: string
+          dlq_moved?: boolean
           error_message?: string | null
           id?: string
           last_attempt_at?: string | null
+          latency_ms?: number | null
           locked_at?: string | null
           locked_by?: string | null
           next_attempt_at?: string
           order_number?: string | null
           payload?: Json
           phone?: string | null
+          priority?: number
           provider?: string | null
           provider_message_id?: string | null
           provider_response?: Json | null
+          provider_status_code?: number | null
           retry_count?: number
           sent_at?: string | null
           status?: Database["public"]["Enums"]["order_notification_status"]
@@ -7115,18 +7174,22 @@ export type Database = {
         Update: {
           channel?: string
           created_at?: string
+          dlq_moved?: boolean
           error_message?: string | null
           id?: string
           last_attempt_at?: string | null
+          latency_ms?: number | null
           locked_at?: string | null
           locked_by?: string | null
           next_attempt_at?: string
           order_number?: string | null
           payload?: Json
           phone?: string | null
+          priority?: number
           provider?: string | null
           provider_message_id?: string | null
           provider_response?: Json | null
+          provider_status_code?: number | null
           retry_count?: number
           sent_at?: string | null
           status?: Database["public"]["Enums"]["order_notification_status"]
@@ -7153,6 +7216,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      order_notifications_dlq: {
+        Row: {
+          channel: string
+          created_at: string
+          error_message: string | null
+          id: string
+          moved_at: string
+          order_number: string | null
+          original_id: string | null
+          payload: Json
+          phone: string | null
+          provider: string | null
+          provider_message_id: string | null
+          provider_response: Json | null
+          retried_by: string | null
+          retried_from_dlq_at: string | null
+          retry_count: number
+          status_trigger: string
+          template_name: string | null
+          woo_order_id: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          moved_at?: string
+          order_number?: string | null
+          original_id?: string | null
+          payload?: Json
+          phone?: string | null
+          provider?: string | null
+          provider_message_id?: string | null
+          provider_response?: Json | null
+          retried_by?: string | null
+          retried_from_dlq_at?: string | null
+          retry_count?: number
+          status_trigger: string
+          template_name?: string | null
+          woo_order_id: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          moved_at?: string
+          order_number?: string | null
+          original_id?: string | null
+          payload?: Json
+          phone?: string | null
+          provider?: string | null
+          provider_message_id?: string | null
+          provider_response?: Json | null
+          retried_by?: string | null
+          retried_from_dlq_at?: string | null
+          retry_count?: number
+          status_trigger?: string
+          template_name?: string | null
+          woo_order_id?: string
+        }
+        Relationships: []
       }
       order_procurement_links: {
         Row: {
@@ -11824,6 +11950,16 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_metrics_today: {
+        Row: {
+          avg_latency_ms: number | null
+          failed_messages_today: number | null
+          messages_sent_today: number | null
+          pending_backlog: number | null
+          retry_rate_pct: number | null
+        }
+        Relationships: []
+      }
       pricelist_public: {
         Row: {
           availability: string | null
@@ -11966,6 +12102,10 @@ export type Database = {
         }
         Returns: Json
       }
+      bump_notification_rate: {
+        Args: { _delta?: number; _provider: string }
+        Returns: undefined
+      }
       can_create_admin: { Args: never; Returns: boolean }
       can_register_as_admin: { Args: { p_email: string }; Returns: boolean }
       can_view_hr_document: {
@@ -12075,18 +12215,22 @@ export type Database = {
         Returns: {
           channel: string
           created_at: string
+          dlq_moved: boolean
           error_message: string | null
           id: string
           last_attempt_at: string | null
+          latency_ms: number | null
           locked_at: string | null
           locked_by: string | null
           next_attempt_at: string
           order_number: string | null
           payload: Json
           phone: string | null
+          priority: number
           provider: string | null
           provider_message_id: string | null
           provider_response: Json | null
+          provider_status_code: number | null
           retry_count: number
           sent_at: string | null
           status: Database["public"]["Enums"]["order_notification_status"]
@@ -12106,6 +12250,16 @@ export type Database = {
       }
       cleanup_expired_devices: { Args: never; Returns: undefined }
       cleanup_rate_limit_buckets: { Args: never; Returns: undefined }
+      compute_notification_health: {
+        Args: never
+        Returns: {
+          attempts_5m: number
+          failed_5m: number
+          failure_rate: number
+          is_degraded: boolean
+          pending_backlog: number
+        }[]
+      }
       count_admins: { Args: never; Returns: number }
       create_security_alert: {
         Args: {
@@ -12290,6 +12444,10 @@ export type Database = {
         Returns: boolean
       }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }
+      move_notification_to_dlq: {
+        Args: { _notification_id: string }
+        Returns: string
+      }
       needs_step_up_auth: { Args: { p_user_id: string }; Returns: boolean }
       record_login_attempt: {
         Args: {
@@ -12332,9 +12490,17 @@ export type Database = {
             }
             Returns: string
           }
+      retry_notification_from_dlq: {
+        Args: { _dlq_id: string }
+        Returns: string
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       sync_profiles_to_employees: { Args: never; Returns: number }
+      trip_notification_breaker: {
+        Args: { _minutes?: number; _reason: string }
+        Returns: undefined
+      }
       update_mfa_verified_at: {
         Args: { p_user_id: string }
         Returns: undefined
