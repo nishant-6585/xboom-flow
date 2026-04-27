@@ -243,19 +243,19 @@ export function ElevenLabsLeadsPanel() {
   };
 
   const loadPool = async () => {
-    const { data } = await supabase
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("user_id,role")
+      .in("role", ["sales", "sales_manager"]);
+    const userIds = Array.from(new Set((roles ?? []).map((r: any) => r.user_id)));
+    if (!userIds.length) { setSalesPool([]); return; }
+    const { data: profs } = await supabase
       .from("profiles")
-      .select("user_id,name,user_roles!inner(role),is_approved")
-      .eq("is_approved", true)
-      .in("user_roles.role" as any, ["sales", "sales_manager"] as any);
-    if (data) {
-      const seen = new Set<string>();
-      const pool: SalesUser[] = [];
-      (data as any[]).forEach(p => {
-        if (!seen.has(p.user_id)) { seen.add(p.user_id); pool.push({ user_id: p.user_id, name: p.name }); }
-      });
-      setSalesPool(pool.sort((a, b) => a.name.localeCompare(b.name)));
-    }
+      .select("user_id,name,is_approved")
+      .in("user_id", userIds)
+      .eq("is_approved", true);
+    const pool: SalesUser[] = (profs ?? []).map((p: any) => ({ user_id: p.user_id, name: p.name }));
+    setSalesPool(pool.sort((a, b) => a.name.localeCompare(b.name)));
   };
 
   useEffect(() => { load(); }, [assigneeFilter, user?.id]);
