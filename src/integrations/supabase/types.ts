@@ -7022,6 +7022,77 @@ export type Database = {
           },
         ]
       }
+      order_notifications: {
+        Row: {
+          channel: string
+          created_at: string
+          error_message: string | null
+          id: string
+          last_attempt_at: string | null
+          next_attempt_at: string
+          order_number: string | null
+          payload: Json
+          phone: string | null
+          provider_response: Json | null
+          retry_count: number
+          sent_at: string | null
+          status: Database["public"]["Enums"]["order_notification_status"]
+          status_log_id: string | null
+          status_trigger: string
+          template_name: string
+          updated_at: string
+          woo_order_id: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          next_attempt_at?: string
+          order_number?: string | null
+          payload?: Json
+          phone?: string | null
+          provider_response?: Json | null
+          retry_count?: number
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["order_notification_status"]
+          status_log_id?: string | null
+          status_trigger: string
+          template_name: string
+          updated_at?: string
+          woo_order_id: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          next_attempt_at?: string
+          order_number?: string | null
+          payload?: Json
+          phone?: string | null
+          provider_response?: Json | null
+          retry_count?: number
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["order_notification_status"]
+          status_log_id?: string | null
+          status_trigger?: string
+          template_name?: string
+          updated_at?: string
+          woo_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_notifications_status_log_id_fkey"
+            columns: ["status_log_id"]
+            isOneToOne: false
+            referencedRelation: "woocommerce_order_status_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_procurement_links: {
         Row: {
           created_at: string
@@ -12265,6 +12336,7 @@ export type Database = {
         | "it"
         | "marketing"
         | "hr"
+      order_notification_status: "pending" | "sent" | "failed"
       order_status:
         | "po_received"
         | "payment_received"
@@ -12570,6 +12642,7 @@ export const Constants = {
         "marketing",
         "hr",
       ],
+      order_notification_status: ["pending", "sent", "failed"],
       order_status: [
         "po_received",
         "payment_received",
