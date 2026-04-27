@@ -1,61 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
+import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
+import {
+  Bot, Phone, Search, Sparkles, Clock, Target, Wallet, RefreshCw,
+  MessageCircle, Flame, Mail, ChevronDown, ChevronRight, UserX,
+  Lightbulb, CheckCircle2, HelpCircle, XCircle,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
+  Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CallButton } from "@/components/calls/CallButton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import {
-  Bot,
-  Phone,
-  Search,
-  Sparkles,
-  Clock,
-  Target,
-  Wallet,
-  RefreshCw,
-  MessageCircle,
-  UserPlus,
-  CheckCircle2,
-  Flame,
-  HelpCircle,
-  XCircle,
-  PhoneCall,
-  
-  
-  
-  
-  
-  Lightbulb,
-  UserX,
-} from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { EnquiryConvertButton } from "./EnquiryConvertButton";
+import { ProspectButton } from "./ProspectButton";
+import { AttentionButton } from "./AttentionButton";
 
 type ElevenLead = {
   id: string;
@@ -70,6 +41,11 @@ type ElevenLead = {
   raw_transcript: string | null;
   notes: string | null;
   created_at: string;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  last_contacted_at: string | null;
+  lead_temperature: string;
+  is_enquiry_converted: boolean;
 };
 
 type AIAnalysis = {
@@ -82,7 +58,23 @@ type AIAnalysis = {
 
 type ChatTurn = { role: "agent" | "user"; text: string };
 
-// ---------- Helpers ----------
+interface SalesUser { user_id: string; name: string }
+
+const STATUSES = ["New", "Contacted", "Qualified", "Closed"] as const;
+type Status = typeof STATUSES[number];
+
+const STATUS_COLORS: Record<string, string> = {
+  New:       "bg-blue-500/15 text-blue-700 dark:text-blue-300",
+  Contacted: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  Qualified: "bg-purple-500/15 text-purple-700 dark:text-purple-300",
+  Closed:    "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+};
+
+const TEMP_COLORS: Record<string, string> = {
+  hot:  "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30",
+  warm: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+  cold: "bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30",
+};
 
 const formatPhone = (raw: string | null | undefined) => {
   if (!raw) return "—";
@@ -102,18 +94,13 @@ const formatDuration = (s: number | null) => {
 
 const extractName = (transcript: string | null): string | null => {
   if (!transcript) return null;
-  const match = transcript.match(/my name is ([A-Za-z][A-Za-z\s]{1,30})/i);
-  if (match) return match[1].trim().split(/\s+/).slice(0, 3).join(" ");
+  const m1 = transcript.match(/my name is ([A-Za-z][A-Za-z\s]{1,30})/i);
+  if (m1) return m1[1].trim().split(/\s+/).slice(0, 3).join(" ");
   const m2 = transcript.match(/this is ([A-Za-z][A-Za-z\s]{1,30})/i);
   if (m2) return m2[1].trim().split(/\s+/).slice(0, 3).join(" ");
   return null;
 };
 
-/**
- * Resolve the most useful display name for a lead.
- * Priority: extracted_name (mapping) → customer_name → transcript regex → "Unidentified Caller".
- * Phone is shown separately below the name; we never substitute the phone for the name.
- */
 const resolveName = (lead: ElevenLead): { name: string; isUnidentified: boolean } => {
   const candidate =
     (lead.customer_name && lead.customer_name !== "Unknown" ? lead.customer_name : "") ||
@@ -123,14 +110,14 @@ const resolveName = (lead: ElevenLead): { name: string; isUnidentified: boolean 
   return { name: "Unidentified Caller", isUnidentified: true };
 };
 
-/**
- * Build a "Why this matters" reason from transcript + summary signals.
- * Returns null when there's nothing notable to surface.
- */
-const whyThisMatters = (
-  lead: ElevenLead,
-  summary: string | null,
-): string | null => {
+const isHotLead = (lead: ElevenLead): boolean => {
+  if ((lead.priority ?? "").toLowerCase() === "high") return true;
+  if (lead.lead_temperature === "hot") return true;
+  const hay = `${lead.raw_transcript ?? ""} ${lead.notes ?? ""}`.toLowerCase();
+  return /\b(buy|price|quote|purchase|order|pay|discount|negotiate)\b/.test(hay);
+};
+
+const whyThisMatters = (lead: ElevenLead, summary: string | null): string | null => {
   const text = `${summary ?? ""} ${lead.raw_transcript ?? ""} ${lead.notes ?? ""}`.toLowerCase();
   const reasons: string[] = [];
   if (/\b(price|pricing|cost|quote|quotation)\b/.test(text)) reasons.push("asked for pricing");
@@ -145,32 +132,9 @@ const whyThisMatters = (
   return [first, ...reasons.slice(1, 2)].join(" • ");
 };
 
-
-/** Detect whether the lead shows clear buying signals. */
-const isHotLead = (lead: ElevenLead): boolean => {
-  if ((lead.priority ?? "").toLowerCase() === "high") return true;
-  const hay = `${lead.raw_transcript ?? ""} ${lead.notes ?? ""}`.toLowerCase();
-  return /\b(buy|price|quote|purchase|order|pay|discount|negotiate)\b/.test(hay);
-};
-
-const priorityReason = (transcript: string | null): string | null => {
-  if (!transcript) return null;
-  const lc = transcript.toLowerCase();
-  const hits: string[] = [];
-  ["buy", "price", "quote", "purchase", "urgent", "asap", "today"].forEach((w) => {
-    if (lc.includes(w)) hits.push(`"${w}"`);
-  });
-  return hits.length ? `Mentioned ${hits.slice(0, 3).join(" + ")}` : null;
-};
-
-const callOutcome = (
-  summary: string | null,
-  transcript: string | null,
-): { label: string; icon: typeof CheckCircle2; tone: string } => {
+const callOutcome = (summary: string | null, transcript: string | null) => {
   const text = `${summary ?? ""} ${transcript ?? ""}`.toLowerCase();
-  if (
-    /not interested|wrong number|do not call|stop calling|irrelevant/i.test(text)
-  )
+  if (/not interested|wrong number|do not call|stop calling|irrelevant/i.test(text))
     return { label: "Not Relevant", icon: XCircle, tone: "text-destructive" };
   if (/buy|price|quote|purchase|urgent|interested in buying|ready/i.test(text))
     return { label: "Interested", icon: CheckCircle2, tone: "text-success" };
@@ -179,82 +143,45 @@ const callOutcome = (
   return { label: "Follow-up", icon: HelpCircle, tone: "text-muted-foreground" };
 };
 
-const priorityRank = (p: string | null) => {
-  switch ((p ?? "").toLowerCase()) {
-    case "high":
-      return 0;
-    case "medium":
-      return 1;
-    case "low":
-      return 2;
-    default:
-      return 3;
-  }
-};
-
-const priorityClasses = (p: string | null) => {
-  switch ((p ?? "").toLowerCase()) {
-    case "high":
-      return "bg-destructive/15 text-destructive border-destructive/30";
-    case "medium":
-      return "bg-warning/15 text-warning border-warning/30";
-    case "low":
-      return "bg-muted text-muted-foreground border-border";
-    default:
-      return "bg-muted text-muted-foreground border-border";
-  }
-};
-
 const isNewLead = (createdAt: string) =>
   Date.now() - new Date(createdAt).getTime() < 60 * 60 * 1000;
 
-// Parse transcript into chat turns. Supports JSON dumps from ElevenLabs and plain "Agent:/User:" text.
+const relativeTime = (iso?: string | null) => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isToday(d)) return `Today, ${format(d, "HH:mm")}`;
+  if (isYesterday(d)) return `Yesterday, ${format(d, "HH:mm")}`;
+  return format(d, "dd MMM, HH:mm");
+};
+
 const parseTranscript = (raw: string | null): ChatTurn[] => {
   if (!raw) return [];
   const trimmed = raw.trim();
-
-  // Try JSON first
   if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
     try {
       const parsed = JSON.parse(trimmed);
       const arr = Array.isArray(parsed) ? parsed : parsed?.transcript ?? [];
       if (Array.isArray(arr)) {
-        return arr
-          .map((m: any): ChatTurn | null => {
-            const text =
-              m?.message ??
-              m?.text ??
-              m?.content ??
-              (typeof m === "string" ? m : null);
-            const roleRaw = (m?.role ?? m?.speaker ?? "").toString().toLowerCase();
-            if (!text) return null;
-            const role: ChatTurn["role"] =
-              roleRaw.includes("agent") ||
-              roleRaw.includes("assistant") ||
-              roleRaw.includes("ai")
-                ? "agent"
-                : "user";
-            return { role, text: String(text).trim() };
-          })
-          .filter((x): x is ChatTurn => !!x && !!x.text);
+        return arr.map((m: any): ChatTurn | null => {
+          const text = m?.message ?? m?.text ?? m?.content ?? (typeof m === "string" ? m : null);
+          const roleRaw = (m?.role ?? m?.speaker ?? "").toString().toLowerCase();
+          if (!text) return null;
+          const role: ChatTurn["role"] =
+            roleRaw.includes("agent") || roleRaw.includes("assistant") || roleRaw.includes("ai")
+              ? "agent" : "user";
+          return { role, text: String(text).trim() };
+        }).filter((x): x is ChatTurn => !!x && !!x.text);
       }
-    } catch {
-      // fall through
-    }
+    } catch { /* fall through */ }
   }
-
-  // Plain text "Agent: ... User: ..."
   const lineRe = /^(agent|assistant|ai|user|customer|caller)\s*[:\-]\s*(.+)$/i;
-  const lines = trimmed.split(/\r?\n/);
   const turns: ChatTurn[] = [];
-  for (const line of lines) {
+  for (const line of trimmed.split(/\r?\n/)) {
     const l = line.trim();
     if (!l) continue;
     const m = l.match(lineRe);
     if (m) {
-      const role: ChatTurn["role"] = /user|customer|caller/i.test(m[1])
-        ? "user"
-        : "agent";
+      const role: ChatTurn["role"] = /user|customer|caller/i.test(m[1]) ? "user" : "agent";
       turns.push({ role, text: m[2].trim() });
     } else if (turns.length) {
       turns[turns.length - 1].text += " " + l;
@@ -265,32 +192,43 @@ const parseTranscript = (raw: string | null): ChatTurn[] => {
   return turns;
 };
 
-// ---------- Component ----------
-
 export function ElevenLabsLeadsPanel() {
+  const { user, role } = useAuth();
+  const canManage = role === "admin" || role === "sales_manager";
+
   const [leads, setLeads] = useState<ElevenLead[]>([]);
   const [summaries, setSummaries] = useState<Record<string, string>>({});
+  const [salesPool, setSalesPool] = useState<SalesUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [intentFilter, setIntentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [budgetFilter, setBudgetFilter] = useState("all");
+  const [tempFilter, setTempFilter] = useState("all");
+  const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let q = supabase
       .from("call_logs")
       .select(
-        "id,caller_number,customer_name,call_duration,requirement,budget,priority,lead_score,lead_status,raw_transcript,notes,created_at",
+        "id,caller_number,customer_name,call_duration,requirement,budget,priority,lead_score,lead_status,raw_transcript,notes,created_at,assigned_to,assigned_to_name,last_contacted_at,lead_temperature,is_enquiry_converted",
       )
       .eq("lead_source", "ElevenLabs")
       .order("created_at", { ascending: false })
       .limit(500);
-    if (!error && data) setLeads(data as ElevenLead[]);
+
+    if (assigneeFilter === "unassigned") q = q.is("assigned_to", null);
+    else if (assigneeFilter === "mine" && user) q = q.eq("assigned_to", user.id);
+    else if (assigneeFilter !== "all") q = q.eq("assigned_to", assigneeFilter);
+
+    const { data, error } = await q;
+    if (!error && data) setLeads(data as any as ElevenLead[]);
     const ids = (data ?? []).map((d: any) => d.id);
     if (ids.length) {
       const { data: ana } = await supabase
@@ -298,35 +236,42 @@ export function ElevenLabsLeadsPanel() {
         .select("call_log_id,summary")
         .in("call_log_id", ids);
       const sumDict: Record<string, string> = {};
-      (ana ?? []).forEach((a: any) => {
-        if (a.summary) sumDict[a.call_log_id] = a.summary;
-      });
+      (ana ?? []).forEach((a: any) => { if (a.summary) sumDict[a.call_log_id] = a.summary; });
       setSummaries(sumDict);
-    } else {
-      setSummaries({});
-    }
+    } else setSummaries({});
     setLoading(false);
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  const loadPool = async () => {
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("user_id,role")
+      .in("role", ["sales", "sales_manager"]);
+    const userIds = Array.from(new Set((roles ?? []).map((r: any) => r.user_id)));
+    if (!userIds.length) { setSalesPool([]); return; }
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("user_id,name,is_approved")
+      .in("user_id", userIds)
+      .eq("is_approved", true);
+    const pool: SalesUser[] = (profs ?? []).map((p: any) => ({ user_id: p.user_id, name: p.name }));
+    setSalesPool(pool.sort((a, b) => a.name.localeCompare(b.name)));
+  };
+
+  useEffect(() => { load(); }, [assigneeFilter, user?.id]);
+  useEffect(() => { loadPool(); }, []);
 
   useEffect(() => {
     const channel = supabase
       .channel("elevenlabs-leads")
-      .on(
-        "postgres_changes",
+      .on("postgres_changes",
         { event: "*", schema: "public", table: "call_logs" },
         (payload) => {
           const row = (payload.new ?? payload.old) as any;
           if (row?.lead_source === "ElevenLabs") load();
         },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+      ).subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const selected = useMemo(
@@ -335,10 +280,7 @@ export function ElevenLabsLeadsPanel() {
   );
 
   useEffect(() => {
-    if (!selectedId) {
-      setAnalysis(null);
-      return;
-    }
+    if (!selectedId) { setAnalysis(null); return; }
     setAnalysisLoading(true);
     supabase
       .from("call_ai_analysis")
@@ -365,66 +307,76 @@ export function ElevenLabsLeadsPanel() {
   };
 
   const filtered = useMemo(() => {
-    const list = leads.filter((l) => {
-      if (
-        priorityFilter !== "all" &&
-        (l.priority ?? "").toLowerCase() !== priorityFilter
-      )
-        return false;
-      if (intentFilter !== "all" && (l.requirement ?? "") !== intentFilter)
-        return false;
-      if (
-        statusFilter !== "all" &&
-        (l.lead_status ?? "New").toLowerCase() !== statusFilter
-      )
-        return false;
+    return leads.filter((l) => {
+      if (priorityFilter !== "all" && (l.priority ?? "").toLowerCase() !== priorityFilter) return false;
+      if (intentFilter !== "all" && (l.requirement ?? "") !== intentFilter) return false;
+      if (statusFilter !== "all" && (l.lead_status ?? "New").toLowerCase() !== statusFilter) return false;
+      if (tempFilter !== "all" && (l.lead_temperature ?? "warm") !== tempFilter) return false;
       if (!budgetMatches(l.budget, budgetFilter)) return false;
       if (search) {
         const q = search.toLowerCase();
-        if (
-          !l.caller_number?.toLowerCase().includes(q) &&
-          !(l.customer_name ?? "").toLowerCase().includes(q) &&
-          !(l.raw_transcript ?? "").toLowerCase().includes(q)
-        )
-          return false;
+        const { name } = resolveName(l);
+        if (!l.caller_number?.toLowerCase().includes(q) &&
+            !(l.customer_name ?? "").toLowerCase().includes(q) &&
+            !name.toLowerCase().includes(q) &&
+            !(l.assigned_to_name ?? "").toLowerCase().includes(q) &&
+            !(l.raw_transcript ?? "").toLowerCase().includes(q)) return false;
       }
       return true;
     });
-    return list.sort((a, b) => {
-      const aHot = isHotLead(a) ? 0 : 1;
-      const bHot = isHotLead(b) ? 0 : 1;
-      if (aHot !== bHot) return aHot - bHot;
-      const pr = priorityRank(a.priority) - priorityRank(b.priority);
-      if (pr !== 0) return pr;
-      const sc = (b.lead_score ?? 0) - (a.lead_score ?? 0);
-      if (sc !== 0) return sc;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-  }, [leads, search, priorityFilter, intentFilter, statusFilter, budgetFilter]);
+  }, [leads, search, priorityFilter, intentFilter, statusFilter, budgetFilter, tempFilter]);
 
   const stats = useMemo(() => {
     const total = leads.length;
-    const high = leads.filter((l) => l.priority === "High").length;
+    const high = leads.filter((l) => (l.priority ?? "").toLowerCase() === "high").length;
     const newCount = leads.filter((l) => isNewLead(l.created_at)).length;
     const avgScore = total
       ? Math.round(leads.reduce((s, l) => s + (l.lead_score ?? 0), 0) / total)
       : 0;
-    return { total, high, newCount, avgScore };
+    const unassigned = leads.filter(l => !l.assigned_to).length;
+    return { total, high, newCount, avgScore, unassigned };
   }, [leads]);
 
+  const updateLead = async (id: string, patch: Partial<ElevenLead>) => {
+    const prev = leads;
+    setLeads(rs => rs.map(r => r.id === id ? { ...r, ...patch } : r));
+    const { error } = await supabase.from("call_logs").update(patch as any).eq("id", id);
+    if (error) {
+      setLeads(prev);
+      toast.error(`Update failed: ${error.message}`);
+    }
+  };
+
   const updateLeadStatus = async (id: string, status: string) => {
-    const { error } = await supabase
-      .from("call_logs")
-      .update({ lead_status: status })
-      .eq("id", id);
-    if (error) return toast.error("Failed to update status");
+    await updateLead(id, { lead_status: status });
     toast.success(`Marked as ${status}`);
-    load();
+  };
+
+  const assignTo = async (lead: ElevenLead, userId: string) => {
+    const target = salesPool.find(s => s.user_id === userId);
+    if (!target) return;
+    await updateLead(lead.id, { assigned_to: target.user_id, assigned_to_name: target.name });
+    toast.success(`Assigned to ${target.name}`);
+  };
+
+  const markContacted = async (lead: ElevenLead) => {
+    await updateLead(lead.id, {
+      lead_status: "Contacted",
+      last_contacted_at: new Date().toISOString(),
+    });
   };
 
   const openWhatsApp = (phone: string) => {
     const num = phone.replace(/\D/g, "");
     window.open(`https://wa.me/${num}`, "_blank");
+  };
+
+  const toggleRow = (id: string) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   };
 
   return (
@@ -436,27 +388,24 @@ export function ElevenLabsLeadsPanel() {
             <Bot className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold tracking-tight">
-              ElevenLabs Leads
-            </h2>
+            <h2 className="text-xl font-semibold tracking-tight">ElevenLabs Leads</h2>
             <p className="text-sm text-muted-foreground">
               Sales-ready leads captured by your ElevenLabs AI agent
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={load} className="gap-2">
-            <RefreshCw className="h-4 w-4" /> Refresh
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={load} className="gap-2">
+          <RefreshCw className="h-4 w-4" /> Refresh
+        </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
           { label: "Total Leads", value: stats.total, icon: Phone, tone: "text-foreground" },
           { label: "🔥 High Priority", value: stats.high, icon: Flame, tone: "text-destructive" },
           { label: "🟢 New (1h)", value: stats.newCount, icon: Sparkles, tone: "text-success" },
+          { label: "Unassigned", value: stats.unassigned, icon: UserX, tone: "text-warning" },
           { label: "Avg Score", value: stats.avgScore, icon: Target, tone: "text-primary" },
         ].map((s) => (
           <Card key={s.label}>
@@ -474,444 +423,494 @@ export function ElevenLabsLeadsPanel() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search name, phone, transcript…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+      <Card className="p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search name, phone, transcript, assignee…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={intentFilter} onValueChange={setIntentFilter}>
+            <SelectTrigger className="w-[150px]"><SelectValue placeholder="Intent" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All intents</SelectItem>
+              <SelectItem value="Drone">Drone</SelectItem>
+              <SelectItem value="Robotics">Robotics</SelectItem>
+              <SelectItem value="AI / Automation">AI / Automation</SelectItem>
+              <SelectItem value="General Inquiry">General Inquiry</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={budgetFilter} onValueChange={setBudgetFilter}>
+            <SelectTrigger className="w-[140px]"><SelectValue placeholder="Budget" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any budget</SelectItem>
+              <SelectItem value="under1">Under ₹1L</SelectItem>
+              <SelectItem value="1to5">₹1L – ₹5L</SelectItem>
+              <SelectItem value="5plus">₹5L+</SelectItem>
+              <SelectItem value="unknown">Not specified</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <SelectTrigger className="w-[140px]"><SelectValue placeholder="Priority" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All priorities</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={tempFilter} onValueChange={setTempFilter}>
+            <SelectTrigger className="w-[120px]"><SelectValue placeholder="Temp" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All temps</SelectItem>
+              <SelectItem value="hot">🔥 Hot</SelectItem>
+              <SelectItem value="warm">Warm</SelectItem>
+              <SelectItem value="cold">Cold</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[130px]"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All status</SelectItem>
+              <SelectItem value="new">New</SelectItem>
+              <SelectItem value="contacted">Contacted</SelectItem>
+              <SelectItem value="qualified">Qualified</SelectItem>
+              <SelectItem value="closed">Closed</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Assignee" /></SelectTrigger>
+            <SelectContent className="max-h-80">
+              <SelectItem value="all">All assignees</SelectItem>
+              <SelectItem value="mine">Assigned to me</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {salesPool.map(s => (
+                <SelectItem key={s.user_id} value={s.user_id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <Select value={intentFilter} onValueChange={setIntentFilter}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Intent" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All intents</SelectItem>
-            <SelectItem value="Drone">Drone</SelectItem>
-            <SelectItem value="Robotics">Robotics</SelectItem>
-            <SelectItem value="AI / Automation">AI / Automation</SelectItem>
-            <SelectItem value="General Inquiry">General Inquiry</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={budgetFilter} onValueChange={setBudgetFilter}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Budget" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Any budget</SelectItem>
-            <SelectItem value="under1">Under ₹1L</SelectItem>
-            <SelectItem value="1to5">₹1L – ₹5L</SelectItem>
-            <SelectItem value="5plus">₹5L+</SelectItem>
-            <SelectItem value="unknown">Not specified</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Priority" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All priorities</SelectItem>
-            <SelectItem value="high">High</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="low">Low</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All status</SelectItem>
-            <SelectItem value="new">New</SelectItem>
-            <SelectItem value="contacted">Contacted</SelectItem>
-            <SelectItem value="qualified">Qualified</SelectItem>
-            <SelectItem value="closed">Closed</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      </Card>
 
-      {/* Lead Cards */}
-      {loading ? (
-        <div className="grid sm:grid-cols-2 gap-3">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-44 w-full" />
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <Card>
-          <CardContent className="p-10 text-center text-sm text-muted-foreground">
-            No leads match your filters yet — calls will appear here automatically.
-          </CardContent>
-        </Card>
-      ) : (
-        <TooltipProvider delayDuration={200}>
-        <div className="grid sm:grid-cols-2 gap-3">
-          {filtered.map((l) => {
-            const isNew = isNewLead(l.created_at);
-            const realPhone = l.caller_number;
-            const phone = formatPhone(realPhone);
-            const { name, isUnidentified } = resolveName(l);
-            const hot = isHotLead(l);
-            const reason = whyThisMatters(l, summaries[l.id] ?? null);
-            const status = (l.lead_status ?? "New").toString();
-            return (
-              <Card
-                key={l.id}
-                className={`group relative overflow-hidden transition-all hover:shadow-md cursor-pointer ${
-                  hot
-                    ? "ring-1 ring-destructive/40 shadow-destructive/10 border-l-4 border-l-destructive"
-                    : isNew
-                    ? "ring-1 ring-success/40 shadow-success/10"
-                    : ""
-                }`}
-                onClick={() => setSelectedId(l.id)}
-              >
-                <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
-                  {hot && (
-                    <Badge className="bg-destructive/15 text-destructive border-destructive/30 gap-1">
-                      <Flame className="h-3 w-3" /> HOT LEAD
-                    </Badge>
-                  )}
-                  {isNew && !hot && (
-                    <Badge className="bg-success/15 text-success border-success/30 gap-1 animate-pulse">
-                      <span className="h-1.5 w-1.5 rounded-full bg-success" /> New
-                    </Badge>
-                  )}
-                </div>
-                <CardContent className="p-4 space-y-3">
-                  {/* Identity */}
-                  <div className="space-y-0.5 pr-24">
-                    {isUnidentified ? (
-                      <>
-                        <h3 className="font-semibold text-base leading-tight flex items-center gap-1.5 text-muted-foreground italic">
-                          <UserX className="h-4 w-4" /> Unidentified Caller
-                        </h3>
-                        <p className="text-[11px] text-muted-foreground/80">Name not captured</p>
-                      </>
-                    ) : (
-                      <h3 className="font-semibold text-base leading-tight text-foreground">
-                        {name}
-                      </h3>
-                    )}
-                    <p className="text-sm text-muted-foreground font-mono mt-0.5">{phone}</p>
-                  </div>
-
-                  {/* Intent + Budget row */}
-                  <div className="space-y-1.5 text-sm">
-                    {l.requirement && (
-                      <div className="flex items-center gap-2 text-foreground">
-                        <Target className="h-3.5 w-3.5 text-primary shrink-0" />
-                        <span className="truncate">
-                          🔍 Requirement:{" "}
-                          <span className="font-medium">{l.requirement}</span>
-                        </span>
-                      </div>
-                    )}
-                    {l.budget && (
-                      <div className="flex items-center gap-2 text-foreground">
-                        <Wallet className="h-3.5 w-3.5 text-success shrink-0" />
-                        <span>
-                          💰 Budget:{" "}
-                          <span className="font-medium">{l.budget}</span>
-                        </span>
-                      </div>
-                    )}
-                    {l.priority && (
-                      <div className="flex items-center gap-2 text-foreground">
-                        <Flame className="h-3.5 w-3.5 text-destructive shrink-0" />
-                        <span>
-                          🔥 Intent:{" "}
-                          <span className="font-medium capitalize">{l.priority}</span>
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                      <Clock className="h-3 w-3" />
-                      {formatDuration(l.call_duration)} •{" "}
-                      {formatDistanceToNow(new Date(l.created_at), {
-                        addSuffix: true,
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Why this matters */}
-                  {reason && (
-                    <div className="flex items-start gap-1.5 rounded-md bg-warning/5 border border-warning/20 px-2 py-1.5">
-                      <Lightbulb className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
-                      <p className="text-xs text-foreground/80 leading-snug">
-                        <span className="font-medium text-warning">Why this matters: </span>
-                        {reason}
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge variant="outline" className="text-xs capitalize">
-                      {status}
-                    </Badge>
-                  </div>
-
-                  {/* CTAs */}
-                  <div
-                    className="flex items-center gap-1.5 pt-2 border-t"
-                    onClick={(e) => e.stopPropagation()}
+      {/* Table */}
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-8" />
+              <TableHead>Received</TableHead>
+              <TableHead>Caller</TableHead>
+              <TableHead>Phone</TableHead>
+              <TableHead>Intent / Budget</TableHead>
+              <TableHead>Duration</TableHead>
+              <TableHead>Temp</TableHead>
+              <TableHead>Assignee</TableHead>
+              <TableHead>Last contact</TableHead>
+              <TableHead className="w-[130px]">Status</TableHead>
+              <TableHead className="w-[200px] text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading && (
+              <TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">Loading…</TableCell></TableRow>
+            )}
+            {!loading && filtered.length === 0 && (
+              <TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">
+                No leads match your filters yet — calls will appear here automatically.
+              </TableCell></TableRow>
+            )}
+            {!loading && filtered.map(r => {
+              const isOpen = expanded.has(r.id);
+              const { name, isUnidentified } = resolveName(r);
+              const phone = formatPhone(r.caller_number);
+              const status = (r.lead_status ?? "New") as Status;
+              const tempClass = TEMP_COLORS[r.lead_temperature] ?? TEMP_COLORS.warm;
+              const hot = isHotLead(r);
+              const newish = isNewLead(r.created_at);
+              return (
+                <>
+                  <TableRow
+                    key={r.id}
+                    className={`cursor-pointer hover:bg-muted/30 ${hot ? "border-l-2 border-l-destructive" : newish ? "border-l-2 border-l-success" : ""}`}
+                    onClick={() => setSelectedId(r.id)}
                   >
-                    <CallButton
-                      phoneNumber={realPhone}
-                      entityType="lead"
-                      entityId={l.id}
-                      label="Call Now"
-                      variant="default"
-                      size="sm"
-                      className="flex-1 h-8"
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 h-8 gap-1.5"
-                      onClick={() => openWhatsApp(realPhone)}
-                    >
-                      <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
-                    </Button>
-                    <Select
-                      value={status}
-                      onValueChange={(v) => updateLeadStatus(l.id, v)}
-                    >
-                      <SelectTrigger className="h-8 w-[110px] text-xs" title="Update lead status">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="New">New</SelectItem>
-                        <SelectItem value="Contacted">Contacted</SelectItem>
-                        <SelectItem value="Qualified">Qualified</SelectItem>
-                        <SelectItem value="Closed">Closed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-        </TooltipProvider>
-      )}
+                    <TableCell className="w-8 px-2" onClick={(e) => { e.stopPropagation(); toggleRow(r.id); }}>
+                      {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-xs">
+                      {format(new Date(r.created_at), "dd MMM, HH:mm")}
+                      {newish && <Badge className="ml-1 h-4 px-1 text-[10px] bg-success/15 text-success border-success/30">New</Badge>}
+                    </TableCell>
+                    <TableCell className={isUnidentified ? "italic text-muted-foreground" : "font-medium"}>
+                      {isUnidentified ? (
+                        <span className="inline-flex items-center gap-1">
+                          <UserX className="h-3.5 w-3.5" /> Unidentified Caller
+                        </span>
+                      ) : name}
+                    </TableCell>
+                    <TableCell className="text-xs font-mono" onClick={(e) => e.stopPropagation()}>
+                      <a className="text-primary hover:underline" href={`tel:${r.caller_number}`}>{phone}</a>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <div className="flex items-center gap-1">
+                        <Target className="h-3 w-3 text-primary" />
+                        <span className={r.requirement ? "" : "italic text-muted-foreground"}>
+                          {r.requirement ?? "Not captured"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Wallet className="h-3 w-3" />
+                        <span className={r.budget ? "" : "italic"}>{r.budget ?? "—"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        {formatDuration(r.call_duration)}
+                      </div>
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={r.lead_temperature ?? "warm"}
+                        onValueChange={(v) => updateLead(r.id, { lead_temperature: v })}
+                      >
+                        <SelectTrigger className={`h-7 px-2 text-[11px] border ${tempClass}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="hot">🔥 Hot</SelectItem>
+                          <SelectItem value="warm">Warm</SelectItem>
+                          <SelectItem value="cold">Cold</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      {canManage ? (
+                        <Select
+                          value={r.assigned_to ?? "unassigned"}
+                          onValueChange={(v) => v !== "unassigned" && assignTo(r, v)}
+                        >
+                          <SelectTrigger className="h-7 text-xs w-[140px]">
+                            <SelectValue placeholder="Unassigned" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-80">
+                            <SelectItem value="unassigned" disabled>Unassigned</SelectItem>
+                            {salesPool.map(s => (
+                              <SelectItem key={s.user_id} value={s.user_id}>{s.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className={`text-xs ${r.assigned_to_name ? "" : "italic text-muted-foreground"}`}>
+                          {r.assigned_to_name ?? "Unassigned"}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className={`text-xs whitespace-nowrap ${r.last_contacted_at ? "text-muted-foreground" : "italic text-muted-foreground/70"}`}>
+                      {relativeTime(r.last_contacted_at)}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select value={status} onValueChange={(v) => updateLeadStatus(r.id, v)}>
+                        <SelectTrigger className={`h-7 text-xs ${STATUS_COLORS[status] ?? ""}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="Call">
+                          <a href={`tel:${r.caller_number}`} onClick={() => markContacted(r)}>
+                            <Phone className="h-3.5 w-3.5 text-blue-600" />
+                          </a>
+                        </Button>
+                        <Button
+                          size="sm" variant="ghost" className="h-7 w-7 p-0" title="WhatsApp"
+                          onClick={() => { openWhatsApp(r.caller_number); markContacted(r); }}
+                        >
+                          <MessageCircle className="h-3.5 w-3.5 text-green-600" />
+                        </Button>
+                        <ProspectButton
+                          sourceType="lead"
+                          sourceId={r.id}
+                          customerName={isUnidentified ? "Unknown" : name}
+                          phoneNumber={r.caller_number}
+                          email={null}
+                          company={null}
+                          city={null}
+                          productName={r.requirement || ""}
+                          notes={r.notes || r.raw_transcript}
+                        />
+                        <AttentionButton
+                          sourceType="lead"
+                          sourceId={r.id}
+                          customerName={isUnidentified ? "Unknown" : name}
+                          phoneNumber={r.caller_number}
+                          email={null}
+                          company={null}
+                          city={null}
+                          productName={r.requirement || ""}
+                          notes={r.notes || r.raw_transcript}
+                        />
+                        <EnquiryConvertButton
+                          sourceType="lead"
+                          sourceId={r.id}
+                          customerName={isUnidentified ? "Unknown" : name}
+                          phoneNumber={r.caller_number}
+                          email={null}
+                          company={null}
+                          city={null}
+                          productName={r.requirement || ""}
+                          urgency={r.priority}
+                          notes={r.notes || r.raw_transcript}
+                          isAlreadyConverted={r.is_enquiry_converted}
+                        />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  {isOpen && (
+                    <TableRow key={`${r.id}-detail`} className="bg-muted/30 hover:bg-muted/30">
+                      <TableCell colSpan={11} className="p-4">
+                        <RowDetail lead={r} summary={summaries[r.id]} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Card>
 
       {/* Detail drawer */}
-      <Sheet
-        open={!!selectedId}
-        onOpenChange={(o) => !o && setSelectedId(null)}
-      >
+      <Sheet open={!!selectedId} onOpenChange={(o) => !o && setSelectedId(null)}>
         <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
-          {selected && (
-            <>
-              {(() => {
-                const realPhone = selected.caller_number;
-                const { name, isUnidentified } = resolveName(selected);
-                return (
-                  <SheetHeader>
-                    <SheetTitle className="flex items-center gap-2 text-lg">
-                      <Bot className="h-5 w-5 text-primary" />
-                      <span className={isUnidentified ? "text-muted-foreground italic" : ""}>{name}</span>
-                    </SheetTitle>
-                    <SheetDescription className="font-mono flex flex-wrap items-center gap-1.5">
-                      <span>{formatPhone(realPhone)}</span>
-                      <span className="text-muted-foreground">·</span>
-                      <span>{format(new Date(selected.created_at), "dd MMM yyyy, HH:mm")}</span>
-                    </SheetDescription>
-                  </SheetHeader>
-                );
-              })()}
+          {selected && (() => {
+            const { name, isUnidentified } = resolveName(selected);
+            return (
+              <>
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2 text-lg">
+                    <Bot className="h-5 w-5 text-primary" />
+                    <span className={isUnidentified ? "text-muted-foreground italic" : ""}>{name}</span>
+                  </SheetTitle>
+                  <SheetDescription className="font-mono flex flex-wrap items-center gap-1.5">
+                    <span>{formatPhone(selected.caller_number)}</span>
+                    <span className="text-muted-foreground">·</span>
+                    <span>{format(new Date(selected.created_at), "dd MMM yyyy, HH:mm")}</span>
+                  </SheetDescription>
+                </SheetHeader>
 
-              <div className="mt-4 space-y-4">
-                {/* Quick action bar */}
-                <div className="grid grid-cols-2 gap-2">
-                  <CallButton
-                    phoneNumber={selected.caller_number}
-                    entityType="lead"
-                    entityId={selected.id}
-                    label="Call Now"
-                    variant="default"
-                  />
-                  <Button
-                    variant="outline"
-                    className="gap-2"
-                    onClick={() => openWhatsApp(selected.caller_number)}
-                  >
-                    <MessageCircle className="h-4 w-4" /> WhatsApp
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => updateLeadStatus(selected.id, "Contacted")}
-                  >
-                    ✅ Mark Contacted
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => updateLeadStatus(selected.id, "Qualified")}
-                  >
-                    ⭐ Mark Qualified
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="col-span-2"
-                    onClick={() => updateLeadStatus(selected.id, "Closed")}
-                  >
-                    🔒 Mark Closed
-                  </Button>
-                </div>
-
-                {/* Why this matters */}
-                {(() => {
-                  const reason = whyThisMatters(selected, summaries[selected.id] ?? analysis?.summary ?? null);
-                  if (!reason) return null;
-                  return (
-                    <Card className="border-warning/30 bg-warning/5">
-                      <CardContent className="p-3 flex items-start gap-2">
-                        <Lightbulb className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-                        <div className="text-sm">
-                          <div className="font-semibold text-warning mb-0.5">Why this matters</div>
-                          <p className="text-foreground/80 leading-snug">{reason}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })()}
-
-                {/* Snapshot */}
-                <Card>
-                  <CardContent className="p-4 space-y-2 text-sm">
-                    {selected.requirement && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          🔍 Requirement
-                        </span>
-                        <span className="font-medium">{selected.requirement}</span>
-                      </div>
-                    )}
-                    {selected.budget && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">💰 Budget</span>
-                        <span className="font-medium">{selected.budget}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">🔥 Intent</span>
-                      <Badge
-                        variant="outline"
-                        className={priorityClasses(selected.priority)}
-                      >
-                        {selected.priority ?? "—"}
-                      </Badge>
+                <div className="mt-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-2">
+                    <CallButton
+                      phoneNumber={selected.caller_number}
+                      entityType="lead"
+                      entityId={selected.id}
+                      label="Call Now"
+                      variant="default"
+                    />
+                    <Button variant="outline" className="gap-2" onClick={() => openWhatsApp(selected.caller_number)}>
+                      <MessageCircle className="h-4 w-4" /> WhatsApp
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => updateLeadStatus(selected.id, "Contacted")}>
+                      ✅ Mark Contacted
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => updateLeadStatus(selected.id, "Qualified")}>
+                      ⭐ Mark Qualified
+                    </Button>
+                    <div className="col-span-2 flex flex-wrap gap-2">
+                      <ProspectButton
+                        sourceType="lead" sourceId={selected.id}
+                        customerName={isUnidentified ? "Unknown" : name}
+                        phoneNumber={selected.caller_number}
+                        email={null} company={null} city={null}
+                        productName={selected.requirement || ""}
+                        notes={selected.notes || selected.raw_transcript}
+                      />
+                      <AttentionButton
+                        sourceType="lead" sourceId={selected.id}
+                        customerName={isUnidentified ? "Unknown" : name}
+                        phoneNumber={selected.caller_number}
+                        email={null} company={null} city={null}
+                        productName={selected.requirement || ""}
+                        notes={selected.notes || selected.raw_transcript}
+                      />
+                      <EnquiryConvertButton
+                        sourceType="lead" sourceId={selected.id}
+                        customerName={isUnidentified ? "Unknown" : name}
+                        phoneNumber={selected.caller_number}
+                        email={null} company={null} city={null}
+                        productName={selected.requirement || ""}
+                        urgency={selected.priority}
+                        notes={selected.notes || selected.raw_transcript}
+                        isAlreadyConverted={selected.is_enquiry_converted}
+                      />
                     </div>
-                    {priorityReason(selected.raw_transcript) && (
-                      <div className="text-xs text-muted-foreground italic">
-                        Reason: {priorityReason(selected.raw_transcript)}
-                      </div>
-                    )}
-                    {(() => {
-                      const o = callOutcome(
-                        analysis?.summary ?? null,
-                        selected.raw_transcript,
-                      );
-                      const Icon = o.icon;
-                      return (
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">
-                            📞 Outcome
-                          </span>
-                          <span
-                            className={`flex items-center gap-1.5 font-medium ${o.tone}`}
-                          >
-                            <Icon className="h-4 w-4" /> {o.label}
-                          </span>
-                        </div>
-                      );
-                    })()}
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">⏱ Duration</span>
-                      <span>{formatDuration(selected.call_duration)}</span>
-                    </div>
-                  </CardContent>
-                </Card>
+                  </div>
 
-                {analysisLoading ? (
-                  <Skeleton className="h-24 w-full" />
-                ) : (
-                  <>
-                    {analysis?.summary && (
-                      <Card>
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-2 text-sm font-semibold mb-2">
-                            <Sparkles className="h-4 w-4 text-primary" /> AI
-                            Summary
+                  {(() => {
+                    const reason = whyThisMatters(selected, summaries[selected.id] ?? analysis?.summary ?? null);
+                    if (!reason) return null;
+                    return (
+                      <Card className="border-warning/30 bg-warning/5">
+                        <CardContent className="p-3 flex items-start gap-2">
+                          <Lightbulb className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                          <div className="text-sm">
+                            <div className="font-semibold text-warning mb-0.5">Why this matters</div>
+                            <p className="text-foreground/80 leading-snug">{reason}</p>
                           </div>
-                          <p className="text-sm leading-relaxed text-foreground/90">
-                            {analysis.summary}
-                          </p>
                         </CardContent>
                       </Card>
-                    )}
+                    );
+                  })()}
 
-                    {/* Conversation transcript */}
-                    {(() => {
-                      const turns = parseTranscript(
-                        analysis?.transcript ?? selected.raw_transcript,
-                      );
-                      if (turns.length === 0) return null;
-                      return (
+                  <Card>
+                    <CardContent className="p-4 space-y-2 text-sm">
+                      <Row label="🔍 Requirement" value={selected.requirement} />
+                      <Row label="💰 Budget" value={selected.budget} />
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">🔥 Intent</span>
+                        <span className={selected.priority ? "font-medium capitalize" : "italic text-muted-foreground"}>
+                          {selected.priority ?? "Unknown"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">👤 Assigned</span>
+                        <span className={selected.assigned_to_name ? "font-medium" : "italic text-muted-foreground"}>
+                          {selected.assigned_to_name ?? "Unassigned"}
+                        </span>
+                      </div>
+                      {(() => {
+                        const o = callOutcome(analysis?.summary ?? null, selected.raw_transcript);
+                        const Icon = o.icon;
+                        return (
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">📞 Outcome</span>
+                            <span className={`flex items-center gap-1.5 font-medium ${o.tone}`}>
+                              <Icon className="h-4 w-4" /> {o.label}
+                            </span>
+                          </div>
+                        );
+                      })()}
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">⏱ Duration</span>
+                        <span>{formatDuration(selected.call_duration)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {analysisLoading ? (
+                    <Skeleton className="h-24 w-full" />
+                  ) : (
+                    <>
+                      {analysis?.summary && (
                         <Card>
                           <CardContent className="p-4">
-                            <div className="flex items-center gap-2 text-sm font-semibold mb-3">
-                              <MessageCircle className="h-4 w-4 text-primary" />
-                              Conversation
+                            <div className="flex items-center gap-2 text-sm font-semibold mb-2">
+                              <Sparkles className="h-4 w-4 text-primary" /> AI Summary
                             </div>
-                            <ScrollArea className="h-80 pr-3">
-                              <div className="space-y-2.5">
-                                {turns.map((t, i) => (
-                                  <div
-                                    key={i}
-                                    className={`flex ${
-                                      t.role === "user"
-                                        ? "justify-end"
-                                        : "justify-start"
-                                    }`}
-                                  >
-                                    <div
-                                      className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm leading-snug ${
+                            <p className="text-sm leading-relaxed text-foreground/90">{analysis.summary}</p>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {(() => {
+                        const turns = parseTranscript(analysis?.transcript ?? selected.raw_transcript);
+                        if (turns.length === 0) return null;
+                        return (
+                          <Card>
+                            <CardContent className="p-4">
+                              <div className="flex items-center gap-2 text-sm font-semibold mb-3">
+                                <MessageCircle className="h-4 w-4 text-primary" /> Conversation
+                              </div>
+                              <ScrollArea className="h-80 pr-3">
+                                <div className="space-y-2.5">
+                                  {turns.map((t, i) => (
+                                    <div key={i} className={`flex ${t.role === "user" ? "justify-end" : "justify-start"}`}>
+                                      <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm leading-snug ${
                                         t.role === "user"
                                           ? "bg-primary text-primary-foreground rounded-br-sm"
                                           : "bg-muted text-foreground rounded-bl-sm"
-                                      }`}
-                                    >
-                                      <div
-                                        className={`text-[10px] uppercase tracking-wide mb-0.5 opacity-70`}
-                                      >
-                                        {t.role === "user" ? "Caller" : "Agent"}
+                                      }`}>
+                                        <div className="text-[10px] uppercase tracking-wide mb-0.5 opacity-70">
+                                          {t.role === "user" ? "Caller" : "Agent"}
+                                        </div>
+                                        <div>{t.text}</div>
                                       </div>
-                                      {t.text}
                                     </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </ScrollArea>
-                          </CardContent>
-                        </Card>
-                      );
-                    })()}
-                  </>
-                )}
-              </div>
-            </>
-          )}
+                                  ))}
+                                </div>
+                              </ScrollArea>
+                            </CardContent>
+                          </Card>
+                        );
+                      })()}
+                    </>
+                  )}
+                </div>
+              </>
+            );
+          })()}
         </SheetContent>
       </Sheet>
+    </div>
+  );
+}
 
+function Row({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={value ? "font-medium" : "italic text-muted-foreground"}>{value ?? "Not captured"}</span>
+    </div>
+  );
+}
+
+function RowDetail({ lead, summary }: { lead: ElevenLead; summary?: string }) {
+  const reason = whyThisMatters(lead, summary ?? null);
+  return (
+    <div className="grid sm:grid-cols-2 gap-4 text-sm">
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-1.5 text-foreground">
+          <Target className="h-3.5 w-3.5 text-primary" />
+          🔍 Requirement: <span className={lead.requirement ? "font-medium" : "italic text-muted-foreground"}>{lead.requirement ?? "Not captured"}</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-foreground">
+          <Wallet className="h-3.5 w-3.5 text-success" />
+          💰 Budget: <span className={lead.budget ? "font-medium" : "italic text-muted-foreground"}>{lead.budget ?? "Not shared"}</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-foreground">
+          <Flame className="h-3.5 w-3.5 text-destructive" />
+          🔥 Priority: <span className={lead.priority ? "font-medium capitalize" : "italic text-muted-foreground"}>{lead.priority ?? "Unrated"}</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+          <Clock className="h-3 w-3" />
+          {formatDuration(lead.call_duration)} • {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
+        </div>
+      </div>
+      <div className="space-y-2">
+        {reason && (
+          <div className="rounded-md border border-warning/30 bg-warning/5 px-2 py-1.5 flex items-start gap-1.5">
+            <Lightbulb className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+            <p className="text-xs text-foreground/80">
+              <span className="font-medium text-warning">Why this matters: </span>{reason}
+            </p>
+          </div>
+        )}
+        {summary && (
+          <div className="text-xs text-muted-foreground line-clamp-4 italic">"{summary}"</div>
+        )}
+        {!summary && (
+          <div className="text-xs italic text-muted-foreground">No AI summary yet — open detail to view full transcript.</div>
+        )}
+      </div>
     </div>
   );
 }

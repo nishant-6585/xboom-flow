@@ -1417,6 +1417,8 @@ export type Database = {
           agent_number: string | null
           assigned_agent_name: string | null
           assigned_agent_phone: string | null
+          assigned_to: string | null
+          assigned_to_name: string | null
           budget: string | null
           call_duration: number | null
           call_id: string | null
@@ -1441,11 +1443,13 @@ export type Database = {
           is_enquiry_converted: boolean
           is_prospect: boolean | null
           ivr_input: string | null
+          last_contacted_at: string | null
           lead_created: boolean
           lead_id: string | null
           lead_score: number | null
           lead_source: string | null
           lead_status: string | null
+          lead_temperature: string
           notes: string | null
           outcall_info: string | null
           priority: string | null
@@ -1472,6 +1476,8 @@ export type Database = {
           agent_number?: string | null
           assigned_agent_name?: string | null
           assigned_agent_phone?: string | null
+          assigned_to?: string | null
+          assigned_to_name?: string | null
           budget?: string | null
           call_duration?: number | null
           call_id?: string | null
@@ -1496,11 +1502,13 @@ export type Database = {
           is_enquiry_converted?: boolean
           is_prospect?: boolean | null
           ivr_input?: string | null
+          last_contacted_at?: string | null
           lead_created?: boolean
           lead_id?: string | null
           lead_score?: number | null
           lead_source?: string | null
           lead_status?: string | null
+          lead_temperature?: string
           notes?: string | null
           outcall_info?: string | null
           priority?: string | null
@@ -1527,6 +1535,8 @@ export type Database = {
           agent_number?: string | null
           assigned_agent_name?: string | null
           assigned_agent_phone?: string | null
+          assigned_to?: string | null
+          assigned_to_name?: string | null
           budget?: string | null
           call_duration?: number | null
           call_id?: string | null
@@ -1551,11 +1561,13 @@ export type Database = {
           is_enquiry_converted?: boolean
           is_prospect?: boolean | null
           ivr_input?: string | null
+          last_contacted_at?: string | null
           lead_created?: boolean
           lead_id?: string | null
           lead_score?: number | null
           lead_source?: string | null
           lead_status?: string | null
+          lead_temperature?: string
           notes?: string | null
           outcall_info?: string | null
           priority?: string | null
