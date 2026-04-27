@@ -38,6 +38,7 @@ import { Mail, FileText, Megaphone } from 'lucide-react';
 import { MyOperatorAnalytics } from './MyOperatorAnalytics';
 import { MyOperatorTabContent } from './MyOperatorTabContent';
 import { InteraktAnalytics } from './InteraktAnalytics';
+import QFormsPanel from './QFormsPanel';
 import { LogCallDialog } from './LogCallDialog';
 import { OutboundCallTracker } from './OutboundCallTracker';
 import { PhoneOutgoing } from 'lucide-react';
@@ -314,6 +315,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
     <Tabs defaultValue="leads" className="space-y-6">
       <TabsList className="flex flex-wrap h-auto gap-1 w-full justify-start">
         <TabsTrigger value="leads">All Leads</TabsTrigger>
+        <TabsTrigger value="qforms" className="gap-1.5">
+          <FileText className="h-3.5 w-3.5" />
+          QForms
+        </TabsTrigger>
         <TabsTrigger value="interakt" className="gap-1.5">
           <MessageCircle className="h-3.5 w-3.5" />
           Interakt
@@ -697,6 +702,11 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         onSuccess={refetch}
       />
     </div>
+      </TabsContent>
+
+      {/* QForms Tab */}
+      <TabsContent value="qforms" className="space-y-6">
+        <QFormsPanel />
       </TabsContent>
 
       {/* Interakt Tab */}
