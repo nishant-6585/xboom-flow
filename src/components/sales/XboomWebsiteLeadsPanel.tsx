@@ -78,7 +78,14 @@ const relativeTime = (iso?: string | null) => {
 };
 
 export function XboomWebsiteLeadsPanel() {
-  const { wooOrders, loading, refetch } = useWooCommerceOrders();
+  // Only load the last 90 days of WooCommerce rows that are NOT fulfilled
+  // orders (i.e. real leads). Older history is excluded for performance —
+  // the table contains 20k+ rows and the leads team only actions recent
+  // pending / failed / cancelled / on-hold / refunded carts.
+  const { wooOrders, loading, refetch } = useWooCommerceOrders({
+    sinceDays: 90,
+    leadOnly: true,
+  });
   const { user } = useAuth();
 
   const [search, setSearch] = useState("");

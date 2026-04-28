@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { WOO_ORDER_STATUSES } from '@/lib/wooOrderStatuses';
 
 export interface WooCommerceOrder {
   id: string;
@@ -38,7 +39,23 @@ export interface WooCommerceOrder {
   expected_delivery: string | null;
 }
 
-export function useWooCommerceOrders() {
+/**
+ * Options to scope down the WooCommerce orders fetch.
+ *
+ * The full table now contains 20k+ rows, so callers that only need a slice
+ * (e.g. the Xboom Website Leads panel) should pass `sinceDays` and/or
+ * `leadOnly` to avoid downloading the entire history.
+ */
+export interface UseWooCommerceOrdersOptions {
+  /** Only return orders with woo_created_at within the last N days. */
+  sinceDays?: number;
+  /** Only return rows whose order_status is NOT a fulfilled order status
+   *  (i.e. only leads — pending, on-hold, failed, cancelled, refunded, …). */
+  leadOnly?: boolean;
+}
+
+export function useWooCommerceOrders(options: UseWooCommerceOrdersOptions = {}) {
+  const { sinceDays, leadOnly } = options;
   const [orders, setOrders] = useState<WooCommerceOrder[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -84,11 +101,28 @@ export function useWooCommerceOrders() {
 
       // First page also returns the exact count (single round-trip vs HEAD+SELECT).
       const batchSize = 2000;
-      const first = await supabase
-        .from('woocommerce_orders')
-        .select(LIST_COLUMNS, { count: 'exact' })
-        .order('woo_created_at', { ascending: false, nullsFirst: false })
-        .range(0, batchSize - 1);
+      const sinceIso = sinceDays
+        ? new Date(Date.now() - sinceDays * 24 * 60 * 60 * 1000).toISOString()
+        : null;
+
+      const buildQuery = (withCount: boolean) => {
+        let q = supabase
+          .from('woocommerce_orders')
+          .select(LIST_COLUMNS, withCount ? { count: 'exact' } : undefined)
+          .order('woo_created_at', { ascending: false, nullsFirst: false });
+        if (sinceIso) q = q.gte('woo_created_at', sinceIso);
+        if (leadOnly) {
+          // Anything that isn't a fulfilled-order status is a lead.
+          q = q.not(
+            'order_status',
+            'in',
+            `(${(WOO_ORDER_STATUSES as readonly string[]).join(',')})`,
+          );
+        }
+        return q;
+      };
+
+      const first = await buildQuery(true).range(0, batchSize - 1);
 
       if (first.error) throw first.error;
       const total = first.count ?? 0;
@@ -104,11 +138,7 @@ export function useWooCommerceOrders() {
         }
         const results = await Promise.all(
           ranges.map(([from, to]) =>
-            supabase
-              .from('woocommerce_orders')
-              .select(LIST_COLUMNS)
-              .order('woo_created_at', { ascending: false, nullsFirst: false })
-              .range(from, to),
+            buildQuery(false).range(from, to),
           ),
         );
         for (const r of results) {
@@ -130,7 +160,7 @@ export function useWooCommerceOrders() {
       setLoading(false);
       inFlightRef.current = false;
     }
-  }, [toast]);
+  }, [toast, sinceDays, leadOnly]);
 
   // Coalesce many realtime events (e.g. during a backfill) into a single refetch.
   const scheduleRefetch = useCallback(() => {
