@@ -16,6 +16,8 @@ import { Calendar, List, Search, CheckCircle2, Clock, AlertTriangle, Phone, Mail
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { AssigneeCell } from './AssigneeCell';
+import { SourceCoverageCard } from '@/components/crm/SourceCoverageCard';
+import { RefreshCw as RefreshIcon } from 'lucide-react';
 
 export function FollowupsPanel() {
   const { followups, loading, completeFollowup, rescheduleFollowup, cancelFollowup, createFollowup } = useFollowups();
@@ -173,6 +175,13 @@ export function FollowupsPanel() {
 
   return (
     <div className="space-y-4">
+      {/* Source-wise entries (matches Companies coverage style) */}
+      <SourceCoverageCard
+        title="Follow-up Entries by Source"
+        dataset="followups"
+        Icon={RefreshIcon}
+      />
+
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="border-amber-500/30 bg-amber-500/5">
