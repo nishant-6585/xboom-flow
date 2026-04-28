@@ -3,6 +3,8 @@ import { toast } from "sonner";
 import {
   classifyStorageError,
   FRIENDLY,
+  FRIENDLY_DESCRIPTION,
+  friendlyMessageFor,
   type SignedUrlFailureReason as ClassifyReason,
 } from "./hrDocumentsClassify";
 
@@ -59,6 +61,8 @@ export type SignedUrlFailure = {
   readonly ok: false;
   reason: SignedUrlFailureReason;
   message: string;
+  /** Longer, user-facing explanation. Always populated. */
+  description: string;
   ext?: string;
 };
 
@@ -153,7 +157,8 @@ export async function createHrDocumentSignedUrl(
     const failure: SignedUrlFailure = {
       ok: false,
       reason: "missing_path",
-      message: "Document file is missing",
+      message: FRIENDLY.missing_path,
+      description: FRIENDLY_DESCRIPTION.missing_path,
     };
     recordFailure(failure);
     return failure;
@@ -165,9 +170,10 @@ export async function createHrDocumentSignedUrl(
       ok: false,
       reason: "unsupported_format",
       ext,
-      message: ext
-        ? `Only PDF resumes are supported. This file is .${ext}.`
-        : "Only PDF resumes are supported.",
+      message: FRIENDLY.unsupported_format,
+      description: ext
+        ? `Only PDF resumes are supported. This file is .${ext}. Please re-upload as a PDF.`
+        : FRIENDLY_DESCRIPTION.unsupported_format,
     };
     recordFailure(failure);
     return failure;
@@ -179,8 +185,14 @@ export async function createHrDocumentSignedUrl(
       .createSignedUrl(path, ttlSeconds);
 
     if (error) {
-      const { reason, friendly } = classifyStorageError(error);
-      const failure: SignedUrlFailure = { ok: false, reason, message: friendly };
+      const { reason } = classifyStorageError(error);
+      const { title, description } = friendlyMessageFor(reason);
+      const failure: SignedUrlFailure = {
+        ok: false,
+        reason,
+        message: title,
+        description,
+      };
       recordFailure(failure);
       return failure;
     }
@@ -188,7 +200,8 @@ export async function createHrDocumentSignedUrl(
       const failure: SignedUrlFailure = {
         ok: false,
         reason: "unknown",
-        message: "Could not generate download link",
+        message: FRIENDLY.unknown,
+        description: FRIENDLY_DESCRIPTION.unknown,
       };
       recordFailure(failure);
       return failure;
@@ -202,14 +215,13 @@ export async function createHrDocumentSignedUrl(
   } catch (e: any) {
     // Network / unexpected throw — let the classifier inspect status & message
     // (covers cross-browser "Failed to fetch" / "Load failed" / "NetworkError").
-    const { reason, friendly } = classifyStorageError(e);
+    const { reason } = classifyStorageError(e);
+    const { title, description } = friendlyMessageFor(reason);
     const failure: SignedUrlFailure = {
       ok: false,
       reason,
-      message:
-        reason === "unknown"
-          ? e?.message || "Unexpected error opening document"
-          : friendly,
+      message: title,
+      description,
     };
     recordFailure(failure);
     return failure;
@@ -265,8 +277,12 @@ export function notifySignedUrlFailure(
   const canRetry =
     !!opts.onRetry && TRANSIENT_FAILURE_REASONS.includes(failure.reason);
 
+  const description =
+    failure.description ?? FRIENDLY_DESCRIPTION[failure.reason];
+
   if (canRetry) {
     toast.error(failure.message, {
+      description,
       action: {
         label: "Retry",
         onClick: () => {
@@ -279,7 +295,7 @@ export function notifySignedUrlFailure(
     return;
   }
 
-  toast.error(failure.message);
+  toast.error(failure.message, { description });
 }
 
 /** Trigger a browser download for a signed URL. */
