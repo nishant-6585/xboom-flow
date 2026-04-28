@@ -324,6 +324,11 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
         <span className="text-xs text-muted-foreground">
           {timeline.length} {timeline.length === 1 ? "event" : "events"}
         </span>
+        {wooNotesLoading && (
+          <span className="ml-auto text-[11px] text-muted-foreground inline-flex items-center gap-1">
+            <Loader2 className="h-3 w-3 animate-spin" /> Syncing WooCommerce notes
+          </span>
+        )}
       </div>
 
       {/* Composer */}
