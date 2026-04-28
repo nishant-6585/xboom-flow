@@ -177,6 +177,7 @@ export function ReferralsPanel() {
   const resolveResumeUrl = async (
     path: string,
     referralId: string,
+    source: string,
     onRetry?: () => void
   ): Promise<string | null> => {
     const cached = signedUrlCache.current.get(referralId);
@@ -191,6 +192,8 @@ export function ReferralsPanel() {
     const result = await createHrDocumentSignedUrl(path, {
       ttlSeconds: SIGNED_URL_TTL_SEC,
       resumeOnly: true,
+      auditReferralId: referralId,
+      auditSource: source,
     });
 
     if (result.ok === false) {
@@ -229,8 +232,11 @@ export function ReferralsPanel() {
     candidateName: string,
     referralId: string
   ) => {
-    const url = await resolveResumeUrl(path, referralId, () =>
-      viewResume(path, candidateName, referralId)
+    const url = await resolveResumeUrl(
+      path,
+      referralId,
+      "hr.referrals_panel.view",
+      () => viewResume(path, candidateName, referralId)
     );
     if (!url) return;
     void logAccess(referralId, path, "view");
@@ -241,8 +247,11 @@ export function ReferralsPanel() {
   };
 
   const downloadResume = async (path: string, referralId: string) => {
-    const url = await resolveResumeUrl(path, referralId, () =>
-      downloadResume(path, referralId)
+    const url = await resolveResumeUrl(
+      path,
+      referralId,
+      "hr.referrals_panel.download",
+      () => downloadResume(path, referralId)
     );
     if (!url) return;
     void logAccess(referralId, path, "download");
