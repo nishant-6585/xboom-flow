@@ -49,26 +49,23 @@ import { ElevenLabsLeadsPanel } from './ElevenLabsLeadsPanel';
 import { Bot } from 'lucide-react';
 
 /**
- * Source filter options for the All Leads tab. Each entry maps a
- * user-facing label to one or more match values that may appear in
- * `enquiries.lead_source` (canonical) or, for legacy rows, in the
- * free-text `notes` column.
+ * Source filter options for the All Leads tab.
  *
- * Keep this list aligned with the lead-source tabs visible in the
- * Leads view (QForms, Interakt, MyOperator, ElevenLabs, Emails, Forms,
- * Google Ads, Call Tracker) and the structured channels actually
- * stamped onto enquiries. Channels we never stamp are intentionally
- * omitted to avoid dead filter options.
+ * IMPORTANT: All Leads only iterates the `enquiries` table. Channels
+ * that live in their own tables (MyOperator / ElevenLabs → call_logs,
+ * Interakt → interakt_leads, QForms → leads, Forms → form_leads,
+ * Emails → email_leads, Google Ads → google_ads_leads) are surfaced
+ * via their dedicated tabs and would never match anything here, so
+ * they are intentionally omitted to avoid dead filter options.
+ *
+ * Each entry maps a user-facing label to match values that may appear
+ * in `enquiries.lead_source` (canonical) or, for legacy rows, in the
+ * free-text `notes` column (typically "Lead Source: <name>").
  */
 const LEAD_SOURCE_OPTIONS: { label: string; matches: string[] }[] = [
-  { label: 'Website Form', matches: ['website_form', 'form', 'website'] },
-  { label: 'QForms', matches: ['qform', 'q-form'] },
-  { label: 'Google Ads', matches: ['google_ads', 'google ads'] },
+  { label: 'Website', matches: ['website', 'website_form'] },
+  { label: 'Email / Gmail', matches: ['gmail', 'email'] },
   { label: 'IndiaMART', matches: ['indiamart'] },
-  { label: 'Interakt', matches: ['interakt'] },
-  { label: 'MyOperator', matches: ['myoperator', 'exotel'] },
-  { label: 'ElevenLabs', matches: ['elevenlabs'] },
-  { label: 'Email', matches: ['email', 'gmail'] },
   { label: 'Referral', matches: ['referral'] },
   { label: 'Exhibition', matches: ['exhibition', 'event'] },
   { label: 'Other', matches: ['other'] },
