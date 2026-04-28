@@ -556,6 +556,7 @@ export function XboomWebsiteLeadsPanel() {
                   <TableHead>Product</TableHead>
                   <TableHead className="text-right">Value</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Assigned To</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
