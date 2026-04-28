@@ -217,6 +217,23 @@ export function XboomWebsiteLeadsPanel() {
     });
   }, [leads, search, statusFilter]);
 
+  // Client-side pagination — reduces DOM nodes from hundreds to PAGE_SIZE,
+  // which removes the perceived "loading delay" once data arrives.
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
+  // Reset to page 1 whenever the filter set changes
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, viewMode]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paged = useMemo(
+    () => filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filtered, safePage],
+  );
+  const pageStart = filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const pageEnd = Math.min(safePage * PAGE_SIZE, filtered.length);
+
   const stats = useMemo(() => {
     const total = leads.length;
     const counts: Record<string, number> = {
