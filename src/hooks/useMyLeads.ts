@@ -17,6 +17,7 @@ export interface MyLead {
   next_followup_at: string | null;
   followup_status: string | null;
   customer_type: string | null;
+  assigned_user_id: string | null;
 }
 
 const PER_SOURCE_LIMIT = 1000;
