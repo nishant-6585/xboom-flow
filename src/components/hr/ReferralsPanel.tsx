@@ -197,6 +197,7 @@ export function ReferralsPanel() {
       notifySignedUrlFailure(result);
       return null;
     }
+    // result is SignedUrlSuccess from here on
 
     signedUrlCache.current.set(referralId, {
       url: result.url,
@@ -361,7 +362,7 @@ export function ReferralsPanel() {
                           </span>
                         ) : (() => {
                           const supported = isSupportedResume(r.resume_url);
-                          const ext = getResumeExt(r.resume_url);
+                          const ext = getDocumentExt(r.resume_url);
                           const tip = supported
                             ? undefined
                             : `Unsupported format (.${ext || "?"}) — only PDF resumes are accepted`;
