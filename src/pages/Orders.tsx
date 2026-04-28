@@ -1319,7 +1319,7 @@ export default function Orders() {
             )}
 
             {/* Primary metrics — business-friendly, simplified */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <Card className="border-primary/20 bg-primary/5">
                 <CardContent className="p-4 text-center">
                   <p className="text-xs text-muted-foreground">Total Orders</p>
@@ -1341,12 +1341,6 @@ export default function Orders() {
               </Card>
               <Card>
                 <CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Cancelled + Failed</p>
-                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">{wooStats.grouped.failed.toLocaleString()}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
                   <p className="text-xs text-muted-foreground">Today's Orders</p>
                   <p className="text-2xl font-bold text-foreground">{wooStats.todayOrders.toLocaleString()}</p>
                 </CardContent>
@@ -1354,7 +1348,7 @@ export default function Orders() {
             </div>
 
             {/* Revenue metrics */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
                 <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground">Total Revenue</p>
@@ -1365,13 +1359,6 @@ export default function Orders() {
                 <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground">Completed Revenue</p>
                   <p className="text-xl font-bold text-green-600 dark:text-green-400 mt-1">{formatINR(wooStats.revenue.completed)}</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/20">
-                <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground">Lost Revenue</p>
-                  <p className="text-xl font-bold text-red-600 dark:text-red-400 mt-1">{formatINR(wooStats.revenue.lost)}</p>
-                  <p className="text-[10px] text-muted-foreground/80 mt-0.5">cancelled + failed</p>
                 </CardContent>
               </Card>
             </div>
