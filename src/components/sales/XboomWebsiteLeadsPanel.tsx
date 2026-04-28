@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import {
   Globe, Search, Phone, MessageCircle, Mail, RefreshCw,
@@ -123,12 +123,11 @@ export function XboomWebsiteLeadsPanel() {
     [leads, selectedId],
   );
 
-  // Reset draft whenever drawer subject changes
+  // Reset draft whenever the drawer's selected lead changes
   const selectedStatus = (selected?.order_status || "").toLowerCase();
-  if (selectedId && statusDraft === "" && selectedStatus) {
-    // initialize once on open
+  useEffect(() => {
     setStatusDraft(selectedStatus);
-  }
+  }, [selectedId, selectedStatus]);
 
   const saveStatus = async () => {
     if (!selected || !statusDraft || statusDraft === selectedStatus) return;
