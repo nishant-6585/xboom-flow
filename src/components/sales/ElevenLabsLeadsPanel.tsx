@@ -28,6 +28,7 @@ import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { ProspectButton } from "./ProspectButton";
 import { LinkToCompanyButton } from "./LinkToCompanyButton";
 import { AttentionButton } from "./AttentionButton";
+import { LeadActionsCell } from "./LeadActionsCell";
 import { ElevenLabsAnalytics } from "./ElevenLabsAnalytics";
 import { BarChart3 } from "lucide-react";
 
@@ -535,6 +536,7 @@ export function ElevenLabsLeadsPanel() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-8" />
+              <TableHead className="w-[200px]">Actions</TableHead>
               <TableHead>Received</TableHead>
               <TableHead>Caller</TableHead>
               <TableHead>Phone</TableHead>
@@ -545,7 +547,6 @@ export function ElevenLabsLeadsPanel() {
               <TableHead>Assigned To</TableHead>
               <TableHead>Last contact</TableHead>
               <TableHead className="w-[130px]">Status</TableHead>
-              <TableHead className="w-[200px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
