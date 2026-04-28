@@ -197,7 +197,14 @@ export function ReferralsPanel() {
     });
 
     if (result.ok === false) {
-      notifySignedUrlFailure(result, { onRetry });
+      notifySignedUrlFailure(result, {
+        onRetry,
+        retryAudit: {
+          referralId,
+          documentPath: path,
+          source: `${source}.retry`,
+        },
+      });
       return null;
     }
 
