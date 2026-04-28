@@ -29,6 +29,7 @@ import { ProspectButton } from "./ProspectButton";
 import { AttentionButton } from "./AttentionButton";
 import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { LinkToCompanyButton } from "./LinkToCompanyButton";
+import { LeadActionsCell } from "./LeadActionsCell";
 
 /**
  * Xboom Website Leads
@@ -551,6 +552,7 @@ export function XboomWebsiteLeadsPanel() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8" />
+                  <TableHead className="w-[200px]">Actions</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Product</TableHead>
@@ -558,7 +560,6 @@ export function XboomWebsiteLeadsPanel() {
                   <TableHead>Status</TableHead>
                   <TableHead>Assigned To</TableHead>
                   <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -578,6 +579,19 @@ export function XboomWebsiteLeadsPanel() {
                        >
                         <TableCell>
                           {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <LeadActionsCell
+                            sourceType="lead"
+                            sourceId={l.id}
+                            customerName={l.customer_name || "Unknown"}
+                            phone={l.customer_phone}
+                            email={l.customer_email}
+                            company={l.customer_company ?? null}
+                            productName={l.product_name || ""}
+                            quantity={l.quantity}
+                            sourceLabel="Xboom Website"
+                          />
                         </TableCell>
                         <TableCell>
                           <div className="font-medium">{l.customer_name || "—"}</div>
@@ -629,70 +643,6 @@ export function XboomWebsiteLeadsPanel() {
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {relativeTime(l.woo_created_at || l.created_at)}
-                        </TableCell>
-                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-end gap-1">
-                            {l.customer_phone && (
-                              <>
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => callPhone(l.customer_phone)} title="Call">
-                                  <Phone className="h-3.5 w-3.5 text-blue-600" />
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openWhatsApp(l.customer_phone)} title="WhatsApp">
-                                  <MessageCircle className="h-3.5 w-3.5 text-green-600" />
-                                </Button>
-                              </>
-                            )}
-                            {l.customer_email && (
-                              <Button asChild size="icon" variant="ghost" className="h-7 w-7" title="Email">
-                                <a href={`mailto:${l.customer_email}`}>
-                                  <Mail className="h-3.5 w-3.5 text-orange-500" />
-                                </a>
-                              </Button>
-                            )}
-                            <ProspectButton
-                              sourceType="lead"
-                              sourceId={l.id}
-                              customerName={l.customer_name || "Unknown"}
-                              phoneNumber={l.customer_phone}
-                              email={l.customer_email}
-                              company={l.customer_company ?? null}
-                              city={null}
-                              productName={l.product_name || ""}
-                              notes={null}
-                            />
-                            <AttentionButton
-                              sourceType="lead"
-                              sourceId={l.id}
-                              customerName={l.customer_name || "Unknown"}
-                              phoneNumber={l.customer_phone}
-                              email={l.customer_email}
-                              company={l.customer_company ?? null}
-                              city={null}
-                              productName={l.product_name || ""}
-                              notes={null}
-                            />
-                            <EnquiryConvertButton
-                              sourceType="lead"
-                              sourceId={l.id}
-                              customerName={l.customer_name || "Unknown"}
-                              phoneNumber={l.customer_phone}
-                              email={l.customer_email}
-                              company={l.customer_company ?? null}
-                              city={null}
-                              productName={l.product_name || ""}
-                              urgency={null}
-                              notes={null}
-                              isAlreadyConverted={false}
-                            />
-                            <LinkToCompanyButton
-                              lead={{
-                                customer_name: l.customer_name || undefined,
-                                company: l.customer_company ?? undefined,
-                                phone: l.customer_phone,
-                                source_label: "Xboom Website",
-                              }}
-                            />
-                          </div>
                         </TableCell>
                       </TableRow>
                       {isOpen && (

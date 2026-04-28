@@ -19,6 +19,7 @@ import { ProspectButton, ACategoryButton } from "./ProspectButton";
 import { AttentionButton } from "./AttentionButton";
 import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { LinkToCompanyButton } from "./LinkToCompanyButton";
+import { LeadActionsCell } from "./LeadActionsCell";
 import { useProspects } from "@/hooks/useProspects";
 import { useAttentionItems } from "@/hooks/useAttentionItems";
 import { FormsLeadsAnalytics } from "./FormsLeadsAnalytics";
@@ -275,8 +276,8 @@ export function FormsLeadsPanel() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left">
+                    <th className="py-2 px-3 font-medium w-[200px]">Actions</th>
                     <th className="py-2 px-3 font-medium">Name</th>
-                    <th className="py-2 px-1 font-medium w-20"></th>
                     <th className="py-2 px-3 font-medium">Contact</th>
                     <th className="py-2 px-3 font-medium">Company</th>
                     <th className="py-2 px-3 font-medium">Form Source</th>
@@ -285,54 +286,30 @@ export function FormsLeadsPanel() {
                     <th className="py-2 px-3 font-medium">Status</th>
                     <th className="py-2 px-3 font-medium">Assigned</th>
                     <th className="py-2 px-3 font-medium">Created</th>
-                    <th className="py-2 px-3 font-medium">Actions</th>
+                    <th className="py-2 px-3 font-medium">Edit</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedLeads.map((lead) => (
                     <tr key={lead.id} className="border-b hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setDrawerLead(lead)}>
-                      <td className="py-2.5 px-3 font-medium">{lead.customer_name}</td>
-                      <td className="py-2.5 px-1" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex gap-1 items-center">
-                          <ProspectButton
-                            sourceType="form_lead"
-                            sourceId={lead.id}
-                            customerName={lead.customer_name}
-                            phoneNumber={lead.phone}
-                            email={lead.email}
-                            company={lead.company}
-                            city={lead.city}
-                            productName={lead.product_name}
-                            notes={lead.notes}
-                            isAlreadyProspect={prospectSourceIds.has(`form_lead:${lead.id}`)}
-                            customerType={lead.customer_type}
-                          />
-                          <AttentionButton
-                            sourceType="form_lead"
-                            sourceId={lead.id}
-                            customerName={lead.customer_name}
-                            phoneNumber={lead.phone}
-                            email={lead.email}
-                            company={lead.company}
-                            city={lead.city}
-                            productName={lead.product_name}
-                            notes={lead.notes}
-                            isAlreadyAttention={attentionSourceIds.has(`form_lead:${lead.id}`)}
-                          />
-                          <EnquiryConvertButton
-                            sourceType="form_lead"
-                            sourceId={lead.id}
-                            customerName={lead.customer_name}
-                            phoneNumber={lead.phone}
-                            email={lead.email}
-                            company={lead.company}
-                            city={lead.city}
-                            productName={lead.product_name}
-                            notes={lead.notes}
-                          />
-                          <LinkToCompanyButton lead={{ customer_name: lead.customer_name, company: lead.company, phone: lead.phone, email: lead.email, city: lead.city, source_label: 'Form' }} />
-                        </div>
+                      <td className="py-2.5 px-3" onClick={(e) => e.stopPropagation()}>
+                        <LeadActionsCell
+                          sourceType="form_lead"
+                          sourceId={lead.id}
+                          customerName={lead.customer_name}
+                          phone={lead.phone}
+                          email={lead.email}
+                          company={lead.company}
+                          city={lead.city}
+                          productName={lead.product_name}
+                          notes={lead.notes}
+                          isAlreadyProspect={prospectSourceIds.has(`form_lead:${lead.id}`)}
+                          isAlreadyAttention={attentionSourceIds.has(`form_lead:${lead.id}`)}
+                          customerType={lead.customer_type}
+                          sourceLabel="Form"
+                        />
                       </td>
+                      <td className="py-2.5 px-3 font-medium">{lead.customer_name}</td>
                       <td className="py-2.5 px-3">
                         <div className="space-y-0.5">
                           {lead.email && <div className="flex items-center gap-1 text-xs"><Mail className="w-3 h-3" />{lead.email}</div>}

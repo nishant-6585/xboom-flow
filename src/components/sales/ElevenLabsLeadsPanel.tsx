@@ -28,6 +28,7 @@ import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { ProspectButton } from "./ProspectButton";
 import { LinkToCompanyButton } from "./LinkToCompanyButton";
 import { AttentionButton } from "./AttentionButton";
+import { LeadActionsCell } from "./LeadActionsCell";
 import { ElevenLabsAnalytics } from "./ElevenLabsAnalytics";
 import { BarChart3 } from "lucide-react";
 
@@ -535,6 +536,7 @@ export function ElevenLabsLeadsPanel() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-8" />
+              <TableHead className="w-[200px]">Actions</TableHead>
               <TableHead>Received</TableHead>
               <TableHead>Caller</TableHead>
               <TableHead>Phone</TableHead>
@@ -545,7 +547,6 @@ export function ElevenLabsLeadsPanel() {
               <TableHead>Assigned To</TableHead>
               <TableHead>Last contact</TableHead>
               <TableHead className="w-[130px]">Status</TableHead>
-              <TableHead className="w-[200px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -574,6 +575,22 @@ export function ElevenLabsLeadsPanel() {
                   >
                     <TableCell className="w-8 px-2" onClick={(e) => { e.stopPropagation(); toggleRow(r.id); }}>
                       {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <LeadActionsCell
+                        sourceType="lead"
+                        sourceId={r.id}
+                        customerName={isUnidentified ? "Unknown" : name}
+                        phone={r.caller_number}
+                        company={(r as any).company}
+                        productName={r.requirement || ""}
+                        urgency={r.priority}
+                        notes={r.notes || r.raw_transcript}
+                        isAlreadyConverted={r.is_enquiry_converted}
+                        sourceLabel="Call"
+                        onContacted={() => markContacted(r)}
+                        openWhatsApp={openWhatsApp}
+                      />
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-xs">
                       {format(new Date(r.created_at), "dd MMM, HH:mm")}
@@ -657,57 +674,6 @@ export function ElevenLabsLeadsPanel() {
                           {STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="Call">
-                          <a href={`tel:${r.caller_number}`} onClick={() => markContacted(r)}>
-                            <Phone className="h-3.5 w-3.5 text-blue-600" />
-                          </a>
-                        </Button>
-                        <Button
-                          size="sm" variant="ghost" className="h-7 w-7 p-0" title="WhatsApp"
-                          onClick={() => { openWhatsApp(r.caller_number); markContacted(r); }}
-                        >
-                          <MessageCircle className="h-3.5 w-3.5 text-green-600" />
-                        </Button>
-                        <ProspectButton
-                          sourceType="lead"
-                          sourceId={r.id}
-                          customerName={isUnidentified ? "Unknown" : name}
-                          phoneNumber={r.caller_number}
-                          email={null}
-                          company={null}
-                          city={null}
-                          productName={r.requirement || ""}
-                          notes={r.notes || r.raw_transcript}
-                        />
-                        <AttentionButton
-                          sourceType="lead"
-                          sourceId={r.id}
-                          customerName={isUnidentified ? "Unknown" : name}
-                          phoneNumber={r.caller_number}
-                          email={null}
-                          company={null}
-                          city={null}
-                          productName={r.requirement || ""}
-                          notes={r.notes || r.raw_transcript}
-                        />
-                        <EnquiryConvertButton
-                          sourceType="lead"
-                          sourceId={r.id}
-                          customerName={isUnidentified ? "Unknown" : name}
-                          phoneNumber={r.caller_number}
-                          email={null}
-                          company={null}
-                          city={null}
-                          productName={r.requirement || ""}
-                          urgency={r.priority}
-                          notes={r.notes || r.raw_transcript}
-                          isAlreadyConverted={r.is_enquiry_converted}
-                        />
-                        <LinkToCompanyButton lead={{ customer_name: isUnidentified ? undefined : name, company: (r as any).company, phone: r.caller_number, source_label: 'Call' }} />
-                      </div>
                     </TableCell>
                   </TableRow>
                   {isOpen && (
