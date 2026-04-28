@@ -576,6 +576,22 @@ export function ElevenLabsLeadsPanel() {
                     <TableCell className="w-8 px-2" onClick={(e) => { e.stopPropagation(); toggleRow(r.id); }}>
                       {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                     </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <LeadActionsCell
+                        sourceType="lead"
+                        sourceId={r.id}
+                        customerName={isUnidentified ? "Unknown" : name}
+                        phone={r.caller_number}
+                        company={(r as any).company}
+                        productName={r.requirement || ""}
+                        urgency={r.priority}
+                        notes={r.notes || r.raw_transcript}
+                        isAlreadyConverted={r.is_enquiry_converted}
+                        sourceLabel="Call"
+                        onContacted={() => markContacted(r)}
+                        openWhatsApp={openWhatsApp}
+                      />
+                    </TableCell>
                     <TableCell className="whitespace-nowrap text-xs">
                       {format(new Date(r.created_at), "dd MMM, HH:mm")}
                       {newish && <Badge className="ml-1 h-4 px-1 text-[10px] bg-success/15 text-success border-success/30">New</Badge>}
