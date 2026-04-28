@@ -176,7 +176,8 @@ export function ReferralsPanel() {
    */
   const resolveResumeUrl = async (
     path: string,
-    referralId: string
+    referralId: string,
+    onRetry?: () => void
   ): Promise<string | null> => {
     const cached = signedUrlCache.current.get(referralId);
     if (
@@ -193,7 +194,7 @@ export function ReferralsPanel() {
     });
 
     if (result.ok === false) {
-      notifySignedUrlFailure(result);
+      notifySignedUrlFailure(result, { onRetry });
       return null;
     }
 
@@ -228,7 +229,9 @@ export function ReferralsPanel() {
     candidateName: string,
     referralId: string
   ) => {
-    const url = await resolveResumeUrl(path, referralId);
+    const url = await resolveResumeUrl(path, referralId, () =>
+      viewResume(path, candidateName, referralId)
+    );
     if (!url) return;
     void logAccess(referralId, path, "view");
     const fileName = path.split("/").pop() || "resume";
@@ -238,7 +241,9 @@ export function ReferralsPanel() {
   };
 
   const downloadResume = async (path: string, referralId: string) => {
-    const url = await resolveResumeUrl(path, referralId);
+    const url = await resolveResumeUrl(path, referralId, () =>
+      downloadResume(path, referralId)
+    );
     if (!url) return;
     void logAccess(referralId, path, "download");
     triggerDownload(url, path.split("/").pop() || "resume");

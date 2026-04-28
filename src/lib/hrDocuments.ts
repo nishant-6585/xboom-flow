@@ -146,11 +146,39 @@ export async function createHrDocumentSignedUrl(
 }
 
 /** Standard toast messaging for a failed signed URL request. */
-export function notifySignedUrlFailure(failure: SignedUrlFailure): void {
-  if (failure.reason === "unsupported_format") {
-    toast.error(failure.message);
+export type NotifyOptions = {
+  /**
+   * Async retry callback. When provided AND the failure is transient
+   * (e.g. permission/unknown), an inline "Retry" action is added to the toast.
+   */
+  onRetry?: () => void | Promise<void>;
+};
+
+const TRANSIENT_FAILURE_REASONS: SignedUrlFailureReason[] = [
+  "forbidden",
+  "unknown",
+];
+
+export function notifySignedUrlFailure(
+  failure: SignedUrlFailure,
+  opts: NotifyOptions = {}
+): void {
+  const canRetry =
+    !!opts.onRetry && TRANSIENT_FAILURE_REASONS.includes(failure.reason);
+
+  if (canRetry) {
+    toast.error(failure.message, {
+      action: {
+        label: "Retry",
+        onClick: () => {
+          void opts.onRetry?.();
+        },
+      },
+      duration: 8000,
+    });
     return;
   }
+
   toast.error(failure.message);
 }
 
