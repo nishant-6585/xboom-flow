@@ -22,6 +22,7 @@ import { ProspectEditDialog } from './ProspectEditDialog';
 import { OrderForm, OrderFormInitialData } from '@/components/OrderForm';
 import { toast } from 'sonner';
 import { LogCallDialog } from './LogCallDialog';
+import { AssigneeCell } from './AssigneeCell';
 
 const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'negotiation', 'converted', 'lost'];
 
@@ -449,7 +450,7 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                       <TableHead className="w-[80px]">Type</TableHead>
                       <TableHead className="w-[90px]">Status</TableHead>
                       <TableHead className="w-[90px]">Date</TableHead>
-                      <TableHead className="w-[100px]">By</TableHead>
+                      <TableHead className="w-[140px]">Assigned To</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -500,7 +501,7 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                           </Select>
                         </TableCell>
                         <TableCell><span className="text-xs text-muted-foreground">{format(new Date(p.created_at), 'dd MMM')}</span></TableCell>
-                        <TableCell><span className="text-xs text-muted-foreground">{p.created_by_name}</span></TableCell>
+                        <TableCell><AssigneeCell userId={p.created_by} name={p.created_by_name} /></TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-0.5">
                             <Button

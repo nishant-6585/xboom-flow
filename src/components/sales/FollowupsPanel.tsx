@@ -15,6 +15,7 @@ import { format, isToday, isBefore, startOfDay, endOfDay, addDays, startOfWeek, 
 import { Calendar, List, Search, CheckCircle2, Clock, AlertTriangle, Phone, Mail, Package, User, ChevronLeft, ChevronRight, Filter, Plus, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { AssigneeCell } from './AssigneeCell';
 
 export function FollowupsPanel() {
   const { followups, loading, completeFollowup, rescheduleFollowup, cancelFollowup, createFollowup } = useFollowups();
@@ -241,17 +242,18 @@ export function FollowupsPanel() {
                 <TableRow>
                   <TableHead className="w-[140px]">Status</TableHead>
                   <TableHead>Contact</TableHead>
+                  <TableHead>Company</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Scheduled</TableHead>
                   <TableHead>Source</TableHead>
-                  {isManager && <TableHead>Assigned To</TableHead>}
+                  <TableHead>Assigned To</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={isManager ? 7 : 6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       No follow-ups found
                     </TableCell>
                   </TableRow>
@@ -272,6 +274,7 @@ export function FollowupsPanel() {
                         </div>
                       </div>
                     </TableCell>
+                    <TableCell className="text-sm">{f.customer_company || '—'}</TableCell>
                     <TableCell className="text-sm">{f.product_name || '-'}</TableCell>
                     <TableCell>
                       <div className="text-sm font-medium">{format(new Date(f.followup_at), 'dd MMM yyyy')}</div>
@@ -280,7 +283,7 @@ export function FollowupsPanel() {
                     <TableCell>
                       <Badge variant="outline" className="text-[10px] capitalize">{f.source_type}</Badge>
                     </TableCell>
-                    {isManager && <TableCell className="text-xs">{f.created_by_name}</TableCell>}
+                    <TableCell><AssigneeCell userId={(f as any).user_id} name={f.created_by_name} /></TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center gap-1 justify-end">
                         {f.status === 'pending' && (

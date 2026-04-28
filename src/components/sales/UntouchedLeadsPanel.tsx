@@ -18,6 +18,7 @@ import {
 import { PieChart, Pie, Cell } from "recharts";
 import { useUntouchedLeads, useUntouchedStats, type UntouchedLead } from "@/hooks/useUntouchedLeads";
 import { formatDistanceToNow, format } from "date-fns";
+import { AssigneeCell } from "./AssigneeCell";
 
 const BUCKET_COLORS: Record<string, string> = {
   "T+1": "#eab308",
@@ -325,8 +326,9 @@ export function UntouchedLeadsPanel() {
                       <TableHead>Customer</TableHead>
                       <TableHead>Source</TableHead>
                       <TableHead>Product</TableHead>
+                      <TableHead>Company</TableHead>
                       <TableHead>City</TableHead>
-                      <TableHead>Salesperson</TableHead>
+                      <TableHead>Assigned To</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead className="text-right">Delay</TableHead>
                     </TableRow>
@@ -334,7 +336,7 @@ export function UntouchedLeadsPanel() {
                   <TableBody>
                     {filteredLeads.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                           🎉 No untouched leads! Great work, team.
                         </TableCell>
                       </TableRow>
@@ -349,8 +351,9 @@ export function UntouchedLeadsPanel() {
                           <TableCell className="font-medium">{lead.customer_name}</TableCell>
                           <TableCell><SourceBadge source={lead.source} /></TableCell>
                           <TableCell className="text-sm">{lead.product_name || "—"}</TableCell>
+                          <TableCell className="text-sm">{(lead as any).company || (lead as any).customer_company || "—"}</TableCell>
                           <TableCell className="text-sm">{lead.city || "—"}</TableCell>
-                          <TableCell className="text-sm">{lead.sales_person_name || "Unassigned"}</TableCell>
+                          <TableCell><AssigneeCell userId={(lead as any).sales_person_id} name={lead.sales_person_name} /></TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
                           </TableCell>

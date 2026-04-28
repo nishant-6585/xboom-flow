@@ -540,7 +540,8 @@ export function ElevenLabsLeadsPanel() {
               <TableHead>Intent / Budget</TableHead>
               <TableHead>Duration</TableHead>
               <TableHead>Temp</TableHead>
-              <TableHead>Assignee</TableHead>
+              <TableHead>Company</TableHead>
+              <TableHead>Assigned To</TableHead>
               <TableHead>Last contact</TableHead>
               <TableHead className="w-[130px]">Status</TableHead>
               <TableHead className="w-[200px] text-right">Actions</TableHead>
@@ -548,10 +549,10 @@ export function ElevenLabsLeadsPanel() {
           </TableHeader>
           <TableBody>
             {loading && (
-              <TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">Loading…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={12} className="py-8 text-center text-muted-foreground">Loading…</TableCell></TableRow>
             )}
             {!loading && filtered.length === 0 && (
-              <TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">
+              <TableRow><TableCell colSpan={12} className="py-8 text-center text-muted-foreground">
                 No leads match your filters yet — calls will appear here automatically.
               </TableCell></TableRow>
             )}
@@ -620,6 +621,7 @@ export function ElevenLabsLeadsPanel() {
                         </SelectContent>
                       </Select>
                     </TableCell>
+                    <TableCell className="text-xs">{(r as any).company || '—'}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {canManage ? (
                         <Select
@@ -708,7 +710,7 @@ export function ElevenLabsLeadsPanel() {
                   </TableRow>
                   {isOpen && (
                     <TableRow key={`${r.id}-detail`} className="bg-muted/30 hover:bg-muted/30">
-                      <TableCell colSpan={11} className="p-4">
+                      <TableCell colSpan={12} className="p-4">
                         <RowDetail lead={r} summary={summaries[r.id]} />
                       </TableCell>
                     </TableRow>

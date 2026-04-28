@@ -22,6 +22,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
 import { toast } from 'sonner';
+import { AssigneeCell } from './AssigneeCell';
 import * as XLSX from 'xlsx';
 import { LeadFormDialog } from './LeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
@@ -525,10 +526,11 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                      <TableRow className="bg-muted/50">
                       <TableHead className="w-[70px]">P / ⚠</TableHead>
                       <TableHead className="w-[180px]">Customer</TableHead>
+                      <TableHead className="w-[140px]">Company</TableHead>
                       <TableHead className="w-[180px]">Product</TableHead>
                       <TableHead className="w-[60px]">Qty</TableHead>
                       <TableHead className="w-[100px]">Source</TableHead>
-                      {canSeeAllLeads && <TableHead className="w-[120px]">Sales Person</TableHead>}
+                      <TableHead className="w-[140px]">Assigned To</TableHead>
                       <TableHead className="w-[80px]">Urgency</TableHead>
                       <TableHead className="w-[100px]">Status</TableHead>
                       <TableHead className="w-[100px]">Date</TableHead>
@@ -581,6 +583,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                             <p className="text-xs text-muted-foreground">{lead.customer_company}</p>
                           </div>
                         </TableCell>
+                        <TableCell className="text-sm">{lead.customer_company || '—'}</TableCell>
                         <TableCell>
                           <div>
                             <p className="font-medium text-sm">{lead.product_name}</p>
@@ -595,11 +598,9 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                         <TableCell>
                           {getSourceBadge(extractLeadSource(lead.notes))}
                         </TableCell>
-                        {canSeeAllLeads && (
-                          <TableCell>
-                            <span className="text-sm">{lead.sales_person_name}</span>
-                          </TableCell>
-                        )}
+                        <TableCell>
+                          <AssigneeCell userId={(lead as any).sales_person_id} name={lead.sales_person_name} />
+                        </TableCell>
                         <TableCell>
                           <Badge className={`${getUrgencyColor(lead.urgency)} capitalize text-xs`}>
                             {lead.urgency}

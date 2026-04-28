@@ -510,7 +510,7 @@ export default function QFormsPanel() {
               <TableHead>Contact</TableHead>
               <TableHead>Company / Location</TableHead>
               <TableHead>Temp</TableHead>
-              <TableHead>Assignee</TableHead>
+              <TableHead>Assigned To</TableHead>
               <TableHead>Last contact</TableHead>
               <TableHead className="w-[140px]">Status</TableHead>
               <TableHead className="w-[180px] text-right">Actions</TableHead>
