@@ -18,7 +18,7 @@ export const SUPPORTED_RESUME_EXTS = ["pdf"] as const;
 export type SupportedResumeExt = (typeof SUPPORTED_RESUME_EXTS)[number];
 
 export type SignedUrlSuccess = {
-  ok: true;
+  readonly ok: true;
   url: string;
   path: string;
   expiresAt: number;
@@ -32,7 +32,7 @@ export type SignedUrlFailureReason =
   | "unknown";
 
 export type SignedUrlFailure = {
-  ok: false;
+  readonly ok: false;
   reason: SignedUrlFailureReason;
   message: string;
   ext?: string;
