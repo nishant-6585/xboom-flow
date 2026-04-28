@@ -288,7 +288,7 @@ export function MyLeadsPanel() {
                 {filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={11} className="text-center py-10 text-muted-foreground">No leads found</TableCell></TableRow>
                 ) : (
-                  filtered.slice(0, 200).map(lead => {
+                  filtered.slice(0, 500).map(lead => {
                     const isOverdue = lead.has_followup && lead.followup_status === "pending" && lead.next_followup_at && isBefore(parseISO(lead.next_followup_at), now);
                     const sourceType = SOURCE_TYPE_MAP[lead.source] || 'lead';
                     return (
@@ -390,8 +390,8 @@ export function MyLeadsPanel() {
               </TableBody>
             </Table>
           </div>
-          {filtered.length > 200 && (
-            <p className="text-xs text-muted-foreground text-center py-2">Showing 200 of {filtered.length} leads</p>
+          {filtered.length > 500 && (
+            <p className="text-xs text-muted-foreground text-center py-2">Showing 500 of {filtered.length} leads</p>
           )}
         </CardContent>
       </Card>
