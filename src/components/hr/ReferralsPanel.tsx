@@ -194,7 +194,29 @@ export function ReferralsPanel() {
     }
   };
 
-  const viewResume = async (path: string, candidateName: string) => {
+  const logAccess = async (
+    referralId: string,
+    path: string,
+    action: "view" | "download"
+  ) => {
+    try {
+      await (supabase as any).rpc("log_resume_access", {
+        _referral_id: referralId,
+        _document_path: path,
+        _action: action,
+        _user_agent:
+          typeof navigator !== "undefined" ? navigator.userAgent : null,
+      });
+    } catch {
+      // Non-blocking: audit failure should not prevent legitimate access
+    }
+  };
+
+  const viewResume = async (
+    path: string,
+    candidateName: string,
+    referralId: string
+  ) => {
     if (!isSupportedResume(path)) {
       const ext = getResumeExt(path);
       toast.error(
@@ -206,13 +228,14 @@ export function ReferralsPanel() {
     }
     const url = await getSignedUrl(path);
     if (!url) return;
+    void logAccess(referralId, path, "view");
     const fileName = path.split("/").pop() || "resume";
     const ext = getResumeExt(path);
     const kind: "pdf" | "image" | "other" = "pdf";
     setViewer({ url, name: `${candidateName} — ${fileName}`, ext, kind });
   };
 
-  const downloadResume = async (path: string) => {
+  const downloadResume = async (path: string, referralId: string) => {
     if (!isSupportedResume(path)) {
       const ext = getResumeExt(path);
       toast.error(
@@ -224,6 +247,7 @@ export function ReferralsPanel() {
     }
     const url = await getSignedUrl(path);
     if (!url) return;
+    void logAccess(referralId, path, "download");
     const a = document.createElement("a");
     a.href = url;
     a.download = path.split("/").pop() || "resume";
@@ -352,7 +376,7 @@ export function ReferralsPanel() {
                                 variant="outline"
                                 title={tip || "View resume"}
                                 disabled={!supported}
-                                onClick={() => viewResume(r.resume_url!, r.candidate_name)}
+                                onClick={() => viewResume(r.resume_url!, r.candidate_name, r.id)}
                               >
                                 <Eye className="h-3.5 w-3.5" />
                               </Button>
@@ -361,7 +385,7 @@ export function ReferralsPanel() {
                                 variant="outline"
                                 title={tip || "Download resume"}
                                 disabled={!supported}
-                                onClick={() => downloadResume(r.resume_url!)}
+                                onClick={() => downloadResume(r.resume_url!, r.id)}
                               >
                                 <Download className="h-3.5 w-3.5" />
                               </Button>
