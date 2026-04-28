@@ -24,6 +24,7 @@ import { isWooLeadStatus } from "@/lib/wooOrderStatuses";
 import { WooLeadActivityLog } from "./WooLeadActivityLog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 /**
  * Xboom Website Leads
@@ -74,6 +75,7 @@ const relativeTime = (iso?: string | null) => {
 
 export function XboomWebsiteLeadsPanel() {
   const { wooOrders, loading, refetch } = useWooCommerceOrders();
+  const { user } = useAuth();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -98,6 +100,12 @@ export function XboomWebsiteLeadsPanel() {
   });
   const rowRefs = useRef<Map<string, HTMLElement>>(new Map());
   const hasRestoredRef = useRef(false);
+  // Tracks last-seen status per Woo order id, used to detect transitions
+  // across refreshes and persist them to the activity log.
+  const statusSnapshotRef = useRef<Map<string, string>>(new Map());
+  // De-dupes (woo_order_id|prev|next) transitions already logged this session.
+  const loggedTransitionsRef = useRef<Set<string>>(new Set());
+  const initialSnapshotTakenRef = useRef(false);
 
   const recordOpen = (id: string) => {
     setLastFocusedId(id);
@@ -115,6 +123,70 @@ export function XboomWebsiteLeadsPanel() {
     () => wooOrders.filter((o) => isWooLeadStatus(o.order_status)),
     [wooOrders],
   );
+
+  // Detect status transitions across refreshes and log them as
+  // `status_change` activities so the drawer history reflects the change.
+  useEffect(() => {
+    if (loading || !user || wooOrders.length === 0) return;
+
+    const prevMap = statusSnapshotRef.current;
+    const performerName =
+      ((user.user_metadata as Record<string, unknown> | null)?.full_name as string) ||
+      user.email ||
+      "System";
+
+    // First pass after data loads — snapshot only, do not log historical states.
+    if (!initialSnapshotTakenRef.current) {
+      for (const o of wooOrders) {
+        if (o.woo_order_id) {
+          prevMap.set(o.woo_order_id, (o.order_status || "").toLowerCase());
+        }
+      }
+      initialSnapshotTakenRef.current = true;
+      return;
+    }
+
+    const transitions: Array<{
+      woo_order_id: string;
+      prev: string;
+      next: string;
+    }> = [];
+
+    for (const o of wooOrders) {
+      const wooId = o.woo_order_id;
+      if (!wooId) continue;
+      const next = (o.order_status || "").toLowerCase();
+      const prev = prevMap.get(wooId);
+      if (prev !== undefined && prev !== next) {
+        const key = `${wooId}|${prev}|${next}`;
+        if (!loggedTransitionsRef.current.has(key)) {
+          loggedTransitionsRef.current.add(key);
+          transitions.push({ woo_order_id: wooId, prev, next });
+        }
+      }
+      prevMap.set(wooId, next);
+    }
+
+    if (transitions.length === 0) return;
+
+    void (async () => {
+      const rows = transitions.map((t) => ({
+        woo_order_id: t.woo_order_id,
+        activity_type: "status_change",
+        description: `Status changed from "${t.prev || "unknown"}" to "${t.next || "unknown"}" (detected on refresh).`,
+        performed_by: user.id,
+        performed_by_name: performerName,
+      }));
+      const { error } = await supabase.from("woo_lead_activities").insert(rows);
+      if (error) {
+        console.warn("[XboomWebsiteLeadsPanel] status transition log failed", error);
+        // Allow retry on next refresh by clearing the dedupe keys
+        for (const t of transitions) {
+          loggedTransitionsRef.current.delete(`${t.woo_order_id}|${t.prev}|${t.next}`);
+        }
+      }
+    })();
+  }, [wooOrders, loading, user]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
