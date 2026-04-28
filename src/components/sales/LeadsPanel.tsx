@@ -51,21 +51,21 @@ import { Bot } from 'lucide-react';
 /**
  * Source filter options for the All Leads tab.
  *
- * IMPORTANT: All Leads only iterates the `enquiries` table. Channels
- * that live in their own tables (MyOperator / ElevenLabs → call_logs,
- * Interakt → interakt_leads, QForms → leads, Forms → form_leads,
- * Emails → email_leads, Google Ads → google_ads_leads) are surfaced
- * via their dedicated tabs and would never match anything here, so
- * they are intentionally omitted to avoid dead filter options.
- *
- * Each entry maps a user-facing label to match values that may appear
+ * Each entry maps a user-facing label to the values that may appear
  * in `enquiries.lead_source` (canonical) or, for legacy rows, in the
- * free-text `notes` column (typically "Lead Source: <name>").
+ * free-text `notes` column (typically "Lead Source: <name>"). The
+ * labels mirror the dedicated channel tabs so users see a consistent
+ * source list across My Leads and All Leads.
  */
 const LEAD_SOURCE_OPTIONS: { label: string; matches: string[] }[] = [
   { label: 'Website', matches: ['website', 'website_form'] },
-  { label: 'Email / Gmail', matches: ['gmail', 'email'] },
+  { label: 'QForms', matches: ['qform', 'qforms'] },
+  { label: 'Google Ads', matches: ['google_ads', 'google ads', 'googleads'] },
   { label: 'IndiaMART', matches: ['indiamart'] },
+  { label: 'Interakt', matches: ['interakt'] },
+  { label: 'MyOperator', matches: ['myoperator', 'exotel'] },
+  { label: 'ElevenLabs', matches: ['elevenlabs', 'eleven labs'] },
+  { label: 'Email / Gmail', matches: ['gmail', 'email'] },
   { label: 'Referral', matches: ['referral'] },
   { label: 'Exhibition', matches: ['exhibition', 'event'] },
   { label: 'Other', matches: ['other'] },
@@ -454,9 +454,11 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
             </div>
             <div className="flex gap-2 flex-wrap">
               <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                <SelectTrigger className="w-[150px]">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Source" />
+                <SelectTrigger className="w-[170px]">
+                  <Filter className="h-4 w-4 mr-2 shrink-0" />
+                  <SelectValue placeholder="All Sources">
+                    {sourceFilter === 'all' ? 'All Sources' : sourceFilter}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Sources</SelectItem>
