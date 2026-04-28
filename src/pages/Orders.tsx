@@ -27,6 +27,7 @@ import { SupportCallsDashboard } from '@/components/orders/SupportCallsDashboard
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
 import { useWooCommerceOrders } from '@/hooks/useWooCommerceOrders';
+import { isWooOrderStatus, WOO_ORDER_STATUSES } from '@/lib/wooOrderStatuses';
 import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidget';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
