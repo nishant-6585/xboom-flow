@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   Activity, Phone, MessageCircle, Mail, StickyNote, RefreshCw,
@@ -103,6 +103,16 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
   }>({ customer_note: null, internal_notes: null, sales_notes: null });
 
   const wooId = order.woo_order_id;
+
+  // Incremental render — keeps the DOM small for leads with long histories.
+  const PAGE_SIZE = 20;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // Reset paging whenever the open lead changes
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [wooId, order.id]);
 
   useEffect(() => {
     if (!wooId) { setEntries([]); setLoading(false); return; }
@@ -270,6 +280,29 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
     );
   }, [entries, order, user, wooNotes, storedNotes]);
 
+  const visibleTimeline = useMemo(
+    () => timeline.slice(0, visibleCount),
+    [timeline, visibleCount],
+  );
+  const hasMore = visibleCount < timeline.length;
+
+  // Auto-load more when the sentinel scrolls into view
+  useEffect(() => {
+    if (!hasMore) return;
+    const node = sentinelRef.current;
+    if (!node) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisibleCount((c) => Math.min(c + PAGE_SIZE, timeline.length));
+        }
+      },
+      { rootMargin: "200px 0px" },
+    );
+    io.observe(node);
+    return () => io.disconnect();
+  }, [hasMore, timeline.length]);
+
   const addEntry = async () => {
     const text = newText.trim();
     if (!text || !wooId || !user) return;
@@ -388,7 +421,7 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
         </p>
       ) : (
         <ol className="relative border-l border-border ml-2 space-y-3 pl-4">
-          {timeline.map((item) => {
+          {visibleTimeline.map((item) => {
             const Icon = ICONS[item.type] ?? Activity;
             const tone = ICON_TONE[item.type] ?? "bg-muted text-muted-foreground";
             return (
@@ -433,6 +466,28 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
             );
           })}
         </ol>
+      )}
+
+      {timeline.length > 0 && (hasMore || visibleCount > PAGE_SIZE) && (
+        <div ref={sentinelRef} className="flex items-center justify-center pt-1">
+          {hasMore ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-muted-foreground gap-1"
+              onClick={() =>
+                setVisibleCount((c) => Math.min(c + PAGE_SIZE, timeline.length))
+              }
+            >
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Loading more… ({visibleCount} of {timeline.length})
+            </Button>
+          ) : (
+            <span className="text-[11px] text-muted-foreground">
+              End of history · {timeline.length} events
+            </span>
+          )}
+        </div>
       )}
     </div>
   );
