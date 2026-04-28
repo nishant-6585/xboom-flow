@@ -5016,6 +5016,48 @@ export type Database = {
         }
         Relationships: []
       }
+      hiring_requirements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          department: string | null
+          description: string | null
+          experience_required: string | null
+          id: string
+          location: string | null
+          open_positions: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          description?: string | null
+          experience_required?: string | null
+          id?: string
+          location?: string | null
+          open_positions?: number
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          description?: string | null
+          experience_required?: string | null
+          id?: string
+          location?: string | null
+          open_positions?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       holidays: {
         Row: {
           created_at: string
@@ -9300,6 +9342,56 @@ export type Database = {
             columns: ["subaccount_id"]
             isOneToOne: false
             referencedRelation: "reconciliation_subaccounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referrals: {
+        Row: {
+          candidate_email: string
+          candidate_name: string
+          candidate_phone: string
+          created_at: string
+          id: string
+          notes: string | null
+          referred_by: string
+          resume_url: string | null
+          role_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          candidate_email: string
+          candidate_name: string
+          candidate_phone: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          referred_by: string
+          resume_url?: string | null
+          role_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          candidate_email?: string
+          candidate_name?: string
+          candidate_phone?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          referred_by?: string
+          resume_url?: string | null
+          role_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "hiring_requirements"
             referencedColumns: ["id"]
           },
         ]
