@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import {
   Globe, Search, Phone, MessageCircle, Mail, RefreshCw,
@@ -255,7 +255,7 @@ export function XboomWebsiteLeadsPanel() {
                   const status = (l.order_status || "").toLowerCase();
                   const isOpen = expanded.has(l.id);
                   return (
-                    <FragmentWithKey key={l.id}>
+                    <Fragment key={l.id}>
                       <TableRow className="cursor-pointer hover:bg-muted/40" onClick={() => toggleRow(l.id)}>
                         <TableCell>
                           {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
@@ -324,7 +324,7 @@ export function XboomWebsiteLeadsPanel() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </FragmentWithKey>
+                    </Fragment>
                   );
                 })}
               </TableBody>
