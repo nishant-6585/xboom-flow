@@ -16,6 +16,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CompanyDetailDrawer } from './CompanyDetailDrawer';
 import { CompanyDashboard } from './CompanyDashboard';
+import { LeadCompanyCoverage } from './LeadCompanyCoverage';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
@@ -130,6 +131,9 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
     <div className="space-y-6">
       {/* Dashboard Visuals */}
       <CompanyDashboard companies={companies} />
+
+      {/* Lead Source Coverage */}
+      <LeadCompanyCoverage />
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
