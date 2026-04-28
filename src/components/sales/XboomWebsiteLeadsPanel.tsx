@@ -29,6 +29,7 @@ import { ProspectButton } from "./ProspectButton";
 import { AttentionButton } from "./AttentionButton";
 import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { LinkToCompanyButton } from "./LinkToCompanyButton";
+import { LeadActionsCell } from "./LeadActionsCell";
 
 /**
  * Xboom Website Leads
@@ -551,6 +552,7 @@ export function XboomWebsiteLeadsPanel() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8" />
+                  <TableHead className="w-[200px]">Actions</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Product</TableHead>
@@ -558,7 +560,6 @@ export function XboomWebsiteLeadsPanel() {
                   <TableHead>Status</TableHead>
                   <TableHead>Assigned To</TableHead>
                   <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
