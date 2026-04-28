@@ -193,8 +193,18 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
     
     const matchesCategory = categoryFilter === 'all' || e.product_category === categoryFilter;
     
-    // For source filter, check notes field (where lead source is stored)
-    const matchesSource = sourceFilter === 'all' || e.notes?.toLowerCase().includes(sourceFilter.toLowerCase());
+    // Source filter: prefer the structured `lead_source` column, fall
+    // back to a substring match on `notes` for legacy rows that pre-date
+    // the structured channel.
+    const matchesSource = (() => {
+      if (sourceFilter === 'all') return true;
+      const matches = LEAD_SOURCE_OPTIONS.find(o => o.label === sourceFilter)?.matches ?? [sourceFilter];
+      const lowered = matches.map(m => m.toLowerCase());
+      const ls = String((e as any).lead_source ?? '').toLowerCase();
+      if (ls && lowered.includes(ls)) return true;
+      const notes = (e.notes ?? '').toLowerCase();
+      return lowered.some(m => notes.includes(m));
+    })();
     
     // Filter by sales person id (only applicable if user can see all leads)
     const matchesSalesPerson = salesPersonFilter === 'all' || (e as any).sales_person_id === salesPersonFilter;
@@ -453,8 +463,8 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Sources</SelectItem>
-                  {LEAD_SOURCES.map((source) => (
-                    <SelectItem key={source} value={source.toLowerCase()}>{source}</SelectItem>
+                  {LEAD_SOURCE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.label} value={opt.label}>{opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
