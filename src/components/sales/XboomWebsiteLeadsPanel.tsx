@@ -500,7 +500,7 @@ export function XboomWebsiteLeadsPanel() {
             return (
               <Card
                 key={l.id}
-                className="hover:shadow-md transition-shadow cursor-pointer"
+                className={`hover:shadow-md transition-shadow cursor-pointer ${lastFocusedId === l.id ? "ring-2 ring-primary/40" : ""}`}
                 onClick={() => { recordOpen(l.id); setSelectedId(l.id); }}
                 ref={(el) => {
                   if (el) rowRefs.current.set(l.id, el);
@@ -521,6 +521,12 @@ export function XboomWebsiteLeadsPanel() {
                       <p className="text-xs text-muted-foreground truncate">{l.customer_email}</p>
                     )}
                     <p className="text-xs font-mono text-muted-foreground mt-1">{formatPhone(l.customer_phone)}</p>
+                    {lastOpened[l.id] && (
+                      <p className="text-[10px] text-muted-foreground/80 mt-1 inline-flex items-center gap-1" title={format(new Date(lastOpened[l.id]), "PPpp")}>
+                        <Clock className="h-2.5 w-2.5" />
+                        Last opened {formatDistanceToNow(new Date(lastOpened[l.id]), { addSuffix: true })}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
