@@ -675,57 +675,6 @@ export function ElevenLabsLeadsPanel() {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="Call">
-                          <a href={`tel:${r.caller_number}`} onClick={() => markContacted(r)}>
-                            <Phone className="h-3.5 w-3.5 text-blue-600" />
-                          </a>
-                        </Button>
-                        <Button
-                          size="sm" variant="ghost" className="h-7 w-7 p-0" title="WhatsApp"
-                          onClick={() => { openWhatsApp(r.caller_number); markContacted(r); }}
-                        >
-                          <MessageCircle className="h-3.5 w-3.5 text-green-600" />
-                        </Button>
-                        <ProspectButton
-                          sourceType="lead"
-                          sourceId={r.id}
-                          customerName={isUnidentified ? "Unknown" : name}
-                          phoneNumber={r.caller_number}
-                          email={null}
-                          company={null}
-                          city={null}
-                          productName={r.requirement || ""}
-                          notes={r.notes || r.raw_transcript}
-                        />
-                        <AttentionButton
-                          sourceType="lead"
-                          sourceId={r.id}
-                          customerName={isUnidentified ? "Unknown" : name}
-                          phoneNumber={r.caller_number}
-                          email={null}
-                          company={null}
-                          city={null}
-                          productName={r.requirement || ""}
-                          notes={r.notes || r.raw_transcript}
-                        />
-                        <EnquiryConvertButton
-                          sourceType="lead"
-                          sourceId={r.id}
-                          customerName={isUnidentified ? "Unknown" : name}
-                          phoneNumber={r.caller_number}
-                          email={null}
-                          company={null}
-                          city={null}
-                          productName={r.requirement || ""}
-                          urgency={r.priority}
-                          notes={r.notes || r.raw_transcript}
-                          isAlreadyConverted={r.is_enquiry_converted}
-                        />
-                        <LinkToCompanyButton lead={{ customer_name: isUnidentified ? undefined : name, company: (r as any).company, phone: r.caller_number, source_label: 'Call' }} />
-                      </div>
-                    </TableCell>
                   </TableRow>
                   {isOpen && (
                     <TableRow key={`${r.id}-detail`} className="bg-muted/30 hover:bg-muted/30">
