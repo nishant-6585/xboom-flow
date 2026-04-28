@@ -19,6 +19,7 @@ import { PieChart, Pie, Cell } from "recharts";
 import { useUntouchedLeads, useUntouchedStats, type UntouchedLead } from "@/hooks/useUntouchedLeads";
 import { formatDistanceToNow, format } from "date-fns";
 import { AssigneeCell } from "./AssigneeCell";
+import { LinkToCompanyButton } from "./LinkToCompanyButton";
 
 const BUCKET_COLORS: Record<string, string> = {
   "T+1": "#eab308",
@@ -353,7 +354,12 @@ export function UntouchedLeadsPanel() {
                           <TableCell className="text-sm">{lead.product_name || "—"}</TableCell>
                           <TableCell className="text-sm">{(lead as any).company || (lead as any).customer_company || "—"}</TableCell>
                           <TableCell className="text-sm">{lead.city || "—"}</TableCell>
-                          <TableCell><AssigneeCell userId={(lead as any).sales_person_id} name={lead.sales_person_name} /></TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <AssigneeCell userId={(lead as any).sales_person_id} name={lead.sales_person_name} />
+                              <LinkToCompanyButton lead={{ customer_name: lead.customer_name, company: (lead as any).company || (lead as any).customer_company, phone: (lead as any).phone, email: (lead as any).email, city: lead.city, source_label: lead.source }} />
+                            </div>
+                          </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
                           </TableCell>
