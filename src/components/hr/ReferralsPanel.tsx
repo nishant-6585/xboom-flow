@@ -177,8 +177,30 @@ export function ReferralsPanel() {
     path: string,
     referralId?: string
   ): Promise<string | null> => {
+    const auditFailure = (
+      reason: "missing_path" | "unsupported_format" | "not_found" | "forbidden" | "unknown",
+      errorMessage?: string
+    ) => {
+      try {
+        void (supabase as any)
+          .rpc("log_resume_access_failure", {
+            _referral_id: referralId ?? null,
+            _document_path: path || null,
+            _reason: reason,
+            _error_message: errorMessage ?? null,
+            _user_agent:
+              typeof navigator !== "undefined" ? navigator.userAgent : null,
+          })
+          ?.then?.(() => undefined)
+          ?.catch?.(() => undefined);
+      } catch {
+        // Audit must never break access flow
+      }
+    };
+
     if (!path || !path.trim()) {
       toast.error("Resume file is missing for this referral");
+      auditFailure("missing_path");
       return null;
     }
     // Return cached URL if still valid
@@ -200,6 +222,7 @@ export function ReferralsPanel() {
         const msg = error.message?.toLowerCase() ?? "";
         if (msg.includes("not found") || msg.includes("object")) {
           toast.error("Resume file not found in storage");
+          auditFailure("not_found", error.message);
         } else if (
           msg.includes("permission") ||
           msg.includes("denied") ||
@@ -208,13 +231,16 @@ export function ReferralsPanel() {
           msg.includes("policy")
         ) {
           toast.error("You do not have permission to access this resume");
+          auditFailure("forbidden", error.message);
         } else {
           toast.error(error.message || "Could not generate download link");
+          auditFailure("unknown", error.message);
         }
         return null;
       }
       if (!data?.signedUrl) {
         toast.error("Could not generate download link");
+        auditFailure("unknown", "empty signedUrl");
         return null;
       }
       if (referralId) {
@@ -227,6 +253,7 @@ export function ReferralsPanel() {
       return data.signedUrl;
     } catch (e: any) {
       toast.error(e?.message || "Unexpected error opening resume");
+      auditFailure("unknown", e?.message);
       return null;
     }
   };
@@ -261,6 +288,17 @@ export function ReferralsPanel() {
           ? `Only PDF resumes can be previewed. This file is .${ext} — please ask the candidate to resubmit as PDF.`
           : "Only PDF resumes can be previewed. This file format is not supported."
       );
+      void (supabase as any)
+        .rpc("log_resume_access_failure", {
+          _referral_id: referralId,
+          _document_path: path || null,
+          _reason: "unsupported_format",
+          _error_message: ext ? `ext=.${ext}` : "no extension",
+          _user_agent:
+            typeof navigator !== "undefined" ? navigator.userAgent : null,
+        })
+        ?.then?.(() => undefined)
+        ?.catch?.(() => undefined);
       return;
     }
     const url = await getSignedUrl(path, referralId);
@@ -280,6 +318,17 @@ export function ReferralsPanel() {
           ? `Only PDF resumes are supported. This file is .${ext}.`
           : "Only PDF resumes are supported."
       );
+      void (supabase as any)
+        .rpc("log_resume_access_failure", {
+          _referral_id: referralId,
+          _document_path: path || null,
+          _reason: "unsupported_format",
+          _error_message: ext ? `ext=.${ext}` : "no extension",
+          _user_agent:
+            typeof navigator !== "undefined" ? navigator.userAgent : null,
+        })
+        ?.then?.(() => undefined)
+        ?.catch?.(() => undefined);
       return;
     }
     const url = await getSignedUrl(path, referralId);
