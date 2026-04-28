@@ -49,30 +49,35 @@ export function LinkToCompanyButton({ lead, initialQuery, className }: Props) {
     try {
       const { data: existingContacts } = await supabase
         .from('company_contacts')
-        .select('id, name, phone, email')
+        .select('id, name, phone, email, is_primary')
         .eq('company_id', companyId);
 
-      const dup = (existingContacts || []).find((c: any) =>
+      const allContacts = existingContacts || [];
+      const hasPrimary = allContacts.some((c: any) => c.is_primary);
+
+      const dup = allContacts.find((c: any) =>
         (personName && c.name && c.name.toLowerCase().trim() === personName.toLowerCase().trim()) ||
         (lead.phone && c.phone && c.phone.replace(/\D/g, '') === (lead.phone || '').replace(/\D/g, '')) ||
         (lead.email && c.email && c.email.toLowerCase() === (lead.email || '').toLowerCase())
       );
 
       if (dup) {
-        const patch: Record<string, any> = { is_primary: true };
+        // Existing contact — just enrich missing fields. Don't change primary status.
+        const patch: Record<string, any> = {};
         if (!dup.phone && lead.phone) patch.phone = lead.phone;
         if (!dup.email && lead.email) patch.email = lead.email;
         if (!dup.name && personName) patch.name = personName;
-        await supabase.from('company_contacts').update({ is_primary: false }).eq('company_id', companyId);
-        await supabase.from('company_contacts').update(patch).eq('id', dup.id);
+        if (Object.keys(patch).length) {
+          await supabase.from('company_contacts').update(patch).eq('id', dup.id);
+        }
       } else if (personName || lead.phone || lead.email) {
-        await supabase.from('company_contacts').update({ is_primary: false }).eq('company_id', companyId);
+        // Add as an additional contact. Only mark primary if none exists yet.
         const { error } = await supabase.from('company_contacts').insert([{
           company_id: companyId,
           name: personName || lead.phone || lead.email || 'Unknown',
           phone: lead.phone || null,
           email: lead.email || null,
-          is_primary: true,
+          is_primary: !hasPrimary,
           notes: lead.source_label ? `From ${lead.source_label}` : null,
         } as any]);
         if (error) throw error;
