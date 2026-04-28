@@ -180,6 +180,7 @@ export function XboomWebsiteLeadsPanel() {
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+    recordOpen(id);
   };
 
   const openWhatsApp = (phone: string | null) => {
