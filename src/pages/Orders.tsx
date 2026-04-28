@@ -27,6 +27,7 @@ import { SupportCallsDashboard } from '@/components/orders/SupportCallsDashboard
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
 import { useWooCommerceOrders } from '@/hooks/useWooCommerceOrders';
+import { isWooOrderStatus, WOO_ORDER_STATUSES } from '@/lib/wooOrderStatuses';
 import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidget';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
@@ -43,7 +44,64 @@ export default function Orders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { orders, loading, createOrder, updateOrder, deleteOrder, escalateOrder } = useOrders();
   const { shopifyOrders, totalCount: shopifyTotalCount, loading: shopifyLoading } = useShopifyOrders();
-  const { wooOrders, totalCount: wooTotalCount, loading: wooLoading, stats: wooStats, refetch: refetchWooOrders } = useWooCommerceOrders();
+  const {
+    wooOrders: wooOrdersAll,
+    loading: wooLoading,
+    stats: wooStatsAll,
+    refetch: refetchWooOrders,
+  } = useWooCommerceOrders();
+
+  // Only treat processing/completed/delivered as Xboom website ORDERS.
+  // All other statuses (pending, on-hold, failed, cancelled, refunded …) are
+  // routed to Sales > Leads > Xboom Website. See src/lib/wooOrderStatuses.ts.
+  const wooOrders = wooOrdersAll.filter((o) => isWooOrderStatus(o.order_status));
+  const wooTotalCount = wooOrders.length;
+
+  // Recompute stats from the order-only subset so dashboards on the Orders
+  // page never include lead-status rows.
+  const wooStats = (() => {
+    const SUCCESS = ['completed', 'delivered'];
+    const statusCounts: Record<string, number> = {};
+    let successCount = 0, processingCount = 0;
+    let totalRevenue = 0, completedRevenue = 0;
+    let lastSyncedAtMs = 0;
+    let lastSyncedAt: string | null = null;
+    let todayOrders = 0;
+    const todayStr = new Date().toDateString();
+    for (const o of wooOrders) {
+      const s = (o.order_status || 'unknown').toLowerCase();
+      statusCounts[s] = (statusCounts[s] || 0) + 1;
+      const amount = Number(o.total_sales_amount) || 0;
+      totalRevenue += amount;
+      if (SUCCESS.includes(s)) { completedRevenue += amount; successCount++; }
+      if (s === 'processing') processingCount++;
+      const t = o.woo_updated_at || o.updated_at || o.created_at;
+      if (t) {
+        const ms = new Date(t).getTime();
+        if (ms > lastSyncedAtMs) { lastSyncedAtMs = ms; lastSyncedAt = t; }
+      }
+      const d = o.woo_created_at || o.created_at;
+      if (d && new Date(d).toDateString() === todayStr) todayOrders++;
+    }
+    return {
+      totalOrders: wooOrders.length,
+      statusCounts,
+      grouped: {
+        success: successCount,
+        failed: 0,
+        pending: 0,
+        processing: processingCount,
+      },
+      revenue: { total: totalRevenue, completed: completedRevenue, lost: 0 },
+      lastSyncedAt,
+      completedOrders: statusCounts['completed'] || 0,
+      processingOrders: statusCounts['processing'] || 0,
+      pendingOrders: 0,
+      failedOrders: 0,
+      cancelledOrders: 0,
+      todayOrders,
+    };
+  })();
   const { gap: wooGap, wooTotal: wooApiTotal, dbTotal: wooDbTotal, refetch: refetchWooSync } = useWooSyncHealth();
   const {
     failedOrderIds: wooFailedNotifIds,
@@ -1261,7 +1319,7 @@ export default function Orders() {
             )}
 
             {/* Primary metrics — business-friendly, simplified */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <Card className="border-primary/20 bg-primary/5">
                 <CardContent className="p-4 text-center">
                   <p className="text-xs text-muted-foreground">Total Orders</p>
@@ -1283,12 +1341,6 @@ export default function Orders() {
               </Card>
               <Card>
                 <CardContent className="p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Cancelled + Failed</p>
-                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">{wooStats.grouped.failed.toLocaleString()}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
                   <p className="text-xs text-muted-foreground">Today's Orders</p>
                   <p className="text-2xl font-bold text-foreground">{wooStats.todayOrders.toLocaleString()}</p>
                 </CardContent>
@@ -1296,7 +1348,7 @@ export default function Orders() {
             </div>
 
             {/* Revenue metrics */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
                 <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground">Total Revenue</p>
@@ -1307,13 +1359,6 @@ export default function Orders() {
                 <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground">Completed Revenue</p>
                   <p className="text-xl font-bold text-green-600 dark:text-green-400 mt-1">{formatINR(wooStats.revenue.completed)}</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/20">
-                <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground">Lost Revenue</p>
-                  <p className="text-xl font-bold text-red-600 dark:text-red-400 mt-1">{formatINR(wooStats.revenue.lost)}</p>
-                  <p className="text-[10px] text-muted-foreground/80 mt-0.5">cancelled + failed</p>
                 </CardContent>
               </Card>
             </div>
@@ -1417,28 +1462,12 @@ export default function Orders() {
                     ✅ Success ({wooStats.grouped.success.toLocaleString()})
                   </Button>
                   <Button
-                    variant={wooStatusFilter === 'pending' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setWooStatusFilter('pending')}
-                    className="h-8 rounded-full text-xs px-3"
-                  >
-                    ⏳ Pending ({wooStats.grouped.pending.toLocaleString()})
-                  </Button>
-                  <Button
                     variant={wooStatusFilter === 'processing' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setWooStatusFilter('processing')}
                     className="h-8 rounded-full text-xs px-3"
                   >
                     🔄 Processing ({wooStats.grouped.processing.toLocaleString()})
-                  </Button>
-                  <Button
-                    variant={wooStatusFilter === 'failed' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setWooStatusFilter('failed')}
-                    className="h-8 rounded-full text-xs px-3"
-                  >
-                    ❌ Failed ({wooStats.grouped.failed.toLocaleString()})
                   </Button>
                 </div>
 
