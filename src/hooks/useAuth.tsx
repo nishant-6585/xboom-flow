@@ -205,6 +205,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Phase 1, 6, 10: Hardened MFA check — server-only trust, AAL-based validation
   const checkMfaStatus = useCallback(async (currentUserId: string) => {
     try {
+      // MFA bypass for whitelisted developer accounts
+      const { data: userResp } = await supabase.auth.getUser();
+      if (isMfaBypassed(userResp?.user?.email)) {
+        if (import.meta.env.DEV) console.log("[Auth] MFA bypassed for whitelisted email:", userResp?.user?.email);
+        sessionStorage.removeItem("step_up_required");
+        setAuthState({ mfaStatus: "verified", deviceTrust: "trusted", stepUpRequired: false });
+        return;
+      }
+
       // Phase 6: Always validate with AAL from Supabase
       const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
