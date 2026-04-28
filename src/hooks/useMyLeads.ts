@@ -130,7 +130,7 @@ export function useMyLeads() {
       fetches.push((async () => {
         let q: any = supabase
           .from("form_leads")
-          .select("id, customer_name, product_name, company, created_at, status, city, email, customer_type, phone_number, sales_person_id")
+          .select("id, customer_name, product_name, company, created_at, status, city, email, customer_type, phone, sales_person_id")
           .order("created_at", { ascending: false })
           .limit(PER_SOURCE_LIMIT);
         q = scope(q);
@@ -144,7 +144,7 @@ export function useMyLeads() {
             company: r.company,
             city: r.city,
             email: r.email,
-            phone: (r as any).phone_number ?? null,
+            phone: (r as any).phone ?? null,
             status: r.status,
             created_at: r.created_at,
             has_followup: false,
@@ -220,7 +220,7 @@ export function useMyLeads() {
       fetches.push((async () => {
         let q: any = supabase
           .from("google_ads_leads" as any)
-          .select("id, customer_name, product_name, customer_company, customer_state, email, phone, status, created_at, customer_type, sales_person_id")
+          .select("id, customer_name, product_name, customer_company, customer_state, email, phone, status, created_at, sales_person_id")
           .order("created_at", { ascending: false })
           .limit(PER_SOURCE_LIMIT);
         q = scope(q);
@@ -240,7 +240,7 @@ export function useMyLeads() {
             has_followup: false,
             next_followup_at: null,
             followup_status: null,
-            customer_type: r.customer_type || null,
+            customer_type: null,
             assigned_user_id: r.sales_person_id ?? null,
           }, "google_ads"))
         );
