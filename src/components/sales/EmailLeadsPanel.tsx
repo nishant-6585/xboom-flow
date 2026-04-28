@@ -27,6 +27,7 @@ import { LeadContactDrawer, LeadContactData } from './LeadContactDrawer';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { GmailIntegrationCard } from './GmailIntegrationCard';
 import { LinkToCompanyButton } from './LinkToCompanyButton';
+import { LeadActionsCell } from './LeadActionsCell';
 import { toast } from 'sonner';
 
 type SortField = 'created_at' | 'customer_name' | 'ai_confidence' | 'processing_status';
@@ -518,7 +519,7 @@ export function EmailLeadsPanel() {
                       />
                     </TableHead>
                     <TableHead className="w-8" />
-                    <TableHead className="w-[130px]">P / E / A / ⚠</TableHead>
+                    <TableHead className="w-[210px]">Actions</TableHead>
                     <TableHead>
                       <button className="flex items-center gap-1 hover:text-foreground transition-colors" onClick={() => toggleSort('customer_name')}>
                         Customer
@@ -551,7 +552,7 @@ export function EmailLeadsPanel() {
                         <ArrowUpDown className="w-3 h-3" />
                       </button>
                     </TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>Admin</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
