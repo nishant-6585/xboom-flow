@@ -34,7 +34,6 @@ import {
   triggerDownload,
   isSupportedResume,
   getDocumentExt,
-  type SignedUrlResult,
 } from "@/lib/hrDocuments";
 
 interface ReferralRow {
