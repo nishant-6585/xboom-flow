@@ -14,6 +14,7 @@ import { MessageCircle } from "lucide-react";
 import { AttentionButton } from "./AttentionButton";
 import { ProspectButton } from "./ProspectButton";
 import { EnquiryConvertButton } from "./EnquiryConvertButton";
+import { AssigneeCell } from "./AssigneeCell";
 
 // Map MyLead.source -> sourceType used by action buttons
 const SOURCE_TYPE_MAP: Record<string, 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads' | 'lead' | 'enquiry'> = {
@@ -290,6 +291,7 @@ export function MyLeadsPanel() {
                   <TableHead>City</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Assigned To</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Follow-up</TableHead>
                   <TableHead>Date</TableHead>
@@ -298,7 +300,7 @@ export function MyLeadsPanel() {
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={11} className="text-center py-10 text-muted-foreground">No leads found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center py-10 text-muted-foreground">No leads found</TableCell></TableRow>
                 ) : (
                   filtered.slice(0, 500).map(lead => {
                     const isOverdue = lead.has_followup && lead.followup_status === "pending" && lead.next_followup_at && isBefore(parseISO(lead.next_followup_at), now);
@@ -316,6 +318,7 @@ export function MyLeadsPanel() {
                         <TableCell className="text-xs">{lead.city || "—"}</TableCell>
                         <TableCell className="text-xs whitespace-nowrap">{lead.phone || "—"}</TableCell>
                         <TableCell className="text-xs max-w-[180px] truncate">{lead.email || "—"}</TableCell>
+                        <TableCell><AssigneeCell userId={lead.assigned_user_id} /></TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="text-xs">{lead.status || "—"}</Badge>
                         </TableCell>
