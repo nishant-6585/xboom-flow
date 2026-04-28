@@ -106,7 +106,11 @@ async function processOrder(supabase: any, payload: any, orderId: string, topic:
   const isPaid = wooStatus === "completed" || wooStatus === "processing" || wooStatus === "delivered";
   const orderTotal = parseFloat(payload?.total || "0");
 
-  const orderData = {
+  const rawPhone = (payload?.billing?.phone ?? payload?.shipping?.phone ?? "").toString().trim();
+  const phone: string | null = rawPhone.length > 0 ? rawPhone : null;
+  console.log(`[woocommerce-webhook] order ${orderId} phone="${phone ?? ""}"`);
+
+  const orderData: Record<string, unknown> = {
     woo_order_id: orderId,
     order_number: payload?.number ? String(payload.number) : orderId,
     source: "xboom_website",
@@ -120,7 +124,6 @@ async function processOrder(supabase: any, payload: any, orderId: string, topic:
     customer_name: `${payload?.billing?.first_name || ""} ${payload?.billing?.last_name || ""}`.trim() || "Unknown",
     customer_company: payload?.billing?.company || "",
     customer_email: payload?.billing?.email || "",
-    customer_phone: payload?.billing?.phone || null,
     shipping_address: shippingAddress,
     selling_price: orderTotal,
     total_sales_amount: orderTotal,
@@ -132,6 +135,8 @@ async function processOrder(supabase: any, payload: any, orderId: string, topic:
     woo_created_at: payload?.date_created || null,
     woo_updated_at: payload?.date_modified || null,
   };
+  // Only include phone in upsert when present — preserves existing valid phone.
+  if (phone !== null) orderData.customer_phone = phone;
 
   // UPSERT keyed on woo_order_id — same row moves between buckets when status changes.
   const { error } = await supabase
