@@ -607,6 +607,26 @@ export function XboomWebsiteLeadsPanel() {
                             {status.replace(/-/g, " ") || "unknown"}
                           </Badge>
                         </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Select
+                            value={l.assigned_to ?? ""}
+                            onValueChange={(v) => handleAssign(l.id, v)}
+                            disabled={assigningId === l.id || salespeople.length === 0}
+                          >
+                            <SelectTrigger className="h-7 w-[150px] text-xs">
+                              <SelectValue placeholder="Unassigned">
+                                {l.assigned_to_name || "Unassigned"}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {salespeople.map((s) => (
+                                <SelectItem key={s.user_id} value={s.user_id} className="text-xs">
+                                  {s.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {relativeTime(l.woo_created_at || l.created_at)}
                         </TableCell>
