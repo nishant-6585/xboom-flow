@@ -233,8 +233,13 @@ export function XboomWebsiteLeadsPanel() {
               ? "bg-primary text-primary-foreground border-primary"
               : "bg-muted/40 text-muted-foreground border-border/60 hover:bg-muted"
           }`}
+          aria-busy={loading}
         >
-          All ({stats.total.toLocaleString()})
+          All {loading ? (
+            <Loader2 className="inline h-3 w-3 animate-spin ml-1 -mt-0.5" aria-label="Loading count" />
+          ) : (
+            <span>({stats.total.toLocaleString()})</span>
+          )}
         </button>
         {LEAD_STATUSES.map((s) => {
           const active = statusFilter === s;
@@ -247,8 +252,14 @@ export function XboomWebsiteLeadsPanel() {
               className={`text-xs font-medium px-3 py-1.5 rounded-full border capitalize transition-all ${base} ${
                 active ? "ring-2 ring-offset-1 ring-primary/60 shadow-sm" : "opacity-80 hover:opacity-100"
               }`}
+              aria-busy={loading}
             >
-              {s.replace(/-/g, " ")} ({(stats.counts[s] ?? 0).toLocaleString()})
+              {s.replace(/-/g, " ")}{" "}
+              {loading ? (
+                <Loader2 className="inline h-3 w-3 animate-spin ml-0.5 -mt-0.5" aria-label="Loading count" />
+              ) : (
+                <span>({(stats.counts[s] ?? 0).toLocaleString()})</span>
+              )}
             </button>
           );
         })}
@@ -294,11 +305,30 @@ export function XboomWebsiteLeadsPanel() {
           const hasFilters = search.trim() !== "" || statusFilter !== "all";
           const hasAnyLeads = leads.length > 0;
           const isFilteredEmpty = hasAnyLeads && hasFilters;
+          const statusOnly = statusFilter !== "all" && search.trim() === "";
           return (
             <Card>
               <CardContent className="p-10 text-center text-muted-foreground">
                 <ShoppingCart className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                {isFilteredEmpty ? (
+                {statusOnly && hasAnyLeads ? (
+                  <>
+                    <p className="font-medium capitalize">
+                      No {statusFilter.replace(/-/g, " ")} leads
+                    </p>
+                    <p className="text-sm mt-1">
+                      Nothing matches the “{statusFilter.replace(/-/g, " ")}” status right now.
+                      {leads.length > 0 && ` ${leads.length.toLocaleString()} lead${leads.length === 1 ? "" : "s"} in other statuses.`}
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-4"
+                      onClick={() => setStatusFilter("all")}
+                    >
+                      Show all statuses
+                    </Button>
+                  </>
+                ) : isFilteredEmpty ? (
                   <>
                     <p className="font-medium">No leads match your filters</p>
                     <p className="text-sm mt-1">
