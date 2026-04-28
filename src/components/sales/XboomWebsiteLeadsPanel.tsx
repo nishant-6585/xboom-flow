@@ -3,7 +3,7 @@ import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import {
   Globe, Search, Phone, MessageCircle, Mail, RefreshCw,
   LayoutGrid, Table as TableIcon, ChevronDown, ChevronRight,
-  Package, ShoppingCart, ExternalLink,
+  Package, ShoppingCart, ExternalLink, Loader2, Save,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useWooCommerceOrders } from "@/hooks/useWooCommerceOrders";
 import { isWooLeadStatus } from "@/lib/wooOrderStatuses";
 import { WooLeadActivityLog } from "./WooLeadActivityLog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 /**
  * Xboom Website Leads
