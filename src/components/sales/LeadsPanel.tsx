@@ -24,6 +24,7 @@ import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, end
 import { toast } from 'sonner';
 import { AssigneeCell } from './AssigneeCell';
 import { LinkToCompanyButton } from './LinkToCompanyButton';
+import { useProfileNames } from '@/hooks/useProfileNames';
 import * as XLSX from 'xlsx';
 import { LeadFormDialog } from './LeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
