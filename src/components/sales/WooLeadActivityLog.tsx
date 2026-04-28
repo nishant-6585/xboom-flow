@@ -61,6 +61,8 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   followup: Calendar,
   created: Activity,
   updated: RefreshCw,
+  woo_note: StickyNote,
+  woo_customer_note: MessageCircle,
 };
 
 const ICON_TONE: Record<string, string> = {
@@ -73,6 +75,16 @@ const ICON_TONE: Record<string, string> = {
   followup: "bg-teal-500/15 text-teal-600 dark:text-teal-300",
   created: "bg-primary/15 text-primary",
   updated: "bg-muted text-muted-foreground",
+  woo_note: "bg-slate-500/15 text-slate-600 dark:text-slate-300",
+  woo_customer_note: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-300",
+};
+
+type WooNote = {
+  id: number;
+  author: string;
+  date: string;
+  note: string;
+  customer_note: boolean;
 };
 
 export function WooLeadActivityLog({ order }: { order: WooOrder }) {
@@ -82,6 +94,8 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
   const [submitting, setSubmitting] = useState(false);
   const [newType, setNewType] = useState<ActivityType>("note");
   const [newText, setNewText] = useState("");
+  const [wooNotes, setWooNotes] = useState<WooNote[]>([]);
+  const [wooNotesLoading, setWooNotesLoading] = useState(false);
 
   const wooId = order.woo_order_id;
 
@@ -104,6 +118,27 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
         setEntries((data ?? []) as ManualEntry[]);
       }
       setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [wooId]);
+
+  // Fetch WooCommerce order notes (customer-facing + private) for this lead.
+  useEffect(() => {
+    if (!wooId) { setWooNotes([]); return; }
+    let cancelled = false;
+    setWooNotesLoading(true);
+    (async () => {
+      const { data, error } = await supabase.functions.invoke("get-woo-order-notes", {
+        body: { woo_order_id: wooId },
+      });
+      if (cancelled) return;
+      if (error) {
+        console.warn("[WooLeadActivityLog] woo notes fetch failed", error);
+        setWooNotes([]);
+      } else {
+        setWooNotes(((data as { notes?: WooNote[] })?.notes) ?? []);
+      }
+      setWooNotesLoading(false);
     })();
     return () => { cancelled = true; };
   }, [wooId]);
@@ -153,6 +188,43 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
         at: e.activity_date,
         source: "manual",
         ownedByMe: !!user && e.performed_by === user.id,
+      });
+    }
+
+    // Stored Woo single-field notes
+    if (order.customer_note?.trim()) {
+      items.push({
+        id: `woo-customer-note-${order.id}`,
+        type: "woo_customer_note",
+        label: "Customer note (checkout)",
+        description: order.customer_note,
+        actor: "Customer",
+        at: order.woo_created_at ?? new Date().toISOString(),
+        source: "woo",
+      });
+    }
+    if (order.internal_notes?.trim()) {
+      items.push({
+        id: `woo-internal-note-${order.id}`,
+        type: "woo_note",
+        label: "Internal note",
+        description: order.internal_notes,
+        actor: "WooCommerce",
+        at: order.woo_created_at ?? new Date().toISOString(),
+        source: "woo",
+      });
+    }
+
+    // Live-fetched Woo order notes (customer + private)
+    for (const n of wooNotes) {
+      items.push({
+        id: `woo-note-${n.id}`,
+        type: n.customer_note ? "woo_customer_note" : "woo_note",
+        label: n.customer_note ? "Customer-facing note" : "Order note",
+        description: n.note,
+        actor: n.author || "WooCommerce",
+        at: n.date,
+        source: "woo",
       });
     }
 
