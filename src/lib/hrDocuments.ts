@@ -136,6 +136,18 @@ export async function createHrDocumentSignedUrl(
     // network error, etc.).
     void (async () => {
       try {
+        // Best-effort capture of the authenticated user id as a client hint.
+        // The server-side RPC should still derive the canonical actor from
+        // auth.uid() — this is included only to aid debugging when the
+        // session token is stale or unexpectedly anonymous.
+        let actorUserId: string | null = null;
+        try {
+          const { data } = await supabase.auth.getUser();
+          actorUserId = data?.user?.id ?? null;
+        } catch {
+          // ignore — auth lookup failures shouldn't block audit best-effort
+        }
+
         const { error } = await (supabase as any).rpc(
           "log_resume_access_failure",
           {
@@ -144,6 +156,7 @@ export async function createHrDocumentSignedUrl(
             _reason: failure.reason,
             _error_message: failure.message,
             _source: auditSource ?? null,
+            _actor_user_id: actorUserId,
             _user_agent:
               typeof navigator !== "undefined" ? navigator.userAgent : null,
           }
