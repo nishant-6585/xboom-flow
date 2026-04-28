@@ -6,6 +6,7 @@ import {
   FRIENDLY_DESCRIPTION,
   friendlyMessageFor,
   type SignedUrlFailureReason as ClassifyReason,
+  type ClassificationSignals,
 } from "./hrDocumentsClassify";
 
 /**
@@ -64,6 +65,12 @@ export type SignedUrlFailure = {
   /** Longer, user-facing explanation. Always populated. */
   description: string;
   ext?: string;
+  /**
+   * Classification signals captured at the time the reason was assigned.
+   * Persisted to the audit row so HR/Admin can investigate *why* a
+   * particular reason was chosen (status code vs slug vs keyword fallback).
+   */
+  signals?: ClassificationSignals;
 };
 
 export type SignedUrlResult = SignedUrlSuccess | SignedUrlFailure;
@@ -144,6 +151,9 @@ export async function createHrDocumentSignedUrl(
             _actor_user_id: actorUserId,
             _user_agent:
               typeof navigator !== "undefined" ? navigator.userAgent : null,
+            _http_status: failure.signals?.httpStatus ?? null,
+            _error_slug: failure.signals?.errorSlug ?? null,
+            _keyword_matched: failure.signals?.keywordMatched ?? null,
           }
         );
         if (error) notifyAuditPipelineBroken(error.message);
@@ -159,6 +169,7 @@ export async function createHrDocumentSignedUrl(
       reason: "missing_path",
       message: FRIENDLY.missing_path,
       description: FRIENDLY_DESCRIPTION.missing_path,
+      signals: { httpStatus: null, errorSlug: null, keywordMatched: false },
     };
     recordFailure(failure);
     return failure;
@@ -174,6 +185,7 @@ export async function createHrDocumentSignedUrl(
       description: ext
         ? `Only PDF resumes are supported. This file is .${ext}. Please re-upload as a PDF.`
         : FRIENDLY_DESCRIPTION.unsupported_format,
+      signals: { httpStatus: null, errorSlug: null, keywordMatched: false },
     };
     recordFailure(failure);
     return failure;
@@ -185,13 +197,14 @@ export async function createHrDocumentSignedUrl(
       .createSignedUrl(path, ttlSeconds);
 
     if (error) {
-      const { reason } = classifyStorageError(error);
+      const { reason, signals } = classifyStorageError(error);
       const { title, description } = friendlyMessageFor(reason);
       const failure: SignedUrlFailure = {
         ok: false,
         reason,
         message: title,
         description,
+        signals,
       };
       recordFailure(failure);
       return failure;
@@ -202,6 +215,7 @@ export async function createHrDocumentSignedUrl(
         reason: "unknown",
         message: FRIENDLY.unknown,
         description: FRIENDLY_DESCRIPTION.unknown,
+        signals: { httpStatus: null, errorSlug: null, keywordMatched: false },
       };
       recordFailure(failure);
       return failure;
@@ -215,13 +229,14 @@ export async function createHrDocumentSignedUrl(
   } catch (e: any) {
     // Network / unexpected throw — let the classifier inspect status & message
     // (covers cross-browser "Failed to fetch" / "Load failed" / "NetworkError").
-    const { reason } = classifyStorageError(e);
+    const { reason, signals } = classifyStorageError(e);
     const { title, description } = friendlyMessageFor(reason);
     const failure: SignedUrlFailure = {
       ok: false,
       reason,
       message: title,
       description,
+      signals,
     };
     recordFailure(failure);
     return failure;
