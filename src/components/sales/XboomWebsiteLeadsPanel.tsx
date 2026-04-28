@@ -262,13 +262,39 @@ export function XboomWebsiteLeadsPanel() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <Card>
-          <CardContent className="p-10 text-center text-muted-foreground">
-            <ShoppingCart className="h-10 w-10 mx-auto mb-3 opacity-40" />
-            <p className="font-medium">No website leads found</p>
-            <p className="text-sm mt-1">All current orders are being processed or completed.</p>
-          </CardContent>
-        </Card>
+        (() => {
+          const hasFilters = search.trim() !== "" || statusFilter !== "all";
+          const hasAnyLeads = leads.length > 0;
+          const isFilteredEmpty = hasAnyLeads && hasFilters;
+          return (
+            <Card>
+              <CardContent className="p-10 text-center text-muted-foreground">
+                <ShoppingCart className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                {isFilteredEmpty ? (
+                  <>
+                    <p className="font-medium">No leads match your filters</p>
+                    <p className="text-sm mt-1">
+                      {leads.length.toLocaleString()} total lead{leads.length === 1 ? "" : "s"} available — try clearing filters.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-4"
+                      onClick={() => { setSearch(""); setStatusFilter("all"); }}
+                    >
+                      Clear filters
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium">No website leads found</p>
+                    <p className="text-sm mt-1">All current orders are being processed or completed.</p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()
       ) : viewMode === "table" ? (
         <Card>
           <CardContent className="p-0 overflow-x-auto">
