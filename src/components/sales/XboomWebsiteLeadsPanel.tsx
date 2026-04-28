@@ -89,6 +89,53 @@ export function XboomWebsiteLeadsPanel() {
   });
   const { user } = useAuth();
 
+  // Salespeople available for assignment (admin / sales / sales_manager).
+  const [salespeople, setSalespeople] = useState<
+    Array<{ user_id: string; name: string }>
+  >([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("user_id, role, profiles!inner(user_id, name, email, is_approved)")
+        .in("role", ["admin", "sales", "sales_manager"]);
+      if (cancelled || error || !data) return;
+      const map = new Map<string, { user_id: string; name: string }>();
+      for (const r of data as unknown as Array<{
+        user_id: string;
+        profiles: { user_id: string; name: string | null; email: string | null; is_approved: boolean };
+      }>) {
+        if (!r.profiles?.is_approved) continue;
+        const name = r.profiles.name || r.profiles.email || "Salesperson";
+        if (!map.has(r.user_id)) map.set(r.user_id, { user_id: r.user_id, name });
+      }
+      setSalespeople(
+        Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name)),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+  const handleAssign = async (orderId: string, assigneeId: string) => {
+    setAssigningId(orderId);
+    const { error } = await supabase.rpc("assign_woo_lead", {
+      p_order_id: orderId,
+      p_assignee: assigneeId,
+    });
+    setAssigningId(null);
+    if (error) {
+      console.error("[XboomWebsiteLeadsPanel] assign failed", error);
+      toast.error(error.message || "Could not assign lead");
+      return;
+    }
+    toast.success("Lead assigned");
+    refetch();
+  };
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
