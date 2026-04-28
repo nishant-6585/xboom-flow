@@ -11910,6 +11910,9 @@ export type Database = {
       woocommerce_orders: {
         Row: {
           amount_paid: number | null
+          assigned_at: string | null
+          assigned_to: string | null
+          assigned_to_name: string | null
           courier: string | null
           created_at: string
           currency: string | null
@@ -11948,6 +11951,9 @@ export type Database = {
         }
         Insert: {
           amount_paid?: number | null
+          assigned_at?: string | null
+          assigned_to?: string | null
+          assigned_to_name?: string | null
           courier?: string | null
           created_at?: string
           currency?: string | null
@@ -11986,6 +11992,9 @@ export type Database = {
         }
         Update: {
           amount_paid?: number | null
+          assigned_at?: string | null
+          assigned_to?: string | null
+          assigned_to_name?: string | null
           courier?: string | null
           created_at?: string
           currency?: string | null
@@ -12460,6 +12469,11 @@ export type Database = {
         }
         Returns: Json
       }
+      assign_woo_lead: {
+        Args: { p_assignee: string; p_order_id: string }
+        Returns: undefined
+      }
+      auto_assign_woo_leads: { Args: never; Returns: number }
       bump_notification_rate: {
         Args: { _delta?: number; _provider: string }
         Returns: undefined
@@ -12935,6 +12949,9 @@ export type Database = {
         Args: { p_new_status: string; p_order_id: string }
         Returns: {
           amount_paid: number | null
+          assigned_at: string | null
+          assigned_to: string | null
+          assigned_to_name: string | null
           courier: string | null
           created_at: string
           currency: string | null
