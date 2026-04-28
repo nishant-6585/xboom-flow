@@ -66,6 +66,16 @@ const statusVariant = (s: string): "default" | "secondary" | "destructive" | "ou
   }
 };
 
+// Only PDF resumes are supported for in-app preview/download.
+const SUPPORTED_RESUME_EXTS = ["pdf"] as const;
+const getResumeExt = (path: string | null | undefined): string => {
+  if (!path) return "";
+  const name = path.split("/").pop() || "";
+  return (name.split(".").pop() || "").toLowerCase();
+};
+const isSupportedResume = (path: string | null | undefined): boolean =>
+  SUPPORTED_RESUME_EXTS.includes(getResumeExt(path) as any);
+
 export function ReferralsPanel() {
   const { role } = useAuth();
   const navigate = useNavigate();
@@ -185,17 +195,33 @@ export function ReferralsPanel() {
   };
 
   const viewResume = async (path: string, candidateName: string) => {
+    if (!isSupportedResume(path)) {
+      const ext = getResumeExt(path);
+      toast.error(
+        ext
+          ? `Only PDF resumes can be previewed. This file is .${ext} — please ask the candidate to resubmit as PDF.`
+          : "Only PDF resumes can be previewed. This file format is not supported."
+      );
+      return;
+    }
     const url = await getSignedUrl(path);
     if (!url) return;
     const fileName = path.split("/").pop() || "resume";
-    const ext = (fileName.split(".").pop() || "").toLowerCase();
-    const imageExts = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
-    const kind: "pdf" | "image" | "other" =
-      ext === "pdf" ? "pdf" : imageExts.includes(ext) ? "image" : "other";
+    const ext = getResumeExt(path);
+    const kind: "pdf" | "image" | "other" = "pdf";
     setViewer({ url, name: `${candidateName} — ${fileName}`, ext, kind });
   };
 
   const downloadResume = async (path: string) => {
+    if (!isSupportedResume(path)) {
+      const ext = getResumeExt(path);
+      toast.error(
+        ext
+          ? `Only PDF resumes are supported. This file is .${ext}.`
+          : "Only PDF resumes are supported."
+      );
+      return;
+    }
     const url = await getSignedUrl(path);
     if (!url) return;
     const a = document.createElement("a");
@@ -313,26 +339,35 @@ export function ReferralsPanel() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        {r.resume_url && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              title="View resume"
-                              onClick={() => viewResume(r.resume_url!, r.candidate_name)}
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              title="Download resume"
-                              onClick={() => downloadResume(r.resume_url!)}
-                            >
-                              <Download className="h-3.5 w-3.5" />
-                            </Button>
-                          </>
-                        )}
+                        {r.resume_url && (() => {
+                          const supported = isSupportedResume(r.resume_url);
+                          const ext = getResumeExt(r.resume_url);
+                          const tip = supported
+                            ? undefined
+                            : `Unsupported format (.${ext || "?"}) — only PDF resumes are accepted`;
+                          return (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                title={tip || "View resume"}
+                                disabled={!supported}
+                                onClick={() => viewResume(r.resume_url!, r.candidate_name)}
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                title={tip || "Download resume"}
+                                disabled={!supported}
+                                onClick={() => downloadResume(r.resume_url!)}
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          );
+                        })()}
                         {isHROrAdmin && (
                           <Select
                             value={r.status}
