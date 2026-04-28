@@ -123,6 +123,31 @@ Deno.serve(async (req) => {
       } else {
         // Create new call log from webhook data
         const fromNumber = payload.From || payload.CallFrom || "";
+        // Phase 2: resolve sales_person_id via centralized agent_user_mapping if not pre-stamped
+        let resolvedSalesPersonId: string | null = customMeta?.user_id || null;
+        let resolverFallback: string = resolvedSalesPersonId ? "custom_field" : "none";
+        const agentPhone = payload.To || payload.AgentNumber || payload.DialWhomNumber || null;
+        if (!resolvedSalesPersonId && agentPhone) {
+          try {
+            const { data } = await supabase.rpc("resolve_agent_user", {
+              _provider: "exotel",
+              _agent_id: null,
+              _agent_phone: String(agentPhone),
+            });
+            if (data) { resolvedSalesPersonId = data as string; resolverFallback = "agent_phone"; }
+          } catch (e) {
+            console.error("[exotel-webhook] resolve_agent_user failed:", e);
+          }
+        }
+        console.log("[exotel-webhook] assignment debug", {
+          agent_id: null,
+          agent_phone: agentPhone,
+          resolved_user_id: resolvedSalesPersonId,
+          fallback_used: resolverFallback,
+        });
+        if (!resolvedSalesPersonId && agentPhone) {
+          console.warn("UNMAPPED_AGENT", { provider: "exotel", agent_phone: agentPhone });
+        }
         await supabase.from("call_logs").insert({
           caller_number: fromNumber,
           call_status: internalStatus,
@@ -134,7 +159,7 @@ Deno.serve(async (req) => {
           entity_type: customMeta?.entity_type || null,
           entity_id: customMeta?.entity_id || null,
           lead_id: customMeta?.entity_type === "lead" ? customMeta?.entity_id : null,
-          sales_person_id: customMeta?.user_id || null,
+          sales_person_id: resolvedSalesPersonId,
           sales_person_name: customMeta?.user_name || null,
           lead_source: "exotel",
           start_time: payload.StartTime || new Date().toISOString(),
