@@ -383,7 +383,7 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
               </Button>
             </div>
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
