@@ -1475,28 +1475,12 @@ export default function Orders() {
                     ✅ Success ({wooStats.grouped.success.toLocaleString()})
                   </Button>
                   <Button
-                    variant={wooStatusFilter === 'pending' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setWooStatusFilter('pending')}
-                    className="h-8 rounded-full text-xs px-3"
-                  >
-                    ⏳ Pending ({wooStats.grouped.pending.toLocaleString()})
-                  </Button>
-                  <Button
                     variant={wooStatusFilter === 'processing' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setWooStatusFilter('processing')}
                     className="h-8 rounded-full text-xs px-3"
                   >
                     🔄 Processing ({wooStats.grouped.processing.toLocaleString()})
-                  </Button>
-                  <Button
-                    variant={wooStatusFilter === 'failed' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setWooStatusFilter('failed')}
-                    className="h-8 rounded-full text-xs px-3"
-                  >
-                    ❌ Failed ({wooStats.grouped.failed.toLocaleString()})
                   </Button>
                 </div>
 
