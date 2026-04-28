@@ -6,10 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Download, Search, Users } from "lucide-react";
+import { Download, Search, Users, CheckCircle2, Copy, ExternalLink } from "lucide-react";
 
 interface ReferralRow {
   id: string;
@@ -50,12 +61,17 @@ const statusVariant = (s: string): "default" | "secondary" | "destructive" | "ou
 
 export function ReferralsPanel() {
   const { role } = useAuth();
+  const navigate = useNavigate();
   const isHROrAdmin = role === "admin" || role === "hr";
   const [rows, setRows] = useState<ReferralRow[]>([]);
   const [referrerNames, setReferrerNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [shortlistConfirm, setShortlistConfirm] = useState<{
+    candidateId: string;
+    candidateName: string;
+  } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -94,11 +110,27 @@ export function ReferralsPanel() {
       toast.error(error.message);
       return;
     }
-    toast.success(
-      status === "shortlisted"
-        ? "Marked shortlisted — candidate added to Candidates module"
-        : "Status updated"
-    );
+
+    if (status === "shortlisted") {
+      // Re-fetch the row to get the candidate_id populated by the DB trigger
+      const { data: updated } = await supabase
+        .from("referrals")
+        .select("candidate_id, candidate_name")
+        .eq("id", id)
+        .maybeSingle();
+      if (updated?.candidate_id) {
+        setShortlistConfirm({
+          candidateId: updated.candidate_id,
+          candidateName: updated.candidate_name,
+        });
+      } else {
+        toast.warning(
+          "Marked shortlisted but candidate link is pending. Refresh in a moment."
+        );
+      }
+    } else {
+      toast.success("Status updated");
+    }
     load();
   };
 
@@ -254,6 +286,61 @@ export function ReferralsPanel() {
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog
+        open={!!shortlistConfirm}
+        onOpenChange={(o) => !o && setShortlistConfirm(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+              Candidate added to Candidates module
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 pt-1">
+                <p>
+                  <span className="font-medium text-foreground">
+                    {shortlistConfirm?.candidateName}
+                  </span>{" "}
+                  has been linked. You can now manage them from the Candidates
+                  module.
+                </p>
+                <div className="rounded-md border bg-muted/40 p-2 flex items-center justify-between gap-2">
+                  <code className="text-xs break-all">
+                    {shortlistConfirm?.candidateId}
+                  </code>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      if (shortlistConfirm) {
+                        navigator.clipboard.writeText(shortlistConfirm.candidateId);
+                        toast.success("Candidate ID copied");
+                      }
+                    }}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Close</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShortlistConfirm(null);
+                navigate("/hr?tab=candidates");
+              }}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Open Candidates
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
