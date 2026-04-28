@@ -112,19 +112,28 @@ export async function createHrDocumentSignedUrl(
   } = opts;
 
   const recordFailure = (failure: SignedUrlFailure) => {
-    try {
-      void (supabase as any).rpc("log_resume_access_failure", {
-        _referral_id: auditReferralId ?? null,
-        _document_path: path ?? null,
-        _reason: failure.reason,
-        _error_message: failure.message,
-        _source: auditSource ?? null,
-        _user_agent:
-          typeof navigator !== "undefined" ? navigator.userAgent : null,
-      });
-    } catch {
-      // Non-blocking: audit failure must not break document access UX.
-    }
+    // Fire-and-forget, but observe the result so we can warn HR/Admin
+    // when the audit pipeline itself is broken (RPC missing, RLS denied,
+    // network error, etc.).
+    void (async () => {
+      try {
+        const { error } = await (supabase as any).rpc(
+          "log_resume_access_failure",
+          {
+            _referral_id: auditReferralId ?? null,
+            _document_path: path ?? null,
+            _reason: failure.reason,
+            _error_message: failure.message,
+            _source: auditSource ?? null,
+            _user_agent:
+              typeof navigator !== "undefined" ? navigator.userAgent : null,
+          }
+        );
+        if (error) notifyAuditPipelineBroken(error.message);
+      } catch (e: any) {
+        notifyAuditPipelineBroken(e?.message);
+      }
+    })();
   };
 
   if (!path || !path.trim()) {
