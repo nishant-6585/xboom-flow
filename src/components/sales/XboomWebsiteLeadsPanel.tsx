@@ -123,6 +123,30 @@ export function XboomWebsiteLeadsPanel() {
     [leads, selectedId],
   );
 
+  // Reset draft whenever drawer subject changes
+  const selectedStatus = (selected?.order_status || "").toLowerCase();
+  if (selectedId && statusDraft === "" && selectedStatus) {
+    // initialize once on open
+    setStatusDraft(selectedStatus);
+  }
+
+  const saveStatus = async () => {
+    if (!selected || !statusDraft || statusDraft === selectedStatus) return;
+    setSavingStatus(true);
+    const { error } = await supabase.rpc("update_woo_lead_status", {
+      p_order_id: selected.id,
+      p_new_status: statusDraft,
+    });
+    setSavingStatus(false);
+    if (error) {
+      console.error("[XboomWebsiteLeadsPanel] saveStatus failed", error);
+      toast.error(error.message || "Could not update status");
+      return;
+    }
+    toast.success(`Status updated to ${statusDraft}`);
+    refetch();
+  };
+
   const toggleRow = (id: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
