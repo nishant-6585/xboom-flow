@@ -9573,8 +9573,11 @@ export type Database = {
           created_at: string
           document_path: string | null
           error_message: string | null
+          error_slug: string | null
+          http_status: number | null
           id: string
           is_retry: boolean
+          keyword_matched: boolean | null
           reason: Database["public"]["Enums"]["resume_access_failure_reason"]
           referral_id: string | null
           retry_of_failure_id: string | null
@@ -9588,8 +9591,11 @@ export type Database = {
           created_at?: string
           document_path?: string | null
           error_message?: string | null
+          error_slug?: string | null
+          http_status?: number | null
           id?: string
           is_retry?: boolean
+          keyword_matched?: boolean | null
           reason: Database["public"]["Enums"]["resume_access_failure_reason"]
           referral_id?: string | null
           retry_of_failure_id?: string | null
@@ -9603,8 +9609,11 @@ export type Database = {
           created_at?: string
           document_path?: string | null
           error_message?: string | null
+          error_slug?: string | null
+          http_status?: number | null
           id?: string
           is_retry?: boolean
+          keyword_matched?: boolean | null
           reason?: Database["public"]["Enums"]["resume_access_failure_reason"]
           referral_id?: string | null
           retry_of_failure_id?: string | null
@@ -12766,18 +12775,34 @@ export type Database = {
           user_agent: string
         }[]
       }
-      log_resume_access_failure: {
-        Args: {
-          _actor_user_id: string
-          _document_path: string
-          _error_message: string
-          _reason: Database["public"]["Enums"]["resume_access_failure_reason"]
-          _referral_id: string
-          _source: string
-          _user_agent: string
-        }
-        Returns: string
-      }
+      log_resume_access_failure:
+        | {
+            Args: {
+              _actor_user_id: string
+              _document_path: string
+              _error_message: string
+              _reason: Database["public"]["Enums"]["resume_access_failure_reason"]
+              _referral_id: string
+              _source: string
+              _user_agent: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _actor_user_id: string
+              _document_path: string
+              _error_message: string
+              _error_slug?: string
+              _http_status?: number
+              _keyword_matched?: boolean
+              _reason: Database["public"]["Enums"]["resume_access_failure_reason"]
+              _referral_id: string
+              _source: string
+              _user_agent: string
+            }
+            Returns: string
+          }
       log_resume_access_retry: {
         Args: {
           _document_path: string
