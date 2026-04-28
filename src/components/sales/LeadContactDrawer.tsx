@@ -21,6 +21,9 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { CallButton } from '@/components/calls/CallButton';
+import { usePushToCompany, pushLeadToCompanyToast } from '@/hooks/usePushToCompany';
+import { isValidCompanyName } from '@/lib/companyNormalize';
+import { Building } from 'lucide-react';
 
 export interface LeadContactData {
   id: string;
@@ -59,6 +62,8 @@ const FOLLOWUP_TYPES = [
 export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, extraContent }: LeadContactDrawerProps) {
   const { user, profile } = useAuth();
   const { followups, createFollowup, completeFollowup, rescheduleFollowup } = useFollowups();
+  const { pushLeadToCompany } = usePushToCompany();
+  const [pushing, setPushing] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('details');
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ customer_name: '', phone: '', email: '', company: '', city: '', product_name: '', notes: '' });
@@ -255,12 +260,36 @@ export function LeadContactDrawer({ open, onOpenChange, lead, onSave, saving, ex
                 {/* Editable contact details */}
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold">Contact Details</h3>
-                  {onSave && (
-                    <Button variant={editing ? 'default' : 'outline'} size="sm" onClick={() => editing ? handleSave() : setEditing(true)} disabled={saving}>
-                      {saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : editing ? <Save className="w-3.5 h-3.5 mr-1" /> : null}
-                      {editing ? 'Save' : 'Edit'}
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isValidCompanyName(lead.company) && !editing && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={pushing}
+                        onClick={async () => {
+                          setPushing(true);
+                          await pushLeadToCompanyToast(() => pushLeadToCompany({
+                            company: lead.company,
+                            customer_name: lead.customer_name,
+                            phone: lead.phone,
+                            email: lead.email,
+                            city: lead.city,
+                            source_label: lead.source_type,
+                          }));
+                          setPushing(false);
+                        }}
+                      >
+                        {pushing ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Building className="w-3.5 h-3.5 mr-1" />}
+                        Push to Companies
+                      </Button>
+                    )}
+                    {onSave && (
+                      <Button variant={editing ? 'default' : 'outline'} size="sm" onClick={() => editing ? handleSave() : setEditing(true)} disabled={saving}>
+                        {saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : editing ? <Save className="w-3.5 h-3.5 mr-1" /> : null}
+                        {editing ? 'Save' : 'Edit'}
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 {editing ? (
