@@ -520,34 +520,97 @@ export function XboomWebsiteLeadsPanel() {
                   </Button>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">Payment Status</p>
-                  <p className="capitalize">{selected.payment_status || "—"}</p>
+              {/* Customer */}
+              <div className="rounded-lg border bg-card/50 p-3 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Customer
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Contact name</p>
+                    <p className="font-medium truncate">{selected.customer_name || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Company</p>
+                    <p className="truncate">{selected.customer_company || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Phone</p>
+                    <p className="font-mono">{formatPhone(selected.customer_phone)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Email</p>
+                    <p className="truncate">{selected.customer_email || "—"}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Phone</p>
-                  <p className="font-mono">{formatPhone(selected.customer_phone)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Email</p>
-                  <p className="truncate">{selected.customer_email || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Company</p>
-                  <p>{selected.customer_company || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Created</p>
-                  <p>{selected.woo_created_at ? format(new Date(selected.woo_created_at), "dd MMM yyyy, HH:mm") : "—"}</p>
-                </div>
+                {selected.shipping_address && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Shipping address</p>
+                    <p className="text-sm whitespace-pre-wrap">{selected.shipping_address}</p>
+                  </div>
+                )}
               </div>
-              <div className="border-t pt-4">
-                <p className="text-xs text-muted-foreground mb-2">Product</p>
-                <p className="font-medium">{selected.product_name}</p>
-                <div className="flex items-center justify-between mt-2 text-sm">
-                  <span className="text-muted-foreground">Qty: {selected.quantity}</span>
-                  <span className="font-semibold">{formatINR(selected.total_sales_amount)}</span>
+
+              {/* Order */}
+              <div className="rounded-lg border bg-card/50 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Order
+                  </p>
+                  {selected.woo_order_id && (
+                    <a
+                      href={`https://xboomflow.com/wp-admin/post.php?post=${selected.woo_order_id}&action=edit`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      View on website <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Order #</p>
+                    <p className="font-mono">
+                      {selected.order_number || selected.woo_order_id || "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Source</p>
+                    <p className="capitalize truncate">{selected.source || "website"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Payment status</p>
+                    <p className="capitalize">{selected.payment_status || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Currency</p>
+                    <p>{selected.currency || "INR"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Submitted</p>
+                    <p title={selected.woo_created_at ?? undefined}>
+                      {selected.woo_created_at
+                        ? `${format(new Date(selected.woo_created_at), "dd MMM yyyy, HH:mm")} (${formatDistanceToNow(new Date(selected.woo_created_at), { addSuffix: true })})`
+                        : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Last updated</p>
+                    <p title={selected.woo_updated_at ?? undefined}>
+                      {selected.woo_updated_at
+                        ? formatDistanceToNow(new Date(selected.woo_updated_at), { addSuffix: true })
+                        : "—"}
+                    </p>
+                  </div>
+                </div>
+                <div className="border-t pt-2 mt-1">
+                  <p className="text-xs text-muted-foreground mb-1">Product</p>
+                  <p className="font-medium">{selected.product_name}</p>
+                  <div className="flex items-center justify-between mt-1 text-sm">
+                    <span className="text-muted-foreground">Qty: {selected.quantity}</span>
+                    <span className="font-semibold">{formatINR(selected.total_sales_amount)}</span>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2 pt-2 border-t">
