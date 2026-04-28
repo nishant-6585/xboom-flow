@@ -23,6 +23,8 @@ const SOURCE_TYPE_MAP: Record<string, 'interakt' | 'myoperator' | 'email' | 'for
   "Email": "email",
   "Interakt": "interakt",
   "Google Ads": "google_ads",
+  "Q-Form": "lead",
+  "Prospect": "enquiry",
 };
 
 const SOURCE_COLORS: Record<string, string> = {
