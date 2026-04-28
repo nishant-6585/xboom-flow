@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -96,6 +96,22 @@ export function ReferralsPanel() {
     kind: "pdf" | "image" | "other";
   } | null>(null);
 
+  // Cache: referralId -> { url, expiresAt } for signed URLs (refresh ~30s before expiry)
+  const SIGNED_URL_TTL_SEC = 60 * 5;
+  const SIGNED_URL_REFRESH_BEFORE_MS = 30 * 1000;
+  const signedUrlCache = useRef<Map<string, { url: string; expiresAt: number; path: string }>>(
+    new Map()
+  );
+
+  // Invalidate cache entries whose underlying path changed (e.g. after re-upload)
+  useEffect(() => {
+    const cache = signedUrlCache.current;
+    for (const [refId, entry] of cache) {
+      const row = rows.find((r) => r.id === refId);
+      if (!row || row.resume_url !== entry.path) cache.delete(refId);
+    }
+  }, [rows]);
+
   const load = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -157,15 +173,29 @@ export function ReferralsPanel() {
     load();
   };
 
-  const getSignedUrl = async (path: string): Promise<string | null> => {
+  const getSignedUrl = async (
+    path: string,
+    referralId?: string
+  ): Promise<string | null> => {
     if (!path || !path.trim()) {
       toast.error("Resume file is missing for this referral");
       return null;
     }
+    // Return cached URL if still valid
+    if (referralId) {
+      const cached = signedUrlCache.current.get(referralId);
+      if (
+        cached &&
+        cached.path === path &&
+        cached.expiresAt - Date.now() > SIGNED_URL_REFRESH_BEFORE_MS
+      ) {
+        return cached.url;
+      }
+    }
     try {
       const { data, error } = await supabase.storage
         .from("hr-documents")
-        .createSignedUrl(path, 60 * 5);
+        .createSignedUrl(path, SIGNED_URL_TTL_SEC);
       if (error) {
         const msg = error.message?.toLowerCase() ?? "";
         if (msg.includes("not found") || msg.includes("object")) {
@@ -186,6 +216,13 @@ export function ReferralsPanel() {
       if (!data?.signedUrl) {
         toast.error("Could not generate download link");
         return null;
+      }
+      if (referralId) {
+        signedUrlCache.current.set(referralId, {
+          url: data.signedUrl,
+          expiresAt: Date.now() + SIGNED_URL_TTL_SEC * 1000,
+          path,
+        });
       }
       return data.signedUrl;
     } catch (e: any) {
@@ -226,7 +263,7 @@ export function ReferralsPanel() {
       );
       return;
     }
-    const url = await getSignedUrl(path);
+    const url = await getSignedUrl(path, referralId);
     if (!url) return;
     void logAccess(referralId, path, "view");
     const fileName = path.split("/").pop() || "resume";
@@ -245,7 +282,7 @@ export function ReferralsPanel() {
       );
       return;
     }
-    const url = await getSignedUrl(path);
+    const url = await getSignedUrl(path, referralId);
     if (!url) return;
     void logAccess(referralId, path, "download");
     const a = document.createElement("a");
