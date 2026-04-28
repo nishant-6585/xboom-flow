@@ -27,7 +27,7 @@ import { SupportCallsDashboard } from '@/components/orders/SupportCallsDashboard
 import { useOrders, Order, ORDER_STATUSES, PAYMENT_STATUSES, ORDER_TYPES, ORDER_OUTCOMES, OrderOutcome, LostReason } from '@/hooks/useOrders';
 import { useShopifyOrders } from '@/hooks/useShopifyOrders';
 import { useWooCommerceOrders } from '@/hooks/useWooCommerceOrders';
-import { isWooOrderStatus, WOO_ORDER_STATUSES } from '@/lib/wooOrderStatuses';
+import { isWooOrderStatus } from '@/lib/wooOrderStatuses';
 import { ShopifyPipelineWidget } from '@/components/shopify/ShopifyPipelineWidget';
 import { useEnquiries } from '@/hooks/useEnquiries';
 import { useSuppliers } from '@/hooks/useSuppliers';
@@ -47,7 +47,6 @@ export default function Orders() {
   const {
     wooOrders: wooOrdersAll,
     loading: wooLoading,
-    stats: wooStatsAll,
     refetch: refetchWooOrders,
   } = useWooCommerceOrders();
 
@@ -305,16 +304,14 @@ export default function Orders() {
       (o.customer_email?.toLowerCase().includes(searchLower) ?? false);
     // Status filter supports both raw statuses and grouped buckets (success/failed/pending)
     const status = (o.order_status || '').toLowerCase();
+    // Order-page only ever sees processing/completed/delivered rows, so the
+    // status filter is limited to "all" / "success" / "processing".
     const matchesStatus =
       wooStatusFilter === 'all'
         ? true
         : wooStatusFilter === 'success'
           ? ['completed', 'delivered'].includes(status)
-          : wooStatusFilter === 'failed'
-            ? ['failed', 'cancelled'].includes(status)
-            : wooStatusFilter === 'pending'
-              ? ['pending', 'on-hold'].includes(status)
-              : status === wooStatusFilter;
+          : status === wooStatusFilter;
     const matchesPayment = wooPaymentStatusFilter === 'all' || o.payment_status === wooPaymentStatusFilter;
     const matchesNotif =
       wooNotifFilter === 'all'
