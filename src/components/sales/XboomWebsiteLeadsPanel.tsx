@@ -514,7 +514,7 @@ export function XboomWebsiteLeadsPanel() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((l) => {
+                {paged.map((l) => {
                   const status = (l.order_status || "").toLowerCase();
                   const isOpen = expanded.has(l.id);
                   return (
