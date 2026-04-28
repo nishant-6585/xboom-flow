@@ -368,23 +368,6 @@ export function GoogleAdsLeadsTab() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
-                            {phone && (
-                              <CallButton
-                                phoneNumber={phone}
-                                entityType="lead"
-                                entityId={lead.id}
-                                iconOnly
-                                variant="ghost"
-                                className="h-7 w-7 text-emerald-600 hover:text-emerald-700"
-                              />
-                            )}
-                            {phone && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                                <a href={`https://wa.me/${phone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer" title="WhatsApp">
-                                  <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-                                </a>
-                              </Button>
-                            )}
                             {!lead.is_converted && (
                               <Button variant="outline" size="sm" className="text-xs gap-1 h-7" onClick={() => handleConvertToOrder(lead)}>
                                 Convert <ArrowRight className="w-3 h-3" />
