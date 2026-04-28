@@ -29,6 +29,7 @@ import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { ProspectButton } from "./ProspectButton";
 import { AttentionButton } from "./AttentionButton";
 import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
+import { LinkToCompanyButton } from "./LinkToCompanyButton";
 
 const FORM_TYPES = [
   "contact", "quote", "demo", "dealer", "newsletter", "popup",
@@ -661,6 +662,7 @@ export default function QFormsPanel() {
                           notes={r.message}
                           isAlreadyConverted={r.is_enquiry_converted}
                         />
+                        <LinkToCompanyButton lead={{ customer_name: r.name, company: r.company, phone: r.phone, email: r.email, city: r.location, source_label: 'Q-Form' }} />
                       </div>
                     </TableCell>
                   </TableRow>
