@@ -37,6 +37,9 @@ export interface WooCommerceOrder {
   tracking_number: string | null;
   courier: string | null;
   expected_delivery: string | null;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  assigned_at: string | null;
 }
 
 /**
@@ -101,6 +104,9 @@ export function useWooCommerceOrders(options: UseWooCommerceOrdersOptions = {}) 
         'woo_updated_at',
         'created_at',
         'updated_at',
+        'assigned_to',
+        'assigned_to_name',
+        'assigned_at',
       ].join(',');
 
       // First page also returns the exact count (single round-trip vs HEAD+SELECT).
