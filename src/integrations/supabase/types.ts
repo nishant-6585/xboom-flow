@@ -9349,6 +9349,7 @@ export type Database = {
       referrals: {
         Row: {
           candidate_email: string
+          candidate_id: string | null
           candidate_name: string
           candidate_phone: string
           created_at: string
@@ -9362,6 +9363,7 @@ export type Database = {
         }
         Insert: {
           candidate_email: string
+          candidate_id?: string | null
           candidate_name: string
           candidate_phone: string
           created_at?: string
@@ -9375,6 +9377,7 @@ export type Database = {
         }
         Update: {
           candidate_email?: string
+          candidate_id?: string | null
           candidate_name?: string
           candidate_phone?: string
           created_at?: string
@@ -9387,6 +9390,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "referrals_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "referrals_role_id_fkey"
             columns: ["role_id"]
