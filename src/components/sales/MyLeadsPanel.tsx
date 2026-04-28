@@ -235,25 +235,37 @@ export function MyLeadsPanel() {
               <Input placeholder="Search name, product, company, email, phone…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
             </div>
             <Select value={sourceFilter} onValueChange={setSourceFilter}>
-              <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-[180px]">
+                <span className="text-muted-foreground mr-1.5 text-xs font-medium">Source:</span>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 {SOURCES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={followupFilter} onValueChange={setFollowupFilter}>
-              <SelectTrigger className="w-[170px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-[210px]">
+                <span className="text-muted-foreground mr-1.5 text-xs font-medium">Follow-up:</span>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 {FOLLOWUP_FILTERS.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-[190px]">
+                <span className="text-muted-foreground mr-1.5 text-xs font-medium">Period:</span>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 {PERIODS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={customerTypeFilter} onValueChange={setCustomerTypeFilter}>
-              <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-[160px]">
+                <span className="text-muted-foreground mr-1.5 text-xs font-medium">Type:</span>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="All">All Types</SelectItem>
                 <SelectItem value="B2B">B2B</SelectItem>
