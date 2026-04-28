@@ -160,7 +160,17 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
   const canSeeAllLeads = role === 'admin' || role === 'supply_chain' || role === 'sales_manager';
 
   // Get unique sales persons for filter dropdown
-  const salesPersons = Array.from(new Set(enquiries.map(e => e.sales_person_name))).filter(Boolean).sort();
+  // Build the salesperson dropdown from real user_ids actually present on the leads
+  // (id-based, not name-based) so webhook-stamped wrong names cannot fragment the list.
+  const { profilesMap, resolveName } = useProfileNames();
+  const salesPersons = useMemo(() => {
+    const ids = new Set<string>();
+    enquiries.forEach(e => { if ((e as any).sales_person_id) ids.add((e as any).sales_person_id); });
+    return Array.from(ids)
+      .map(id => ({ id, name: resolveName(id) }))
+      .filter(p => p.name && p.name !== '—')
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [enquiries, profilesMap]);
 
   // Filter leads based on role and filters
   const leads = enquiries.filter(e => {
@@ -179,8 +189,8 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
     // For source filter, check notes field (where lead source is stored)
     const matchesSource = sourceFilter === 'all' || e.notes?.toLowerCase().includes(sourceFilter.toLowerCase());
     
-    // Filter by sales person (only applicable if user can see all leads)
-    const matchesSalesPerson = salesPersonFilter === 'all' || e.sales_person_name === salesPersonFilter;
+    // Filter by sales person id (only applicable if user can see all leads)
+    const matchesSalesPerson = salesPersonFilter === 'all' || (e as any).sales_person_id === salesPersonFilter;
 
     // Date filter
     const leadDate = new Date(e.created_at);
