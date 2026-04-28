@@ -15,6 +15,7 @@ import { AttentionButton } from "./AttentionButton";
 import { ProspectButton } from "./ProspectButton";
 import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { AssigneeCell } from "./AssigneeCell";
+import { LinkToCompanyButton } from "./LinkToCompanyButton";
 
 // Map MyLead.source -> sourceType used by action buttons
 const SOURCE_TYPE_MAP: Record<string, 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads' | 'lead' | 'enquiry'> = {
@@ -318,7 +319,12 @@ export function MyLeadsPanel() {
                         <TableCell className="text-xs">{lead.city || "—"}</TableCell>
                         <TableCell className="text-xs whitespace-nowrap">{lead.phone || "—"}</TableCell>
                         <TableCell className="text-xs max-w-[180px] truncate">{lead.email || "—"}</TableCell>
-                        <TableCell><AssigneeCell userId={lead.assigned_user_id} /></TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <AssigneeCell userId={lead.assigned_user_id} />
+                            <LinkToCompanyButton lead={{ customer_name: lead.customer_name, company: lead.company, phone: lead.phone, email: lead.email, city: lead.city, source_label: lead.source }} />
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="text-xs">{lead.status || "—"}</Badge>
                         </TableCell>
