@@ -52,10 +52,14 @@ export interface UseWooCommerceOrdersOptions {
   /** Only return rows whose order_status is NOT a fulfilled order status
    *  (i.e. only leads — pending, on-hold, failed, cancelled, refunded, …). */
   leadOnly?: boolean;
+  /** Exclude rows that have been auto-marked as `is_lost_lead = true`
+   *  (leads older than 90 days). Defaults to false to preserve existing
+   *  callers (Orders page / analytics still see everything). */
+  excludeLost?: boolean;
 }
 
 export function useWooCommerceOrders(options: UseWooCommerceOrdersOptions = {}) {
-  const { sinceDays, leadOnly } = options;
+  const { sinceDays, leadOnly, excludeLost } = options;
   const [orders, setOrders] = useState<WooCommerceOrder[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -119,6 +123,9 @@ export function useWooCommerceOrders(options: UseWooCommerceOrdersOptions = {}) 
             `(${(WOO_ORDER_STATUSES as readonly string[]).join(',')})`,
           );
         }
+        if (excludeLost) {
+          q = q.eq('is_lost_lead', false);
+        }
         return q;
       };
 
@@ -160,7 +167,7 @@ export function useWooCommerceOrders(options: UseWooCommerceOrdersOptions = {}) 
       setLoading(false);
       inFlightRef.current = false;
     }
-  }, [toast, sinceDays, leadOnly]);
+  }, [toast, sinceDays, leadOnly, excludeLost]);
 
   // Coalesce many realtime events (e.g. during a backfill) into a single refetch.
   const scheduleRefetch = useCallback(() => {
