@@ -23,6 +23,8 @@ import { OrderForm, OrderFormInitialData } from '@/components/OrderForm';
 import { toast } from 'sonner';
 import { LogCallDialog } from './LogCallDialog';
 import { AssigneeCell } from './AssigneeCell';
+import { SourceCoverageCard } from '@/components/crm/SourceCoverageCard';
+import { Target as TargetIcon } from 'lucide-react';
 
 const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'negotiation', 'converted', 'lost'];
 
@@ -178,6 +180,13 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
 
   return (
     <div className="space-y-6">
+      {/* Source-wise entries (matches Companies coverage style) */}
+      <SourceCoverageCard
+        title="Prospect Entries by Source"
+        dataset="prospects"
+        Icon={TargetIcon}
+      />
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
