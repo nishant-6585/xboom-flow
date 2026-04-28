@@ -52,6 +52,10 @@ function mapOrder(order: any) {
   const shipping = order?.shipping || {};
   const customerName = `${billing.first_name || ""} ${billing.last_name || ""}`.trim()
     || billing.email || "Unknown";
+  // Phone priority: billing.phone -> shipping.phone -> null. Trim to avoid empty strings.
+  const rawPhone = (billing.phone ?? shipping.phone ?? "").toString().trim();
+  const phone: string | null = rawPhone.length > 0 ? rawPhone : null;
+  console.log(`[sync] order ${orderId} phone="${phone ?? ""}"`);
   const shippingParts = [
     shipping.address_1, shipping.address_2, shipping.city,
     shipping.state, shipping.postcode, shipping.country,
@@ -81,7 +85,7 @@ function mapOrder(order: any) {
     customer_name: customerName,
     customer_company: billing.company || "",
     customer_email: billing.email || "",
-    customer_phone: billing.phone || null,
+    customer_phone: phone,
     shipping_address: shippingAddress,
     selling_price: total,
     total_sales_amount: total,
