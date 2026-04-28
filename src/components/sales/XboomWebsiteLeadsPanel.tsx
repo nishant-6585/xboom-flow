@@ -580,6 +580,19 @@ export function XboomWebsiteLeadsPanel() {
                         <TableCell>
                           {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                         </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <LeadActionsCell
+                            sourceType="lead"
+                            sourceId={l.id}
+                            customerName={l.customer_name || "Unknown"}
+                            phone={l.customer_phone}
+                            email={l.customer_email}
+                            company={l.customer_company ?? null}
+                            productName={l.product_name || ""}
+                            quantity={l.quantity}
+                            sourceLabel="Xboom Website"
+                          />
+                        </TableCell>
                         <TableCell>
                           <div className="font-medium">{l.customer_name || "—"}</div>
                           {l.customer_email && (
