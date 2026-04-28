@@ -15,7 +15,6 @@ import { LinkToCompanyButton } from "./LinkToCompanyButton";
  * → no Mail button), but the slot order never changes.
  */
 export type LeadSourceType =
-  | "enquiry"
   | "interakt"
   | "myoperator"
   | "email"
