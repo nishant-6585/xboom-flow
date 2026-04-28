@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import {
   Globe, Search, Phone, MessageCircle, Mail, RefreshCw,
@@ -19,7 +19,7 @@ import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useWooCommerceOrders, WooCommerceOrder } from "@/hooks/useWooCommerceOrders";
+import { useWooCommerceOrders } from "@/hooks/useWooCommerceOrders";
 import { isWooLeadStatus } from "@/lib/wooOrderStatuses";
 
 /**
@@ -255,8 +255,8 @@ export function XboomWebsiteLeadsPanel() {
                   const status = (l.order_status || "").toLowerCase();
                   const isOpen = expanded.has(l.id);
                   return (
-                    <>
-                      <TableRow key={l.id} className="cursor-pointer hover:bg-muted/40" onClick={() => toggleRow(l.id)}>
+                    <Fragment key={l.id}>
+                      <TableRow className="cursor-pointer hover:bg-muted/40" onClick={() => toggleRow(l.id)}>
                         <TableCell>
                           {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                         </TableCell>
@@ -304,7 +304,7 @@ export function XboomWebsiteLeadsPanel() {
                         </TableCell>
                       </TableRow>
                       {isOpen && (
-                        <TableRow key={`${l.id}-exp`} className="bg-muted/20">
+                        <TableRow className="bg-muted/20">
                           <TableCell />
                           <TableCell colSpan={7}>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs py-2">
@@ -324,7 +324,7 @@ export function XboomWebsiteLeadsPanel() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </TableBody>
