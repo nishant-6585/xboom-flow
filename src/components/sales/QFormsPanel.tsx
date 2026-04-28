@@ -30,6 +30,7 @@ import { ProspectButton } from "./ProspectButton";
 import { AttentionButton } from "./AttentionButton";
 import { LeadContactDrawer, LeadContactData } from "./LeadContactDrawer";
 import { LinkToCompanyButton } from "./LinkToCompanyButton";
+import { LeadActionsCell } from "./LeadActionsCell";
 
 const FORM_TYPES = [
   "contact", "quote", "demo", "dealer", "newsletter", "popup",
@@ -505,6 +506,7 @@ export default function QFormsPanel() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-8" />
+              <TableHead className="w-[180px]">Actions</TableHead>
               <TableHead>Submitted</TableHead>
               <TableHead>Form</TableHead>
               <TableHead>Name</TableHead>
@@ -514,7 +516,6 @@ export default function QFormsPanel() {
               <TableHead>Assigned To</TableHead>
               <TableHead>Last contact</TableHead>
               <TableHead className="w-[140px]">Status</TableHead>
-              <TableHead className="w-[180px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -538,6 +539,23 @@ export default function QFormsPanel() {
                   >
                     <TableCell className="w-8 px-2" onClick={(e) => { e.stopPropagation(); toggleRow(r.id); }}>
                       {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <LeadActionsCell
+                        sourceType="lead"
+                        sourceId={String(r.id)}
+                        customerName={r.name ?? "Unknown"}
+                        phone={r.phone}
+                        email={r.email}
+                        company={r.company}
+                        city={r.location}
+                        productName={r.subject || r.form_type || ""}
+                        urgency={r.urgency}
+                        notes={r.message}
+                        isAlreadyConverted={r.is_enquiry_converted}
+                        sourceLabel="Q-Form"
+                        onContacted={() => markContacted(r)}
+                      />
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-xs">{submittedFmt}</TableCell>
                     <TableCell><Badge variant="outline" className="text-xs">{r.form_type ?? "—"}</Badge></TableCell>
