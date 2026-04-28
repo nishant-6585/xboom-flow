@@ -18,6 +18,7 @@ import { format } from "date-fns";
 import { ProspectButton, ACategoryButton } from "./ProspectButton";
 import { AttentionButton } from "./AttentionButton";
 import { EnquiryConvertButton } from "./EnquiryConvertButton";
+import { LinkToCompanyButton } from "./LinkToCompanyButton";
 import { useProspects } from "@/hooks/useProspects";
 import { useAttentionItems } from "@/hooks/useAttentionItems";
 import { FormsLeadsAnalytics } from "./FormsLeadsAnalytics";
@@ -329,6 +330,7 @@ export function FormsLeadsPanel() {
                             productName={lead.product_name}
                             notes={lead.notes}
                           />
+                          <LinkToCompanyButton lead={{ customer_name: lead.customer_name, company: lead.company, phone: lead.phone, email: lead.email, city: lead.city, source_label: 'Form' }} />
                         </div>
                       </td>
                       <td className="py-2.5 px-3">
