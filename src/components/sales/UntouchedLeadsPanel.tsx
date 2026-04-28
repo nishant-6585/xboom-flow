@@ -18,6 +18,7 @@ import {
 import { PieChart, Pie, Cell } from "recharts";
 import { useUntouchedLeads, useUntouchedStats, type UntouchedLead } from "@/hooks/useUntouchedLeads";
 import { formatDistanceToNow, format } from "date-fns";
+import { AssigneeCell } from "./AssigneeCell";
 
 const BUCKET_COLORS: Record<string, string> = {
   "T+1": "#eab308",
