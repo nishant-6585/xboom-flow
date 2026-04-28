@@ -223,12 +223,40 @@ export type NotifyOptions = {
    * (e.g. permission/unknown), an inline "Retry" action is added to the toast.
    */
   onRetry?: () => void | Promise<void>;
+  /**
+   * Audit context used to record the retry click (separate from the
+   * original failure record). When omitted, the retry is still triggered
+   * but no audit row is written.
+   */
+  retryAudit?: {
+    referralId?: string | null;
+    documentPath?: string | null;
+    source?: string | null;
+  };
 };
 
 const TRANSIENT_FAILURE_REASONS: SignedUrlFailureReason[] = [
   "forbidden",
   "unknown",
 ];
+
+function logRetryAttempt(opts: NotifyOptions["retryAudit"]) {
+  if (!opts) return;
+  void (async () => {
+    try {
+      await (supabase as any).rpc("log_resume_access_retry", {
+        _retry_of_failure_id: null,
+        _referral_id: opts.referralId ?? null,
+        _document_path: opts.documentPath ?? null,
+        _source: opts.source ?? null,
+        _user_agent:
+          typeof navigator !== "undefined" ? navigator.userAgent : null,
+      });
+    } catch {
+      // Non-blocking — the retry itself is what matters for the user.
+    }
+  })();
+}
 
 export function notifySignedUrlFailure(
   failure: SignedUrlFailure,
@@ -242,6 +270,7 @@ export function notifySignedUrlFailure(
       action: {
         label: "Retry",
         onClick: () => {
+          logRetryAttempt(opts.retryAudit);
           void opts.onRetry?.();
         },
       },
