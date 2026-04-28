@@ -188,7 +188,7 @@ export function ReferralsPanel() {
       return cached.url;
     }
 
-    const result: SignedUrlResult = await createHrDocumentSignedUrl(path, {
+    const result = await createHrDocumentSignedUrl(path, {
       ttlSeconds: SIGNED_URL_TTL_SEC,
       resumeOnly: true,
     });
