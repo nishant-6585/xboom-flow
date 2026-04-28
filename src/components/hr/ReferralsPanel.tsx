@@ -27,14 +27,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Download, Search, Users, CheckCircle2, Copy, ExternalLink, Eye, FileText, FileX2 } from "lucide-react";
-import {
-  createHrDocumentSignedUrl,
-  notifySignedUrlFailure,
-  triggerDownload,
-  isSupportedResume,
-  getDocumentExt,
-} from "@/lib/hrDocuments";
+import { Download, Search, Users, CheckCircle2, Copy, ExternalLink, Eye, FileText } from "lucide-react";
 
 interface ReferralRow {
   id: string;
@@ -72,6 +65,16 @@ const statusVariant = (s: string): "default" | "secondary" | "destructive" | "ou
       return "outline";
   }
 };
+
+// Only PDF resumes are supported for in-app preview/download.
+const SUPPORTED_RESUME_EXTS = ["pdf"] as const;
+const getResumeExt = (path: string | null | undefined): string => {
+  if (!path) return "";
+  const name = path.split("/").pop() || "";
+  return (name.split(".").pop() || "").toLowerCase();
+};
+const isSupportedResume = (path: string | null | undefined): boolean =>
+  SUPPORTED_RESUME_EXTS.includes(getResumeExt(path) as any);
 
 export function ReferralsPanel() {
   const { role } = useAuth();
@@ -170,40 +173,89 @@ export function ReferralsPanel() {
     load();
   };
 
-  /**
-   * Resolve a signed URL for a referral resume, using the per-referral
-   * cache when possible. Returns null on failure (toast already shown).
-   */
-  const resolveResumeUrl = async (
+  const getSignedUrl = async (
     path: string,
-    referralId: string,
-    onRetry?: () => void
+    referralId?: string
   ): Promise<string | null> => {
-    const cached = signedUrlCache.current.get(referralId);
-    if (
-      cached &&
-      cached.path === path &&
-      cached.expiresAt - Date.now() > SIGNED_URL_REFRESH_BEFORE_MS
-    ) {
-      return cached.url;
-    }
+    const auditFailure = (
+      reason: "missing_path" | "unsupported_format" | "not_found" | "forbidden" | "unknown",
+      errorMessage?: string
+    ) => {
+      try {
+        void (supabase as any)
+          .rpc("log_resume_access_failure", {
+            _referral_id: referralId ?? null,
+            _document_path: path || null,
+            _reason: reason,
+            _error_message: errorMessage ?? null,
+            _user_agent:
+              typeof navigator !== "undefined" ? navigator.userAgent : null,
+          })
+          ?.then?.(() => undefined)
+          ?.catch?.(() => undefined);
+      } catch {
+        // Audit must never break access flow
+      }
+    };
 
-    const result = await createHrDocumentSignedUrl(path, {
-      ttlSeconds: SIGNED_URL_TTL_SEC,
-      resumeOnly: true,
-    });
-
-    if (result.ok === false) {
-      notifySignedUrlFailure(result, { onRetry });
+    if (!path || !path.trim()) {
+      toast.error("Resume file is missing for this referral");
+      auditFailure("missing_path");
       return null;
     }
-
-    signedUrlCache.current.set(referralId, {
-      url: result.url,
-      expiresAt: result.expiresAt,
-      path: result.path,
-    });
-    return result.url;
+    // Return cached URL if still valid
+    if (referralId) {
+      const cached = signedUrlCache.current.get(referralId);
+      if (
+        cached &&
+        cached.path === path &&
+        cached.expiresAt - Date.now() > SIGNED_URL_REFRESH_BEFORE_MS
+      ) {
+        return cached.url;
+      }
+    }
+    try {
+      const { data, error } = await supabase.storage
+        .from("hr-documents")
+        .createSignedUrl(path, SIGNED_URL_TTL_SEC);
+      if (error) {
+        const msg = error.message?.toLowerCase() ?? "";
+        if (msg.includes("not found") || msg.includes("object")) {
+          toast.error("Resume file not found in storage");
+          auditFailure("not_found", error.message);
+        } else if (
+          msg.includes("permission") ||
+          msg.includes("denied") ||
+          msg.includes("unauthorized") ||
+          msg.includes("forbidden") ||
+          msg.includes("policy")
+        ) {
+          toast.error("You do not have permission to access this resume");
+          auditFailure("forbidden", error.message);
+        } else {
+          toast.error(error.message || "Could not generate download link");
+          auditFailure("unknown", error.message);
+        }
+        return null;
+      }
+      if (!data?.signedUrl) {
+        toast.error("Could not generate download link");
+        auditFailure("unknown", "empty signedUrl");
+        return null;
+      }
+      if (referralId) {
+        signedUrlCache.current.set(referralId, {
+          url: data.signedUrl,
+          expiresAt: Date.now() + SIGNED_URL_TTL_SEC * 1000,
+          path,
+        });
+      }
+      return data.signedUrl;
+    } catch (e: any) {
+      toast.error(e?.message || "Unexpected error opening resume");
+      auditFailure("unknown", e?.message);
+      return null;
+    }
   };
 
   const logAccess = async (
@@ -229,24 +281,66 @@ export function ReferralsPanel() {
     candidateName: string,
     referralId: string
   ) => {
-    const url = await resolveResumeUrl(path, referralId, () =>
-      viewResume(path, candidateName, referralId)
-    );
+    if (!isSupportedResume(path)) {
+      const ext = getResumeExt(path);
+      toast.error(
+        ext
+          ? `Only PDF resumes can be previewed. This file is .${ext} — please ask the candidate to resubmit as PDF.`
+          : "Only PDF resumes can be previewed. This file format is not supported."
+      );
+      void (supabase as any)
+        .rpc("log_resume_access_failure", {
+          _referral_id: referralId,
+          _document_path: path || null,
+          _reason: "unsupported_format",
+          _error_message: ext ? `ext=.${ext}` : "no extension",
+          _user_agent:
+            typeof navigator !== "undefined" ? navigator.userAgent : null,
+        })
+        ?.then?.(() => undefined)
+        ?.catch?.(() => undefined);
+      return;
+    }
+    const url = await getSignedUrl(path, referralId);
     if (!url) return;
     void logAccess(referralId, path, "view");
     const fileName = path.split("/").pop() || "resume";
-    const ext = getDocumentExt(path);
+    const ext = getResumeExt(path);
     const kind: "pdf" | "image" | "other" = "pdf";
     setViewer({ url, name: `${candidateName} — ${fileName}`, ext, kind });
   };
 
   const downloadResume = async (path: string, referralId: string) => {
-    const url = await resolveResumeUrl(path, referralId, () =>
-      downloadResume(path, referralId)
-    );
+    if (!isSupportedResume(path)) {
+      const ext = getResumeExt(path);
+      toast.error(
+        ext
+          ? `Only PDF resumes are supported. This file is .${ext}.`
+          : "Only PDF resumes are supported."
+      );
+      void (supabase as any)
+        .rpc("log_resume_access_failure", {
+          _referral_id: referralId,
+          _document_path: path || null,
+          _reason: "unsupported_format",
+          _error_message: ext ? `ext=.${ext}` : "no extension",
+          _user_agent:
+            typeof navigator !== "undefined" ? navigator.userAgent : null,
+        })
+        ?.then?.(() => undefined)
+        ?.catch?.(() => undefined);
+      return;
+    }
+    const url = await getSignedUrl(path, referralId);
     if (!url) return;
     void logAccess(referralId, path, "download");
-    triggerDownload(url, path.split("/").pop() || "resume");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = path.split("/").pop() || "resume";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const filtered = useMemo(() => {
@@ -355,17 +449,9 @@ export function ReferralsPanel() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        {!r.resume_url ? (
-                          <span
-                            className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-muted-foreground/30 bg-muted/30 px-2 py-1 text-[11px] text-muted-foreground"
-                            title="The candidate did not attach a resume to this referral"
-                          >
-                            <FileX2 className="h-3 w-3" />
-                            No resume uploaded
-                          </span>
-                        ) : (() => {
+                        {r.resume_url && (() => {
                           const supported = isSupportedResume(r.resume_url);
-                          const ext = getDocumentExt(r.resume_url);
+                          const ext = getResumeExt(r.resume_url);
                           const tip = supported
                             ? undefined
                             : `Unsupported format (.${ext || "?"}) — only PDF resumes are accepted`;

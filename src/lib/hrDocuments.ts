@@ -9,11 +9,11 @@ import { toast } from "sonner";
  *   - Path validation
  *   - Format gating (PDF-only for resumes)
  *   - Signed URL error → toast mapping
+ *   - Server-side failure audit trail
  */
 
 export const HR_DOCUMENTS_BUCKET = "hr-documents";
 
-/** Resume formats accepted across the app. */
 export const SUPPORTED_RESUME_EXTS = ["pdf"] as const;
 export type SupportedResumeExt = (typeof SUPPORTED_RESUME_EXTS)[number];
 
@@ -75,36 +75,63 @@ const classifyStorageError = (
 };
 
 export type CreateSignedUrlOptions = {
-  /** Bucket name (defaults to hr-documents). */
   bucket?: string;
-  /** TTL in seconds (defaults to 5 min). */
   ttlSeconds?: number;
-  /** When true, only PDF resumes are allowed. */
   resumeOnly?: boolean;
+  /**
+   * If provided, signed-URL generation failures are recorded server-side
+   * against this referral via `log_resume_access_failure`. No-ops when omitted.
+   */
+  auditReferralId?: string;
 };
 
-/**
- * Create a signed URL for an HR document with consistent validation
- * and structured failure reasons. Does NOT show toasts — use
- * `notifySignedUrlFailure` if you want the standard messaging.
- */
+const recordFailure = (
+  failure: SignedUrlFailure,
+  attemptedPath: string | null | undefined,
+  referralId: string | undefined
+): void => {
+  // Fire-and-forget; never block the user-facing flow on audit issues.
+  try {
+    void (supabase as any)
+      .rpc("log_resume_access_failure", {
+        _referral_id: referralId ?? null,
+        _document_path: attemptedPath ?? null,
+        _reason: failure.reason,
+        _error_message: failure.message ?? null,
+        _user_agent:
+          typeof navigator !== "undefined" ? navigator.userAgent : null,
+      })
+      ?.then?.(() => undefined)
+      ?.catch?.(() => undefined);
+  } catch {
+    // Swallow — audit must never break access flows
+  }
+};
+
 export async function createHrDocumentSignedUrl(
   path: string | null | undefined,
   opts: CreateSignedUrlOptions = {}
 ): Promise<SignedUrlResult> {
-  const { bucket = HR_DOCUMENTS_BUCKET, ttlSeconds = 60 * 5, resumeOnly = false } = opts;
+  const {
+    bucket = HR_DOCUMENTS_BUCKET,
+    ttlSeconds = 60 * 5,
+    resumeOnly = false,
+    auditReferralId,
+  } = opts;
 
   if (!path || !path.trim()) {
-    return {
+    const failure: SignedUrlFailure = {
       ok: false,
       reason: "missing_path",
       message: "Document file is missing",
     };
+    recordFailure(failure, path, auditReferralId);
+    return failure;
   }
 
   if (resumeOnly && !isSupportedResume(path)) {
     const ext = getDocumentExt(path);
-    return {
+    const failure: SignedUrlFailure = {
       ok: false,
       reason: "unsupported_format",
       ext,
@@ -112,6 +139,8 @@ export async function createHrDocumentSignedUrl(
         ? `Only PDF resumes are supported. This file is .${ext}.`
         : "Only PDF resumes are supported.",
     };
+    recordFailure(failure, path, auditReferralId);
+    return failure;
   }
 
   try {
@@ -121,14 +150,18 @@ export async function createHrDocumentSignedUrl(
 
     if (error) {
       const { reason, friendly } = classifyStorageError(error.message);
-      return { ok: false, reason, message: friendly };
+      const failure: SignedUrlFailure = { ok: false, reason, message: friendly };
+      recordFailure(failure, path, auditReferralId);
+      return failure;
     }
     if (!data?.signedUrl) {
-      return {
+      const failure: SignedUrlFailure = {
         ok: false,
         reason: "unknown",
         message: "Could not generate download link",
       };
+      recordFailure(failure, path, auditReferralId);
+      return failure;
     }
     return {
       ok: true,
@@ -137,15 +170,16 @@ export async function createHrDocumentSignedUrl(
       expiresAt: Date.now() + ttlSeconds * 1000,
     };
   } catch (e: any) {
-    return {
+    const failure: SignedUrlFailure = {
       ok: false,
       reason: "unknown",
       message: e?.message || "Unexpected error opening document",
     };
+    recordFailure(failure, path, auditReferralId);
+    return failure;
   }
 }
 
-/** Standard toast messaging for a failed signed URL request. */
 export type NotifyOptions = {
   /**
    * Async retry callback. When provided AND the failure is transient
@@ -182,7 +216,6 @@ export function notifySignedUrlFailure(
   toast.error(failure.message);
 }
 
-/** Trigger a browser download for a signed URL. */
 export function triggerDownload(url: string, fileName: string): void {
   const a = document.createElement("a");
   a.href = url;
