@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -204,11 +203,11 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Assign Training to Employee</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="flex-1 max-h-[calc(90vh-80px)]">
+        <div className="flex-1 overflow-y-auto -mx-6 px-6">
           <div className="space-y-4 pb-4 px-1 pr-5">
             {/* Selection Mode Toggle */}
             <div>
@@ -384,7 +383,7 @@ export function AssignTrainingDialog({ open, onOpenChange, onSubmit, uploadFile 
               </Button>
             </div>
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
