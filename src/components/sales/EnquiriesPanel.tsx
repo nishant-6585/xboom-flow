@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { EnquiryFormDialog } from './EnquiryFormDialog';
 import { CallIntelligencePanel } from './CallIntelligencePanel';
+import { AssigneeCell } from './AssigneeCell';
 import { cn } from '@/lib/utils';
 
 interface EnquiriesPanelProps {
@@ -317,7 +318,7 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
                          <TableCell>
                            <div>
                              <p className="font-medium">{enquiry.customer_name}</p>
-                              <p className="text-xs text-muted-foreground">{enquiry.customer_state || ""}</p>
+                              <p className="text-xs text-muted-foreground">{(enquiry as any).customer_state || ""}</p>
                            </div>
                          </TableCell>
                           <TableCell>
