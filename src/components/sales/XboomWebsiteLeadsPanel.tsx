@@ -80,6 +80,8 @@ export function XboomWebsiteLeadsPanel() {
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [statusDraft, setStatusDraft] = useState<string>("");
+  const [savingStatus, setSavingStatus] = useState(false);
 
   const leads = useMemo(
     () => wooOrders.filter((o) => isWooLeadStatus(o.order_status)),
