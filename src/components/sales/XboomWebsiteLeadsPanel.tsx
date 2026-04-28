@@ -102,11 +102,15 @@ export function XboomWebsiteLeadsPanel() {
 
   const stats = useMemo(() => {
     const total = leads.length;
-    const pending = leads.filter((l) => (l.order_status ?? "").toLowerCase() === "pending").length;
-    const failed = leads.filter((l) => (l.order_status ?? "").toLowerCase() === "failed").length;
-    const cancelled = leads.filter((l) => (l.order_status ?? "").toLowerCase() === "cancelled").length;
+    const counts: Record<string, number> = {
+      pending: 0, "on-hold": 0, failed: 0, cancelled: 0, refunded: 0,
+    };
+    for (const l of leads) {
+      const s = (l.order_status ?? "").toLowerCase();
+      if (s in counts) counts[s] += 1;
+    }
     const lostValue = leads.reduce((s, l) => s + (Number(l.total_sales_amount) || 0), 0);
-    return { total, pending, failed, cancelled, lostValue };
+    return { total, counts, lostValue };
   }, [leads]);
 
   const selected = useMemo(
@@ -174,13 +178,13 @@ export function XboomWebsiteLeadsPanel() {
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">Pending Payment</p>
-            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.pending.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.counts.pending.toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">Failed / Cancelled</p>
-            <p className="text-2xl font-bold text-red-600 dark:text-red-400">{(stats.failed + stats.cancelled).toLocaleString()}</p>
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400">{(stats.counts.failed + stats.counts.cancelled).toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card>
@@ -189,6 +193,37 @@ export function XboomWebsiteLeadsPanel() {
             <p className="text-2xl font-bold text-foreground">{formatINR(stats.lostValue)}</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Clickable status chips */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setStatusFilter("all")}
+          className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+            statusFilter === "all"
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-muted/40 text-muted-foreground border-border/60 hover:bg-muted"
+          }`}
+        >
+          All ({stats.total.toLocaleString()})
+        </button>
+        {LEAD_STATUSES.map((s) => {
+          const active = statusFilter === s;
+          const base = STATUS_COLORS[s] ?? "bg-muted";
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setStatusFilter(active ? "all" : s)}
+              className={`text-xs font-medium px-3 py-1.5 rounded-full border capitalize transition-all ${base} ${
+                active ? "ring-2 ring-offset-1 ring-primary/60 shadow-sm" : "opacity-80 hover:opacity-100"
+              }`}
+            >
+              {s.replace(/-/g, " ")} ({(stats.counts[s] ?? 0).toLocaleString()})
+            </button>
+          );
+        })}
       </div>
 
       {/* Filters */}
