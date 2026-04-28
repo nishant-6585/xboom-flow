@@ -11823,6 +11823,45 @@ export type Database = {
         }
         Relationships: []
       }
+      woo_lead_activities: {
+        Row: {
+          activity_date: string
+          activity_type: string
+          created_at: string
+          description: string
+          id: string
+          metadata: Json | null
+          performed_by: string
+          performed_by_name: string
+          updated_at: string
+          woo_order_id: string
+        }
+        Insert: {
+          activity_date?: string
+          activity_type?: string
+          created_at?: string
+          description: string
+          id?: string
+          metadata?: Json | null
+          performed_by: string
+          performed_by_name?: string
+          updated_at?: string
+          woo_order_id: string
+        }
+        Update: {
+          activity_date?: string
+          activity_type?: string
+          created_at?: string
+          description?: string
+          id?: string
+          metadata?: Json | null
+          performed_by?: string
+          performed_by_name?: string
+          updated_at?: string
+          woo_order_id?: string
+        }
+        Relationships: []
+      }
       woocommerce_order_status_logs: {
         Row: {
           changed_by: string | null
