@@ -762,6 +762,12 @@ export function XboomWebsiteLeadsPanel() {
                     <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="truncate">{l.product_name}</span>
                   </div>
+                  <div className="text-xs text-muted-foreground">
+                    Assigned to:{" "}
+                    <span className="font-medium text-foreground">
+                      {l.assigned_to_name || "Unassigned"}
+                    </span>
+                  </div>
                   <div className="flex items-center justify-between pt-2 border-t">
                     <span className="text-sm font-semibold">{formatINR(l.total_sales_amount)}</span>
                     <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
