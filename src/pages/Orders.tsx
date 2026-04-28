@@ -47,7 +47,6 @@ export default function Orders() {
   const {
     wooOrders: wooOrdersAll,
     loading: wooLoading,
-    stats: wooStatsAll,
     refetch: refetchWooOrders,
   } = useWooCommerceOrders();
 
@@ -305,16 +304,14 @@ export default function Orders() {
       (o.customer_email?.toLowerCase().includes(searchLower) ?? false);
     // Status filter supports both raw statuses and grouped buckets (success/failed/pending)
     const status = (o.order_status || '').toLowerCase();
+    // Order-page only ever sees processing/completed/delivered rows, so the
+    // status filter is limited to "all" / "success" / "processing".
     const matchesStatus =
       wooStatusFilter === 'all'
         ? true
         : wooStatusFilter === 'success'
           ? ['completed', 'delivered'].includes(status)
-          : wooStatusFilter === 'failed'
-            ? ['failed', 'cancelled'].includes(status)
-            : wooStatusFilter === 'pending'
-              ? ['pending', 'on-hold'].includes(status)
-              : status === wooStatusFilter;
+          : status === wooStatusFilter;
     const matchesPayment = wooPaymentStatusFilter === 'all' || o.payment_status === wooPaymentStatusFilter;
     const matchesNotif =
       wooNotifFilter === 'all'
