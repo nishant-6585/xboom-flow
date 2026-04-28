@@ -39,7 +39,6 @@ export interface WooCommerceOrder {
   expected_delivery: string | null;
 }
 
-export function useWooCommerceOrders() {
 /**
  * Options to scope down the WooCommerce orders fetch.
  *
