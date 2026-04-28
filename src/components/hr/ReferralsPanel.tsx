@@ -192,11 +192,10 @@ export function ReferralsPanel() {
       resumeOnly: true,
     });
 
-    if (!result.ok) {
+    if (result.ok === false) {
       notifySignedUrlFailure(result);
       return null;
     }
-    // result is SignedUrlSuccess from here on
 
     signedUrlCache.current.set(referralId, {
       url: result.url,
