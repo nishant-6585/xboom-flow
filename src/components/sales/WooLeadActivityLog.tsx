@@ -421,7 +421,7 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
         </p>
       ) : (
         <ol className="relative border-l border-border ml-2 space-y-3 pl-4">
-          {timeline.map((item) => {
+          {visibleTimeline.map((item) => {
             const Icon = ICONS[item.type] ?? Activity;
             const tone = ICON_TONE[item.type] ?? "bg-muted text-muted-foreground";
             return (
@@ -466,6 +466,28 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
             );
           })}
         </ol>
+      )}
+
+      {timeline.length > 0 && (hasMore || visibleCount > PAGE_SIZE) && (
+        <div ref={sentinelRef} className="flex items-center justify-center pt-1">
+          {hasMore ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-muted-foreground gap-1"
+              onClick={() =>
+                setVisibleCount((c) => Math.min(c + PAGE_SIZE, timeline.length))
+              }
+            >
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Loading more… ({visibleCount} of {timeline.length})
+            </Button>
+          ) : (
+            <span className="text-[11px] text-muted-foreground">
+              End of history · {timeline.length} events
+            </span>
+          )}
+        </div>
       )}
     </div>
   );
