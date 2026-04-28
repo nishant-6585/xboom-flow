@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   Activity, Phone, MessageCircle, Mail, StickyNote, RefreshCw,
@@ -103,6 +103,16 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
   }>({ customer_note: null, internal_notes: null, sales_notes: null });
 
   const wooId = order.woo_order_id;
+
+  // Incremental render — keeps the DOM small for leads with long histories.
+  const PAGE_SIZE = 20;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // Reset paging whenever the open lead changes
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [wooId, order.id]);
 
   useEffect(() => {
     if (!wooId) { setEntries([]); setLoading(false); return; }
@@ -269,6 +279,29 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
       (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime(),
     );
   }, [entries, order, user, wooNotes, storedNotes]);
+
+  const visibleTimeline = useMemo(
+    () => timeline.slice(0, visibleCount),
+    [timeline, visibleCount],
+  );
+  const hasMore = visibleCount < timeline.length;
+
+  // Auto-load more when the sentinel scrolls into view
+  useEffect(() => {
+    if (!hasMore) return;
+    const node = sentinelRef.current;
+    if (!node) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisibleCount((c) => Math.min(c + PAGE_SIZE, timeline.length));
+        }
+      },
+      { rootMargin: "200px 0px" },
+    );
+    io.observe(node);
+    return () => io.disconnect();
+  }, [hasMore, timeline.length]);
 
   const addEntry = async () => {
     const text = newText.trim();
