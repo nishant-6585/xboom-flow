@@ -23,6 +23,7 @@ import { SalesFAQPanel } from "@/components/sales/SalesFAQPanel";
 import { SalesAnalyticsDashboard } from "@/components/sales/SalesAnalyticsDashboard";
 import { CategoryFunnelDashboard } from "@/components/sales/CategoryFunnelDashboard";
 import { LeadSourcePerformanceDashboard } from "@/components/sales/LeadSourcePerformanceDashboard";
+import { QFormsElevenLabsConversionAnalytics } from "@/components/sales/QFormsElevenLabsConversionAnalytics";
 import { TasksPanel } from "@/components/tasks/TasksPanel";
 import { PipelineOrders } from "@/components/pipeline/PipelineOrders";
 import { EnquiriesPanel } from "@/components/sales/EnquiriesPanel";
@@ -218,6 +219,7 @@ export default function Sales() {
 
           <TabsContent value="source_performance" className="space-y-6">
             <LeadSourcePerformanceDashboard />
+            <QFormsElevenLabsConversionAnalytics />
           </TabsContent>
 
           <TabsContent value="my_leads" className="space-y-6">
