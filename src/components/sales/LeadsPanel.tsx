@@ -471,7 +471,7 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                   <SelectContent>
                     <SelectItem value="all">All Sales</SelectItem>
                     {salesPersons.map((person) => (
-                      <SelectItem key={person} value={person}>{person}</SelectItem>
+                      <SelectItem key={person.id} value={person.id}>{person.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
