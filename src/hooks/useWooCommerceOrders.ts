@@ -70,6 +70,7 @@ export function useWooCommerceOrders() {
         'customer_name',
         'customer_company',
         'customer_email',
+        'customer_phone',
         'selling_price',
         'total_sales_amount',
         'amount_paid',
