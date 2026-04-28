@@ -18,9 +18,13 @@ describe("classifyStorageError — HTTP status code (priority 1)", () => {
       statusCode: "404",
       error: "NotFound",
     };
-    expect(classifyStorageError(err)).toEqual({
-      reason: "not_found",
-      friendly: FRIENDLY.not_found,
+    const result = classifyStorageError(err);
+    expect(result.reason).toBe("not_found");
+    expect(result.friendly).toBe(FRIENDLY.not_found);
+    expect(result.signals).toEqual({
+      httpStatus: 404,
+      errorSlug: "notfound",
+      keywordMatched: false,
     });
   });
 
