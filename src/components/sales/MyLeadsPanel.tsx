@@ -9,6 +9,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, Search, Phone, Mail, Building2, MapPin, Calendar, Bell, BellOff, Package, TrendingUp, Clock, AlertTriangle } from "lucide-react";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { Button } from "@/components/ui/button";
+import { MessageCircle } from "lucide-react";
+import { AttentionButton } from "./AttentionButton";
+import { ProspectButton } from "./ProspectButton";
+import { EnquiryConvertButton } from "./EnquiryConvertButton";
+
+// Map MyLead.source -> sourceType used by action buttons
+const SOURCE_TYPE_MAP: Record<string, 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads' | 'lead' | 'enquiry'> = {
+  "Enquiry": "enquiry",
+  "MyOperator": "myoperator",
+  "Form": "form_lead",
+  "Email": "email",
+  "Interakt": "interakt",
+  "Google Ads": "google_ads",
+};
 
 const SOURCE_COLORS: Record<string, string> = {
   "Enquiry": "#3B82F6",
@@ -259,14 +274,16 @@ export function MyLeadsPanel() {
                   <TableHead>Status</TableHead>
                   <TableHead>Follow-up</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">No leads found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center py-10 text-muted-foreground">No leads found</TableCell></TableRow>
                 ) : (
                   filtered.slice(0, 200).map(lead => {
                     const isOverdue = lead.has_followup && lead.followup_status === "pending" && lead.next_followup_at && isBefore(parseISO(lead.next_followup_at), now);
+                    const sourceType = SOURCE_TYPE_MAP[lead.source] || 'lead';
                     return (
                       <TableRow key={`${lead.source}-${lead.id}`} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedLead(lead)}>
                         <TableCell className="font-medium">{lead.customer_name}</TableCell>
@@ -295,6 +312,67 @@ export function MyLeadsPanel() {
                           )}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{format(parseISO(lead.created_at), "dd MMM yyyy")}</TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {lead.phone && (
+                              <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="Call">
+                                <a href={`tel:${lead.phone}`}>
+                                  <Phone className="h-3.5 w-3.5 text-blue-600" />
+                                </a>
+                              </Button>
+                            )}
+                            {lead.phone && (
+                              <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="WhatsApp">
+                                <a
+                                  href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, "")}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  <MessageCircle className="h-3.5 w-3.5 text-green-600" />
+                                </a>
+                              </Button>
+                            )}
+                            {lead.email && (
+                              <Button asChild size="sm" variant="ghost" className="h-7 w-7 p-0" title="Email">
+                                <a href={`mailto:${lead.email}`}>
+                                  <Mail className="h-3.5 w-3.5 text-amber-600" />
+                                </a>
+                              </Button>
+                            )}
+                            <ProspectButton
+                              sourceType={sourceType}
+                              sourceId={String(lead.id)}
+                              customerName={lead.customer_name}
+                              phoneNumber={lead.phone}
+                              email={lead.email}
+                              company={lead.company}
+                              city={lead.city}
+                              productName={lead.product_name}
+                            />
+                            <AttentionButton
+                              sourceType={sourceType === 'enquiry' ? 'enquiry' : sourceType}
+                              sourceId={String(lead.id)}
+                              customerName={lead.customer_name}
+                              phoneNumber={lead.phone}
+                              email={lead.email}
+                              company={lead.company}
+                              city={lead.city}
+                              productName={lead.product_name}
+                            />
+                            {sourceType !== 'enquiry' && (
+                              <EnquiryConvertButton
+                                sourceType={sourceType}
+                                sourceId={String(lead.id)}
+                                customerName={lead.customer_name}
+                                phoneNumber={lead.phone}
+                                email={lead.email}
+                                company={lead.company}
+                                city={lead.city}
+                                productName={lead.product_name}
+                              />
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     );
                   })
