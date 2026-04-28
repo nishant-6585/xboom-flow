@@ -15,6 +15,7 @@ import { format, isToday, isBefore, startOfDay, endOfDay, addDays, startOfWeek, 
 import { Calendar, List, Search, CheckCircle2, Clock, AlertTriangle, Phone, Mail, Package, User, ChevronLeft, ChevronRight, Filter, Plus, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { AssigneeCell } from './AssigneeCell';
 
 export function FollowupsPanel() {
   const { followups, loading, completeFollowup, rescheduleFollowup, cancelFollowup, createFollowup } = useFollowups();
