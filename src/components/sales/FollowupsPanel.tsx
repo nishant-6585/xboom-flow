@@ -273,8 +273,8 @@ export function FollowupsPanel() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm">{f.product_name || '-'}</TableCell>
                     <TableCell className="text-sm">{f.customer_company || '—'}</TableCell>
+                    <TableCell className="text-sm">{f.product_name || '-'}</TableCell>
                     <TableCell>
                       <div className="text-sm font-medium">{format(new Date(f.followup_at), 'dd MMM yyyy')}</div>
                       <div className="text-xs text-muted-foreground">{format(new Date(f.followup_at), 'hh:mm a')}</div>
@@ -282,7 +282,7 @@ export function FollowupsPanel() {
                     <TableCell>
                       <Badge variant="outline" className="text-[10px] capitalize">{f.source_type}</Badge>
                     </TableCell>
-                    {isManager && <TableCell className="text-xs">{f.created_by_name}</TableCell>}
+                    <TableCell><AssigneeCell userId={(f as any).user_id} name={f.created_by_name} /></TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center gap-1 justify-end">
                         {f.status === 'pending' && (
