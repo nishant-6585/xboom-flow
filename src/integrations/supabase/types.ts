@@ -9565,6 +9565,48 @@ export type Database = {
           },
         ]
       }
+      resume_access_failure_audit: {
+        Row: {
+          actor_role: Database["public"]["Enums"]["app_role"] | null
+          actor_user_id: string | null
+          actor_user_id_client_hint: string | null
+          created_at: string
+          document_path: string | null
+          error_message: string | null
+          id: string
+          reason: Database["public"]["Enums"]["resume_access_failure_reason"]
+          referral_id: string | null
+          source: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          actor_role?: Database["public"]["Enums"]["app_role"] | null
+          actor_user_id?: string | null
+          actor_user_id_client_hint?: string | null
+          created_at?: string
+          document_path?: string | null
+          error_message?: string | null
+          id?: string
+          reason: Database["public"]["Enums"]["resume_access_failure_reason"]
+          referral_id?: string | null
+          source?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          actor_role?: Database["public"]["Enums"]["app_role"] | null
+          actor_user_id?: string | null
+          actor_user_id_client_hint?: string | null
+          created_at?: string
+          document_path?: string | null
+          error_message?: string | null
+          id?: string
+          reason?: Database["public"]["Enums"]["resume_access_failure_reason"]
+          referral_id?: string | null
+          source?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       salary_history: {
         Row: {
           created_at: string
@@ -12689,6 +12731,39 @@ export type Database = {
         Returns: boolean
       }
       is_user_approved: { Args: { _user_id: string }; Returns: boolean }
+      list_resume_access_failures: {
+        Args: {
+          _actor_role?: Database["public"]["Enums"]["app_role"]
+          _from?: string
+          _limit?: number
+          _referral_id?: string
+          _to?: string
+        }
+        Returns: {
+          actor_role: Database["public"]["Enums"]["app_role"]
+          actor_user_id: string
+          created_at: string
+          document_path: string
+          error_message: string
+          id: string
+          reason: Database["public"]["Enums"]["resume_access_failure_reason"]
+          referral_id: string
+          source: string
+          user_agent: string
+        }[]
+      }
+      log_resume_access_failure: {
+        Args: {
+          _actor_user_id: string
+          _document_path: string
+          _error_message: string
+          _reason: Database["public"]["Enums"]["resume_access_failure_reason"]
+          _referral_id: string
+          _source: string
+          _user_agent: string
+        }
+        Returns: string
+      }
       move_notification_to_dlq: {
         Args: { _notification_id: string }
         Returns: string
@@ -12892,6 +12967,12 @@ export type Database = {
         | "crash_damage"
         | "other"
       repair_payment_status: "pending" | "partial" | "paid"
+      resume_access_failure_reason:
+        | "missing_path"
+        | "unsupported_format"
+        | "not_found"
+        | "forbidden"
+        | "unknown"
       salary_sheet_status:
         | "draft"
         | "locked"
@@ -13201,6 +13282,13 @@ export const Constants = {
         "other",
       ],
       repair_payment_status: ["pending", "partial", "paid"],
+      resume_access_failure_reason: [
+        "missing_path",
+        "unsupported_format",
+        "not_found",
+        "forbidden",
+        "unknown",
+      ],
       salary_sheet_status: [
         "draft",
         "locked",
