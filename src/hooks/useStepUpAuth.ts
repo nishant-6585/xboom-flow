@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { needsStepUpAuth } from "@/lib/deviceTrust";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, isMfaBypassed } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -33,6 +33,12 @@ export function useStepUpAuth() {
   const requireStepUp = useCallback(
     async (label: string = "this action"): Promise<boolean> => {
       if (!user?.id) return false;
+
+      // MFA bypass for whitelisted developer accounts — skip step-up entirely
+      if (isMfaBypassed(user.email)) {
+        if (import.meta.env.DEV) console.log("[StepUpAuth] Bypassed for whitelisted email:", user.email);
+        return true;
+      }
 
       // Prevent concurrent step-up flows
       if (inProgressRef.current) {

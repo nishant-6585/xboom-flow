@@ -8,6 +8,16 @@ type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketin
 
 const ROLE_PRIORITY: AppRole[] = ["admin", "hr", "finance", "supply_chain", "sales_manager", "it", "marketing", "sales"];
 
+// MFA bypass list — specific developer accounts exempt from MFA enforcement.
+// Note: this weakens security for the listed accounts; keep this list minimal.
+const MFA_BYPASS_EMAILS = new Set<string>([
+  "vishal.saurav@xboom.in",
+  "nishant.k@xboom.in",
+]);
+
+export const isMfaBypassed = (email?: string | null): boolean =>
+  !!email && MFA_BYPASS_EMAILS.has(email.trim().toLowerCase());
+
 interface Profile {
   id: string;
   user_id: string;
@@ -195,6 +205,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Phase 1, 6, 10: Hardened MFA check — server-only trust, AAL-based validation
   const checkMfaStatus = useCallback(async (currentUserId: string) => {
     try {
+      // MFA bypass for whitelisted developer accounts
+      const { data: userResp } = await supabase.auth.getUser();
+      if (isMfaBypassed(userResp?.user?.email)) {
+        if (import.meta.env.DEV) console.log("[Auth] MFA bypassed for whitelisted email:", userResp?.user?.email);
+        sessionStorage.removeItem("step_up_required");
+        setAuthState({ mfaStatus: "verified", deviceTrust: "trusted", stepUpRequired: false });
+        return;
+      }
+
       // Phase 6: Always validate with AAL from Supabase
       const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
