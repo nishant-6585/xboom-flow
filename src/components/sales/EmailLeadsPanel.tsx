@@ -716,7 +716,6 @@ export function EmailLeadsPanel() {
                               <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setEditLead(lead); setFormOpen(true); }}>
                                 Edit
                               </Button>
-                              <LinkToCompanyButton lead={{ customer_name: lead.customer_name, company: lead.customer_company, phone: lead.phone_number, email: lead.email, city: lead.city, source_label: 'Email' }} />
                             </div>
                           </TableCell>
                         </TableRow>
