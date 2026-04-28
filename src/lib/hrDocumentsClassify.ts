@@ -21,6 +21,35 @@ export const FRIENDLY: Record<SignedUrlFailureReason, string> = {
   unknown: "Could not generate download link",
 };
 
+/**
+ * Longer, user-facing description shown alongside the short title in
+ * toasts and inline failure UI. Kept here (not in components) so every
+ * surface renders the exact same wording per reason.
+ */
+export const FRIENDLY_DESCRIPTION: Record<SignedUrlFailureReason, string> = {
+  missing_path:
+    "No file is attached to this record yet. Ask the candidate or HR to upload the document.",
+  unsupported_format:
+    "Only PDF resumes are supported. Please re-upload the document as a PDF.",
+  not_found:
+    "The file may have been moved or deleted. Try refreshing, or re-upload the document.",
+  forbidden:
+    "Your account doesn't have access to this document. Contact HR or an administrator if you believe this is a mistake.",
+  unknown:
+    "Something went wrong reaching storage. This is usually temporary — please retry in a moment.",
+};
+
+/** Convenience accessor returning both lines for a given reason. */
+export function friendlyMessageFor(reason: SignedUrlFailureReason): {
+  title: string;
+  description: string;
+} {
+  return {
+    title: FRIENDLY[reason] ?? FRIENDLY.unknown,
+    description: FRIENDLY_DESCRIPTION[reason] ?? FRIENDLY_DESCRIPTION.unknown,
+  };
+}
+
 const STATUS_REASON: Record<number, SignedUrlFailureReason> = {
   400: "unknown",
   401: "forbidden",
