@@ -131,6 +131,9 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
       {/* Dashboard Visuals */}
       <CompanyDashboard companies={companies} />
 
+      {/* Lead Source Coverage */}
+      <LeadCompanyCoverage />
+
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="border-border/50 bg-gradient-to-br from-primary/5 to-transparent">
