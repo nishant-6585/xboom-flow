@@ -26,6 +26,7 @@ import { EmailLeadDetailDrawer } from './EmailLeadDetailDrawer';
 import { LeadContactDrawer, LeadContactData } from './LeadContactDrawer';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { GmailIntegrationCard } from './GmailIntegrationCard';
+import { LinkToCompanyButton } from './LinkToCompanyButton';
 import { toast } from 'sonner';
 
 type SortField = 'created_at' | 'customer_name' | 'ai_confidence' | 'processing_status';
