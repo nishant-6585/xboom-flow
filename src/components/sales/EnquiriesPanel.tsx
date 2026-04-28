@@ -297,10 +297,11 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Product</TableHead>
+                       <TableHead>Customer</TableHead>
+                       <TableHead>Company</TableHead>
+                       <TableHead>Product</TableHead>
                       <TableHead className="text-center">Qty</TableHead>
-                      {canSeeAllEnquiries && <TableHead>Sales Person</TableHead>}
+                       <TableHead>Assigned To</TableHead>
                       <TableHead>Urgency</TableHead>
                       <TableHead>Status</TableHead>
                        <TableHead>Date</TableHead>
@@ -316,9 +317,12 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
                          <TableCell>
                            <div>
                              <p className="font-medium">{enquiry.customer_name}</p>
-                             <p className="text-xs text-muted-foreground">{enquiry.customer_company}</p>
+                              <p className="text-xs text-muted-foreground">{enquiry.customer_state || ""}</p>
                            </div>
                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm">{enquiry.customer_company || "—"}</span>
+                          </TableCell>
                          <TableCell>
                            <div>
                              <p className="font-medium text-sm">{enquiry.product_name}</p>
@@ -330,11 +334,9 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
                          <TableCell className="text-center">
                            <span className="font-medium">{enquiry.quantity}</span>
                          </TableCell>
-                         {canSeeAllEnquiries && (
-                           <TableCell>
-                             <span className="text-sm">{enquiry.sales_person_name}</span>
-                           </TableCell>
-                         )}
+                          <TableCell>
+                            <AssigneeCell userId={(enquiry as any).sales_person_id} name={enquiry.sales_person_name} />
+                          </TableCell>
                          <TableCell>
                            <Badge variant="outline" className={cn("capitalize text-xs", getUrgencyColor(enquiry.urgency))}>
                              {enquiry.urgency}
