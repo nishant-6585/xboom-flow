@@ -25,6 +25,10 @@ import { WooLeadActivityLog } from "./WooLeadActivityLog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { ProspectButton } from "./ProspectButton";
+import { AttentionButton } from "./AttentionButton";
+import { EnquiryConvertButton } from "./EnquiryConvertButton";
+import { LinkToCompanyButton } from "./LinkToCompanyButton";
 
 /**
  * Xboom Website Leads
@@ -538,16 +542,63 @@ export function XboomWebsiteLeadsPanel() {
                             {l.customer_phone && (
                               <>
                                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => callPhone(l.customer_phone)} title="Call">
-                                  <Phone className="h-3.5 w-3.5" />
+                                  <Phone className="h-3.5 w-3.5 text-blue-600" />
                                 </Button>
                                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openWhatsApp(l.customer_phone)} title="WhatsApp">
-                                  <MessageCircle className="h-3.5 w-3.5" />
+                                  <MessageCircle className="h-3.5 w-3.5 text-green-600" />
                                 </Button>
                               </>
                             )}
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { recordOpen(l.id); setSelectedId(l.id); }} title="View details">
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </Button>
+                            {l.customer_email && (
+                              <Button asChild size="icon" variant="ghost" className="h-7 w-7" title="Email">
+                                <a href={`mailto:${l.customer_email}`}>
+                                  <Mail className="h-3.5 w-3.5 text-orange-500" />
+                                </a>
+                              </Button>
+                            )}
+                            <ProspectButton
+                              sourceType="lead"
+                              sourceId={l.id}
+                              customerName={l.customer_name || "Unknown"}
+                              phoneNumber={l.customer_phone}
+                              email={l.customer_email}
+                              company={l.customer_company ?? null}
+                              city={null}
+                              productName={l.product_name || ""}
+                              notes={null}
+                            />
+                            <AttentionButton
+                              sourceType="lead"
+                              sourceId={l.id}
+                              customerName={l.customer_name || "Unknown"}
+                              phoneNumber={l.customer_phone}
+                              email={l.customer_email}
+                              company={l.customer_company ?? null}
+                              city={null}
+                              productName={l.product_name || ""}
+                              notes={null}
+                            />
+                            <EnquiryConvertButton
+                              sourceType="lead"
+                              sourceId={l.id}
+                              customerName={l.customer_name || "Unknown"}
+                              phoneNumber={l.customer_phone}
+                              email={l.customer_email}
+                              company={l.customer_company ?? null}
+                              city={null}
+                              productName={l.product_name || ""}
+                              urgency={null}
+                              notes={null}
+                              isAlreadyConverted={false}
+                            />
+                            <LinkToCompanyButton
+                              lead={{
+                                customer_name: l.customer_name || undefined,
+                                company: l.customer_company ?? undefined,
+                                phone: l.customer_phone,
+                                source_label: "Xboom Website",
+                              }}
+                            />
                           </div>
                         </TableCell>
                       </TableRow>
