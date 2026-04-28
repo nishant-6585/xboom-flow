@@ -1,0 +1,1 @@
+ALTER VIEW public.lead_assignment_mismatches SET (security_invoker = true);
