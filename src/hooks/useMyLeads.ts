@@ -23,11 +23,12 @@ export interface MyLead {
 const PER_SOURCE_LIMIT = 1000;
 
 export function useMyLeads() {
-  const { user, profile, roles } = useAuth();
-  const seeAll = !!roles?.some((r: any) => r === "admin" || r === "sales_manager");
+  const { user, profile } = useAuth();
+  // My Leads always shows only leads assigned to the current user, regardless of role.
+  const seeAll = false;
 
   return useQuery({
-    queryKey: ["my-leads", user?.id, profile?.name, seeAll],
+    queryKey: ["my-leads", user?.id, profile?.name],
     enabled: !!user?.id,
     queryFn: async (): Promise<MyLead[]> => {
       const userId = user!.id;
