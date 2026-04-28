@@ -81,9 +81,22 @@ const KEYWORD_RULES: Array<{ re: RegExp; reason: SignedUrlFailureReason }> = [
   },
 ];
 
+export type ClassificationSignals = {
+  /** Numeric HTTP status extracted from the error, if any. */
+  httpStatus: number | null;
+  /** Normalized canonical error slug (lowercased, separators stripped), if any. */
+  errorSlug: string | null;
+  /** True iff the keyword regex fallback was the deciding signal. */
+  keywordMatched: boolean;
+};
+
 export function classifyStorageError(
   err: unknown
-): { reason: SignedUrlFailureReason; friendly: string } {
+): {
+  reason: SignedUrlFailureReason;
+  friendly: string;
+  signals: ClassificationSignals;
+} {
   const e: any =
     err && typeof err === "object" ? err : { message: String(err ?? "") };
 
@@ -92,32 +105,50 @@ export function classifyStorageError(
     e.statusCode ?? e.status ?? e.cause?.status ?? e.response?.status;
   const status =
     typeof rawStatus === "string" ? parseInt(rawStatus, 10) : rawStatus;
+  const httpStatus =
+    typeof status === "number" && Number.isFinite(status) ? status : null;
+
+  // 2) Canonical error slug from Supabase Storage responses.
+  const slugRaw = String(e.error ?? e.code ?? "")
+    .toLowerCase()
+    .replace(/[\s_-]/g, "");
+  const errorSlug = slugRaw || null;
+
   if (typeof status === "number" && Number.isFinite(status)) {
     const mapped = STATUS_REASON[status];
     if (mapped) {
-      return { reason: mapped, friendly: FRIENDLY[mapped] };
+      return {
+        reason: mapped,
+        friendly: FRIENDLY[mapped],
+        signals: { httpStatus, errorSlug, keywordMatched: false },
+      };
     }
   }
 
-  // 2) Canonical error slug from Supabase Storage responses.
-  const slug = String(e.error ?? e.code ?? "")
-    .toLowerCase()
-    .replace(/[\s_-]/g, "");
-  if (slug && SLUG_REASON[slug]) {
-    const reason = SLUG_REASON[slug];
-    return { reason, friendly: FRIENDLY[reason] };
+  if (errorSlug && SLUG_REASON[errorSlug]) {
+    const reason = SLUG_REASON[errorSlug];
+    return {
+      reason,
+      friendly: FRIENDLY[reason],
+      signals: { httpStatus, errorSlug, keywordMatched: false },
+    };
   }
 
   // 3) Word-boundary keyword fallback on the message string.
   const message = String(e.message ?? "");
   for (const rule of KEYWORD_RULES) {
     if (rule.re.test(message)) {
-      return { reason: rule.reason, friendly: FRIENDLY[rule.reason] };
+      return {
+        reason: rule.reason,
+        friendly: FRIENDLY[rule.reason],
+        signals: { httpStatus, errorSlug, keywordMatched: true },
+      };
     }
   }
 
   return {
     reason: "unknown",
     friendly: message || FRIENDLY.unknown,
+    signals: { httpStatus, errorSlug, keywordMatched: false },
   };
 }
