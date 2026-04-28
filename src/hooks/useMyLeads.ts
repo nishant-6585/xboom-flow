@@ -214,19 +214,18 @@ export function useMyLeads() {
         })()
       );
 
-      // Google Ads (enquiries with lead_source = 'google_ads')
+      // Google Ads (enquiries with lead_source = 'google_ads') — re-tag existing
       fetches.push(
         (async () => {
           let q = supabase
             .from("enquiries")
-            .select("id, customer_name, product_name, customer_company, created_at, status, customer_state, customer_type")
+            .select("id, customer_name, product_name, customer_company, created_at, status, customer_state, customer_type, email, phone")
             .eq("lead_source", "google_ads")
             .order("created_at", { ascending: false })
             .limit(500);
           q = q.eq("sales_person_id", userId);
           const { data } = await q;
           data?.forEach((r: any) => {
-            // Avoid duplicates – mark these as Google Ads source
             const existingIdx = results.findIndex(l => l.id === r.id);
             if (existingIdx >= 0) {
               results[existingIdx].source = "Google Ads";
@@ -238,8 +237,8 @@ export function useMyLeads() {
                 product_name: r.product_name,
                 company: r.customer_company,
                 city: r.customer_state,
-                email: null,
-                phone: null,
+                email: r.email ?? null,
+                phone: r.phone ?? null,
                 status: r.status,
                 created_at: r.created_at,
                 has_followup: false,
@@ -249,6 +248,96 @@ export function useMyLeads() {
               }, "enquiry"));
             }
           });
+        })()
+      );
+
+      // Google Ads (dedicated google_ads_leads table)
+      fetches.push(
+        (async () => {
+          const { data } = await supabase
+            .from("google_ads_leads" as any)
+            .select("id, customer_name, product_name, customer_company, customer_state, email, phone, status, created_at, customer_type, sales_person_id")
+            .eq("sales_person_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(500);
+          data?.forEach((r: any) =>
+            results.push(addFollowup({
+              id: r.id,
+              source: "Google Ads",
+              customer_name: r.customer_name || "Unknown",
+              product_name: r.product_name,
+              company: r.customer_company,
+              city: r.customer_state,
+              email: r.email,
+              phone: r.phone,
+              status: r.status,
+              created_at: r.created_at,
+              has_followup: false,
+              next_followup_at: null,
+              followup_status: null,
+              customer_type: r.customer_type || null,
+            }, "google_ads"))
+          );
+        })()
+      );
+
+      // Q-Forms (leads table) — assigned_to mapping
+      fetches.push(
+        (async () => {
+          const { data } = await supabase
+            .from("leads" as any)
+            .select("id, name, email, phone, company, location, subject, form_type, status, created_at, assigned_to")
+            .eq("assigned_to", userId)
+            .order("created_at", { ascending: false })
+            .limit(500);
+          data?.forEach((r: any) =>
+            results.push(addFollowup({
+              id: String(r.id),
+              source: "Q-Form",
+              customer_name: r.name || "Unknown",
+              product_name: r.subject || r.form_type || null,
+              company: r.company,
+              city: r.location,
+              email: r.email,
+              phone: r.phone,
+              status: r.status,
+              created_at: r.created_at,
+              has_followup: false,
+              next_followup_at: null,
+              followup_status: null,
+              customer_type: null,
+            }, "lead"))
+          );
+        })()
+      );
+
+      // Prospects (created_by mapping)
+      fetches.push(
+        (async () => {
+          const { data } = await supabase
+            .from("prospects" as any)
+            .select("id, customer_name, phone_number, email, company, city, product_name, status, created_at, created_by")
+            .eq("created_by", userId)
+            .order("created_at", { ascending: false })
+            .limit(500);
+          data?.forEach((r: any) =>
+            results.push(addFollowup({
+              id: r.id,
+              source: "Prospect",
+              customer_name: r.customer_name || "Unknown",
+              product_name: r.product_name,
+              company: r.company,
+              city: r.city,
+              email: r.email,
+              phone: r.phone_number,
+              status: r.status,
+              created_at: r.created_at,
+              has_followup: false,
+              next_followup_at: null,
+              followup_status: null,
+              customer_type: null,
+            }, "prospect"))
+          );
         })()
       );
 

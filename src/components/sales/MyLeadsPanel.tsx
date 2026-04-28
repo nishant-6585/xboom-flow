@@ -23,6 +23,8 @@ const SOURCE_TYPE_MAP: Record<string, 'interakt' | 'myoperator' | 'email' | 'for
   "Email": "email",
   "Interakt": "interakt",
   "Google Ads": "google_ads",
+  "Q-Form": "lead",
+  "Prospect": "enquiry",
 };
 
 const SOURCE_COLORS: Record<string, string> = {
@@ -32,9 +34,11 @@ const SOURCE_COLORS: Record<string, string> = {
   "Email": "#F59E0B",
   "Interakt": "#06B6D4",
   "Google Ads": "#EF4444",
+  "Q-Form": "#EC4899",
+  "Prospect": "#14B8A6",
 };
 
-const SOURCES = ["All", "Enquiry", "MyOperator", "Form", "Email", "Interakt", "Google Ads"];
+const SOURCES = ["All", "Enquiry", "MyOperator", "Form", "Q-Form", "Email", "Interakt", "Google Ads", "Prospect"];
 const FOLLOWUP_FILTERS = ["All", "With Follow-up", "Without Follow-up", "Overdue"];
 const PERIODS = [
   { label: "All Time", value: "all" },
@@ -271,6 +275,9 @@ export function MyLeadsPanel() {
                   <TableHead>Source</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Company</TableHead>
+                  <TableHead>City</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Email</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Follow-up</TableHead>
                   <TableHead>Date</TableHead>
@@ -279,7 +286,7 @@ export function MyLeadsPanel() {
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={8} className="text-center py-10 text-muted-foreground">No leads found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center py-10 text-muted-foreground">No leads found</TableCell></TableRow>
                 ) : (
                   filtered.slice(0, 200).map(lead => {
                     const isOverdue = lead.has_followup && lead.followup_status === "pending" && lead.next_followup_at && isBefore(parseISO(lead.next_followup_at), now);
@@ -294,6 +301,9 @@ export function MyLeadsPanel() {
                         </TableCell>
                         <TableCell className="max-w-[200px] truncate">{lead.product_name || "—"}</TableCell>
                         <TableCell>{lead.company || "—"}</TableCell>
+                        <TableCell className="text-xs">{lead.city || "—"}</TableCell>
+                        <TableCell className="text-xs whitespace-nowrap">{lead.phone || "—"}</TableCell>
+                        <TableCell className="text-xs max-w-[180px] truncate">{lead.email || "—"}</TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="text-xs">{lead.status || "—"}</Badge>
                         </TableCell>
