@@ -140,6 +140,42 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_user_mapping: {
+        Row: {
+          agent_id: string | null
+          agent_phone: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          provider: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          agent_phone?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          provider: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          agent_phone?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          provider?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_access_logs: {
         Row: {
           access_type: string
@@ -12046,6 +12082,17 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_assignment_mismatches: {
+        Row: {
+          agent_id: string | null
+          agent_phone: string | null
+          current_user_id: string | null
+          expected_user_id: string | null
+          lead_id: string | null
+          source: string | null
+        }
+        Relationships: []
+      }
       notification_metrics_today: {
         Row: {
           avg_latency_ms: number | null
@@ -12586,6 +12633,10 @@ export type Database = {
             }
             Returns: string
           }
+      resolve_agent_user: {
+        Args: { _agent_id: string; _agent_phone: string; _provider: string }
+        Returns: string
+      }
       retry_notification_from_dlq: {
         Args: { _dlq_id: string }
         Returns: string
