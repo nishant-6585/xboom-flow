@@ -96,6 +96,11 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
   const [newText, setNewText] = useState("");
   const [wooNotes, setWooNotes] = useState<WooNote[]>([]);
   const [wooNotesLoading, setWooNotesLoading] = useState(false);
+  const [storedNotes, setStoredNotes] = useState<{
+    customer_note: string | null;
+    internal_notes: string | null;
+    sales_notes: string | null;
+  }>({ customer_note: null, internal_notes: null, sales_notes: null });
 
   const wooId = order.woo_order_id;
 
@@ -121,6 +126,27 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
     })();
     return () => { cancelled = true; };
   }, [wooId]);
+
+  // Fetch the heavier note fields lazily for the open lead only.
+  useEffect(() => {
+    if (!order.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("woocommerce_orders")
+        .select("internal_notes,sales_notes,raw_data")
+        .eq("id", order.id)
+        .maybeSingle();
+      if (cancelled || error || !data) return;
+      const raw = data.raw_data as { customer_note?: string } | null;
+      setStoredNotes({
+        customer_note: raw?.customer_note?.trim() || null,
+        internal_notes: data.internal_notes,
+        sales_notes: data.sales_notes,
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [order.id]);
 
   // Fetch WooCommerce order notes (customer-facing + private) for this lead.
   useEffect(() => {
@@ -191,24 +217,35 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
       });
     }
 
-    // Stored Woo single-field notes
-    if (order.customer_note?.trim()) {
+    // Stored Woo single-field notes (loaded on demand)
+    if (storedNotes.customer_note) {
       items.push({
         id: `woo-customer-note-${order.id}`,
         type: "woo_customer_note",
         label: "Customer note (checkout)",
-        description: order.customer_note,
+        description: storedNotes.customer_note,
         actor: "Customer",
         at: order.woo_created_at ?? new Date().toISOString(),
         source: "woo",
       });
     }
-    if (order.internal_notes?.trim()) {
+    if (storedNotes.internal_notes?.trim()) {
       items.push({
         id: `woo-internal-note-${order.id}`,
         type: "woo_note",
         label: "Internal note",
-        description: order.internal_notes,
+        description: storedNotes.internal_notes,
+        actor: "WooCommerce",
+        at: order.woo_created_at ?? new Date().toISOString(),
+        source: "woo",
+      });
+    }
+    if (storedNotes.sales_notes?.trim()) {
+      items.push({
+        id: `woo-sales-note-${order.id}`,
+        type: "woo_note",
+        label: "Sales note",
+        description: storedNotes.sales_notes,
         actor: "WooCommerce",
         at: order.woo_created_at ?? new Date().toISOString(),
         source: "woo",
@@ -231,7 +268,7 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
     return items.sort(
       (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime(),
     );
-  }, [entries, order, user, wooNotes]);
+  }, [entries, order, user, wooNotes, storedNotes]);
 
   const addEntry = async () => {
     const text = newText.trim();
