@@ -404,7 +404,15 @@ export function XboomWebsiteLeadsPanel() {
                   const isOpen = expanded.has(l.id);
                   return (
                     <Fragment key={l.id}>
-                      <TableRow className="cursor-pointer hover:bg-muted/40" onClick={() => toggleRow(l.id)}>
+                       <TableRow
+                         className={`cursor-pointer hover:bg-muted/40 ${lastFocusedId === l.id ? "bg-primary/5 ring-1 ring-inset ring-primary/30" : ""}`}
+                         onClick={() => toggleRow(l.id)}
+                         ref={(el) => {
+                           if (el) rowRefs.current.set(l.id, el);
+                           else rowRefs.current.delete(l.id);
+                         }}
+                         tabIndex={-1}
+                       >
                         <TableCell>
                           {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                         </TableCell>
@@ -413,6 +421,12 @@ export function XboomWebsiteLeadsPanel() {
                           {l.customer_email && (
                             <div className="text-xs text-muted-foreground truncate max-w-[200px]">{l.customer_email}</div>
                           )}
+                           {lastOpened[l.id] && (
+                             <div className="text-[10px] text-muted-foreground/80 mt-0.5 inline-flex items-center gap-1" title={format(new Date(lastOpened[l.id]), "PPpp")}>
+                               <Clock className="h-2.5 w-2.5" />
+                               Last opened {formatDistanceToNow(new Date(lastOpened[l.id]), { addSuffix: true })}
+                             </div>
+                           )}
                         </TableCell>
                         <TableCell className="font-mono text-xs">{formatPhone(l.customer_phone)}</TableCell>
                         <TableCell>
