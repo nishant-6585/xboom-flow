@@ -1,9 +1,9 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import {
   Globe, Search, Phone, MessageCircle, Mail, RefreshCw,
   LayoutGrid, Table as TableIcon, ChevronDown, ChevronRight,
-  Package, ShoppingCart, ExternalLink, Loader2, Save,
+  Package, ShoppingCart, ExternalLink, Loader2, Save, Clock,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -82,6 +82,34 @@ export function XboomWebsiteLeadsPanel() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [statusDraft, setStatusDraft] = useState<string>("");
   const [savingStatus, setSavingStatus] = useState(false);
+
+  // Persisted "last opened" map: lead id -> ISO timestamp
+  const LAST_OPENED_KEY = "xboomWebsiteLeads.lastOpened";
+  const LAST_FOCUSED_KEY = "xboomWebsiteLeads.lastFocusedId";
+  const [lastOpened, setLastOpened] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      return JSON.parse(localStorage.getItem(LAST_OPENED_KEY) || "{}");
+    } catch { return {}; }
+  });
+  const [lastFocusedId, setLastFocusedId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(LAST_FOCUSED_KEY);
+  });
+  const rowRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const hasRestoredRef = useRef(false);
+
+  const recordOpen = (id: string) => {
+    setLastFocusedId(id);
+    setLastOpened((prev) => {
+      const next = { ...prev, [id]: new Date().toISOString() };
+      try {
+        localStorage.setItem(LAST_OPENED_KEY, JSON.stringify(next));
+        localStorage.setItem(LAST_FOCUSED_KEY, id);
+      } catch { /* ignore quota */ }
+      return next;
+    });
+  };
 
   const leads = useMemo(
     () => wooOrders.filter((o) => isWooLeadStatus(o.order_status)),
