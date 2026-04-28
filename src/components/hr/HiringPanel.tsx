@@ -37,7 +37,12 @@ const requirementSchema = z.object({
   status: z.enum(["open", "closed"]),
 });
 
-const empty = { title: "", department: "", description: "", open_positions: 1, location: "", experience_required: "", status: "open" as const };
+type FormState = {
+  title: string; department: string; description: string;
+  open_positions: number; location: string; experience_required: string;
+  status: "open" | "closed";
+};
+const empty: FormState = { title: "", department: "", description: "", open_positions: 1, location: "", experience_required: "", status: "open" };
 
 export function HiringPanel() {
   const { role } = useAuth();
@@ -46,7 +51,7 @@ export function HiringPanel() {
   const [loading, setLoading] = useState(true);
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<HiringRequirement | null>(null);
-  const [form, setForm] = useState<typeof empty>(empty);
+  const [form, setForm] = useState<FormState>(empty);
   const [referFor, setReferFor] = useState<HiringRequirement | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "open" | "closed">("open");
 
