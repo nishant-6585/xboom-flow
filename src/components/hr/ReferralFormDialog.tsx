@@ -50,15 +50,21 @@ export function ReferralFormDialog({ open, onOpenChange, role, onSubmitted }: Pr
 
     setSubmitting(true);
     try {
-      // Duplicate check (same email + role within 24h)
-      const { data: dup } = await supabase
+      // Duplicate check: same role + exact email (case-insensitive) within 24h
+      const normalizedEmail = form.email.trim().toLowerCase();
+      const { data: dup, error: dupErr } = await supabase
         .from("referrals")
-        .select("id, created_at")
+        .select("id, created_at, candidate_email")
         .eq("role_id", role.id)
-        .ilike("candidate_email", form.email.trim())
+        .ilike("candidate_email", normalizedEmail) // ilike with no wildcards = case-insensitive equality
         .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
         .limit(1);
-      if (dup && dup.length) {
+      if (dupErr) throw dupErr;
+      // Defensive guard: ensure exact match (lower-cased), not a pattern collision
+      if (
+        dup &&
+        dup.some((d) => (d.candidate_email || "").trim().toLowerCase() === normalizedEmail)
+      ) {
         toast.error("This candidate was already referred for this role in the last 24h");
         setSubmitting(false);
         return;
