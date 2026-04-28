@@ -27,7 +27,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Download, Search, Users, CheckCircle2, Copy, ExternalLink, Eye, FileText } from "lucide-react";
+import { Download, Search, Users, CheckCircle2, Copy, ExternalLink, Eye, FileText, FileX2 } from "lucide-react";
 
 interface ReferralRow {
   id: string;
@@ -400,7 +400,15 @@ export function ReferralsPanel() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        {r.resume_url && (() => {
+                        {!r.resume_url ? (
+                          <span
+                            className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-muted-foreground/30 bg-muted/30 px-2 py-1 text-[11px] text-muted-foreground"
+                            title="The candidate did not attach a resume to this referral"
+                          >
+                            <FileX2 className="h-3 w-3" />
+                            No resume uploaded
+                          </span>
+                        ) : (() => {
                           const supported = isSupportedResume(r.resume_url);
                           const ext = getResumeExt(r.resume_url);
                           const tip = supported
