@@ -339,26 +339,35 @@ export function ReferralsPanel() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        {r.resume_url && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              title="View resume"
-                              onClick={() => viewResume(r.resume_url!, r.candidate_name)}
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              title="Download resume"
-                              onClick={() => downloadResume(r.resume_url!)}
-                            >
-                              <Download className="h-3.5 w-3.5" />
-                            </Button>
-                          </>
-                        )}
+                        {r.resume_url && (() => {
+                          const supported = isSupportedResume(r.resume_url);
+                          const ext = getResumeExt(r.resume_url);
+                          const tip = supported
+                            ? undefined
+                            : `Unsupported format (.${ext || "?"}) — only PDF resumes are accepted`;
+                          return (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                title={tip || "View resume"}
+                                disabled={!supported}
+                                onClick={() => viewResume(r.resume_url!, r.candidate_name)}
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                title={tip || "Download resume"}
+                                disabled={!supported}
+                                onClick={() => downloadResume(r.resume_url!)}
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          );
+                        })()}
                         {isHROrAdmin && (
                           <Select
                             value={r.status}
