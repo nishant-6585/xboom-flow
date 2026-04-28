@@ -27,6 +27,8 @@ import { toast } from "sonner";
 import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { ProspectButton } from "./ProspectButton";
 import { AttentionButton } from "./AttentionButton";
+import { ElevenLabsAnalytics } from "./ElevenLabsAnalytics";
+import { BarChart3 } from "lucide-react";
 
 type ElevenLead = {
   id: string;
@@ -212,6 +214,8 @@ export function ElevenLabsLeadsPanel() {
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+  const [showAnalytics, setShowAnalytics] = useState(true);
+  const [prospectIds, setProspectIds] = useState<Set<string>>(new Set());
 
   const load = async () => {
     setLoading(true);
@@ -239,7 +243,15 @@ export function ElevenLabsLeadsPanel() {
       const sumDict: Record<string, string> = {};
       (ana ?? []).forEach((a: any) => { if (a.summary) sumDict[a.call_log_id] = a.summary; });
       setSummaries(sumDict);
-    } else setSummaries({});
+
+      // Fetch prospects converted from these call logs
+      const { data: pros } = await supabase
+        .from("prospects")
+        .select("source_id")
+        .eq("source_type", "lead")
+        .in("source_id", ids);
+      setProspectIds(new Set((pros ?? []).map((p: any) => p.source_id)));
+    } else { setSummaries({}); setProspectIds(new Set()); }
     setLoading(false);
   };
 
@@ -404,6 +416,9 @@ export function ElevenLabsLeadsPanel() {
               <LayoutGrid className="h-3.5 w-3.5" />
             </Button>
           </div>
+          <Button variant="outline" size="sm" onClick={() => setShowAnalytics(s => !s)} className="gap-2">
+            <BarChart3 className="h-4 w-4" /> {showAnalytics ? "Hide" : "Show"} Analytics
+          </Button>
           <Button variant="outline" size="sm" onClick={load} className="gap-2">
             <RefreshCw className="h-4 w-4" /> Refresh
           </Button>
@@ -432,6 +447,11 @@ export function ElevenLabsLeadsPanel() {
           </Card>
         ))}
       </div>
+
+      {/* Analytics dashboard */}
+      {showAnalytics && (
+        <ElevenLabsAnalytics leads={leads} prospectIds={prospectIds} />
+      )}
 
       {/* Filters */}
       <Card className="p-3">
