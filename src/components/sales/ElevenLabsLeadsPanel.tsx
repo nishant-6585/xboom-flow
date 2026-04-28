@@ -710,7 +710,7 @@ export function ElevenLabsLeadsPanel() {
                   </TableRow>
                   {isOpen && (
                     <TableRow key={`${r.id}-detail`} className="bg-muted/30 hover:bg-muted/30">
-                      <TableCell colSpan={11} className="p-4">
+                      <TableCell colSpan={12} className="p-4">
                         <RowDetail lead={r} summary={summaries[r.id]} />
                       </TableCell>
                     </TableRow>
