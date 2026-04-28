@@ -9,6 +9,8 @@ import { PipelineCalendarView } from './PipelineCalendarView';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, Plus, List, BarChart3, ArrowLeft, CalendarDays } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { SourceCoverageCard } from '@/components/crm/SourceCoverageCard';
+import { BarChart3 as PipelineIcon } from 'lucide-react';
 
 interface PipelineOrdersProps {
   enquiryIdFilter?: string | null;
@@ -73,6 +75,13 @@ export function PipelineOrders({ enquiryIdFilter, selectedLeadId, statusPreFilte
           Back to Enquiries
         </Link>
       )}
+      <div className="mb-4">
+        <SourceCoverageCard
+          title="Pipeline Entries by Source"
+          dataset="pipeline"
+          Icon={PipelineIcon}
+        />
+      </div>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-4">
           <TabsTrigger value="list" className="gap-1">
