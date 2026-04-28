@@ -549,10 +549,10 @@ export function ElevenLabsLeadsPanel() {
           </TableHeader>
           <TableBody>
             {loading && (
-              <TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">Loading…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={12} className="py-8 text-center text-muted-foreground">Loading…</TableCell></TableRow>
             )}
             {!loading && filtered.length === 0 && (
-              <TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">
+              <TableRow><TableCell colSpan={12} className="py-8 text-center text-muted-foreground">
                 No leads match your filters yet — calls will appear here automatically.
               </TableCell></TableRow>
             )}
@@ -620,8 +620,6 @@ export function ElevenLabsLeadsPanel() {
                           <SelectItem value="cold">Cold</SelectItem>
                         </SelectContent>
                       </Select>
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
                     </TableCell>
                     <TableCell className="text-xs">{(r as any).company || '—'}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
