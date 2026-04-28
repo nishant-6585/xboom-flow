@@ -1177,6 +1177,10 @@ const Admin = () => {
           <TabsContent value="employee-activity">
             <AdminEmployeeActivity />
           </TabsContent>
+
+          <TabsContent value="agent-mapping">
+            <AgentMappingPanel />
+          </TabsContent>
         </Tabs>
       </main>
       <ReAuthDialog
