@@ -157,6 +157,20 @@ export function XboomWebsiteLeadsPanel() {
     setStatusDraft(selectedStatus);
   }, [selectedId, selectedStatus]);
 
+  // On first successful load, restore scroll & focus to the previously
+  // opened row so the user lands back where they left off.
+  useEffect(() => {
+    if (loading || hasRestoredRef.current || !lastFocusedId) return;
+    const el = rowRefs.current.get(lastFocusedId);
+    if (!el) return;
+    hasRestoredRef.current = true;
+    // Defer until after paint so layout is stable
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      try { el.focus({ preventScroll: true }); } catch { /* noop */ }
+    });
+  }, [loading, filtered, lastFocusedId, viewMode]);
+
   const saveStatus = async () => {
     if (!selected || !statusDraft || statusDraft === selectedStatus) return;
     setSavingStatus(true);
