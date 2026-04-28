@@ -217,6 +217,23 @@ export function XboomWebsiteLeadsPanel() {
     });
   }, [leads, search, statusFilter]);
 
+  // Client-side pagination — reduces DOM nodes from hundreds to PAGE_SIZE,
+  // which removes the perceived "loading delay" once data arrives.
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
+  // Reset to page 1 whenever the filter set changes
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, viewMode]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paged = useMemo(
+    () => filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filtered, safePage],
+  );
+  const pageStart = filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const pageEnd = Math.min(safePage * PAGE_SIZE, filtered.length);
+
   const stats = useMemo(() => {
     const total = leads.length;
     const counts: Record<string, number> = {
@@ -497,7 +514,7 @@ export function XboomWebsiteLeadsPanel() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((l) => {
+                {paged.map((l) => {
                   const status = (l.order_status || "").toLowerCase();
                   const isOpen = expanded.has(l.id);
                   return (
@@ -640,7 +657,7 @@ export function XboomWebsiteLeadsPanel() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.map((l) => {
+          {paged.map((l) => {
             const status = (l.order_status || "").toLowerCase();
             return (
               <Card
@@ -696,6 +713,40 @@ export function XboomWebsiteLeadsPanel() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {!loading && filtered.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between px-2 py-3 text-xs text-muted-foreground">
+          <span>
+            Showing <span className="font-medium text-foreground">{pageStart}</span>–
+            <span className="font-medium text-foreground">{pageEnd}</span> of{" "}
+            <span className="font-medium text-foreground">{filtered.length}</span> leads
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2"
+              disabled={safePage <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </Button>
+            <span className="px-1">
+              Page <span className="font-medium text-foreground">{safePage}</span> / {totalPages}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2"
+              disabled={safePage >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Next
+            </Button>
+          </div>
         </div>
       )}
 
