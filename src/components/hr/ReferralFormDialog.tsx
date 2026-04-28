@@ -71,15 +71,13 @@ export function ReferralFormDialog({ open, onOpenChange, role, onSubmitted }: Pr
         .from("hr-documents")
         .upload(path, resume, { upsert: false });
       if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from("hr-documents").getPublicUrl(path);
-
       const { error } = await supabase.from("referrals").insert({
         role_id: role.id,
         candidate_name: form.name.trim(),
         candidate_email: form.email.trim(),
         candidate_phone: form.phone.trim(),
         notes: form.notes.trim() || null,
-        resume_url: pub.publicUrl,
+        resume_url: path,
         referred_by: user.id,
         status: "submitted",
       });
