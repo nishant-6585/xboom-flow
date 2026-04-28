@@ -85,6 +85,7 @@ export function XboomWebsiteLeadsPanel() {
   const { wooOrders, loading, refetch } = useWooCommerceOrders({
     sinceDays: 90,
     leadOnly: true,
+    excludeLost: true,
   });
   const { user } = useAuth();
 

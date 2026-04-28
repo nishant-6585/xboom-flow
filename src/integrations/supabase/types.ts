@@ -11922,7 +11922,10 @@ export type Database = {
           fulfillment_status: string | null
           id: string
           internal_notes: string | null
+          is_lost_lead: boolean
           line_items: Json | null
+          lost_lead_at: string | null
+          lost_lead_reason: string | null
           order_number: string | null
           order_status: string | null
           payment_status: string | null
@@ -11957,7 +11960,10 @@ export type Database = {
           fulfillment_status?: string | null
           id?: string
           internal_notes?: string | null
+          is_lost_lead?: boolean
           line_items?: Json | null
+          lost_lead_at?: string | null
+          lost_lead_reason?: string | null
           order_number?: string | null
           order_status?: string | null
           payment_status?: string | null
@@ -11992,7 +11998,10 @@ export type Database = {
           fulfillment_status?: string | null
           id?: string
           internal_notes?: string | null
+          is_lost_lead?: boolean
           line_items?: Json | null
+          lost_lead_at?: string | null
+          lost_lead_reason?: string | null
           order_number?: string | null
           order_status?: string | null
           payment_status?: string | null
@@ -12852,6 +12861,7 @@ export type Database = {
         }
         Returns: string
       }
+      mark_old_woo_leads_as_lost: { Args: never; Returns: number }
       move_notification_to_dlq: {
         Args: { _notification_id: string }
         Returns: string
@@ -12937,7 +12947,10 @@ export type Database = {
           fulfillment_status: string | null
           id: string
           internal_notes: string | null
+          is_lost_lead: boolean
           line_items: Json | null
+          lost_lead_at: string | null
+          lost_lead_reason: string | null
           order_number: string | null
           order_status: string | null
           payment_status: string | null
