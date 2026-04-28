@@ -477,13 +477,50 @@ export function XboomWebsiteLeadsPanel() {
           </SheetHeader>
           {selected && (
             <div className="mt-6 space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">Status</p>
-                  <Badge variant="outline" className={`capitalize ${STATUS_COLORS[(selected.order_status || "").toLowerCase()] ?? "bg-muted"}`}>
+              <div className="rounded-lg border bg-card p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground">Lead Status</p>
+                  <Badge variant="outline" className={`capitalize ${STATUS_COLORS[selectedStatus] ?? "bg-muted"}`}>
                     {(selected.order_status || "unknown").replace(/-/g, " ")}
                   </Badge>
                 </div>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={statusDraft}
+                    onValueChange={setStatusDraft}
+                    disabled={savingStatus}
+                  >
+                    <SelectTrigger className="h-9 flex-1 text-sm">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LEAD_STATUSES.map((s) => (
+                        <SelectItem key={s} value={s} className="capitalize">
+                          {s.replace(/-/g, " ")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    onClick={saveStatus}
+                    disabled={
+                      savingStatus ||
+                      !statusDraft ||
+                      statusDraft === selectedStatus
+                    }
+                    className="gap-1.5"
+                  >
+                    {savingStatus ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Save className="h-3.5 w-3.5" />
+                    )}
+                    Save
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs text-muted-foreground">Payment Status</p>
                   <p className="capitalize">{selected.payment_status || "—"}</p>
