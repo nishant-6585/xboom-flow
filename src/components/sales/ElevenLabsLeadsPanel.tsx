@@ -540,7 +540,8 @@ export function ElevenLabsLeadsPanel() {
               <TableHead>Intent / Budget</TableHead>
               <TableHead>Duration</TableHead>
               <TableHead>Temp</TableHead>
-              <TableHead>Assignee</TableHead>
+              <TableHead>Company</TableHead>
+              <TableHead>Assigned To</TableHead>
               <TableHead>Last contact</TableHead>
               <TableHead className="w-[130px]">Status</TableHead>
               <TableHead className="w-[200px] text-right">Actions</TableHead>
@@ -620,6 +621,9 @@ export function ElevenLabsLeadsPanel() {
                         </SelectContent>
                       </Select>
                     </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    </TableCell>
+                    <TableCell className="text-xs">{(r as any).company || '—'}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       {canManage ? (
                         <Select
