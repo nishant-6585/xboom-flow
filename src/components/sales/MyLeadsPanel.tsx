@@ -21,6 +21,7 @@ import { LinkToCompanyButton } from "./LinkToCompanyButton";
 const SOURCE_TYPE_MAP: Record<string, 'interakt' | 'myoperator' | 'email' | 'form_lead' | 'google_ads' | 'lead' | 'enquiry'> = {
   "Enquiry": "enquiry",
   "MyOperator": "myoperator",
+  "ElevenLabs": "myoperator",
   "Form": "form_lead",
   "Email": "email",
   "Interakt": "interakt",
@@ -32,6 +33,7 @@ const SOURCE_TYPE_MAP: Record<string, 'interakt' | 'myoperator' | 'email' | 'for
 const SOURCE_COLORS: Record<string, string> = {
   "Enquiry": "#3B82F6",
   "MyOperator": "#10B981",
+  "ElevenLabs": "#A855F7",
   "Form": "#8B5CF6",
   "Email": "#F59E0B",
   "Interakt": "#06B6D4",
@@ -40,7 +42,20 @@ const SOURCE_COLORS: Record<string, string> = {
   "Prospect": "#14B8A6",
 };
 
-const SOURCES = ["All", "Enquiry", "MyOperator", "Form", "Q-Form", "Email", "Interakt", "Google Ads", "Prospect"];
+// Mirror every source label that `useMyLeads` can emit. Keep this in
+// sync with the labelling logic in src/hooks/useMyLeads.ts.
+const SOURCES = [
+  "All",
+  "Enquiry",
+  "MyOperator",
+  "ElevenLabs",
+  "Interakt",
+  "Form",
+  "Q-Form",
+  "Email",
+  "Google Ads",
+  "Prospect",
+];
 const FOLLOWUP_FILTERS = ["All", "With Follow-up", "Without Follow-up", "Overdue"];
 const PERIODS = [
   { label: "All Time", value: "all" },
