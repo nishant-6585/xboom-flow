@@ -135,14 +135,39 @@ export function ReferralsPanel() {
   };
 
   const downloadResume = async (path: string) => {
-    const { data, error } = await supabase.storage
-      .from("hr-documents")
-      .createSignedUrl(path, 60 * 5);
-    if (error || !data) {
-      toast.error(error?.message || "Could not generate link");
+    if (!path || !path.trim()) {
+      toast.error("Resume file is missing for this referral");
       return;
     }
-    window.open(data.signedUrl, "_blank");
+    try {
+      const { data, error } = await supabase.storage
+        .from("hr-documents")
+        .createSignedUrl(path, 60 * 5);
+      if (error) {
+        const msg = error.message?.toLowerCase() ?? "";
+        if (msg.includes("not found") || msg.includes("object")) {
+          toast.error("Resume file not found in storage");
+        } else if (
+          msg.includes("permission") ||
+          msg.includes("denied") ||
+          msg.includes("unauthorized") ||
+          msg.includes("forbidden") ||
+          msg.includes("policy")
+        ) {
+          toast.error("You do not have permission to access this resume");
+        } else {
+          toast.error(error.message || "Could not generate download link");
+        }
+        return;
+      }
+      if (!data?.signedUrl) {
+        toast.error("Could not generate download link");
+        return;
+      }
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    } catch (e: any) {
+      toast.error(e?.message || "Unexpected error opening resume");
+    }
   };
 
   const filtered = useMemo(() => {
