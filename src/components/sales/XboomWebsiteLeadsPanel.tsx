@@ -484,7 +484,16 @@ export function XboomWebsiteLeadsPanel() {
           {filtered.map((l) => {
             const status = (l.order_status || "").toLowerCase();
             return (
-              <Card key={l.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedId(l.id)}>
+              <Card
+                key={l.id}
+                className="hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => { recordOpen(l.id); setSelectedId(l.id); }}
+                ref={(el) => {
+                  if (el) rowRefs.current.set(l.id, el);
+                  else rowRefs.current.delete(l.id);
+                }}
+                tabIndex={-1}
+              >
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <Badge variant="outline" className={`capitalize ${STATUS_COLORS[status] ?? "bg-muted"}`}>
