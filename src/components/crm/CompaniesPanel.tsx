@@ -11,13 +11,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { useCompanies, Company } from '@/hooks/useCompanies';
 import { useAuth } from '@/hooks/useAuth';
 import { usePushToCompany } from '@/hooks/usePushToCompany';
+import { useLeadContactsForCompany, INDUSTRY_OPTIONS } from '@/hooks/useLeadContactsForCompany';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CompanyDetailDrawer } from './CompanyDetailDrawer';
 import { CompanyDashboard } from './CompanyDashboard';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   Search, Building2, Plus, Filter, ChevronRight, Loader2,
-  RefreshCw, Users, TrendingUp, IndianRupee, Download
+  RefreshCw, Users, TrendingUp, IndianRupee, Download, Check, ChevronsUpDown, UserPlus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -36,6 +39,10 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
   const [addOpen, setAddOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [form, setForm] = useState({ name: '', industry: '', city: '', state: '', phone: '', email: '', website: '', notes: '' });
+  const [industryOpen, setIndustryOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
+  const { data: leadContacts = [] } = useLeadContactsForCompany();
+  const [primaryContactName, setPrimaryContactName] = useState<string>('');
   const lastAutoOpenedId = useRef<string | null>(null);
 
   // Auto-open company when selectedLeadId is provided
@@ -85,6 +92,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
       created_by_name: userName || '',
     });
     setForm({ name: '', industry: '', city: '', state: '', phone: '', email: '', website: '', notes: '' });
+    setPrimaryContactName('');
     setAddOpen(false);
   };
 
@@ -203,8 +211,100 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                   <DialogHeader><DialogTitle>Add Company</DialogTitle></DialogHeader>
                   <div className="grid gap-3">
                     <div><Label>Company Name *</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+                    <div>
+                      <Label>Primary Contact (from existing leads)</Label>
+                      <Popover open={contactOpen} onOpenChange={setContactOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                            <span className="flex items-center gap-2 truncate">
+                              <UserPlus className="h-3.5 w-3.5 text-muted-foreground" />
+                              {primaryContactName || 'Select contact from leads...'}
+                            </span>
+                            <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search by name, phone, email, company..." />
+                            <CommandList className="max-h-72">
+                              <CommandEmpty>No matching leads.</CommandEmpty>
+                              <CommandGroup>
+                                {leadContacts.slice(0, 500).map(c => (
+                                  <CommandItem
+                                    key={c.key}
+                                    value={`${c.name} ${c.phone || ''} ${c.email || ''} ${c.company || ''}`}
+                                    onSelect={() => {
+                                      setPrimaryContactName(c.name);
+                                      setForm(f => ({
+                                        ...f,
+                                        phone: f.phone || c.phone || '',
+                                        email: f.email || c.email || '',
+                                        name: f.name || c.company || '',
+                                        city: f.city || c.city || '',
+                                      }));
+                                      setContactOpen(false);
+                                    }}
+                                  >
+                                    <Check className={cn('mr-2 h-3.5 w-3.5', primaryContactName === c.name ? 'opacity-100' : 'opacity-0')} />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-sm truncate">{c.name}</div>
+                                      <div className="text-[11px] text-muted-foreground truncate">
+                                        {[c.company, c.phone, c.email].filter(Boolean).join(' · ')}
+                                      </div>
+                                    </div>
+                                    <Badge variant="outline" className="ml-2 text-[9px]">{c.source}</Badge>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div><Label>Industry</Label><Input value={form.industry} onChange={e => setForm(f => ({ ...f, industry: e.target.value }))} /></div>
+                      <div>
+                        <Label>Industry</Label>
+                        <Popover open={industryOpen} onOpenChange={setIndustryOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                              <span className="truncate">{form.industry || 'Select industry...'}</span>
+                              <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                            <Command>
+                              <CommandInput
+                                placeholder="Search or type custom..."
+                                value={form.industry}
+                                onValueChange={(v) => setForm(f => ({ ...f, industry: v }))}
+                              />
+                              <CommandList className="max-h-60">
+                                <CommandEmpty>
+                                  <button
+                                    type="button"
+                                    className="text-xs underline"
+                                    onClick={() => setIndustryOpen(false)}
+                                  >
+                                    Use "{form.industry}"
+                                  </button>
+                                </CommandEmpty>
+                                <CommandGroup>
+                                  {INDUSTRY_OPTIONS.map(opt => (
+                                    <CommandItem
+                                      key={opt}
+                                      value={opt}
+                                      onSelect={() => { setForm(f => ({ ...f, industry: opt })); setIndustryOpen(false); }}
+                                    >
+                                      <Check className={cn('mr-2 h-3.5 w-3.5', form.industry === opt ? 'opacity-100' : 'opacity-0')} />
+                                      {opt}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
                       <div><Label>City</Label><Input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} /></div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
