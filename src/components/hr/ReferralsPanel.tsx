@@ -314,13 +314,24 @@ export function ReferralsPanel() {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         {r.resume_url && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => downloadResume(r.resume_url!)}
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                          </Button>
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              title="View resume"
+                              onClick={() => viewResume(r.resume_url!, r.candidate_name)}
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              title="Download resume"
+                              onClick={() => downloadResume(r.resume_url!)}
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
                         )}
                         {isHROrAdmin && (
                           <Select
@@ -403,6 +414,71 @@ export function ReferralsPanel() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!viewer} onOpenChange={(o) => !o && setViewer(null)}>
+        <DialogContent className="max-w-5xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-4 py-3 border-b">
+            <DialogTitle className="text-sm font-medium truncate pr-8">
+              {viewer?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 bg-muted/30">
+            {viewer?.kind === "pdf" && (
+              <iframe
+                src={viewer.url}
+                title="Resume preview"
+                className="w-full h-full border-0"
+              />
+            )}
+            {viewer?.kind === "image" && (
+              <div className="w-full h-full overflow-auto flex items-center justify-center p-4">
+                <img
+                  src={viewer.url}
+                  alt="Resume preview"
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
+            )}
+            {viewer?.kind === "other" && (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
+                <FileText className="h-10 w-10 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  Preview not available for .{viewer.ext} files. Use the download
+                  option below to open it locally.
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="px-4 py-3 border-t flex-row sm:justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => viewer && window.open(viewer.url, "_blank", "noopener,noreferrer")}
+              disabled={!viewer}
+            >
+              <ExternalLink className="mr-2 h-3.5 w-3.5" />
+              Open in new tab
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                if (!viewer) return;
+                const a = document.createElement("a");
+                a.href = viewer.url;
+                a.download = viewer.name.split("—").pop()?.trim() || "resume";
+                a.rel = "noopener noreferrer";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+              }}
+              disabled={!viewer}
+            >
+              <Download className="mr-2 h-3.5 w-3.5" />
+              Download
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
