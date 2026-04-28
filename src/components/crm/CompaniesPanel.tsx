@@ -17,6 +17,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CompanyDetailDrawer } from './CompanyDetailDrawer';
 import { CompanyDashboard } from './CompanyDashboard';
 import { LeadCompanyCoverage } from './LeadCompanyCoverage';
+import { CompanyBucketAnalysis } from './CompanyBucketAnalysis';
+import { CompanyBucketBadge } from './CompanyBucketBadge';
+import { classifyCompanies, type Bucket } from '@/lib/companyBuckets';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
@@ -35,6 +38,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
   const { syncAllLeadsToCompanies } = usePushToCompany();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [bucketFilter, setBucketFilter] = useState<'all' | Bucket>('all');
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -58,6 +62,8 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
     }
   }, [selectedLeadId, loading, companies]);
 
+  const classification = useMemo(() => classifyCompanies(companies), [companies]);
+
   const filtered = useMemo(() => {
     let list = [...companies];
     if (search) {
@@ -70,8 +76,9 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
       );
     }
     if (statusFilter !== 'all') list = list.filter(c => c.status === statusFilter);
+    if (bucketFilter !== 'all') list = list.filter(c => classification.get(c.id) === bucketFilter);
     return list;
-  }, [companies, search, statusFilter]);
+  }, [companies, search, statusFilter, bucketFilter, classification]);
 
   const totalCustomers = companies.filter(c => c.status === 'customer').length;
   const totalLeads = companies.filter(c => c.status === 'lead').length;
@@ -131,6 +138,9 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
     <div className="space-y-6">
       {/* Dashboard Visuals */}
       <CompanyDashboard companies={companies} />
+
+      {/* ABC Bucket Analysis */}
+      <CompanyBucketAnalysis companies={companies} />
 
       {/* Lead Source Coverage */}
       <LeadCompanyCoverage />
@@ -205,6 +215,17 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="lead">Leads</SelectItem>
                   <SelectItem value="customer">Customers</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={bucketFilter} onValueChange={(v) => setBucketFilter(v as 'all' | Bucket)}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Bucket" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Buckets</SelectItem>
+                  <SelectItem value="A">Bucket A</SelectItem>
+                  <SelectItem value="B">Bucket B</SelectItem>
+                  <SelectItem value="C">Bucket C</SelectItem>
                 </SelectContent>
               </Select>
               <Dialog open={addOpen} onOpenChange={setAddOpen}>
@@ -336,6 +357,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-14">Bucket</TableHead>
                   <TableHead>Company</TableHead>
                   <TableHead>Industry</TableHead>
                   <TableHead>Status</TableHead>
@@ -348,7 +370,7 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No companies found</TableCell>
                   </TableRow>
                 ) : (
                   filtered.map(company => (
@@ -357,6 +379,9 @@ export function CompaniesPanel({ selectedLeadId }: CompaniesPanelProps = {}) {
                       className="cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => { setSelectedCompany(company); setDrawerOpen(true); }}
                     >
+                      <TableCell>
+                        <CompanyBucketBadge bucket={classification.get(company.id) ?? 'C'} />
+                      </TableCell>
                       <TableCell>
                         <div className="font-medium text-sm">{company.name}</div>
                         {company.city && <div className="text-xs text-muted-foreground">{company.city}{company.state ? `, ${company.state}` : ''}</div>}
