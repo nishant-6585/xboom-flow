@@ -16,11 +16,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Download, Search, Users, CheckCircle2, Copy, ExternalLink } from "lucide-react";
+import { Download, Search, Users, CheckCircle2, Copy, ExternalLink, Eye, FileText } from "lucide-react";
 
 interface ReferralRow {
   id: string;
@@ -71,6 +78,12 @@ export function ReferralsPanel() {
   const [shortlistConfirm, setShortlistConfirm] = useState<{
     candidateId: string;
     candidateName: string;
+  } | null>(null);
+  const [viewer, setViewer] = useState<{
+    url: string;
+    name: string;
+    ext: string;
+    kind: "pdf" | "image" | "other";
   } | null>(null);
 
   const load = async () => {
@@ -134,10 +147,10 @@ export function ReferralsPanel() {
     load();
   };
 
-  const downloadResume = async (path: string) => {
+  const getSignedUrl = async (path: string): Promise<string | null> => {
     if (!path || !path.trim()) {
       toast.error("Resume file is missing for this referral");
-      return;
+      return null;
     }
     try {
       const { data, error } = await supabase.storage
@@ -158,16 +171,40 @@ export function ReferralsPanel() {
         } else {
           toast.error(error.message || "Could not generate download link");
         }
-        return;
+        return null;
       }
       if (!data?.signedUrl) {
         toast.error("Could not generate download link");
-        return;
+        return null;
       }
-      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+      return data.signedUrl;
     } catch (e: any) {
       toast.error(e?.message || "Unexpected error opening resume");
+      return null;
     }
+  };
+
+  const viewResume = async (path: string, candidateName: string) => {
+    const url = await getSignedUrl(path);
+    if (!url) return;
+    const fileName = path.split("/").pop() || "resume";
+    const ext = (fileName.split(".").pop() || "").toLowerCase();
+    const imageExts = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
+    const kind: "pdf" | "image" | "other" =
+      ext === "pdf" ? "pdf" : imageExts.includes(ext) ? "image" : "other";
+    setViewer({ url, name: `${candidateName} — ${fileName}`, ext, kind });
+  };
+
+  const downloadResume = async (path: string) => {
+    const url = await getSignedUrl(path);
+    if (!url) return;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = path.split("/").pop() || "resume";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const filtered = useMemo(() => {
