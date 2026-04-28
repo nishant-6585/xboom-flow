@@ -70,10 +70,10 @@ export function ReferralsPanel() {
     if (ids.length) {
       const { data: profs } = await supabase
         .from("profiles")
-        .select("id, full_name")
-        .in("id", ids);
+        .select("user_id, name")
+        .in("user_id", ids);
       const map: Record<string, string> = {};
-      (profs ?? []).forEach((p: any) => { map[p.id] = p.full_name ?? "Unknown"; });
+      (profs ?? []).forEach((p: any) => { map[p.user_id] = p.name ?? "Unknown"; });
       setPeople(map);
     }
     setLoading(false);
