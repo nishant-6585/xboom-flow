@@ -716,6 +716,40 @@ export function XboomWebsiteLeadsPanel() {
         </div>
       )}
 
+      {/* Pagination */}
+      {!loading && filtered.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between px-2 py-3 text-xs text-muted-foreground">
+          <span>
+            Showing <span className="font-medium text-foreground">{pageStart}</span>–
+            <span className="font-medium text-foreground">{pageEnd}</span> of{" "}
+            <span className="font-medium text-foreground">{filtered.length}</span> leads
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2"
+              disabled={safePage <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </Button>
+            <span className="px-1">
+              Page <span className="font-medium text-foreground">{safePage}</span> / {totalPages}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2"
+              disabled={safePage >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Detail drawer */}
       <Sheet open={!!selectedId} onOpenChange={(o) => !o && setSelectedId(null)}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
