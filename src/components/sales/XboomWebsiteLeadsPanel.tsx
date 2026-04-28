@@ -445,7 +445,7 @@ export function XboomWebsiteLeadsPanel() {
                                 </Button>
                               </>
                             )}
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setSelectedId(l.id)} title="View details">
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { recordOpen(l.id); setSelectedId(l.id); }} title="View details">
                               <ExternalLink className="h-3.5 w-3.5" />
                             </Button>
                           </div>
