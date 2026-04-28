@@ -52,6 +52,10 @@ function mapOrder(order: any) {
   const shipping = order?.shipping || {};
   const customerName = `${billing.first_name || ""} ${billing.last_name || ""}`.trim()
     || billing.email || "Unknown";
+  // Phone priority: billing.phone -> shipping.phone -> null. Trim to avoid empty strings.
+  const rawPhone = (billing.phone ?? shipping.phone ?? "").toString().trim();
+  const phone: string | null = rawPhone.length > 0 ? rawPhone : null;
+  console.log(`[sync] order ${orderId} phone="${phone ?? ""}"`);
   const shippingParts = [
     shipping.address_1, shipping.address_2, shipping.city,
     shipping.state, shipping.postcode, shipping.country,
@@ -81,7 +85,7 @@ function mapOrder(order: any) {
     customer_name: customerName,
     customer_company: billing.company || "",
     customer_email: billing.email || "",
-    customer_phone: billing.phone || null,
+    customer_phone: phone,
     shipping_address: shippingAddress,
     selling_price: total,
     total_sales_amount: total,
@@ -223,6 +227,14 @@ Deno.serve(async (req) => {
 
       if (orders.length > 0) {
         const mapped = orders.map(mapOrder).filter(Boolean);
+        // Never overwrite an existing valid phone with null. If incoming phone
+        // is null, drop the field from the upsert payload so the existing DB
+        // value is preserved.
+        for (const row of mapped as any[]) {
+          if (row && (row.customer_phone === null || row.customer_phone === "")) {
+            delete row.customer_phone;
+          }
+        }
         // The woocommerce_orders table has a per-row trigger
         // (handle_woocommerce_order_automation) that can be expensive,
         // so we keep chunks small (25) to stay well under the

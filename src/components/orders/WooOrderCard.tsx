@@ -145,6 +145,11 @@ export function WooOrderCard({ order, onClick, onUpdated }: WooOrderCardProps) {
               {customer.subtitle && (
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">{customer.subtitle}</p>
               )}
+              <p className="text-xs text-muted-foreground mt-0.5 truncate font-mono">
+                {order.customer_phone && order.customer_phone.trim().length > 0
+                  ? order.customer_phone
+                  : 'No phone'}
+              </p>
             </div>
           </div>
 
