@@ -32,9 +32,11 @@ const SOURCE_COLORS: Record<string, string> = {
   "Email": "#F59E0B",
   "Interakt": "#06B6D4",
   "Google Ads": "#EF4444",
+  "Q-Form": "#EC4899",
+  "Prospect": "#14B8A6",
 };
 
-const SOURCES = ["All", "Enquiry", "MyOperator", "Form", "Email", "Interakt", "Google Ads"];
+const SOURCES = ["All", "Enquiry", "MyOperator", "Form", "Q-Form", "Email", "Interakt", "Google Ads", "Prospect"];
 const FOLLOWUP_FILTERS = ["All", "With Follow-up", "Without Follow-up", "Overdue"];
 const PERIODS = [
   { label: "All Time", value: "all" },
