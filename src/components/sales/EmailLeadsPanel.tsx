@@ -26,6 +26,7 @@ import { EmailLeadDetailDrawer } from './EmailLeadDetailDrawer';
 import { LeadContactDrawer, LeadContactData } from './LeadContactDrawer';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { GmailIntegrationCard } from './GmailIntegrationCard';
+import { LinkToCompanyButton } from './LinkToCompanyButton';
 import { toast } from 'sonner';
 
 type SortField = 'created_at' | 'customer_name' | 'ai_confidence' | 'processing_status';
@@ -696,6 +697,7 @@ export function EmailLeadsPanel() {
                               <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setEditLead(lead); setFormOpen(true); }}>
                                 Edit
                               </Button>
+                              <LinkToCompanyButton lead={{ customer_name: lead.customer_name, company: lead.customer_company, phone: lead.phone_number, email: lead.email, city: lead.city, source_label: 'Email' }} />
                             </div>
                           </TableCell>
                         </TableRow>

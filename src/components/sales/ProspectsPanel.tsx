@@ -23,6 +23,7 @@ import { OrderForm, OrderFormInitialData } from '@/components/OrderForm';
 import { toast } from 'sonner';
 import { LogCallDialog } from './LogCallDialog';
 import { AssigneeCell } from './AssigneeCell';
+import { LinkToCompanyButton } from './LinkToCompanyButton';
 import { SourceCoverageCard } from '@/components/crm/SourceCoverageCard';
 import { Target as TargetIcon } from 'lucide-react';
 
@@ -510,7 +511,12 @@ export function ProspectsPanel({ selectedLeadId }: ProspectsPanelProps = {}) {
                           </Select>
                         </TableCell>
                         <TableCell><span className="text-xs text-muted-foreground">{format(new Date(p.created_at), 'dd MMM')}</span></TableCell>
-                        <TableCell><AssigneeCell userId={p.created_by} name={p.created_by_name} /></TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <AssigneeCell userId={p.created_by} name={p.created_by_name} />
+                            <LinkToCompanyButton lead={{ customer_name: p.customer_name, company: (p as any).company || (p as any).customer_company, phone: (p as any).phone || (p as any).customer_phone, email: (p as any).email || (p as any).customer_email, city: (p as any).city, source_label: 'Prospect' }} />
+                          </div>
+                        </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-0.5">
                             <Button

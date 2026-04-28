@@ -16,6 +16,7 @@ import { Calendar, List, Search, CheckCircle2, Clock, AlertTriangle, Phone, Mail
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { AssigneeCell } from './AssigneeCell';
+import { LinkToCompanyButton } from './LinkToCompanyButton';
 import { SourceCoverageCard } from '@/components/crm/SourceCoverageCard';
 import { RefreshCw as RefreshIcon } from 'lucide-react';
 
@@ -292,7 +293,12 @@ export function FollowupsPanel() {
                     <TableCell>
                       <Badge variant="outline" className="text-[10px] capitalize">{f.source_type}</Badge>
                     </TableCell>
-                    <TableCell><AssigneeCell userId={(f as any).user_id} name={f.created_by_name} /></TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <AssigneeCell userId={(f as any).user_id} name={f.created_by_name} />
+                        <LinkToCompanyButton lead={{ customer_name: f.customer_name, company: f.customer_company, phone: f.phone, email: f.email, source_label: 'Followup' }} />
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center gap-1 justify-end">
                         {f.status === 'pending' && (

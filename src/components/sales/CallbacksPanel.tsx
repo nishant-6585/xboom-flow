@@ -14,6 +14,7 @@ import { format, isToday, isBefore, differenceInHours } from 'date-fns';
 import { Phone, PhoneOff, Search, CheckCircle2, User, RefreshCw, AlertTriangle, ArrowRightLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AssigneeCell } from './AssigneeCell';
+import { LinkToCompanyButton } from './LinkToCompanyButton';
 
 interface SalesProfile {
   user_id: string;
@@ -264,7 +265,10 @@ export function CallbacksPanel() {
                       <div className="text-[10px] text-muted-foreground">{hoursAgo}h ago</div>
                     </TableCell>
                     <TableCell>
-                      <AssigneeCell userId={(cb as any).assigned_to} name={cb.assigned_to_name} />
+                      <div className="flex items-center gap-1">
+                        <AssigneeCell userId={(cb as any).assigned_to} name={cb.assigned_to_name} />
+                        <LinkToCompanyButton lead={{ customer_name: cb.customer_name, company: cb.customer_company, phone: cb.caller_number, city: cb.city, source_label: 'Callback' }} />
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       {cb.status === 'pending' && (

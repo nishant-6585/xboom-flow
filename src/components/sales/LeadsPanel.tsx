@@ -23,6 +23,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import { AssigneeCell } from './AssigneeCell';
+import { LinkToCompanyButton } from './LinkToCompanyButton';
 import * as XLSX from 'xlsx';
 import { LeadFormDialog } from './LeadFormDialog';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
@@ -599,7 +600,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
                           {getSourceBadge(extractLeadSource(lead.notes))}
                         </TableCell>
                         <TableCell>
-                          <AssigneeCell userId={(lead as any).sales_person_id} name={lead.sales_person_name} />
+                          <div className="flex items-center gap-1">
+                            <AssigneeCell userId={(lead as any).sales_person_id} name={lead.sales_person_name} />
+                            <LinkToCompanyButton lead={{ customer_name: lead.customer_name, company: lead.customer_company, phone: (lead as any).customer_phone, email: (lead as any).customer_email, city: (lead as any).customer_city, source_label: 'Lead' }} />
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge className={`${getUrgencyColor(lead.urgency)} capitalize text-xs`}>

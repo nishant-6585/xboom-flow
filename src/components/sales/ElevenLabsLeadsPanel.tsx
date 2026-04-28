@@ -26,6 +26,7 @@ import { CallButton } from "@/components/calls/CallButton";
 import { toast } from "sonner";
 import { EnquiryConvertButton } from "./EnquiryConvertButton";
 import { ProspectButton } from "./ProspectButton";
+import { LinkToCompanyButton } from "./LinkToCompanyButton";
 import { AttentionButton } from "./AttentionButton";
 import { ElevenLabsAnalytics } from "./ElevenLabsAnalytics";
 import { BarChart3 } from "lucide-react";
@@ -705,6 +706,7 @@ export function ElevenLabsLeadsPanel() {
                           notes={r.notes || r.raw_transcript}
                           isAlreadyConverted={r.is_enquiry_converted}
                         />
+                        <LinkToCompanyButton lead={{ customer_name: isUnidentified ? undefined : name, company: (r as any).company, phone: r.caller_number, source_label: 'Call' }} />
                       </div>
                     </TableCell>
                   </TableRow>
