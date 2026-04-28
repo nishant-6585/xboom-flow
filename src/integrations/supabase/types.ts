@@ -9574,8 +9574,10 @@ export type Database = {
           document_path: string | null
           error_message: string | null
           id: string
+          is_retry: boolean
           reason: Database["public"]["Enums"]["resume_access_failure_reason"]
           referral_id: string | null
+          retry_of_failure_id: string | null
           source: string | null
           user_agent: string | null
         }
@@ -9587,8 +9589,10 @@ export type Database = {
           document_path?: string | null
           error_message?: string | null
           id?: string
+          is_retry?: boolean
           reason: Database["public"]["Enums"]["resume_access_failure_reason"]
           referral_id?: string | null
+          retry_of_failure_id?: string | null
           source?: string | null
           user_agent?: string | null
         }
@@ -9600,12 +9604,22 @@ export type Database = {
           document_path?: string | null
           error_message?: string | null
           id?: string
+          is_retry?: boolean
           reason?: Database["public"]["Enums"]["resume_access_failure_reason"]
           referral_id?: string | null
+          retry_of_failure_id?: string | null
           source?: string | null
           user_agent?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "resume_access_failure_audit_retry_of_failure_id_fkey"
+            columns: ["retry_of_failure_id"]
+            isOneToOne: false
+            referencedRelation: "resume_access_failure_audit"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       salary_history: {
         Row: {
@@ -12759,6 +12773,16 @@ export type Database = {
           _error_message: string
           _reason: Database["public"]["Enums"]["resume_access_failure_reason"]
           _referral_id: string
+          _source: string
+          _user_agent: string
+        }
+        Returns: string
+      }
+      log_resume_access_retry: {
+        Args: {
+          _document_path: string
+          _referral_id: string
+          _retry_of_failure_id: string
           _source: string
           _user_agent: string
         }
