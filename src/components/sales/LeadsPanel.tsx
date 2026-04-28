@@ -48,24 +48,31 @@ import { PhoneOutgoing } from 'lucide-react';
 import { ElevenLabsLeadsPanel } from './ElevenLabsLeadsPanel';
 import { Bot } from 'lucide-react';
 
-const LEAD_SOURCES = [
-  'Website',
-  'IndiaMART',
-  'Trade India',
-  'Just Dial',
-  'Google Ads',
-  'Facebook',
-  'Instagram',
-  'LinkedIn',
-  'WhatsApp',
-  'Interakt',
-  'ElevenLabs',
-  'Referral',
-  'Cold Call',
-  'Exhibition',
-  'Email Campaign',
-  'Other',
-] as const;
+/**
+ * Source filter options for the All Leads tab. Each entry maps a
+ * user-facing label to one or more match values that may appear in
+ * `enquiries.lead_source` (canonical) or, for legacy rows, in the
+ * free-text `notes` column.
+ *
+ * Keep this list aligned with the lead-source tabs visible in the
+ * Leads view (QForms, Interakt, MyOperator, ElevenLabs, Emails, Forms,
+ * Google Ads, Call Tracker) and the structured channels actually
+ * stamped onto enquiries. Channels we never stamp are intentionally
+ * omitted to avoid dead filter options.
+ */
+const LEAD_SOURCE_OPTIONS: { label: string; matches: string[] }[] = [
+  { label: 'Website Form', matches: ['website_form', 'form', 'website'] },
+  { label: 'QForms', matches: ['qform', 'q-form'] },
+  { label: 'Google Ads', matches: ['google_ads', 'google ads'] },
+  { label: 'IndiaMART', matches: ['indiamart'] },
+  { label: 'Interakt', matches: ['interakt'] },
+  { label: 'MyOperator', matches: ['myoperator', 'exotel'] },
+  { label: 'ElevenLabs', matches: ['elevenlabs'] },
+  { label: 'Email', matches: ['email', 'gmail'] },
+  { label: 'Referral', matches: ['referral'] },
+  { label: 'Exhibition', matches: ['exhibition', 'event'] },
+  { label: 'Other', matches: ['other'] },
+];
 
 interface LeadsPanelProps {
   initialSearch?: string | null;
