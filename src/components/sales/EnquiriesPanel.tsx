@@ -23,6 +23,7 @@ import { EnquiryFormDialog } from './EnquiryFormDialog';
 import { CallIntelligencePanel } from './CallIntelligencePanel';
 import { AssigneeCell } from './AssigneeCell';
 import { LinkToCompanyButton } from './LinkToCompanyButton';
+import { useProfileNames } from '@/hooks/useProfileNames';
 import { cn } from '@/lib/utils';
 
 interface EnquiriesPanelProps {
@@ -63,7 +64,16 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
   }, [selectedLeadId, loading, enquiries, fetchEnquiryItems]);
 
   const canSeeAllEnquiries = role === 'admin' || role === 'supply_chain';
-  const salesPersons = Array.from(new Set(enquiries.map(e => e.sales_person_name))).filter(Boolean).sort();
+  const { resolveName } = useProfileNames();
+  const salesPersons = Array.from(
+    new Map(
+      enquiries
+        .filter(e => e.sales_person_id)
+        .map(e => [e.sales_person_id as string, { id: e.sales_person_id as string, name: resolveName(e.sales_person_id) }])
+    ).values()
+  )
+    .filter(p => p.name && p.name !== '—')
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const filteredEnquiries = enquiries.filter(e => {
     if (!canSeeAllEnquiries && e.sales_person_id !== user?.id) {
@@ -77,7 +87,7 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
     
     const matchesCategory = categoryFilter === 'all' || e.product_category === categoryFilter;
     const matchesStatus = statusFilter === 'all' || e.status === statusFilter;
-    const matchesSalesPerson = salesPersonFilter === 'all' || e.sales_person_name === salesPersonFilter;
+    const matchesSalesPerson = salesPersonFilter === 'all' || e.sales_person_id === salesPersonFilter;
     
     return matchesSearch && matchesCategory && matchesStatus && matchesSalesPerson;
   });
@@ -253,7 +263,7 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
                   <SelectContent>
                     <SelectItem value="all">All Sales</SelectItem>
                     {salesPersons.map((person) => (
-                      <SelectItem key={person} value={person}>{person}</SelectItem>
+                      <SelectItem key={person.id} value={person.id}>{person.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
