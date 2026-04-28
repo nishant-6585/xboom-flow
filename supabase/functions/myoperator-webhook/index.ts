@@ -71,6 +71,7 @@ Deno.serve(async (req) => {
       // Extract ALL agents from _ld array (not just "received")
       let assignedAgentName: string | null = null;
       let assignedAgentPhone: string | null = null;
+      let assignedAgentId: string | null = null;
       const allAgents: string[] = [];
 
       if (body._ld && Array.isArray(body._ld)) {
@@ -94,8 +95,50 @@ Deno.serve(async (req) => {
             const firstReceiver = receivers[0] as Record<string, unknown>;
             assignedAgentName = getString(firstReceiver, '_na') || null;
             assignedAgentPhone = getString(firstReceiver, '_ct') || null;
+            assignedAgentId = getString(firstReceiver, '_id') || null;
           }
         }
+      }
+
+      // === Phase 2: resolve sales_person_id via centralized agent_user_mapping ===
+      let resolvedSalesPersonId: string | null = null;
+      let resolverFallback: 'agent_id' | 'agent_phone' | 'none' = 'none';
+      try {
+        if (assignedAgentId) {
+          const { data } = await supabase.rpc('resolve_agent_user', {
+            _provider: 'myoperator',
+            _agent_id: assignedAgentId,
+            _agent_phone: null,
+          });
+          if (data) { resolvedSalesPersonId = data as string; resolverFallback = 'agent_id'; }
+        }
+        if (!resolvedSalesPersonId && assignedAgentPhone) {
+          const { data } = await supabase.rpc('resolve_agent_user', {
+            _provider: 'myoperator',
+            _agent_id: null,
+            _agent_phone: assignedAgentPhone,
+          });
+          if (data) { resolvedSalesPersonId = data as string; resolverFallback = 'agent_phone'; }
+        }
+      } catch (e) {
+        console.error('[myoperator-webhook] resolve_agent_user failed:', e);
+      }
+
+      console.log('[myoperator-webhook] assignment debug', {
+        agent_id: assignedAgentId,
+        agent_phone: assignedAgentPhone,
+        agent_name: assignedAgentName,
+        resolved_user_id: resolvedSalesPersonId,
+        fallback_used: resolverFallback,
+      });
+
+      if (!resolvedSalesPersonId && (assignedAgentId || assignedAgentPhone)) {
+        console.warn('UNMAPPED_AGENT', {
+          provider: 'myoperator',
+          agent_id: assignedAgentId,
+          agent_phone: assignedAgentPhone,
+          agent_name: assignedAgentName,
+        });
       }
 
       // Normalize caller number
@@ -149,6 +192,7 @@ Deno.serve(async (req) => {
             agent_number: assignedAgentPhone,
             assigned_agent_name: agentDisplay,
             assigned_agent_phone: assignedAgentPhone,
+            ...(resolvedSalesPersonId ? { sales_person_id: resolvedSalesPersonId } : {}),
             department,
             start_time: startTime,
             end_time: endTime,
@@ -182,6 +226,7 @@ Deno.serve(async (req) => {
           agent_name: agentDisplay,
           assigned_agent_name: agentDisplay,
           assigned_agent_phone: assignedAgentPhone,
+          sales_person_id: resolvedSalesPersonId,
           call_status: callStatus,
           call_duration: duration,
           call_type: callType,
@@ -233,6 +278,7 @@ Deno.serve(async (req) => {
               quantity: 1,
               urgency: 'normal',
               sales_person_name: agentDisplay || 'Unassigned',
+              sales_person_id: resolvedSalesPersonId,
               status: 'new',
               notes: [
                 'Auto-created from MyOperator call.',

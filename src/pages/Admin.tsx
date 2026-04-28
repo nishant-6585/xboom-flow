@@ -47,6 +47,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { SlackSettingsPanel } from "@/components/admin/SlackSettingsPanel";
 import { MyOperatorSettingsPanel } from "@/components/admin/MyOperatorSettingsPanel";
 import { ExotelSettingsPanel } from "@/components/admin/ExotelSettingsPanel";
+import AgentMappingPanel from "@/components/admin/AgentMappingPanel";
 
 import { FormPermissionsPanel } from "@/components/admin/FormPermissionsPanel";
 import { AdminSignatureSettings } from "@/components/admin/AdminSignatureSettings";
@@ -698,6 +699,10 @@ const Admin = () => {
                   <History className="w-4 h-4" />
                   Employee Activity
                 </TabsTrigger>
+                <TabsTrigger value="agent-mapping" className="flex items-center gap-2">
+                  <UserCog className="w-4 h-4" />
+                  Agent Mapping
+                </TabsTrigger>
                 <TabsTrigger value="audit-logs" className="flex items-center gap-2" onClick={() => navigate("/admin/audit-logs")}>
                   <Shield className="w-4 h-4" />
                   Audit Logs
@@ -1171,6 +1176,10 @@ const Admin = () => {
 
           <TabsContent value="employee-activity">
             <AdminEmployeeActivity />
+          </TabsContent>
+
+          <TabsContent value="agent-mapping">
+            <AgentMappingPanel />
           </TabsContent>
         </Tabs>
       </main>
