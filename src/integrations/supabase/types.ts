@@ -12921,6 +12921,50 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      update_woo_lead_status: {
+        Args: { p_new_status: string; p_order_id: string }
+        Returns: {
+          amount_paid: number | null
+          courier: string | null
+          created_at: string
+          currency: string | null
+          customer_company: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          expected_delivery: string | null
+          financial_status: string | null
+          fulfillment_status: string | null
+          id: string
+          internal_notes: string | null
+          line_items: Json | null
+          order_number: string | null
+          order_status: string | null
+          payment_status: string | null
+          product_category: string | null
+          product_code: string | null
+          product_name: string
+          quantity: number
+          raw_data: Json | null
+          sales_notes: string | null
+          selling_price: number | null
+          shipping_address: string | null
+          source: string
+          total_sales_amount: number | null
+          tracking_number: string | null
+          tracking_status: string | null
+          updated_at: string
+          woo_created_at: string | null
+          woo_order_id: string
+          woo_updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "woocommerce_orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       validate_admin_registration: {
         Args: { p_email: string }
         Returns: {

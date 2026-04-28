@@ -1,9 +1,9 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import {
   Globe, Search, Phone, MessageCircle, Mail, RefreshCw,
   LayoutGrid, Table as TableIcon, ChevronDown, ChevronRight,
-  Package, ShoppingCart, ExternalLink,
+  Package, ShoppingCart, ExternalLink, Loader2, Save,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useWooCommerceOrders } from "@/hooks/useWooCommerceOrders";
 import { isWooLeadStatus } from "@/lib/wooOrderStatuses";
 import { WooLeadActivityLog } from "./WooLeadActivityLog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 /**
  * Xboom Website Leads
@@ -78,6 +80,8 @@ export function XboomWebsiteLeadsPanel() {
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [statusDraft, setStatusDraft] = useState<string>("");
+  const [savingStatus, setSavingStatus] = useState(false);
 
   const leads = useMemo(
     () => wooOrders.filter((o) => isWooLeadStatus(o.order_status)),
@@ -118,6 +122,29 @@ export function XboomWebsiteLeadsPanel() {
     () => leads.find((l) => l.id === selectedId) ?? null,
     [leads, selectedId],
   );
+
+  // Reset draft whenever the drawer's selected lead changes
+  const selectedStatus = (selected?.order_status || "").toLowerCase();
+  useEffect(() => {
+    setStatusDraft(selectedStatus);
+  }, [selectedId, selectedStatus]);
+
+  const saveStatus = async () => {
+    if (!selected || !statusDraft || statusDraft === selectedStatus) return;
+    setSavingStatus(true);
+    const { error } = await supabase.rpc("update_woo_lead_status", {
+      p_order_id: selected.id,
+      p_new_status: statusDraft,
+    });
+    setSavingStatus(false);
+    if (error) {
+      console.error("[XboomWebsiteLeadsPanel] saveStatus failed", error);
+      toast.error(error.message || "Could not update status");
+      return;
+    }
+    toast.success(`Status updated to ${statusDraft}`);
+    refetch();
+  };
 
   const toggleRow = (id: string) => {
     setExpanded((prev) => {
@@ -450,13 +477,50 @@ export function XboomWebsiteLeadsPanel() {
           </SheetHeader>
           {selected && (
             <div className="mt-6 space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">Status</p>
-                  <Badge variant="outline" className={`capitalize ${STATUS_COLORS[(selected.order_status || "").toLowerCase()] ?? "bg-muted"}`}>
+              <div className="rounded-lg border bg-card p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground">Lead Status</p>
+                  <Badge variant="outline" className={`capitalize ${STATUS_COLORS[selectedStatus] ?? "bg-muted"}`}>
                     {(selected.order_status || "unknown").replace(/-/g, " ")}
                   </Badge>
                 </div>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={statusDraft}
+                    onValueChange={setStatusDraft}
+                    disabled={savingStatus}
+                  >
+                    <SelectTrigger className="h-9 flex-1 text-sm">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LEAD_STATUSES.map((s) => (
+                        <SelectItem key={s} value={s} className="capitalize">
+                          {s.replace(/-/g, " ")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    onClick={saveStatus}
+                    disabled={
+                      savingStatus ||
+                      !statusDraft ||
+                      statusDraft === selectedStatus
+                    }
+                    className="gap-1.5"
+                  >
+                    {savingStatus ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Save className="h-3.5 w-3.5" />
+                    )}
+                    Save
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs text-muted-foreground">Payment Status</p>
                   <p className="capitalize">{selected.payment_status || "—"}</p>
