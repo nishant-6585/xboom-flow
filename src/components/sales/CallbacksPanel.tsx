@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, isToday, isBefore, differenceInHours } from 'date-fns';
 import { Phone, PhoneOff, Search, CheckCircle2, User, RefreshCw, AlertTriangle, ArrowRightLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AssigneeCell } from './AssigneeCell';
 
 interface SalesProfile {
   user_id: string;
@@ -210,6 +211,7 @@ export function CallbacksPanel() {
               <TableRow>
                 <TableHead>Priority</TableHead>
                 <TableHead>Caller</TableHead>
+                <TableHead>Company</TableHead>
                 <TableHead>Details</TableHead>
                 <TableHead>Missed At</TableHead>
                 <TableHead>Assigned To</TableHead>
@@ -219,7 +221,7 @@ export function CallbacksPanel() {
             <TableBody>
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     <PhoneOff className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     No callbacks found
                   </TableCell>
@@ -251,6 +253,7 @@ export function CallbacksPanel() {
                       </div>
                       {cb.customer_name && <div className="text-xs text-muted-foreground">{cb.customer_name}</div>}
                     </TableCell>
+                    <TableCell className="text-sm">{cb.customer_company || '—'}</TableCell>
                     <TableCell>
                       {cb.customer_company && <div className="text-xs">{cb.customer_company}</div>}
                       {cb.product_name && <div className="text-[10px] text-muted-foreground">{cb.product_name}</div>}
@@ -261,10 +264,7 @@ export function CallbacksPanel() {
                       <div className="text-[10px] text-muted-foreground">{hoursAgo}h ago</div>
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm flex items-center gap-1">
-                        <User className="w-3 h-3 text-muted-foreground" />
-                        {cb.assigned_to_name || <span className="text-muted-foreground italic">Unassigned</span>}
-                      </div>
+                      <AssigneeCell userId={(cb as any).assigned_to} name={cb.assigned_to_name} />
                     </TableCell>
                     <TableCell className="text-right">
                       {cb.status === 'pending' && (
