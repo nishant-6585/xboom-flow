@@ -1103,6 +1103,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <ElevenLabsLeadsPanel />
       </TabsContent>
 
+      <TabsContent value="xboom-website">
+        <XboomWebsiteLeadsPanel />
+      </TabsContent>
+
       <TabsContent value="call-tracker">
         <OutboundCallTracker />
       </TabsContent>
