@@ -89,6 +89,53 @@ export function XboomWebsiteLeadsPanel() {
   });
   const { user } = useAuth();
 
+  // Salespeople available for assignment (admin / sales / sales_manager).
+  const [salespeople, setSalespeople] = useState<
+    Array<{ user_id: string; name: string }>
+  >([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("user_id, role, profiles!inner(user_id, name, email, is_approved)")
+        .in("role", ["admin", "sales", "sales_manager"]);
+      if (cancelled || error || !data) return;
+      const map = new Map<string, { user_id: string; name: string }>();
+      for (const r of data as unknown as Array<{
+        user_id: string;
+        profiles: { user_id: string; name: string | null; email: string | null; is_approved: boolean };
+      }>) {
+        if (!r.profiles?.is_approved) continue;
+        const name = r.profiles.name || r.profiles.email || "Salesperson";
+        if (!map.has(r.user_id)) map.set(r.user_id, { user_id: r.user_id, name });
+      }
+      setSalespeople(
+        Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name)),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+  const handleAssign = async (orderId: string, assigneeId: string) => {
+    setAssigningId(orderId);
+    const { error } = await supabase.rpc("assign_woo_lead", {
+      p_order_id: orderId,
+      p_assignee: assigneeId,
+    });
+    setAssigningId(null);
+    if (error) {
+      console.error("[XboomWebsiteLeadsPanel] assign failed", error);
+      toast.error(error.message || "Could not assign lead");
+      return;
+    }
+    toast.success("Lead assigned");
+    refetch();
+  };
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
@@ -509,6 +556,7 @@ export function XboomWebsiteLeadsPanel() {
                   <TableHead>Product</TableHead>
                   <TableHead className="text-right">Value</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Assigned To</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -558,6 +606,26 @@ export function XboomWebsiteLeadsPanel() {
                           <Badge variant="outline" className={`capitalize ${STATUS_COLORS[status] ?? "bg-muted"}`}>
                             {status.replace(/-/g, " ") || "unknown"}
                           </Badge>
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Select
+                            value={l.assigned_to ?? ""}
+                            onValueChange={(v) => handleAssign(l.id, v)}
+                            disabled={assigningId === l.id || salespeople.length === 0}
+                          >
+                            <SelectTrigger className="h-7 w-[150px] text-xs">
+                              <SelectValue placeholder="Unassigned">
+                                {l.assigned_to_name || "Unassigned"}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {salespeople.map((s) => (
+                                <SelectItem key={s.user_id} value={s.user_id} className="text-xs">
+                                  {s.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {relativeTime(l.woo_created_at || l.created_at)}
@@ -630,7 +698,7 @@ export function XboomWebsiteLeadsPanel() {
                       {isOpen && (
                         <TableRow className="bg-muted/20">
                           <TableCell />
-                          <TableCell colSpan={7}>
+                         <TableCell colSpan={8}>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs py-2">
                               <div>
                                 <p className="text-muted-foreground">Order #</p>
@@ -693,6 +761,12 @@ export function XboomWebsiteLeadsPanel() {
                   <div className="flex items-center gap-2 text-sm">
                     <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="truncate">{l.product_name}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Assigned to:{" "}
+                    <span className="font-medium text-foreground">
+                      {l.assigned_to_name || "Unassigned"}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t">
                     <span className="text-sm font-semibold">{formatINR(l.total_sales_amount)}</span>
