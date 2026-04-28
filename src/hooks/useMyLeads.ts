@@ -69,7 +69,7 @@ export function useMyLeads() {
       fetches.push((async () => {
         let q: any = supabase
           .from("enquiries")
-          .select("id, customer_name, product_name, customer_company, created_at, status, customer_state, customer_type, lead_source")
+          .select("id, customer_name, product_name, customer_company, created_at, status, customer_state, customer_type, lead_source, sales_person_id")
           .order("created_at", { ascending: false })
           .limit(PER_SOURCE_LIMIT);
         q = scope(q);
@@ -90,6 +90,7 @@ export function useMyLeads() {
             next_followup_at: null,
             followup_status: null,
             customer_type: r.customer_type || null,
+            assigned_user_id: r.sales_person_id ?? null,
           }, "enquiry"))
         );
       })());
@@ -98,7 +99,7 @@ export function useMyLeads() {
       fetches.push((async () => {
         let q: any = supabase
           .from("call_logs")
-          .select("id, customer_name, product_name, company, created_at, call_status, city, caller_number, email, customer_type")
+          .select("id, customer_name, product_name, company, created_at, call_status, city, caller_number, email, customer_type, sales_person_id")
           .order("created_at", { ascending: false })
           .limit(PER_SOURCE_LIMIT);
         q = scope(q);
@@ -119,6 +120,7 @@ export function useMyLeads() {
             next_followup_at: null,
             followup_status: null,
             customer_type: r.customer_type || null,
+            assigned_user_id: r.sales_person_id ?? null,
           }, "call"))
         );
       })());
@@ -127,7 +129,7 @@ export function useMyLeads() {
       fetches.push((async () => {
         let q: any = supabase
           .from("form_leads")
-          .select("id, customer_name, product_name, company, created_at, status, city, email, customer_type, phone_number")
+          .select("id, customer_name, product_name, company, created_at, status, city, email, customer_type, phone_number, sales_person_id")
           .order("created_at", { ascending: false })
           .limit(PER_SOURCE_LIMIT);
         q = scope(q);
@@ -148,6 +150,7 @@ export function useMyLeads() {
             next_followup_at: null,
             followup_status: null,
             customer_type: r.customer_type || null,
+            assigned_user_id: r.sales_person_id ?? null,
           }, "form"))
         );
       })());
@@ -156,7 +159,7 @@ export function useMyLeads() {
       fetches.push((async () => {
         let q: any = supabase
           .from("email_leads")
-          .select("id, customer_name, product_name, customer_company, created_at, status, city, email, phone_number, customer_type")
+          .select("id, customer_name, product_name, customer_company, created_at, status, city, email, phone_number, customer_type, sales_person_id")
           .order("created_at", { ascending: false })
           .limit(PER_SOURCE_LIMIT);
         q = scope(q);
@@ -177,6 +180,7 @@ export function useMyLeads() {
             next_followup_at: null,
             followup_status: null,
             customer_type: r.customer_type || null,
+            assigned_user_id: r.sales_person_id ?? null,
           }, "email"))
         );
       })());
@@ -185,7 +189,7 @@ export function useMyLeads() {
       fetches.push((async () => {
         let q: any = supabase
           .from("interakt_leads")
-          .select("id, customer_name, product_name, company, created_at, status, city, email, phone_number, customer_type")
+          .select("id, customer_name, product_name, company, created_at, status, city, email, phone_number, customer_type, sales_person_id")
           .order("created_at", { ascending: false })
           .limit(PER_SOURCE_LIMIT);
         q = scope(q);
@@ -206,6 +210,7 @@ export function useMyLeads() {
             next_followup_at: null,
             followup_status: null,
             customer_type: r.customer_type || null,
+            assigned_user_id: r.sales_person_id ?? null,
           }, "interakt"))
         );
       })());
@@ -235,6 +240,7 @@ export function useMyLeads() {
             next_followup_at: null,
             followup_status: null,
             customer_type: r.customer_type || null,
+            assigned_user_id: r.sales_person_id ?? null,
           }, "google_ads"))
         );
       })());
@@ -264,6 +270,7 @@ export function useMyLeads() {
             next_followup_at: null,
             followup_status: null,
             customer_type: null,
+            assigned_user_id: r.assigned_to ?? null,
           }, "lead"))
         );
       })());
@@ -293,6 +300,7 @@ export function useMyLeads() {
             next_followup_at: null,
             followup_status: null,
             customer_type: null,
+            assigned_user_id: r.created_by ?? null,
           }, "prospect"))
         );
       })());
