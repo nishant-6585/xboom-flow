@@ -14,9 +14,11 @@ import { RepairCard } from "@/components/repairs/RepairCard";
 import { RepairForm } from "@/components/repairs/RepairForm";
 import { RepairImportDialog } from "@/components/repairs/RepairImportDialog";
 import { RepairDialog } from "@/components/repairs/RepairDialog";
-import { Plus, Search, Wrench, IndianRupee, Clock, CheckCircle, Upload, Download, Loader2 } from "lucide-react";
+import { Plus, Search, Wrench, IndianRupee, Clock, CheckCircle, Upload, Download, Loader2, CalendarRange } from "lucide-react";
 import { exportRepairsToExcel } from "@/utils/repairExportHelpers";
 import { toast } from "sonner";
+import { useDateFilter } from "@/hooks/useDateFilter";
+import { MonthFilter } from "@/components/MonthFilter";
 
 export default function Repairs() {
   const { user, profile } = useAuth();
@@ -29,6 +31,7 @@ export default function Repairs() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [issueFilter, setIssueFilter] = useState<string>("all");
   const [exporting, setExporting] = useState(false);
+  const dateFilter = useDateFilter("current_month");
 
   const handleExport = async () => {
     try {
@@ -52,18 +55,22 @@ export default function Repairs() {
     
     const matchesStatus = statusFilter === "all" || repair.payment_status === statusFilter;
     const matchesIssue = issueFilter === "all" || repair.issue_type === issueFilter;
-    
-    return matchesSearch && matchesStatus && matchesIssue;
+    const matchesDate = dateFilter.inRange(repair.created_at);
+
+    return matchesSearch && matchesStatus && matchesIssue && matchesDate;
   });
 
-  // Calculate stats
+  // Calculate stats (filtered by selected period)
   const stats = {
-    total: repairs.length,
-    pending: repairs.filter(r => !r.date_completed).length,
-    completed: repairs.filter(r => r.date_completed).length,
-    totalRevenue: repairs.reduce((sum, r) => sum + (r.total_quote_amount || 0), 0),
-    totalProfit: repairs.reduce((sum, r) => sum + (r.profit || 0), 0),
-    pendingPayments: repairs.filter(r => r.payment_status !== 'paid').length,
+    total: filteredRepairs.length,
+    pending: filteredRepairs.filter(r => !r.date_completed).length,
+    completed: filteredRepairs.filter(r => r.date_completed).length,
+    totalRevenue: filteredRepairs.reduce((sum, r) => sum + (r.total_quote_amount || 0), 0),
+    totalProfit: filteredRepairs.reduce((sum, r) => sum + (r.profit || 0), 0),
+    pendingPayments: filteredRepairs.filter(r => r.payment_status !== 'paid').length,
+    monthlyRevenue: filteredRepairs
+      .filter(r => r.payment_status === 'paid')
+      .reduce((sum, r) => sum + (r.total_quote_amount || 0), 0),
   };
 
   const handleCreate = async (data: RepairFormData) => {
@@ -109,7 +116,7 @@ export default function Repairs() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
@@ -166,6 +173,18 @@ export default function Repairs() {
               <p className="text-2xl font-bold mt-1">{stats.pendingPayments}</p>
             </CardContent>
           </Card>
+          <Card className="border-primary/40">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <CalendarRange className="h-4 w-4 text-primary" />
+                <span className="text-sm text-muted-foreground">
+                  {dateFilter.preset === "custom" ? "Revenue (Selected Period)" : "Monthly Revenue"}
+                </span>
+              </div>
+              <p className="text-2xl font-bold mt-1 text-primary">₹{stats.monthlyRevenue.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground mt-1">{dateFilter.rangeLabel}</p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Filters */}
@@ -179,6 +198,7 @@ export default function Repairs() {
               className="pl-10"
             />
           </div>
+          <MonthFilter filter={dateFilter} />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Payment Status" />
