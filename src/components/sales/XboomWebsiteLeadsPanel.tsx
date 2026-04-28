@@ -698,7 +698,7 @@ export function XboomWebsiteLeadsPanel() {
                       {isOpen && (
                         <TableRow className="bg-muted/20">
                           <TableCell />
-                          <TableCell colSpan={7}>
+                         <TableCell colSpan={8}>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs py-2">
                               <div>
                                 <p className="text-muted-foreground">Order #</p>
