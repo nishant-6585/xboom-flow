@@ -22,6 +22,7 @@ import * as XLSX from 'xlsx';
 import { EnquiryFormDialog } from './EnquiryFormDialog';
 import { CallIntelligencePanel } from './CallIntelligencePanel';
 import { AssigneeCell } from './AssigneeCell';
+import { LinkToCompanyButton } from './LinkToCompanyButton';
 import { cn } from '@/lib/utils';
 
 interface EnquiriesPanelProps {
@@ -336,7 +337,10 @@ export function EnquiriesPanel({ selectedLeadId }: EnquiriesPanelProps = {}) {
                            <span className="font-medium">{enquiry.quantity}</span>
                          </TableCell>
                           <TableCell>
-                            <AssigneeCell userId={(enquiry as any).sales_person_id} name={enquiry.sales_person_name} />
+                             <div className="flex items-center gap-1">
+                               <AssigneeCell userId={(enquiry as any).sales_person_id} name={enquiry.sales_person_name} />
+                               <LinkToCompanyButton lead={{ customer_name: enquiry.customer_name, company: (enquiry as any).customer_company, phone: (enquiry as any).customer_phone, email: (enquiry as any).customer_email, city: (enquiry as any).customer_city, state: (enquiry as any).customer_state, source_label: 'Enquiry' }} />
+                             </div>
                           </TableCell>
                          <TableCell>
                            <Badge variant="outline" className={cn("capitalize text-xs", getUrgencyColor(enquiry.urgency))}>
