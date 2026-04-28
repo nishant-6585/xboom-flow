@@ -21,6 +21,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWooCommerceOrders } from "@/hooks/useWooCommerceOrders";
 import { isWooLeadStatus } from "@/lib/wooOrderStatuses";
+import { WooLeadActivityLog } from "./WooLeadActivityLog";
 
 /**
  * Xboom Website Leads
@@ -501,6 +502,9 @@ export function XboomWebsiteLeadsPanel() {
                     <Mail className="h-4 w-4" />
                   </Button>
                 )}
+              </div>
+              <div className="border-t pt-4">
+                <WooLeadActivityLog order={selected} />
               </div>
             </div>
           )}
