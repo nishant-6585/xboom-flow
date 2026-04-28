@@ -21,6 +21,9 @@ type WooOrder = {
   woo_created_at: string | null;
   woo_updated_at: string | null;
   payment_status: string | null;
+  customer_note?: string | null;
+  internal_notes?: string | null;
+  sales_notes?: string | null;
 };
 
 type ActivityType =
@@ -39,12 +42,12 @@ type ManualEntry = {
 
 type TimelineItem = {
   id: string;
-  type: ActivityType | "created" | "updated";
+  type: ActivityType | "created" | "updated" | "woo_note" | "woo_customer_note";
   label: string;
   description?: string;
   actor?: string;
   at: string;
-  source: "derived" | "manual";
+  source: "derived" | "manual" | "woo";
   ownedByMe?: boolean;
 };
 
