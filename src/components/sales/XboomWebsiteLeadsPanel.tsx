@@ -1,9 +1,9 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import {
   Globe, Search, Phone, MessageCircle, Mail, RefreshCw,
   LayoutGrid, Table as TableIcon, ChevronDown, ChevronRight,
-  Package, ShoppingCart, ExternalLink, Loader2, Save,
+  Package, ShoppingCart, ExternalLink, Loader2, Save, Clock,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -83,6 +83,34 @@ export function XboomWebsiteLeadsPanel() {
   const [statusDraft, setStatusDraft] = useState<string>("");
   const [savingStatus, setSavingStatus] = useState(false);
 
+  // Persisted "last opened" map: lead id -> ISO timestamp
+  const LAST_OPENED_KEY = "xboomWebsiteLeads.lastOpened";
+  const LAST_FOCUSED_KEY = "xboomWebsiteLeads.lastFocusedId";
+  const [lastOpened, setLastOpened] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      return JSON.parse(localStorage.getItem(LAST_OPENED_KEY) || "{}");
+    } catch { return {}; }
+  });
+  const [lastFocusedId, setLastFocusedId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(LAST_FOCUSED_KEY);
+  });
+  const rowRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const hasRestoredRef = useRef(false);
+
+  const recordOpen = (id: string) => {
+    setLastFocusedId(id);
+    setLastOpened((prev) => {
+      const next = { ...prev, [id]: new Date().toISOString() };
+      try {
+        localStorage.setItem(LAST_OPENED_KEY, JSON.stringify(next));
+        localStorage.setItem(LAST_FOCUSED_KEY, id);
+      } catch { /* ignore quota */ }
+      return next;
+    });
+  };
+
   const leads = useMemo(
     () => wooOrders.filter((o) => isWooLeadStatus(o.order_status)),
     [wooOrders],
@@ -129,6 +157,20 @@ export function XboomWebsiteLeadsPanel() {
     setStatusDraft(selectedStatus);
   }, [selectedId, selectedStatus]);
 
+  // On first successful load, restore scroll & focus to the previously
+  // opened row so the user lands back where they left off.
+  useEffect(() => {
+    if (loading || hasRestoredRef.current || !lastFocusedId) return;
+    const el = rowRefs.current.get(lastFocusedId);
+    if (!el) return;
+    hasRestoredRef.current = true;
+    // Defer until after paint so layout is stable
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      try { el.focus({ preventScroll: true }); } catch { /* noop */ }
+    });
+  }, [loading, filtered, lastFocusedId, viewMode]);
+
   const saveStatus = async () => {
     if (!selected || !statusDraft || statusDraft === selectedStatus) return;
     setSavingStatus(true);
@@ -152,6 +194,7 @@ export function XboomWebsiteLeadsPanel() {
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+    recordOpen(id);
   };
 
   const openWhatsApp = (phone: string | null) => {
@@ -375,7 +418,15 @@ export function XboomWebsiteLeadsPanel() {
                   const isOpen = expanded.has(l.id);
                   return (
                     <Fragment key={l.id}>
-                      <TableRow className="cursor-pointer hover:bg-muted/40" onClick={() => toggleRow(l.id)}>
+                       <TableRow
+                         className={`cursor-pointer hover:bg-muted/40 ${lastFocusedId === l.id ? "bg-primary/5 ring-1 ring-inset ring-primary/30" : ""}`}
+                         onClick={() => toggleRow(l.id)}
+                         ref={(el) => {
+                           if (el) rowRefs.current.set(l.id, el);
+                           else rowRefs.current.delete(l.id);
+                         }}
+                         tabIndex={-1}
+                       >
                         <TableCell>
                           {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                         </TableCell>
@@ -384,6 +435,12 @@ export function XboomWebsiteLeadsPanel() {
                           {l.customer_email && (
                             <div className="text-xs text-muted-foreground truncate max-w-[200px]">{l.customer_email}</div>
                           )}
+                           {lastOpened[l.id] && (
+                             <div className="text-[10px] text-muted-foreground/80 mt-0.5 inline-flex items-center gap-1" title={format(new Date(lastOpened[l.id]), "PPpp")}>
+                               <Clock className="h-2.5 w-2.5" />
+                               Last opened {formatDistanceToNow(new Date(lastOpened[l.id]), { addSuffix: true })}
+                             </div>
+                           )}
                         </TableCell>
                         <TableCell className="font-mono text-xs">{formatPhone(l.customer_phone)}</TableCell>
                         <TableCell>
@@ -416,7 +473,7 @@ export function XboomWebsiteLeadsPanel() {
                                 </Button>
                               </>
                             )}
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setSelectedId(l.id)} title="View details">
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { recordOpen(l.id); setSelectedId(l.id); }} title="View details">
                               <ExternalLink className="h-3.5 w-3.5" />
                             </Button>
                           </div>
@@ -455,7 +512,16 @@ export function XboomWebsiteLeadsPanel() {
           {filtered.map((l) => {
             const status = (l.order_status || "").toLowerCase();
             return (
-              <Card key={l.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedId(l.id)}>
+              <Card
+                key={l.id}
+                className={`hover:shadow-md transition-shadow cursor-pointer ${lastFocusedId === l.id ? "ring-2 ring-primary/40" : ""}`}
+                onClick={() => { recordOpen(l.id); setSelectedId(l.id); }}
+                ref={(el) => {
+                  if (el) rowRefs.current.set(l.id, el);
+                  else rowRefs.current.delete(l.id);
+                }}
+                tabIndex={-1}
+              >
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <Badge variant="outline" className={`capitalize ${STATUS_COLORS[status] ?? "bg-muted"}`}>
@@ -469,6 +535,12 @@ export function XboomWebsiteLeadsPanel() {
                       <p className="text-xs text-muted-foreground truncate">{l.customer_email}</p>
                     )}
                     <p className="text-xs font-mono text-muted-foreground mt-1">{formatPhone(l.customer_phone)}</p>
+                    {lastOpened[l.id] && (
+                      <p className="text-[10px] text-muted-foreground/80 mt-1 inline-flex items-center gap-1" title={format(new Date(lastOpened[l.id]), "PPpp")}>
+                        <Clock className="h-2.5 w-2.5" />
+                        Last opened {formatDistanceToNow(new Date(lastOpened[l.id]), { addSuffix: true })}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
