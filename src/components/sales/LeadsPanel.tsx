@@ -46,6 +46,8 @@ import { LogCallDialog } from './LogCallDialog';
 import { OutboundCallTracker } from './OutboundCallTracker';
 import { PhoneOutgoing } from 'lucide-react';
 import { ElevenLabsLeadsPanel } from './ElevenLabsLeadsPanel';
+import { XboomWebsiteLeadsPanel } from './XboomWebsiteLeadsPanel';
+import { Globe } from 'lucide-react';
 import { Bot } from 'lucide-react';
 
 /**
@@ -360,6 +362,10 @@ export function LeadsPanel({ initialSearch }: LeadsPanelProps = {}) {
         <TabsTrigger value="elevenlabs" className="gap-1.5">
           <Bot className="h-3.5 w-3.5" />
           ElevenLabs Leads
+        </TabsTrigger>
+        <TabsTrigger value="xboom-website" className="gap-1.5">
+          <Globe className="h-3.5 w-3.5" />
+          Xboom Website
         </TabsTrigger>
         <TabsTrigger value="call-tracker" className="gap-1.5">
           <PhoneOutgoing className="h-3.5 w-3.5" />
