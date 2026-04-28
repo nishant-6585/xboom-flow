@@ -231,7 +231,7 @@ export function WooLeadActivityLog({ order }: { order: WooOrder }) {
     return items.sort(
       (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime(),
     );
-  }, [entries, order, user]);
+  }, [entries, order, user, wooNotes]);
 
   const addEntry = async () => {
     const text = newText.trim();
