@@ -8,6 +8,16 @@ type AppRole = "sales" | "supply_chain" | "admin" | "finance" | "it" | "marketin
 
 const ROLE_PRIORITY: AppRole[] = ["admin", "hr", "finance", "supply_chain", "sales_manager", "it", "marketing", "sales"];
 
+// MFA bypass list — specific developer accounts exempt from MFA enforcement.
+// Note: this weakens security for the listed accounts; keep this list minimal.
+const MFA_BYPASS_EMAILS = new Set<string>([
+  "vishal.saurav@xboom.in",
+  "nishant.k@xboom.in",
+]);
+
+export const isMfaBypassed = (email?: string | null): boolean =>
+  !!email && MFA_BYPASS_EMAILS.has(email.trim().toLowerCase());
+
 interface Profile {
   id: string;
   user_id: string;
