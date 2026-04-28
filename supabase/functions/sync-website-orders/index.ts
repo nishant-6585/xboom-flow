@@ -227,6 +227,14 @@ Deno.serve(async (req) => {
 
       if (orders.length > 0) {
         const mapped = orders.map(mapOrder).filter(Boolean);
+        // Never overwrite an existing valid phone with null. If incoming phone
+        // is null, drop the field from the upsert payload so the existing DB
+        // value is preserved.
+        for (const row of mapped as any[]) {
+          if (row && (row.customer_phone === null || row.customer_phone === "")) {
+            delete row.customer_phone;
+          }
+        }
         // The woocommerce_orders table has a per-row trigger
         // (handle_woocommerce_order_automation) that can be expensive,
         // so we keep chunks small (25) to stay well under the
