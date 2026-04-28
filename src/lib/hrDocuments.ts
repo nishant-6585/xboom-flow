@@ -1,5 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import {
+  classifyStorageError,
+  FRIENDLY,
+  type SignedUrlFailureReason as ClassifyReason,
+} from "./hrDocumentsClassify";
 
 /**
  * Shared helpers for accessing private HR documents (resumes, offer letters, etc.)
@@ -68,97 +73,6 @@ export const getDocumentExt = (path: string | null | undefined): string => {
 export const isSupportedResume = (path: string | null | undefined): boolean =>
   SUPPORTED_RESUME_EXTS.includes(getDocumentExt(path) as SupportedResumeExt);
 
-/**
- * Map a Supabase Storage error (or generic Error / fetch failure) to a
- * stable {@link SignedUrlFailureReason}.
- *
- * Browsers and proxies surface storage failures very differently:
- *   - Chromium tends to expose `statusCode` / `error` fields as numbers/strings.
- *   - Safari sometimes wraps the response so only `message` survives.
- *   - Network failures throw `TypeError: Failed to fetch` (Chromium),
- *     `TypeError: Load failed` (Safari), or `NetworkError when attempting…` (Firefox).
- *
- * We normalise on three signals, in priority order:
- *   1. HTTP status code (`statusCode` / `status` — most reliable).
- *   2. A canonical `error` slug from Supabase (`"NotFound"`, `"Unauthorized"`…).
- *   3. A whitelisted set of word-boundary keywords in the message string.
- */
-const STATUS_REASON: Record<number, SignedUrlFailureReason> = {
-  400: "unknown",
-  401: "forbidden",
-  403: "forbidden",
-  404: "not_found",
-  410: "not_found",
-  // 5xx & other transient codes fall through to "unknown" so the UI
-  // surfaces a Retry action.
-};
-
-const SLUG_REASON: Record<string, SignedUrlFailureReason> = {
-  notfound: "not_found",
-  not_found: "not_found",
-  objectnotfound: "not_found",
-  unauthorized: "forbidden",
-  forbidden: "forbidden",
-  permissiondenied: "forbidden",
-  accessdenied: "forbidden",
-};
-
-/** Word-boundary keyword matchers — order matters: more specific first. */
-const KEYWORD_RULES: Array<{ re: RegExp; reason: SignedUrlFailureReason }> = [
-  // Auth / permission family
-  { re: /\b(forbidden|unauthori[sz]ed|permission\s+denied|access\s+denied|not\s+allowed|rls|row[\s-]?level\s+security|policy)\b/i, reason: "forbidden" },
-  // Missing object family — require explicit "not found" or "no such" phrasing
-  // to avoid false positives on the generic word "object".
-  { re: /\b(not\s+found|no\s+such\s+(object|file|key)|object\s+does\s+not\s+exist|missing\s+object)\b/i, reason: "not_found" },
-];
-
-const FRIENDLY: Record<SignedUrlFailureReason, string> = {
-  missing_path: "Document file is missing",
-  unsupported_format: "Unsupported document format",
-  not_found: "Document not found in storage",
-  forbidden: "You do not have permission to access this document",
-  unknown: "Could not generate download link",
-};
-
-const classifyStorageError = (
-  err: unknown
-): { reason: SignedUrlFailureReason; friendly: string } => {
-  // Normalise the error shape across Supabase Storage / fetch / generic Error.
-  const e: any = err && typeof err === "object" ? err : { message: String(err ?? "") };
-
-  // 1) HTTP status code — most reliable signal.
-  const rawStatus =
-    e.statusCode ?? e.status ?? e.cause?.status ?? e.response?.status;
-  const status = typeof rawStatus === "string" ? parseInt(rawStatus, 10) : rawStatus;
-  if (typeof status === "number" && Number.isFinite(status)) {
-    const mapped = STATUS_REASON[status];
-    if (mapped) {
-      return { reason: mapped, friendly: FRIENDLY[mapped] };
-    }
-  }
-
-  // 2) Canonical error slug from Supabase Storage responses.
-  const slug = String(e.error ?? e.code ?? "")
-    .toLowerCase()
-    .replace(/[\s_-]/g, "");
-  if (slug && SLUG_REASON[slug]) {
-    const reason = SLUG_REASON[slug];
-    return { reason, friendly: FRIENDLY[reason] };
-  }
-
-  // 3) Word-boundary keyword fallback on the message.
-  const message = String(e.message ?? "");
-  for (const rule of KEYWORD_RULES) {
-    if (rule.re.test(message)) {
-      return { reason: rule.reason, friendly: FRIENDLY[rule.reason] };
-    }
-  }
-
-  return {
-    reason: "unknown",
-    friendly: message || FRIENDLY.unknown,
-  };
-};
 
 export type CreateSignedUrlOptions = {
   /** Bucket name (defaults to hr-documents). */
