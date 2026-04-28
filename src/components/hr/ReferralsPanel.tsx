@@ -200,7 +200,7 @@ export function ReferralsPanel() {
     action: "view" | "download"
   ) => {
     try {
-      await supabase.rpc("log_resume_access", {
+      await (supabase as any).rpc("log_resume_access", {
         _referral_id: referralId,
         _document_path: path,
         _action: action,
