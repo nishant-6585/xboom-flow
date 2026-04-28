@@ -81,6 +81,17 @@ export type CreateSignedUrlOptions = {
   ttlSeconds?: number;
   /** When true, only PDF resumes are allowed. */
   resumeOnly?: boolean;
+  /**
+   * Optional referral id used for audit logging when signed URL
+   * generation fails. Fire-and-forget — never blocks the caller.
+   */
+  auditReferralId?: string;
+  /**
+   * Optional UI/source context (e.g. "hr.referrals_panel",
+   * "sales.candidate_drawer") logged alongside the failure to make
+   * debugging which surface triggered the access easier.
+   */
+  auditSource?: string;
 };
 
 /**
@@ -92,19 +103,43 @@ export async function createHrDocumentSignedUrl(
   path: string | null | undefined,
   opts: CreateSignedUrlOptions = {}
 ): Promise<SignedUrlResult> {
-  const { bucket = HR_DOCUMENTS_BUCKET, ttlSeconds = 60 * 5, resumeOnly = false } = opts;
+  const {
+    bucket = HR_DOCUMENTS_BUCKET,
+    ttlSeconds = 60 * 5,
+    resumeOnly = false,
+    auditReferralId,
+    auditSource,
+  } = opts;
+
+  const recordFailure = (failure: SignedUrlFailure) => {
+    try {
+      void (supabase as any).rpc("log_resume_access_failure", {
+        _referral_id: auditReferralId ?? null,
+        _document_path: path ?? null,
+        _reason: failure.reason,
+        _error_message: failure.message,
+        _source: auditSource ?? null,
+        _user_agent:
+          typeof navigator !== "undefined" ? navigator.userAgent : null,
+      });
+    } catch {
+      // Non-blocking: audit failure must not break document access UX.
+    }
+  };
 
   if (!path || !path.trim()) {
-    return {
+    const failure: SignedUrlFailure = {
       ok: false,
       reason: "missing_path",
       message: "Document file is missing",
     };
+    recordFailure(failure);
+    return failure;
   }
 
   if (resumeOnly && !isSupportedResume(path)) {
     const ext = getDocumentExt(path);
-    return {
+    const failure: SignedUrlFailure = {
       ok: false,
       reason: "unsupported_format",
       ext,
@@ -112,6 +147,8 @@ export async function createHrDocumentSignedUrl(
         ? `Only PDF resumes are supported. This file is .${ext}.`
         : "Only PDF resumes are supported.",
     };
+    recordFailure(failure);
+    return failure;
   }
 
   try {
@@ -121,14 +158,18 @@ export async function createHrDocumentSignedUrl(
 
     if (error) {
       const { reason, friendly } = classifyStorageError(error.message);
-      return { ok: false, reason, message: friendly };
+      const failure: SignedUrlFailure = { ok: false, reason, message: friendly };
+      recordFailure(failure);
+      return failure;
     }
     if (!data?.signedUrl) {
-      return {
+      const failure: SignedUrlFailure = {
         ok: false,
         reason: "unknown",
         message: "Could not generate download link",
       };
+      recordFailure(failure);
+      return failure;
     }
     return {
       ok: true,
@@ -137,11 +178,13 @@ export async function createHrDocumentSignedUrl(
       expiresAt: Date.now() + ttlSeconds * 1000,
     };
   } catch (e: any) {
-    return {
+    const failure: SignedUrlFailure = {
       ok: false,
       reason: "unknown",
       message: e?.message || "Unexpected error opening document",
     };
+    recordFailure(failure);
+    return failure;
   }
 }
 
