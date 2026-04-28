@@ -147,6 +147,39 @@ describe("classifyStorageError — degenerate inputs", () => {
   });
 });
 
+describe("classifyStorageError — signals", () => {
+  it("flags keywordMatched=true only when keyword fallback is the deciding signal", () => {
+    const result = classifyStorageError({
+      message: "new row violates row-level security policy",
+    });
+    expect(result.reason).toBe("forbidden");
+    expect(result.signals).toEqual({
+      httpStatus: null,
+      errorSlug: null,
+      keywordMatched: true,
+    });
+  });
+
+  it("does not flag keywordMatched when status code decides", () => {
+    const result = classifyStorageError({
+      statusCode: 403,
+      message: "permission denied",
+    });
+    expect(result.signals.keywordMatched).toBe(false);
+    expect(result.signals.httpStatus).toBe(403);
+  });
+
+  it("captures errorSlug even when status code wins", () => {
+    const result = classifyStorageError({
+      statusCode: 404,
+      error: "Forbidden",
+    });
+    expect(result.signals.httpStatus).toBe(404);
+    expect(result.signals.errorSlug).toBe("forbidden");
+    expect(result.signals.keywordMatched).toBe(false);
+  });
+});
+
 describe("classifyStorageError — priority ordering", () => {
   it("status code wins over slug when both disagree", () => {
     // Real-world: server returns 404 with body { error: 'Forbidden' }.
