@@ -22,6 +22,7 @@ import { ProspectEditDialog } from './ProspectEditDialog';
 import { OrderForm, OrderFormInitialData } from '@/components/OrderForm';
 import { toast } from 'sonner';
 import { LogCallDialog } from './LogCallDialog';
+import { AssigneeCell } from './AssigneeCell';
 
 const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'negotiation', 'converted', 'lost'];
 
