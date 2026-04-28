@@ -17,6 +17,25 @@ export const HR_DOCUMENTS_BUCKET = "hr-documents";
 export const SUPPORTED_RESUME_EXTS = ["pdf"] as const;
 export type SupportedResumeExt = (typeof SUPPORTED_RESUME_EXTS)[number];
 
+/**
+ * Throttled subtle warning when the audit RPC itself fails. We don't want
+ * to spam HR with one toast per failed access attempt — once every few
+ * minutes is enough to prompt them to check backend logs.
+ */
+const AUDIT_WARN_COOLDOWN_MS = 5 * 60 * 1000;
+let lastAuditWarnAt = 0;
+function notifyAuditPipelineBroken(detail?: string) {
+  const now = Date.now();
+  if (now - lastAuditWarnAt < AUDIT_WARN_COOLDOWN_MS) return;
+  lastAuditWarnAt = now;
+  toast.warning("Resume access audit log isn't recording", {
+    description:
+      detail ||
+      "Failures aren't being persisted. Please check backend logging.",
+    duration: 6000,
+  });
+}
+
 export type SignedUrlSuccess = {
   readonly ok: true;
   url: string;
@@ -112,19 +131,28 @@ export async function createHrDocumentSignedUrl(
   } = opts;
 
   const recordFailure = (failure: SignedUrlFailure) => {
-    try {
-      void (supabase as any).rpc("log_resume_access_failure", {
-        _referral_id: auditReferralId ?? null,
-        _document_path: path ?? null,
-        _reason: failure.reason,
-        _error_message: failure.message,
-        _source: auditSource ?? null,
-        _user_agent:
-          typeof navigator !== "undefined" ? navigator.userAgent : null,
-      });
-    } catch {
-      // Non-blocking: audit failure must not break document access UX.
-    }
+    // Fire-and-forget, but observe the result so we can warn HR/Admin
+    // when the audit pipeline itself is broken (RPC missing, RLS denied,
+    // network error, etc.).
+    void (async () => {
+      try {
+        const { error } = await (supabase as any).rpc(
+          "log_resume_access_failure",
+          {
+            _referral_id: auditReferralId ?? null,
+            _document_path: path ?? null,
+            _reason: failure.reason,
+            _error_message: failure.message,
+            _source: auditSource ?? null,
+            _user_agent:
+              typeof navigator !== "undefined" ? navigator.userAgent : null,
+          }
+        );
+        if (error) notifyAuditPipelineBroken(error.message);
+      } catch (e: any) {
+        notifyAuditPipelineBroken(e?.message);
+      }
+    })();
   };
 
   if (!path || !path.trim()) {
