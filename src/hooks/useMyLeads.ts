@@ -66,7 +66,26 @@ export function useMyLeads() {
 
       const fetches: Promise<void>[] = [];
 
-      // Enquiries (excluding google_ads — handled below)
+      // Enquiries — derive a friendly source label from `lead_source`
+      // so structured channels (ElevenLabs / Gmail / IndiaMART etc.) don't
+      // all collapse into the generic "Enquiry" bucket.
+      const ENQUIRY_SOURCE_LABELS: Record<string, string> = {
+        google_ads: "Google Ads",
+        elevenlabs: "ElevenLabs",
+        gmail: "Email",
+        email: "Email",
+        interakt: "Interakt",
+        myoperator: "MyOperator",
+        indiamart: "IndiaMART",
+        referral: "Referral",
+        exhibition: "Exhibition",
+        website_form: "Form",
+      };
+      const labelEnquirySource = (raw: string | null | undefined): string => {
+        if (!raw) return "Enquiry";
+        return ENQUIRY_SOURCE_LABELS[raw.toLowerCase()] ?? "Enquiry";
+      };
+
       fetches.push((async () => {
         let q: any = supabase
           .from("enquiries")
@@ -78,7 +97,7 @@ export function useMyLeads() {
         data?.forEach((r: any) =>
           results.push(addFollowup({
             id: r.id,
-            source: r.lead_source === "google_ads" ? "Google Ads" : "Enquiry",
+            source: labelEnquirySource(r.lead_source),
             customer_name: r.customer_name || "Unknown",
             product_name: r.product_name,
             company: r.customer_company,
@@ -96,11 +115,18 @@ export function useMyLeads() {
         );
       })());
 
-      // MyOperator (call_logs)
+      // call_logs — actual channel comes from `lead_source`
+      // (ElevenLabs / Exotel / MyOperator). Defaulting every row to
+      // "MyOperator" hid ElevenLabs leads from the source filter.
+      const CALL_LOG_SOURCE_LABELS: Record<string, string> = {
+        elevenlabs: "ElevenLabs",
+        exotel: "MyOperator", // Exotel is the carrier behind MyOperator
+        myoperator: "MyOperator",
+      };
       fetches.push((async () => {
         let q: any = supabase
           .from("call_logs")
-          .select("id, customer_name, product_name, company, created_at, call_status, city, caller_number, email, customer_type, sales_person_id")
+          .select("id, customer_name, product_name, company, created_at, call_status, city, caller_number, email, customer_type, sales_person_id, lead_source")
           .order("created_at", { ascending: false })
           .limit(PER_SOURCE_LIMIT);
         q = scope(q);
@@ -108,7 +134,9 @@ export function useMyLeads() {
         data?.forEach((r: any) =>
           results.push(addFollowup({
             id: r.id,
-            source: "MyOperator",
+            source:
+              CALL_LOG_SOURCE_LABELS[String(r.lead_source ?? "").toLowerCase()] ??
+              "MyOperator",
             customer_name: r.customer_name || r.caller_number || "Unknown",
             product_name: r.product_name,
             company: r.company,
